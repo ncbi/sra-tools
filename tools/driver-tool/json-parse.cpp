@@ -181,8 +181,6 @@ UNEXPECTED:
     throw Unexpected(*cur);
 }
 
-struct UnicharTests;
-
 struct Unichar : protected UnicharBasic {
     explicit Unichar(uint32_t codepoint = 0) : UnicharBasic(codepoint) {}
     Unichar(Unichar const &) = default;
@@ -291,9 +289,6 @@ public:
         char buffer[4];
         target.append(buffer, utf8(buffer));
     }
-#if DEBUG || _DEBUGGING
-    static void runTests();
-#endif
 };
 
 

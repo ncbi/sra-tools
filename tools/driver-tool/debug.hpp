@@ -91,15 +91,13 @@ private:
     }
 };
 
-#if DEBUG || _DEBUGGING
-
 #ifndef STRINGIFY
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 #endif
 
+#if DEBUG || _DEBUGGING
 #define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FUNCTION__ << ":" << __LINE__ << ": " << #X << " =\n" << (X) << std::endl; } } while(0)
-
 #else
 #define TRACE(X) ((void)X)
 #endif

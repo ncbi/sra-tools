@@ -296,11 +296,6 @@ private:
 
     /// @brief Parse a word (stops at whitespace or punctuation).
     void word();
-
-#if DEBUG || _DEBUGGING
-public:
-    static void runTests();
-#endif
 };
 
 static inline std::ostream &operator <<(std::ostream &os, JSONParser::EventType evt) {
@@ -355,9 +350,6 @@ struct JSONString {
         }
     }
     operator std::string() const;
-#if DEBUG || _DEBUGGING
-    static void runTests();
-#endif
 };
 
 /// @brief Represents a JSON `null`; used to convert to `void`.
@@ -369,9 +361,6 @@ struct JSONNull {
         DEBUG_OUT << "not null: " << value << std::endl;
         throw JSONScalarConversionError();
     }
-#if DEBUG || _DEBUGGING
-    static void runTests();
-#endif
 };
 
 /// @brief Represents JSON numeric value; does nothing but store it.
@@ -383,9 +372,6 @@ struct JSONNumber {
     operator std::string() const {
         return std::string(value.begin(), value.end());
     }
-#if DEBUG || _DEBUGGING
-    static void runTests() {}
-#endif
 };
 
 /// @brief Represents JSON `true` and `false`; used to convert to `bool`.
@@ -406,9 +392,6 @@ struct JSONBool {
     : value(decode(value))
     {}
     operator bool() const { return value; }
-#if DEBUG || _DEBUGGING
-    static void runTests();
-#endif
 };
 
 /// @brief Provides the conversion mapping.

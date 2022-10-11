@@ -35,28 +35,12 @@
 #pragma warning(disable: 4101)
 #endif
 
+#include <random>
+#include <type_traits>
 #include "json-parse.cpp"
 
-#if !WINDOWS
-#define HAVE_RANDOMS
-#include <cstdio>
-
-struct Randoms {
-    uint64_t some[4];
-
-    Randoms() {
-        FILE *fp = fopen("/dev/urandom", "r");
-        if (fp == NULL)
-            fp = fopen("/dev/random", "r");
-        if (fp) {
-            fread((void *)some, sizeof(*some), 4, fp);
-            fclose(fp);
-        }
-    }
-};
-#endif
-
 struct JSONParserTests {
+    mutable std::random_device rdev;
     char const *failed = nullptr;
     operator bool() const { return failed == nullptr; }
 
@@ -160,14 +144,13 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
         }
     }
-#if HAVE_RANDOMS
     void testTortureJSON_1(unsigned &smallest, unsigned &biggest) const {
-        std::string torture = "";
-        std::string torture2 = "";
-        Randoms const randoms;
+        auto bits = std::independent_bits_engine<std::default_random_engine, 64, uint64_t>(std::default_random_engine(rdev()));
+        std::string torture = ""; // holds the opening symbols
+        std::string torture2 = ""; // holds the closing symbols
 
         for (auto i = 0; i < 4; ++i) {
-            auto rval = randoms.some[i];
+            auto rval = bits();
             int depth = 0;
             while (depth < 64) {
                 if (rval & 1) {
@@ -204,7 +187,6 @@ struct JSONParserTests {
         }
         throw __FUNCTION__;
     }
-#endif
     void testEmpty() {
         try {
             parsed("");
@@ -228,9 +210,7 @@ struct JSONParserTests {
             testBadJSON2_5();
             testBadJSON2_6();
             testBadJSON3();
-#if HAVE_RANDOMS
             testNestedStructs();
-#endif
             testEmpty();
         }
         catch (char const *function) {
@@ -239,7 +219,7 @@ struct JSONParserTests {
     }
 };
 
-void JSONParser::runTests() {
+static void JSONParser_runTests() {
     try {
         JSONParserTests tests;
         if (tests) {
@@ -455,7 +435,7 @@ struct UnicharTests {
     }
 };
 
-void Unichar::runTests() {
+static void Unichar_runTests() {
     try {
         UnicharTests unicharTests;
 
@@ -784,7 +764,7 @@ struct JSONStringTests {
     }
 
     JSONStringTests() {
-        Unichar::runTests();
+        Unichar_runTests();
         testAString();
         testDecodeUTF8_UTF16();
         testDecode16String1();
@@ -887,7 +867,7 @@ struct JSONMemberNameConstraintsTests {
     }
 };
 
-void JSONString::runTests() {
+static void JSONString_runTests() {
     try {
         {
             JSONStringTests tests;
@@ -909,7 +889,7 @@ void JSONString::runTests() {
     abort();
 }
 
-void JSONBool::runTests() {
+static void JSONBool_runTests() {
     try {
         auto const T = JSONBool(StringView("foo"));
         (void)(T);
@@ -925,7 +905,7 @@ void JSONBool::runTests() {
     LOG(8) << "All JSON bool tests passed." << std::endl;
 }
 
-void JSONNull::runTests() {
+static void JSONNull_runTests() {
     try {
         auto const T = JSONNull(StringView("foo"));
         (void)(T);
@@ -946,10 +926,10 @@ int main ( int argc, char *argv[], char *envp[])
 #endif
 {
     try {
-        JSONBool::runTests();
-        JSONNull::runTests();
-        JSONString::runTests();
-        JSONParser::runTests();
+        JSONBool_runTests();
+        JSONNull_runTests();
+        JSONString_runTests();
+        JSONParser_runTests();
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

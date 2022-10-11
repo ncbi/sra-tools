@@ -136,12 +136,6 @@ endif()
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
 
 # global compiler warnings settings
-add_definitions( -Wall )
-if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
-elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
-elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
-=======
-# global compiler warnings settings
 if (MSVC)
     #
     # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files

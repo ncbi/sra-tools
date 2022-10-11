@@ -36,7 +36,7 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         target_compile_definitions(Test_Drivertool_FilePath PRIVATE USE_WIDE_API=1)
 
         add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
-        target_include_directories(Drivertool_Win32_Args_Parsing_Test "${SOURCEDIR}")
+        target_include_directories(Drivertool_Win32_Args_Parsing_Test PRIVATE "${SOURCEDIR}")
         add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
     else ()
         function( DriverToolGoodTest test_name tool_name )

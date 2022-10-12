@@ -163,6 +163,9 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
+
+    # properly report the C++ version in __cplusplus (by default, always set to "199711L" !)
+    add_compile_options("/Zc:__cplusplus")    
 endif()
 
 # assume debug build by default
@@ -700,6 +703,8 @@ message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs include_dirs )
     add_library( ${target_name} STATIC ${sources} )
+get_property(qq TARGET ${target_name} PROPERTY CXX_STANDARD)    
+message("${target_name} CXX_STANDARD=${qq}")
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
     endif()

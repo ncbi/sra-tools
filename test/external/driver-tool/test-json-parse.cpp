@@ -37,10 +37,20 @@
 
 #include <random>
 #include <type_traits>
+#include <initializer_list>
+#include <algorithm>
+
+struct UnicharTests;
+
 #include "json-parse.cpp"
 
+using BitsEngine = std::independent_bits_engine<std::default_random_engine, 64, uint64_t>;
+static BitsEngine bitsEngine() {
+    static std::random_device randev;
+    return BitsEngine(std::default_random_engine(randev()));
+}
+
 struct JSONParserTests {
-    mutable std::random_device rdev;
     char const *failed = nullptr;
     operator bool() const { return failed == nullptr; }
 
@@ -54,6 +64,7 @@ struct JSONParserTests {
     bool parsed(std::string const &json) const {
         return parsed(json.c_str());
     }
+    /// Unbalanced braces: no close
     void testBadJSON1() const {
         try {
             parsed("{");
@@ -63,6 +74,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// Unbalanced braces: no open
     void testBadJSON1_1() const {
         try {
             parsed("}");
@@ -72,6 +84,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
         }
     }
+    /// Unbalanced brackets: no close
     void testBadJSON2() const {
         try {
             parsed("[");
@@ -81,6 +94,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// Unbalanced brackets: no open
     void testBadJSON2_1() const {
         try {
             parsed("]");
@@ -90,6 +104,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::Error" << std::endl;
         }
     }
+    /// 'true' is a good value, but not top level JSON.
     void testBadJSON2_2() const {
         try {
             parsed("true");
@@ -99,6 +114,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// 'false' is a good value, but not top level JSON
     void testBadJSON2_3() const {
         try {
             parsed("false");
@@ -108,6 +124,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// 'null' is a good value, but not top level JSON
     void testBadJSON2_4() const {
         try {
             parsed("null");
@@ -117,6 +134,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// '"foo"' is a good value, but not top level JSON
     void testBadJSON2_5() const {
         try {
             parsed("\"foo\"");
@@ -126,6 +144,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
+    /// 'adsfa' is **not** a good value
     void testBadJSON2_6() const {
         try {
             parsed("adsfa");
@@ -135,6 +154,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::Unexpected" << std::endl;
         }
     }
+    /// ',' is **not** a good value
     void testBadJSON3() const {
         try {
             parsed(",");
@@ -144,13 +164,14 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
         }
     }
+    /// build a random deeply nested JSON structure
     void testTortureJSON_1(unsigned &smallest, unsigned &biggest) const {
-        auto bits = std::independent_bits_engine<std::default_random_engine, 64, uint64_t>(std::default_random_engine(rdev()));
+        auto some_bits = bitsEngine();
         std::string torture = ""; // holds the opening symbols
         std::string torture2 = ""; // holds the closing symbols
 
         for (auto i = 0; i < 4; ++i) {
-            auto rval = bits();
+            auto rval = some_bits();
             int depth = 0;
             while (depth < 64) {
                 if (rval & 1) {
@@ -170,6 +191,7 @@ struct JSONParserTests {
         torture.append(torture2.rbegin(), torture2.rend());
         assert(parsed(torture));
     }
+    /// test deeply nested structures
     void testNestedStructs() const {
         try {
             unsigned i;
@@ -187,6 +209,7 @@ struct JSONParserTests {
         }
         throw __FUNCTION__;
     }
+    /// empty is not top level JSON
     void testEmpty() {
         try {
             parsed("");
@@ -210,8 +233,8 @@ struct JSONParserTests {
             testBadJSON2_5();
             testBadJSON2_6();
             testBadJSON3();
-            testNestedStructs();
             testEmpty();
+            testNestedStructs();
         }
         catch (char const *function) {
             failed = function;
@@ -238,41 +261,73 @@ struct UnicharTests {
     char buffer[5];
 
     void encode(Unichar u) {
-        buffer[u.utf8(buffer)] = '\0';
+        char buffer[16];
+        u.utf8(buffer);
     }
+    void testEncode(Unichar const testValue, std::initializer_list<char> const &expected = {}, char const *const function = nullptr)
+    {
+        char buffer[16];
+        auto const expectedSize = expected.size();
+        buffer[testValue.utf8(buffer)] = '\0';
+        
+        assert(function != nullptr && expectedSize > 0);
+        if (buffer[expectedSize] == '\0' &&
+            std::lexicographical_compare(expected.begin(), expected.end(), buffer, buffer + expectedSize) == false &&
+            std::lexicographical_compare(buffer, buffer + expectedSize, expected.begin(), expected.end()) == false)
+        {
+            LOG(9) << function << " successful." << std::endl;
+            return;
+        }
+        throw function;
+    }
+    void testDecode_UTF8(std::initializer_list<char> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
+    {
+        Unichar u;
+        auto cur = in.begin();
+        while (cur != in.end() && u.add_UTF8(*cur++) == false)
+            ;
+        assert(function != nullptr);
+        if (cur == in.end() && u == expected)
+            return;
+        throw function;
+    }
+    void testDecode_UTF16(std::initializer_list<uint16_t> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
+    {
+        Unichar u;
+        auto cur = in.begin();
+        while (cur != in.end() && u.add_UTF16(*cur++) == false)
+            ;
+        assert(function != nullptr);
+        if (cur == in.end() && u == expected)
+            return;
+        throw function;
+    }
+    void testDecode_Hex16(std::initializer_list<char> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
+    {
+        Unichar u;
+        auto cur = in.begin();
+        while (cur != in.end() && u.add_Hex16(*cur++) == false)
+            ;
+        assert(function != nullptr);
+        if (cur == in.end() && u == expected)
+            return;
+        throw function;
+    }
+    /// encodes to one byte
     void testEncodingAscii() {
-        try {
-            encode(Unichar('~'));
-            assert(std::string(buffer) == "~");
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testEncode(Unichar{'~'}, {'~'}, __FUNCTION__);
     }
+    /// encodes to three bytes
     void testEncoding2() {
-        try {
-            encode(Unichar(0x20AC));
-            assert(buffer[0] == '\xE2' && buffer[1] == '\x82' && buffer[2] == '\xAC' && buffer[3] == '\0');
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testEncode(Unichar{0x20AC}, {'\xE2', '\x82', '\xAC'}, __FUNCTION__);
     }
+    /// encodes to four bytes
     void testEncoding3() {
-        try {
-            encode(Unichar(0x10348));
-            assert(buffer[0] == '\xF0' && buffer[1] == '\x90' && buffer[2] == '\x8D' && buffer[3] == '\x88' && buffer[4] == '\0');
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testEncode(Unichar{0x10348}, {'\xF0', '\x90', '\x8D', '\x88'}, __FUNCTION__);
     }
     void testMissingSurrogate1() {
         try {
-            encode(Unichar{0xDC37});
+            testEncode(Unichar{0xDC37});
             throw __FUNCTION__;
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
@@ -281,7 +336,7 @@ struct UnicharTests {
     }
     void testMissingSurrogate2() {
         try {
-            encode(Unichar{0xD801});
+            testEncode(Unichar{0xD801});
             throw __FUNCTION__;
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
@@ -290,7 +345,7 @@ struct UnicharTests {
     }
     void testEncodingTooBig() {
         try {
-            encode(Unichar(0x200348));
+            testEncode(Unichar(0x200348));
             throw __FUNCTION__;
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
@@ -298,53 +353,20 @@ struct UnicharTests {
         }
     }
     void testDecodingAscii() {
-        try {
-            Unichar u;
-            assert(true == u.add_UTF8('~'));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_UTF8({'~'}, Unichar{'~'}, __FUNCTION__);
     }
     void testDecodingUTF8() {
-        try {
-            Unichar u;
-            assert(false == u.add_UTF8('\xE2'));
-            assert(false == u.add_UTF8('\x82'));
-            assert(true == u.add_UTF8('\xAC'));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_UTF8({'\xE2', '\x82', '\xAC'}, Unichar{0x20AC}, __FUNCTION__);
     }
     void testDecodingUTF16_1() {
-        try {
-            Unichar u;
-            assert(true == u.add_UTF16(0x20AC));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_UTF16({0x20AC}, Unichar{0x20AC}, __FUNCTION__);
     }
     void testDecodingUTF16_2() {
-        try {
-            Unichar u;
-            assert(false == u.add_UTF16(0xD801));
-            assert(true == u.add_UTF16(0xDC37));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_UTF16({0xD801, 0xDC37}, Unichar{0x10437}, __FUNCTION__);
     }
     void testDecodingUTF16_3() {
         try {
-            Unichar u;
-            assert(false == u.add_UTF16(0xD801));
-            assert(true == u.add_UTF16(0xD037));
+            testDecode_UTF16({0xD801, 0xD037}); ///< expected to throw
             throw __FUNCTION__;
         }
         catch (JSONScalarConversionError const &e) {
@@ -352,42 +374,14 @@ struct UnicharTests {
         }
     }
     void testDecodingHex16_1() {
-        try {
-            Unichar u;
-            assert(false == u.add_Hex16('2'));
-            assert(false == u.add_Hex16('0'));
-            assert(false == u.add_Hex16('A'));
-            assert(true == u.add_Hex16('C'));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_Hex16({'2', '0', 'A', 'C'}, Unichar{0x20AC}, __FUNCTION__);
     }
     void testDecodingHex16_2() {
-        try {
-            Unichar u;
-            assert(false == u.add_Hex16('D'));
-            assert(false == u.add_Hex16('8'));
-            assert(false == u.add_Hex16('0'));
-            assert(false == u.add_Hex16('1'));
-            assert(false == u.add_Hex16('D'));
-            assert(false == u.add_Hex16('C'));
-            assert(false == u.add_Hex16('3'));
-            assert(true == u.add_Hex16('7'));
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
-        }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        testDecode_Hex16({'D', '8', '0', '1', 'D', 'C', '3', '7'}, Unichar{0x10437}, __FUNCTION__);
     }
     void testDecodingHex16_3() {
         try {
-            Unichar u;
-            assert(false == u.add_Hex16('2'));
-            assert(false == u.add_Hex16('x'));
-            assert(false == u.add_Hex16('A'));
-            assert(true == u.add_Hex16('C'));
+            testDecode_Hex16({'2', 'x', 'A', 'C'}); ///< expected to throw
             throw __FUNCTION__;
         }
         catch (JSONScalarConversionError const &e) {
@@ -396,15 +390,7 @@ struct UnicharTests {
     }
     void testDecodingHex16_4() {
         try {
-            Unichar u;
-            assert(false == u.add_Hex16('D'));
-            assert(false == u.add_Hex16('8'));
-            assert(false == u.add_Hex16('0'));
-            assert(false == u.add_Hex16('1'));
-            assert(false == u.add_Hex16('D'));
-            assert(false == u.add_Hex16('0'));
-            assert(false == u.add_Hex16('3'));
-            assert(true == u.add_Hex16('7'));
+            testDecode_Hex16({'D', '8', '0', '1', 'D', '0', '3', '7'}); ///< expected to throw
             throw __FUNCTION__;
         }
         catch (JSONScalarConversionError const &e) {

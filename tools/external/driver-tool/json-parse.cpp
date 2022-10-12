@@ -182,6 +182,8 @@ UNEXPECTED:
 }
 
 struct Unichar : protected UnicharBasic {
+    friend struct UnicharTests;
+    
     explicit Unichar(uint32_t codepoint = 0) : UnicharBasic(codepoint) {}
     Unichar(Unichar const &) = default;
     Unichar(Unichar &&) = default;

@@ -32,6 +32,19 @@ if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
     cmake_policy(SET CMP0115 OLD)
 endif()
 
+# ===========================================================================
+# set of build targets
+
+# external tools are always included
+set(BUILD_TOOLS_INTERNAL "OFF" CACHE STRING "If set to ON, build internal tools")
+set(BUILD_TOOLS_LOADERS "OFF" CACHE STRING "If set to ON, build loaders")
+set(BUILD_TOOLS_TEST_TOOLS "OFF" CACHE STRING "If set to ON, build test tools")
+set(TOOLS_ONLY "OFF" CACHE STRING  "If set to ON, generate tools targets only")
+
+option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
+
+# ===========================================================================
+
 set( VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shared/toolkit.vers")
 file( READ ${VERSION_FILE} VERSION )
 string( STRIP ${VERSION} VERSION )
@@ -121,6 +134,7 @@ if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
+
 # global compiler warnings settings
 if (MSVC)
     #
@@ -382,6 +396,15 @@ endif()
 # Common functions for creation of build artefacts
 #
 
+# provide ability to override installation directories
+if ( NOT CMAKE_INSTALL_BINDIR )
+    set( CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin )
+endif()
+
+if ( NOT CMAKE_INSTALL_LIBDIR )
+    set( CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib64 )
+endif()
+
 function( ExportStatic name install )
     # the output goes to .../lib
     if( SINGLE_CONFIG )
@@ -409,7 +432,7 @@ function( ExportStatic name install )
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
          endif()
     else()
@@ -418,7 +441,7 @@ function( ExportStatic name install )
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
-            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64 )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
         endif()
     endif()
 endfunction()
@@ -455,7 +478,7 @@ function(MakeLinksShared target name install)
             install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
         endif()
     else()
@@ -465,13 +488,13 @@ function(MakeLinksShared target name install)
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
             install( TARGETS ${target}
-                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 
         if (WIN32)
-            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
 
     endif()
@@ -563,11 +586,11 @@ function(MakeLinksExe target install_via_driver)
                 # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
                          RENAME ${target}${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
 
                 if (WIN32)
@@ -579,19 +602,19 @@ function(MakeLinksExe target install_via_driver)
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                     # add the driver-tool's .pdb
                     install(FILES $<TARGET_PDB_FILE:sratools>
                             RENAME ${target}.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                 endif()
 
         else()
 
-            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
             if (WIN32) # copy the .pdb files if any
-                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
             endif()
 
         endif()
@@ -599,23 +622,43 @@ function(MakeLinksExe target install_via_driver)
     endif()
 endfunction()
 
+include(CheckIncludeFileCXX)
+unset(HAVE_MBEDTLS_H CACHE) # TODO: remove
+unset(HAVE_MBEDTLS_F CACHE) # TODO: remove
+check_include_file_cxx(mbedtls/md.h HAVE_MBEDTLS_H)
+if ( HAVE_MBEDTLS_H )
+	set( MBEDTLS_LIBS mbedx509 mbedtls mbedcrypto )
+	set(CMAKE_REQUIRED_LIBRARIES ${MBEDTLS_LIBS})
+	include(CheckCXXSourceRuns)
+	check_cxx_source_runs("
+#include <stdio.h>
+#include \"mbedtls/md.h\"
+#include \"mbedtls/sha256.h\"
+int main(int argc, char *argv[]) {
+	mbedtls_md_context_t ctx;
+	mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+	mbedtls_md_init(&ctx);
+	printf(\"test p: %p\", ctx.md_ctx);
+}
+" HAVE_MBEDTLS_F)
+endif()
 
 if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp tk-version )
-    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} ${MBEDTLS_LIBS} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
     set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
-    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
-    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
 endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
-    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
+    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()
 
 if ( SINGLE_CONFIG )
@@ -624,14 +667,14 @@ if ( SINGLE_CONFIG )
         set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
     endif()
     install( SCRIPT CODE
-        "execute_process( COMMAND /bin/bash -c \
+        "execute_process( COMMAND /bin/bash -c      \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
                 '${VDB_COPY_DIR}'                   \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
-                ${CMAKE_INSTALL_PREFIX}/bin         \
-                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_INSTALL_BINDIR}             \
+                ${CMAKE_INSTALL_LIBDIR}             \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )

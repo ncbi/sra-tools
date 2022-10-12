@@ -37,7 +37,3 @@ if( RUN_SANITIZER_TESTS )
 	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
 	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
 endif()
-
-if( NOT WIN32 )
-	GenerateExecutableWithDefs( testy-the-bear "testy-the-bear" "__mod__=\"ngs/ncbi/ngs-c++\"" "" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
-endif()

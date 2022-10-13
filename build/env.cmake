@@ -268,6 +268,9 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
 
+    if (VDB_BINDIR)
+        message( "Using ncbi-vdb build in ${VDB_BINDIR}.")
+    endif ()
     if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
         message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain one or both subdirectories Debug/ and Release/, with bin/, lib/ and ilib/ underneath each.")
     endif()

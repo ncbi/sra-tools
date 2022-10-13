@@ -32,6 +32,9 @@ endif()
 # set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
 
 option(TOOLS_ONLY "Generate tools targets only" ON)
+option(BUILD_TOOLS_LOADERS "Generate targets for loader tools")
+option(BUILD_TOOLS_INTERNAL "Generate targets for internal tools")
+option(BUILD_TOOLS_TEST_TOOLS "Generate targets for test tools")
 option(RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF)
 option(NO_JAVA "Do not generate any targets that need Java" OFF)
 

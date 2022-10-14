@@ -52,7 +52,7 @@ struct Test_CommandLine {
         TRACE(cmdline.argv);
         TRACE(cmdline.envp);
         TRACE(cmdline.extra);
-        TRACE(cmdline.fakeName);
+        TRACE(cmdline.fakeName ? cmdline.fakeName : "(not set)");
         TRACE(cmdline.baseName);
         TRACE(cmdline.toolName);
         TRACE(cmdline.fullPathToExe);

@@ -107,6 +107,9 @@ private:
 #endif
 
 #define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr << "DEBUG: "
+
+#ifndef LOG
 #define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr << "LOG(" STRINGIFY(LEVEL) "): "
+#endif
 
 #endif // __DRIVER_TOOL_DEBUG_HPP__

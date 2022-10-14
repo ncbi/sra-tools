@@ -267,6 +267,7 @@ static inline DWORD getFinalPathNameByHandle(HANDLE h, API_STRING buffer, size_t
     auto const sz = FUNC(h, buffer, size, flags);
     if (sz == 0)
         throw_system_error("GetFinalPathNameByHandle");
+    return sz;
 #undef FUNC
 }
 
@@ -553,18 +554,27 @@ bool FilePath::removeSuffix(size_t const count)
     return count == 0;
 }
 
-bool FilePath::removeSuffix(std::string const &suffix)
+bool FilePath::removeSuffix(std::string const &in_suffix)
 {
-    if (suffix.empty())
+    if (in_suffix.empty())
         return true;
+    if (in_suffix.find('\\') != std::string::npos || in_suffix.find('/') != std::string::npos)
+        return false;
 
-    auto const temp = FilePath(suffix);
-    auto const &nsuffix = temp.path;
+#if USE_WIDE_API
+    auto const suffix = NativeString(Win32Support::makeWide(in_suffix.c_str()).get());
+#else
+    auto const suffix = in_suffix;
+#endif
 
-    if (ends_with(nsuffix, path))
-        return removeSuffix(nsuffix.size());
-
-    return false;
+    if (path.size() < suffix.size())
+        return false;
+    
+    if (path.substr(path.size() - suffix.size()) != suffix)
+        return false;
+        
+    path.resize(path.size() - suffix.size());
+    return true;
 }
 
 FilePath FilePath::cwd()
@@ -617,15 +627,15 @@ static NativeString NtDevicePathByHandle(HANDLE h)
 {
     NativeString::value_type sbuf[4096], *hbuf = nullptr;
 
-    auto const sz = getFinalPathNameByHandle(h, sbuf, sizeof(sbuf), VALUE_NAME_NT);
+    auto const sz = getFinalPathNameByHandle(h, sbuf, sizeof(sbuf), VOLUME_NAME_NT);
     if (sz < sizeof(sbuf))
         return NativeString(sbuf, sbuf + sz);
 
-    hbuf = (NativeString::value_type)malloc(sz * sizeof(*hbuf));
+    hbuf = (NativeString::value_type *)malloc(sz * sizeof(*hbuf));
     if (hbuf == nullptr)
         throw std::bad_alloc();
 
-    auto const sz2 = getFinalPathNameByHandle(h, hbuf, sz, VALUE_NAME_NT);
+    auto const sz2 = getFinalPathNameByHandle(h, hbuf, sz, VOLUME_NAME_NT);
     auto const result = NativeString(hbuf, hbuf + sz2);
 
     free(hbuf);
@@ -638,15 +648,17 @@ bool FilePath::isSameFileSystemObject(FilePath const &other) const
     if (fh1 != INVALID_HANDLE_VALUE) {
         auto const fh2 = createFile(other.path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
         if (fh2 != INVALID_HANDLE_VALUE) {
-            FILE_ID_INFO fi1{}, fi2{};
-            auto const r1 = GetFileInformationByHandleEx(fh1, FileIdInfo, &fi1, sizeof(fi1));
-            auto const r2 = GetFileInformationByHandleEx(fh2, FileIdInfo, &fi2, sizeof(fi2));
+            BY_HANDLE_FILE_INFORMATION fi1{}, fi2{};
+            auto const r1 = GetFileInformationByHandle(fh1, &fi1);
+            auto const r2 = GetFileInformationByHandle(fh2, &fi2);
 
             CloseHandle(fh2);
             CloseHandle(fh1);
 
             if (r1 != 0 && r2 != 0)
-                return fi1.VolumeSerialNumber == fi2.VolumeSerialNumber && fi1.FileId == fi2.FileId;
+                return fi1.dwVolumeSerialNumber == fi2.dwVolumeSerialNumber &&
+                       fi1.nFileIndexHigh == fi2.nFileIndexHigh &&
+                       fi1.nFileIndexLow == fi2.nFileIndexLow;
 
             return false;
         }
@@ -659,7 +671,7 @@ bool FilePath::isSameFileSystemObject(FilePath const &other) const
         auto const dh2 = createFile(other.path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
         if (dh2 != INVALID_HANDLE_VALUE) {
             auto const p1 = NtDevicePathByHandle(dh1);
-            auto const p2 = NtDevicePathByHandle(dh1);
+            auto const p2 = NtDevicePathByHandle(dh2);
 
             CloseHandle(dh2);
             CloseHandle(dh1);

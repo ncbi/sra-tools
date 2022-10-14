@@ -24,6 +24,11 @@
 
 set( SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../tools/external/driver-tool )
 
+if (WIN32)
+    add_compile_definitions(USE_WIDE_API=1)
+    link_libraries(ShLwApi Pathcch)
+endif()
+
 AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_FilePath "test-filepath.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
 AddExecutableTest( Test_Drivertool_CommandLine "test-command-line.cpp" "" "${SOURCEDIR}")
@@ -34,9 +39,6 @@ AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )
-        target_link_libraries( Test_Drivertool_FilePath ShLwApi Pathcch)
-        target_compile_definitions(Test_Drivertool_FilePath PRIVATE USE_WIDE_API=1)
-
         add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
         target_include_directories(Drivertool_Win32_Args_Parsing_Test PRIVATE "${SOURCEDIR}")
         add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )

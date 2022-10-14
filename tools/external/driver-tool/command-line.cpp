@@ -221,7 +221,7 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
 {
     auto const effVers = Version(
 #if WINDOWS
-        effectiveVersion(0, 0, obj.buildVersion);
+        effectiveVersion(0, 0, obj.buildVersion)
 #else
         effectiveVersion(obj.versionFromName, obj.runAsVersion, obj.buildVersion)
 #endif

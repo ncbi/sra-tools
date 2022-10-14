@@ -31,7 +31,7 @@ endif()
 # set( CMAKE_DISABLE_SOURCE_CHANGES ON ) # Cannot use with bison
 # set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
 
-option(TOOLS_ONLY "Generate tools targets only" ON)
+option(TOOLS_ONLY "Generate targets for tools only (else tools and tests)" ON)
 option(BUILD_TOOLS_LOADERS "Generate targets for loader tools")
 option(BUILD_TOOLS_INTERNAL "Generate targets for internal tools")
 option(BUILD_TOOLS_TEST_TOOLS "Generate targets for test tools")

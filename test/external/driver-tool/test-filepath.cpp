@@ -246,9 +246,6 @@ TEST_CASE( IsSame_Directory )
 
 TEST_CASE( NotIsSame_Directory )
 {
-    if (!cwd_is_source_dir)
-        throw test_skipped("not in source directory");
-
     FilePath fp1 = FilePath::cwd();
     FilePath fp2 = fp1.split().first;
     REQUIRE( !fp1.isSameFileSystemObject(fp2) );

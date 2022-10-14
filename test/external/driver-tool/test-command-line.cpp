@@ -50,7 +50,6 @@ struct Test_CommandLine {
         CommandLine cmdline(argc, argv, envp, extra);
         auto const toolName = std::string(cmdline.toolName);
 
-        TRACE(cmdline);
         if (toolName != "Test_Drivertool_CommandLine")
             throw __FUNCTION__;
     }

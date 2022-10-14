@@ -50,16 +50,16 @@ static std::string trimPath(std::string const &path, bool const issecond = false
 {
     auto end = path.size();
     auto start = decltype(end)(0);
-    
+
     while (start + 1 < end && path[start] == '/' && path[start + 1] == '/')
         ++start;
-    
+
     if (issecond && path[start] == '/')
         ++start;
-    
+
     while (end - 1 > start && path[end - 1] == '/')
         --end;
-    
+
     return path.substr(start, end - start);
 }
 
@@ -104,8 +104,12 @@ FilePath FilePath::append(FilePath const &element) const {
 
 bool FilePath::removeSuffix(size_t const count) {
     if (count > 0 && path.size() >= count) {
-        path.resize(path.size() - count);
-        return true;
+        auto const newlen = path.size() - count;
+        auto const no_sep = path.find('/', newlen) == std::string::npos;
+        if (no_sep) {
+            path.resize(newlen);
+            return true;
+        }
     }
     return count == 0;
 }

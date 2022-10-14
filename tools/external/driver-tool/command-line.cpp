@@ -211,7 +211,7 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
 #if WINDOWS
 #else
     os <<
-        "    fakeName: " << obj.fakeName ? obj.fakeName : "(not set)" << "\n" \
+        "    fakeName: " << (char const *)(obj.fakeName ? obj.fakeName : "(not set)") << "\n" \
         "    versionFromName: " << Version(obj.versionFromName) << "\n" \
         "    runAsVersion: " << Version(obj.runAsVersion) << "\n";
 #endif

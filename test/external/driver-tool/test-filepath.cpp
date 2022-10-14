@@ -30,11 +30,12 @@
 *
 */
 
-#include <ktst/unit_test.hpp>
-
 #include "file-path.hpp"
 #include "file-path.posix.cpp"
 #include "file-path.win32.cpp"
+
+#undef LOG
+#include <ktst/unit_test.hpp>
 
 using namespace std;
 

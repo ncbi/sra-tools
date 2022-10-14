@@ -45,9 +45,9 @@ struct Test_CommandLine {
     }
 
 #if WINDOWS
-    Test_Version(int argc, wchar_t *argv[], wchar_t *envp[], char *extra[])
+    Test_CommandLine(int argc, wchar_t *argv[], wchar_t *envp[], char *extra[])
 #else
-    Test_Version(int argc, char *argv[], char *envp[], char *extra[])
+    Test_CommandLine(int argc, char *argv[], char *envp[], char *extra[])
 #endif
     : is_good(false)
     {
@@ -67,8 +67,6 @@ struct Test_CommandLine {
     bool is_good;
 };
 
-#include <cassert>
-
 #if WINDOWS
 int wmain ( int argc, wchar_t *argv[], wchar_t *envp[] )
 #else
@@ -76,7 +74,7 @@ int main ( int argc, char *argv[], char *envp[] )
 #endif
 {
     try {
-        Test_CommandLine const test{argc, argv, envp, nullptr};
+        auto const test = Test_CommandLine {argc, argv, envp, nullptr};
         if (test.is_good)
             return 0;
     }
@@ -84,5 +82,4 @@ int main ( int argc, char *argv[], char *envp[] )
         std::cerr << e.what() << std::endl;
     }
     return 3;
-    (void)argc, (void)argv, (void)envp;
 }

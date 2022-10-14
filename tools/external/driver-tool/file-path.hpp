@@ -76,6 +76,8 @@ public:
     bool empty() const { return path.empty(); }
     operator bool() const { return !empty(); }
 
+    bool isSameFileSystemObject(FilePath const &other) const;
+
     bool executable() const;
 
     bool readable() const;

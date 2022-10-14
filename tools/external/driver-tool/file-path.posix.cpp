@@ -175,4 +175,14 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
     return FilePath(argv[0]);
 }
 
+bool FilePath::isSameFileSystemObject(FilePath const &other) const
+{
+    struct stat st1, st2;
+
+    if (stat(path.c_str(), &st1) == 0 && stat(other.path.c_str(), &st2) == 0)
+        return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
+
+    return false;
+}
+
 #endif

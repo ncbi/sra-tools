@@ -234,6 +234,48 @@ TEST_CASE( Readable )
     REQUIRE(!fp2.executable());
 }
 
+TEST_CASE( IsSame_Directory )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp1 = FilePath::cwd();
+    FilePath fp2 = FilePath::cwd();
+    REQUIRE( fp1.isSameFileSystemObject(fp2) );
+}
+
+TEST_CASE( NotIsSame_Directory )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp1 = FilePath::cwd();
+    FilePath fp2 = fp1.split().first;
+    REQUIRE( !fp1.isSameFileSystemObject(fp2) );
+}
+
+TEST_CASE( IsSame_File )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 = fp.append("CMakeLists.txt");
+    FilePath fp2 = fp.append("CMakeLists.txt");
+    REQUIRE( fp1.isSameFileSystemObject(fp2) );
+}
+
+TEST_CASE( NotIsSame_File )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 = fp.append("CMakeLists.txt");
+    FilePath fp2 = fp.append("test-filepath.cpp");
+    REQUIRE( !fp1.isSameFileSystemObject(fp2) );
+}
+
 #if WINDOWS
 static wchar_t **s_argv;
 #else

@@ -130,6 +130,7 @@ struct CommandLine {
     }
 #endif
 
+    bool isShortCircuit() const { return toolPath.isSameFileSystemObject(fullPathToExe); }
 private:
 #if WINDOWS
 #else

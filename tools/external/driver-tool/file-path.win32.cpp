@@ -256,6 +256,20 @@ static inline bool pathIsRoot(API_CONST_STRING path)
 #endif
 }
 
+/// Get the path from an open HANDLE
+static inline DWORD getFinalPathNameByHandle(HANDLE h, API_STRING buffer, size_t size, DWORD flags)
+{
+#if USE_WIDE_API
+ #define FUNC GetFinalPathNameByHandleW
+#else
+ #define FUNC GetFinalPathNameByHandleA
+#endif
+    auto const sz = FUNC(h, buffer, size, flags);
+    if (sz == 0)
+        throw_system_error("GetFinalPathNameByHandle");
+#undef FUNC
+}
+
 /// Convert POSIX path seperators to Windows ones.
 /// In-place version.
 static void pathCleanUpSeperators(wchar_t *path)
@@ -598,6 +612,65 @@ FilePath FilePath::fullPathToExecutable(wchar_t const *const *const argv, wchar_
     (void)argv; (void)envp; (void)extra;
 }
 #endif
+
+static NativeString NtDevicePathByHandle(HANDLE h)
+{
+    NativeString::value_type sbuf[4096], *hbuf = nullptr;
+
+    auto const sz = getFinalPathNameByHandle(h, sbuf, sizeof(sbuf), VALUE_NAME_NT);
+    if (sz < sizeof(sbuf))
+        return NativeString(sbuf, sbuf + sz);
+
+    hbuf = (NativeString::value_type)malloc(sz * sizeof(*hbuf));
+    if (hbuf == nullptr)
+        throw std::bad_alloc();
+
+    auto const sz2 = getFinalPathNameByHandle(h, hbuf, sz, VALUE_NAME_NT);
+    auto const result = NativeString(hbuf, hbuf + sz2);
+
+    free(hbuf);
+    return result;
+}
+
+bool FilePath::isSameFileSystemObject(FilePath const &other) const
+{
+    auto const fh1 = createFile(path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
+    if (fh1 != INVALID_HANDLE_VALUE) {
+        auto const fh2 = createFile(other.path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
+        if (fh2 != INVALID_HANDLE_VALUE) {
+            FILE_ID_INFO fi1{}, fi2{};
+            auto const r1 = GetFileInformationByHandleEx(fh1, FileIdInfo, &fi1, sizeof(fi1));
+            auto const r2 = GetFileInformationByHandleEx(fh2, FileIdInfo, &fi2, sizeof(fi2));
+
+            CloseHandle(fh2);
+            CloseHandle(fh1);
+
+            if (r1 != 0 && r2 != 0)
+                return fi1.VolumeSerialNumber == fi2.VolumeSerialNumber && fi1.FileId == fi2.FileId;
+
+            return false;
+        }
+        CloseHandle(fh1);
+        return false;
+    }
+
+    auto const dh1 = createFile(path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
+    if (dh1 != INVALID_HANDLE_VALUE) {
+        auto const dh2 = createFile(other.path.c_str(), 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
+        if (dh2 != INVALID_HANDLE_VALUE) {
+            auto const p1 = NtDevicePathByHandle(dh1);
+            auto const p2 = NtDevicePathByHandle(dh1);
+
+            CloseHandle(dh2);
+            CloseHandle(dh1);
+
+            return p1 == p2;
+        }
+        CloseHandle(dh1);
+        return false;
+    }
+    return false;
+}
 
 #else
 #endif

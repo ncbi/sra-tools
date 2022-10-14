@@ -103,14 +103,14 @@ static void handleFileArgument(Argument const &arg, FilePath const &filePath, st
 static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args, int *out)
 {
     unsigned problems = 0;
-    
+
     args.each(argName, [&](Argument const &arg) {
         if (arg.ignore()) {
             auto const reason = arg.reason;
-            
+
             if (logging_state::is_dry_run()) // allow bad argument for testing
                 arg.reason = nullptr;
-            
+
             if (reason == Argument::notFound) {
                 ++problems;
                 std::cerr << "--" << argName << " " << arg.argument << "\nFile not found." << std::endl;
@@ -135,14 +135,14 @@ static unsigned handleFileArgumentErrors(char const *const argName, Arguments co
 static unsigned checkForContainers(CommandLine const &argv, Arguments const &args)
 {
     unsigned result = 0;
-    
+
     args.eachArgument([&](Argument const &arg) {
         auto const &dir_base = argv.pathForArgument(arg).split();
         if (dir_base.first) // ignore if it looks like a path
             return;
-        
+
         auto const &accession = Accession(dir_base.second);
-        
+
         switch (accession.type()) {
         case unknown:
             LOG(3) << arg.argument << " doesn't look like an SRA accession." << std::endl;
@@ -174,7 +174,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
             handleFileArgument(arg, argv.pathForArgument(arg), &param_args, &permCount);
     });
     havePerm = !param_args.empty();
-    
+
     param_args.clear();
     args.each([&](Argument const &arg) {
         if (arg == "ngc")
@@ -204,7 +204,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
 
     if (havePerm) {
         int argind = 0;
-        
+
         if (haveNGC) {
             ++problems;
             std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
@@ -228,7 +228,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
     }
     if (haveNGC) {
         int argind = 0;
-        
+
         problems += handleFileArgumentErrors("ngc", args, &argind);
         if (argind)
             *sNGC = argv.pathForArgument(argind);
@@ -246,10 +246,10 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
                      "See the above link(s) for information about the accessions." << std::endl;
         problems += containers;
     }
-    
+
     if (problems == 0)
         return true;
-    
+
     if (logging_state::is_dry_run()) {
         std::cerr << "Problems allowed for testing purposes!" << std::endl;
         return true;
@@ -417,6 +417,11 @@ static int main(CommandLine const &argv)
         exit(EX_USAGE);
     }
 #endif
+
+    if (!logging_state::is_dry_run() && argv.isShortCircuit()) {
+        std::cerr << "This installation is damaged. Please reinstall the SRA Toolkit." << std::endl;
+        exit(EX_SOFTWARE);
+    }
 
     // MARK: Check for special tools
     if (argv.toolName == "prefetch" || argv.toolName == "srapath")

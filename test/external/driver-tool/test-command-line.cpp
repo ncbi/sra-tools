@@ -53,6 +53,19 @@ struct Test_CommandLine {
         if (toolName != "Test_Drivertool_CommandLine")
             throw __FUNCTION__;
     }
+    static void test_short_circuit(int argc,
+#if WINDOWS
+        wchar_t *argv[], wchar_t *envp[],
+#else
+        char *argv[], char *envp[],
+#endif
+        char *extra[])
+    {
+        CommandLine cmdline(argc, argv, envp, extra);
+
+        if (!cmdline.isShortCircuit())
+            throw __FUNCTION__;
+    }
 
 #if WINDOWS
     Test_CommandLine(int argc, wchar_t *argv[], wchar_t *envp[], char *extra[])
@@ -63,6 +76,7 @@ struct Test_CommandLine {
     {
         try {
             basic_test(argc, argv, envp, extra);
+            test_short_circuit(argc, argv, envp, extra);
             std::cerr << __FUNCTION__ << " passed." << std::endl;
             is_good = true;
         }

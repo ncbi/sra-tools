@@ -30,6 +30,12 @@
  *
  */
 
+#if WINDOWS
+#include "file-path.win32.cpp"
+#else
+#include "file-path.posix.cpp"
+#endif
+
 #include "command-line.cpp"
 
 struct Test_CommandLine {

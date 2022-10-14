@@ -159,6 +159,11 @@ CommandLine::~CommandLine() {
 #endif
 }
 
+static uint32_t effectiveVersion(uint32_t fromName, uint32_t runAs, uint32_t fromBuild)
+{
+    return fromName ? fromName : runAs ? runAs : fromBuild;
+}
+
 static std::string versionFromU32(uint32_t fromName, uint32_t runAs, uint32_t fromBuild)
 {
     return Version(fromName ? fromName : runAs ? runAs : fromBuild);
@@ -204,16 +209,25 @@ char const *CommandLine::getFakeName() const
 
 std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
 {
-    os << "{\n" \
+    auto const effectiveVersion = Version(
+#if WINDOWS
+        effectiveVersion(0, 0, obj.buildVersion);
+#else
+        effectiveVersion(obj.versionFromName, obj.runAsVersion, obj.buildVersion)
+#endif
+        );
+    os <<
+    "{\n" \
         "    fullPathToExe: " << (std::string)obj.fullPathToExe << "\n" \
         "    basename(argv[0]): " << obj.baseName << "\n" \
+        "    effectiveVersion: " << effectiveVersion << "\n" \
         "    buildVersion: " << Version(obj.buildVersion) << "\n";
 #if WINDOWS
 #else
     os <<
-        "    fakeName: " << (char const *)(obj.fakeName ? obj.fakeName : "(not set)") << "\n" \
         "    versionFromName: " << Version(obj.versionFromName) << "\n" \
-        "    runAsVersion: " << Version(obj.runAsVersion) << "\n";
+        "    runAsVersion: " << Version(obj.runAsVersion) << "\n" \
+        "    fakeName: " << (char const *)(obj.fakeName ? obj.fakeName : "(not set)") << "\n";
 #endif
     os <<
         "    wouldExec: " << (std::string)obj.toolPath << "\n" \

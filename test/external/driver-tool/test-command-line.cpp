@@ -55,7 +55,9 @@ struct Test_CommandLine {
         TRACE(cmdline.fakeName ? cmdline.fakeName : "(not set)");
         TRACE(cmdline.baseName);
         TRACE(cmdline.toolName);
-        TRACE(cmdline.fullPathToExe);
+        TRACE((std::string)cmdline.fullPathToExe);
+        TRACE((std::string)cmdline.fullPath);
+        TRACE((std::string)cmdline.toolPath);
         TRACE(cmdline.realName);
     }
 

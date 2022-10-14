@@ -218,6 +218,6 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
         "    withArgv: [\n" \
         "        " << toolName << "\n";
     for (auto i = 1; i < obj.argc; ++i)
-        os << "        " << obj.argv[i] << "\n"
+        os << "        " << obj.argv[i] << "\n";
     os << "]}" << std::endl;
 }

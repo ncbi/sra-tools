@@ -48,6 +48,8 @@ struct Test_CommandLine {
         char *extra[])
     {
         CommandLine cmdline(argc, argv, envp, extra);
+
+        TRACE(cmdline.realName);
     }
 
 #if WINDOWS

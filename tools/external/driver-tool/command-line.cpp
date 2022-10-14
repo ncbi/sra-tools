@@ -168,15 +168,17 @@ static std::vector<FilePath> getToolPaths(FilePath const &baseDir, std::string c
 {
     std::vector<FilePath> result;
 #if WINDOWS
-    result.push_back(baseDir.append(toolName + "-orig.exe"));
+    result.emplace_back(baseDir.append(toolName + "-orig.exe"));
     (void)(version); // not used in the name on Windows
 #else
     std::string const versString = Version(version);
 
-    result.push_back(baseDir.append(toolName + "-orig." + versString));
-    result.push_back(result.back().copy().removeSuffix(versString.size() + 1)); // remove ".M.m.r"
+    result.emplace_back(baseDir.append(toolName + "-orig." + versString));
+    result.emplace_back(result.back().copy());
+    result.back().removeSuffix(versString.size() + 1); // remove ".M.m.r"
 #if DEBUG || _DEBUGGING
-    result.push_back(result.back().copy().removeSuffix(5)); // remove "-orig"
+    result.emplace_back(result.back().copy());
+    result.back().removeSuffix(5); // remove "-orig"
 #endif
 #endif
     return result;

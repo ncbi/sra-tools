@@ -49,6 +49,13 @@ struct Test_CommandLine {
     {
         CommandLine cmdline(argc, argv, envp, extra);
 
+        TRACE(cmdline.argv);
+        TRACE(cmdline.envp);
+        TRACE(cmdline.extra);
+        TRACE(cmdline.fakeName);
+        TRACE(cmdline.baseName);
+        TRACE(cmdline.toolName);
+        TRACE(cmdline.fullPathToExe);
         TRACE(cmdline.realName);
     }
 

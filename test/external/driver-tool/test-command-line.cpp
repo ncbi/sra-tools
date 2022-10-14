@@ -35,7 +35,7 @@
 #else
 #include "file-path.posix.cpp"
 #endif
-
+#include "build-version.cpp"
 #include "command-line.cpp"
 
 struct Test_CommandLine {

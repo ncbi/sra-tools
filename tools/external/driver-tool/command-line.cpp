@@ -125,6 +125,8 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
 , argc(argc)
 , buildVersion(Version::current.packed)
 {
+#if WINDOWS
+#endif
     {
         auto const p = fullPathToExe.split();
         fullPath = p.first;

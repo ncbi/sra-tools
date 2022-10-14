@@ -343,7 +343,7 @@ static NativeString canonicalPath(NativeString const &path)
 {
     if (path.empty())
         return path;
-    
+
     auto const &cpath = canonicalPathW(path);
     auto const &result = NativeString(
 #if USE_WIDE_API
@@ -376,10 +376,10 @@ static local_free_ptr< wchar_t > canonicalPathPOSIX(NativeString const &path)
 static NativeString rtrimSeperators(NativeString const &in)
 {
     std::string::size_type trim = 0;
-    
+
     while (in.size() > trim && isDirSeperator(in[trim]))
         ++trim;
-    
+
     return in.substr(trim);
 }
 
@@ -537,6 +537,20 @@ bool FilePath::removeSuffix(size_t const count)
         return true;
     }
     return count == 0;
+}
+
+bool FilePath::removeSuffix(std::string const &suffix)
+{
+    if (suffix.empty())
+        return true;
+
+    auto const temp = FilePath(suffix);
+    auto const &nsuffix = temp.path;
+
+    if (ends_with(nsuffix, path))
+        return removeSuffix(nsuffix.size());
+
+    return false;
 }
 
 FilePath FilePath::cwd()

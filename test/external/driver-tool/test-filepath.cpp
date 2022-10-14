@@ -160,6 +160,13 @@ TEST_CASE( RemoveSuffix )
     REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
 }
 
+TEST_CASE( RemoveSuffix_Ext )
+{
+    FilePath fp(A_B_C_Filename_Ext);
+    REQUIRE( fp.removeSuffix(".ext") );
+    REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
+}
+
 TEST_CASE( RemoveSuffix_Oversized )
 {
     FilePath fp(A_B_C_Filename_Ext);

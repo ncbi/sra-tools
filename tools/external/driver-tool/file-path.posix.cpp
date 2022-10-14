@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include "debug.hpp"
+#include "util.hpp"
 #include "file-path.hpp"
 #include <algorithm>
 #include <vector>
@@ -112,6 +113,13 @@ bool FilePath::removeSuffix(size_t const count) {
         }
     }
     return count == 0;
+}
+
+bool FilePath::removeSuffix(std::string const &suffix)
+{
+    if (suffix.empty() || ends_with(suffix, path))
+        return removeSuffix(suffix.size());
+    return false;
 }
 
 FilePath FilePath::cwd()

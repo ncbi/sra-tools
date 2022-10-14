@@ -34,6 +34,7 @@
 
 #include <vector>
 #include <string>
+#include "util.hpp"
 
 #if USE_WIDE_API
 using NativeString = std::wstring;
@@ -58,14 +59,14 @@ public:
     FilePath &operator =(FilePath const &) = default;
     FilePath &operator =(FilePath &&) = default;
 #endif
-    
+
     explicit FilePath(NativeString const &in);
 #if USE_WIDE_API
     explicit FilePath(std::string const &in);
 #endif
 
     FilePath copy() const { return *this; }
-    
+
     operator std::string() const;
 #if USE_WIDE_API
     operator std::wstring() const;
@@ -74,7 +75,7 @@ public:
     size_t size() const;
     bool empty() const { return path.empty(); }
     operator bool() const { return !empty(); }
-    
+
     bool executable() const;
 
     bool readable() const;
@@ -84,7 +85,7 @@ public:
 
     /// split a path into dirname and basename
     std::pair< FilePath, FilePath > split() const;
-    
+
     FilePath baseName() const { return split().second; };
     static char const *baseName(char const *path) {
         auto last = path;
@@ -104,9 +105,12 @@ public:
 
     /// Remove `count` code units from end of last path element
     bool removeSuffix(size_t count);
-    
+
+    /// Remove `suffix` if last path element ends with `suffix`
+    bool removeSuffix(std::string const &suffix);
+
     static FilePath cwd();
-    
+
     /// Make this the current working directory.
     void makeCurrentDirectory() const {
         changeDirectory();

@@ -48,8 +48,11 @@ struct Test_CommandLine {
         char *extra[])
     {
         CommandLine cmdline(argc, argv, envp, extra);
+        auto const toolName = std::string(cmdline.toolName);
 
         TRACE(cmdline);
+        if (toolName != "Test_Drivertool_CommandLine")
+            throw __FUNCTION__;
     }
 
 #if WINDOWS

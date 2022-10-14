@@ -31,6 +31,10 @@
  */
 
 #pragma once
+
+#if __DRIVER_TOOL_DEBUG_HPP__
+#define __DRIVER_TOOL_DEBUG_HPP__ 1
+
 #include <iostream>
 #include <cassert>
 #include <cstdlib>
@@ -104,3 +108,5 @@ private:
 
 #define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr << "DEBUG: "
 #define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr << "LOG(" STRINGIFY(LEVEL) "): "
+
+#endif // __DRIVER_TOOL_DEBUG_HPP__

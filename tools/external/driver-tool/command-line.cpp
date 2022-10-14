@@ -207,17 +207,21 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
     os << "{\n" \
         "    fullPathToExe: " << (std::string)obj.fullPathToExe << "\n" \
         "    basename(argv[0]): " << obj.baseName << "\n" \
-        "    buildVersion: " << Version(obj.buildVersion) << "\n" \
+        "    buildVersion: " << Version(obj.buildVersion) << "\n";
 #if WINDOWS
 #else
+    os <<
         "    fakeName: " << obj.fakeName ? obj.fakeName : "(not set)" << "\n" \
         "    versionFromName: " << Version(obj.versionFromName) << "\n" \
-        "    runAsVersion: " << Version(obj.runAsVersion) << "\n" \
+        "    runAsVersion: " << Version(obj.runAsVersion) << "\n";
 #endif
+    os <<
         "    wouldExec: " << (std::string)obj.toolPath << "\n" \
         "    withArgv: [\n" \
         "        " << toolName << "\n";
     for (auto i = 1; i < obj.argc; ++i)
         os << "        " << obj.argv[i] << "\n";
     os << "]}" << std::endl;
+
+    return os;
 }

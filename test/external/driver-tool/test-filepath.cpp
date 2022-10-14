@@ -193,8 +193,10 @@ TEST_CASE( Exists )
 }
 
 static bool check_cwd_is_source_dir() {
-    return FilePath::exists("CMakeLists.txt");
+    auto const thisFile = (string)FilePath(__FILE__).baseName();
+    return FilePath::exists(thisFile.c_str());
 }
+
 static bool cwd_is_source_dir = check_cwd_is_source_dir();
 
 TEST_CASE(CWD_Append)

@@ -166,7 +166,7 @@ static uint32_t effectiveVersion(uint32_t fromName, uint32_t runAs, uint32_t fro
 
 static std::string versionFromU32(uint32_t fromName, uint32_t runAs, uint32_t fromBuild)
 {
-    return Version(fromName ? fromName : runAs ? runAs : fromBuild);
+    return Version(effectiveVersion(fromName, runAs, fromBuild));
 }
 
 FilePath CommandLine::getToolPath() const {
@@ -209,7 +209,7 @@ char const *CommandLine::getFakeName() const
 
 std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
 {
-    auto const effectiveVersion = Version(
+    auto const effVers = Version(
 #if WINDOWS
         effectiveVersion(0, 0, obj.buildVersion);
 #else
@@ -220,7 +220,7 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
     "{\n" \
         "    fullPathToExe: " << (std::string)obj.fullPathToExe << "\n" \
         "    basename(argv[0]): " << obj.baseName << "\n" \
-        "    effectiveVersion: " << effectiveVersion << "\n" \
+        "    effectiveVersion: " << effVers << "\n" \
         "    buildVersion: " << Version(obj.buildVersion) << "\n";
 #if WINDOWS
 #else

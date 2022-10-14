@@ -197,7 +197,7 @@ static bool cwd_is_source_dir = true;
 TEST_CASE(CWD_Append)
 {   // CWD can be wide on Windows
     if (!cwd_is_source_dir)
-        throw skipped_test("not in source directory");
+        throw test_skipped("not in source directory");
 
     FilePath fp = FilePath::cwd();
     FilePath fp1("CMakeLists.txt");

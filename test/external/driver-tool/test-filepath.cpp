@@ -192,7 +192,10 @@ TEST_CASE( Exists )
     REQUIRE( ! fp2.readable() );
 }
 
-static bool cwd_is_source_dir = true;
+static bool check_cwd_is_source_dir() {
+    return FilePath::exists("CMakeLists.txt");
+}
+static bool cwd_is_source_dir = check_cwd_is_source_dir();
 
 TEST_CASE(CWD_Append)
 {   // CWD can be wide on Windows
@@ -207,11 +210,17 @@ TEST_CASE(CWD_Append)
 
 TEST_CASE( Exists_Static )
 {
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
     REQUIRE( FilePath::exists( "CMakeLists.txt" ) );
 }
 
 TEST_CASE( Readable )
 {
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
     FilePath fp = FilePath::cwd();
     FilePath fp1 ( "CMakeLists.txt" );
     FilePath fp2 = fp.append( fp1 );

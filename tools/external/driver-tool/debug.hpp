@@ -32,7 +32,7 @@
 
 #pragma once
 
-#if __DRIVER_TOOL_DEBUG_HPP__
+#ifndef __DRIVER_TOOL_DEBUG_HPP__
 #define __DRIVER_TOOL_DEBUG_HPP__ 1
 
 #include <iostream>

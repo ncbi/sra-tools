@@ -26,7 +26,7 @@
  *  sratools command line tool
  *
  * Purpose:
- *  tests for locate executable
+ *  tests for version parsing
  *
  */
 

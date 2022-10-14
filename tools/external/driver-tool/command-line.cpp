@@ -133,9 +133,9 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
     baseName = FilePath::baseName(argv[0]);
 #if WINDOWS
 #else
-    versionFromName = Version::fromName(realName);
-    runAsVersion = Version::fromName(baseName);
-#endif 
+    versionFromName = Version::fromName(realName).packed;
+    runAsVersion = Version::fromName(baseName).packed;
+#endif
 
     toolName = baseName;
     {
@@ -171,7 +171,7 @@ FilePath CommandLine::getToolPath() const {
 #else
     auto const versString = versionFromU32(versionFromName, runAsVersion, buildVersion);
     auto result = fullPath.append(FilePath(toolName + "-orig." + versString));
-    
+
     if (!result.executable()) {
         result.removeSuffix(versString.size() + 1); // remove version
 #if DEBUG || _DEBUGGING

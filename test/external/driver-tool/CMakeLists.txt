@@ -24,9 +24,10 @@
 
 set( SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../tools/external/driver-tool )
 
+AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "${SOURCEDIR}" )
+AddExecutableTest( Test_Drivertool_CommandLine "test-command-line.cpp" "" "${SOURCEDIR}")
 AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "${SOURCEDIR}" )
-AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
 

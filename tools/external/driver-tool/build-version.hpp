@@ -41,6 +41,7 @@ namespace sratools {
 struct Version {
     uint32_t packed;
     operator std::string() const noexcept;
+    operator bool() const noexcept { return packed != 0; }
 
     std::ostream &write(std::ostream &os) const noexcept;
 
@@ -57,7 +58,6 @@ struct Version {
     static std::string const &currentString;
 
     Version() noexcept : packed(0) {}
-    operator bool() const noexcept { return packed != 0; }
 
     explicit Version(uint32_t const pckd) noexcept
     : packed(pckd)

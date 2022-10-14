@@ -193,7 +193,7 @@ TEST_CASE( Exists )
 }
 
 static bool check_cwd_is_source_dir() {
-    auto const thisFile = (string)FilePath::cwd().append(FilePath(__FILE__).baseName());
+    auto const thisFile = FilePath::cwd().append(FilePath(__FILE__).baseName());
     std::cerr << "looking for " << (string)thisFile << std::endl;
     return thisFile.exists();
 }

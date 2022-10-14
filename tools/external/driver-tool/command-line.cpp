@@ -169,24 +169,35 @@ static std::string versionFromU32(uint32_t fromName, uint32_t runAs, uint32_t fr
     return Version(effectiveVersion(fromName, runAs, fromBuild));
 }
 
+static std::vector<FilePath> getToolPaths(FilePath const &baseDir, std::string const &toolName, uint32_t version)
+{
+    std::vector<FilePath> result;
+#if WINDOWS
+    result.emplace_back(baseDir.append(toolName + "-orig.exe"));
+    (void)(version); // not used in the name on Windows
+#else
+    std::string const versString = Version(version);
+
+    result.emplace_back(baseDir.append(toolName + "-orig." + versString));
+    result.emplace_back(result.back().copy().removeSuffix(versString.size() + 1)); // remove ".M.m.r"
+#if DEBUG || _DEBUGGING
+    result.emplace_back(result.back().copy().removeSuffix(5)); // remove "-orig"
+#endif
+#endif
+    return result;
+}
+
 FilePath CommandLine::getToolPath() const {
 #if WINDOWS
-    auto const origToolName = toolName + "-orig.exe";
-    auto result = fullPath.append(origToolName);
+    return getToolPaths(fullPath, toolName, buildVersion).front();
 #else
-    auto const versString = versionFromU32(versionFromName, runAsVersion, buildVersion);
-    auto result = fullPath.append(FilePath(toolName + "-orig." + versString));
-
-    if (!result.executable()) {
-        result.removeSuffix(versString.size() + 1); // remove version
-#if DEBUG || _DEBUGGING
-        if (!result.executable()) {
-            result.removeSuffix(5); // remove -orig
-        }
-#endif
+    auto const tries = getToolPaths(fullPath, toolName, effectiveVersion(versionFromName, runAsVersion, buildVersion));
+    for (auto && path : tries) {
+        if (path.executable())
+            return path;
     }
+    return tries.back();
 #endif // !WINDOWS
-    return result;
 }
 
 #if WINDOWS
@@ -235,7 +246,7 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
         "        " << obj.toolName << "\n";
     for (auto i = 1; i < obj.argc; ++i)
         os << "        " << obj.argv[i] << "\n";
-    os << "]}" << std::endl;
+    os << "    ]\n}" << std::endl;
 
     return os;
 }

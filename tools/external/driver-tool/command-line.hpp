@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <iosfwd>
 #include "tool-args.hpp"
 #include "file-path.hpp"
 
@@ -141,4 +142,6 @@ private:
 #else
     char const *getFakeName() const;
 #endif
+
+    friend std::ostream &operator<< (std::ostream &, CommandLine const &);
 };

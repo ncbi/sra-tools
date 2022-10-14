@@ -201,3 +201,23 @@ char const *CommandLine::getFakeName() const
     return nullptr;
 }
 #endif
+
+std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
+{
+    os << "{\n" \
+        "    fullPathToExe: " << (std::string)obj.fullPathToExe << "\n" \
+        "    basename(argv[0]): " << obj.baseName << "\n" \
+        "    buildVersion: " << Version(obj.buildVersion) << "\n" \
+#if WINDOWS
+#else
+        "    fakeName: " << obj.fakeName ? obj.fakeName : "(not set)" << "\n" \
+        "    versionFromName: " << Version(obj.versionFromName) << "\n" \
+        "    runAsVersion: " << Version(obj.runAsVersion) << "\n" \
+#endif
+        "    wouldExec: " << (std::string)obj.toolPath << "\n" \
+        "    withArgv: [\n" \
+        "        " << toolName << "\n";
+    for (auto i = 1; i < obj.argc; ++i)
+        os << "        " << obj.argv[i] << "\n"
+    os << "]}" << std::endl;
+}

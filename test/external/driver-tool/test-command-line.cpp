@@ -49,16 +49,7 @@ struct Test_CommandLine {
     {
         CommandLine cmdline(argc, argv, envp, extra);
 
-        TRACE(cmdline.argv);
-        TRACE(cmdline.envp);
-        TRACE(cmdline.extra);
-        TRACE(cmdline.fakeName ? cmdline.fakeName : "(not set)");
-        TRACE(cmdline.baseName);
-        TRACE(cmdline.toolName);
-        TRACE((std::string)cmdline.fullPathToExe);
-        TRACE((std::string)cmdline.fullPath);
-        TRACE((std::string)cmdline.toolPath);
-        TRACE(cmdline.realName);
+        TRACE(cmdline);
     }
 
 #if WINDOWS

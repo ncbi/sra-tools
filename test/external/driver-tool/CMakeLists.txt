@@ -34,7 +34,7 @@ AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )
-        target_link_libraries( Test_Drivertool_FilePath PRIVATE "ShLwApi;Pathcch")
+        target_link_libraries( Test_Drivertool_FilePath ShLwApi Pathcch)
         target_compile_definitions(Test_Drivertool_FilePath PRIVATE USE_WIDE_API=1)
 
         add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )

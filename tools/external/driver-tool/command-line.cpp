@@ -218,7 +218,7 @@ std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
     os <<
         "    wouldExec: " << (std::string)obj.toolPath << "\n" \
         "    withArgv: [\n" \
-        "        " << toolName << "\n";
+        "        " << obj.toolName << "\n";
     for (auto i = 1; i < obj.argc; ++i)
         os << "        " << obj.argv[i] << "\n";
     os << "]}" << std::endl;

@@ -59,33 +59,30 @@ namespace ngs
     const char * StringItf :: data () const
         NGS_NOTHROW ()
     {
-        if ( this != 0 )
+        // the object is really from C
+        const NGS_String_v1 * self = Self ();
+
+        // cast vtable to our level
+        try
         {
-            // the object is really from C
-            const NGS_String_v1 * self = Self ();
+            const NGS_String_v1_vt * vt = Access ( self -> vt );
 
-            // cast vtable to our level
-            try
-            {
-                const NGS_String_v1_vt * vt = Access ( self -> vt );
+            // call through C vtable
+            ErrBlock err;
+            assert ( vt -> data != 0 );
+            const char * ret = ( * vt -> data ) ( self, & err );
 
-                // call through C vtable
-                ErrBlock err;
-                assert ( vt -> data != 0 );
-                const char * ret = ( * vt -> data ) ( self, & err );
+            // check for errors
+            err . Check ();
 
-                // check for errors
-                err . Check ();
-
-                return ret;
-            }
-            catch ( ErrorMsg & x )
-            {
-                // report to console or log
-            }
-            catch ( ... )
-            {
-            }
+            return ret;
+        }
+        catch ( ErrorMsg & x )
+        {
+            // report to console or log
+        }
+        catch ( ... )
+        {
         }
 
         return "";
@@ -94,33 +91,30 @@ namespace ngs
     size_t StringItf :: size () const
         NGS_NOTHROW ()
     {
-        if ( this != 0 )
+        // the object is really from C
+        const NGS_String_v1 * self = Self ();
+
+        // cast vtable to our level
+        try
         {
-            // the object is really from C
-            const NGS_String_v1 * self = Self ();
+            const NGS_String_v1_vt * vt = Access ( self -> vt );
 
-            // cast vtable to our level
-            try
-            {
-                const NGS_String_v1_vt * vt = Access ( self -> vt );
+            // call through C vtable
+            ErrBlock err;
+            assert ( vt -> size != 0 );
+            size_t ret  = ( * vt -> size ) ( self, & err );
 
-                // call through C vtable
-                ErrBlock err;
-                assert ( vt -> size != 0 );
-                size_t ret  = ( * vt -> size ) ( self, & err );
+            // check for errors
+            err . Check ();
 
-                // check for errors
-                err . Check ();
-
-                return ret;
-            }
-            catch ( ErrorMsg & x )
-            {
-                // report to console or log
-            }
-            catch ( ... )
-            {
-            }
+            return ret;
+        }
+        catch ( ErrorMsg & x )
+        {
+            // report to console or log
+        }
+        catch ( ... )
+        {
         }
 
         return 0;

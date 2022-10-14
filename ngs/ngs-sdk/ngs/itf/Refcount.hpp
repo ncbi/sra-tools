@@ -27,7 +27,7 @@
 #ifndef _hpp_ngs_itf_refcount_
 #define _hpp_ngs_itf_refcount_
 
-#pragma clang diagnostic ignored "-Wtautological-undefined-compare"
+//#pragma clang diagnostic ignored "-Wtautological-undefined-compare"
 
 #ifndef _hpp_ngs_itf_error_msg_
 #include <ngs/itf/ErrorMsg.hpp>
@@ -97,14 +97,14 @@ namespace ngs
         // test "this" pointer for NULL
         inline C * Test ()
         {
-            if ( this == 0 )
-                throw ErrorMsg ( "message sent to NULL object" );
+            // if ( this == 0 )
+            //     throw ErrorMsg ( "message sent to NULL object" );
             return Self ();
         }
         inline const C * Test () const
         {
-            if ( this == 0 )
-                throw ErrorMsg ( "message sent to NULL object" );
+            // if ( this == 0 )
+            //     throw ErrorMsg ( "message sent to NULL object" );
             return Self ();
         }
 

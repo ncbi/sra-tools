@@ -138,7 +138,11 @@ add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
 # global compiler warnings settings
 add_definitions( -Wall )
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    set( DISABLED_WARNINGS_C "")
+    set( DISABLED_WARNINGS_CXX "-Wno-unused-function")
 elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+    set( DISABLED_WARNINGS_C "")
+    set( DISABLED_WARNINGS_CXX "-Wno-tautological-undefined-compare")
 elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     #
     # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
@@ -161,9 +165,9 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
 	# warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
     set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032")
     set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
-    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
 endif()
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
 
 # assume debug build by default
 if ( "${CMAKE_BUILD_TYPE}" STREQUAL "" )

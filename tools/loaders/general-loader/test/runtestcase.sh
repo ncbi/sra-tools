@@ -52,8 +52,6 @@ DUMP_OPTIONS=$8
 DUMP="$DUMPER"
 LOAD="$BINDIR/general-loader"
 TEMPDIR=$WORKDIR/actual/$CASEID
-TEMPDIR=/panfs/pan1/sra-test/slowtests/general-loader/$CASEID
-DB=$TEMPDIR/db
 
 echo "running test case $CASEID"
 
@@ -67,7 +65,6 @@ rm -rf $TEMPDIR/*
 export NCBI_SETTINGS=$TEMPDIR/../t.mkfg
 #$CONFIG
 CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-CMD="cat input/$CASEID.gl | $LOAD -T$DB $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 echo $CMD
 eval $CMD
 rc="$?"
@@ -82,7 +79,6 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
-    CMD="$DUMP $DB $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     echo $CMD
     eval $CMD
     rc="$?"

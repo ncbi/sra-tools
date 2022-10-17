@@ -88,14 +88,14 @@ if ( NOT WIN32)
             COMMAND ${CMD} 1packed 0 -I${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-#    add_test ( NAME GeneralLoader-1.2-TargetDbOverride
- #           COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} --target actual/1override/db"
-  #          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-   # )
-#    add_test ( NAME GeneralLoader-1.3-TargetDbOverrideShorthand
- #           COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} -T actual/1override/db"
-  #          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-   # )
+    add_test ( NAME GeneralLoader-1.2-TargetDbOverride
+            COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} --target actual/1override/db"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-1.3-TargetDbOverrideShorthand
+            COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} -T actual/1override/db"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
     add_test ( NAME GeneralLoader-2.0-ErrorMessageEvent-Unpacked
             COMMAND ${CMD} 2 3 "-I${VDB_INCDIR} -L=err"

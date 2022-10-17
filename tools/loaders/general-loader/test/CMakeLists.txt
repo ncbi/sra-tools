@@ -129,11 +129,11 @@ if ( NOT WIN32)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
+#        GeneralLoader-1.2-TargetDbOverride
+#        GeneralLoader-1.3-TargetDbOverrideShorthand
     set_tests_properties(
         GeneralLoader-1.0-Basic-Unpacked
         GeneralLoader-1.1-Basic-Packed
-        GeneralLoader-1.2-TargetDbOverride
-        GeneralLoader-1.3-TargetDbOverrideShorthand
         GeneralLoader-2.0-ErrorMessageEvent-Unpacked
         GeneralLoader-2.1-ErrorMessageEvent-Packed
         GeneralLoader-3.0-EmptyDefaultValues-Unpacked

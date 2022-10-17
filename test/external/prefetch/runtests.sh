@@ -252,50 +252,50 @@ echo "repository/remote/main/SDL.2/resolver-cgi = \"${SDL}\"" >> tmp/t.kfg \
 
 echo "Downloading --cart <kart> ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
                                                     || exit 892
 cd ${work_dir}                                      || exit 893
-rm     tmp/SRR1219879/SRR1219879.sra*       || exit 894
-rm     tmp/SRR1219880/SRR1219880.sra*       || exit 895
-rm     tmp/SRR1257493/SRR1257493.sra*       || exit 896
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 894
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 895
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 896
 rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 897
 
 echo "Downloading kart ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
                                                     || exit 904
 cd ${work_dir}                                      || exit 905
-rm     tmp/SRR1219879/SRR1219879.sra*       || exit 906
-rm     tmp/SRR1219880/SRR1219880.sra*       || exit 907
-rm     tmp/SRR1257493/SRR1257493.sra*       || exit 908
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 906
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 907
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 908
 rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 909
 
 echo "Downloading kart ordered by size"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn" \
                                                     || exit 916
 cd ${work_dir}                                      || exit 917
-rm     tmp/SRR1219879/SRR1219879.sra*       || exit 918
-rm     tmp/SRR1219880/SRR1219880.sra*       || exit 919
-rm     tmp/SRR1257493/SRR1257493.sra*       || exit 920
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 918
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 919
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 920
 rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 921
 
 echo "Downloading kart ordered by kart"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
                                                     || exit 928
 cd ${work_dir}                                      || exit 929
-rm tmp/SRR1219879/SRR1219879.sra*           || exit 930
-rm tmp/SRR1219880/SRR1219880.sra*           || exit 931
-rm tmp/SRR1257493/SRR1257493.sra*           || exit 932
+rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*           || exit 930
+rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*           || exit 931
+rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*           || exit 932
 rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493  || exit 933
 
 rm -frv tmp/sra                                     || exit 935
@@ -308,80 +308,79 @@ echo "${PUBLIC}/root = \"$(pwd)/tmp\""              >> tmp/t.kfg || exit 941
 
 echo "Downloading kart ordered by default (size) to user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
                                       || exit 948
 cd ${work_dir}                        || exit 949
-rm    tmp/sra/SRR1219879.sra* || exit 950
-rm    tmp/sra/SRR1219880.sra* || exit 951
-rm    tmp/sra/SRR1257493.sra* || exit 952
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 950
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 951
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 952
 rmdir tmp/sra                         || exit 953
 
 echo "Downloading kart ordered by size to user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn" \
                                       || exit 960
 cd ${work_dir}                        || exit 961
-rm    tmp/sra/SRR1219879.sra* || exit 962
-rm    tmp/sra/SRR1219880.sra* || exit 963
-rm    tmp/sra/SRR1257493.sra* || exit 964
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 962
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 963
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 964
 rmdir tmp/sra                         || exit 965
 
 echo "Downloading kart ordered by kart to user repo"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
                                       || exit 972
 cd ${work_dir}                        || exit 973
-rm    tmp/sra/SRR1219879.sra* || exit 974
-rm    tmp/sra/SRR1219880.sra* || exit 975
-rm    tmp/sra/SRR1257493.sra* || exit 976
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 974
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 975
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 976
 rmdir tmp/sra                         || exit 977
 
 echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg || exit 979
 echo "Downloading kart ordered by default (size) ignoring user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
                                                     || exit 985
 cd ${work_dir}                                      || exit 986
-rm     tmp/SRR1219879/SRR1219879.sra*       || exit 987
-rm     tmp/SRR1219880/SRR1219880.sra*       || exit 988
-rm     tmp/SRR1257493/SRR1257493.sra*       || exit 989
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 987
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 988
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 989
 rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 990
 
 echo "Downloading kart ordered by size ignoring user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
 cd ${work_dir} \
                                                     || exit  998
-rm     tmp/SRR1219879/SRR1219879.sra*       || exit  999
-rm     tmp/SRR1219880/SRR1219880.sra*       || exit 1000
-rm     tmp/SRR1257493/SRR1257493.sra*       || exit 1001
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit  999
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 1000
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 1001
 rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 1002
 
 echo "Downloading kart ordered by kart ignoring user repo"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
-NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=. \
+NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/${prefetch} --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
                                                                      || exit 1009
 cd ${work_dir}                                                       || exit 1010
-rm tmp/SRR1219879/SRR1219879.sra*                            || exit 1011
-rm tmp/SRR1219880/SRR1219880.sra*                            || exit 1012
-rm tmp/SRR1257493/SRR1257493.sra*                            || exit 1013
+rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*                            || exit 1011
+rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*                            || exit 1012
+rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*                            || exit 1013
 rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493                   || exit 1014
 
 rm -r tmp                                                            || exit 1015
 
-echo
 echo wgs:
 echo Verifying ${prefetch} of runs with WGS references...
 

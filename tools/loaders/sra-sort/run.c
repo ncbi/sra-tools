@@ -363,7 +363,6 @@ rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
                 if ( 0 != rc ) {
                     LogErr( klogErr, rc, "cannot compare metadata on databases" );
                 } else {
-                    equal = false;
                     if ( !equal ) {
                         LogErr( klogInfo, rc, "STATS metadata on databases differ" );
                         rc = VDatabaseMetaCopy( dst, src, "STATS", NULL, false );

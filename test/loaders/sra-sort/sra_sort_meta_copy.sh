@@ -70,6 +70,7 @@ print_verbose "random SAM-file produced!"
 
 ORG_CSRA="org_csra"
 
+#we perform a bam-load into $ORG_CSRA
 source ./sam_to_csra.sh $RNDSAM $RNDREF $ORG_CSRA
 rm $RNDSAM $RNDREF
 
@@ -93,7 +94,5 @@ sra-stat -sx ./$SORTED_CSRA | sed 's/sorted_csra/org_csra/' | grep -vE "(<Size v
 diff -s before.xml after.xml
 
 #we do not need the CSRA-objects any more ...
-#rm -rf "$ORG_CSRA" $SORTED_CSRA
-
 #we also do not need the xml-output(s) of sra-stat any more ...
-rm before.txt after.txt tmp.kfg
+rm -rf "$ORG_CSRA" $SORTED_CSRA before.xml after.xml tmp.kfg

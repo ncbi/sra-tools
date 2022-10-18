@@ -16,10 +16,12 @@ CSRA_DIR="${CSRA}_dir"
 
 #if the cSRA-object-directory alread exists, remove it
 if [[ -d "$CSRA_DIR" ]]; then
+    echo "removing existing output..."
     chmod +wr "$CSRA_DIR"
     rm -rf "$CSRA_DIR"
 fi
 
+# >>>>> perform the bam-load... <<<<<
 VDB_CONFIG=`pwd` $BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR
 
 #check if the random cSRA-object has been produced

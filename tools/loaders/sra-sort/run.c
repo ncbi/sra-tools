@@ -354,7 +354,7 @@ rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
             pLogErr( klogErr, rc, "cannot open source-database: $(db)", "db=%s", src_path );
         } else {
             VDatabase * dst;
-            rc_t rc = VDBManagerOpenDBUpdate( mgr, & dst, NULL, "%s", dst_path );
+            rc = VDBManagerOpenDBUpdate( mgr, & dst, NULL, "%s", dst_path );
             if ( 0 != rc ) {
                 LogErr( klogErr, rc, "cannot open dst-database" );
             } else {

@@ -79,17 +79,17 @@ rm $RNDSAM $RNDREF
 #------------------------------------------------------------
 #run sra-stat on the original, store the xml-output in before.txt
 #in the piped output remove the size-value with grep
-sra-stat -sx ./$ORG_CSRA | grep -vE "(<Size value)" > before.xml
+$SRASTAT -sx ./$ORG_CSRA | grep -vE "(<Size value)" > before.xml
 
 SORTED_CSRA="sorted_csra"
 
 #run sra-sort on ORGCSRA, produce
-sra-sort -f ./$ORG_CSRA ./$SORTED_CSRA
+$SRASORT -f ./$ORG_CSRA ./$SORTED_CSRA
 
 #run sra-stat on the sorted copy, store the xml-output in after.txt
 #fix the name-difference
 #in the piped output remove the size-value with grep
-sra-stat -sx ./$SORTED_CSRA | sed 's/sorted_csra/org_csra/' | grep -vE "(<Size value)" > after.xml
+$SRASTAT -sx ./$SORTED_CSRA | sed 's/sorted_csra/org_csra/' | grep -vE "(<Size value)" > after.xml
 
 diff -s before.xml after.xml
 

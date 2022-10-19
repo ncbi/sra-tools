@@ -138,8 +138,8 @@ add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
 # global compiler warnings settings
 add_definitions( -Wall )
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    set( DISABLED_WARNINGS_C "")
-    set( DISABLED_WARNINGS_CXX "-Wno-unused-function")
+    set( DISABLED_WARNINGS_C "-Wno-unused-function")
+    set( DISABLED_WARNINGS_CXX )
 elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
     set( DISABLED_WARNINGS_C "")
     set( DISABLED_WARNINGS_CXX "-Wno-tautological-undefined-compare")

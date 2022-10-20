@@ -376,13 +376,15 @@ public:
     /// \brief Find the index of the definition.
     ///
     /// \Returns index of definition and a pointer to parameter's argument if it is attached to the string.
-    std::pair< int, char const * > findLong(char const *const arg) const
+    std::pair< int, char const * > findLong(char const *const param) const
     {
-        auto const eq = strchr(arg, '=');
-        auto const fnd = container.find(eq ? std::string(arg, eq - arg) : std::string(arg));
+        auto const eq = strchr(param, '=');
+        auto const arg = eq ? (eq + 1) : nullptr;
+        auto const paramName = eq ? std::string(param, eq) : std::string(param);
+        auto const fnd = container.find(paramName);
 
         if (fnd.first != fnd.second)
-            return {iterDistance(container.begin(), fnd.first), eq + 1};
+            return {iterDistance(container.begin(), fnd.first), arg};
 
         return {-1, nullptr};
     }

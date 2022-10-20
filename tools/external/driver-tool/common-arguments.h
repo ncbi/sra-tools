@@ -12,5 +12,5 @@
     TOOL_ARG("debug", "+", true, TOOL_HELP("Turn on debug output for module.", "All flags if not specified.", 0)), \
     TOOL_ARG("no-user-settings", "", false, TOOL_HELP("Turn off user-specific configuration.", 0)), \
     TOOL_ARG("ncbi_error_report", "", true, TOOL_HELP("Control program execution environment report generation (if implemented).", "One of (never|error|always). Default is error.", 0)), \
-    TOOL_ARG("location", true, TOOL_HELP("This is used by sratools during source data lookup. It is not passed to the driven tool.", 0)), \
+    TOOL_ARG("location", "", true, TOOL_HELP("This is used by sratools during source data lookup. It is not passed to the driven tool.", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))

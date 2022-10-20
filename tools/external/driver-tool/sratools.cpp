@@ -382,7 +382,6 @@ static bool shouldPreferLiteFormat(bool isSet, bool isFull, std::string const &t
 
 static void printHelp [[noreturn]] (bool requested = false)
 {
-    auto constexpr usage = "usage: sratools print-argbits | print-args-json | help";
     (requested ? std::cout : std::cerr) << "usage: sratools print-argbits | print-args-json | help" << std::endl;
     exit(requested ? EXIT_SUCCESS : EX_USAGE);
 }

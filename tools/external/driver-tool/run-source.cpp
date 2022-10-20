@@ -159,7 +159,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         if (filePath != info.end())
             service = filePath->second;
         else
-            service = "(none)";
+            service = "the file system";
     }
     else {
         auto const key = RemoteKey(index);
@@ -199,7 +199,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         if (service != info.end() && region != info.end())
             this->service = service->second + "." + region->second;
         else
-            this->service = "(none)";
+            this->service = "the file system";
 
         if (qualityType != info.end())
             this->qualityType = qualityType->second;
@@ -362,18 +362,20 @@ static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::strin
         return false;
     
     auto const &filename = result["path"]; // might have extension added
+    LOG(9) << name << " is " << filename << " in directory " << (std::string)cwd << "." << std::endl;
+
     auto const accession = Accession(filename.c_str());
     auto const exts = accession.sraExtensions();
-    
-    LOG(9) << name << " is " << filename << " in directory" << (std::string)cwd << "." << std::endl;
+
+    LOG(9) << filename << " has " << exts.size() << " sra extensions." << std::endl;
     if (exts.size() == 1) {
-        result[LocalKey::filePath] = result["path"].assign(cwd.append(filename));
+        result[LocalKey::filePath] = result["path"];
         result[LocalKey::qualityType] = exts.front().first > 0 ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
         lookForCacheFileIn(cwd, result, wantFullQuality, accession);
         return true;
     }
-    LOG(3) << name << " does not look like an SRA file." << std::endl;
-    return false;
+    LOG(3) << name << " does not look like an SRA file?" << std::endl;
+    return true;
 }
 
 static void getADInfo(Dictionary &result, FilePath const &cwd, Accession const &accession, bool const wantFullQuality)
@@ -416,6 +418,10 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
         auto const accession = Accession(filename);
         auto const isaRun = accession.type() == run;
 
+        if (!path.exists())
+            return;
+        LOG(9) << "Examining path: " << name << std::endl;
+
         try {
             path.makeCurrentDirectory();
 
@@ -440,10 +446,6 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             LOG(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
         }
         
-        if (!isaRun) {
-            LOG(3) << name << " does not look like an SRA file or directory." << std::endl;
-            return;
-        }
         if (hasDirName) {
             LOG(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
             try {
@@ -492,9 +494,17 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
             auto const f = i.second.find("local");
             if (f == i.second.end())
                 terms.emplace_back(i.first);
+            else {
+                LOG(9) << "already found " << i.first << " at path " << f->second << std::endl;
+            }
         }
-        if (terms.empty())
+        if (terms.empty()) {
+            LOG(2) << "nothing left to resolve, skipping SDL lookup" << std::endl;
             return;
+        }
+        else {
+            LOG(2) << "will send " << terms.size() << " terms to SDL" << std::endl;
+        }
         try {
             auto const response = get_SDL_response(terms, have_ce_token);
             LOG(8) << "SDL response:\n" << response << std::endl;

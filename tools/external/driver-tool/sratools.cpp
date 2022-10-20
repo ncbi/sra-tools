@@ -380,6 +380,34 @@ static bool shouldPreferLiteFormat(bool isSet, bool isFull, std::string const &t
     return false;
 }
 
+static void printHelp [[noreturn]] (bool requested = false)
+{
+    auto constexpr usage = "usage: sratools print-argbits | print-args-json | help";
+    (requested ? std::cout : std::cerr) << "usage: sratools print-argbits | print-args-json | help" << std::endl;
+    exit(requested ? EXIT_SUCCESS : EX_USAGE);
+}
+
+static void do_sratools [[noreturn]] (CommandLine const &argv)
+{
+    if (argv.argc > 1) {
+        auto const arg = std::string(argv.argv[1]);
+
+        if (arg == "help")
+            printHelp(true);
+        
+        if (arg == "print-argbits") {
+            printParameterBitmasks(std::cout);
+            exit(EXIT_SUCCESS);
+        }
+
+        if (arg == "print-args-json") {
+            printParameterJSON(std::cout);
+            exit(EXIT_SUCCESS);
+        }
+    }
+    printHelp();
+}
+
 static auto constexpr error_continues_message = "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/";
 static auto constexpr fullQualityName = "Normalized Format";
 static auto constexpr zeroQualityName = "Lite";
@@ -404,22 +432,8 @@ static int main(CommandLine const &argv)
     EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
 
 #if DEBUG || _DEBUGGING
-    if (argv.toolName == "sratools") {
-        if (argv.argc > 1 && std::string(argv.argv[1]) == "help") {
-            std::cerr << "usage: sratools print-argbits | help" << std::endl;
-            exit(EXIT_SUCCESS);
-        }
-        if (argv.argc > 1 && std::string(argv.argv[1]) == "print-argbits") {
-            printParameterBitmasks(std::cout);
-            exit(EXIT_SUCCESS);
-        }
-        if (argv.argc > 1 && std::string(argv.argv[1]) == "print-args-json") {
-            printParameterJSON(std::cout);
-            exit(EXIT_SUCCESS);
-        }
-        std::cerr << "usage: sratools print-argbits | help" << std::endl;
-        exit(EX_USAGE);
-    }
+    if (argv.toolName == "sratools")
+        do_sratools(argv);
 #endif
 
     if (!logging_state::is_dry_run() && argv.isShortCircuit()) {
@@ -440,7 +454,8 @@ static int main(CommandLine const &argv)
         auto const verbosity = parsed.countMatching("verbose");
         KStsLevelSet(verbosity);
 
-        parsed.each("log-level", [&](Argument const &arg) {
+        // MARK: set log severity filter
+        parsed.each("log-level", [](Argument const &arg) {
             setLogLevel(arg.argument);
         });
 
@@ -487,20 +502,21 @@ static int main(CommandLine const &argv)
             data_sources::preferNoQual();
         }
 
+        // MARK: include parameters-used bitfield in communications to SDL
+        // TODO: UNCOMMENT WHEN READY; SEE JIRA VDB-5001
+        // all_sources.set_param_bits_env_var(parsed.argsUsed());
+
         // MARK: Look for tool arguments in the file system or ask SDL about them.
         auto const &all_sources = data_sources::preload(argv, parsed);
 
-        perm = ngc = nullptr;
-        location = nullptr;
+        perm = ngc = nullptr; // been used and isn't needed any longer
+        location = nullptr; // been used and isn't needed any longer
 //        parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
 //        parsed.each("ngc", [](Argument const &arg) { arg.reason = "used"; });
 //        parsed.each("cart", [](Argument const &arg) { arg.reason = "used"; });
         parsed.each("location", [](Argument const &arg) { arg.reason = "used"; });
 
         all_sources.set_ce_token_env_var();
-
-        // TODO: UNCOMMENT WHEN READY; SEE JIRA VDB-5001
-        // all_sources.set_param_bits_env_var(parsed.argsUsed());
 
         for (auto const &arg : parsed) {
             if (!arg.isArgument()) continue;

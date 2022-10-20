@@ -15,7 +15,7 @@ parsed = parser.parse_args()
 with open(parsed.json) as f:
     toolArgs = json.load(f)
 
-fixups = {
+overrides = {
     'all tools': {
         'debug': {'values': ['ARGS', 'KDB']},
         'log-level': {'values': 'fatal|sys|int|err|warn|info|debug'.split('|')},
@@ -128,10 +128,10 @@ for tool in toolArgs:
     toolPath = tool['path']
     toolVar = '${' + tool['var'] + '}'
 
-    tool_fixup = fixups.get(toolName, {}).copy()
-    tool_fixup.update(fixups['all tools'])
-    datafile = tool_fixup.get('data file', '${DATAFILE}')
-    skip = {x: True for x in fixups['all tools']['skip parameters'] + tool_fixup.get('skip parameters', [])}
+    override = overrides.get(toolName, {}).copy()
+    override.update(overrides['all tools'])
+    datafile = override.get('data file', '${DATAFILE}')
+    skip = {x: True for x in overrides['all tools']['skip parameters'] + override.get('skip parameters', [])}
 
     print("")
     print(f'# {toolName} has {len(tool["parameters"])} parameters to test')
@@ -143,9 +143,9 @@ for tool in toolArgs:
         except KeyError:
             pass
 
-        fixup = tool_fixup.get(name, {})
+        fixes = override.get(name, {})
         def param_fixed(prop_name, dflt=None):
-            return fixup.get(prop_name, param.get(prop_name, dflt))
+            return fixes.get(prop_name, param.get(prop_name, dflt))
 
         required = param_fixed('argument-required', False)
         optional = param_fixed('argument-optional', False)

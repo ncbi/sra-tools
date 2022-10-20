@@ -64,22 +64,7 @@
 #define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
 #endif
 
-#define TOOL_NAME_COMMON ""
-#define TOOL_ARGS_COMMON TOOL_ARGS ( \
-    TOOL_ARG("ngc", "", true, TOOL_HELP("PATH to ngc file.", 0)), \
-    TOOL_ARG("cart", "", true, TOOL_HELP("To read a kart file.", 0)), \
-    TOOL_ARG("perm", "", true, TOOL_HELP("PATH to jwt cart file.", 0)), \
-    TOOL_ARG("help", "h?", false, TOOL_HELP("Output a brief explanation for the program.", 0)), \
-    TOOL_ARG("version", "V", false, TOOL_HELP("Display the version of the program then quit.", 0)), \
-    TOOL_ARG("log-level", "L", true, TOOL_HELP("Logging level as number or enum string.", 0)), \
-    TOOL_ARG("verbose", "v", false, TOOL_HELP("Increase the verbosity of the program status messages.", "Use multiple times for more verbosity.", "Negates quiet.", 0)), \
-    TOOL_ARG("quiet", "q", false, TOOL_HELP("Turn off all status messages for the program.", "Negates verbose.", 0)), \
-    TOOL_ARG("option-file", "", true, TOOL_HELP("Read more options from the file.", 0)), \
-    TOOL_ARG("debug", "+", true, TOOL_HELP("Turn on debug output for module.", "All flags if not specified.", 0)), \
-    TOOL_ARG("no-user-settings", "", false, TOOL_HELP("Turn off user-specific configuration.", 0)), \
-    TOOL_ARG("ncbi_error_report", "", true, TOOL_HELP("Control program execution environment report generation (if implemented).", "One of (never|error|always). Default is error.", 0)), \
-    TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
-
+#include "common-arguments.h"
 #include "fastq-dump-arguments.h"
 #include "tool-arguments.h"
 
@@ -92,6 +77,97 @@ ParameterDefinition const &ParameterDefinition::argument() {
     static auto const y = ParameterDefinition(TOOL_ARG(nullptr, nullptr, true, {}));
     return y;
 }
+
+class JSON_Printer {
+    std::ostream &out;
+    int indent;
+    bool indentNext;
+    char indentChar;
+    std::string state;
+    
+    void indentIf() {
+        if (indentNext) {
+            for (auto i = 0; i < indent; ++i)
+                out << indentChar;
+            indentNext = false;
+        }
+    }
+public:
+    
+    JSON_Printer()
+    : out(std::cout)
+    , indent(0)
+    , indentNext(false)
+    , indentChar('\t')
+    {}
+
+    explicit JSON_Printer(std::ostream &a_out, int a_indent = 0, bool a_indentNext = false, char a_indentChar = '\t')
+    : out(a_out)
+    , indent(a_indent)
+    , indentNext(a_indentNext)
+    , indentChar(a_indentChar)
+    {}
+
+    template <typename T>
+    void print(T x) {
+        out << x;
+    }
+    template <>
+    void print(char ch) {
+        switch (ch) {
+        case '[':
+        case '{':
+            indentIf();
+            ++indent;
+            break;
+        case '}':
+        case ']':
+            --indent;
+            indentIf();
+            break;
+        case '\n':
+            indentNext = true;
+            break;
+        default:
+            indentIf();
+            break;
+        }
+        out << ch;
+    }
+    template <>
+    void print(char const *str)
+    {
+        for (auto cp = str; *cp; ++cp)
+            print(*cp);
+    }
+    template <>
+    void print(std::string const &str) {
+        print(str.c_str());
+    }
+    template <>
+    void print(ParameterDefinition const *def) {
+        print("{ \"name\": \"", def->name, "\"");
+        if (def->aliases && *def->aliases) {
+            print(", \"alias\": [ ");
+            for (auto cp = def->aliases; *cp; ++cp) {
+                if (cp != def->aliases)
+                    print(", ");
+                print('"', *cp, '"');
+            }
+            print(" ]");
+        }
+        if (def->hasArgument && def->argumentIsOptional)
+            print(", \"argument-optional\": true");
+        else if (def->hasArgument && !def->argumentIsOptional)
+            print(", \"argument-required\": true");
+        print(" }");
+    }
+    template <typename T, typename ...Ts>
+    void print(T const &x, Ts... ts) {
+        print(x);
+        print(ts...);
+    }
+};
 
 /// Used by `ParamDefinitions` to traverse the command line arguments.
 struct ArgvIterator {
@@ -176,7 +252,7 @@ struct ParamDefinitions_Common {
     ShortIndex shortIndex;
 
     virtual ~ParamDefinitions_Common() {}
-    
+
     ParamDefinitions_Common(size_t count, ParameterDefinition const *defs)
     : container(count)
     {
@@ -187,7 +263,7 @@ struct ParamDefinitions_Common {
     ParamDefinitions_Common(ParamDefinitions_Common const &common, size_t count, ParameterDefinition const *defs)
     : container(common.container.size() + count)
     {
-        for (auto def : common.container)
+        for (auto &def : common.container)
             container.insert(def);
 
         for (auto cur = defs; cur != defs + count; ++cur)
@@ -244,6 +320,26 @@ struct ParamDefinitions_Common {
             shiftAt[-1] = shiftAt[0] = ' ';
         }
         out << std::flush;
+    }
+
+    void printParameterJSON(std::string const &tool, JSON_Printer &out, bool first = false) const {
+        if (!first)
+            out.print(",\n");
+        out.print("{\n",
+            "\"name\": \"", tool, "\",\n" \
+            "\"version\": \"", sratools::Version::currentString, "\",\n" \
+            "\"parameters\": [\n");
+        
+        auto firstArg = true;
+        for (auto &def : container) {
+            if (def.isArgument())
+                continue;
+            if (!firstArg)
+                out.print(",\n");
+            firstArg = false;
+            out.print(&def);
+        }
+        out.print("\n]\n}");
     }
 
     virtual bool parseArg(Arguments::Container *dst, ArgvIterator const &iter) const = 0;
@@ -513,6 +609,18 @@ void printParameterBitmasks(std::ostream &out) {
     VDB_DUMP::parser.printParameterBitmasks(VDB_DUMP::toolName, out);
 }
 
+void printParameterJSON(std::ostream &out) {
+    JSON_Printer printer(out);
+    printer.print("[\n");
+    FASTERQ_DUMP::parser.printParameterJSON(FASTERQ_DUMP::toolName, printer, true);
+    FASTQ_DUMP::parser.printParameterJSON(FASTQ_DUMP::toolName, printer);
+    SAM_DUMP::parser.printParameterJSON(SAM_DUMP::toolName, printer);
+    SRA_PILEUP::parser.printParameterJSON(SRA_PILEUP::toolName, printer);
+    VDB_DUMP::parser.printParameterJSON(VDB_DUMP::toolName, printer);
+    printer.print("\n]\n");
+    out.flush();
+}
+
 UniqueOrderedList<int> Arguments::keep(Argument const &keep) const {
     int max_argind = 0;
     for (auto & arg : container) {
@@ -523,7 +631,7 @@ UniqueOrderedList<int> Arguments::keep(Argument const &keep) const {
     std::vector< bool > used(max_argind + 1, false);
     for (auto & arg : container)
         used[arg.argind] = true;
-    
+
     UniqueOrderedList< int > ignored(container.size());
 
     for (auto & arg : container) {

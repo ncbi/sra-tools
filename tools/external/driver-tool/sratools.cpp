@@ -413,6 +413,10 @@ static int main(CommandLine const &argv)
             printParameterBitmasks(std::cout);
             exit(EXIT_SUCCESS);
         }
+        if (argv.argc > 1 && std::string(argv.argv[1]) == "print-args-json") {
+            printParameterJSON(std::cout);
+            exit(EXIT_SUCCESS);
+        }
         std::cerr << "usage: sratools print-argbits | help" << std::endl;
         exit(EX_USAGE);
     }

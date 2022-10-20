@@ -223,3 +223,4 @@ public:
 struct UnknownToolException {};
 Arguments argumentsParsed(CommandLine const &);
 void printParameterBitmasks(std::ostream &out);
+void printParameterJSON(std::ostream &out);

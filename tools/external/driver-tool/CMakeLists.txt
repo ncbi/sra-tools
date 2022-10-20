@@ -56,6 +56,7 @@ set( sources
     util.hpp
     file-path.hpp
     opt_string.hpp
+    common-arguments.h
     tool-arguments.h
     fastq-dump-arguments.h
 )

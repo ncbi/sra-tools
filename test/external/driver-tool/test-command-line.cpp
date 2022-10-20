@@ -32,20 +32,19 @@
 
 #if WINDOWS
 #include "file-path.win32.cpp"
+#define SYS_CHAR wchar_t
+#define MAIN wmain
 #else
 #include "file-path.posix.cpp"
+#define SYS_CHAR char
+#define MAIN main
 #endif
 #include "build-version.cpp"
 #include "command-line.cpp"
 
 struct Test_CommandLine {
-    static void basic_test(int argc,
-#if WINDOWS
-        wchar_t *argv[], wchar_t *envp[],
-#else
-        char *argv[], char *envp[],
-#endif
-        char *extra[])
+    /// Basic Test; can it parse?
+    static void basic_test(int argc, SYS_CHAR *argv[], SYS_CHAR *envp[], char *extra[])
     {
         CommandLine cmdline(argc, argv, envp, extra);
         auto const toolName = std::string(cmdline.toolName);
@@ -53,13 +52,8 @@ struct Test_CommandLine {
         if (toolName != "Test_Drivertool_CommandLine")
             throw __FUNCTION__;
     }
-    static void test_short_circuit(int argc,
-#if WINDOWS
-        wchar_t *argv[], wchar_t *envp[],
-#else
-        char *argv[], char *envp[],
-#endif
-        char *extra[])
+    /// Can it detect that a re-exec would be a fork bomb?
+    static void test_short_circuit(int argc, SYS_CHAR *argv[], SYS_CHAR *envp[], char *extra[])
     {
         CommandLine cmdline(argc, argv, envp, extra);
 
@@ -67,11 +61,7 @@ struct Test_CommandLine {
             throw __FUNCTION__;
     }
 
-#if WINDOWS
-    Test_CommandLine(int argc, wchar_t *argv[], wchar_t *envp[], char *extra[])
-#else
-    Test_CommandLine(int argc, char *argv[], char *envp[], char *extra[])
-#endif
+    Test_CommandLine(int argc, SYS_CHAR *argv[], SYS_CHAR *envp[], char *extra[])
     : is_good(false)
     {
         try {
@@ -91,14 +81,16 @@ struct Test_CommandLine {
     bool is_good;
 };
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[] )
+#if MAC
+#define EXTRA extra
+int MAIN ( int argc, SYS_CHAR **argv, SYS_CHAR **envp, char **extra )
 #else
-int main ( int argc, char *argv[], char *envp[] )
+#define EXTRA nullptr
+int MAIN ( int argc, SYS_CHAR **argv, SYS_CHAR **envp )
 #endif
 {
     try {
-        auto const test = Test_CommandLine {argc, argv, envp, nullptr};
+        auto const test = Test_CommandLine {argc, argv, envp, EXTRA};
         if (test.is_good)
             return 0;
     }

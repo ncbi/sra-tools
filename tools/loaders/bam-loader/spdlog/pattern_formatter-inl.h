@@ -1019,9 +1019,9 @@ SPDLOG_INLINE pattern_formatter::pattern_formatter(
     : pattern_(std::move(pattern))
     , eol_(std::move(eol))
     , pattern_time_type_(time_type)
+    , need_localtime_(false)
     , last_log_secs_(0)
     , custom_handlers_(std::move(custom_user_flags))
-    , need_localtime_(false)
 {
     std::memset(&cached_tm_, 0, sizeof(cached_tm_));
     compile_pattern_(pattern_);
@@ -1032,8 +1032,8 @@ SPDLOG_INLINE pattern_formatter::pattern_formatter(pattern_time_type time_type, 
     : pattern_("%+")
     , eol_(std::move(eol))
     , pattern_time_type_(time_type)
-    , last_log_secs_(0)
     , need_localtime_(true)
+    , last_log_secs_(0)
 {
     std::memset(&cached_tm_, 0, sizeof(cached_tm_));
     formatters_.push_back(details::make_unique<details::full_formatter>(details::padding_info{}));
@@ -1051,7 +1051,7 @@ SPDLOG_INLINE std::unique_ptr<formatter> pattern_formatter::clone() const
 
 SPDLOG_INLINE void pattern_formatter::format(const details::log_msg &msg, memory_buf_t &dest)
 {
-    if (need_localtime_) 
+    if (need_localtime_)
     {
         const auto secs = std::chrono::duration_cast<std::chrono::seconds>(msg.time.time_since_epoch());
         if (secs != last_log_secs_)

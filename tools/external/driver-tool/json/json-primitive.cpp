@@ -26,6 +26,8 @@
 
 #include "json-priv.hpp"
 
+#include <kfc/defs.h>
+
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
@@ -40,7 +42,7 @@ namespace ncbi
 
         String :: Iterator pos = str . makeIterator ();
         String :: Iterator it = pos;
-        
+
         for ( ; it . isValid () ; ++ it )
         {
             UTF32 ch = * it;
@@ -79,10 +81,11 @@ namespace ncbi
                         size_t len = snprintf( buff, sizeof buff, "\\u%04x",
                             ( unsigned int ) ( unsigned char ) ch );
                         assert ( len == 6 );
-                        
+                        UNUSED(len);
+
                         if ( it != pos )
                         {
-                            // put all of the stuff we've seen so far                            
+                            // put all of the stuff we've seen so far
                             quoted += str . subString ( pos . charIndex (),
                                 it . charIndex () - pos . charIndex () );
                         }
@@ -102,17 +105,17 @@ namespace ncbi
                     quoted += str . subString ( pos . charIndex (),
                         it . charIndex () - pos . charIndex () );
                     quoted += esc;
-                    
+
                     pos = it;
                     ++ pos;
                 }
             }
 
         }
-        
+
         if ( pos . isValid () )
             quoted += str . subString ( pos . charIndex () );
-       
+
         quoted +=  "\"";
 
         return quoted . stealString ();
@@ -122,7 +125,7 @@ namespace ncbi
     {
         return toString ();
     }
-    
+
     String JSONBoolean :: toString () const
     {
         return String ( value ? "true" : "false" );

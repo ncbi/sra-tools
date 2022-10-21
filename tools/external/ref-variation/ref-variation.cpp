@@ -570,6 +570,7 @@ namespace NSRefVariation
                     size_t allele_size = obj.GetAlleleSize();
                     char const* allele = obj.GetAllele();
                     assert (count == 0 || pos - ref_pos < allele_size );
+                    UNUSED(allele_size);
                     size_t alignments_matched = count == 0 ? 0 :
                         mismatch [base2na_to_index(allele[pos - ref_pos])];
 

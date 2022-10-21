@@ -168,7 +168,7 @@ struct params_s {
     bool cg_evidence;
     bool cg_ev_dnb;
     bool cg_sam;
-    
+
     bool use_seqid;
     bool long_cigar;
     bool reheader;
@@ -180,10 +180,10 @@ struct params_s {
     bool cg_friendly_names;
     bool reverse_unaligned;
     bool unaligned_spots;
-    
+
     bool output_gzip;
     bool output_bz2;
-    
+
     bool xi;
     int cg_style; /* 0: raw; 1: with B's; 2: without B's, fixed up SEQ/QUAL; */
     char const *name_prefix;
@@ -198,9 +198,9 @@ struct params_s {
 
     /* mate info cache */
     int64_t mate_row_gap_cachable;
-    
+
     char const **comments;
-    
+
     bool quantizeQual;
     uint8_t qualQuant[256];
     uint8_t qualQuantSingle; /*** the quality is quantized - single value, no need to retrieve **/
@@ -285,7 +285,7 @@ typedef struct SAM_dump_ctx_s {
     char const *fullPath;
     char const *accession;
     char const *readGroup;
-    
+
     DataSource ref;
     DataSource pri;
     DataSource sec;
@@ -404,7 +404,7 @@ static SCol const gSeqCol[] = {
 static rc_t RefSeqPrint( void ) {
     rc_t rc = 0;
     uint32_t i, count = 0;
-    
+
     rc = ReferenceList_Count( gRefList, &count );
     for( i = 0; rc == 0 && i < count; i++ ) {
         ReferenceObj const *obj;
@@ -653,7 +653,7 @@ static rc_t Cursor_Open( STable const *const tbl, SCurs *const curs, SCol cols[]
     rc = VTableCreateCachedCursorRead( tbl->vtbl, &curs->vcurs, CURSOR_CACHE );
     if ( rc != 0 )
         return rc;
-    
+
     rc = VCursorPermitPostOpenAdd( curs->vcurs );
     if ( rc != 0 )
         return rc;
@@ -672,7 +672,7 @@ static rc_t Cursor_Open( STable const *const tbl, SCurs *const curs, SCol cols[]
             curs->tbl = tbl;
         }
     }
-    
+
     for ( i = 0; cols[ i ].name != NULL; ++i ) {
         if ( cols[ i ].name[ 0 ] == 0 )
             continue;
@@ -732,26 +732,26 @@ static rc_t Cursor_Read( DataSource *ds, int64_t row_id, int firstCol, unsigned 
     if ( 1 ) {
         SCol *const col = &ds->cols[ firstCol ];
         unsigned i;
-        
+
         for ( i = 0; i < nCols && col[ i ].name; ++i ) {
             uint32_t const idx = col[ i ].idx;
-            
+
             if ( idx != 0 ) {
                 uint32_t elem_bits;
                 uint32_t bit_offset;
                 uint32_t elem_count;
                 void const *base;
-                
+
                 rc = VCursorCellDataDirect( ds->curs.vcurs, row_id, idx, &elem_bits, &base, &bit_offset, &elem_count );
                 if ( rc != 0 ) {
                     (void)PLOGERR( klogWarn, ( klogWarn, rc, "reading $(t) row $(r), column $(c)", "t=%s,r=%li,c=%s",
                                                ds->tbl.name, row_id, col[ i ].name ) );
                     return rc;
                 }
-                
+
                 assert( bit_offset == 0 );
                 assert( elem_bits % 8 == 0 );
-                
+
                 col[ i ].base.v = base;
                 col[ i ].len = elem_count;
             }
@@ -855,7 +855,7 @@ static int64_t CC ReadGroup_sort( BSTNode const *item, BSTNode const *node ) {
 static rc_t ReadGroup_print( char const *nm ) {
     rc_t rc = 0;
 #if WINDOWS
-    if ( nm[ 0 ] != '\0' && _stricmp( nm, "default" ) ) {    
+    if ( nm[ 0 ] != '\0' && _stricmp( nm, "default" ) ) {
 #else
     if ( nm[ 0 ] != '\0' && strcasecmp( nm, "default" ) ) {
 #endif
@@ -902,7 +902,7 @@ static rc_t CC DumpReadGroupsScan( STable const *tbl ) {
                         if ( node == NULL ) {
                             rc = RC( rcExe, rcNode, rcConstructing, rcMemory, rcExhausted );
                         } else if ( cols[ 0 ].len > sizeof( node->name ) ) {
-                            rc = RC( rcExe, rcString, rcCopying, rcBuffer, rcInsufficient ); 
+                            rc = RC( rcExe, rcString, rcCopying, rcBuffer, rcInsufficient );
                         } else {
                             last_len = cols[ 0 ].len;
                             string_copy( node->name, ( sizeof node->name ) - 1, cols[ 0 ].base.str, last_len );
@@ -981,7 +981,7 @@ static rc_t Cursor_ReadAlign( SCurs const *curs, int64_t row_id, SCol* cols, uin
     bool cache_miss = false;
 #endif /* USE_MATE_CACHE */
 
-    
+
     for( ; rc == 0 && cols[ idx ].name != NULL; idx++ ) {
         c = &cols[ idx ];
         if ( c->idx != 0 ) {
@@ -1019,7 +1019,7 @@ static rc_t Cursor_ReadAlign( SCurs const *curs, int64_t row_id, SCol* cols, uin
             static INSDC_coord_zero readStart;
             static INSDC_coord_len  readLen;
             static INSDC_coord_len  cigarLen;
-            
+
             switch ( (int)idx ) {
             case alg_READ_START:
                 readStart = 0;
@@ -1295,10 +1295,10 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
     INSDC_SRA_read_filter seq_filter = 0;
     unsigned readId;
     unsigned cigOffset = 0;
-    
+
     if ( align_filter == NULL && spot_id && read_id && ctx->seq.cols ) {
         rc_t rc;
-        
+
         rc = Cursor_Read(&ctx->seq, spot_id, seq_READ_FILTER, 1);
         if ( rc == 0 && ctx->seq.cols[seq_READ_FILTER].len >= read_id ) {
             seq_filter = ctx->seq.cols[seq_READ_FILTER].base.read_filter[read_id - 1];
@@ -1320,7 +1320,7 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         unsigned const cigLen = nreads > 1 ? cols[ alg_CIGAR_LEN ].base.coord_len[ readId ] : cols[ alg_CIGAR ].len;
         size_t nm;
         char synth_qname[1024];
-        
+
         cigOffset += cigLen;
         if ( qname_len == 0 || qname == NULL ) {
             string_printf( synth_qname, sizeof( synth_qname ), &qname_len, "ALLELE_%li.%u", alignId, readId + 1 );
@@ -1364,21 +1364,21 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         if ( rc == 0 ) {
             rc = BufferedWriter( NULL, "\t", 1, NULL );
         }
-        
+
         /* POS: REF_POS */
         if ( rc == 0 ) {
             rc = KOutMsg( "%i\t", cols[ alg_REF_POS ].base.coord0[ 0 ] + 1 );
         }
-        
+
         /* MAPQ: MAPQ */
         if ( rc == 0 ) {
             rc = KOutMsg( "%i\t", cols[ alg_MAPQ ].base.i32[ 0 ] );
         }
-        
+
         /* CIGAR: CIGAR_* */
         if ( ds->type == edstt_EvidenceInterval ) {
             unsigned i;
-            
+
             for ( i = 0; i != cigLen && rc == 0; ++i ) {
                 char ch = cigar[i];
                 if ( ch == 'S' ) ch = 'I';
@@ -1421,12 +1421,12 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         if ( rc == 0 ) {
             rc = KOutMsg( "%i\t", cols[ alg_TEMPLATE_LEN ].base.v ? cols[ alg_TEMPLATE_LEN ].base.i32[ 0 ] : 0 );
         }
-        
+
         /* SEQ: READ */
         if ( rc == 0 ) {
             rc = BufferedWriter( NULL, read, readlen, NULL );
         }
-        
+
         if ( rc == 0 ) {
             rc = BufferedWriter( NULL, "\t", 1, NULL );
         }
@@ -1440,7 +1440,7 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         if ( rc == 0 && ds->type == edstt_EvidenceInterval ) {
             rc = KOutMsg( "\tRG:Z:ALLELE_%u", readId + 1 );
         }
-        
+
         if ( rc == 0 ) {
             if ( readGroup ) {
                 rc = BufferedWriter( NULL, "\tRG:Z:", 6, NULL );
@@ -1465,12 +1465,12 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         if ( rc == 0 && param->cg_style > 0 && cols[ alg_CG_TAGS_STR ].len > 0 ) {
             rc = BufferedWriter( NULL, cols[ alg_CG_TAGS_STR ].base.str, cols[ alg_CG_TAGS_STR ].len, NULL );
         }
-        
+
         if ( rc == 0 ) {
             if ( param->cg_style > 0 && cols[ alg_ALIGN_GROUP ].len > 0 ) {
                 char const *ZI = cols[ alg_ALIGN_GROUP ].base.str;
                 unsigned i;
-                
+
                 for ( i = 0; rc == 0 && i < cols[ alg_ALIGN_GROUP ].len - 1; ++i ) {
                     if ( ZI[ i ] == '_' ) {
                         rc = KOutMsg( "\tZI:i:%.*s\tZA:i:%.1s", i, ZI, ZI + i + 1 );
@@ -1486,17 +1486,17 @@ static rc_t DumpAlignedSAM( SAM_dump_ctx_t *const ctx,
         if ( rc == 0 && param->xi ) {
             rc = KOutMsg( "\tXI:i:%li", alignId );
         }
-        
+
         /* hit count */
         if ( rc == 0 && cols[alg_ALIGNMENT_COUNT].len ) {
             rc = KOutMsg( "\tNH:i:%i", (int)cols[ alg_ALIGNMENT_COUNT ].base.u8[ readId ] );
         }
-        
+
         /* edit distance */
         if ( rc == 0 && cols[ alg_EDIT_DISTANCE ].len ) {
             rc = KOutMsg( "\tNM:i:%i", cols[ alg_EDIT_DISTANCE ].base.i32[ readId ] );
         }
-        
+
         if ( rc == 0 ) {
             rc = KOutMsg( "\n" );
         }
@@ -1538,14 +1538,14 @@ static rc_t DumpUnalignedReads( SAM_dump_ctx_t *const ctx, SCol const calg_col[]
         rc = Cursor_Read( &ctx->seq, row_id, 0, ~(unsigned)0 );
         if ( rc == 0 ) {
             unsigned non_empty_reads = 0;
-            
+
             nreads = ctx->seq.cols[ seq_READ_LEN ].idx != 0 ? ctx->seq.cols[ seq_READ_LEN ].len : 1;
 
             for( i = 0; i < nreads; i++ ) {
                 unsigned const readLen = ctx->seq.cols[ seq_READ_LEN ].idx
                                        ? ctx->seq.cols[ seq_READ_LEN ].base.coord_len[ i ]
                                        : 0;
-                
+
                 if ( readLen ) {
                     ++non_empty_reads;
                 }
@@ -1554,17 +1554,17 @@ static rc_t DumpUnalignedReads( SAM_dump_ctx_t *const ctx, SCol const calg_col[]
                 INSDC_coord_zero readStart;
                 INSDC_coord_len readLen;
 
-                if ( ctx->seq.cols[ seq_PRIMARY_ALIGNMENT_ID ].idx != 0 && 
+                if ( ctx->seq.cols[ seq_PRIMARY_ALIGNMENT_ID ].idx != 0 &&
                      ctx->seq.cols[ seq_PRIMARY_ALIGNMENT_ID ].base.i64[ i ] != 0 ) {
                     continue;
                 }
 
-                if ( ctx->seq.cols[ seq_READ_TYPE ].idx != 0 && 
+                if ( ctx->seq.cols[ seq_READ_TYPE ].idx != 0 &&
                      !( ctx->seq.cols[ seq_READ_TYPE ].base.read_type[ i ] & SRA_READ_TYPE_BIOLOGICAL ) ) {
                     continue;
                 }
 
-                readLen = ctx->seq.cols[ seq_READ_LEN ].idx ? 
+                readLen = ctx->seq.cols[ seq_READ_LEN ].idx ?
                             ctx->seq.cols[ seq_READ_LEN ].base.coord_len[ i ] :
                             ctx->seq.cols[ seq_READ ].len;
                 if ( readLen == 0 ) {
@@ -1625,16 +1625,16 @@ static bool AlignRegionFilter( SCol const *cols ) {
 
         for ( i = 0; i < param->region_qty; i++ ) {
             unsigned j;
-            
+
             for ( j = 0; j < cols[ alg_REF_POS ].len; j++ ) {
                 unsigned const refStart_zero = cols[ alg_REF_POS ].base.coord0[ j ];
                 unsigned const refEnd_exclusive = refStart_zero + cols[ alg_REF_LEN ].base.coord_len[ j ];
                 unsigned k;
-                
+
                 for ( k = 0; k < param->region[ i ].rq; k++ ) {
                     unsigned const from_zero = param->region[ i ].r[ k ].from;
                     unsigned const to_inclusive = param->region[ i ].r[ k ].to;
-                    
+
                     if ( from_zero < refEnd_exclusive && refStart_zero <= to_inclusive ) {
                         return true;
                     }
@@ -1675,7 +1675,7 @@ typedef struct cgOp_s {
 static void print_CG_cigar( int line, cgOp const op[], unsigned const ops, unsigned const gap[ 3 ] ) {
 #if _DEBUGGING
     unsigned i;
-    
+
     SAM_DUMP_DBG( 3, ( "%5i: ", line ) );
     for ( i = 0; i < ops; ++i ) {
         if ( gap && ( i == gap[ 0 ] || i == gap[ 1 ] || i == gap[ 2 ] ) ) {
@@ -1727,7 +1727,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
         }
 
         i += n;
-            
+
         op[ ops ].length = opLen;
         op[ ops ].code = opChar;
         switch ( opChar ) {
@@ -1751,7 +1751,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                 return RC( rcExe, rcData, rcReading, rcConstraint, rcViolated );
         }
     }
-    
+
     *opCnt = ops;
     gap[ 0 ] = gap[ 1 ] = gap[ 2 ] = ops;
     print_CG_cigar( __LINE__, op, ops, NULL );
@@ -1763,7 +1763,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
         unsigned fwd = 0; /* 5 10 10 10 */
         unsigned rev = 0; /* 10 10 10 5 */
         unsigned acc; /* accumulated length */
-        
+
         if ( ( read == 1 && !reversed ) || ( read == 2 && reversed ) ) {
             for ( i = 0, acc = 0; i < ops  && acc <=5; ++i ) {
                 if ( op[ i ].type != 2 ) {
@@ -1774,16 +1774,16 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                     } else if ( acc > 5 ) {
                         unsigned const right = acc - 5;
                         unsigned const left = op[ i ].length - right;
-                        
+
                         memmove( &op[ i + 2 ], &op[ i ], ( ops - i ) * sizeof( op[ 0 ] ) );
                         ops += 2;
                         op[ i ].length = left;
                         op[ i + 2 ].length = right;
-                        
+
                         op[ i + 1 ].type = 1;
                         op[ i + 1 ].code = 'B';
                         op[ i + 1 ].length = 0;
-                        
+
                         fwd = i + 1;
                         break;
                     }
@@ -1801,16 +1801,16 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                     else if ( acc > 5 ) {
                         unsigned const left = acc - 5;
                         unsigned const right = op[ i ].length - left;
-                        
+
                         memmove( &op[ i + 2 ], &op[ i ], ( ops - i ) * sizeof( op[ 0 ] ) );
                         ops += 2;
                         op[ i ].length = left;
                         op[ i + 2 ].length = right;
-                        
+
                         op[ i + 1 ].type = 1;
                         op[ i + 1 ].code = 'B';
                         op[ i + 1 ].length = 0;
-                         
+
                         rev = i + 1;
                         break;
                     }
@@ -1855,7 +1855,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                         if ( acc > 10 ) {
                             unsigned const r = 10 + op[ i ].length - acc;
                             unsigned const l = op[ i ].length - r;
-                            
+
                             if ( ops + 2 >= maxOps ) {
                                 return RC( rcExe, rcData, rcReading, rcBuffer, rcInsufficient );
                             }
@@ -1863,7 +1863,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                             ops += 2;
                             op[ i + 2 ].length = r;
                             op[ i ].length = l;
-                            
+
                             op[ i + 1 ].length = 0;
                             op[ i + 1 ].type = 2;
                             op[ i + 1 ].code = 'N';
@@ -1904,7 +1904,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
             print_CG_cigar( __LINE__, op, ops, gap );
             return 0;
         }
-        
+
         if ( rev && op[ rev ].type == 1 ) {
             for ( acc = i = 0; i < rev; ++i ) {
                 if ( op[ i ].type != 2 ) {
@@ -1913,7 +1913,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                         if ( acc > 10 ) {
                             unsigned const l = 10 + op[ i ].length - acc;
                             unsigned const r = op[ i ].length - l;
-                            
+
                             if ( ops + 2 >= maxOps ) {
                                 return RC( rcExe, rcData, rcReading, rcBuffer, rcInsufficient );
                             }
@@ -1921,7 +1921,7 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
                             ops += 2;
                             op[ i + 2 ].length = r;
                             op[ i ].length = l;
-                            
+
                             op[ i + 1 ].length = 0;
                             op[ i + 1 ].type = 2;
                             op[ i + 1 ].code = 'N';
@@ -1967,9 +1967,9 @@ static rc_t CIGAR_to_CG_Ops( cgOp op[], unsigned const maxOps,
 static rc_t GenerateCGData( SCol cols[], unsigned style )
 {
     rc_t rc = 0;
-    
+
     memset( &cols[ alg_CG_TAGS_STR], 0, sizeof( cols[ alg_CG_TAGS_STR ] ) );
-    
+
     if ( cols[ alg_READ ].len == 35 && cols[ alg_SAM_QUALITY ].len == 35 ) {
         static char newCIGAR[ 35 * 11 ];
         static int32_t newEditDistance;
@@ -1984,7 +1984,7 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
         unsigned const read = cols[ alg_SEQ_READ_ID ].len && cols[ alg_REVERSED ].len ? cols[ alg_SEQ_READ_ID ].base.coord1[ 0 ] : 0;
         bool const reversed = cols[ alg_REVERSED ].len ? cols[ alg_REVERSED ].base.u8[ 0 ] : false;
         bool has_ref_offset_type = false;
-        
+
         rc = CIGAR_to_CG_Ops( cigOp, sizeof( cigOp ) / sizeof( cigOp[ 0 ] ), &opCnt, gap,
                               cols[ alg_CIGAR ].base.str, cols[ alg_CIGAR ].len,
                               &S_adjust, &CG_adjust, read, reversed, &has_ref_offset_type );
@@ -2012,19 +2012,19 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
             static char tags[ 35*22 + 1 ];
             unsigned const B_len = cigOp[ gap[ 0 ] ].length;
             unsigned const B_at = gap[ 0 ] < gap[ 2 ] ? 5 : 30;
-            
+
             if ( 0 < B_len && B_len < 5 ) {
                 memmove( newSeq, cols[ alg_READ ].base.v, 35 );
                 memmove( newQual, cols[ alg_SAM_QUALITY ].base.v, 35 );
-                
+
                 cols[ alg_CG_TAGS_STR ].base.v = tags;
-                
+
                 cols[ alg_READ ].base.v = newSeq;
                 cols[ alg_READ ].len = 35 - B_len;
-                
+
                 cols[ alg_SAM_QUALITY ].base.v = newQual;
                 cols[ alg_SAM_QUALITY ].len = 35 - B_len;
-                
+
                 /* nBnM -> nB0M */
                 cigOp[ gap[ 0 ] + 1 ].length -= B_len;
                 if ( gap[ 0 ] < gap[ 2 ] ) {
@@ -2066,7 +2066,7 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
                 }
             } else {
                 int len = cigOp[ gap[ 0 ] ].length;
-                
+
                 cigOp[ gap[ 0 ] ].code = 'I';
                 for ( i = gap[0] + 1; i < opCnt && len > 0; ++i ) {
                     if ( cigOp[ i ].length <= len ) {
@@ -2082,7 +2082,7 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
                 }
             }
         }
-        
+
         if ( rc == 0 ) {
         PRINT_CIGAR:
         CLEAN_CIGAR:
@@ -2100,7 +2100,7 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
             if ( cols[ alg_EDIT_DISTANCE ].len ) {
                 int const edit_distance = cols[ alg_EDIT_DISTANCE ].base.i32[ 0 ];
                 int const adjusted = edit_distance + S_adjust - CG_adjust;
-            
+
                 newEditDistance = adjusted > 0 ? adjusted : 0;
                 SAM_DUMP_DBG( 4, ( "NM: before: %u, after: %u(+%u-%u)\n", edit_distance, newEditDistance, S_adjust, CG_adjust ) );
                 cols[ alg_EDIT_DISTANCE ].base.v = &newEditDistance;
@@ -2133,7 +2133,7 @@ static bool DumpAlignedRow( SAM_dump_ctx_t *const ctx, DataSource *const ds,
                     int const cg_style,
                     rc_t *prc ) {
     rc_t rc = 0;
-    
+
     /* if SEQ_SPOT_ID is open then skip rows with no SEQ_SPOT_ID */
     if ( ds->cols[ alg_SEQ_SPOT_ID ].idx ) {
         rc = Cursor_Read( ds, row, alg_SEQ_SPOT_ID, 1 );
@@ -2173,7 +2173,7 @@ static bool DumpAlignedRow( SAM_dump_ctx_t *const ctx, DataSource *const ds,
 
     if ( param->fasta || param->fastq ) {
         unsigned const read_id = ds->cols[ alg_SEQ_READ_ID ].base.v ? ds->cols[ alg_SEQ_READ_ID ].base.coord1[ 0 ] : 0;
-        
+
         rc = DumpAlignedFastX( ctx->pri.cols, row, read_id, primary, false );
     } else {
         if ( cg_style != 0 ) {
@@ -2230,20 +2230,20 @@ static rc_t DumpAlignedRowListIndirect( SAM_dump_ctx_t *const ctx,
     for ( i = 0; i < directIDs->len; ++i ) {
         int64_t const row = directIDs->base.i64[ i ];
         rc_t rc = Cursor_Read( directSource, row, alg_REGION_FILTER, ~(unsigned)0 );
-        
+
         if ( rc != 0 ) {
             return rc;
         }
-        
+
         if ( !AlignRegionFilter( directSource->cols ) ) {
             continue;
         }
-        
+
         rc = Cursor_Read( directSource, row, alg_EVIDENCE_ALIGNMENT_IDS, 1 );
         if ( rc != 0 ) {
             return rc;
         }
-        
+
         rc = DumpAlignedRowList( ctx, indirectSource, &directSource->cols[ alg_EVIDENCE_ALIGNMENT_IDS ],
                                  rcount, primary, cg_style, true );
         if ( rc != 0 ) {
@@ -2285,7 +2285,7 @@ static rc_t DumpAlignedRowList_cb( SAM_dump_ctx_t *const ctx, TAlignedRegion con
                 if ( ( options & evidence_interval_IDS ) != 0 ) {
                     rc = DumpAlignedRowList( ctx, &ctx->evi, IDS, rcount, true, 0, false );
                 }
-                
+
                 if ( rc == 0 && ( options & evidence_alignment_IDS ) != 0 ) {
                     rc = DumpAlignedRowListIndirect( ctx, &ctx->eva, &ctx->evi, IDS, rcount, true, param->cg_style );
                 }
@@ -2306,8 +2306,8 @@ static void SetCigOp( CigOps *dst, char op, uint32_t oplen ) {
     dst->op    = op;
     dst->oplen = oplen;
     switch( op ) { /*MX= DN B IS PH*/
-        case 'M': 
-        case 'X': 
+        case 'M':
+        case 'X':
         case '=':
             dst->ref_sign=+1;
             dst->seq_sign=+1;
@@ -2317,7 +2317,7 @@ static void SetCigOp( CigOps *dst, char op, uint32_t oplen ) {
             dst->ref_sign=+1;
             dst->seq_sign= 0;
             break;
-        case 'B': 
+        case 'B':
             dst->ref_sign=-1;
             dst->seq_sign= 0;
             break;
@@ -2342,7 +2342,7 @@ static unsigned ExplodeCIGAR( CigOps dst[], unsigned len, char const cigar[], un
     unsigned i;
     unsigned j;
     int opLen;
-    
+
     for ( i = j = opLen=0; i < ciglen; i++ ) {
         if ( isdigit( cigar[ i ] ) ) {
             opLen = opLen * 10 + cigar[i] - '0';
@@ -2373,13 +2373,13 @@ static unsigned DeletedCIGAR( char dst[], unsigned const cp, int opcode, unsigne
     unsigned curPos = 0;
     int curOp = opcode;
     unsigned oplen = 0;
-    
+
     for ( i = 0; i < D && ri < len; ++i, ++ri ) {
         uint32_t const op = Op[ ri ];
         int const d = op >> 2;
         int const m = op & 1;
         int const nxtOp = m ? opcode : 'P';
-        
+
         if ( d != 0 ) {
             if ( oplen != 0 ) {
                 curPos += FormatCIGAR( dst, curPos + cp, oplen, curOp );
@@ -2410,7 +2410,7 @@ static unsigned DeletedCIGAR( char dst[], unsigned const cp, int opcode, unsigne
 }
 #endif
 
-static char merge_M_type_ops( char a, char b ) { 
+static char merge_M_type_ops( char a, char b ) {
     /*MX=*/
     char c = 0;
     switch( b ) {
@@ -2442,7 +2442,7 @@ static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len
                               int refPos, CigOps const refOp[], unsigned ref_len ) {
     bool     done=false;
     unsigned ciglen=0,last_ciglen=0;
-    char     last_cig_op;
+    char     last_cig_op = 0;
     uint32_t last_cig_oplen=0;
     int	     si=0,ri=0;
     CigOps   seq_cop={0,0,0,0},ref_cop={0,0,0,0};
@@ -2463,7 +2463,7 @@ static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len
         }
     while ( !done ) {
 
-        while ( delta < 0 ) { 
+        while ( delta < 0 ) {
             ref_pos += delta; /** we will make it to back up this way **/
             if ( ri > 0 ) { /** backing up on ref if possible ***/
                 int avail_oplen = refOp[ri-1].oplen - ref_cop.oplen;
@@ -2479,13 +2479,13 @@ static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len
                     ri--;
                     /** pick the previous as used up **/
                     ref_cop = refOp[ ri - 1 ];
-                    ref_cop.oplen =0; 
+                    ref_cop.oplen =0;
                 }
             } else { /** extending the reference **/
                 SetCigOp( &ref_cop,'=',ref_cop.oplen - delta );
                 delta = 0;
             }
-            ref_pos -= delta; 
+            ref_pos -= delta;
         }
 
         if ( ref_cop.oplen == 0 ) { /*** advance the reference ***/
@@ -2495,7 +2495,7 @@ static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len
             }
             assert( ref_cop.oplen > 0 );
         }
-        
+
         if ( delta > 0 ) { /***  skip refOps ***/
             ref_pos += delta; /** may need to back up **/
             if ( delta >= ref_cop.oplen ) { /** full **/
@@ -2577,7 +2577,7 @@ static rc_t DumpCGSAM( SAM_dump_ctx_t *const ctx, TAlignedRegion const *const rg
     if ( which == evidence_interval_IDS ) {
         rc_t rc = 0;
         unsigned i;
-        
+
         for ( i = 0; i < ids->len; ++i ) {
             int64_t const rowInterval = ids->base.i64[ i ];
 
@@ -2601,26 +2601,26 @@ static rc_t DumpCGSAM( SAM_dump_ctx_t *const ctx, TAlignedRegion const *const rg
                             } else {
                                 refCigOps = refCigOps_stack;
                             }
-                            
+
                             if ( refCigOps != NULL ) {
                                 unsigned j;
                                 unsigned start;
                                 unsigned cigop_starts[ 256 ];
-                                
+
                                 assert( ploids < 256 );
-                                
+
                                 for ( start = j = 0, cigop_starts[0]=0; j < ploids; ++j ) {
                                     unsigned len = cigLen[ j ];
                                     cigop_starts[ j + 1 ] =
-                                        cigop_starts[ j ] + 
-                                        ExplodeCIGAR( refCigOps + cigop_starts[ j ], refLen[ j ], 
+                                        cigop_starts[ j ] +
+                                        ExplodeCIGAR( refCigOps + cigop_starts[ j ], refLen[ j ],
                                                       ctx->evi.cols[ alg_CIGAR ].base.str + start, len );
                                     start += len;
                                 }
-                                
+
                                 for ( j = 0; j < evidence; ++j ) {
                                     int64_t const rowAlign = ctx -> evi.cols[ alg_EVIDENCE_ALIGNMENT_IDS ].base.i64[ j ];
-                                    
+
                                     rc = Cursor_ReadAlign( &ctx->eva.curs, rowAlign, ctx->eva.cols, 0 );
                                     if ( rc == 0 ) {
                                         if ( param->cg_style != 0 ) {
@@ -2632,17 +2632,17 @@ static rc_t DumpCGSAM( SAM_dump_ctx_t *const ctx, TAlignedRegion const *const rg
                                             INSDC_coord_zero refPos = ctx -> eva . cols[ alg_REF_POS ] . base . coord0[ 0 ];
                                             CigOps op[ 36 ];
                                             char cigbuf[ CG_CIGAR_STRING_MAX ];
-                                            
+
                                             memset( cigbuf, 0, CG_CIGAR_STRING_MAX );
                                             ExplodeCIGAR( op, readLen, ctx -> eva . cols[ alg_CIGAR ] . base . str,
                                                          ctx -> eva . cols[ alg_CIGAR ] . len );
-                                            ctx -> eva . cols[ alg_CIGAR ] . len = 
-                                                CombineCIGAR( cigbuf, op, readLen, refPos, 
+                                            ctx -> eva . cols[ alg_CIGAR ] . len =
+                                                CombineCIGAR( cigbuf, op, readLen, refPos,
                                                               refCigOps + cigop_starts[ ploidy - 1 ], refLen[ ploidy - 1 ] );
                                             ctx -> eva . cols[ alg_CIGAR ] . base.str = cigbuf;
                                             ctx -> eva . cols[ alg_REF_POS ] . base.v = &refPos;
                                             refPos += ctx -> evi . cols[ alg_REF_POS ] . base . coord0[ 0 ] ;
-                                            
+
                                             if ( refPos < 0 ) {
                                                 ReferenceObj const *r = NULL;
                                                 rc = ReferenceList_Find( gRefList, &r,
@@ -2701,7 +2701,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
         { "OVERLAP_REF_POS", 0, { NULL }, 0, true },
         { "PRIMARY_ALIGNMENT_IDS", 0, { NULL }, 0, false },
         { "SECONDARY_ALIGNMENT_IDS", 0, { NULL }, 0, true },
-        { "EVIDENCE_INTERVAL_IDS", 0, { NULL }, 0, true }, 
+        { "EVIDENCE_INTERVAL_IDS", 0, { NULL }, 0, true },
         { NULL, 0, { NULL }, 0, false }
     };
     enum eref_col {
@@ -2730,7 +2730,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
         cols[ ref_EVIDENCE_INTERVAL_IDS ].name = "";
     }
     ctx -> ref . cols = cols;
-    
+
     rc = VTableOpenIndexRead( ctx->ref.tbl.vtbl, &iname, "i_name" );
     if ( rc == 0 ) {
         rc = Cursor_Open( &ctx->ref.tbl, &ctx->ref.curs, ctx->ref.cols, NULL );
@@ -2739,7 +2739,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
             uint64_t count = 0;
             char refname[ 1024 ];
             size_t sz;
-            
+
             if ( ctx->ref.cols[ ref_PRIMARY_ALIGNMENT_IDS ].idx == 0 ) {
                 options &= ~primary_IDS;
             }
@@ -2762,7 +2762,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
                 unsigned r;
                 unsigned max_to = UINT_MAX;
                 unsigned min_from = 0;
-                
+
                 for ( include = false, r = 0; r < param->region_qty; ++r ) {
                     if ( sz == string_size( param->region[ r ].name ) &&
                          memcmp( param->region[ r ].name, refname, sz ) == 0 ) {
@@ -2778,7 +2778,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
                     int64_t const endrow_exclusive = rowid + count;
                     unsigned m;
                     unsigned k;
-                    
+
                     for ( k = 0, m = 1; rc == 0 && k < 3; ++k, m <<= 1 ) {
                         if ( m & options ) {
                             unsigned lookback = 0;
@@ -2786,7 +2786,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
                             int32_t row_start_offset;
                             unsigned pos;
                             unsigned const maxseqlen = 5000; /***** TODO: this code is to be rewritten anyway ****/
-                            
+
                             if ( param->region_qty ) {
                                 if ( ctx->ref.cols[ ref_OVERLAP_REF_LEN ].idx ) {
                                     rc = Cursor_Read( &ctx->ref, rowid, 0, ~(0u) );
@@ -2862,7 +2862,7 @@ static rc_t ForEachAlignedRegion( SAM_dump_ctx_t *const ctx, enum e_IDS_opts con
     }
     Cursor_Close( &ctx -> ref . curs );
     KIndexRelease( iname );
-    
+
     return rc;
 }
 
@@ -2872,7 +2872,7 @@ static rc_t DumpAlignedTable( SAM_dump_ctx_t *const ctx, DataSource *const ds,
     int64_t start;
     uint64_t count;
     rc_t rc = VCursorIdRange( ds->curs.vcurs, 0, &start, &count );
-    
+
     if ( rc != 0 ) {
         return rc;
     }
@@ -2893,7 +2893,7 @@ static rc_t DumpAlignedTable( SAM_dump_ctx_t *const ctx, DataSource *const ds,
 static rc_t DumpUnsorted( SAM_dump_ctx_t *const ctx ) {
     rc_t rc = 0;
     unsigned rcount;
-    
+
     if ( rc == 0 && param->cg_evidence ) {
         SAM_DUMP_DBG( 2, ( "%s EVIDENCE_INTERVAL\n", ctx->accession ) );
         rcount = 0;
@@ -3036,27 +3036,27 @@ static rc_t DumpHeader( SAM_dump_ctx_t const *ctx )
 {
     bool reheader = param->reheader;
     rc_t rc = 0;
-    
+
     if ( !reheader ) {
         if ( ctx -> db ) {
             /* grab header from db meta node */
             KMetadata const *meta;
-            
+
             rc = VDatabaseOpenMetadataRead( ctx->db, &meta );
             if ( rc == 0 ) {
                 KMDataNode const *node;
-                
+
                 rc = KMetadataOpenNodeRead( meta, &node, "BAM_HEADER" );
                 KMetadataRelease( meta );
-                
+
                 if ( rc == 0 ) {
                     size_t offset = 0;
-                    
+
                     for ( offset = 0; ; ) {
                         size_t remain;
                         size_t nread;
                         char buffer[ 4096 ];
-                        
+
                         rc = KMDataNodeRead( node, offset, buffer, sizeof(buffer), &nread, &remain );
                         if ( rc != 0 ) {
                             break;
@@ -3132,7 +3132,7 @@ static rc_t DumpDB( SAM_dump_ctx_t *const ctx ) {
         if ( param->cg_sam ) {
             rc = ForEachAlignedRegion( ctx, evidence_interval_IDS, DumpCGSAM );
         }
-        
+
         if ( param->region_qty == 0 ) {
             rc = DumpUnsorted( ctx );
             if ( rc == 0 && param->unaligned ) {
@@ -3161,10 +3161,10 @@ static rc_t ProcessTable( VDBManager const *mgr, char const fullPath[],
                           char const accession[], char const readGroup[] ) {
     VTable const *tbl;
     rc_t rc = VDBManagerOpenTableRead( mgr, &tbl, 0, "%s", fullPath );
-    
+
     if ( rc != 0 ) {
         VSchema *schema;
-        
+
         rc = VDBManagerMakeSRASchema( mgr, &schema );
         if ( rc == 0 ) {
             rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", fullPath );
@@ -3175,17 +3175,17 @@ static rc_t ProcessTable( VDBManager const *mgr, char const fullPath[],
     if ( rc == 0 ) {
         SAM_dump_ctx_t ctx;
         SCol seq_cols[ sizeof( gSeqCol ) / sizeof( gSeqCol[ 0 ] ) ];
-        
+
         memset( &ctx, 0, sizeof( ctx ) );
-        
+
         ctx.fullPath = fullPath;
         ctx.accession = accession;
         ctx.readGroup = readGroup;
-        
+
         DATASOURCE_INIT( ctx.seq, accession );
         ctx.seq.tbl.vtbl = tbl;
         ctx.seq.type = edstt_Sequence;
-        
+
         ReportResetTable( fullPath, tbl );
 
         ctx.seq.cols = seq_cols;
@@ -3202,7 +3202,7 @@ static rc_t ProcessTable( VDBManager const *mgr, char const fullPath[],
 
 static void SetupColumns( DataSource *ds, enum eDSTableType type ) {
     memmove( ds->cols, g_alg_col_tmpl, sizeof( g_alg_col_tmpl ) );
-    
+
     ds->type = type;
 
     if ( param->use_seqid ) {
@@ -3210,7 +3210,7 @@ static void SetupColumns( DataSource *ds, enum eDSTableType type ) {
     } else {
         ds->cols[ alg_MATE_REF_NAME ].name = "MATE_REF_NAME";
     }
-    
+
     if ( param->fasta || param->fastq ) {
         ds->cols[ alg_READ ].name = "RAW_READ";
     } else if ( param->hide_identical ) {
@@ -3218,7 +3218,7 @@ static void SetupColumns( DataSource *ds, enum eDSTableType type ) {
     } else {
         ds->cols[ alg_READ ].name = "READ";
     }
-    
+
     if ( param->long_cigar ) {
         ds->cols[ alg_CIGAR ].name = "CIGAR_LONG";
         ds->cols[ alg_CIGAR_LEN ].name = "CIGAR_LONG_LEN";
@@ -3230,7 +3230,7 @@ static void SetupColumns( DataSource *ds, enum eDSTableType type ) {
     if ( param -> qualQuant && param -> qualQuantSingle ) { /** we don't really need quality ***/
         ds->cols[ alg_SAM_QUALITY   ] . name = "";
     }
-    
+
     switch ( type ) {
         case edstt_EvidenceInterval:
             ds->cols[ alg_SEQ_SPOT_ID   ].name = "";
@@ -3284,31 +3284,31 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
     char const *const priTableName = param->primaries   ? "PRIMARY_ALIGNMENT" : 0;
     char const *const secTableName = param->secondaries ? "SECONDARY_ALIGNMENT" : 0;
     char const *const seqTableName = ( param->unaligned || param->reheader ) ? "SEQUENCE" : 0;
-    char const *const eviTableName = ( param->cg_evidence || ( param->cg_ev_dnb & ( param->region_qty > 0 ) ) || param->cg_sam ) 
+    char const *const eviTableName = ( param->cg_evidence || ( param->cg_ev_dnb & ( param->region_qty > 0 ) ) || param->cg_sam )
                                         ? "EVIDENCE_INTERVAL" : 0;
     char const *const evaTableName = ( param->cg_ev_dnb   || param->cg_sam ) ? "EVIDENCE_ALIGNMENT" : 0;
-    
+
     SAM_dump_ctx_t ctx;
     SCol align_cols[ ( sizeof( g_alg_col_tmpl ) / sizeof( g_alg_col_tmpl[ 0 ] ) ) * 4 ];
     SCol seq_cols[ sizeof( gSeqCol ) / sizeof( gSeqCol[ 0 ] ) ];
     rc_t rc = 0;
-    
+
     memset( &ctx, 0, sizeof( ctx ) );
     memset( align_cols, 0, sizeof( align_cols ) );
     memset( seq_cols, 0, sizeof( seq_cols ) );
-    
+
     ctx.db = db;
     ctx.fullPath = fullPath;
     ctx.accession = accession;
     ctx.readGroup = readGroup;
-    
+
     DATASOURCE_INIT( ctx.seq, seqTableName );
     DATASOURCE_INIT( ctx.ref, refTableName );
     DATASOURCE_INIT( ctx.pri, priTableName );
     DATASOURCE_INIT( ctx.sec, secTableName );
     DATASOURCE_INIT( ctx.evi, eviTableName );
     DATASOURCE_INIT( ctx.eva, evaTableName );
-    
+
     if ( ctx.seq.tbl.name ) {
         rc = VDatabaseOpenTableRead( db, &ctx.seq.tbl.vtbl, "%s", ctx.seq.tbl.name );
         if ( rc == 0 ) {
@@ -3321,12 +3321,12 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
     ctx.sec.cols = &align_cols[ 1 * ( sizeof( g_alg_col_tmpl ) / sizeof( g_alg_col_tmpl[ 0 ] ) ) ];
     ctx.evi.cols = &align_cols[ 2 * ( sizeof( g_alg_col_tmpl ) / sizeof( g_alg_col_tmpl[ 0 ] ) ) ];
     ctx.eva.cols = &align_cols[ 3 * ( sizeof( g_alg_col_tmpl ) / sizeof( g_alg_col_tmpl[ 0 ] ) ) ];
-    
+
     SetupColumns( &ctx.pri, edstt_PrimaryAlignment );
     SetupColumns( &ctx.sec, edstt_SecondaryAlignment );
     SetupColumns( &ctx.evi, edstt_EvidenceInterval );
     SetupColumns( &ctx.eva, edstt_EvidenceAlignment );
-    
+
     if ( ctx.pri.tbl.name ) {
         VDatabaseOpenTableRead( db, &ctx.pri.tbl.vtbl, "%s", ctx.pri.tbl.name );
     }
@@ -3339,13 +3339,16 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
     if ( ctx.eva.tbl.name ) {
         VDatabaseOpenTableRead( db, &ctx.eva.tbl.vtbl, "%s", ctx.eva.tbl.name );
     }
-    
+
     if (   ctx.pri.tbl.vtbl == NULL
         && ctx.sec.tbl.vtbl == NULL
         && ctx.evi.tbl.vtbl == NULL
         && ctx.eva.tbl.vtbl == NULL ) {
 
-        memset( &ctx.pri, 0, sizeof( ctx.pri ) * 4 );
+        memset( &ctx.pri, 0, sizeof( ctx.pri ) );
+        memset( &ctx.sec, 0, sizeof( ctx.sec ) );
+        memset( &ctx.evi, 0, sizeof( ctx.evi ) );
+        memset( &ctx.eva, 0, sizeof( ctx.eva ) );
         if ( ctx.seq.tbl.name == NULL ) {
             ctx.seq.tbl.name = "SEQUENCE";
             rc = VDatabaseOpenTableRead( db, &ctx.seq.tbl.vtbl, "%s", ctx.seq.tbl.name );
@@ -3364,7 +3367,7 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
         return rc;
     }
     ReportResetDatabase( fullPath, db );
-    
+
     if ( ctx.ref.tbl.name ) {
         rc = VDatabaseOpenTableRead( db, &ctx.ref.tbl.vtbl, "%s", ctx.ref.tbl.name );
         ctx.ref.type = edstt_Reference;
@@ -3391,14 +3394,14 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
     Cursor_Close(&ctx.evi.curs);
     Cursor_Close(&ctx.eva.curs);
     Cursor_Close(&ctx.seq.curs);
-    
+
     VTableRelease( ctx.ref.tbl.vtbl );
     VTableRelease( ctx.pri.tbl.vtbl );
     VTableRelease( ctx.sec.tbl.vtbl );
     VTableRelease( ctx.evi.tbl.vtbl );
     VTableRelease( ctx.eva.tbl.vtbl );
     VTableRelease( ctx.seq.tbl.vtbl );
-    
+
     return rc;
 }
 
@@ -3408,7 +3411,7 @@ rc_t ResolvePath( char const *accession, char const ** path ) {
     static char tblpath[ 4096 ];
 #if TOOLS_USE_SRAPATH != 0
     static SRAPath* pmgr = NULL;
-    
+
     if ( accession == NULL && path == NULL ) {
         SRAPathRelease( pmgr );
         return 0;
@@ -3453,11 +3456,11 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
     char *path = NULL;
     unsigned i;
     rc_t rc;
-    
+
     /* strip trailing path seperators */
     for ( i = pathlen; i > 0; ) {
         int const ch = Path[ --i ];
-        
+
         if ( ch == '/' || ch == '\\' ) {
             --pathlen;
         } else {
@@ -3468,13 +3471,13 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
     /* find read group alias */
     for ( i = pathlen; i > 0; ) {
         int const ch = Path[ --i ];
-        
+
         if ( ch == '=' ) {
             unsigned const pos = i + 1;
             unsigned const len = pathlen - pos;
-            
+
             pathlen = i;
-            
+
             readGroup = malloc( len + 1 );
             if ( readGroup == NULL ) {
                 return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
@@ -3491,7 +3494,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
     }
     memmove( path, Path, pathlen );
     path[ pathlen ] = '\0';
-    
+
     rc = ReportResetObject( path );
     if ( rc == 0 ) {
         char const *fullPath;
@@ -3500,11 +3503,11 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
         if ( rc == 0 ) {
             char const *accession = fullPath;
             VDatabase const *db;
-            
+
             /* use last path element as accession */
             for ( i = pathlen; i > 0; ) {
                 int const ch = path[ --i ];
-                
+
                 if ( ch == '/' || ch == '\\' ) {
                     accession = &fullPath[ i + 1 ];
                     break;
@@ -3540,7 +3543,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
     /* old: ---unused label */
         readGroup = NULL;
         path = NULL;
-    
+
         /* strip trailing path separators */
         for ( i = pathlen; i > 0; -- pathlen ) {
             int const ch = Path[ --i ];
@@ -3556,9 +3559,9 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
             if ( ch == '=' ) {
                 size_t const pos = i + 1;
                 size_t const len = pathlen - pos;
-            
+
                 pathlen = i;
-            
+
                 readGroup = malloc( len + 1 );
                 if ( readGroup == NULL ) {
                     return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
@@ -3575,16 +3578,16 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
         }
         memmove( path, Path, pathlen );
         path[ pathlen ] = '\0';
-    
+
         rc = ReportResetObject( path );
         if ( rc == 0 ) {
             char const *accession = path;
             VDatabase const *db;
-            
+
             /* use last path element as accession */
             for ( i = pathlen; i > 0; ) {
                 int const ch = path[ --i ];
-                
+
                 if ( ch == '/' || ch == '\\' ) {
                     accession = &path[ i + 1 ];
                     break;
@@ -3672,7 +3675,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
                             }
                         }
                     }
-                
+
                     rc = VPathOption (vpath, vpopt_readgroup, readgroup_, sizeof readgroup_ - 1, &zz);
                     if ( rc == 0 ) {
                         readgroup = readgroup_;
@@ -3683,7 +3686,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
 
                     if ( rc == 0 ) {
                         VDatabase const *db;
-                        
+
                         rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", Path );
                         if ( rc == 0 ) {
                             rc = ProcessDB( db, Path, basename, readgroup );
@@ -3897,7 +3900,7 @@ static rc_t CountArgs( Args const *const args, unsigned count[],
                        char const **const errmsg ) {
     rc_t rc;
     unsigned const pcount = ParamCount( args, &rc );
-    
+
     memset( count, 0, ARGS_COUNT );
     if ( rc != 0 || pcount == 0 ) {
         *errmsg = "";
@@ -3912,8 +3915,8 @@ static rc_t CountArgs( Args const *const args, unsigned count[],
         *errmsg = optname; \
         return rc; \
     } } while( 0 )
-    
-    
+
+
     /* record source options */
     COUNT_ARG( earg_unaligned );
     COUNT_ARG( earg_unaligned_only );
@@ -3922,40 +3925,40 @@ static rc_t CountArgs( Args const *const args, unsigned count[],
     COUNT_ARG( earg_CG_ev_dnb );
     COUNT_ARG( earg_CG_mappings );
     COUNT_ARG( earg_CG_SAM );
-    
+
     /* record filter options */
     COUNT_ARG( earg_region );
     COUNT_ARG( earg_distance );
-    
+
     /* output format options */
     COUNT_ARG( earg_fastq );
     COUNT_ARG( earg_fasta );
-    
+
     /* SAM header options */
     COUNT_ARG( earg_header );
     COUNT_ARG( earg_noheader );
     COUNT_ARG( earg_comment );
-    
+
     /* SAM field options */
     COUNT_ARG( earg_prefix );
     COUNT_ARG( earg_qname );
     COUNT_ARG( earg_seq_id );
     COUNT_ARG( earg_CG_names );
-    
+
     COUNT_ARG( earg_cigartype );
     COUNT_ARG( earg_cigarCG );
     COUNT_ARG( earg_cigarCG_merge );
-    
+
     COUNT_ARG( earg_identicalbases );
     COUNT_ARG( earg_reverse );
     COUNT_ARG( earg_QualQuant );
-    
+
     /* output encoding options */
     COUNT_ARG( earg_gzip );
     COUNT_ARG( earg_bzip2 );
-    
+
     COUNT_ARG( earg_mate_row_gap_cachable );
-    
+
     /* debug options */
     COUNT_ARG( earg_XI );
     COUNT_ARG( earg_test_rows );
@@ -3968,10 +3971,10 @@ static unsigned GetOptValU( Args const *const args, char const *const argname,
     unsigned y = defval;
     char const *valstr;
     rc_t rc = ArgsOptionValue( args, argname, 0, (const void **)&valstr );
-    
+
     if ( rc == 0 ) {
         char *endp;
-        
+
         y = strtou32( valstr, &endp, 0 );
         if ( *endp != '\0' ) {
             rc = RC( rcExe, rcArgv, rcProcessing, rcParam, rcInvalid );
@@ -4013,10 +4016,10 @@ static rc_t ParseFromTo( int *const pFrom, int *const pTo, char const str[] ) {
     uint32_t fr = 0;
     uint32_t to = 0;
     int i = sscanf( str, "%15[0-9]-%15[0-9]%n", fr_str, to_str, &n );
-    
+
     if ( i != 2 ) {
         unsigned const offset = ( str[ 0 ] == '-' ) ? 1 : 0;
-        
+
         fr = 0;
         i = sscanf( str + offset, "%15[0-9]%n", to_str, &n );
         if ( i != 1 ) {
@@ -4026,7 +4029,7 @@ static rc_t ParseFromTo( int *const pFrom, int *const pTo, char const str[] ) {
     } else {
         fr = strtou32( fr_str, 0, 0 );
         to = strtou32( to_str, 0, 0 );
-        
+
         if ( to < fr ) {
             uint32_t const tmp = to;
             to = fr;
@@ -4046,13 +4049,13 @@ static rc_t ParseFromTo( int *const pFrom, int *const pTo, char const str[] ) {
 static rc_t GetDistance( Args const *const args, struct params_s *const parms, unsigned const n ) {
     rc_t rc;
     TMatepairDistance *const mpd = calloc( n, sizeof( mpd[ 0 ] ) );
-    
+
     if ( mpd == NULL ) {
         rc = RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
     } else {
         unsigned i;
         unsigned j;
-        
+
         for ( j = i = 0; i < n; ++i ) {
             char const *valstr;
             int from = 0;
@@ -4083,7 +4086,7 @@ static rc_t GetDistance( Args const *const args, struct params_s *const parms, u
         if ( rc == 0 ) {
             parms->mp_dist = mpd;
             parms->mp_dist_qty = j;
-            
+
             SAM_DUMP_DBG( 2, ( "filter by mate pair distance\n" ) );
             if ( parms->mp_dist_unknown ) {
                 SAM_DUMP_DBG( 2, ( "    distance: unknown\n" ) );
@@ -4102,13 +4105,13 @@ static rc_t GetDistance( Args const *const args, struct params_s *const parms, u
 static rc_t GetRegion( Args const *const args, struct params_s *const parms, unsigned const n ) {
     rc_t rc;
     TAlignedRegion *const reg = calloc( n, sizeof( reg[ 0 ] ) );
-    
+
     if ( reg == NULL ) {
         rc = RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
     } else {
         unsigned i;
         unsigned j;
-        
+
         for ( rc = 0, j = i = 0; i < n; ++i ) {
             char const *valstr;
             char const *sep;
@@ -4118,7 +4121,7 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
             TAlignedRegion r;
 
             memset( &r, 0, sizeof( r ) );
-            
+
             rc = ArgsOptionValue( args, DumpArgs[ earg_region ].name, i, (const void **)&valstr );
             if ( rc != 0 ) {
                 break;
@@ -4135,12 +4138,12 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
             }
             memmove( r.name, valstr, namelen );
             r.name[ namelen ] = '\0';
-            
+
             r.rq = UINT_MAX;
             if ( sep != NULL ) {
                 int from = -1;
                 int to = -1;
-                
+
                 rc = ParseFromTo( &from, &to, sep + 1 );
                 if ( rc != 0 ) {
                     break;
@@ -4169,11 +4172,11 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
                     r.rq = 1;
                 }
             }
-            
+
             for ( f = 0, e = j; f < e; ) {
                 unsigned const m = ( ( f + e ) / 2 );
                 int const diff = strcmp( r.name, reg[ m ].name );
-                
+
                 if ( diff < 0 ) {
                     e = m;
                 } else {
@@ -4183,11 +4186,11 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
 
             if ( 0 < e && e < j && strcmp( r.name, reg[ e-1 ].name ) == 0 ) {
                 TAlignedRegion *const fnd = &reg[ e - 1 ];
-                
+
                 if ( fnd->rq != UINT_MAX ) {
                     for ( f = 0, e = fnd->rq; f < e; ) {
                         unsigned const m = ( ( f + e ) / 2 );
-                        
+
                         if ( r.r[ 0 ].from < fnd->r[ m ].from ) {
                             e = m;
                         } else {
@@ -4212,10 +4215,10 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
         if ( rc == 0 ) {
             parms->region = reg;
             parms->region_qty = j;
-            
+
             for ( i = 0; i < parms->region_qty; ++i ) {
                 TAlignedRegion *const r = &parms->region[ i ];
-                
+
                 SAM_DUMP_DBG( 2, ( "filter by %s\n", r->name ) );
                 if ( r->rq == UINT_MAX ) {
                     r->rq = 1;
@@ -4225,7 +4228,7 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
                 for ( j = 0; j < r->rq; ++j ) {
                     unsigned const to = r->r[ j ].to;
                     unsigned const from = r->r[ j ].from;
-                    
+
                     SAM_DUMP_DBG( 2, ( "   range: [%u:%u]\n", r->r[ j ].from, to ) );
                     if ( r->max_to < to ) r->max_to = to;
                     if ( r->min_from < from ) r->min_from = from;
@@ -4242,7 +4245,7 @@ static rc_t GetQualQuant( Args const *const args, struct params_s *const parms )
     char const *valstr;
     int i;
     rc_t rc = ArgsOptionValue( args, DumpArgs[ earg_QualQuant ].name, 0, (const void **)&valstr );
-    
+
     if ( rc == 0 && strcmp( valstr, "0" ) != 0 ) {
         parms->quantizeQual = QualityQuantizerInitMatrix( parms->qualQuant, valstr );
     }
@@ -4261,9 +4264,9 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
     static struct params_s parms;
     bool const multipass = ParamCount( args, 0 ) > 1;
     rc_t rc;
-    
+
     memset( &parms, 0, sizeof( parms ) );
-    
+
     if ( count[ earg_comment ] ) {
         rc = GetComments( args, &parms, count[ earg_comment ] );
         if ( rc != 0 ) {
@@ -4271,7 +4274,7 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
             return rc;
         }
     }
-    
+
     if ( count[ earg_region ] && count[ earg_unaligned_only ] == 0 ) {
         rc = GetRegion( args, &parms, count[ earg_region ] );
         if ( rc != 0 ) {
@@ -4295,11 +4298,11 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
             return rc;
         }
     }
-    
+
     parms.cg_sam = ( count[ earg_CG_SAM ] != 0 );
     parms.cg_evidence = ( count[ earg_CG_evidence ] != 0 );
     parms.cg_ev_dnb = ( count[ earg_CG_ev_dnb ] != 0 );
-    
+
     if ( count[ earg_CG_mappings ] == 0 &&
          ( parms.cg_sam || parms.cg_evidence || parms.cg_ev_dnb ) ) {
         parms.primaries = false;
@@ -4310,7 +4313,7 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
         parms.secondaries = ( count[ earg_prim_only ] == 0 );
         parms.unaligned = ( ( count[ earg_unaligned ] != 0 ) /*&& ( parms.region_qty == 0 )*/ );
     }
-    
+
     parms.long_cigar = ( count[ earg_cigartype ] != 0 );
     parms.use_seqid = ( ( count[ earg_seq_id ] != 0 ) || multipass );
     parms.hide_identical = ( count[ earg_identicalbases ] != 0 );
@@ -4338,7 +4341,7 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
 
     if ( count[ earg_unaligned_only ] > 0 ) {
         parms.unaligned_spots = true;
-        
+
         parms.primaries = false;
         parms.secondaries = false;
         parms.unaligned = true;
@@ -4347,10 +4350,10 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
         parms.cg_sam = false;
         parms.cg_style = 0;
     }
-    
+
     parms.test_rows = GetOptValU( args, DumpArgs[ earg_test_rows ].name, 0, NULL );
     parms.mate_row_gap_cachable = GetOptValU( args, DumpArgs[ earg_mate_row_gap_cachable ].name, 1000000, NULL );
-    
+
     param = &parms;
     return 0;
 }
@@ -4358,7 +4361,7 @@ static rc_t GetArgs( Args const *const args, unsigned const count[],
 static rc_t GetParams( Args const *const args, char const **const errmsg ) {
     unsigned count[ ARGS_COUNT ];
     rc_t rc = CountArgs( args, count, errmsg );
-    
+
     if ( rc == 0 ) {
         rc = GetArgs( args, count, errmsg );
     }
@@ -4392,16 +4395,16 @@ rc_t CC SAM_Dump_Main( int argc, char* argv[] ) {
 
         } else {
             VDBManager const *mgr;
-            
+
             rc = VDBManagerMakeRead( &mgr, NULL );
             if ( rc == 0 ) {
                 rc = BufferedWriterMake( param->output_gzip, param->output_bz2 );
                 if ( rc == 0 ) {
                     unsigned i;
-                    
+
                     for ( i = 0; i < pcount; ++i ) {
                         char const *arg;
-                        
+
                         rc = ArgsParamValue( args, i, (const void **)&arg );
                         if ( rc != 0 ) break;
                         rc = ProcessPath( mgr, arg );
@@ -4446,7 +4449,7 @@ rc_t CC SAM_Dump_Main( int argc, char* argv[] ) {
 rc_t CC Legacy_KMain( int argc, char* argv[] ) {
     char filename[ 4096 ];
     /*
-       Try to find a option-file - parameter in the original parameters 
+       Try to find a option-file - parameter in the original parameters
        This is a hack to teach sam-dump to read it's parameters from a file/pipe instead
        of the commandline
        It is neccessary because the code above does not use libkapp to parse parameters!

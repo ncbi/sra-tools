@@ -174,17 +174,16 @@ typename BV::size_type any_or(const BV& bv1, const BV& bv2) BMNOEXCEPT
 
 #define BM_SCANNER_OP(x) \
 if (0 != (block = blk_blk[j+x])) \
-{ int ret;\
+{ \
     if (BM_IS_GAP(block)) \
     { \
-        ret = bm::for_each_gap_blk(BMGAP_PTR(block), (r+j+x)*bm::bits_in_block,\
+        bm::for_each_gap_blk(BMGAP_PTR(block), (r+j+x)*bm::bits_in_block,\
                              bit_functor); \
     } \
     else \
     { \
-        ret = bm::for_each_bit_blk(block, (r+j+x)*bm::bits_in_block,bit_functor); \
+        bm::for_each_bit_blk(block, (r+j+x)*bm::bits_in_block,bit_functor); \
     } \
-    if (ret < 0) return ret; \
 }
     
 
@@ -193,13 +192,12 @@ if (0 != (block = blk_blk[j+x])) \
  
     @param bv - bit vector to scan
     @param bit_functor - visitor: should support add_bits(), add_range()
-    @return return code from functor (< 0 indicates to interrupt iteration and exit)
  
     \ingroup setalgo
     @sa for_each_bit_range visit_each_bit
 */
 template<class BV, class Func>
-int for_each_bit(const BV&    bv,
+void for_each_bit(const BV&    bv,
                   Func&        bit_functor)
 {
     typedef typename BV::size_type size_type;
@@ -208,7 +206,7 @@ int for_each_bit(const BV&    bv,
     bm::word_t*** blk_root = bman.top_blocks_root();
     
     if (!blk_root)
-        return 0;
+        return;
     
     unsigned tsize = bman.top_block_size();
     for (unsigned i = 0; i < tsize; ++i)
@@ -246,9 +244,9 @@ int for_each_bit(const BV&    bv,
             ++j;
         #endif
         
-        } while (j < bm::set_sub_array_size);        
+        } while (j < bm::set_sub_array_size);
+        
     }  // for i
-    return 0;
 }
 
 /**
@@ -263,7 +261,7 @@ int for_each_bit(const BV&    bv,
     @sa for_each_bit
 */
 template<class BV, class Func>
-int for_each_bit_range(const BV&             bv,
+void for_each_bit_range(const BV&             bv,
                        typename BV::size_type left,
                        typename BV::size_type right,
                        Func&                  bit_functor)
@@ -273,15 +271,41 @@ int for_each_bit_range(const BV&             bv,
     if (right == bm::id_max)
         --right;
     BM_ASSERT(left < bm::id_max && right < bm::id_max);
-    int res = bm::for_each_bit_range_no_check(bv, left, right, bit_functor);
-    return res;
+
+    bm::for_each_bit_range_no_check(bv, left, right, bit_functor);
 }
 
 
 #undef BM_SCANNER_OP
 
 
+/// private adaptor for C-style callbacks
+///
+/// @internal
+///
+template <class VCBT, class size_type>
+struct bit_vitor_callback_adaptor
+{
+    typedef VCBT bit_visitor_callback_type;
 
+    bit_vitor_callback_adaptor(void* h, bit_visitor_callback_type cb_func)
+        : handle_(h), func_(cb_func)
+    {}
+
+    void add_bits(size_type offset, const unsigned char* bits, unsigned size)
+    {
+        for (unsigned i = 0; i < size; ++i)
+            func_(handle_, offset + bits[i]);
+    }
+    void add_range(size_type offset, size_type size)
+    {
+        for (size_type i = 0; i < size; ++i)
+            func_(handle_, offset + i);
+    }
+
+    void* handle_;
+    bit_visitor_callback_type func_;
+};
 
 
 /// Functor for bit-copy (for testing)
@@ -299,18 +323,16 @@ struct bit_vistor_copy_functor
         bv_.init();
     }
 
-    int add_bits(size_type offset, const unsigned char* bits, unsigned size)
+    void add_bits(size_type offset, const unsigned char* bits, unsigned size)
     {
         BM_ASSERT(size);
         for (unsigned i = 0; i < size; ++i)
             bv_.set_bit_no_check(offset + bits[i]);
-        return 0;
     }
-    int add_range(size_type offset, size_type size)
+    void add_range(size_type offset, size_type size)
     {
         BM_ASSERT(size);
         bv_.set_range(offset, offset + size - 1);
-        return 0;
     }
 
     BV& bv_;
@@ -325,23 +347,20 @@ struct bit_vistor_copy_functor
     @param bv - bit vector to scan
     @param handle_ptr - handle to private memory used by callback
     @param callback_ptr - callback function
-
-    @return exit code form call back function
  
     \ingroup setalgo
  
     @sa bit_visitor_callback_type
 */
 template<class BV>
-int visit_each_bit(const BV&                 bv,
-                   void*                     handle_ptr,
-                   bit_visitor_callback_type callback_ptr)
+void visit_each_bit(const BV&                 bv,
+                    void*                     handle_ptr,
+                    bit_visitor_callback_type callback_ptr)
 {
     typedef typename BV::size_type size_type;
-    bm::bit_visitor_callback_adaptor<bit_visitor_callback_type, size_type>
+    bm::bit_vitor_callback_adaptor<bit_visitor_callback_type, size_type>
             func(handle_ptr, callback_ptr);
-    int res = bm::for_each_bit(bv, func);
-    return res;
+    bm::for_each_bit(bv, func);
 }
 
 /**
@@ -352,24 +371,22 @@ int visit_each_bit(const BV&                 bv,
     @param right - to [left..right]
     @param handle_ptr - handle to private memory used by callback
     @param callback_ptr - callback function
-    @return exit code form call back function
 
     \ingroup setalgo
 
     @sa bit_visitor_callback_type for_each_bit
 */
 template<class BV>
-int  visit_each_bit_range(const BV&                 bv,
+void visit_each_bit_range(const BV&                 bv,
                           typename BV::size_type    left,
                           typename BV::size_type    right,
                           void*                     handle_ptr,
                           bit_visitor_callback_type callback_ptr)
 {
     typedef typename BV::size_type size_type;
-    bm::bit_visitor_callback_adaptor<bit_visitor_callback_type, size_type>
+    bm::bit_vitor_callback_adaptor<bit_visitor_callback_type, size_type>
             func(handle_ptr, callback_ptr);
-    int res = bm::for_each_bit_range(bv, left, right, func);
-    return res;
+    bm::for_each_bit_range(bv, left, right, func);
 }
 
 /**
@@ -661,7 +678,7 @@ void rank_compressor<BV>::compress_by_source(BV& bv_target,
           bc_index_(bc_index)
         {}
         
-        int add_bits(size_type arr_offset, const unsigned char* bits, unsigned bits_size)
+        void add_bits(size_type arr_offset, const unsigned char* bits, unsigned bits_size)
         {
             for (unsigned i = 0; i < bits_size; ++i)
             {
@@ -671,9 +688,8 @@ void rank_compressor<BV>::compress_by_source(BV& bv_target,
                 size_type r_idx = bv_index_.count_to(idx, bc_index_) - 1;
                 bv_target_.set_bit_no_check(r_idx);
             }
-            return 0;
         }
-        int add_range(size_type arr_offset, size_type sz)
+        void add_range(size_type arr_offset, size_type sz)
         {
             for (size_type i = 0; i < sz; ++i)
             {
@@ -683,7 +699,6 @@ void rank_compressor<BV>::compress_by_source(BV& bv_target,
                 size_type r_idx = bv_index_.count_to(idx, bc_index_) - 1;
                 bv_target_.set_bit_no_check(r_idx);
             }
-            return 0;
         }
         
         bvector_type&           bv_target_;

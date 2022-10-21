@@ -19,7 +19,7 @@ For more information please visit:  http://bitmagic.io
 */
 
 /*! \file bmdbg.h
-    \brief Debugging functions (internal). Poorly documented, not well written.
+    \brief Debugging functions (internal)
 */
 
 
@@ -49,31 +49,31 @@ For more information please visit:  http://bitmagic.io
 namespace bm
 {
 
-template<class TOut>
-void PrintGap(TOut& tout, const bm::gap_word_t* gap_buf)
+inline
+void PrintGap(const bm::gap_word_t* gap_buf)
 {
     unsigned len = (*gap_buf >> 3);
-    tout << "[" << *gap_buf << " len=" << len << "] ";
+    std::cout << "[" << *gap_buf << " len=" << len << "] ";
     for (unsigned i = 0; i < len; ++i)
     {
         ++gap_buf;
-        tout << *gap_buf << "; ";
+        std::cout << *gap_buf << "; ";
     } 
-    tout << std::endl;
+    std::cout << std::endl;
 }
 
-template<class TOut>
-void PrintDGap(TOut& tout, const bm::gap_word_t* gap_buf, unsigned gap_len=0)
+inline
+void PrintDGap(const bm::gap_word_t* gap_buf, unsigned gap_len=0)
 {
 
     unsigned len = gap_len ? gap_len : (*gap_buf >> 3);
-    tout << "[" " len=" << len << "] ";
+    std::cout << "[" " len=" << len << "] ";
     unsigned i = gap_len ? 0 : 1;
     for (; i < len; ++i)
     {
-        tout << gap_buf[i] << "; ";
+        std::cout << gap_buf[i] << "; ";
     } 
-    tout << std::endl;
+    std::cout << std::endl;
 }
 
 inline unsigned int iLog2(unsigned int value)
@@ -83,49 +83,49 @@ inline unsigned int iLog2(unsigned int value)
     return l;
 }
 
-template<class TOut>
-unsigned PrintGammaCode(TOut& tout, unsigned value)
+inline
+unsigned PrintGammaCode(unsigned value)
 {
     unsigned bits = 0;
     // Elias gamma encode
     {
         unsigned l = iLog2(value);
-        //tout << "log2=" << l << endl;
+        //cout << "log2=" << l << endl;
         for (unsigned i = 0; i < l; ++i)
         {
-            tout << 0;
+            std::cout << 0;
             ++bits;
         }
-        tout << 1; ++bits;
+        std::cout << 1; ++bits;
         for (unsigned i = 0; i < l; ++i)
         {
             if (value & 1 << i) 
-                tout << 1;
+                std::cout << 1;
             else
-                tout << 0;
+                std::cout << 0;
             ++bits;
         }
     }
     return bits;
 }
 
-template<typename TOut>
-void PrintDGapGamma(TOut& tout, const bm::gap_word_t* gap_buf, unsigned gap_len=0)
+inline 
+void PrintDGapGamma(const bm::gap_word_t* gap_buf, unsigned gap_len=0)
 {
     unsigned total = 0;
     unsigned len = gap_len ? gap_len : (*gap_buf >> 3);
-    tout << "[" " len=" << len << "] ";
+    std::cout << "[" " len=" << len << "] ";
     unsigned i = gap_len ? 0 : 1;
     for (; i < len; ++i)
     {
         unsigned v = gap_buf[i];
 
-        unsigned bits = PrintGammaCode(tout, v+1);
-        tout << "; ";
+        unsigned bits = PrintGammaCode(v+1);
+        std::cout << "; ";
         total += bits;
     } 
-    tout << "  gamma_bits=" << total << " src_bits =" << len * 16;
-    tout << std::endl;
+    std::cout << "  gamma_bits=" << total << " src_bits =" << len * 16;
+    std::cout << std::endl;
 
 }
 
@@ -169,14 +169,14 @@ void LoadBVector(const char* fname, TBV& bvector, unsigned* file_size=0)
     std::ifstream bv_file (fname, std::ios::in | std::ios::binary);
     if (!bv_file.good())
     {
-        std::cerr << "Cannot open file: " << fname << std::endl;
+        std::cout << "Cannot open file: " << fname << std::endl;
         exit(1);
     }
     bv_file.seekg(0, std::ios_base::end);
     unsigned length = (unsigned)bv_file.tellg();
     if (length == 0)
     {
-        std::cerr << "Empty file:" << fname << std::endl;
+        std::cout << "Empty file:" << fname << std::endl;
         exit(1);
     }
     if (file_size)
@@ -199,7 +199,7 @@ void SaveBVector(const char* fname, const TBV& bvector)
     std::ofstream bfile (fname, std::ios::out | std::ios::binary);
     if (!bfile.good())
     {
-        std::cerr << "Cannot open file: " << fname << std::endl;
+        std::cout << "Cannot open file: " << fname << std::endl;
         exit(1);
     }
     typename TBV::statistics st1;
@@ -227,7 +227,7 @@ void SaveBlob(const char* name_prefix, unsigned num, const char* ext,
     std::ofstream bfile (fname, std::ios::out | std::ios::binary);
     if (!bfile.good())
     {
-        std::cerr << "Cannot open file: " << fname << std::endl;
+        std::cout << "Cannot open file: " << fname << std::endl;
         exit(1);
     }
     bfile.write((char*)blob, std::streamsize(blob_size));
@@ -235,59 +235,60 @@ void SaveBlob(const char* name_prefix, unsigned num, const char* ext,
 }
 
 
-template<typename V, typename TOut>
-void PrintBinary(TOut& tout, V val)
+template<typename V> 
+void PrintBinary(V val)
 {
     for (unsigned i = 0; i < sizeof(V)*8; i++)
     {
-        tout << (unsigned)((val >> i) & 1);
-        if (i == 15 && (sizeof(V)*8 > 16)) tout << "-";
+        std::cout << (unsigned)((val >> i) & 1);
+        if (i == 15 && (sizeof(V)*8 > 16)) std::cout << "-";
     }
+//    cout << " :" << val;
 }
 
-template<typename TOut>
-void PrintBits32(TOut& tout, unsigned val)
+inline 
+void PrintBits32(unsigned val)
 {
-    PrintBinary(tout, val);
+    PrintBinary(val);
 }
 
-template<typename TOut>
-void PrintDistanceMatrix(TOut& tout,
+inline
+void PrintDistanceMatrix(
    const unsigned distance[bm::set_block_plane_cnt][bm::set_block_plane_cnt])
 {
     for (unsigned i = 0; i < bm::set_block_plane_cnt; ++i)
     {
         const unsigned* row = distance[i];
-        tout << i << ": ";
+        std::cout << i << ": ";
         for (unsigned j = i; j < bm::set_block_plane_cnt; ++j)
         {
-            tout << std::setw(4) << std::setfill('0') << row[j] << " ";
+            std::cout << std::setw(4) << std::setfill('0') << row[j] << " ";
         }
-        tout << std::endl;
+        std::cout << std::endl;
     }
 }
 
-template<typename TM, typename TOut>
-void PrintTMatrix(TOut& tout, const TM& tmatrix, unsigned cols=0, bool binary = false)
+template<typename TM>
+void PrintTMatrix(const TM& tmatrix, unsigned cols=0, bool binary = false)
 {
     unsigned columns = cols ? cols : tmatrix.cols();
     for (unsigned i = 0; i < tmatrix.rows(); ++i)
     {
         const typename TM::value_type* row = tmatrix.row(i);
-        tout << i << ": ";
-        if (i < 10) tout << " ";
+        std::cout << i << ": ";
+        if (i < 10) std::cout << " ";
         for (unsigned j = 0; j < columns; ++j)
         {
             if (!binary)
             {
-                tout << std::setw(4) << std::setfill('0') << row[j] << " ";
+                std::cout << std::setw(4) << std::setfill('0') << row[j] << " ";
             }
             else
             {
-                PrintBinary(tout, row[j]);
+                PrintBinary(row[j]);
             }
         }
-        tout << std::endl;
+        std::cout << std::endl;
     }
 }
 
@@ -319,8 +320,8 @@ unsigned BinStrLR(const char* str)
     return value;
 }
 
-template<class BV, typename TOut>
-void print_blocks_count(TOut& tout, const BV& bv)
+template<class BV>
+void print_blocks_count(const BV& bv)
 {
     const unsigned sz = 128000;
     unsigned* bc_arr = new unsigned[sz];
@@ -332,23 +333,23 @@ void print_blocks_count(TOut& tout, const BV& bv)
 
     for (unsigned i = 0; i <= last_block; ++i)
     {
-        tout << i << ":";
+        std::cout << i << ":";
 
         unsigned j = 0;
         for (; i <= last_block; ++i)
         {
-            tout << std::setw(5) << std::setfill('0') << bc_arr[i] << " ";
+            std::cout << std::setw(5) << std::setfill('0') << bc_arr[i] << " ";
             sum += bc_arr[i];
             if (++j == 10) break;
         }
-        tout << " | " << sum << std::endl;
+        std::cout << " | " << sum << std::endl;
     }
-    tout << "Total=" << sum << std::endl;
+    std::cout << "Total=" << sum << std::endl;
+
     delete [] bc_arr;
 }
-
-template<typename TOut>
-void print_bc(TOut& tout, unsigned i, unsigned count)
+inline 
+void print_bc(unsigned i, unsigned count)
 {
     static unsigned sum = 0;
     static unsigned row_idx = 0;
@@ -361,28 +362,28 @@ void print_bc(TOut& tout, unsigned i, unsigned count)
     else
     {
         if (prev +1 < i)
-            print_bc(tout, prev+1, 0);
+            print_bc(prev+1, 0);
         prev = i;
     }
 
     if (row_idx == 0)
     {
-        tout << i << ":";
+        std::cout << i << ":";
     }
 
-    tout << std::setw(5) << std::setfill('0') << count << " ";
+    std::cout << std::setw(5) << std::setfill('0') << count << " ";
     sum += count;
 
     ++row_idx;
     if (row_idx == 10)
     {
         row_idx = 0;
-        tout << " | " << sum << std::endl;
+        std::cout << " | " << sum << std::endl;
     }
 }
 
-template<class BV, typename TOut>
-size_t print_bvector_stat(TOut& tout, const BV& bvect)
+template<class BV>
+size_t print_bvector_stat(const BV& bvect)
 {
     typename BV::statistics st;
     bvect.calc_stat(&st);
@@ -392,7 +393,7 @@ size_t print_bvector_stat(TOut& tout, const BV& bvect)
     ser.serialize(bvect, buf, &st);
     auto ssize = buf.size();
     
-    tout << " - Blocks: [ "
+    std::cout << " - Blocks: [ "
               << "B:"     << st.bit_blocks
               << ", G:"   << st.gap_blocks << "] "
               << " count() = " << bvect.count() 
@@ -404,12 +405,12 @@ size_t print_bvector_stat(TOut& tout, const BV& bvect)
 }
 
 
-template<class BV, typename TOut>
-void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0)
+template<class BV>
+void print_stat(const BV& bv, typename BV::block_idx_type blocks = 0)
 {
     const typename BV::blocks_manager_type& bman = bv.get_blocks_manager();
 
-    bm::id_t count = 0; (void)count;
+    bm::id_t count = 0;
     int printed = 0;
 
     int total_gap_eff = 0;
@@ -434,7 +435,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
         {
            if (BM_IS_GAP(blk)) // gap block
            {
-               tout << "[Alert!" << nb << "]";
+               std::cout << "[Alert!" << nb << "]";
                assert(0);
            }
            
@@ -447,7 +448,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
                {
                  if (BM_IS_GAP(blk)) // gap block
                  {
-                     tout << "[Alert!" << nb << "]";
+                     std::cout << "[Alert!" << nb << "]";
                      assert(0);
                      --nb;
                      break;
@@ -461,14 +462,14 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
                }
            }
 
-           tout << "{F." << start << ":" << nb << "}";
+           std::cout << "{F." << start << ":" << nb << "}";
            ++printed;
         }
         else
         {
             if ((nb-1) != nb_prev)
             {
-                tout << ".." << (size_t)nb-nb_prev << "..";
+                std::cout << ".." << (size_t)nb-nb_prev << "..";
             }
 
             if (BM_IS_GAP(blk))
@@ -485,7 +486,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
                
                unsigned i,j;
                bm::get_block_coord(nb, i, j);
-               tout << " [GAP " << nb << "(" << i << "," << j << ")"
+               std::cout << " [GAP " << nb << "(" << i << "," << j << ")"
                          << "=" << bc << ":" << level << "-L" << len << "(" << mem_eff << ")]";
                 ++printed;
             }
@@ -500,7 +501,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
                 }
 
                 count += bc;
-                tout << " (BIT " << nb << "=" << bc << "[" << zw << "])";
+                std::cout << " (BIT " << nb << "=" << bc << "[" << zw << "])";
                 ++printed;
             }
         }
@@ -511,7 +512,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
         }
         nb_prev = nb;
     } // for nb
-    tout << std::endl << "gap_efficiency=" << total_gap_eff << std::endl;
+    std::cout << std::endl << "gap_efficiency=" << total_gap_eff << std::endl;
 
 }
 
@@ -543,8 +544,8 @@ size_t compute_serialization_size(const BV& bv)
 }
 
 #if 0
-template<class SV, typename TOut>
-void print_svector_xor_stat(TOut& toutconst SV& sv)
+template<class SV>
+void print_svector_xor_stat(const SV& sv)
 {
     BM_DECLARE_TEMP_BLOCK(tb)
     typename SV::size_type sz = sv.size();
@@ -554,7 +555,7 @@ void print_svector_xor_stat(TOut& toutconst SV& sv)
 
     for (typename SV::size_type nb = 0; nb < nb_max; ++nb)
     {
-        tout << "nb = " << nb << std::endl;
+        std::cout << "nb = " << nb << std::endl;
 
         unsigned i0 = unsigned(nb >> bm::set_array_shift);
         unsigned j0 = unsigned(nb &  bm::set_array_mask);
@@ -612,22 +613,27 @@ void print_svector_xor_stat(TOut& toutconst SV& sv)
                         kb_found = true;
                         //*kb_j = j0;
                     }
+
                 }
+
             } // for k
 
             if (kb_found)
             {
-                tout << "XOR match " << "metric gain = " << std::endl;
+                std::cout << "XOR match " << "metric gain = " << std::endl;
             }
-            tout << std::endl;
+
+
+            std::cout << std::endl;
+
         } // for i
 
     } // for nb
 }
 #endif
 
-template<class SV, typename TOut>
-void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
+template<class SV>
+void print_svector_stat(const SV& svect, bool print_sim = false)
 {
     typedef typename SV::bvector_type bvector_type;
     /// Functor to compute jaccard similarity
@@ -664,12 +670,9 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
     
     bm::build_jaccard_similarity_batch(sbatch, svect);
     
-    if (print_sim)
-    {
-        sbatch.calculate();
-        sbatch.sort();
-    }
-
+    sbatch.calculate();
+    sbatch.sort();
+    
     typename similarity_batch_type::vector_type& sim_vec = sbatch.descr_vect_;
     if (print_sim)
     {
@@ -695,14 +698,14 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
                     size_t sz10p = bv_size2 / 10;
                     if (diff > sz10p)
                     {
-                        tout << "["  << sim_vec[k].get_first_idx()
-                             << ", " << sim_vec[k].get_second_idx()
-                             << "] = "  << sim
-                             << " size(" << sim_vec[k].get_second_idx() << ")="
-                             << bv_size2
-                             << " size(x)=" << bv_size_x
-                             << " diff=" << diff
-                             << std:: endl;
+                        std:: cout << "["  << sim_vec[k].get_first_idx()
+                                   << ", " << sim_vec[k].get_second_idx()
+                                   << "] = "  << sim
+                                   << " size(" << sim_vec[k].get_second_idx() << ")="
+                                   << bv_size2
+                                   << " size(x)=" << bv_size_x
+                                   << " diff=" << diff
+                                   << std:: endl;
                     }
                 }
             }
@@ -713,57 +716,41 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
     typename SV::statistics st;
     svect.calc_stat(&st);
     
-    tout << "size = " << svect.size() << std::endl;
-
-    tout << "Bit blocks:       " << st.bit_blocks << std::endl;
-    tout << "GAP blocks:       " << st.gap_blocks << std::endl;
-    tout << "GAP levels counts:";
-    for (unsigned g = 0; g < bm::gap_levels; ++g)
-    {
-        switch (g)
-        {
-        case 0: tout << "[ I:  " << st.gap_levels[g] << "] "; break;
-        case 1: tout << "[ II: " << st.gap_levels[g] << "] "; break;
-        case 2: tout << "[ III:" << st.gap_levels[g] << "] "; break;
-        case 3: tout << "[ IV: " << st.gap_levels[g] << "] "; break;
-        default:
-                tout << "[ " << g << ": " << st.gap_levels[g] << "] "; break;
-        }
-    } // for
-    tout << std::endl;
-
-    tout << "Max serialize mem:" << st.max_serialize_mem << " "
+    std::cout << "size = " << svect.size() << std::endl;
+    std::cout << "Bit blocks:       " << st.bit_blocks << std::endl;
+    std::cout << "Gap blocks:       " << st.gap_blocks << std::endl;
+    std::cout << "Max serialize mem:" << st.max_serialize_mem << " "
               << (st.max_serialize_mem / (1024 * 1024)) << "MB" << std::endl;
-    tout << "Memory used:      " << st.memory_used << " "
+    std::cout << "Memory used:      " << st.memory_used << " "
               << (st.memory_used / (1024 * 1024))       << "MB" << std::endl;
     
     auto eff_max_element = svect.effective_vector_max();
     size_t std_vect_size = sizeof(typename SV::value_type) * svect.size() * eff_max_element;
-    tout << "Projected mem usage for vector<value_type>:"
+    std::cout << "Projected mem usage for vector<value_type>:"
               << std_vect_size << " "
               << std_vect_size / (1024 * 1024) << "MB"
               << std::endl;
     if (sizeof(typename SV::value_type) > 4 && (eff_max_element == 1))
     {
-        tout << "Projected mem usage for vector<long long>:"
+        std::cout << "Projected mem usage for vector<long long>:"
                   << sizeof(long long) * svect.size() << std::endl;
     }
     
-    tout << "\nplanes:" << std::endl;
+    std::cout << "\nplanes:" << std::endl;
 
     size_t ssize(0), octet_ssize(0);
 
     typename SV::bvector_type bv_join; // global OR of all planes
-    auto planes = svect.get_bmatrix().rows();
+    auto planes = svect.get_bmatrix().rows();//slices();
 
     unsigned octet_cnt(0), octet(0);
     for (unsigned i = 0; i < planes; ++i)
     {
         const typename SV::bvector_type* bv_plane = svect.get_slice(i);
-        tout << i << "-" << octet_cnt << ":";
+        std::cout << i << "-" << octet_cnt << ":";
         if (bv_plane == 0)
         {
-            tout << "NULL\n";
+            std::cout << "NULL\n";
             bool any_else = false;
             for (unsigned j = i+1; j < planes; ++j) // look ahead
             {
@@ -779,46 +766,41 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
         else
         {
             bv_join |= *bv_plane;
-            auto pssize = bm::print_bvector_stat(tout,*bv_plane);
+            auto pssize = bm::print_bvector_stat(*bv_plane);
             ssize += pssize;
             octet_ssize += pssize;
         }
         if (octet_cnt == 7)
         {
-            tout << "--------------------" << std::endl;
-            tout << "octet N = " << octet <<
+            std::cout << "--------------------" << std::endl;
+            std::cout << "octet N = " << octet <<
                     "  compressed = " << octet_ssize <<
                     " " << octet_ssize/(1024*1024) << "MB" << std::endl;
             octet_cnt = 0; octet_ssize = 0;
             octet++;
-            tout << std::endl;
+            std::cout << std::endl;
         }
         else
         {
             octet_cnt++;
         }
     } // for i
-    tout << "-------------------- END of OCTETS\n";
 
     const typename SV::bvector_type* bv_null = svect.get_null_bvector();
     if (bv_null)
     {
-        tout << "NULL plane:\n";
-        ssize += print_bvector_stat(tout,*bv_null);
+        std::cout << "(not) NULL plane:\n";
+        ssize += print_bvector_stat(*bv_null);
         typename SV::size_type not_null_cnt = bv_null->count();
-        tout << " - Bitcount: " << not_null_cnt << std::endl;
+        std::cout << " - Bitcount: " << not_null_cnt << std::endl;
 
-        tout << "Projected mem usage for std::vector<pair<unsigned, value_type> >:"
+        std::cout << "Projected mem usage for std::vector<pair<unsigned, value_type> >:"
             << ((sizeof(typename SV::value_type) + sizeof(unsigned)) * not_null_cnt) << " "
             << ((sizeof(typename SV::value_type) + sizeof(unsigned)) * not_null_cnt) / (1024 * 1024) << "MB"
             << std::endl;
     }
-    else
-    {
-        tout << "NO NULL plane:\n";
-    }
 
-    tout << " Total serialized size (planes): " << ssize
+    std::cout << " Total serialized size (planes): " << ssize
               << std::endl
               << " " << ssize / (1024 * 1024) << " MB" << std::endl;
 
@@ -826,27 +808,27 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
     {
         bm::id64_t bv_join_cnt = bv_join.count();
         double fr = double(bv_join_cnt) / double (svect.size());
-        tout << "Non-zero elements: " << bv_join_cnt << " "
+        std::cout << "Non-zero elements: " << bv_join_cnt << " "
                   << "ratio=" << fr
                   << std::endl;
         size_t non_zero_mem = size_t(bv_join_cnt) * sizeof(typename SV::value_type);
-        tout << "Projected mem usage for non-zero elements: " << non_zero_mem << " "
+        std::cout << "Projected mem usage for non-zero elements: " << non_zero_mem << " "
                   << non_zero_mem / (1024*1024) << " MB"
                   << std::endl;        
     }
 }
 
 
-template<class SV, typename TOut>
-void print_str_svector_stat(TOut& tout, const SV& str_svect)
+template<class SV>
+void print_str_svector_stat(const SV& str_svect)
 {
-    typename SV::octet_freq_matrix_type octet_stat_matr;
+    typename SV::plane_octet_matrix_type octet_stat_matr;
     
     str_svect.calc_octet_stat(octet_stat_matr);
     
     for (unsigned i = 0; i < octet_stat_matr.rows(); ++i)
     {
-        const typename SV::octet_freq_matrix_type::value_type* row
+        const typename SV::plane_octet_matrix_type::value_type* row
                                                 = octet_stat_matr.row(i);
         bool any = false;
         for (unsigned j = 0; j < octet_stat_matr.cols(); ++j)
@@ -860,72 +842,26 @@ void print_str_svector_stat(TOut& tout, const SV& str_svect)
         if (!any)
             continue;
     
-        tout << i << " : ";
+        std::cout << i << " : ";
         unsigned cnt = 0;
         for (unsigned j = 0; j < octet_stat_matr.cols(); ++j)
         {
             if (row[j]) // letter is present
             {
-                tout << char(j);
+                std::cout << char(j);
                 ++cnt;
             }
         } // for j
         if (cnt)
         {
-            tout << "\t total= " << cnt;
+            std::cout << "\t total= " << cnt;
         }
         else
         {
-            tout << " (empty) ";
+            std::cout << " (empty) ";
         }
-        tout << std::endl;
+        std::cout << std::endl;
     } // for i
-}
-
-// Save std::vector
-//
-template<class VECT>
-int save_vector(const VECT& vect, const std::string& fname)
-{
-    std::ofstream fout(fname.c_str(), std::ios::binary);
-    if (!fout.good())
-        return -1;
-    size_t sz = vect.size();
-    fout.write((char*)&sz, sizeof(sz));
-    if (!fout.good())
-        return -1;
-    if (sz)
-    {
-        fout.write((char*)vect.data(),
-            (std::streamsize) (sz*sizeof(typename VECT::value_type)));
-        if (!fout.good())
-            return -1;
-    }
-    fout.close();
-    return 0;
-}
-
-// Save std::vector
-//
-template<class VECT>
-int load_vector(VECT& vect, const std::string& fname)
-{
-    std::ifstream fin(fname.c_str(), std::ios::in | std::ios::binary);
-    if (!fin.good())
-        return -1;
-    size_t sz;
-    fin.read((char*) &sz, sizeof(sz));
-    if (!fin.good())
-        return -2;
-    vect.resize(sz);
-    if (sz)
-    {
-        fin.read((char*)vect.data(), sz*sizeof(typename VECT::value_type));
-        if (!fin.good())
-            return -1;
-    }
-    fin.close();
-    return 0;
 }
 
 
@@ -1086,27 +1022,6 @@ void convert_bv2sv(SV& sv, const BV& bv)
     }
     bit.flush();
 }
-
-#if 0
-/**
-    Get RSS on
-    @internal
- */
-size_t getCurrentRSS( )
-{
-    long rss = 0L;
-    FILE* fp = NULL;
-    if ( (fp = fopen( "/proc/self/statm", "r" )) == NULL )
-        return (size_t)0L;      /* Can't open? */
-    if ( fscanf( fp, "%*s%ld", &rss ) != 1 )
-    {
-        fclose( fp );
-        return (size_t)0L;      /* Can't read? */
-    }
-    fclose( fp );
-    return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
-}
-#endif
 
 
 } // namespace

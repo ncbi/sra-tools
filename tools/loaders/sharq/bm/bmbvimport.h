@@ -76,11 +76,7 @@ void bit_import_u32(BV& bv,
                                         &bit_arr[nb*bm::set_block_size];
         bm::bit_block_copy_unalign(block, bit_arr_block_ptr);
         if (optimize)
-        {
-            unsigned i0, j0;
-            bm::get_block_coord(nb, i0, j0);
-            bman.optimize_bit_block(i0, j0, BV::opt_compress); // returns tem_block if needed
-        }
+            bman.optimize_bit_block(nb); // returns tem_block if needed
     } // for nb
 
     // tail processing
@@ -98,11 +94,7 @@ void bit_import_u32(BV& bv,
         while (k < bm::set_block_size) // zero the block's tail
             block[k++] = 0;
         if (optimize)
-        {
-            unsigned i0, j0;
-            bm::get_block_coord(nb, i0, j0);
-            bman.optimize_bit_block(i0, j0, BV::opt_compress); // returns tem_block if needed
-        }
+            bman.optimize_bit_block(nb); // returns tem_block if needed
     }
     if (optimize)
         bman.free_temp_block();

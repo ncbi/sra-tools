@@ -47,10 +47,7 @@ For more information please visit:  http://bitmagic.io
 #undef BMVECTOPT
 #undef VECT_XOR_ARR_2_MASK
 #undef VECT_ANDNOT_ARR_2_MASK
-
 #undef VECT_BITCOUNT
-#undef VECT_BIT_COUNT_DIGEST
-
 #undef VECT_BITCOUNT_AND
 #undef VECT_BITCOUNT_OR
 #undef VECT_BITCOUNT_XOR
@@ -86,23 +83,14 @@ For more information please visit:  http://bitmagic.io
 #undef VECT_AND_DIGEST_2WAY
 #undef VECT_AND_OR_DIGEST_2WAY
 #undef VECT_AND_DIGEST_5WAY
-#undef VECT_AND_DIGEST_3WAY
 #undef VECT_BLOCK_SET_DIGEST
-
-#undef VECT_SUB_DIGEST
-#undef VECT_SUB_DIGEST_5WAY
-#undef VECT_SUB_DIGEST_2WAY
-#undef VECT_SUB_BLOCK
 
 #undef VECT_BLOCK_XOR_CHANGE
 #undef VECT_BIT_BLOCK_XOR
 
 #undef VECT_BIT_FIND_FIRST
 #undef VECT_BIT_FIND_DIFF
-#undef VECT_BIT_FIND_FIRST_IF_1
-
 #undef VECT_GAP_BFIND
-#undef VECT_GAP_TEST
 
 #undef BMI1_SELECT64
 #undef BMI2_SELECT64
@@ -116,5 +104,4 @@ For more information please visit:  http://bitmagic.io
 #undef BM_UNALIGNED_ACCESS_OK
 #undef BM_x86
 
-#undef BM_ALLOC_ALIGN
 

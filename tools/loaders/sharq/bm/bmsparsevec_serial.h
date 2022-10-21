@@ -338,18 +338,6 @@ public:
     sparse_vector_deserializer();
     ~sparse_vector_deserializer();
 
-    /**
-        Set deserialization finalization to force deserialized vectors into READONLY (or READWRITE) mode.
-        Performance impact: Turning ON finalization will make deserialization a lit slower,
-        because each bit-vector will be re-converted into new mode (READONLY).
-        Following (search) operations may perform a bit faster.
-
-        @param is_final - finalization code
-                        (use bm::finalization::READONLY to produce an immutable vector)
-     */
-    void set_finalization(bm::finalization is_final);
-
-
     /** Set external XOR reference vectors
         (data frame referenece vectors)
 
@@ -363,7 +351,7 @@ public:
 
         @param sv - [out] target sparse vector to populate
         @param buf - input BLOB source memory pointer
-        @param clear_sv - if true clears the target vector (sv)
+        @param clear_sv - if true clears the target vector
 
         @sa deserialize_range
     */
@@ -415,7 +403,8 @@ public:
 
 
     /*!
-        Load serialization descriptor, create vectors but DO NOT perform full deserialization
+        Load serialization descriptor, create vectors
+        but DO NOT perform full deserialization
         @param sv - [out] target sparse vector to populate
         @param buf - source memory pointer
     */
@@ -478,11 +467,10 @@ private:
     typedef bm::heap_vector<unsigned, alloc_type, true> rlen_vector_type;
 
 protected:
-    bm::finalization                is_final_ = bm::finalization::UNDEFINED;
-    const unsigned char*            remap_buf_ptr_ = 0;
-    alloc_type                      alloc_;
-    bm::word_t*                     temp_block_ = 0;
-    allocator_pool_type             pool_;
+    const unsigned char*                        remap_buf_ptr_;
+    alloc_type                                  alloc_;
+    bm::word_t*                                 temp_block_;
+    allocator_pool_type                         pool_;
 
     bvector_type                     plane_digest_bv_; // digest of bit-planes
     bm::id64_t                       sv_size_;
@@ -498,11 +486,11 @@ protected:
     rlen_vector_type                            remap_rlen_vect_;
 
     // XOR compression variables
-    bv_ref_vector_type              bv_ref_;         ///< reference vector
-    bv_ref_vector_type*             bv_ref_ptr_ = 0; ///< external ref bit-vect
+    bv_ref_vector_type              bv_ref_; ///< reference vector
+    bv_ref_vector_type*             bv_ref_ptr_; ///< external ref
 
     // Range deserialization parameters
-    bool                                        idx_range_set_ = false;
+    bool                                        idx_range_set_;
     size_type                                   idx_range_from_;
     size_type                                   idx_range_to_;
 };
@@ -1001,8 +989,8 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
             bm::xor_sim_params xs_params;
             build_xor_ref_vector(sv);
             bvs_.set_ref_vectors(&bv_ref_);
-            if (bvs_.compute_sim_model(sim_model_, bv_ref_, xs_params))
-                bvs_.set_sim_model(&sim_model_);
+            bvs_.compute_sim_model(sim_model_, bv_ref_, xs_params);
+            bvs_.set_sim_model(&sim_model_);
         }
     }
 
@@ -1154,28 +1142,11 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
 
 template<typename SV>
 sparse_vector_deserializer<SV>::sparse_vector_deserializer()
+    : remap_buf_ptr_(0), bv_ref_ptr_(0), idx_range_set_(false)
 {
     temp_block_ = alloc_.alloc_bit_block();
     not_null_mask_bv_.set_allocator_pool(&pool_);
     rsc_mask_bv_.set_allocator_pool(&pool_);
-}
-
-// -------------------------------------------------------------------------
-
-template<typename SV>
-sparse_vector_deserializer<SV>::~sparse_vector_deserializer()
-{
-    if (temp_block_)
-        alloc_.free_bit_block(temp_block_);
-}
-
-// -------------------------------------------------------------------------
-
-template<typename SV>
-void
-sparse_vector_deserializer<SV>::set_finalization(bm::finalization is_final)
-{
-    this->is_final_ = is_final;
 }
 
 // -------------------------------------------------------------------------
@@ -1187,6 +1158,16 @@ sparse_vector_deserializer<SV>::set_xor_ref(bv_ref_vector_type* bv_ref_ptr)
     bv_ref_ptr_ = bv_ref_ptr;
     if (!bv_ref_ptr_)
         clear_xor_compression();
+}
+
+
+// -------------------------------------------------------------------------
+
+template<typename SV>
+sparse_vector_deserializer<SV>::~sparse_vector_deserializer()
+{
+    if (temp_block_)
+        alloc_.free_bit_block(temp_block_);
 }
 
 // -------------------------------------------------------------------------
@@ -1237,17 +1218,19 @@ void sparse_vector_deserializer<SV>::deserialize_structure(SV& sv,
 
     unsigned char matr_s_ser = 0;
     unsigned planes = load_header(dec, sv, matr_s_ser);
-    if (planes == 0)
-        return;
 
+    // bm::id64_t sv_size = dec.get_64();
     load_planes_off_table(buf, dec, planes); // read the offset vector of bit-planes
+
     for (unsigned i = 0; i < planes; ++i)
     {
         if (!off_vect_[i]) // empty vector
             continue;
+
         bvector_type* bv = sv.get_create_slice(i);
         BM_ASSERT(bv); (void)bv;
-    } // for i
+
+    } // for
 }
 
 // -------------------------------------------------------------------------
@@ -1491,6 +1474,7 @@ void sparse_vector_deserializer<SV>::deserialize_planes(
         if (mask_bv) // gather mask set, use AND operation deserializer
         {
             typename bvector_type::mem_pool_guard mp_g_z(pool_, *bv);
+
             if (bm::conditional<SV::is_remap_support::value>::test()
                 && !remap_buf_ptr_) // last plane vector (special case)
             {
@@ -1498,14 +1482,14 @@ void sparse_vector_deserializer<SV>::deserialize_planes(
                     deserial_.deserialize(*bv, bv_buf_ptr, temp_block_);
                 remap_buf_ptr_ = bv_buf_ptr + read_bytes;
                 bv->bit_and(*mask_bv, bvector_type::opt_compress);
+                continue;
             }
-            else
-            {
-                if (idx_range_set_)
-                    deserial_.set_range(idx_range_from_, idx_range_to_);
-                deserial_.deserialize(*bv, bv_buf_ptr);
-                bv->bit_and(*mask_bv, bvector_type::opt_compress);
-            }
+            if (idx_range_set_)
+                deserial_.set_range(idx_range_from_, idx_range_to_);
+
+            deserial_.deserialize(*bv, bv_buf_ptr);
+
+            bv->bit_and(*mask_bv, bvector_type::opt_compress);
         }
         else
         {
@@ -1517,31 +1501,21 @@ void sparse_vector_deserializer<SV>::deserialize_planes(
                 remap_buf_ptr_ = bv_buf_ptr + read_bytes;
                 if (idx_range_set_)
                     bv->keep_range(idx_range_from_, idx_range_to_);
+                continue;
+            }
+            if (idx_range_set_)
+            {
+                deserial_.set_range(idx_range_from_, idx_range_to_);
+                deserial_.deserialize(*bv, bv_buf_ptr);
+                bv->keep_range(idx_range_from_, idx_range_to_);
             }
             else
             {
-                if (idx_range_set_)
-                {
-                    deserial_.set_range(idx_range_from_, idx_range_to_);
-                    deserial_.deserialize(*bv, bv_buf_ptr);
-                    bv->keep_range(idx_range_from_, idx_range_to_);
-                }
-                else
-                {
-                    //size_t read_bytes =
-                    deserial_.deserialize(*bv, bv_buf_ptr, temp_block_);
-                }
+                //size_t read_bytes =
+                deserial_.deserialize(*bv, bv_buf_ptr, temp_block_);
             }
         }
 
-        switch (is_final_)
-        {
-        case bm::finalization::READONLY:
-            bv->freeze();
-            break;
-        default:
-            break;
-        }
     } // for i
 
     deserial_.unset_range();
@@ -1606,16 +1580,6 @@ int sparse_vector_deserializer<SV>::load_null_plane(SV& sv,
             if (mask_bv)
                 bv->bit_and(*mask_bv, bvector_type::opt_compress);
         }
-
-        switch (is_final_)
-        {
-        case bm::finalization::READONLY:
-            bv->freeze();
-            break;
-        default:
-            break;
-        }
-
     }
     return planes-1;
 }
@@ -1737,37 +1701,34 @@ void sparse_vector_deserializer<SV>::load_remap(SV& sv,
                 raise_invalid_format();
             }
             rmatr->resize(rows, cols, false);
-            if (rows)
+            rmatr->set_zero();
+
+            // read gamma encoded row lens
+            remap_rlen_vect_.resize(0);
             {
-                rmatr->set_zero();
-
-                // read gamma encoded row lens
-                remap_rlen_vect_.resize(0);
-                {
-                    bm::bit_in<bm::decoder> bi(dec_m);
-                    for (size_t r = 0; r < rows; ++r)
-                    {
-                        unsigned rl = bi.gamma();
-                        remap_rlen_vect_.push_back(rl);
-                    } // for r
-                }
-
+                bm::bit_in<bm::decoder> bi(dec_m);
                 for (size_t r = 0; r < rows; ++r)
                 {
-                    unsigned char* BMRESTRICT row = rmatr->row(r);
-                    size_t cnt = remap_rlen_vect_[r];
-                    if (!cnt || cnt > 256)
-                    {
-                        raise_invalid_format(); // format corruption!
-                    }
-                    for (size_t j = 0; j < cnt; ++j)
-                    {
-                        unsigned idx = dec_m.get_8();
-                        unsigned char v = dec_m.get_8();
-                        row[idx] = v;
-                    } // for j
+                    unsigned rl = bi.gamma();
+                    remap_rlen_vect_.push_back(rl);
                 } // for r
             }
+
+            for (size_t r = 0; r < rows; ++r)
+            {
+                unsigned char* BMRESTRICT row = rmatr->row(r);
+                size_t cnt = remap_rlen_vect_[r];
+                if (!cnt || cnt > 256)
+                {
+                    raise_invalid_format(); // format corruption!
+                }
+                for (size_t j = 0; j < cnt; ++j)
+                {
+                    unsigned idx = dec_m.get_8();
+                    unsigned char v = dec_m.get_8();
+                    row[idx] = v;
+                } // for j
+            } // for r
         }
         break;
     default:

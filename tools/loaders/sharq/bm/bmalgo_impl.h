@@ -83,6 +83,7 @@ distance_metric operation2metric(set_operation op) BMNOEXCEPT
     \brief Distance metric descriptor, holds metric code and result.
     \sa distance_operation
 */
+
 struct distance_metric_descriptor
 {
 #ifdef BM64ADDR
@@ -112,71 +113,6 @@ struct distance_metric_descriptor
     }
 };
 
-/// functor-adaptor for C-style callbacks
-///
-/// @internal
-///
-template <class VCBT, class size_type>
-struct bit_visitor_callback_adaptor
-{
-    typedef VCBT bit_visitor_callback_type;
-
-    bit_visitor_callback_adaptor(void* h, bit_visitor_callback_type cb_func)
-        : handle_(h), func_(cb_func)
-    {}
-
-    int add_bits(size_type offset, const unsigned char* bits, unsigned size)
-    {
-        for (unsigned i = 0; i < size; ++i)
-        {
-            int ret = func_(handle_, offset + bits[i]);
-            if (ret < 0)
-                return ret;
-        }
-        return 0;
-    }
-    int add_range(size_type offset, size_type size)
-    {
-        for (size_type i = 0; i < size; ++i)
-        {
-            int ret = func_(handle_, offset + i);
-            if (ret < 0)
-                return ret;
-        }
-        return 0;
-    }
-
-    void*                     handle_;
-    bit_visitor_callback_type func_;
-};
-
-/// functor-adaptor for back-inserter
-///
-/// @internal
-///
-template <class BII, class size_type>
-struct bit_visitor_back_inserter_adaptor
-{
-
-    bit_visitor_back_inserter_adaptor(BII bi)
-        : bi_(bi)
-    {}
-
-    int add_bits(size_type offset, const unsigned char* bits, unsigned size)
-    {
-        for (unsigned i = 0; i < size; ++i)
-            *bi_ = offset + bits[i];
-        return 0;
-    }
-    int add_range(size_type offset, size_type size)
-    {
-        for (size_type i = 0; i < size; ++i)
-            *bi_ = offset + i;
-        return 0;
-    }
-
-    BII bi_;
-};
 
 
 /*!
@@ -1588,37 +1524,31 @@ void export_array(BV& bv, It first, It last)
    \param block - bit block buffer pointer
    \param offset - global block offset (number of bits)
    \param bit_functor - functor must support .add_bits(offset, bits_ptr, size)
-   \return - functor return code (< 0 - interrupt the processing)
  
    @ingroup bitfunc
    @internal
 */
 template<typename Func, typename SIZE_TYPE>
-int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
+void for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
                       Func&  bit_functor)
 {
     BM_ASSERT(block);
-    int ret;
     if (IS_FULL_BLOCK(block))
     {
-        ret = bit_functor.add_range(offset, bm::gap_max_bits);
-        return ret;
+        bit_functor.add_range(offset, bm::gap_max_bits);
+        return;
     }
     unsigned char bits[bm::set_bitscan_wave_size*32];
+
     SIZE_TYPE offs = offset;
     const word_t* block_end = block + bm::set_block_size;
     do
     {
         if (unsigned cnt = bm::bitscan_wave(block, bits))
-        {
-            ret = bit_functor.add_bits(offs, bits, cnt);
-            if (ret < 0)
-                return ret;
-        }
+            bit_functor.add_bits(offs, bits, cnt);
         offs += bm::set_bitscan_wave_size * 32;
         block += bm::set_bitscan_wave_size;
     } while (block < block_end);
-    return 0;
 }
 
 /*!
@@ -1629,12 +1559,12 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
    \param left - bit addredd in block from [from..to]
    \param right - bit addredd in block to [from..to]
    \param bit_functor - functor must support .add_bits(offset, bits_ptr, size)
-   \return - functor return code (< 0 - interrupt the processing)
+
    @ingroup bitfunc
    @internal
 */
 template<typename Func, typename SIZE_TYPE>
-int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
+void for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
                       unsigned left, unsigned right,
                       Func&  bit_functor)
 {
@@ -1642,12 +1572,11 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
     BM_ASSERT(left <= right);
     BM_ASSERT(right < bm::bits_in_block);
 
-    int ret = 0;
     if (IS_FULL_BLOCK(block))
     {
         unsigned sz = right - left + 1;
-        ret = bit_functor.add_range(offset + left, sz);
-        return ret;
+        bit_functor.add_range(offset + left, sz);
+        return;
     }
     unsigned char bits[bm::set_bitscan_wave_size*32];
 
@@ -1660,9 +1589,9 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
         if ((*word >> nbit) & 1u)
         {
             bits[0] = (unsigned char)nbit;
-            ret = bit_functor.add_bits(offset + (nword * 32), bits, 1);
+            bit_functor.add_bits(offset + (nword * 32), bits, 1);
         }
-        return ret;
+        return;
     }
 
     bitcount = right - left + 1u;
@@ -1678,18 +1607,14 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
             temp = (*word & mask);
             cnt = bm::bitscan(temp, bits);
             if (cnt)
-                ret = bit_functor.add_bits(offset + (nword * 32), bits, cnt);
-            return ret;
+                bit_functor.add_bits(offset + (nword * 32), bits, cnt);
+            return;
         }
         unsigned mask_r = bm::mask_r_u32(nbit);
         temp = *word & mask_r;
         cnt = bm::bitscan(temp, bits);
         if (cnt)
-        {
-            ret = bit_functor.add_bits(offset + (nword * 32), bits, cnt);
-            if (ret < 0)
-                return ret;
-        }
+            bit_functor.add_bits(offset + (nword * 32), bits, cnt);
         bitcount -= 32 - nbit;
         ++word; ++nword;
     }
@@ -1706,11 +1631,7 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
     {
         cnt = bm::bitscan_wave(word, bits);
         if (cnt)
-        {
-            ret = bit_functor.add_bits(offset + (nword * 32), bits, cnt);
-            if (ret < 0)
-                return ret;
-        }
+            bit_functor.add_bits(offset + (nword * 32), bits, cnt);
     } // for
 
     for ( ;bitcount >= 32; bitcount-=32, ++word)
@@ -1718,11 +1639,7 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
         temp = *word;
         cnt = bm::bitscan(temp, bits);
         if (cnt)
-        {
-            ret = bit_functor.add_bits(offset + (nword * 32), bits, cnt);
-            if (ret < 0)
-                return ret;
-        }
+            bit_functor.add_bits(offset + (nword * 32), bits, cnt);
         ++nword;
     } // for
 
@@ -1734,13 +1651,9 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
         temp = *word & mask_l;
         cnt = bm::bitscan(temp, bits);
         if (cnt)
-        {
-            ret = bit_functor.add_bits(offset + (nword * 32), bits, cnt);
-            if (ret < 0)
-                return ret;
-        }
+            bit_functor.add_bits(offset + (nword * 32), bits, cnt);
     }
-    return 0;
+
 }
 
 
@@ -1751,31 +1664,27 @@ int for_each_bit_blk(const bm::word_t* block, SIZE_TYPE offset,
    \param buf - bit block buffer pointer
    \param offset - global block offset (number of bits)
    \param bit_functor - functor must support .add_range(offset, bits_ptr, size)
-   \return - functor return code (< 0 - interrupt the processing)
-
+ 
    @ingroup gapfunc
    @internal
 */
 template<typename T, typename Func, typename SIZE_TYPE>
-int for_each_gap_blk(const T* buf, SIZE_TYPE offset,
+void for_each_gap_blk(const T* buf, SIZE_TYPE offset,
                       Func&  bit_functor)
 {
     const T* pcurr = buf + 1;
     const T* pend = buf + (*buf >> 3);
-    int ret = 0;
+
     if (*buf & 1)
     {
-        ret = bit_functor.add_range(offset, *pcurr + 1);
-        if (ret < 0)
-            return ret;
+        bit_functor.add_range(offset, *pcurr + 1);
         ++pcurr;
     }
-    for (++pcurr; (pcurr <= pend) && (ret >= 0); pcurr += 2)
+    for (++pcurr; pcurr <= pend; pcurr += 2)
     {
         T prev = *(pcurr-1);
-        ret = bit_functor.add_range(offset + prev + 1, *pcurr - prev);
+        bit_functor.add_range(offset + prev + 1, *pcurr - prev);
     }
-    return ret;
 }
 
 /*!
@@ -1786,13 +1695,12 @@ int for_each_gap_blk(const T* buf, SIZE_TYPE offset,
    \param left - interval start [left..right]
    \param right - intreval end [left..right]
    \param bit_functor - functor must support .add_range(offset, bits_ptr, size)
-   \return - functor return code (< 0 - interrupt the processing)
 
    @ingroup gapfunc
    @internal
 */
 template<typename T, typename Func, typename SIZE_TYPE>
-int for_each_gap_blk_range(const T* BMRESTRICT buf,
+void for_each_gap_blk_range(const T* BMRESTRICT buf,
                             SIZE_TYPE offset,
                             unsigned left, unsigned right,
                             Func&  bit_functor)
@@ -1803,17 +1711,15 @@ int for_each_gap_blk_range(const T* BMRESTRICT buf,
     unsigned is_set;
     unsigned start_pos = bm::gap_bfind(buf, left, &is_set);
     const T* BMRESTRICT pcurr = buf + start_pos;
-    int ret = 0;
+
     if (is_set)
     {
         if (right <= *pcurr)
         {
-            ret = bit_functor.add_range(offset + left, (right + 1)-left);
-            return ret;
+            bit_functor.add_range(offset + left, (right + 1)-left);
+            return;
         }
-        ret = bit_functor.add_range(offset + left, (*pcurr + 1)-left);
-        if (ret < 0)
-            return ret;
+        bit_functor.add_range(offset + left, (*pcurr + 1)-left);
         ++pcurr;
     }
 
@@ -1825,14 +1731,11 @@ int for_each_gap_blk_range(const T* BMRESTRICT buf,
         {
             int sz = int(right) - int(prev);
             if (sz > 0)
-                ret = bit_functor.add_range(offset + prev + 1, unsigned(sz));
-            return ret;
+                bit_functor.add_range(offset + prev + 1, unsigned(sz));
+            return;
         }
-        ret = bit_functor.add_range(offset + prev + 1, *pcurr - prev);
-        if (ret < 0)
-            return ret;
+        bit_functor.add_range(offset + prev + 1, *pcurr - prev);
     } // for
-    return 0;
 }
 
 
@@ -1841,25 +1744,25 @@ int for_each_gap_blk_range(const T* BMRESTRICT buf,
     \internal
 */
 template<typename T, typename N, typename F>
-int for_each_bit_block_range(T*** root,
+void for_each_bit_block_range(T*** root,
                               N top_size, N nb_from, N nb_to, F& f)
 {
     BM_ASSERT(top_size);
     if (nb_from > nb_to)
-        return 0;
+        return;
     unsigned i_from = unsigned(nb_from >> bm::set_array_shift);
     unsigned j_from = unsigned(nb_from &  bm::set_array_mask);
     unsigned i_to = unsigned(nb_to >> bm::set_array_shift);
     unsigned j_to = unsigned(nb_to &  bm::set_array_mask);
 
     if (i_from >= top_size)
-        return 0;
+        return;
     if (i_to >= top_size)
     {
         i_to = unsigned(top_size-1);
         j_to = bm::set_sub_array_size-1;
     }
-    int ret;
+
     for (unsigned i = i_from; i <= i_to; ++i)
     {
         T** blk_blk = root[i];
@@ -1871,20 +1774,16 @@ int for_each_bit_block_range(T*** root,
             if (!j && (i != i_to)) // full sub-block
             {
                 N base_idx = bm::get_super_block_start<N>(i);
-                ret = f.add_range(base_idx, bm::set_sub_total_bits);
-                if (ret < 0)
-                    return ret;
+                f.add_range(base_idx, bm::set_sub_total_bits);
             }
             else
             {
                 do
                 {
                     N base_idx = bm::get_block_start<N>(i, j);
-                    ret = f.add_range(base_idx, bm::gap_max_bits);
-                    if (ret < 0)
-                        return ret;
+                    f.add_range(base_idx, bm::gap_max_bits);
                     if ((i == i_to) && (j == j_to))
-                        return 0;
+                        return;
                 } while (++j < bm::set_sub_array_size);
             }
         }
@@ -1900,20 +1799,21 @@ int for_each_bit_block_range(T*** root,
                     if (0 != (block = blk_blk[j]))
                     {
                         if (BM_IS_GAP(block))
-                            ret = bm::for_each_gap_blk(BMGAP_PTR(block), base_idx, f);
+                        {
+                            bm::for_each_gap_blk(BMGAP_PTR(block), base_idx, f);
+                        }
                         else
-                            ret = bm::for_each_bit_blk(block, base_idx, f);
-                        if (ret < 0)
-                            return ret;
+                        {
+                            bm::for_each_bit_blk(block, base_idx, f);
+                        }
                     }
                 }
 
                 if ((i == i_to) && (j == j_to))
-                    return 0;
+                    return;
             } while (++j < bm::set_sub_array_size);
         }
     } // for i
-    return 0;
 }
 
 
@@ -1922,7 +1822,7 @@ int for_each_bit_block_range(T*** root,
     @internal
 */
 template<class BV, class Func>
-int for_each_bit_range_no_check(const BV&             bv,
+void for_each_bit_range_no_check(const BV&             bv,
                        typename BV::size_type left,
                        typename BV::size_type right,
                        Func&                  bit_functor)
@@ -1933,7 +1833,7 @@ int for_each_bit_range_no_check(const BV&             bv,
     const typename BV::blocks_manager_type& bman = bv.get_blocks_manager();
     bm::word_t*** blk_root = bman.top_blocks_root();
     if (!blk_root)
-        return 0;
+        return;
         
     block_idx_type nblock_left  = (left  >> bm::set_block_shift);
     block_idx_type nblock_right = (right >> bm::set_block_shift);
@@ -1943,49 +1843,45 @@ int for_each_bit_range_no_check(const BV&             bv,
     const bm::word_t* block = bman.get_block_ptr(i0, j0);
     unsigned nbit_left  = unsigned(left  & bm::set_block_mask);
     size_type offset = nblock_left * bm::bits_in_block;
-    int ret = 0;
+
     if (nblock_left == nblock_right) // hit in the same block
     {
         if (!block)
-            return ret;
+            return;
         unsigned nbit_right = unsigned(right & bm::set_block_mask);
         if (BM_IS_GAP(block))
         {
-            ret = bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
-                                             nbit_left, nbit_right, bit_functor);
+            bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
+                                       nbit_left, nbit_right, bit_functor);
         }
         else
         {
-            ret = bm::for_each_bit_blk(block, offset, nbit_left, nbit_right,
+            bm::for_each_bit_blk(block, offset, nbit_left, nbit_right,
                                  bit_functor);
         }
-        return ret;
+        return;
     }
     // process left block
     if (nbit_left && block)
     {
         if (BM_IS_GAP(block))
         {
-            ret = bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
+            bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
                                 nbit_left, bm::bits_in_block-1, bit_functor);
         }
         else
         {
-            ret = bm::for_each_bit_blk(block, offset, nbit_left, bm::bits_in_block-1,
+            bm::for_each_bit_blk(block, offset, nbit_left, bm::bits_in_block-1,
                                  bit_functor);
         }
-        if (ret < 0)
-            return ret;
         ++nblock_left;
     }
 
     // process all complete blocks in the middle
     {
         block_idx_type top_blocks_size = bman.top_block_size();
-        ret = bm::for_each_bit_block_range(blk_root, top_blocks_size,
+        bm::for_each_bit_block_range(blk_root, top_blocks_size,
                                 nblock_left, nblock_right-1, bit_functor);
-        if (ret < 0)
-            return ret;
     }
 
     unsigned nbit_right = unsigned(right & bm::set_block_mask);
@@ -1997,15 +1893,14 @@ int for_each_bit_range_no_check(const BV&             bv,
         offset = nblock_right * bm::bits_in_block;
         if (BM_IS_GAP(block))
         {
-            ret = bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
+            bm::for_each_gap_blk_range(BMGAP_PTR(block), offset,
                                        0, nbit_right, bit_functor);
         }
         else
         {
-            ret = bm::for_each_bit_blk(block, offset, 0, nbit_right, bit_functor);
+            bm::for_each_bit_blk(block, offset, 0, nbit_right, bit_functor);
         }
     }
-    return ret;
 }
 
 /**

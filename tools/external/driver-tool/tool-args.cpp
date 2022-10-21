@@ -112,7 +112,6 @@ public:
     void print(T x) {
         out << x;
     }
-    template <>
     void print(char ch) {
         switch (ch) {
         case '[':
@@ -134,17 +133,19 @@ public:
         }
         out << ch;
     }
-    template <>
     void print(char const *str)
     {
         for (auto cp = str; *cp; ++cp)
             print(*cp);
     }
-    template <>
     void print(std::string const &str) {
         print(str.c_str());
     }
-    template <>
+    template <typename T, typename ...Ts>
+    void print(T const &x, Ts... ts) {
+        print(x);
+        print(ts...);
+    }
     void print(ParameterDefinition const *def) {
         print("{ \"name\": \"", def->name, "\"");
         if (def->aliases && *def->aliases) {
@@ -161,11 +162,6 @@ public:
         else if (def->hasArgument && !def->argumentIsOptional)
             print(", \"argument-required\": true");
         print(" }");
-    }
-    template <typename T, typename ...Ts>
-    void print(T const &x, Ts... ts) {
-        print(x);
-        print(ts...);
     }
 };
 

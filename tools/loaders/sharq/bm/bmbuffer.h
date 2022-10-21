@@ -197,25 +197,24 @@ public:
     size_t capacity() const BMNOEXCEPT { return capacity_; }
 
     /// adjust current size (buffer content preserved)
-    unsigned char* resize(size_t new_size, bool copy_content = true)
+    void resize(size_t new_size, bool copy_content = true)
     {
         if (new_size <= capacity_)
         {
             this->size_ = new_size;
-            return data();
+            return;
         }
         byte_buffer tmp_buffer(new_size); // temp with new capacity
         if (copy_content)
             tmp_buffer = *this;
         this->swap(tmp_buffer);
+        
         this->size_ = new_size;
-        return data();
     }
 
     /// adjust current size (no need to reallocate)
     void resize_no_check(size_t new_size) BMNOEXCEPT
     {
-        BM_ASSERT(new_size < capacity_ || !new_size);
         this->size_ = new_size;
     }
 
@@ -268,20 +267,7 @@ public:
         return sizeof(capacity_) + sizeof(alloc_factor_) +
                capacity();
     }
-
-    /**
-        Free mmemory
-        @internal
-     */
-    void free_buffer()
-    {
-        if (byte_buf_)
-        {
-            allocator_type::deallocate((bm::word_t*)byte_buf_, alloc_factor_);
-            this->byte_buf_ = 0;
-        }
-    }
-
+    
 private:
     /// Override from the base class
     void set_buf(unsigned char* buf, size_t size);
@@ -309,7 +295,15 @@ private:
         capacity_ = alloc_factor_ * sizeof(bm::word_t);
     }
 
-
+    void free_buffer()
+    {
+        if (byte_buf_)
+        {
+            allocator_type::deallocate((bm::word_t*)byte_buf_, alloc_factor_);
+            this->byte_buf_ = 0;
+        }
+    }
+    
 private:
     size_t         capacity_;     ///< current capacity
     size_t         alloc_factor_; ///< number of blocks allocated for buffer
@@ -497,22 +491,11 @@ public:
         @brief resize without content preservation
         @internal
      */
-    value_type* resize_no_copy(size_type new_size)
+    void resize_no_copy(size_type new_size)
     {
         size_type v_size = value_size();
-        return (value_type*) buffer_.resize(new_size * v_size, false /*no copy content*/);
+        buffer_.resize(new_size * v_size);
     }
-
-    /**
-        @brief resize without content preservation or capacity verification
-        @internal
-     */
-    void resize_no_check(size_type new_size)
-    {
-        size_type v_size = value_size();
-        buffer_.resize_no_check(new_size * v_size);
-    }
-
 
     /**
         @brief Add element to the end of the vector, return reference
@@ -742,14 +725,6 @@ public:
         buffer_.resize(size_in_bytes());
         if (set_z && size_in_bytes())
             set_zero();
-    }
-
-    /**
-        Free memory
-     */
-    void free() BMNOEXCEPT
-    {
-        buffer_.free_buffer();
     }
 
     size_type rows() const BMNOEXCEPT { return rows_; }

@@ -338,7 +338,7 @@ public:
             in_sync_ = csv.in_sync_;
             if (in_sync_)
             {
-                rs_idx_->copy_from(*(csv.rs_idx_));
+                bv_blocks_ptr_->copy_from(*(csv.bv_blocks_ptr_));
             }
         }
         return *this;
@@ -357,7 +357,9 @@ public:
             sv_.swap(csv.sv_);
             size_ = csv.size_; max_id_ = csv.max_id_; in_sync_ = csv.in_sync_;
             if (in_sync_)
-                rs_idx_->copy_from(*(csv.rs_idx_));
+            {
+                bv_blocks_ptr_->copy_from(*(csv.bv_blocks_ptr_));
+            }
         }
         return *this;
     }
@@ -383,11 +385,6 @@ public:
         After this call size() will return the true size of the vector
      */
     void sync_size() BMNOEXCEPT;
-
-    /*! \brief change vector size
-        \param new_size - new vector size
-    */
-    void resize(size_type new_size);
 
     /*
        \brief Returns count of not NULL elements (population)
@@ -428,27 +425,7 @@ public:
         \return value of the element
     */
     value_type get(size_type idx) const BMNOEXCEPT;
-
-    /**
-        \brief get specified element with NOT NULL check
-        \param idx - element index
-        \param v -  [out] value to get
-        \return true if value was aquired (NOT NULL), false otherwise
-        @sa is_null, get
-     */
-    bool try_get(size_type idx, value_type& v) const BMNOEXCEPT;
-
-    /**
-        \brief get specified element with NOT NULL check
-        Caller guarantees that the vector is in sync mode (RS-index access).
-        \param idx - element index
-        \param v -  [out] value to get
-        \return true if value was aquired (NOT NULL), false otherwise
-        @sa is_null, get, sync
-     */
-    bool try_get_sync(size_type idx, value_type& v) const BMNOEXCEPT;
-
-
+    
     /*!
         \brief set specified element with bounds checking and automatic resize
      
@@ -459,26 +436,7 @@ public:
         \param v   - element value
     */
     void push_back(size_type idx, value_type v);
-
-
-    /*!
-        \brief add element with automatic resize
-        \param v   - element value
-    */
-    void push_back(value_type v)
-        { this->push_back(size_, v); }
-
-    /*!
-        \brief push back specified amount of NULL values
-        \param count   - number of NULLs to push back
-    */
-    void push_back_null(size_type count);
-
-    /*!
-        \brief push back NULL value
-    */
-    void push_back_null() { push_back_null(1); }
-
+    
     /*!
         \brief set specified element with bounds checking and automatic resize
         \param idx - element index
@@ -515,23 +473,6 @@ public:
         \param idx - element index
     */
     void set_null(size_type idx);
-
-    /**
-        Set NULL all elements set as 1 in the argument vector.
-        Function also clears all the values to 0.
-        Note: this can be a very expensive function for an RS container.
-        \param bv_idx - index bit-vector for elements which  to be set to NULL
-     */
-    void set_null(const bvector_type& bv_idx);
-
-
-    /**
-        Set vector elements spcified by argument bit-vector to zero
-        Note that set to 0 elements are NOT going to tuned to NULL (NULL qualifier is preserved)
-        \param bv_idx - index bit-vector for elements which  to be set to 0
-     */
-    void clear(const bvector_type& bv_idx);
-
 
 
     /** \brief test if specified element is NULL
@@ -595,40 +536,6 @@ public:
                          size_type   size,
                          bool        zero_mem = true) const BMNOEXCEPT;
 
-    /*!
-        \brief Gather elements to a C-style array
-
-        Gather collects values from different locations, for best
-        performance feed it with sorted list of indexes.
-
-        Faster than one-by-one random access.
-
-        For efficiency, this is left as a low level function,
-        it does not do any bounds checking on the target array, it will
-        override memory and crash if you are not careful with allocation
-        and request size.
-
-        \param arr  - destination array
-        \param idx - index list to gather elements (read only)
-        \param idx_tmp_buf - temp scratch buffer for index rank-select index translation
-                must be correctly allocated to match size. No value initialization requirement.
-        \param size - decoding index list size (array allocation should match)
-        \param sorted_idx - sort order directive for the idx array
-                          (BM_UNSORTED, BM_SORTED, BM_UNKNOWN)
-        Sort order affects both performance and correctness(!), use BM_UNKNOWN
-        if not sure.
-
-        \return number of actually exported elements (can be less than requested)
-
-        \sa decode
-    */
-    size_type gather(value_type* arr,
-                     const size_type* idx,
-                     size_type*  idx_tmp_buf,
-                     size_type   size,
-                     bm::sort_order sorted_idx) const;
-
-
     ///@}
 
     
@@ -643,7 +550,7 @@ public:
     /** \brief various type traits
     */
     static constexpr
-    bool is_compressed() BMNOEXCEPT { return true; }
+    bool is_compressed() { return true; }
 
     static constexpr
     bool is_str() BMNOEXCEPT { return false; }
@@ -744,18 +651,6 @@ public:
     void calc_stat(
            struct rsc_sparse_vector<Val, SV>::statistics* st) const BMNOEXCEPT;
 
-    /**
-    @brief Turn sparse vector into immutable mode
-    Read-only (immutable) vector uses less memory and allows faster searches.
-    Before freezing it is recommenede to call optimize() to get full memory saving effect
-    @sa optimize
-     */
-    void freeze() { sv_.freeze(); }
-
-    /** Returns true if vector is read-only */
-    bool is_ro() const BMNOEXCEPT { return sv_.is_ro_; }
-
-
 
     ///@}
 
@@ -804,15 +699,11 @@ public:
         \brief returns true if prefix sum table is in sync with the vector
     */
     bool in_sync() const BMNOEXCEPT { return in_sync_; }
-    /*!
-        \brief returns true if prefix sum table is in sync with the vector
-    */
-    bool is_sync() const BMNOEXCEPT { return in_sync_; }
-
+    
     /*!
         \brief Unsync the prefix sum table
     */
-    void unsync() BMNOEXCEPT { in_sync_ = is_dense_ = false; }
+    void unsync() BMNOEXCEPT { in_sync_ = false; }
     ///@}
 
     // ------------------------------------------------------------
@@ -878,21 +769,10 @@ public:
         @sa sync()
     */
     const rs_index_type* get_RS() const BMNOEXCEPT
-        { return in_sync_ ? rs_idx_ : 0; }
+        { return in_sync_ ? bv_blocks_ptr_ : 0; }
 
     void mark_null_idx(unsigned null_idx) BMNOEXCEPT
         { sv_.mark_null_idx(null_idx); }
-
-    /*!
-        \brief Resolve logical address to access via rank compressed address
-
-        \param idx    - input id to resolve
-        \param idx_to - output id
-
-        \return true if id is known and resolved successfully
-         @internal
-    */
-    bool resolve(size_type idx, size_type* idx_to) const BMNOEXCEPT;
 
     ///@}
     
@@ -902,8 +782,15 @@ protected:
         sv_octet_slices = sizeof(value_type)
     };
 
-
-    bool resolve_sync(size_type idx, size_type* idx_to) const BMNOEXCEPT;
+    /*!
+        \brief Resolve logical address to access via rank compressed address
+     
+        \param idx    - input id to resolve
+        \param idx_to - output id
+     
+        \return true if id is known and resolved successfully
+    */
+    bool resolve(size_type idx, size_type* idx_to) const BMNOEXCEPT;
 
     bool resolve_range(size_type from, size_type to, 
                        size_type* idx_from, size_type* idx_to) const BMNOEXCEPT;
@@ -914,7 +801,7 @@ protected:
     }
     size_type size_internal() const BMNOEXCEPT { return sv_.size(); }
 
-    constexpr bool is_remap() const BMNOEXCEPT { return false; }
+    bool is_remap() const BMNOEXCEPT { return false; }
     size_t remap_size() const BMNOEXCEPT { return 0; }
     const unsigned char* get_remap_buffer() const BMNOEXCEPT { return 0; }
     unsigned char* init_remap_buffer() BMNOEXCEPT { return 0; }
@@ -956,9 +843,10 @@ private:
     void throw_no_rsc_index();
 
 protected:
-    template<class SVect, unsigned S_FACTOR> friend class sparse_vector_scanner;
+    template<class SVect> friend class sparse_vector_scanner;
     template<class SVect> friend class sparse_vector_serializer;
     template<class SVect> friend class sparse_vector_deserializer;
+    template<class SVect> friend class sparse_vector_scanner;
 
 
 private:
@@ -966,8 +854,7 @@ private:
     size_type                     size_;     ///< vector size (logical)
     size_type                     max_id_;   ///< control variable for sorted load
     bool                          in_sync_;  ///< flag if prefix sum is in-sync with vector
-    rs_index_type*                rs_idx_ = 0; ///< prefix sum for rank-select translation
-    bool                          is_dense_ = false; ///< flag if vector is dense
+    rs_index_type*                bv_blocks_ptr_ = 0; ///< prefix sum for rank translation
 };
 
 //---------------------------------------------------------------------
@@ -1032,7 +919,7 @@ rsc_sparse_vector<Val, SV>::rsc_sparse_vector(
     
     construct_rs_index();
     if (in_sync_)
-        rs_idx_->copy_from(*(csv.rs_idx_));
+        bv_blocks_ptr_->copy_from(*(csv.bv_blocks_ptr_));
 }
 
 //---------------------------------------------------------------------
@@ -1048,7 +935,7 @@ rsc_sparse_vector<Val, SV>::rsc_sparse_vector(
     {
         sv_.swap(csv.sv_);
         size_ = csv.size_; max_id_ = csv.max_id_; in_sync_ = csv.in_sync_;
-        rs_idx_ = csv.rs_idx_; csv.rs_idx_ = 0;
+        bv_blocks_ptr_ = csv.bv_blocks_ptr_; csv.bv_blocks_ptr_ = 0;
     }
 }
 
@@ -1064,53 +951,6 @@ rsc_sparse_vector<Val, SV>::size() const BMNOEXCEPT
 //---------------------------------------------------------------------
 
 template<class Val, class SV>
-void rsc_sparse_vector<Val, SV>::resize(size_type new_size)
-{
-    BM_ASSERT(new_size < bm::id_max);
-    if (!new_size) // clear memory
-    {
-        sv_.resize(0);
-        BM_ASSERT(sv_.get_null_bvect()->none());
-        in_sync_ = false;
-        size_ = max_id_ = 0;
-        return;
-    }
-    if (new_size >= size_) // vector grows
-    {
-        size_ = new_size;
-        max_id_ = new_size - 1;
-        return;
-    }
-
-    // vector shrinks
-    // compute tail rank
-    bvector_type* bv_null = sv_.get_null_bvect();
-    size_type clear_size = bv_null->count_range(new_size, bm::id_max-1);
-
-    if (!clear_size) // tail set/rank is empty
-    {
-        size_ = new_size;
-        max_id_ = new_size - 1;
-        BM_ASSERT(!bv_null->any_range(size_, bm::id_max-1));
-        return;
-    }
-
-    BM_ASSERT(sv_.size() >= clear_size);
-    size_type new_sv_size = sv_.size() - clear_size;
-    sv_.resize_internal(new_sv_size, false); // without touching NULL plane
-    bv_null->clear_range(new_size, bm::id_max-1);
-
-    size_ = new_size;
-    max_id_ = new_size - 1;
-
-    BM_ASSERT(!bv_null->any_range(size_, bm::id_max-1));
-
-    in_sync_ = false;
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
 void rsc_sparse_vector<Val, SV>::push_back(size_type idx, value_type v)
 {
     if (sv_.empty())
@@ -1121,16 +961,6 @@ void rsc_sparse_vector<Val, SV>::push_back(size_type idx, value_type v)
         sv_.throw_range_error("compressed sparse vector push_back() range error");
     }
     push_back_no_check(idx, v);
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-void rsc_sparse_vector<Val, SV>::push_back_null(size_type count)
-{
-    BM_ASSERT(size_ < bm::id_max - count); // overflow assert
-    size_ += count;
-    max_id_ = size_-1;
 }
 
 //---------------------------------------------------------------------
@@ -1166,60 +996,6 @@ void rsc_sparse_vector<Val, SV>::set_null(size_type idx)
         sv_.erase(--sv_idx, false/*not delete NULL vector*/);
         in_sync_ = false;
     }
-    else
-    {
-        if (idx > max_id_)
-        {
-            max_id_ = idx;
-            size_ = max_id_ + 1;
-        }
-    }
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-void rsc_sparse_vector<Val, SV>::set_null(const bvector_type& bv_idx)
-{
-    bvector_type* bv_null = sv_.get_null_bvect();
-    bvector_type bv_sub; // subtraction vector cleared from NOT NULLs
-    bv_sub.bit_and(bv_idx, *bv_null);
-    // clear the main matrix to accelerate the erase in all bit-slices
-    {
-        bm::rank_compressor<bvector_type> rank_compr;
-        bvector_type bv_sub_rsc;
-        rank_compr.compress(bv_sub_rsc, *bv_null, bv_sub);
-        sv_.clear(bv_sub_rsc);
-    }
-
-    in_sync_ = false;
-    typename bvector_type::enumerator en(&bv_sub, 0);
-    for (size_type cnt = 0; en.valid(); ++en, ++cnt)
-    {
-        auto idx = *en;
-
-        size_type sv_idx = bv_null->count_range(0, idx);
-        sv_idx -= cnt; // correct rank for what we deleted previously
-        sv_.erase(--sv_idx, false/*not delete the NULL vector*/);
-    }
-    bv_null->bit_sub(bv_sub);
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-void rsc_sparse_vector<Val, SV>::clear(const bvector_type& bv_idx)
-{
-    const bvector_type* bv_null = sv_.get_null_bvector();
-
-    bvector_type bv_sub; // subtraction vector cleared from NOT NULLs
-    bv_sub.bit_and(bv_idx, *bv_null);
-
-    bm::rank_compressor<bvector_type> rank_compr;
-    bvector_type bv_sub_rsc;
-    rank_compr.compress(bv_sub_rsc, *bv_null, bv_sub);
-
-    sv_.clear(bv_sub_rsc);
 }
 
 //---------------------------------------------------------------------
@@ -1233,7 +1009,7 @@ void rsc_sparse_vector<Val, SV>::inc(size_type idx)
     size_type sv_idx;
     bool found = bv_null->test(idx);
 
-    sv_idx = in_sync_ ? bv_null->count_to(idx, *rs_idx_)
+    sv_idx = in_sync_ ? bv_null->count_to(idx, *bv_blocks_ptr_)
                       : bv_null->count_range(0, idx); // TODO: make test'n'count
 
     if (found)
@@ -1265,7 +1041,7 @@ void rsc_sparse_vector<Val, SV>::inc(size_type idx, value_type v)
     size_type sv_idx;
     bool found = bv_null->test(idx);
 
-    sv_idx = in_sync_ ? bv_null->count_to(idx, *rs_idx_)
+    sv_idx = in_sync_ ? bv_null->count_to(idx, *bv_blocks_ptr_)
                       : bv_null->count_range(0, idx); // TODO: make test'n'count
 
     if (found)
@@ -1295,7 +1071,7 @@ void rsc_sparse_vector<Val, SV>::inc_not_null(size_type idx, value_type v)
     BM_ASSERT(bv_null->test(idx)); // idx must be NOT NULL
 
     size_type sv_idx;
-    sv_idx = in_sync_ ? bv_null->count_to(idx, *rs_idx_)
+    sv_idx = in_sync_ ? bv_null->count_to(idx, *bv_blocks_ptr_)
                       : bv_null->count_range(0, idx); // TODO: make test'n'count
     --sv_idx;
     if (v == 1)
@@ -1316,7 +1092,7 @@ void rsc_sparse_vector<Val, SV>::set(size_type idx, value_type v)
     size_type sv_idx;
     bool found = bv_null->test(idx);
 
-    sv_idx = in_sync_ ? bv_null->count_to(idx, *rs_idx_)
+    sv_idx = in_sync_ ? bv_null->count_to(idx, *bv_blocks_ptr_)
                       : bv_null->count_range(0, idx); // TODO: make test'n'count
 
     if (found)
@@ -1433,17 +1209,10 @@ void rsc_sparse_vector<Val, SV>::sync(bool force)
         return;  // nothing to do
     const bvector_type* bv_null = sv_.get_null_bvector();
     BM_ASSERT(bv_null);
-    bv_null->build_rs_index(rs_idx_); // compute popcount prefix list
-    sv_.is_ro_ = bv_null->is_ro();
-
+    bv_null->build_rs_index(bv_blocks_ptr_); // compute popcount prefix list
+ 
     if (force)
         sync_size();
-
-    size_type cnt = size_ ? bv_null->count_range(0, size_-1, *rs_idx_)
-                          : 0;
-    is_dense_ = (cnt == size_); // dense vector?
-    BM_ASSERT(size_ >= bv_null->count());
-
     in_sync_ = true;
 }
 
@@ -1471,43 +1240,15 @@ bool rsc_sparse_vector<Val, SV>::resolve(size_type idx,
 {
     BM_ASSERT(idx_to);
     const bvector_type* bv_null = sv_.get_null_bvector();
-    if (idx >= size_)
-    {
-        BM_ASSERT(bv_null->get_bit(idx) == false);
-        return false;
-    }
     if (in_sync_)
-        return resolve_sync(idx, idx_to);
-
-    // not in-sync: slow access
-    bool found = bv_null->test(idx);
-    if (!found)
-        return found;
-    *idx_to = bv_null->count_range_no_check(0, idx);
-    return found;
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-bool rsc_sparse_vector<Val, SV>::resolve_sync(
-                                    size_type  idx,
-                                    size_type* idx_to) const BMNOEXCEPT
-{
-    BM_ASSERT(idx_to);
-    BM_ASSERT(in_sync_);
-
-    const bvector_type* bv_null = sv_.get_null_bvector();
-    if (is_dense_)
     {
-        *idx_to = idx+1;
-        if (idx <= size_)
-            return true;
-        *idx_to = bm::id_max;
-        BM_ASSERT(bv_null->get_bit(idx) == false);
-        return false;
+        *idx_to = bv_null->count_to_test(idx, *bv_blocks_ptr_);
     }
-    *idx_to = bv_null->count_to_test(idx, *rs_idx_);
+    else  // slow access
+    {
+        bool found = bv_null->test(idx);
+        *idx_to = found ? bv_null->count_range(0, idx) : 0;
+    }
     return bool(*idx_to);
 }
 
@@ -1522,14 +1263,14 @@ bool rsc_sparse_vector<Val, SV>::resolve_range(
     const bvector_type* bv_null = sv_.get_null_bvector();
     size_type copy_sz, sv_left;
     if (in_sync_)
-        copy_sz = bv_null->count_range(from, to, *rs_idx_);
+        copy_sz = bv_null->count_range(from, to, *bv_blocks_ptr_);
     else  // slow access
         copy_sz = bv_null->count_range(from, to);
     if (!copy_sz)
         return false;
 
     if (in_sync_)
-        sv_left = bv_null->rank_corrected(from, *rs_idx_);
+        sv_left = bv_null->rank_corrected(from, *bv_blocks_ptr_);
     else
     {
         sv_left = bv_null->count_range(0, from);
@@ -1570,35 +1311,8 @@ rsc_sparse_vector<Val, SV>::get(size_type idx) const BMNOEXCEPT
     bool found = resolve(idx, &sv_idx);
     if (!found)
         return value_type(0);
-    BM_ASSERT(!is_null(idx));
+    
     return sv_.get(--sv_idx);
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-bool rsc_sparse_vector<Val, SV>::try_get(
-                        size_type idx, value_type& v) const BMNOEXCEPT
-{
-    size_type sv_idx;
-    if (!resolve(idx, &sv_idx))
-        return false;
-    v = sv_.get(--sv_idx);
-    return true;
-}
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
-bool rsc_sparse_vector<Val, SV>::try_get_sync(
-                        size_type idx, value_type& v) const BMNOEXCEPT
-{
-    size_type sv_idx;
-    bool found = resolve_sync(idx, &sv_idx);
-    if (!found)
-        return found;
-    v = sv_.get(--sv_idx);
-    return true;
 }
 
 //---------------------------------------------------------------------
@@ -1622,12 +1336,10 @@ void rsc_sparse_vector<Val, SV>::optimize(bm::word_t*  temp_block,
     if (st)
     {
         st->memory_used += sizeof(rs_index_type);
-        st->memory_used += rs_idx_->get_total() *
+        st->memory_used += bv_blocks_ptr_->get_total() *
              (sizeof(typename rs_index_type::size_type)
              + sizeof(typename rs_index_type::sb_pair_type));
     }
-    if (is_sync()) // must rebuild the sync index after optimization
-        this->sync(true);
 }
 
 //---------------------------------------------------------------------
@@ -1650,7 +1362,7 @@ void rsc_sparse_vector<Val, SV>::calc_stat(
     if (st)
     {
         st->memory_used += sizeof(rs_index_type);
-        st->memory_used += rs_idx_->get_total() *
+        st->memory_used += bv_blocks_ptr_->get_total() *
                    (sizeof(typename rs_index_type::size_type)
                    + sizeof(typename rs_index_type::sb_pair_type));
     }
@@ -1676,7 +1388,7 @@ rsc_sparse_vector<Val, SV>::find_rank(size_type rank,
     bool b;
     const bvector_type* bv_null = get_null_bvector();
     if (in_sync())
-        b = bv_null->select(rank, idx, *rs_idx_);
+        b = bv_null->select(rank, idx, *bv_blocks_ptr_);
     else
         b = bv_null->find_rank(rank, 0, idx);
     return b;
@@ -1710,7 +1422,7 @@ rsc_sparse_vector<Val, SV>::decode(value_type* arr,
         throw_no_rsc_index(); // call sync() to build RSC fast access index
         
     BM_ASSERT(arr);
-    BM_ASSERT(rs_idx_);
+    BM_ASSERT(bv_blocks_ptr_);
     
     if (idx_from >= this->size())
         return 0;
@@ -1721,7 +1433,7 @@ rsc_sparse_vector<Val, SV>::decode(value_type* arr,
         size = this->size() - idx_from;
 
     const bvector_type* bv_null = sv_.get_null_bvector();
-    size_type rank = bv_null->rank_corrected(idx_from, *rs_idx_);
+    size_type rank = bv_null->rank_corrected(idx_from, *bv_blocks_ptr_);
 
     BM_ASSERT(rank == bv_null->count_range(0, idx_from) - bv_null->test(idx_from));
 
@@ -1771,7 +1483,7 @@ rsc_sparse_vector<Val, SV>::decode_buf(value_type*     arr,
     BM_ASSERT(arr && arr_buf_tmp);
     BM_ASSERT(arr != arr_buf_tmp);
     BM_ASSERT(in_sync_);  // call sync() to build RSC fast access index
-    BM_ASSERT(rs_idx_);
+    BM_ASSERT(bv_blocks_ptr_);
 
     if ((bm::id_max - size) <= idx_from)
         size = bm::id_max - idx_from;
@@ -1782,7 +1494,7 @@ rsc_sparse_vector<Val, SV>::decode_buf(value_type*     arr,
         ::memset(arr, 0, sizeof(value_type)*size);
 
     const bvector_type* bv_null = sv_.get_null_bvector();
-    size_type rank = bv_null->rank_corrected(idx_from, *rs_idx_);
+    size_type rank = bv_null->rank_corrected(idx_from, *bv_blocks_ptr_);
 
     BM_ASSERT(rank == bv_null->count_range(0, idx_from) - bv_null->test(idx_from));
 
@@ -1795,7 +1507,7 @@ rsc_sparse_vector<Val, SV>::decode_buf(value_type*     arr,
         return size;
 
     size_type extract_cnt =
-        bv_null->count_range_no_check(idx_from, idx_from + size - 1, *rs_idx_);
+        bv_null->count_range(idx_from, idx_from + size - 1, *bv_blocks_ptr_);
 
     BM_ASSERT(extract_cnt <= this->size());
     auto ex_sz = sv_.decode(arr_buf_tmp, rank, extract_cnt, true);
@@ -1816,75 +1528,13 @@ rsc_sparse_vector<Val, SV>::decode_buf(value_type*     arr,
 //---------------------------------------------------------------------
 
 template<class Val, class SV>
-typename rsc_sparse_vector<Val, SV>::size_type
-rsc_sparse_vector<Val, SV>::gather(value_type*      arr,
-                                   const size_type* idx,
-                                   size_type*       idx_tmp_buf,
-                                   size_type        size,
-                                   bm::sort_order   sorted_idx) const
-{
-    BM_ASSERT(arr);
-    BM_ASSERT(idx);
-    BM_ASSERT(idx_tmp_buf);
-    BM_ASSERT(size);
-
-    if (size == 1) // corner case: get 1 value
-    {
-        arr[0] = this->get(idx[0]);
-        return size;
-    }
-
-    if (is_dense_) // rank-select idx recalc is not needed (with bounds check)
-    {
-        BM_ASSERT(in_sync_);
-        for (size_type i = 0; i < size; ++i)
-        {
-            if (idx[i] < size_)
-                idx_tmp_buf[i] = idx[i];
-            else
-            {
-                idx_tmp_buf[i] = bm::id_max;
-                if (sorted_idx == bm::BM_SORTED)
-                    sorted_idx = bm::BM_UNKNOWN; // UNK will evaluate the sort-order
-            }
-        } // for i
-    }
-    else
-    {
-        // validate index, resolve rank addresses
-        //
-        for (size_type i = 0; i < size; ++i)
-        {
-            size_type sv_idx;
-            if (resolve(idx[i], &sv_idx))
-            {
-                idx_tmp_buf[i] = sv_idx-1;
-            }
-            else
-            {
-                if (sorted_idx == bm::BM_SORTED)
-                    sorted_idx = bm::BM_UNKNOWN; // UNK will evaluate the sort-order
-                idx_tmp_buf[i] = bm::id_max;
-            }
-        } // for i
-    }
-
-    // gather the data using resolved indexes
-    //
-    size = sv_.gather(arr, idx_tmp_buf, size, sorted_idx);
-    return size;
-}
-
-
-//---------------------------------------------------------------------
-
-template<class Val, class SV>
 void rsc_sparse_vector<Val, SV>::construct_rs_index()
 {
-    if (rs_idx_)
+    if (bv_blocks_ptr_)
         return;
-    rs_idx_ = (rs_index_type*) bm::aligned_new_malloc(sizeof(rs_index_type));
-    rs_idx_ = new(rs_idx_) rs_index_type(); // placement new
+    bv_blocks_ptr_ =
+        (rs_index_type*) bm::aligned_new_malloc(sizeof(rs_index_type));
+    bv_blocks_ptr_ = new(bv_blocks_ptr_) rs_index_type(); // placement new
 }
 
 //---------------------------------------------------------------------
@@ -1892,10 +1542,10 @@ void rsc_sparse_vector<Val, SV>::construct_rs_index()
 template<class Val, class SV>
 void rsc_sparse_vector<Val, SV>::free_rs_index()
 {
-    if (rs_idx_)
+    if (bv_blocks_ptr_)
     {
-        rs_idx_->~rs_index_type();
-        bm::aligned_free(rs_idx_);
+        bv_blocks_ptr_->~rs_index_type();
+        bm::aligned_free(bv_blocks_ptr_);
     }
 }
 
@@ -1959,7 +1609,7 @@ rsc_sparse_vector<Val, SV>::count_range_notnull(
     {
         return bv_null->count_range_no_check(left, right);
     }
-    return bv_null->count_range_no_check(left, right, *rs_idx_);
+    return bv_null->count_range_no_check(left, right, *bv_blocks_ptr_);
 }
 
 //---------------------------------------------------------------------
@@ -2010,8 +1660,6 @@ void rsc_sparse_vector<Val, SV>::back_insert_iterator::add(
     typename rsc_sparse_vector<Val, SV>::back_insert_iterator::value_type v)
 {
     BM_ASSERT(csv_);
-    BM_ASSERT(bm::id64_t(csv_->size_) + 1 < bm::id64_t(bm::id_max));
-
     sv_bi_.add_value_no_null(v);
     bvector_type* bv_null = sv_bi_.get_null_bvect();
     BM_ASSERT(bv_null);
@@ -2027,9 +1675,8 @@ template<class Val, class SV>
 void rsc_sparse_vector<Val, SV>::back_insert_iterator::add_null() BMNOEXCEPT
 {
     BM_ASSERT(csv_);
-    BM_ASSERT(bm::id64_t(csv_->size_) + 1 < bm::id64_t(bm::id_max));
-
-    csv_->max_id_++; csv_->size_++;
+    csv_->max_id_++;
+    csv_->size_++;
 }
 
 //---------------------------------------------------------------------
@@ -2039,8 +1686,6 @@ void rsc_sparse_vector<Val, SV>::back_insert_iterator::add_null(
     rsc_sparse_vector<Val, SV>::back_insert_iterator::size_type count) BMNOEXCEPT
 {
     BM_ASSERT(csv_);
-    BM_ASSERT(bm::id64_t(csv_->size_) + count < bm::id64_t(bm::id_max));
-
     csv_->max_id_+=count;
     csv_->size_+=count;
 }
@@ -2050,8 +1695,8 @@ void rsc_sparse_vector<Val, SV>::back_insert_iterator::add_null(
 template<class Val, class SV>
 void rsc_sparse_vector<Val, SV>::back_insert_iterator::flush()
 {
-    if (sv_bi_.flush())
-        csv_->in_sync_ = false;
+    sv_bi_.flush();
+    csv_->in_sync_ = false;
 }
 
 //---------------------------------------------------------------------

@@ -7,6 +7,8 @@ import json
 parser = argparse.ArgumentParser(description='Generate tests for tool args', allow_abbrev=False)
 parser.add_argument('--json', nargs=1, default='tool-args.json', help='json file with tool args definitions.')
 parser.add_argument('--barename', action='store_true', help='Use the bare tool name without version or -orig.')
+parser.add_argument('--quiet', action='store_true', help='Make the script quiet.')
+parser.add_argument('--all', action='store_true', help='Test all parameters.')
 parser.add_argument('--use-version', nargs='?', help='Use this as the version instead of the version in the definitions.')
 parser.add_argument('--path', nargs='?', type=PurePath, help='Path to prepend to tool name; expected path to binaries.')
 parser.add_argument('data', nargs='?', default='/panfs/pan1/sra-test/bam/GOOD_CMP_READ.csra', help='Accession or path to test with.')
@@ -14,6 +16,13 @@ parsed = parser.parse_args()
 
 with open(parsed.json) as f:
     toolArgs = json.load(f)
+
+index = {x['name']: i for i, x in enumerate(toolArgs)}
+
+for tool in toolArgs:
+    for i, x in enumerate(tool['parameters']):
+        x['index'] = i
+    tool['index'] = {x['name']: x['index'] for x in tool['parameters']}
 
 overrides = {
     'all tools': {
@@ -73,95 +82,204 @@ overrides = {
         'max_length': {'value': 75},
         'format': {'values': "csv xml json piped tab fastq fastq1 fasta fasta1 fasta2 qual qual1".split()},
         'boolean': {'values': '1|T'.split('|')},
+        'idx-range': { 'data file': 'SRR000001', 'value': 'skey' },
         'skip parameters': ['schema', 'slice', 'filter']
     }
 }
 
-for tool in toolArgs:
+if parsed.all:
+    for key in overrides:
+        if 'skip parameters' in overrides[key]:
+            del overrides[key]['skip parameters']
+
+
+def is_dicty(d):
+    try:
+        return callable(d.keys) # dict has keys
+    except AttributeError:
+        return false
+
+
+def is_listy(l):
+    try:
+        return callable(l.reverse) # list has an order that can be reversed
+    except AttributeError:
+        return false
+
+
+def is_stringy(s):
+    try:
+        return callable(s.upper) # strings have upper and lower case
+    except AttributeError:
+        return false
+
+
+def resolve_override(forAll, forOne, dflt):
+    if forAll and forOne:
+        pass
+    elif forAll:
+        return forAll
+    elif forOne:
+        return forOne
+    else:
+        return dflt
+
+    try: # try as a union of two dictionaries
+        return forOne | forAll
+    except TypeError:
+        pass
+
+    listy = [is_listy(forOne), is_listy(forAll)]
+    if all(listy):
+        return forAll + [v for v in forOne if v not in forAll]
+    if listy[0]:
+        return [ forAll ] + [v for v in forOne if v != forAll]
+    if listy[1]:
+        return forAll + ([ forOne ] if forOne not in forAll else [])
+
+    return forAll
+
+
+def get_param_property(tool, param, name, dflt):
+    forAll = None
+    try:
+        forAll = overrides['all tools'][param][name]
+        # print(f"overrides['all tools']['{param}']['{name}']", forAll)
+    except KeyError:
+        pass
+    forTool = None
+    try:
+        forTool = overrides[tool][param][name]
+        # print(f"overrides['{tool}']['{param}']['{name}']", forTool)
+    except KeyError:
+        pass
+
+    return resolve_override(forAll, forTool, dflt)
+
+
+def get_property(tool, param, dflt):
+    forAll = None
+    try:
+        forAll = overrides['all tools'][param]
+    except KeyError:
+        pass
+    forTool = None
+    try:
+        forTool = overrides[tool][param]
+    except KeyError:
+        pass
+
+    return resolve_override(forAll, forTool, dflt)
+
+
+def parametersFor(tool):
+    skip = {x: True for x in get_property(tool['name'], 'skip parameters', [])}
+    if skip:
+        print("# Skipping some parameters:")
+        for x in skip:
+            print(f"#   {x}")
+    return [x for x in tool['parameters'] if x['name'] not in skip]
+
+
+def prepare(tool):
+    # compute path
     toolName = tool['name']
-    toolVersion = parsed.use_version if parsed.use_version else tool['version']
-    toolFullName = toolName if parsed.barename else f'{toolName}-orig.{toolVersion}'
-    if parsed.path:
-        toolFullName = str(parsed.path.joinpath(toolFullName))
-    toolName = "".join(['_' if ord(x) < ord('0') or ord(x) > ord('z') or (ord(x) > ord('9') and ord(x) < ord('A')) or (ord(x) > ord('Z') and ord(x) < ord('a')) else x.upper() for x in list(toolName)])
-    tool['var'] = toolName
-    tool['path'] = toolFullName
+    if parsed.barename:
+        tool['path'] = f"""$(which '{toolName}')"""
+    else:
+        toolVersion = parsed.use_version if parsed.use_version else tool['version']
+        toolFullName = f'{toolName}-orig.{toolVersion}'
+        if parsed.path:
+            tool['path'] = str(parsed.path.joinpath(toolFullName))
+        else:
+            tool['path'] = f"""$(which '{toolFullName}')"""
 
-print("""
-#!/bin/sh
+    # make a variable name to hold the path that will be okay for shell script
+    # replace all not isalnum with '_'
+    tool['var'] = ''.join([x.upper() if x.isalnum() else '_' for x in list(toolName)])
 
-LOGFILE="${PWD}/${0}.log"
-echo "stderr is being logged to ${LOGFILE}"
 
-run_tool () {
-    WORKDIR=`mktemp -d -p .`
-    (
-        cd ${WORKDIR}
-        echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
-        NAME="${1}"
-        EXE="${2}"
-        DATA="${3}"
-        shift
-        shift
-        shift
-        # echo "${EXE}" "${@}" "${DATA}" >&2
-        echo Testing "${NAME}" "${1}" "..." >&2
-        "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
-             echo "Failed: ${NAME}" "${1}" >&2
-             {
-                echo "--------"
-                echo "${EXE}" "${@}" "${DATA}"
-                cat stderr.log
-                echo "--------"
-            } >> ${LOGFILE}
-        }
-    )
-    rm -rf ${WORKDIR}
-}
-""")
-print(f'DATAFILE="{parsed.data}"')
-for tool in toolArgs:
-    print(f'{tool["var"]}="{tool["path"]}"')
+def printPreamble():
+    quiet='# ' if parsed.quiet else ''
+    print("""#!/bin/sh
 
-for tool in toolArgs:
+    LOGFILE="${PWD}/${0}.log"
+    {quiet}echo "stderr is being logged to ${LOGFILE}"
+    printf '\\n\\nStarting tests at %s\\n\\n' `date` >> ${LOGFILE}"
+
+    run_tool () {
+        WORKDIR=`mktemp -d -p .`
+        (
+            cd ${WORKDIR}
+            echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
+            NAME="${1}"
+            EXE="${2}"
+            DATA="${3}"
+            shift
+            shift
+            shift
+
+            {quiet}echo Testing "${NAME}" "${1}" "..." >&2
+
+            "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
+                 echo "Failed: ${NAME}" "${1}" >&2
+                 {
+                    echo "--------"
+                    echo "${EXE}" "${@}" "${DATA}"
+                    cat stderr.log
+                    echo "--------"
+                } >> ${LOGFILE}
+            }
+        )
+        rm -rf ${WORKDIR}
+    }
+    """)
+    print(f'DATAFILE="{parsed.data}"')
+    for tool in toolArgs:
+        print(f'{tool["var"]}="{tool["path"]}"')
+
+
+def process(tool):
     toolName = tool['name']
     toolPath = tool['path']
     toolVar = '${' + tool['var'] + '}'
 
-    override = overrides.get(toolName, {}).copy()
-    override.update(overrides['all tools'])
-    datafile = override.get('data file', '${DATAFILE}')
-    skip = {x: True for x in overrides['all tools']['skip parameters'] + override.get('skip parameters', [])}
-
     print("")
-    print(f'# {toolName} has {len(tool["parameters"])} parameters to test')
-    for param in tool['parameters']:
+    params = parametersFor(tool)
+    print(f'# {toolName} has {len(params)} parameters to test')
+
+    for param in params:
         name = param['name']
-        try:
-            if skip[name]:
-                continue
-        except KeyError:
-            pass
-
-        fixes = override.get(name, {})
-        def param_fixed(prop_name, dflt=None):
-            return fixes.get(prop_name, param.get(prop_name, dflt))
-
-        required = param_fixed('argument-required', False)
-        optional = param_fixed('argument-optional', False)
-
-        def command(arg):
-            if optional or (not required):
-                yield f"""run_tool "{toolName}" "{toolVar}" "{datafile}" {arg}"""
-            if optional or required:
-                for value in param_fixed('values', [ param_fixed('value', '1') ]):
-                    yield f"""run_tool "{toolName}" "{toolVar}" "{datafile}" {arg} "{value}" """
+        def get_property(prop, dflt):
+            value = param.get(prop, dflt)
+            return get_param_property(toolName, name, prop, value)
 
         def args():
             yield f"--{name}"
-            for x in param_fixed('alias', []):
+            for x in get_property('alias', []):
                 yield f"-{x}"
+
+        required = get_property('argument-required', False)
+        optional = get_property('argument-optional', False)
+        mydatafile = get_property('data file', "${DATAFILE}")
+
+        cmdbase = f"""run_tool "{toolName}" "{toolVar}" "{mydatafile}" """
+
+        def command(arg):
+            if optional or (not required):
+                yield cmdbase + arg
+            if optional or required:
+                for value in get_property('values', [ get_property('value', '1') ]):
+                    yield cmdbase + arg + f' "{value}"'
 
         for arg in args():
             for cmd in command(arg):
                 print(cmd)
+
+for tool in toolArgs:
+    prepare(tool)
+
+printPreamble()
+
+for tool in toolArgs:
+    process(tool)

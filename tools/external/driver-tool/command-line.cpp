@@ -171,6 +171,9 @@ static std::vector<FilePath> getToolPaths(FilePath const &baseDir, std::string c
     std::vector<FilePath> result;
 #if WINDOWS
     result.emplace_back(baseDir.append(toolName + "-orig.exe"));
+#if DEBUG || _DEBUGGING
+    result.emplace_back(baseDir.append(toolName + ".exe"));
+#endif
     (void)(version); // not used in the name on Windows
 #else
     std::string const versString = Version(version);
@@ -188,15 +191,15 @@ static std::vector<FilePath> getToolPaths(FilePath const &baseDir, std::string c
 
 FilePath CommandLine::getToolPath() const {
 #if WINDOWS
-    return getToolPaths(fullPath, toolName, buildVersion).front();
+    auto const &tries = getToolPaths(fullPath, toolName, buildVersion);
 #else
-    auto const tries = getToolPaths(fullPath, toolName, effectiveVersion(versionFromName, runAsVersion, buildVersion));
+    auto const &tries = getToolPaths(fullPath, toolName, effectiveVersion(versionFromName, runAsVersion, buildVersion));
+#endif // !WINDOWS
     for (auto && path : tries) {
         if (path.executable())
             return path;
     }
     return tries.back();
-#endif // !WINDOWS
 }
 
 #if WINDOWS

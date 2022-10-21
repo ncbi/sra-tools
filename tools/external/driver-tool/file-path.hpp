@@ -97,6 +97,10 @@ public:
                 break;
             if (ch == '/')
                 last = path;
+#if WINDOWS
+            if (ch == '\\')
+                last = path;
+#endif
         }
         return last;
     }

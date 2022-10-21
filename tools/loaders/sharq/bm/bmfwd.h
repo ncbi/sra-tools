@@ -58,7 +58,7 @@ template<typename BV, typename DEC> class deserializer;
 template<class Val, class BV> class sparse_vector;
 template<class Val, class SV> class rsc_sparse_vector;
 
-template<class SVect> class sparse_vector_scanner;
+template<class SVect, unsigned S_FACTOR = 16> class sparse_vector_scanner;
 template<class SVect> class sparse_vector_serializer;
 template<class SVect> class sparse_vector_deserializer;
 

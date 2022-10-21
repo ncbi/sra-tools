@@ -22,16 +22,18 @@ For more information please visit:  http://bitmagic.io
     \brief Bit manipulation primitives (internal)
 */
 
+
 #include "bmdef.h"
 #include "bmconst.h"
 
-#if defined(_M_AMD64) || defined(_M_X64) 
-#include <intrin.h>
-#elif defined(BMSSE2OPT) || defined(BMSSE42OPT)
-#include <emmintrin.h>
-#elif defined(BMAVX2OPT)
-#include <emmintrin.h>
-#include <avx2intrin.h>
+#if defined(__arm64__) || defined(__arm__)
+//#include "sse2neon.h"
+#else
+    #if defined(_M_AMD64) || defined(_M_X64)
+    #include <intrin.h>
+    #elif defined(__x86_64__)
+    #include <x86intrin.h>
+    #endif
 #endif
 
 #ifdef __GNUG__
@@ -226,7 +228,7 @@ BMFORCEINLINE bm::gap_word_t ilog2_LUT<bm::gap_word_t>(bm::gap_word_t x) BMNOEXC
 
 // if we are running on x86 CPU we can use inline ASM 
 
-#ifdef BM_x86
+#if defined(BM_x86) && !(defined(__arm__) || defined(__aarch64__))
 #ifdef __GNUG__
 
 BMFORCEINLINE
@@ -551,7 +553,7 @@ BMFORCEINLINE void xor_swap(W& x, W& y) BMNOEXCEPT
     @internal
  */
 inline
-unsigned compute_h64_mask(unsigned long long w)
+unsigned compute_h64_mask(unsigned long long w) BMNOEXCEPT
 {
     unsigned h_mask = 0;
     for (unsigned i = 0; w && (i < 8); ++i, w >>= 8)
@@ -562,6 +564,85 @@ unsigned compute_h64_mask(unsigned long long w)
     return h_mask;
 }
 
+/**
+    Returns true if INT64 contains 0 octet
+ */
+BMFORCEINLINE
+bool has_zero_byte_u64(bm::id64_t v) BMNOEXCEPT
+{
+  return (v - 0x0101010101010101ULL) & ~(v) & 0x8080808080808080ULL;
+}
+
+
+/*!
+    Returns bit count
+    @ingroup bitfunc
+*/
+BMFORCEINLINE
+bm::id_t word_bitcount(bm::id_t w) BMNOEXCEPT
+{
+#if defined(BMSSE42OPT) || defined(BMAVX2OPT) || defined(BMAVX512OPT)
+    return bm::id_t(_mm_popcnt_u32(w));
+#else
+    #if defined(BM_USE_GCC_BUILD)
+        return (bm::id_t)__builtin_popcount(w);
+    #else
+    return
+        bm::bit_count_table<true>::_count[(unsigned char)(w)] +
+        bm::bit_count_table<true>::_count[(unsigned char)((w) >> 8)] +
+        bm::bit_count_table<true>::_count[(unsigned char)((w) >> 16)] +
+        bm::bit_count_table<true>::_count[(unsigned char)((w) >> 24)];
+    #endif
+#endif
+}
+
+
+/*!
+    Function calculates number of 1 bits in 64-bit word.
+    @ingroup bitfunc
+*/
+BMFORCEINLINE
+unsigned word_bitcount64(bm::id64_t x) BMNOEXCEPT
+{
+#if defined(BMSSE42OPT) || defined(BMAVX2OPT) || defined(BMAVX512OPT)
+    #if defined(BM64_SSE4) || defined(BM64_AVX2) || defined(BM64_AVX512)
+        return unsigned(_mm_popcnt_u64(x));
+    #else // 32-bit
+        return _mm_popcnt_u32(x >> 32) + _mm_popcnt_u32((unsigned)x);
+    #endif
+#else
+    #if defined(BM_USE_GCC_BUILD) || defined(__arm64__)
+        return (unsigned)__builtin_popcountll(x);
+    #else
+        #if (defined(__arm__)) // 32-bit
+            return bm::word_bitcount(x >> 32) + bm::word_bitcount((unsigned)x);
+        #else
+            x = x - ((x >> 1) & 0x5555555555555555);
+            x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
+            x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
+            x = x + (x >> 8);
+            x = x + (x >> 16);
+            x = x + (x >> 32);
+            return x & 0xFF;
+        #endif
+    #endif
+#endif
+}
+
+/**
+    Check pointer alignment
+    @internal
+ */
+template< typename T >
+bool is_aligned(T* p) BMNOEXCEPT
+{
+#if defined (BM_ALLOC_ALIGN)
+    return !(reinterpret_cast<unsigned int*>(p) % BM_ALLOC_ALIGN);
+#else
+    (void)p;
+    return true;
+#endif
+}
 
 
 } // bm

@@ -255,11 +255,12 @@ public:
         @param sim_model - [out] similarity model to compute
         @param ref_vect - [in] reference vectors
         @param params - parameters to regulate search depth
+        @return true - if similarity model created successfully
 
         @sa set_ref_vectors
         @internal
      */
-    void compute_sim_model(xor_sim_model_type&       sim_model,
+    bool compute_sim_model(xor_sim_model_type&       sim_model,
                            const bv_ref_vector_type& ref_vect,
                            const bm::xor_sim_params& params);
 
@@ -1312,11 +1313,11 @@ void serializer<BV>::set_ref_vectors(const bv_ref_vector_type* ref_vect)
 }
 
 template<class BV>
-void serializer<BV>::compute_sim_model(xor_sim_model_type&       sim_model,
+bool serializer<BV>::compute_sim_model(xor_sim_model_type&       sim_model,
                                        const bv_ref_vector_type& ref_vect,
                                        const bm::xor_sim_params& params)
 {
-    xor_scan_.compute_sim_model(sim_model, ref_vect, params);
+    return xor_scan_.compute_sim_model(sim_model, ref_vect, params);
 }
 
 template<class BV>
@@ -4726,7 +4727,7 @@ void deserializer<BV, DEC>::xor_decode(blocks_manager_type& bman)
         if (nb_from == x_nb_ || nb_to == x_nb_)
             return;
     }
-    bman.optimize_bit_block(i0, j0);
+    bman.optimize_bit_block(i0, j0, BV::opt_compress);
 
 }
 // ---------------------------------------------------------------------------
@@ -7101,7 +7102,7 @@ iterator_deserializer<BV, SerialIterator>::deserialize(
             switch (op) // target block optimization for non-const operations
             {
             case set_AND: case set_SUB: case set_XOR: case set_OR:
-                bman.optimize_bit_block(i0, j0);
+                bman.optimize_bit_block(i0, j0, bvector_type::opt_compress);
                 break;
             default: break;
             } // switch

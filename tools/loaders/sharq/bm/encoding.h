@@ -1813,7 +1813,7 @@ unsigned bit_in<TDecoder>::gamma() BMNOEXCEPT
             continue;
         }
         unsigned first_bit_idx =
-            #if defined(BM_x86) && (defined(__GNUG__) || defined(_MSC_VER))
+            #if defined(BM_x86) && (defined(__GNUG__) || defined(_MSC_VER)) && !(defined(__arm64__) || defined(__arm__))
                 bm::bsf_asm32(acc);
             #else
                 bm::bit_scan_fwd(acc);

@@ -727,11 +727,8 @@ public:
     {
         size_type rows = bmatr.rows();
         for (size_type r = 0; r < rows; ++r)
-        {
-            bvector_type_const_ptr bv = bmatr.get_row(r);
-            if (bv)
+            if (bvector_type_const_ptr bv = bmatr.get_row(r))
                 add(bv, rows_acc_ + r);
-        } // for r
         rows_acc_ += unsigned(rows);
     }
 
@@ -757,13 +754,17 @@ public:
 
     /** Calculate blocks digest and resize XOR distance matrix
         based on total number of available blocks
+        @return true if created ok (false if no blocks found)
      */
-    void build_nb_digest_and_xor_matrix(matrix_chain_type& matr,
+    bool build_nb_digest_and_xor_matrix(matrix_chain_type& matr,
                                         bvector_type& bv_blocks) const
     {
         fill_alloc_digest(bv_blocks);
         size_type cnt = bv_blocks.count();
+        if (!cnt)
+            return false;
         resize_xor_matrix(matr, cnt);
+        return true;
     }
 
 protected:
@@ -892,16 +893,18 @@ public:
     /**
         Calculate matrix of best XOR match metrics per block
         for the attached collection of bit-vectors
+        @return true if computed successfully
      */
-    void compute_sim_model(xor_sim_model<BV>&        sim_model,
+    bool compute_sim_model(xor_sim_model<BV>&        sim_model,
                            const bv_ref_vector_type& ref_vect,
                            const bm::xor_sim_params& params);
 
     /**
         Calculate matrix of best XOR match metrics per block
         for the attached collection of bit-vectors
+        @return true if computed successfully
      */
-    void compute_sim_model(xor_sim_model<BV> &sim_model,
+    bool compute_sim_model(xor_sim_model<BV> &sim_model,
                            const bm::xor_sim_params& params);
 
     /**
@@ -1434,27 +1437,30 @@ typename xor_scanner<BV>::size_type xor_scanner<BV>::refine_match_chain()
 // --------------------------------------------------------------------------
 
 template<typename BV>
-void xor_scanner<BV>::compute_sim_model(xor_sim_model<BV> &sim_model,
+bool xor_scanner<BV>::compute_sim_model(xor_sim_model<BV> &sim_model,
                                         const bv_ref_vector_type& ref_vect,
                                         const bm::xor_sim_params& params)
 {
     const bv_ref_vector_type* ref_vect_curr = this->ref_vect_; // save ref-vect
 
     ref_vect_ = &ref_vect;
-    compute_sim_model(sim_model, params);
+    bool sim_ok = compute_sim_model(sim_model, params);
 
     ref_vect_ = ref_vect_curr; // restore state
+    return sim_ok;
 }
 
 template<typename BV>
-void xor_scanner<BV>::compute_sim_model(bm::xor_sim_model<BV>& sim_model,
+bool xor_scanner<BV>::compute_sim_model(bm::xor_sim_model<BV>& sim_model,
                                         const bm::xor_sim_params& params)
 {
     BM_ASSERT(ref_vect_);
 
     sim_model.bv_blocks.clear(false);
-    ref_vect_->build_nb_digest_and_xor_matrix(sim_model.matr,
-                                              sim_model.bv_blocks);
+    bool ret = ref_vect_->build_nb_digest_and_xor_matrix(sim_model.matr,
+                                                         sim_model.bv_blocks);
+    if (!ret)
+        return ret;
 
     sync_nb_vect();
 
@@ -1464,6 +1470,7 @@ void xor_scanner<BV>::compute_sim_model(bm::xor_sim_model<BV>& sim_model,
         size_type nb = *en;
         compute_sim_model(sim_model.matr, nb, col, params);
     } // for en
+    return true;
 }
 
 // --------------------------------------------------------------------------

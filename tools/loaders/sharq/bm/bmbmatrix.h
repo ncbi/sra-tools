@@ -101,8 +101,9 @@ public:
 
 #endif
 
-    void set_allocator_pool(allocator_pool_type* pool_ptr) BMNOEXCEPT
-    { pool_ = pool_ptr; }
+    void set_allocator_pool(allocator_pool_type* pool_ptr) BMNOEXCEPT;
+    allocator_pool_type* get_allocator_pool() const BMNOEXCEPT
+        { return pool_; }
 
     ///@}
     
@@ -115,6 +116,9 @@ public:
     
     /*! Copy content */
     void copy_from(const basic_bmatrix<BV>& bbm);
+
+    /*! Freeze content into read-only mode drop editing overhead */
+    void freeze();
 
     ///@}
 
@@ -133,6 +137,13 @@ public:
     
     /*! get number of value rows */
     size_type rows() const BMNOEXCEPT { return rsize_; }
+
+    /*! get number of value rows without  (not) NULLs bvector */
+    size_type rows_not_null() const BMNOEXCEPT { return rsize_ - bool(null_idx_);}
+
+    /*! get number of assigned avlue rows without \ NULLs bvector */
+    size_type calc_effective_rows_not_null() const BMNOEXCEPT;
+
     
     /*! Make sure row is constructed, return bit-vector */
     bvector_type_ptr construct_row(size_type row);
@@ -248,7 +259,7 @@ public:
     /*! Optimize block in all planes
         @internal
     */
-    void optimize_block(block_idx_type nb);
+    void optimize_block(block_idx_type nb, typename BV::optmode opt_mode);
 
     /*! Compute memory statistics
         @param st [out] - statistics object
@@ -274,6 +285,25 @@ public:
         @param row_from - row to start from
     */
     void clear_column(size_type idx, size_type row_from);
+
+    /*! Swap columns (bits in all rows)
+        @param idx1 - column index 1
+        @param idx2 - column index 2
+     */
+    void swap_columns(size_type idx1, size_type idx2);
+
+    /**
+        Set SUB (MINUS) operation on all existing rows
+        @param bv - argument vector row[i] -= bv
+        @param use_null - if true clear the NULL vector as well
+     */
+    void bit_sub_rows(const bvector_type& bv, bool use_null);
+
+    /**
+        Set AND (intersect) operation on all existing rows
+        @param bv - argument vector row[i] &= bv
+     */
+    void bit_and_rows(const bvector_type& bv);
 
 
     ///@}
@@ -339,9 +369,9 @@ public:
     base_sparse_vector();
 
     base_sparse_vector(bm::null_support        null_able,
-                       allocation_policy_type  ap,
-                       size_type               bv_max_size,
-                       const allocator_type&   alloc);
+                       allocation_policy_type  ap = allocation_policy_type(),
+                       size_type               bv_max_size = bm::id_max,
+                       const allocator_type&   alloc = allocator_type());
     
     base_sparse_vector(const base_sparse_vector<Val, BV, MAX_SIZE>& bsv);
 
@@ -360,7 +390,7 @@ public:
 
     size_type size() const BMNOEXCEPT { return size_; }
     
-    void resize(size_type new_size);
+    void resize(size_type new_size, bool set_null);
 
     void clear_range(size_type left, size_type right, bool set_null);
 
@@ -374,6 +404,10 @@ public:
     
     /*! return true if empty */
     bool empty() const BMNOEXCEPT { return size() == 0; }
+
+    /** swap two vector elements */
+    void swap_elements(size_type idx1, size_type idx2)
+            { bmatr_.swap_columns(idx1, idx2); }
 
 public:
 
@@ -416,7 +450,18 @@ public:
         is not configured to support assignment flags
     */
     bool is_null(size_type idx) const BMNOEXCEPT;
-    
+
+    /**
+        Set allocation pool
+     */
+    void set_allocator_pool(allocator_pool_type* pool_ptr) BMNOEXCEPT
+        { bmatr_.set_allocator_pool(pool_ptr); }
+
+    /**
+        Get allocation pool
+     */
+    allocator_pool_type* get_allocator_pool() const BMNOEXCEPT
+        { return bmatr_.get_allocator_pool(); }
 
     ///@}
 
@@ -571,6 +616,11 @@ protected:
      */
     void merge_matr(bmatrix_type& bmatr);
 
+    /**
+        Turn on RO mode
+     */
+    void freeze_matr() { bmatr_.freeze(); is_ro_ = true; }
+
     /*!
         clear column in all value planes
         \param plane_idx - row (plane index to start from)
@@ -597,6 +647,18 @@ protected:
     */
     void insert_null(size_type idx, bool not_null);
 
+    /**
+        Set SUB (MINUS) operation on all existing bit-slices
+        @param bv - argument vector row[i] -= bv
+     */
+    void bit_sub_rows(const bvector_type& bv, bool use_null)
+        { bmatr_.bit_sub_rows(bv, use_null); }
+
+    /**
+        Set AND (intersect) operation on all existing bit-slices
+        @param bv - argument vector row[i] -= bv
+     */
+    void bit_and_rows(const bvector_type& bv) { bmatr_.bit_and_rows(bv); }
 
 protected:
     typedef typename bvector_type::block_idx_type block_idx_type;
@@ -609,7 +671,11 @@ protected:
     //static constexpr unsigned null_plane() BMNOEXCEPT { return value_bits(); }
     
     /** optimize block in all matrix planes */
-    void optimize_block(block_idx_type nb) { bmatr_.optimize_block(nb); }
+    void optimize_block(block_idx_type nb, typename BV::optmode opt_mode)
+        { bmatr_.optimize_block(nb, opt_mode); }
+
+    /// Sybc read-only state
+    void sync_ro() BMNOEXCEPT;
 
     /**
         Perform copy_range() on a set of planes
@@ -622,9 +688,10 @@ protected:
 
 protected:
     bmatrix_type             bmatr_;              ///< bit-transposed matrix
-    unsigned_value_type      slice_mask_;        ///< slice presence bit-mask
-    size_type                size_;               ///< array size
-    unsigned                 effective_slices_;
+    unsigned_value_type      slice_mask_ = 0;     ///< slice presence bit-mask
+    size_type                size_ = 0;           ///< array size
+    unsigned                 effective_slices_=0; ///< number of bit slices actually allocated
+    bool                     is_ro_=false; ///< read-only
 };
 
 //---------------------------------------------------------------------
@@ -797,6 +864,16 @@ void basic_bmatrix<BV>::clear_column(size_type idx,
 //---------------------------------------------------------------------
 
 template<typename BV>
+void basic_bmatrix<BV>::swap_columns(size_type idx1, size_type idx2)
+{
+    for (size_type i = 0; i < rsize_; ++i)
+        if (bvector_type* bv = get_row(i))
+            bv->swap(idx1, idx2);
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
 void basic_bmatrix<BV>::allocate_rows(size_type rsize)
 {
     size_type rsize_prev(rsize_);
@@ -810,8 +887,7 @@ void basic_bmatrix<BV>::allocate_rows(size_type rsize)
         throw_bad_alloc();
     rsize_ = rsize;
     BM_ASSERT((!null_idx_) || (rsize & 1u));
-    for (size_type i = 0; i < rsize; ++i)
-        bv_rows_[i] = 0;
+    ::memset(&bv_rows_[0], 0, rsize * sizeof(bv_rows_[0]));
     if (bv_rows_prev) // deallocate prev, reset NULL
     {
         for (size_type i = 0; i < rsize_prev; ++i)
@@ -832,7 +908,7 @@ template<typename BV>
 typename basic_bmatrix<BV>::size_type
 basic_bmatrix<BV>::octet_size() const BMNOEXCEPT
 {
-    size_type osize = (7 + rsize_) / 8;
+    size_type osize = (7 + rows_not_null()) / 8;
     return osize;
 }
 
@@ -853,6 +929,65 @@ void basic_bmatrix<BV>::free_rows() BMNOEXCEPT
     if (bv_rows_)
         alloc_.free_ptr(bv_rows_, unsigned(rsize_));
     bv_rows_ = 0;
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+void basic_bmatrix<BV>::set_allocator_pool(allocator_pool_type* pool_ptr) BMNOEXCEPT
+{
+    if (pool_ != pool_ptr)
+    {
+        for (size_type i = 0; i < rsize_; ++i)
+            if (bvector_type_ptr bv = bv_rows_[i])
+                bv->set_allocator_pool(pool_ptr);
+    }
+    pool_ = pool_ptr;
+}
+
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+typename basic_bmatrix<BV>::size_type
+basic_bmatrix<BV>::calc_effective_rows_not_null() const BMNOEXCEPT
+{
+    // TODO: SIMD
+    auto i = rows_not_null();
+    for (--i; i > 0; --i)
+    {
+        if (bv_rows_[i])
+        {
+            ++i;
+            break;
+        }
+    }
+    return i;
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+void basic_bmatrix<BV>::bit_sub_rows(const bvector_type& bv, bool use_null)
+{
+    size_type sz = use_null ? rsize_: calc_effective_rows_not_null();
+    for (size_type i = 0; i < sz; ++i)
+    {
+        if (bvector_type_ptr bv_r = bv_rows_[i])
+            bv_r->bit_sub(bv);
+    } // for i
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+void basic_bmatrix<BV>::bit_and_rows(const bvector_type& bv)
+{
+    for (size_type i = 0; i < rsize_; ++i)
+    {
+        if (bvector_type_ptr bv_r = bv_rows_[i])
+            bv_r->bit_and(bv);
+    } // for i
 }
 
 //---------------------------------------------------------------------
@@ -891,7 +1026,7 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row)
 {
-    if (row > rsize_)
+    if (row >= rsize_)
         allocate_rows(row + 8);
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];
@@ -906,7 +1041,7 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row, const bvector_type& bv_src)
 {
-    if (row > rsize_)
+    if (row >= rsize_)
         allocate_rows(row + 8);
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];
@@ -978,6 +1113,8 @@ basic_bmatrix<BV>::construct_bvector(const bvector_type* bv) const
         rbv->init();
     }
 #endif
+    if (pool_)
+        rbv->set_allocator_pool(pool_);
     return rbv;
 }
 
@@ -1106,22 +1243,33 @@ void basic_bmatrix<BV>::insert_octet(size_type pos,
 
 //---------------------------------------------------------------------
 
+/// @internal
+inline
+bool check_any_fullb(const bm::word_t* blka[8], const bm::word_t* FBADDR)
+{
+    bool b1, b2;
+    b1 = (blka[0] == FBADDR);
+    b2 = (blka[1] == FBADDR);
+    b1 |= (blka[2] == FBADDR);
+    b2 |= (blka[3] == FBADDR);
+    b1 |= (blka[4] == FBADDR);
+    b2 |= (blka[5] == FBADDR);
+    b1 |= (blka[6] == FBADDR);
+    b2 |= (blka[7] == FBADDR);
+    return b1 | b2;
+}
+
 template<typename BV>
 unsigned char
 basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEPT
 {
+    const bm::word_t* blka[8];
     unsigned v = 0;
 
     block_idx_type nb = (pos >>  bm::set_block_shift);
-    unsigned i0 = unsigned(nb >> bm::set_array_shift); // top block address
-    unsigned j0 = unsigned(nb &  bm::set_array_mask);  // address in sub-block
+    unsigned i0, j0;
+    bm::get_block_coord(nb, i0, j0);
 
-    const bm::word_t* blk;
-    const bm::word_t* blka[8];
-    unsigned nbit = unsigned(pos & bm::set_block_mask);
-    unsigned nword  = unsigned(nbit >> bm::set_word_shift);
-    unsigned mask0 = 1u << (nbit & bm::set_word_mask);
-    
     unsigned row_idx = unsigned(octet_idx * 8);
     if (row_idx + 7 >= rsize_ ||
         (null_idx_ && (row_idx + 7 > null_idx_))) // out of bounds request?
@@ -1135,11 +1283,65 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     blka[5] = get_block(row_idx+5, i0, j0);
     blka[6] = get_block(row_idx+6, i0, j0);
     blka[7] = get_block(row_idx+7, i0, j0);
+
+
+    const bm::word_t* const  FBADDR = FULL_BLOCK_FAKE_ADDR;
+
     unsigned is_set;
-    
+    unsigned nbit  = unsigned(pos & bm::set_block_mask);
+    const unsigned nword = unsigned(nbit >> bm::set_word_shift);
+    const unsigned mask0 = 1u << (nbit & bm::set_word_mask);
+#if 0
+    bool any_full = bm::check_any_fullb(blka, FBADDR);
+    if (!any_full)
+    {
+        if (const bm::word_t* blk; (blk = blka[0])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= (unsigned)bool(is_set);
+        }
+        if (const bm::word_t* blk;(blk = blka[1])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 1u;
+        }
+        if (const bm::word_t* blk;(blk = blka[2])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 2u;
+        }
+        if (const bm::word_t* blk;(blk = blka[3])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 3u;
+        }
+        if (const bm::word_t* blk;(blk = blka[4])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 4u;
+        }
+        if (const bm::word_t* blk;(blk = blka[5])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 5u;
+        }
+        if (const bm::word_t* blk;(blk = blka[6])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 6u;
+        }
+        if (const bm::word_t* blk;(blk = blka[7])!=0)
+        {
+            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << 7u;
+        }
+        return (unsigned char)v;
+    }
+#endif
+    const bm::word_t* blk;
     if ((blk = blka[0])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1147,7 +1349,7 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[1])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1155,7 +1357,7 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[2])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1163,17 +1365,16 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[3])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
         v |= unsigned(bool(is_set)) << 3u;
     }
     
-    
     if ((blk = blka[4])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1181,7 +1382,7 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[5])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1189,7 +1390,7 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[6])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1197,7 +1398,7 @@ basic_bmatrix<BV>::get_octet(size_type pos, size_type octet_idx) const BMNOEXCEP
     }
     if ((blk = blka[7])!=0)
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
+        if (blk == FBADDR)
             is_set = 1;
         else
             is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
@@ -1220,6 +1421,33 @@ int basic_bmatrix<BV>::compare_octet(size_type pos,
 
 //---------------------------------------------------------------------
 
+/**
+    Test 4 pointers are all marked as GAPs
+    @internal
+ */
+inline
+bool test_4gaps(const bm::word_t* p0, const bm::word_t* p1,
+                const bm::word_t* p2, const bm::word_t* p3) BMNOEXCEPT
+{
+    uintptr_t p
+        = uintptr_t(p0) | uintptr_t(p1) | uintptr_t(p2) | uintptr_t(p3);
+    return (p & 1);
+}
+/**
+    Test 4 pointers are not NULL and not marked as FULLBLOCK
+    @internal
+*/
+inline
+bool test_4bits(const bm::word_t* p0, const bm::word_t* p1,
+                const bm::word_t* p2, const bm::word_t* p3) BMNOEXCEPT
+{
+    return p0 && p0!=FULL_BLOCK_FAKE_ADDR &&
+           p1 && p1!=FULL_BLOCK_FAKE_ADDR &&
+           p2 && p2!=FULL_BLOCK_FAKE_ADDR &&
+           p3 && p3!=FULL_BLOCK_FAKE_ADDR;
+}
+
+
 template<typename BV>
 unsigned
 basic_bmatrix<BV>::get_half_octet(size_type pos, size_type row_idx) const BMNOEXCEPT
@@ -1227,53 +1455,58 @@ basic_bmatrix<BV>::get_half_octet(size_type pos, size_type row_idx) const BMNOEX
     unsigned v = 0;
 
     block_idx_type nb = (pos >>  bm::set_block_shift);
-    unsigned i0 = unsigned(nb >> bm::set_array_shift); // top block address
-    unsigned j0 = unsigned(nb &  bm::set_array_mask);  // address in sub-block
+    unsigned i0, j0;
+    bm::get_block_coord(nb, i0, j0);
 
     const bm::word_t* blk;
     const bm::word_t* blka[4];
     unsigned nbit = unsigned(pos & bm::set_block_mask);
-    unsigned nword  = unsigned(nbit >> bm::set_word_shift);
-    unsigned mask0 = 1u << (nbit & bm::set_word_mask);
 
     blka[0] = get_block(row_idx+0, i0, j0);
     blka[1] = get_block(row_idx+1, i0, j0);
     blka[2] = get_block(row_idx+2, i0, j0);
     blka[3] = get_block(row_idx+3, i0, j0);
     unsigned is_set;
-    
-    if ((blk = blka[0])!=0)
+
+
+    unsigned nword  = unsigned(nbit >> bm::set_word_shift);
+    unsigned mask0 = 1u << (nbit & bm::set_word_mask);
+
+    // speculative assumption that nibble is often 4 bit-blocks
+    // and we will be able to extract it faster with less mispredicts
+    //
+    if (!test_4gaps(blka[0], blka[1], blka[2], blka[3]))
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
-            is_set = 1;
-        else
-            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
-        v |= unsigned(bool(is_set));
+        if (test_4bits(blka[0], blka[1], blka[2], blka[3]))
+        {
+            v = unsigned(bool((blka[0][nword] & mask0))) |
+                unsigned(bool((blka[1][nword] & mask0)) << 1u) |
+                unsigned(bool((blka[2][nword] & mask0)) << 2u) |
+                unsigned(bool((blka[3][nword] & mask0)) << 3u);
+            return v;
+        }
     }
-    if ((blk = blka[1])!=0)
+    // hypothesis above didn't work out extract the regular way
+    unsigned i = 0;
+    do
     {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
-            is_set = 1;
-        else
-            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
-        v |= unsigned(bool(is_set)) << 1u;
-    }
-    if ((blk = blka[2])!=0)
-    {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
-            is_set = 1;
-        else
-            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
-        v |= unsigned(bool(is_set)) << 2u;
-    }
-    if ((blk = blka[3])!=0)
-    {
-        if (blk == FULL_BLOCK_FAKE_ADDR)
-            is_set = 1;
-        else
-            is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
-        v |= unsigned(bool(is_set)) << 3u;
-    }
+        if ((blk = blka[i])!=0)
+        {
+            if (blk == FULL_BLOCK_FAKE_ADDR)
+                is_set = 1;
+            else
+                is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << i;
+        }
+        if ((blk = blka[++i])!=0)
+        {
+            if (blk == FULL_BLOCK_FAKE_ADDR)
+                is_set = 1;
+            else
+                is_set = (BM_IS_GAP(blk)) ? bm::gap_test_unr(BMGAP_PTR(blk), nbit) : (blk[nword] & mask0);
+            v |= unsigned(bool(is_set)) << i;
+        }
+    } while(++i < 4);
     return v;
 }
 
@@ -1307,6 +1540,16 @@ void basic_bmatrix<BV>::optimize(bm::word_t* temp_block,
 //---------------------------------------------------------------------
 
 template<typename BV>
+void basic_bmatrix<BV>::freeze()
+{
+    for (unsigned k = 0; k < rsize_; ++k)
+        if (bvector_type* bv = get_row(k))
+            bv->freeze();
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
 void basic_bmatrix<BV>::calc_stat(typename bvector_type::statistics& st,
                                   size_type rsize) const BMNOEXCEPT
 {
@@ -1324,7 +1567,8 @@ void basic_bmatrix<BV>::calc_stat(typename bvector_type::statistics& st,
 //---------------------------------------------------------------------
 
 template<typename BV>
-void basic_bmatrix<BV>::optimize_block(block_idx_type nb)
+void basic_bmatrix<BV>::optimize_block(block_idx_type nb,
+                                       typename BV::optmode opt_mode)
 {
     for (unsigned k = 0; k < rsize_; ++k)
     {
@@ -1334,25 +1578,22 @@ void basic_bmatrix<BV>::optimize_block(block_idx_type nb)
             bm::get_block_coord(nb, i, j);
             typename bvector_type::blocks_manager_type& bman =
                                                 bv->get_blocks_manager();
-            bman.optimize_bit_block(i, j);
+            bman.optimize_bit_block(i, j, opt_mode);
         }
     } // for k
 
 }
 
 //---------------------------------------------------------------------
+//
 //---------------------------------------------------------------------
 
 
 
 template<class Val, class BV, unsigned MAX_SIZE>
 base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector()
-: bmatr_(sv_slices, allocation_policy_type(), bm::id_max, allocator_type()),
-  slice_mask_(0),
-  size_(0),
-  effective_slices_(0)
-{
-}
+: bmatr_(sv_slices, allocation_policy_type(), bm::id_max, allocator_type())
+{}
 
 //---------------------------------------------------------------------
 
@@ -1362,10 +1603,7 @@ base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector(
         allocation_policy_type  ap,
         size_type               bv_max_size,
         const allocator_type&       alloc)
-: bmatr_(sv_slices, ap, bv_max_size, alloc),
-  slice_mask_(0),
-  size_(0),
-  effective_slices_(0)
+: bmatr_(sv_slices, ap, bv_max_size, alloc)
 {
     if (null_able == bm::use_null)
     {
@@ -1385,8 +1623,7 @@ base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector(
   slice_mask_(bsv.slice_mask_),
   size_(bsv.size_),
   effective_slices_(bsv.effective_slices_)
-{
-}
+{}
 
 //---------------------------------------------------------------------
 
@@ -1394,7 +1631,7 @@ template<class Val, class BV, unsigned MAX_SIZE>
 void base_sparse_vector<Val, BV, MAX_SIZE>::copy_from(
                 const base_sparse_vector<Val, BV, MAX_SIZE>& bsv)
 {
-    resize(bsv.size());
+    resize(bsv.size(), true);
     effective_slices_ = bsv.effective_slices_;
 
     size_type arg_null_idx = bsv.bmatr_.get_null_idx();
@@ -1489,12 +1726,16 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::swap(
 template<class Val, class BV, unsigned MAX_SIZE>
 void base_sparse_vector<Val, BV, MAX_SIZE>::clear_all(bool free_mem) BMNOEXCEPT
 {
-    unsigned slices = value_bits();
+    auto slices = bmatr_.rows();
+    bvector_type* bv_null = this->get_null_bvect();
     for (size_type i = 0; i < slices; ++i)
-        bmatr_.clear_row(i, free_mem);
+        if (bvector_type* bv = this->bmatr_.get_row(i))
+            if (bv != bv_null)
+                bmatr_.clear_row(i, free_mem);
     slice_mask_ = 0; size_ = 0;
-    if (bvector_type* bv_null = get_null_bvect())
+    if (bv_null)
         bv_null->clear(true);
+    is_ro_ = false;
 }
 
 //---------------------------------------------------------------------
@@ -1507,14 +1748,16 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::clear_range(
 {
     if (right < left)
         return clear_range(right, left, set_null);
-    unsigned planes = value_bits();
+    auto planes = bmatr_.rows();
+    bvector_type* bv_null = this->get_null_bvect();
     for (unsigned i = 0; i < planes; ++i)
+    {
         if (bvector_type* bv = this->bmatr_.get_row(i))
-            bv->set_range(left, right, false);
-
-    if (set_null)
-        if (bvector_type* bv_null = this->get_null_bvect())
-            bv_null->set_range(left, right, false);
+            if (bv != bv_null)
+                bv->clear_range_no_check(left, right);
+    }
+    if (set_null && bv_null)
+        bv_null->clear_range_no_check(left, right);
 }
 
 //---------------------------------------------------------------------
@@ -1534,7 +1777,7 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::keep_range_no_check(
 //---------------------------------------------------------------------
 
 template<class Val, class BV, unsigned MAX_SIZE>
-void base_sparse_vector<Val, BV, MAX_SIZE>::resize(size_type sz)
+void base_sparse_vector<Val, BV, MAX_SIZE>::resize(size_type sz, bool set_null)
 {
     if (sz == size())  // nothing to do
         return;
@@ -1544,7 +1787,7 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::resize(size_type sz)
         return;
     }
     if (sz < size()) // vector shrink
-        clear_range(sz, this->size_-1, true);   // clear the tails and NULL vect
+        clear_range(sz, this->size_, set_null); // clear the tails and NULL
     size_ = sz;
 }
 
@@ -1747,6 +1990,25 @@ bool base_sparse_vector<Val, BV, MAX_SIZE>::equal(
             return false;
     }
     return true;
+}
+
+//---------------------------------------------------------------------
+
+template<class Val, class BV, unsigned MAX_SIZE>
+void base_sparse_vector<Val, BV, MAX_SIZE>::sync_ro() BMNOEXCEPT
+{
+    unsigned slices = (unsigned) this->bmatr_.rows();
+    for (unsigned j = 0; j < slices; ++j)
+    {
+        if (const bvector_type* bv = this->bmatr_.get_row(j))
+        {
+            if (bv->is_ro())
+            {
+                is_ro_ = true;
+                break;
+            }
+        }
+    } // for j
 }
 
 //---------------------------------------------------------------------

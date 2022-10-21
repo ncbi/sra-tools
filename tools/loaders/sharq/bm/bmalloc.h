@@ -115,7 +115,16 @@ public:
     */
     static void* allocate(size_t n, const void *)
     {
-        void* ptr = ::malloc(n * sizeof(void*));
+        void* ptr;
+#if defined(BM_ALLOC_ALIGN)
+    #ifdef _MSC_VER
+        ptr = (bm::word_t*) ::_aligned_malloc(n * sizeof(void*), BM_ALLOC_ALIGN);
+    #else
+        ptr = (bm::word_t*) ::_mm_malloc(n * sizeof(void*), BM_ALLOC_ALIGN);
+    #endif
+#else
+        ptr = (bm::word_t*) ::malloc(n * sizeof(void*));
+#endif
         if (!ptr)
             throw std::bad_alloc();
         return ptr;
@@ -127,7 +136,15 @@ public:
     */
     static void deallocate(void* p, size_t) BMNOEXCEPT
     {
+#ifdef BM_ALLOC_ALIGN
+    # ifdef _MSC_VER
+            ::_aligned_free(p);
+    #else
+            ::_mm_free(p);
+    # endif
+#else
         ::free(p);
+#endif
     }
 };
 
@@ -175,6 +192,11 @@ public:
             return 0;
         return pool_ptr_[--size_];
     }
+
+    /// return stack size
+    ///
+    unsigned size() const BMNOEXCEPT { return size_; }
+
 private:
     void allocate_pool(size_t pool_size)
     {
@@ -190,7 +212,7 @@ private:
     }
 private:
     void**     pool_ptr_;  ///< array of pointers in the pool
-    unsigned  size_;                  ///< current size 
+    unsigned   size_;      ///< current size
 };
 
 /**
@@ -206,10 +228,10 @@ public:
 public:
 
     alloc_pool() {}
-    ~alloc_pool() 
-    {
-        free_pools();
-    }
+    ~alloc_pool() { free_pools(); }
+
+    void set_block_limit(size_t limit) BMNOEXCEPT
+        { block_limit_ = limit; }
 
     bm::word_t* alloc_bit_block()
     {
@@ -222,6 +244,14 @@ public:
     void free_bit_block(bm::word_t* block) BMNOEXCEPT
     {
         BM_ASSERT(IS_VALID_ADDR(block));
+        if (block_limit_) // soft limit set
+        {
+            if (block_pool_.size() >= block_limit_)
+            {
+                block_alloc_.deallocate(block, bm::set_block_size);
+                return;
+            }
+        }
         if (!block_pool_.push(block))
             block_alloc_.deallocate(block, bm::set_block_size);
     }
@@ -237,9 +267,14 @@ public:
         } while (block);
     }
 
+    /// return stack size
+    ///
+    unsigned size() const BMNOEXCEPT { return block_pool_.size(); }
+
 protected:
     pointer_pool_array  block_pool_;
     BA                  block_alloc_;
+    size_t              block_limit_ = 0; ///< soft limit for the pool of blocks
 };
 
 
@@ -322,7 +357,7 @@ public:
 
     /*! @brief Frees bit block allocated by alloc_bit_block.
     */
-    void free_bit_block(bm::word_t* block, unsigned alloc_factor = 1) BMNOEXCEPT
+    void free_bit_block(bm::word_t* block, size_t alloc_factor = 1) BMNOEXCEPT
     {
         BM_ASSERT(IS_VALID_ADDR(block));
         if (alloc_pool_p_ && alloc_factor == 1)
@@ -443,7 +478,6 @@ void aligned_free(void* ptr) BMNOEXCEPT
 
 
 
-#undef BM_ALLOC_ALIGN
 
 } // namespace bm
 

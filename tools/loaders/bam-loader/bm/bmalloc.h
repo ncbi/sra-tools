@@ -125,7 +125,6 @@ public:
 #else
         ptr = (bm::word_t*) ::malloc(n * sizeof(void*));
 #endif
-//        void* ptr = ::malloc(n * sizeof(void*));
         if (!ptr)
             throw std::bad_alloc();
         return ptr;

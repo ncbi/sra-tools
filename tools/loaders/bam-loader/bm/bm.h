@@ -1161,7 +1161,15 @@ public:
     void clear(const size_type* ids, size_type ids_size,
                bm::sort_order so=bm::BM_UNKNOWN);
 
-    
+    /*!
+       \brief swap values of bits
+
+       @param idx1  - index of bit to swap with
+       @param idx2  - index of bit to swap with
+    */
+    void swap(size_type idx1, size_type idx2);
+
+
     /*!
         \brief Set bit without checking preconditions (size, etc)
      
@@ -4380,6 +4388,197 @@ void bvector<Alloc>::import_block(const size_type* ids,
 
 // -----------------------------------------------------------------------
 
+template<class Alloc>
+void bvector<Alloc>::swap(size_type idx1, size_type idx2)
+{
+    BM_ASSERT(!is_ro());
+    BM_ASSERT_THROW(idx1 < bm::id_max, BM_ERR_RANGE);
+    BM_ASSERT_THROW(idx2 < bm::id_max, BM_ERR_RANGE);
+
+    block_idx_type nb1 = (idx1 >>  bm::set_block_shift);
+    block_idx_type nb2 = (idx2 >>  bm::set_block_shift);
+
+    bm::word_t* block1, *block2;
+    unsigned nbit1, nbit2;
+
+    if (nb1 == nb2) // same block hit
+    {
+        unsigned i0, j0;
+        bm::get_block_coord(nb1, i0, j0);
+        block1 = blockman_.get_block_ptr(i0, j0);
+        if (!block1 || (block1==FULL_BLOCK_FAKE_ADDR)) // nothing to do?
+            return;
+
+        nbit1 = unsigned(idx1 & bm::set_block_mask);
+        nbit2 = unsigned(idx2 & bm::set_block_mask);
+        if (BM_IS_GAP(block1))
+        {
+            bm::gap_word_t* gblk = BMGAP_PTR(block1);
+            bool b1 = bm::gap_test_unr(gblk, nbit1);
+            bool b2 = bm::gap_test_unr(gblk, nbit2);
+            if (b1 != b2)
+            {
+                this->gap_block_set_no_ret(gblk, b2, nb1, nbit1);
+                block2 = blockman_.get_block_ptr(i0, j0);
+                if (block1 == block2) // same block
+                    this->gap_block_set_no_ret(gblk, b1, nb1, nbit2);
+                else
+                    set_bit_no_check(idx2, b1);
+            }
+            return;
+        }
+        unsigned nword1 = unsigned(nbit1 >> bm::set_word_shift);
+        unsigned nword2 = unsigned(nbit2 >> bm::set_word_shift);
+        nbit1 &= bm::set_word_mask; nbit2 &= bm::set_word_mask;
+        bool b1 = block1[nword1] & (1u << nbit1);
+        bool b2 = block1[nword2] & (1u << nbit2);
+        if (b1 != b2)
+        {
+            nbit1 = 1u << nbit1; nbit2 = 1u << nbit2;
+            auto w = block1[nword1];
+            (b2) ? w |= nbit1 : w &= ~nbit1;
+            block1[nword1] = w;
+            w = block1[nword2];
+            (b1) ? w |= nbit2 : w &= ~nbit2;
+            block1[nword2] = w;
+        }
+        return;
+    } // if (same block)
+
+    {
+        unsigned i0, j0;
+        bm::get_block_coord(nb1, i0, j0);
+        block1 = blockman_.get_block_ptr(i0, j0);
+        bm::get_block_coord(nb2, i0, j0);
+        block2 = blockman_.get_block_ptr(i0, j0);
+    }
+    if (block1 == block2) // nothing to do
+        return;
+
+    bm::gap_word_t *gblk1{0}, *gblk2{0};
+    unsigned cpos1{0}, cpos2;
+    bool b1, b2, b1real, b2real;
+
+    if (!block1)
+    {
+        b1 = false; b1real = false;
+    }
+    else
+    if (block1 == FULL_BLOCK_FAKE_ADDR)
+    {
+        b1 = true; b1real = false;
+    }
+    else
+    {
+        b1real = true;
+        nbit1 = unsigned(idx1 & bm::set_block_mask);
+        if (BM_IS_GAP(block1))
+        {
+            gblk1 = BMGAP_PTR(block1);
+            unsigned is_set;
+            cpos1 = bm::gap_bfind(gblk1, nbit1, &is_set);
+            b1 = is_set;
+        }
+        else // bit block
+        {
+            unsigned nword1 = unsigned(nbit1 >> bm::set_word_shift);
+            b1 = block1[nword1] & (1u << (nbit1 & bm::set_word_mask));
+        }
+    }
+
+    if (!block2)
+    {
+        b2 = false; b2real = false;
+    }
+    else
+    if (block2 == FULL_BLOCK_FAKE_ADDR)
+    {
+        b2 = true; b2real = false;
+    }
+    else
+    {
+        b2real = true;
+        nbit2 = unsigned(idx2 & bm::set_block_mask);
+        if (BM_IS_GAP(block2))
+        {
+            gblk2 = BMGAP_PTR(block2);
+            unsigned is_set;
+            cpos2 = bm::gap_bfind(gblk2, nbit2, &is_set);
+            b2 = is_set;
+        }
+        else // bit block
+        {
+            unsigned nword2 = unsigned(nbit2 >> bm::set_word_shift);
+            b2 = block2[nword2] & (1u << (nbit2 & bm::set_word_mask));
+        }
+    }
+
+    if (b1 == b2)
+        return;
+
+    if (b1real)
+    {
+        if (BM_IS_GAP(block1))
+        {
+            unsigned new_len, old_len;
+            unsigned is_set = b1;
+            old_len = bm::gap_length(gblk1)-1;
+            new_len = bm::gap_set_value_cpos(b2, gblk1, nbit1, &is_set, cpos1);
+            if (old_len < new_len)
+            {
+                unsigned threshold = bm::gap_limit(gblk1, blockman_.glen());
+                if (new_len > threshold)
+                    blockman_.extend_gap_block(nb1, gblk1);
+            }
+        }
+        else // bit block
+        {
+            unsigned nword1 = unsigned(nbit1 >> bm::set_word_shift);
+            nbit1 = 1u << (nbit1 & bm::set_word_mask);
+            auto w = block1[nword1];
+            (b2) ? w |= nbit1 : w &= ~nbit1;
+            block1[nword1] = w;
+        }
+    }
+    else // block
+    {
+        set_bit_no_check(idx1, b2);
+    }
+
+    if (b2real)
+    {
+        if (BM_IS_GAP(block2))
+        {
+            unsigned new_len, old_len;
+            unsigned is_set = b2;
+            old_len = bm::gap_length(gblk2)-1;
+            new_len = bm::gap_set_value_cpos(b1, gblk2, nbit2, &is_set, cpos2);
+            if (old_len < new_len)
+            {
+                unsigned threshold = bm::gap_limit(gblk2, blockman_.glen());
+                if (new_len > threshold)
+                    blockman_.extend_gap_block(nb2, gblk2);
+            }
+        }
+        else // bit block
+        {
+            unsigned nword2 = unsigned(nbit2 >> bm::set_word_shift);
+            nbit2 = 1u << (nbit2 & bm::set_word_mask);
+            auto w = block2[nword2];
+            (b1) ? w |= nbit2 : w &= ~nbit2;
+            block2[nword2] = w;
+        }
+    }
+    else
+    {
+        set_bit_no_check(idx2, b1);
+    }
+
+
+}
+
+// -----------------------------------------------------------------------
+
 template<class Alloc> 
 bool bvector<Alloc>::set_bit_no_check(size_type n, bool val)
 {
@@ -4546,7 +4745,6 @@ bool bvector<Alloc>::inc(size_type n)
     BM_ASSERT(IS_VALID_ADDR(blk));
 
     unsigned nbit   = unsigned(n & bm::set_block_mask);
-
     unsigned is_set;
     if (BM_IS_GAP(blk))
     {
@@ -4558,12 +4756,10 @@ bool bvector<Alloc>::inc(size_type n)
     {
         unsigned nword  = unsigned(nbit >> bm::set_word_shift);
         nbit &= bm::set_word_mask;
-
         bm::word_t* word = blk + nword;
-        bm::word_t  mask = (((bm::word_t)1) << nbit);
+        const bm::word_t  mask = (((bm::word_t)1) << nbit);
         is_set = ((*word) & mask);
-        
-        *word = (is_set) ? (*word & ~mask) : (*word | mask);
+        *word ^= mask; // flip the bit
     }
     return is_set;
 }
@@ -6576,7 +6772,7 @@ void bvector<Alloc>::combine_operation(
     }
     
     bm::word_t*** blk_root = blockman_.top_blocks_root();
-    unsigned block_idx = 0;
+    unsigned block_idx = 0; (void) block_idx;
     unsigned i, j;
 
     // calculate effective top size to avoid overscan

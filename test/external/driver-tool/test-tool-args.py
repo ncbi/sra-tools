@@ -200,41 +200,43 @@ def prepare(tool):
 
 
 def printPreamble():
-    quiet='# ' if parsed.quiet else ''
     print("""#!/bin/sh
 
-    LOGFILE="${PWD}/${0}.log"
-    {quiet}echo "stderr is being logged to ${LOGFILE}"
-    printf '\\n\\nStarting tests at %s\\n\\n' `date` >> ${LOGFILE}"
+LOGFILE="${PWD}/${0}.log"
+""")
+    if not parsed.quiet:
+        print("""echo "stderr is being logged to ${LOGFILE}" """)
+    print("""printf '\\n\\nStarting tests at %s\\n\\n' `date` >> ${LOGFILE}
 
-    run_tool () {
-        WORKDIR=`mktemp -d -p .`
-        (
-            cd ${WORKDIR}
-            echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
-            NAME="${1}"
-            EXE="${2}"
-            DATA="${3}"
-            shift
-            shift
-            shift
-
-            {quiet}echo Testing "${NAME}" "${1}" "..." >&2
-
-            "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
-                 echo "Failed: ${NAME}" "${1}" >&2
-                 {
-                    echo "--------"
-                    echo "${EXE}" "${@}" "${DATA}"
-                    cat stderr.log
-                    echo "--------"
-                } >> ${LOGFILE}
-            }
-        )
-        rm -rf ${WORKDIR}
-    }
+run_tool () {
+    WORKDIR=`mktemp -d -p .`
+    (
+        cd ${WORKDIR}
+        echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
+        NAME="${1}"
+        EXE="${2}"
+        DATA="${3}"
+        shift
+        shift
+        shift
+""")
+    if not parsed.quiet:
+        print("""echo Testing "${NAME}" "${1}" "..." >&2""")
+    print("""
+        "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
+             echo "Failed: ${NAME}" "${1}" >&2
+             {
+                echo "--------"
+                echo "${EXE}" "${@}" "${DATA}"
+                cat stderr.log
+                echo "--------"
+            } >> ${LOGFILE}
+        }
+    )
+    rm -rf ${WORKDIR}
+}
     """)
-    print(f'DATAFILE="{parsed.data}"')
+    print(f'DATAFILE=$(realpath --canonicalize-existing "{parsed.data}")')
     for tool in toolArgs:
         print(f'{tool["var"]}="{tool["path"]}"')
 

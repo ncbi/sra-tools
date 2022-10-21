@@ -29,13 +29,13 @@ overrides = {
         'debug': {'values': ['ARGS', 'KDB']},
         'log-level': {'values': 'fatal|sys|int|err|warn|info|debug'.split('|')},
         'ncbi_error_report': {'values': 'never|error|always'.split('|')},
-        'skip parameters': """
-            cart
-            location
-            ngc
-            perm
-            option-file
-        """.split(),
+        'skip parameters': [
+            'cart',        # I don't have a cart file
+            'location',
+            'ngc',         # I don't have a ngc file
+            'perm',        # I don't have a perm file
+            'option-file'  # too complicated to test
+        ],
     },
     'fasterq-dump': {
         'bases': {'values': ['A', 'C', 'G', 'T']},
@@ -48,7 +48,7 @@ overrides = {
         'size-check': {'values': ['on', 'off', 'only']},
         'table': {'value': 'SEQUENCE'},
         'temp': {'value': "${TMPDIR:-/tmp}"},
-        'data file': 'SRR000001'
+        'data file': 'SRR000001' # fasterq-dump doesn't like very small CSRAs
     },
     'fastq-dump': {
         'accession': {'value': 'SRR000001'},
@@ -57,12 +57,15 @@ overrides = {
         'dumpcs': {'values': ['A', 'C', 'G', 'T']},
         'fasta': { 'value': 75 },
         'matepair-distance': {'values': ['400-500', 'unknown']},
-        'offset': { 'value': 64 },
+        'offset': { 'value': [33, 64] },
         'outdir': {'value': '.'},
         'read-filter': {'values': 'pass|reject|criteria|redacted'.split('|')},
         'spot-groups': {'value': 'FOO,BAR'},
         'table': {'value': 'SEQUENCE'},
-        'skip parameters': [ 'quiet' ]
+        'skip parameters': [
+            'quiet',   # conflicts with another one of fastq-dump's arguments
+            'verbose'  # does not work with fastq-dump's custom args parsing
+        ]
     },
     'sam-dump': {
         'matepair-distance': {'values': ['400-500', 'unknown']},
@@ -73,7 +76,10 @@ overrides = {
     'sra-pileup': {
         'table': {'values': 'p|s'.split('|')},
         'function': {'values': 'ref ref-ex count stat mismatch index varcount deletes indels'.split()},
-        'skip parameters': ['schema']
+        'skip parameters': [
+            'schema',  # this is too complicated to make work
+            'noskip'   # this one makes sra-pileup run very slow
+        ]
     },
     'vdb-dump': {
         'table': {'value': 'SEQUENCE'},
@@ -157,15 +163,15 @@ def get_param_property(tool, param, name, dflt):
     return resolve_override(forAll, forTool, dflt)
 
 
-def get_property(tool, param, dflt):
+def get_tool_property(tool, name, dflt):
     forAll = None
     try:
-        forAll = overrides['all tools'][param]
+        forAll = overrides['all tools'][name]
     except KeyError:
         pass
     forTool = None
     try:
-        forTool = overrides[tool][param]
+        forTool = overrides[tool][name]
     except KeyError:
         pass
 
@@ -173,7 +179,7 @@ def get_property(tool, param, dflt):
 
 
 def parametersFor(tool):
-    skip = {x: True for x in get_property(tool['name'], 'skip parameters', [])}
+    skip = {x: True for x in get_tool_property(tool['name'], 'skip parameters', [])}
     if skip:
         print("# Skipping some parameters:")
         for x in skip:
@@ -206,7 +212,7 @@ LOGFILE="${PWD}/${0}.log"
 """)
     if not parsed.quiet:
         print("""echo "stderr is being logged to ${LOGFILE}" """)
-    print("""printf '\\n\\nStarting tests at %s\\n\\n' `date` >> ${LOGFILE}
+    print("""printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
 
 run_tool () {
     WORKDIR=`mktemp -d -p .`
@@ -246,6 +252,7 @@ def process(tool):
     toolPath = tool['path']
     toolVar = '${' + tool['var'] + '}'
 
+    datafile = get_tool_property(toolName, 'data file', "${DATAFILE}")
     print("")
     params = parametersFor(tool)
     print(f'# {toolName} has {len(params)} parameters to test')
@@ -263,9 +270,8 @@ def process(tool):
 
         required = get_property('argument-required', False)
         optional = get_property('argument-optional', False)
-        mydatafile = get_property('data file', "${DATAFILE}")
 
-        cmdbase = f"""run_tool "{toolName}" "{toolVar}" "{mydatafile}" """
+        cmdbase = f"""run_tool "{toolName}" "{toolVar}" "{datafile}" """
 
         def command(arg):
             if optional or (not required):

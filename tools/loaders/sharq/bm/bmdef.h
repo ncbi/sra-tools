@@ -188,7 +188,7 @@ For more information please visit:  http://bitmagic.io
 
 # define BMGAP_PTR(ptr) ((bm::gap_word_t*)BMPTR_CLEARBIT0(ptr))
 # define BMSET_PTRGAP(ptr) ptr = (bm::word_t*)BMPTR_SETBIT0(ptr)
-# define BM_IS_GAP(ptr) bool(BMPTR_TESTBIT0(ptr)!=0)
+# define BM_IS_GAP(ptr) (BMPTR_TESTBIT0(ptr))
 
 
 
@@ -311,62 +311,8 @@ For more information please visit:  http://bitmagic.io
 #endif
 
 
-/*
-#if !(defined(BMSSE2OPT) || defined(BMSSE42OPT) || defined(BMAVX2OPT) || defined(BMAVX512OPT))
 
-    #define BM_ALIGN16 
-    #define BM_ALIGN16ATTR
-    #define BM_ALIGN32
-    #define BM_ALIGN32ATTR
-    #define BM_ALIGN64
-    #define BM_ALIGN64ATTR
-
-#else  
-
-    # ifndef BM_SET_MMX_GUARD
-    #  define BM_SET_MMX_GUARD  sse_empty_guard  bm_mmx_guard_;
-    # endif
-
-    #ifdef _MSC_VER
-
-        #ifndef BM_ALIGN16
-        #  define BM_ALIGN16 __declspec(align(16))
-        #  define BM_ALIGN16ATTR
-        #endif
-
-        #ifndef BM_ALIGN32
-        #  define BM_ALIGN32 __declspec(align(32))
-        #  define BM_ALIGN32ATTR
-        #endif
-
-        #ifndef BM_ALIGN64
-        #  define BM_ALIGN64 __declspec(align(64))
-        #  define BM_ALIGN64ATTR
-        #endif
-
-    # else // GCC
-
-        #ifndef BM_ALIGN16
-        #  define BM_ALIGN16
-        #  define BM_ALIGN16ATTR __attribute__((aligned(16)))
-        #endif
-
-        #ifndef BM_ALIGN32
-        #  define BM_ALIGN32
-        #  define BM_ALIGN32ATTR __attribute__((aligned(32)))
-        #endif
-
-        #ifndef BM_ALIGN64
-        #  define BM_ALIGN64
-        #  define BM_ALIGN64ATTR __attribute__((aligned(64)))
-        #endif
-    #endif
-
-#endif
-*/
-
-
-#if (defined(BMSSE2OPT) || defined(BMSSE42OPT) || defined(BMWASMSIMDOPT))
+#if (defined(BMSSE2OPT) || defined(BMSSE42OPT) || defined(BMWASMSIMDOPT) || defined(BMNEONOPT))
 #   define BM_VECT_ALIGN BM_ALIGN16
 #   define BM_VECT_ALIGN_ATTR BM_ALIGN16ATTR
 #else
@@ -385,26 +331,6 @@ For more information please visit:  http://bitmagic.io
 #endif
 
 
-
-
-/*! 
-    Define calculates number of 1 bits in 32-bit word.
-    @ingroup bitfunc 
-*/
-#ifndef BM_INCWORD_BITCOUNT
-
-#if (defined(BMSSE42OPT) || defined(BMAVX2OPT) || defined(BMAVX512OPT))
-# define BM_INCWORD_BITCOUNT(cnt, w) cnt += unsigned(_mm_popcnt_u32(w));
-#else
-
-# define BM_INCWORD_BITCOUNT(cnt, w) cnt += \
-     bm::bit_count_table<true>::_count[(unsigned char)(w)] + \
-     bm::bit_count_table<true>::_count[(unsigned char)((w) >> 8)] + \
-     bm::bit_count_table<true>::_count[(unsigned char)((w) >> 16)] + \
-     bm::bit_count_table<true>::_count[(unsigned char)((w) >> 24)];
-
-
-#endif
 
 // throw redefinintion for compatibility with language wrappers
 //
@@ -432,6 +358,6 @@ For more information please visit:  http://bitmagic.io
 #  define BM_FALLTHROUGH
 #endif
 
-#endif
+
 
 

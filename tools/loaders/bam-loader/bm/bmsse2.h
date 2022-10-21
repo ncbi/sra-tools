@@ -1451,6 +1451,28 @@ unsigned sse2_gap_bfind(const unsigned short* BMRESTRICT buf,
     const unsigned arr_end = end;
     BM_ASSERT(start != end);
     unsigned size = end - start;
+
+    for (; size >= 64; size = end - start)
+    {
+        unsigned mid = (start + end) >> 1;
+        if (buf[mid] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+    } // for
+
     for (; size >= 16; size = end - start)
     {
         if (unsigned mid = (start + end) >> 1; buf[mid] < pos)

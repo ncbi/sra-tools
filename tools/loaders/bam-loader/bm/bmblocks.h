@@ -1948,8 +1948,15 @@ public:
     /// allocate first level of descr. of blocks
     void init_tree()
     {
+#ifdef __GNUG__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         if(top_blocks_ != 0)
             return;
+#ifdef __GNUG__
+#pragma GCC diagnostic pop
+#endif
         if (top_block_size_)
         {
             top_blocks_ = (bm::word_t***) alloc_.alloc_ptr(top_block_size_);

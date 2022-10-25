@@ -1809,6 +1809,7 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
             return false;
     }
 
+    const value_type* search_str = str;
     if (remaped)
         str = remap_value_vect_.data();
     else
@@ -1825,7 +1826,14 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
     
     bool found = prepare_and_sub_aggregator(sv, str, common_prefix_len, true);
     if (found)
+    {
         found = agg_.find_first_and_sub(idx);
+        if (found && idx > mask_to_) // out of bounds? may be false positive
+        {
+            int cmp = sv.compare(idx, search_str);
+            found = (cmp == 0);
+        }
+    }
 
     agg_.reset();
     return found;
@@ -3338,6 +3346,9 @@ void sv_sample_index<SV>::construct(const SV& sv, unsigned s_factor)
         value_type* s_str = s_cache_.row(idx_size_);
         ++idx_size_;
         sv.get(i, s_str, cols);
+
+        if (i == sv_size_-1) // last element was aleady covered, break
+            break;
         i += s_step;
         if (i >= sv_size_) // add the last sampled element
         {
@@ -3446,17 +3457,10 @@ bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
         size_type mid = (r-l) / 2 + l;
         const value_type* str_m = s_cache_.row(mid);
         cmp = SV::compare_str(str_m, search_str, min_len);
-/*
-        if (cmp == 0)
-        {
-            l = r = mid;
-            return true;
-        } */
-        if (cmp <= 0) // str_m < search_str
+        if (cmp <= 0) // str_m <= search_str
             l = mid;
         else         // str_m > search_str
             r = mid;
-
     } // while
 
     return true;

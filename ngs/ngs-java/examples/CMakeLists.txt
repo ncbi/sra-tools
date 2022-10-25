@@ -43,25 +43,30 @@ if ( Java_FOUND )
     )
 
     if ( SINGLE_CONFIG )
-        # LOGLEVEL values: WARNING (default), OFF, INFO, FINE, FINER, FINEST
-        set( LOGLEVEL OFF )
-        macro( RunAndDiff TestName TestParams )
-            add_test(
-                NAME Test_NgsJavaExamples_${TestName}
-                COMMAND bash -c
-                    "NCBI_VDB_QUALITY=R ${Java_JAVA_EXECUTABLE} -Dvdb.log=${LOGLEVEL} -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName} && diff ${CMAKE_CURRENT_SOURCE_DIR}/expected/${TestName} ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName}"
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                COMMAND_EXPAND_LISTS
-            )
-        endmacro()
 
-        RunAndDiff( FragTest "ERR225922 10000 2" )
-        RunAndDiff( AlignTest "ERR225922 10000 2" )
-        RunAndDiff( AlignSliceTest "SRR1121656 1 1 9999" )
-        RunAndDiff( PileupTest "SRR1121656 1 9999 10003" )
-        RunAndDiff( RefTest "SRR1121656" )
-        RunAndDiff( ReadGroupTest "SRR1121656" )
-        RunAndDiff( DumpReferenceFASTA "SRR520124 1" )
+        if ( NOT TOOLS_ONLY )
+
+            # LOGLEVEL values: WARNING (default), OFF, INFO, FINE, FINER, FINEST
+            set( LOGLEVEL OFF )
+            macro( RunAndDiff TestName TestParams )
+                add_test(
+                    NAME Test_NgsJavaExamples_${TestName}
+                    COMMAND bash -c
+                        "NCBI_VDB_QUALITY=R ${Java_JAVA_EXECUTABLE} -Dvdb.log=${LOGLEVEL} -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName} && diff ${CMAKE_CURRENT_SOURCE_DIR}/expected/${TestName} ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName}"
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    COMMAND_EXPAND_LISTS
+                )
+            endmacro()
+
+            RunAndDiff( FragTest "ERR225922 10000 2" )
+            RunAndDiff( AlignTest "ERR225922 10000 2" )
+            RunAndDiff( AlignSliceTest "SRR1121656 1 1 9999" )
+            RunAndDiff( PileupTest "SRR1121656 1 9999 10003" )
+            RunAndDiff( RefTest "SRR1121656" )
+            RunAndDiff( ReadGroupTest "SRR1121656" )
+            RunAndDiff( DumpReferenceFASTA "SRR520124 1" )
+
+        endif()
 
         set( INSTALL_DEST ${CMAKE_INSTALL_PREFIX}/share/examples-java )
 

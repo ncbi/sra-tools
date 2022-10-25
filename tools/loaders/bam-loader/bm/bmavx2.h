@@ -2941,19 +2941,19 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
 {
     BM_ASSERT(is_set || RET_TEST);
 
-    const unsigned linear_cutoff = 48;
+    const unsigned linear_cutoff = 64;//48;
     const unsigned unroll_factor = 16;
 
     BM_ASSERT(pos < bm::gap_max_bits);
 
     unsigned res;
     unsigned start = 1;
-    unsigned end = start + ((*buf) >> 3);
+    unsigned end = ((*buf) >> 3);
 
-    const unsigned arr_end = end;
-    if (unsigned dsize = end - start; dsize < unroll_factor) // too small for a full AVX stride
+    const unsigned arr_end = end + 1;
+    if (end <= unroll_factor) // too small for a full AVX stride
     {
-        for (; start < end; ++start)
+        for (; true; ++start)
             if (buf[start] >= pos)
                 goto ret;
         BM_ASSERT(0);
@@ -2961,7 +2961,31 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
 
     do
     {
-        if (unsigned dsize = end - start; dsize < linear_cutoff)
+        unsigned dsize = end - start;
+        for (; dsize >= 64; dsize = end - start)
+        {
+            unsigned mid = (start + end) >> 1;
+            if (buf[mid] < pos)
+                start = mid+1;
+            else
+                end = mid;
+            if (buf[mid = (start + end) >> 1] < pos)
+                start = mid+1;
+            else
+                end = mid;
+            if (buf[mid = (start + end) >> 1] < pos)
+                start = mid+1;
+            else
+                end = mid;
+            if (buf[mid = (start + end) >> 1] < pos)
+                start = mid+1;
+            else
+                end = mid;
+            BM_ASSERT(buf[end] >= pos);
+        } // for
+
+        dsize = end - start + 1;
+        if (dsize < linear_cutoff)
         {
             // set wider scan window to possibly over-read the range,
             // but stay within allocated block memory
@@ -2978,7 +3002,6 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
                 vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); //16x u16s
                 mSub = _mm256_subs_epu16(mPos, vect16);
                 mge_mask = _mm256_cmpeq_epi16(mSub, mZ);
-
                 if (int mask = _mm256_movemask_epi8(mge_mask); mask)
                 {
                     int lz = _tzcnt_u32(mask);
@@ -2986,20 +3009,20 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
                     goto ret;
                 }
             } // for
-            if (unsigned tail = unroll_factor-(end-start); start > tail+1)
+//            if (unsigned tail = unroll_factor-(end-start); start > tail+1)
             {
-                start -= tail; // rewind back, but stay within block
+                start = end - 15;
+                BM_ASSERT(buf[start + 15] >= pos);
                 vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); //16x u16s
                 mSub = _mm256_subs_epu16(mPos, vect16);
                 mge_mask = _mm256_cmpeq_epi16(mSub, mZ);
                 int mask = _mm256_movemask_epi8(mge_mask);
                 BM_ASSERT(mask); // the result MUST be here at this point
-
                 int lz = _tzcnt_u32(mask);
                 start += (lz >> 1);
                 goto ret;
             }
-            for (; start < end; ++start)
+            for (; true; ++start)
                 if (buf[start] >= pos)
                     goto ret;
             BM_ASSERT(0);

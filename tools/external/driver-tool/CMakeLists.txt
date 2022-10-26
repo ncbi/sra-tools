@@ -24,6 +24,20 @@
 
 set( compile_defs __mod__="tools/driver-tool" )
 
+add_custom_target(
+    tool-arguments-header COMMAND
+    sh generate-args-info.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    BYPRODUCTS tool-arguments.h
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+add_dependencies(
+    tool-arguments-header
+    vdb-dump
+    fasterq-dump
+    sam-dump
+    sra-pileup
+)
+
 set( sources
     sratools.cpp
     sratools.hpp
@@ -57,7 +71,6 @@ set( sources
     file-path.hpp
     opt_string.hpp
     common-arguments.h
-    tool-arguments.h
     fastq-dump-arguments.h
 )
 if(WIN32)
@@ -93,3 +106,4 @@ elseif(LINUX)
 endif()
 GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )
+add_dependencies(sratools tool-arguments-header)

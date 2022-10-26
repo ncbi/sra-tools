@@ -1,5 +1,5 @@
 /* Tool arguments definitions
- * auto-generated at 2022-03-18T19:46:09Z
+ * auto-generated at 2022-10-25T19:31:46Z
  */
 
 #define TOOL_NAME_VDB_DUMP "vdb-dump" /* from argv[0] */
@@ -135,6 +135,7 @@
     TOOL_ARG("rna-splice-level", "", true, TOOL_HELP("level of rna-splicing detection (0,1,2)", "when testing for spliceosome recognition sites ", "0=perfect match, 1=one mismatch, 2=two mismatches ", "one on each site", 0)), \
     TOOL_ARG("rna-splice-log", "", true, TOOL_HELP("file, into which rna-splice events are written", 0)), \
     TOOL_ARG("disable-multithreading", "", false, TOOL_HELP("disable multithreading", 0)), \
+    TOOL_ARG("omit-quality", "o", false, TOOL_HELP("omit qualities", 0)), \
     TOOL_ARG("with-md-flag", "", false, TOOL_HELP("print MD-flag", 0)), \
     TOOL_ARG("dump-mode", "", true, TOOL_HELP(0)), \
     TOOL_ARG("cigar-test", "", true, TOOL_HELP(0)), \
@@ -148,7 +149,6 @@
 #define TOOL_ARGS_SRA_PILEUP TOOL_ARGS ( \
     TOOL_ARG("minmapq", "q", true, TOOL_HELP("Minimum mapq-value, ", "alignments with lower mapq", "will be ignored (default=0)", 0)), \
     TOOL_ARG("duplicates", "d", true, TOOL_HELP("process duplicates 0..off/1..on", 0)), \
-    TOOL_ARG("noqual", "n", false, TOOL_HELP("Omit qualities in output", 0)), \
     TOOL_ARG("noskip", "s", false, TOOL_HELP("Does not skip reference-regions without alignments", 0)), \
     TOOL_ARG("showid", "i", false, TOOL_HELP("Shows alignment-id for every base", 0)), \
     TOOL_ARG("spotgroups", "p", false, TOOL_HELP("divide by spotgroups", 0)), \
@@ -159,6 +159,7 @@
     TOOL_ARG("function", "", true, TOOL_HELP("alternative functionality", 0)), \
     TOOL_ARG("ngc", "", true, TOOL_HELP("path to ngc file", 0)), \
     TOOL_ARG("aligned-region", "r", true, TOOL_HELP("Filter by position on genome.", "Name can either be file specific name", "(ex: \"chr1\" or \"1\").", "\"from\" and \"to\" are 1-based coordinates", 0)), \
+    TOOL_ARG("noqual", "n", false, TOOL_HELP("Omit qualities in output", 0)), \
     TOOL_ARG("outfile", "o", true, TOOL_HELP("Output will be written to this file", "instead of std-out", 0)), \
     TOOL_ARG("table", "t", true, TOOL_HELP("Which alignment table(s) to use (p|s|e):", "p - primary, s - secondary, e - evidence-interval", "(default = p)", 0)), \
     TOOL_ARG("gzip", "", false, TOOL_HELP("Compress output using gzip", 0)), \

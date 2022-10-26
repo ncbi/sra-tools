@@ -525,9 +525,10 @@ function(MakeLinksExe target install_via_driver)
         target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
     endif()
 
-    if ( install_via_driver )
-        add_dependencies( ${target} sratools )
-    endif()
+# creates dependency loops
+#     if ( install_via_driver )
+#         add_dependencies( ${target} sratools )
+#     endif()
 
     if( SINGLE_CONFIG )
 

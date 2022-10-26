@@ -58,8 +58,8 @@ if( NOT WIN32)
 
 		GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 		set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
-		target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
-		target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+		target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT -Wno-deprecated)
+		target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc ${OPENSSL_ROOT_DIR}/include)
 		target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 		MakeLinksExe( bam-load false )

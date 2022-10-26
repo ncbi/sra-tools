@@ -208,7 +208,7 @@ static bool CC Defline_Builder( SLNode *node, void *data )
             if ( d->values[ n->type ].id != NULL &&
                 ( !d->optional || *d->values[ n->type ].id > 0 ) )
             {
-                x = snprintf( s, sizeof( s ), "%lld", *d->values[ n->type ].id );
+                x = snprintf( s, sizeof( s ), "%lld", (long long int)*d->values[ n->type ].id );
                 if ( x < 0 || x >= sizeof( s ) )
                 {
                     d->rc = RC( rcExe, rcNamelist, rcExecuting, rcBuffer, rcInsufficient );
@@ -800,9 +800,9 @@ static rc_t AlignRegionFilter_GetKey( const SRASplitter* cself, const char** key
             }
             for ( i = 0; rc == 0 && i < self->alregion_qty; i++ )
             {
-                if ( ( self->alregion[i].name_len == nm_len && 
+                if ( ( self->alregion[i].name_len == nm_len &&
                        strncasecmp( self->alregion[ i ].name, nm, nm_len ) == 0 ) ||
-                     ( self->alregion[i].name_len == si_len && 
+                     ( self->alregion[i].name_len == si_len &&
                        strncasecmp(self->alregion[i].name, si, si_len) == 0 ) )
                 {
                     if ( self->col_pos )
@@ -1060,7 +1060,7 @@ static rc_t AlignPairDistanceFilter_GetKey( const SRASplitter* cself,
                     for ( j = 0; j < nreads; j++ )
                     {
                         if ( ( tlen[ j ] == 0 && !self->mp_dist_unknown) ||
-                             ( tlen[ j ] != 0 && 
+                             ( tlen[ j ] != 0 &&
                                ( tlen[ j ] < self->mp_dist[ i ].from || self->mp_dist[ i ].to < tlen[ j ] ) ) )
                         {
                             unset_readmask( readmask, j );
@@ -1308,7 +1308,7 @@ static rc_t FastqBioFilterFactory_Init( const SRASplitterFactory* cself )
     {
         rc = FastqReaderMake( &self->reader, self->table, self->accession,
                               /* preserve orig spot format to save on conversions */
-                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                               false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                               FastqArgs.offset, '\0', 0, 0) ;
     }
@@ -1477,7 +1477,7 @@ static rc_t FastqRNumberFilterFactory_Init( const SRASplitterFactory* cself )
     {
         rc = FastqReaderMake( &self->reader, self->table, self->accession,
                               /* preserve orig spot format to save on conversions */
-                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                               false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                               FastqArgs.offset, '\0', 0, 0 );
     }
@@ -1666,7 +1666,7 @@ static rc_t FastqQFilter_GetKey( const SRASplitter* cself, const char** key,
                             rc = FastqReader_SpotReadInfo( self->reader, readId + 1, NULL, NULL, NULL, NULL, &read_len );
                             if ( rc == 0 )
                             {
-                                /* FastqReaderBase() in libsra! libs/sra/fastq.h 
+                                /* FastqReaderBase() in libsra! libs/sra/fastq.h
                                    IF_BUF ... very, very bad macro defined in factory.h !!
                                    it combines reading from table with resizing of a KDatabuffer in a loop until rc == 0 is reached!
                                 */
@@ -1807,7 +1807,7 @@ static rc_t FastqQFilterFactory_Init( const SRASplitterFactory* cself )
             {
                 rc = FastqReaderMake( &self->reader, self->table, self->accession,
                              /* preserve orig spot format to save on conversions */
-                             FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                             FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                              false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                              FastqArgs.offset, '\0', 0, 0 );
             }
@@ -2002,7 +2002,7 @@ static rc_t FastqReadLenFilterFactory_Init( const SRASplitterFactory* cself )
     {
         rc = FastqReaderMake( &self->reader, self->table, self->accession,
                              /* preserve orig spot format to save on conversions */
-                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                               false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                               FastqArgs.offset, '\0', 0, 0 );
     }
@@ -2231,7 +2231,7 @@ static rc_t FastqReadSplitterFactory_Init( const SRASplitterFactory* cself )
     {
         rc = FastqReaderMake( &self->reader, self->table, self->accession,
                               /* preserve orig spot format to save on conversions */
-                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                               false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                               FastqArgs.offset, '\0', 0, 0 );
     }
@@ -2444,7 +2444,7 @@ static rc_t Fastq3ReadSplitterFactory_Init( const SRASplitterFactory* cself )
     {
         rc = FastqReaderMake( &self->reader, self->table, self->accession,
                               /* preserve orig spot format to save on conversions */
-                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false, 
+                              FastqArgs.is_platform_cs_native, false, FastqArgs.fasta > 0, false,
                               false, !FastqArgs.applyClip, FastqArgs.SuppressQualForCSKey, 0,
                               FastqArgs.offset, '\0', 0, 0 );
     }
@@ -2494,7 +2494,7 @@ static rc_t Fastq3ReadSplitterFactory_Make( const SRASplitterFactory** cself,
     rc_t rc = 0;
     Fastq3ReadSplitterFactory* obj = NULL;
 
-    if ( cself == NULL || accession == NULL || table == NULL ) 
+    if ( cself == NULL || accession == NULL || table == NULL )
     {
         rc = RC( rcExe, rcType, rcConstructing, rcParam, rcNull );
     }
@@ -2570,7 +2570,7 @@ static rc_t FastqFormatterSplitter_DumpByRead( const SRASplitter* cself, spotid_
     {
         rc = RC( rcExe, rcType, rcExecuting, rcParam, rcNull );
     }
-    else 
+    else
     {
         rc = FastqReaderSeekSpot( self->reader, spot );
         if ( rc == 0 )
@@ -2740,7 +2740,7 @@ static rc_t FastqFormatterSplitter_DumpBySpot( const SRASplitter* cself, spotid_
                         if ( rc == 0 )
                         {
                             rc = Defline_Bind( &def_data, self->accession, &spot, spot_name,
-                                               sname_sz, spot_group, sgrp_sz, 
+                                               sname_sz, spot_group, sgrp_sz,
                                                &spot_len, &readId, NULL, 0, &spot_len );
                         }
                     }
@@ -3673,7 +3673,7 @@ rc_t FastqDumper_Factories( const SRADumperFmt* fmt, const SRASplitterFactory** 
                 if ( parent != NULL )
                 {
                     rc = SRASplitterFactory_AddNext( parent, child );
-                    if ( rc != 0 ) 
+                    if ( rc != 0 )
                     {
                         SRASplitterFactory_Release( child );
                     }
@@ -3721,7 +3721,7 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
                                      "If there is only one biological read satisfying the filter conditions,",
                                      "it is placed in the `*.fastq` file.All other reads in the spot are ignored.",
                                      NULL}},
-            
+
             {"C", "dumpcs", "[cskey]", {"Formats sequence using color space (default for SOLiD),"   /* H_dumpcs = 7 */
                                         "\"cskey\" may be specified for translation", NULL}},
             {"B", "dumpbase", NULL, {"Formats sequence using base space (default for other than SOLiD).", NULL}}, /* H_dumpbase = 8 */

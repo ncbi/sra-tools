@@ -14,19 +14,20 @@ def yes_or_no(v):
 
 
 parser = argparse.ArgumentParser(description='Generate tests for tool args', allow_abbrev=False)
-parser.add_argument('--json', nargs=1, default='tool-args.json', help='json file with tool args definitions.')
+parser.add_argument('--json', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='json file with tool args definitions.')
 parser.add_argument('--quiet', action='store_true', help='Make the script quiet.')
 parser.add_argument('--all', action='store_true', help='Test all parameters.')
-parser.add_argument('--use-version', nargs='?', help='Use this as the version instead of the version in the definitions.')
+parser.add_argument('--use-version', nargs='?', dest='version', help='Use this as the version instead of the version in the definitions.')
 parser.add_argument('--path', nargs='?', type=PurePath, help='Path to prepend to tool name; expected path to binaries.')
-parser.add_argument('--installed', nargs='?', type=yes_or_no, const=True, default=True)
+parser.add_argument('--installed', nargs='?', type=yes_or_no, const=True, default=None)
 parser.add_argument('data', nargs='?', default='/panfs/pan1/sra-test/bam/GOOD_CMP_READ.csra', help='Accession or path to test with.')
-parsed = parser.parse_args()
+args = parser.parse_args()
 
+have_installed = False if args.installed == None else True
+if not have_installed:
+    args.installed = False if args.path else True
 
-with open(parsed.json) as f:
-    toolArgs = json.load(f)
-
+toolArgs = json.load(args.json)
 
 index = {x['name']: i for i, x in enumerate(toolArgs)}
 
@@ -119,7 +120,7 @@ overrides = {
     }
 }
 
-if parsed.all:
+if args.all:
     for key in overrides:
         if 'skip parameters' in overrides[key]:
             del overrides[key]['skip parameters']
@@ -212,38 +213,37 @@ def parametersFor(tool):
             print(f"#   {x}")
     return [x for x in tool['parameters'] if x['name'] not in skip]
 
-version=None
-def prepare(tool):
-    global version
 
+def effectiveVersion():
+    versions = frozenset([x['version'] for x in toolArgs])
+    if len(versions) != 1:
+        raise AssertionFailure(f"versions do not all match, got {versions}")
+
+    version = next(iter(versions))  # get some element of the set (since there is only one)
+    if args.version and version != args.version:
+        raise AssertionFailure(f"versions do not all match requested version {args.version}, got {version}")
+
+    return version
+
+
+version = effectiveVersion()
+
+
+def prepare(tool):
     # compute path
     toolName = tool['name']
 
     # make a variable name to hold the path that will be okay for shell script
     # replace all not isalnum with '_'
     tool['var'] = ''.join([x.upper() if x.isalnum() else '_' for x in list(toolName)])
-
-    toolVers = tool['version']
-    if version == None:
-        version = toolVers
-    elif version != toolVers:
-        raise AssertionFailure("versions do not all match")
-
     versName = f'{toolName}.{version}'
     origName = f'{toolName}-orig.{version}'
-    realName = origName if parsed.installed else versName
+    realName = origName if args.installed else versName
 
-    if parsed.path:
-        toolRealPath = str(parsed.path.joinpath(realName))
-        toolBarePath = str(parsed.path.joinpath(toolName))
-    elif parsed.installed:
-        toolRealPath = "/".join(["${SRATOOLS_BINDIR}", realName])
-        toolBarePath = "/".join(["${SRATOOLS_BINDIR}", toolName])
-    else:
-        toolRealPath = f"$(which '{realName}')"
-        toolBarePath = f"$(which '{toolName}')"
+    toolRealPath = "/".join(["${BINDIR}", realName])
+    toolBarePath = "/".join(["${BINDIR}", toolName])
 
-    if parsed.installed:
+    if args.installed:
         tool['path'] = toolRealPath
         tool['path.bare'] = toolBarePath
         tool['var.bare'] = f"{tool['var']}_BARE"
@@ -251,30 +251,20 @@ def prepare(tool):
         tool['path'] = toolRealPath
         tool['var.bare'] = f"SRATOOLS"
 
+
 def preamble():
     print("""#!/bin/sh
 
 TOP_PID=$$
 TEMPDIR="$(mktemp -d)"
 LOGFILE="${TEMPDIR}/${0}.log"
-(
-    cd "${TEMPDIR}"
-    prefetch SRR000001 2>${LOGFILE} 1>/dev/null \\
-    && echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
-) \\
-|| {
-    echo "Failed to prefetch SRR000001" >&2
-    cat ${LOGFILE} >&2
-    rm -rf ${TEMPDIR}
-    exit 1
-}
 
 SRR000001="${TEMPDIR}/SRR000001"
 SAM_HDR="${TEMPDIR}/test.header.sam"
 
 trap 'rm -rf "${SAM_HDR}" "${SRR000001}"' INT QUIT TERM HUP EXIT
 """)
-    if not parsed.quiet:
+    if not args.quiet:
         print("""echo "stderr is being logged to ${LOGFILE}" """)
     print("""printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
 
@@ -282,7 +272,7 @@ run_tool () (
     EXE="${1}"
     shift
 
-    WORKDIR="$(mktemp -d -p .)"
+    WORKDIR="$(mktemp -d -p ${TEMPDIR})"
     cleanup () { EC=$?; rm -rf "${WORKDIR}"; exit $EC; }
     trap "false; cleanup; kill -INT $TOP_PID;" INT
     trap "false; cleanup; kill -QUIT $TOP_PID;" QUIT
@@ -299,7 +289,7 @@ test () {
     DATA="${4}"
     shift 4
 """)
-    if not parsed.quiet:
+    if not args.quiet:
         print("""    echo Testing "${NAME}" "${1}" "..." >&2""")
 
     print("""
@@ -339,18 +329,38 @@ test () {
     }
 }
     """)
-    print(f'DATAFILE=$(realpath --canonicalize-existing "{parsed.data}")')
-    if parsed.installed:
-        path = str(parsed.path) if parsed.path else f"$(dirname $(which sratools.{version}))"
-        print(f'SRATOOLS_BINDIR="{path}"')
+    print(f'DATAFILE="{args.data}"')
+    print('[[ -e "${DATAFILE}" ]] || { echo no data file "${DATAFILE}" >&2; exit 1; }')
+    print('DATAFILE="$( cd $(dirname "${DATAFILE}"); pwd -P )"')
+
+    if not have_installed:
+        print(f"# assuming{' ' if args.installed else ' not '}installed")
+
+    bindir = f"$(cd '{args.path}'; pwd;)" if args.path else f'$(dirname $(which sratools.{version}))'
+    print(f'BINDIR="{bindir}"')
+
+    if args.installed:
+        pass
     else:
-        path = str(parsed.path.joinpath(f'sratools.{version}')) if parsed.path else f"$(which 'sratools.{version}')"
-        print(f'SRATOOLS="{path}"')
+        path = str(args.path.joinpath(f'sratools.{version}')) if args.path else f"$(which 'sratools.{version}')"
+        print('SRATOOLS="${BINDIR}/'+f'sratools.{version}"')
     for tool in toolArgs:
-        if parsed.installed:
+        if args.installed:
             print(f'{tool["var.bare"]}="{tool["path.bare"]}"')
         print(f'{tool["var"]}="{tool["path"]}"')
-
+    print("""
+(
+    cd "${TEMPDIR}"
+    "${BINDIR}/prefetch" SRR000001 2>${LOGFILE} 1>/dev/null \\
+    && echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
+) \\
+|| {
+    echo "Failed to prefetch SRR000001" >&2
+    cat ${LOGFILE} >&2
+    rm -rf ${TEMPDIR}
+    exit 1
+}
+    """)
 
 def process(tool):
     toolName = tool['name']
@@ -361,7 +371,7 @@ def process(tool):
     print("")
     params = parametersFor(tool)
     print(f'# {toolName} has {len(params)} parameters to test')
-    if not parsed.installed:
+    if not args.installed:
         print(f'SRATOOLS_IMPERSONATE="{toolName}"')
 
     for param in params:
@@ -370,7 +380,7 @@ def process(tool):
             value = param.get(prop, dflt)
             return get_param_property(toolName, name, prop, value)
 
-        def args():
+        def all_args():
             yield f"--{name}"
             for x in get_property('alias', []):
                 yield f"-{x}"
@@ -390,7 +400,7 @@ def process(tool):
                 for value in get_property('values', [ get_property('value', '1') ]):
                     yield cmdbase + arg + f' "{value}"'
 
-        for arg in args():
+        for arg in all_args():
             for cmd in command(arg):
                 print(cmd)
 

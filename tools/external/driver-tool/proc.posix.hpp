@@ -58,11 +58,9 @@ struct Process {
         }
         /// @brief child exit code
         ///
-        /// Only available exited() == true.
-        ///
         /// @return The low 8-bits of the value passed to exit.
         int exitCode() const {
-            return WEXITSTATUS(value);
+            return didExit() ? WEXITSTATUS(value) : EXIT_FAILURE;
         }
 
         /// @brief child was signaled

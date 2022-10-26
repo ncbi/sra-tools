@@ -546,6 +546,8 @@ static int main(CommandLine const &argv)
                     std::cerr << argv.toolName << " quit with error code " << exit_code << std::endl;
                     exit(exit_code);
                 }
+                // was killed or something
+                exit(result.exitCode());
             }
             if (!success) {
                 std::cerr << "Could not get any data for " << acc << ", tried to get data from:" << std::endl;

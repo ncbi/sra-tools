@@ -4,18 +4,29 @@ import argparse
 from pathlib import PurePath
 import json
 
+
+def yes_or_no(v):
+    if v.lower() in ['y', 'yes', 't', 'true', 1]:
+        return True
+    if v.lower() in ['n', 'no', 'f', 'false', 0]:
+        return False
+    raise argparse.ArgumentTypeError("Expected a boolean or yes/no")
+
+
 parser = argparse.ArgumentParser(description='Generate tests for tool args', allow_abbrev=False)
 parser.add_argument('--json', nargs=1, default='tool-args.json', help='json file with tool args definitions.')
-parser.add_argument('--barename', action='store_true', help='Use the bare tool name without version or -orig.')
 parser.add_argument('--quiet', action='store_true', help='Make the script quiet.')
 parser.add_argument('--all', action='store_true', help='Test all parameters.')
 parser.add_argument('--use-version', nargs='?', help='Use this as the version instead of the version in the definitions.')
 parser.add_argument('--path', nargs='?', type=PurePath, help='Path to prepend to tool name; expected path to binaries.')
+parser.add_argument('--installed', nargs='?', type=yes_or_no, const=True, default=True)
 parser.add_argument('data', nargs='?', default='/panfs/pan1/sra-test/bam/GOOD_CMP_READ.csra', help='Accession or path to test with.')
 parsed = parser.parse_args()
 
+
 with open(parsed.json) as f:
     toolArgs = json.load(f)
+
 
 index = {x['name']: i for i, x in enumerate(toolArgs)}
 
@@ -28,7 +39,6 @@ overrides = {
     'all tools': {
         'debug': {'values': ['ARGS', 'KDB']},
         'log-level': {'values': 'fatal|sys|int|err|warn|info|debug'.split('|')},
-        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'skip parameters': [
             'cart',        # I don't have a cart file
             'location',
@@ -42,13 +52,15 @@ overrides = {
         'bufsize': {'value': 1024 * 1024},
         'disk-limit': {'value': 500 * 1024 * 1024},
         'disk-limit-tmp': {'value': 500 * 1024 * 1024},
+        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'outdir': {'value': '.'},
         'qual-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
         'seq-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
         'size-check': {'values': ['on', 'off', 'only']},
+        'stdout': {'skip-tool': True},
         'table': {'value': 'SEQUENCE'},
         'temp': {'value': "${TMPDIR:-/tmp}"},
-        'data file': 'SRR000001' # fasterq-dump doesn't like very small CSRAs
+        'data file': '${SRR000001}' # fasterq-dump doesn't like very small CSRAs
     },
     'fastq-dump': {
         'accession': {'value': 'SRR000001'},
@@ -57,7 +69,8 @@ overrides = {
         'dumpcs': {'values': ['A', 'C', 'G', 'T']},
         'fasta': { 'value': 75 },
         'matepair-distance': {'values': ['400-500', 'unknown']},
-        'offset': { 'value': [33, 64] },
+        'ncbi_error_report': {'values': 'never|error'.split('|')},
+        'offset': { 'values': [33, 64] },
         'outdir': {'value': '.'},
         'read-filter': {'values': 'pass|reject|criteria|redacted'.split('|')},
         'spot-groups': {'value': 'FOO,BAR'},
@@ -70,12 +83,19 @@ overrides = {
     'sam-dump': {
         'matepair-distance': {'values': ['400-500', 'unknown']},
         'header-comment': {'value': "\t".join(['@CO', 'This is a comment.'])},
-        'header-file': {'value': "test.header.sam"},
-        'qual-quant': {'value': '1:10,10:20,20:30,30:-'}
+        'header-file': {'value': "${SAM_HDR}"},
+        'ncbi_error_report': {'values': 'never|error'.split('|')},
+        'qual-quant': {'value': '1:10,10:20,20:30,30:-'},
+        'skip parameters': [
+            'cigar-test',   # I don't know how to use this one
+            'with-md-flag'  # I don't know how to use this one
+        ]
     },
     'sra-pileup': {
         'table': {'values': 'p|s'.split('|')},
         'function': {'values': 'ref ref-ex count stat mismatch index varcount deletes indels'.split()},
+        'minmapq': {'alias': []}, # -q alias is deprecated
+        'ncbi_error_report': {'values': 'never|error'.split('|')},
         'skip parameters': [
             'schema',  # this is too complicated to make work
             'noskip'   # this one makes sra-pileup run very slow
@@ -86,10 +106,16 @@ overrides = {
         'columns': {'value': 'NAME,READ'},
         'exclude': {'value': 'CSREAD'},
         'max_length': {'value': 75},
+        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'format': {'values': "csv xml json piped tab fastq fastq1 fasta fasta1 fasta2 qual qual1".split()},
         'boolean': {'values': '1|T'.split('|')},
-        'idx-range': { 'data file': 'SRR000001', 'value': 'skey' },
-        'skip parameters': ['schema', 'slice', 'filter']
+        'idx-range': { 'data file': '${SRR000001}', 'value': 'skey' },
+        'skip parameters': [
+            'schema',
+            'slice',
+            'filter',
+            'static'  # doesn't work right
+        ]
     }
 }
 
@@ -186,76 +212,157 @@ def parametersFor(tool):
             print(f"#   {x}")
     return [x for x in tool['parameters'] if x['name'] not in skip]
 
-
+version=None
 def prepare(tool):
+    global version
+
     # compute path
     toolName = tool['name']
-    if parsed.barename:
-        tool['path'] = f"""$(which '{toolName}')"""
-    else:
-        toolVersion = parsed.use_version if parsed.use_version else tool['version']
-        toolFullName = f'{toolName}-orig.{toolVersion}'
-        if parsed.path:
-            tool['path'] = str(parsed.path.joinpath(toolFullName))
-        else:
-            tool['path'] = f"""$(which '{toolFullName}')"""
 
     # make a variable name to hold the path that will be okay for shell script
     # replace all not isalnum with '_'
     tool['var'] = ''.join([x.upper() if x.isalnum() else '_' for x in list(toolName)])
 
+    toolVers = tool['version']
+    if version == None:
+        version = toolVers
+    elif version != toolVers:
+        raise AssertionFailure("versions do not all match")
 
-def printPreamble():
+    versName = f'{toolName}.{version}'
+    origName = f'{toolName}-orig.{version}'
+    realName = origName if parsed.installed else versName
+
+    if parsed.path:
+        toolRealPath = str(parsed.path.joinpath(realName))
+        toolBarePath = str(parsed.path.joinpath(toolName))
+    elif parsed.installed:
+        toolRealPath = "/".join(["${SRATOOLS_BINDIR}", realName])
+        toolBarePath = "/".join(["${SRATOOLS_BINDIR}", toolName])
+    else:
+        toolRealPath = f"$(which '{realName}')"
+        toolBarePath = f"$(which '{toolName}')"
+
+    if parsed.installed:
+        tool['path'] = toolRealPath
+        tool['path.bare'] = toolBarePath
+        tool['var.bare'] = f"{tool['var']}_BARE"
+    else:
+        tool['path'] = toolRealPath
+        tool['var.bare'] = f"SRATOOLS"
+
+def preamble():
     print("""#!/bin/sh
 
-LOGFILE="${PWD}/${0}.log"
+TOP_PID=$$
+TEMPDIR="$(mktemp -d)"
+LOGFILE="${TEMPDIR}/${0}.log"
+(
+    cd "${TEMPDIR}"
+    prefetch SRR000001 2>${LOGFILE} 1>/dev/null \\
+    && echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
+) \\
+|| {
+    echo "Failed to prefetch SRR000001" >&2
+    cat ${LOGFILE} >&2
+    rm -rf ${TEMPDIR}
+    exit 1
+}
+
+SRR000001="${TEMPDIR}/SRR000001"
+SAM_HDR="${TEMPDIR}/test.header.sam"
+
+trap 'rm -rf "${SAM_HDR}" "${SRR000001}"' INT QUIT TERM HUP EXIT
 """)
     if not parsed.quiet:
         print("""echo "stderr is being logged to ${LOGFILE}" """)
     print("""printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
 
-run_tool () {
-    WORKDIR=`mktemp -d -p .`
-    (
-        cd ${WORKDIR}
-        echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
-        NAME="${1}"
-        EXE="${2}"
-        DATA="${3}"
-        shift
-        shift
-        shift
+run_tool () (
+    EXE="${1}"
+    shift
+
+    WORKDIR="$(mktemp -d -p .)"
+    cleanup () { EC=$?; rm -rf "${WORKDIR}"; exit $EC; }
+    trap "false; cleanup; kill -INT $TOP_PID;" INT
+    trap "false; cleanup; kill -QUIT $TOP_PID;" QUIT
+    trap "false; cleanup; kill -TERM $TOP_PID;" TERM
+    trap "false; cleanup; kill -HUP $TOP_PID;" HUP
+    trap cleanup EXIT
+    ( cd "${WORKDIR}" && "${EXE}" "${@}" )
+)
+
+test () {
+    NAME="${1}"
+    BARE_EXE="${2}" # This is the driver
+    EXE="${3}"      # This is the driven
+    DATA="${4}"
+    shift 4
 """)
     if not parsed.quiet:
-        print("""echo Testing "${NAME}" "${1}" "..." >&2""")
+        print("""    echo Testing "${NAME}" "${1}" "..." >&2""")
+
     print("""
-        "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
-             echo "Failed: ${NAME}" "${1}" >&2
-             {
-                echo "--------"
-                echo "${EXE}" "${@}" "${DATA}"
-                cat stderr.log
-                echo "--------"
-            } >> ${LOGFILE}
-        }
-    )
-    rm -rf ${WORKDIR}
+    # verify that driver tool will accept the command line
+    ( SRATOOLS_DRY_RUN=1 run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null ) || {
+        echo "Failed in driver tool: ${NAME}" "${1}" >&2
+        {
+            echo "-------- in driver tool --------"
+            echo "${BARE_EXE}" "${@}" "${DATA}"
+            cat stderr.log
+            echo "--------------------------------"
+        } >> ${LOGFILE}
+        return
+    }
+    [[ "${EXE}" ]] || return
+    # verify that actual tool will accept the command line
+    run_tool "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
+        echo "Failed (direct): ${NAME}" "${1}" >&2
+        {
+            echo "-------- direct to tool --------"
+            echo "${EXE}" "${@}" "${DATA}"
+            cat stderr.log
+            echo "--------------------------------"
+        } >> ${LOGFILE}
+        return
+    }
+    # verify that via driver tool will accept the command line
+    run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
+        echo "Failed (via driver tool): ${NAME}" "${1}" >&2
+        {
+            echo "-------- via driver tool -------"
+            echo "${BARE_EXE}" "${@}" "${DATA}"
+            cat stderr.log
+            echo "--------------------------------"
+        } >> ${LOGFILE}
+        return
+    }
 }
     """)
     print(f'DATAFILE=$(realpath --canonicalize-existing "{parsed.data}")')
+    if parsed.installed:
+        path = str(parsed.path) if parsed.path else f"$(dirname $(which sratools.{version}))"
+        print(f'SRATOOLS_BINDIR="{path}"')
+    else:
+        path = str(parsed.path.joinpath(f'sratools.{version}')) if parsed.path else f"$(which 'sratools.{version}')"
+        print(f'SRATOOLS="{path}"')
     for tool in toolArgs:
+        if parsed.installed:
+            print(f'{tool["var.bare"]}="{tool["path.bare"]}"')
         print(f'{tool["var"]}="{tool["path"]}"')
 
 
 def process(tool):
     toolName = tool['name']
-    toolPath = tool['path']
     toolVar = '${' + tool['var'] + '}'
+    toolVarBare = '${' + tool['var.bare'] + '}'
 
     datafile = get_tool_property(toolName, 'data file', "${DATAFILE}")
     print("")
     params = parametersFor(tool)
     print(f'# {toolName} has {len(params)} parameters to test')
+    if not parsed.installed:
+        print(f'SRATOOLS_IMPERSONATE="{toolName}"')
 
     for param in params:
         name = param['name']
@@ -270,8 +377,11 @@ def process(tool):
 
         required = get_property('argument-required', False)
         optional = get_property('argument-optional', False)
+        skipTool = get_property('skip-tool', False)
+        effectiveToolVar = '' if skipTool else toolVar
+        effectiveDatafile = get_property('data file', datafile)
 
-        cmdbase = f"""run_tool "{toolName}" "{toolVar}" "{datafile}" """
+        cmdbase = f"""test "{toolName}" "{toolVarBare}" "{effectiveToolVar}" "{effectiveDatafile}" """
 
         def command(arg):
             if optional or (not required):
@@ -287,7 +397,7 @@ def process(tool):
 for tool in toolArgs:
     prepare(tool)
 
-printPreamble()
+preamble()
 
 for tool in toolArgs:
     process(tool)

@@ -116,5 +116,11 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
+
+        if ( LINUX )
+            add_test( NAME Test_All_Args
+                COMMAND "test-all-args.sh" "${DIRTOTEST}" "${VERSION}"
+            )
+        endif()
     endif()
 endif()

@@ -209,7 +209,7 @@ namespace NSRefVariation
     char const* USAGE_VAR_LEN_ON_REF[] = { "the length of the variation on the reference (0 means pure insertion)", NULL };
 
     char const OPTION_VERBOSITY[] = "verbose";
-    char const ALIAS_VERBOSITY[]  = "v";
+//    char const ALIAS_VERBOSITY[]  = "v";
     char const* USAGE_VERBOSITY[] = { "increase the verbosity of the program. use multiple times for more verbosity.", NULL };
 
     char const OPTION_THREADS[] = "threads";

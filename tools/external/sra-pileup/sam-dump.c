@@ -1093,7 +1093,7 @@ static rc_t DumpQuality( char const quality[], unsigned const count, bool const 
         unsigned i;
 
         for ( i = 0; rc == 0 && i < count; ++i ) {
-            char const newValue = ((param->qualQuant && param->qualQuantSingle)?param->qualQuantSingle:30) + 33;
+            char const newValue = (param->qualQuantSingle?param->qualQuantSingle:30) + 33;
             rc = BufferedWriter( NULL, &newValue, 1, NULL );
         }
     } else if ( reverse || quantize ) {
@@ -3227,7 +3227,7 @@ static void SetupColumns( DataSource *ds, enum eDSTableType type ) {
         ds->cols[ alg_CIGAR_LEN ].name = "CIGAR_SHORT_LEN";
     }
 
-    if ( param -> qualQuant && param -> qualQuantSingle ) { /** we don't really need quality ***/
+    if ( param -> qualQuantSingle ) { /** we don't really need quality ***/
         ds->cols[ alg_SAM_QUALITY   ] . name = "";
     }
 

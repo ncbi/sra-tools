@@ -136,8 +136,6 @@ public:
     virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 );
 
 private:
-    size_t                  m_querySize;
-    size_t                  m_matrixSize;
     uint8_t                 m_minScorePct;
     struct SmithWaterman*   m_sw;
 };

@@ -140,7 +140,7 @@ if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
     set( DISABLED_WARNINGS_C "-Wno-unused-function")
     set( DISABLED_WARNINGS_CXX )
 elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
-    set( DISABLED_WARNINGS_C "")
+    set( DISABLED_WARNINGS_C "-Wno-unused-function")
     set( DISABLED_WARNINGS_CXX "-Wno-tautological-undefined-compare")
 elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     #

@@ -399,7 +399,7 @@ KPathType XTocEntryPathType (const XTocEntry * self, const char * path)
         return type | kptFile;
 #else
     /* archives and containers are directories */
-        return type | (node->u.file.has_tree) ? kptDir : kptFile;
+        return type | ( node->u.file.has_tree ? kptDir : kptFile );
 #endif
         /* not sure how we'd get here */
     case xtoce_link:

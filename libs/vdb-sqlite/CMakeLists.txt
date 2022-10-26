@@ -29,3 +29,7 @@ set( SRC
     sqlite3vdb.c
 )
 GenerateStaticLibsWithDefs( vdb-sqlite "${SRC}" "__mod__=\"libs/vdb-sqlite\"" "" )
+
+if ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+    set( CMAKE_C_FLAGS "-Wno-deprecated-declarations" )
+endif()

@@ -33,4 +33,19 @@ if ( NOT WIN32 )
                   COMMAND test-sra-sort.sh ${DIRTOTEST}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
+    
+    if ( "linux" STREQUAL ${OS} )
+        if ( EXISTS "${DIRTOTEST}/sra-sort${EXE}" )
+
+            add_executable( sam-factory-1 sam-factory.cpp )
+
+            add_test( NAME Test_sra_sort_meta_copy
+                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${TESTBINDIR} ${VDB_INCDIR}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        else()
+            message(WARNING "${DIRTOTEST}/sra-sort${EXE} is not found. The corresponding tests are skipped." )
+        endif()
+    endif()
+    
 endif()

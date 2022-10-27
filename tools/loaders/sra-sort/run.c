@@ -334,6 +334,61 @@ void open_tbl ( const ctx_t *ctx, const VTable **tblp )
     ERROR ( rc, "unimplemented function" );
 }
 
+/* Sep. 2022 : to make sure that the column-oriented mode of sra-sort does not
+ * invalidate the STATS-metadata-node in all tables of the output database it was
+ * requested to unconditionaly copy the STATS-metadata-node of all tables of the
+ * src-database into the dst-database
+ * 
+ * This function only succeeds if the dst-database has been closed!
+ * 
+ */
+rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
+    VDBManager * mgr;
+    rc_t rc = VDBManagerMakeUpdate( &mgr, NULL );
+    if ( 0 != rc ) {
+        LogErr( klogErr, rc, "cannot create VDB-update-manager" );
+    } else {
+        const VDatabase * src;
+        rc = VDBManagerOpenDBRead( mgr, &src, NULL, "%s", src_path );
+        if ( 0 != rc ) {
+            pLogErr( klogErr, rc, "cannot open source-database: $(db)", "db=%s", src_path );
+        } else {
+            VDatabase * dst;
+            rc = VDBManagerOpenDBUpdate( mgr, & dst, NULL, "%s", dst_path );
+            if ( 0 != rc ) {
+                LogErr( klogErr, rc, "cannot open dst-database" );
+            } else {
+                bool equal;
+                rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+                if ( 0 != rc ) {
+                    LogErr( klogErr, rc, "cannot compare metadata on databases" );
+                } else {
+                    if ( !equal ) {
+                        LogErr( klogInfo, rc, "STATS metadata on databases differ" );
+                        rc = VDatabaseMetaCopy( dst, src, "STATS", NULL, false );
+                        if ( 0 != rc ) {
+                            LogErr( klogErr, rc, "cannot copy metadata for databases" );
+                        } else {
+                            rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+                            if ( 0 != rc ) {
+                                LogErr( klogErr, rc, "cannot compare metadata on databases after copy" );
+                            } else if ( !equal ) {
+                                LogErr( klogErr, rc, "metadata for databases still not equal, even after copy" );
+                            } else {
+                                LogErr( klogInfo, rc, "STATS metadata successfully copied" );
+                            }
+                        }
+                    }
+                }
+                VDatabaseRelease ( dst );
+            }
+            VDatabaseRelease( src );
+        }
+        VDBManagerRelease( mgr );
+    }
+    return rc;
+}
+
 /* run
  *  called from KMain
  *  determines the type of object being copied/sorted
@@ -351,7 +406,7 @@ void run ( const ctx_t *ctx )
     rc_t rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", tp -> src_path );
     if ( rc == 0 )
     {
-        open_db ( ctx, & db );
+        open_db ( ctx, & db );  /* <--- the meat!!! */
         VDatabaseRelease ( db );
     }
     else

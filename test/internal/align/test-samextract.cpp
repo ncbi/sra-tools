@@ -118,7 +118,7 @@ static rc_t extract_buf(const char* buf, const size_t sz,
     strcpy(tmpfname, "test-samextract-XXXXXX");
     int fd = mkstemp( tmpfname);
     ssize_t wr = write(fd, buf, sz);
-    assert( wr == sz );
+    assert( wr == (ssize_t)sz );
     UNUSED(wr);
     close(fd);
     rc = extract_file(tmpfname, extractor);

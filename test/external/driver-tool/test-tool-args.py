@@ -226,6 +226,9 @@ def effectiveVersion():
     return version
 
 
+def quoteForShell(s):
+    return f"'{s}" if '$' in str(s) else f'"{s}"'
+
 version = effectiveVersion()
 
 
@@ -240,47 +243,61 @@ def prepare(tool):
     origName = f'{toolName}-orig.{version}'
     realName = origName if args.installed else versName
 
-    toolRealPath = "/".join(["${BINDIR}", realName])
-    toolBarePath = "/".join(["${BINDIR}", toolName])
+    toolRealPath = realName
+    toolBarePath = toolName
 
     if args.installed:
         tool['path'] = toolRealPath
         tool['path.bare'] = toolBarePath
         tool['var.bare'] = f"{tool['var']}_BARE"
     else:
-        tool['path'] = toolRealPath
+        tool['path'] = toolName
         tool['var.bare'] = f"SRATOOLS"
 
 
 def preamble():
-    print("""#!/bin/sh
+    print("#!/bin/sh\n")
 
-TOP_PID=$$
+    if not have_installed:
+        print(f"# assuming{' ' if args.installed else ' not '}installed")
+
+    if args.path:
+        print(f'PATH="{args.path}":'+'${PATH}')
+
+    if not args.installed:
+        print('SRATOOLS="sratools"')
+
+    for tool in toolArgs:
+        if args.installed:
+            print(f'{tool["var.bare"]}="{tool["path.bare"]}"')
+        print(f'{tool["var"]}="{tool["path"]}"')
+
+    print(f'\nDATAFILE="{args.data}"')
+
+    print("""
 TEMPDIR="$(mktemp -d)"
-LOGFILE="${TEMPDIR}/${0}.log"
+cleanup () {
+    trap - INT QUIT TERM HUP EXIT
+    rm -rf "${TEMPDIR}"
+    kill -TERM $(jobs -p) 2>/dev/null || true
+}
+trap 'exit' INT QUIT TERM HUP
+trap cleanup EXIT
 
-SRR000001="${TEMPDIR}/SRR000001"
-SAM_HDR="${TEMPDIR}/test.header.sam"
+LOGFILE="${LOGFILE:-${TEMPDIR}/test-all-args.log}"
+SUCCESS='YES'
 
-trap 'rm -rf "${SAM_HDR}" "${SRR000001}"' INT QUIT TERM HUP EXIT
-""")
-    if not args.quiet:
-        print("""echo "stderr is being logged to ${LOGFILE}" """)
-    print("""printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
-
-run_tool () (
+run_tool () {
     EXE="${1}"
     shift
 
     WORKDIR="$(mktemp -d -p ${TEMPDIR})"
-    cleanup () { EC=$?; rm -rf "${WORKDIR}"; exit $EC; }
-    trap "false; cleanup; kill -INT $TOP_PID;" INT
-    trap "false; cleanup; kill -QUIT $TOP_PID;" QUIT
-    trap "false; cleanup; kill -TERM $TOP_PID;" TERM
-    trap "false; cleanup; kill -HUP $TOP_PID;" HUP
-    trap cleanup EXIT
-    ( cd "${WORKDIR}" && "${EXE}" "${@}" )
-)
+    (
+        cd "${WORKDIR}" && \\
+        "${EXE}" "${@}" >/dev/null
+    ) && \\
+    rm -rf "${WORKDIR}"
+}
 
 test () {
     NAME="${1}"
@@ -288,79 +305,85 @@ test () {
     EXE="${3}"      # This is the driven
     DATA="${4}"
     shift 4
-""")
-    if not args.quiet:
-        print("""    echo Testing "${NAME}" "${1}" "..." >&2""")
 
-    print("""
     # verify that driver tool will accept the command line
-    ( SRATOOLS_DRY_RUN=1 run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null ) || {
-        echo "Failed in driver tool: ${NAME}" "${1}" >&2
+    ( SRATOOLS_DRY_RUN=1 run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log ) || {
+        echo "Failed in driver tool: ${NAME} ${1}" >&2
         {
             echo "-------- in driver tool --------"
             echo "${BARE_EXE}" "${@}" "${DATA}"
             cat stderr.log
             echo "--------------------------------"
         } >> ${LOGFILE}
+        SUCCESS=''
         return
     }
+
+    # done if testing driver only
     [[ "${EXE}" ]] || return
+
     # verify that actual tool will accept the command line
-    run_tool "${EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
-        echo "Failed (direct): ${NAME}" "${1}" >&2
+    run_tool "${EXE}" "${@}" "${DATA}" 2>stderr.log || {
+        echo "Failed (direct): ${NAME} ${1}" >&2
         {
             echo "-------- direct to tool --------"
             echo "${EXE}" "${@}" "${DATA}"
             cat stderr.log
             echo "--------------------------------"
         } >> ${LOGFILE}
+        SUCCESS=''
         return
     }
+
     # verify that via driver tool will accept the command line
-    run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log >/dev/null || {
-        echo "Failed (via driver tool): ${NAME}" "${1}" >&2
+    run_tool "${BARE_EXE}" "${@}" "${DATA}" 2>stderr.log || {
+        echo "Failed (via driver tool): ${NAME} ${1}" >&2
         {
             echo "-------- via driver tool -------"
             echo "${BARE_EXE}" "${@}" "${DATA}"
             cat stderr.log
             echo "--------------------------------"
         } >> ${LOGFILE}
+        SUCCESS=''
         return
     }
 }
-    """)
-    print(f'DATAFILE="{args.data}"')
-    print('[[ -e "${DATAFILE}" ]] || { echo no data file "${DATAFILE}" >&2; exit 1; }')
-    print('DATAFILE="$( cd $(dirname "${DATAFILE}"); pwd -P )"')
 
-    if not have_installed:
-        print(f"# assuming{' ' if args.installed else ' not '}installed")
-
-    bindir = f"$(cd '{args.path}'; pwd;)" if args.path else f'$(dirname $(which sratools.{version}))'
-    print(f'BINDIR="{bindir}"')
-
-    if args.installed:
-        pass
-    else:
-        path = str(args.path.joinpath(f'sratools.{version}')) if args.path else f"$(which 'sratools.{version}')"
-        print('SRATOOLS="${BINDIR}/'+f'sratools.{version}"')
-    for tool in toolArgs:
-        if args.installed:
-            print(f'{tool["var.bare"]}="{tool["path.bare"]}"')
-        print(f'{tool["var"]}="{tool["path"]}"')
-    print("""
-(
-    cd "${TEMPDIR}"
-    "${BINDIR}/prefetch" SRR000001 2>${LOGFILE} 1>/dev/null \\
-    && echo "@HD\tVN:1.6\tSO:unknown" > test.header.sam
-) \\
-|| {
-    echo "Failed to prefetch SRR000001" >&2
-    cat ${LOGFILE} >&2
-    rm -rf ${TEMPDIR}
+which sratools 2>&1 >/dev/null || {
+    echo no sratools in ${PATH} >&2
     exit 1
 }
-    """)
+
+SRR000001="${TEMPDIR}/SRR000001"
+
+SAM_HDR="${TEMPDIR}/test.header.sam"
+printf '@HD\\tVN:1.6\\tSO:unknown\\n' > ${SAM_HDR}
+
+printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
+
+(
+    cd "${TEMPDIR}"
+    prefetch SRR000001 2>prefetch.log 1>/dev/null || {
+        echo "Failed to prefetch SRR000001" >&2
+        cat prefetch.log >&2
+        exit 1
+    }
+) || {
+    trap - INT QUIT TERM HUP EXIT
+    rm -rf "${TEMPDIR}"
+    exit 1
+}
+
+[[ -e "${DATAFILE}" ]] || {
+    echo no data file "${DATAFILE}" >&2
+    exit 1
+}
+DATAFILE="$( cd $(dirname "${DATAFILE}"); pwd -P )"
+""")
+
+    if not args.quiet:
+        print('echo "logging to ${LOGFILE}"')
+
 
 def process(tool):
     toolName = tool['name']
@@ -376,6 +399,11 @@ def process(tool):
 
     for param in params:
         name = param['name']
+        if args.quiet:
+            print(f'\n# Testing {toolName} --{name} ...')
+        else:
+            print(f'\necho "Testing {toolName} --{name} ..." >&2')
+
         def get_property(prop, dflt):
             value = param.get(prop, dflt)
             return get_param_property(toolName, name, prop, value)
@@ -395,14 +423,14 @@ def process(tool):
 
         def command(arg):
             if optional or (not required):
-                yield cmdbase + arg
+                yield arg
             if optional or required:
                 for value in get_property('values', [ get_property('value', '1') ]):
-                    yield cmdbase + arg + f' "{value}"'
+                    yield arg + ' ' + quoteForShell(value)
 
         for arg in all_args():
             for cmd in command(arg):
-                print(cmd)
+                print(cmdbase + cmd)
 
 for tool in toolArgs:
     prepare(tool)
@@ -411,3 +439,13 @@ preamble()
 
 for tool in toolArgs:
     process(tool)
+
+print("""
+[[ "${SUCCESS}" ]] && {
+    echo "All tests passed" >&2
+    exit 0
+}
+echo "Some tests failed" >&2
+cat ${LOGFILE} >&2
+exit 1
+""")

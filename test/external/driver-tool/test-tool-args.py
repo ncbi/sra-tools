@@ -79,18 +79,22 @@ overrides = {
         'disk-limit-tmp': {'value': 500 * 1024 * 1024},
         'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'outdir': {'value': '.'},
-        'qual-defline': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
-        'seq-defline': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
+        'qual-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
+        'seq-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
         'size-check': {'values': ['on', 'off', 'only']},
         'stdout': {'skip-tool': True},
         'table': {'value': 'SEQUENCE'},
         'temp': {'value': "${TMPDIR:-/tmp}"},
-        'data file': '${SRR000001}' # fasterq-dump doesn't like very small CSRAs
+        'data file': '${SRR000001}', # fasterq-dump doesn't like very small CSRAs
+        'skip parameters': [
+            'qual-defline',
+            'seq-defline'
+        ]
     },
     'fastq-dump': {
         'accession': {'value': 'SRR000001'},
-        'defline-qual': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
-        'defline-seq': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
+        'defline-qual': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
+        'defline-seq': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
         'dumpcs': {'values': ['A', 'C', 'G', 'T']},
         'fasta': { 'value': 75 },
         'matepair-distance': {'values': ['400-500', 'unknown']},
@@ -253,7 +257,10 @@ version = effectiveVersion()
 
 
 def quoteForShell(s):
-    return f'"{s}"'
+    if '$' in str(s):
+        if '${' in str(s) or '$(' in str(s):
+            return f'"{s}"'
+    return f"'{s}'"
 
 
 def prepare(tool):

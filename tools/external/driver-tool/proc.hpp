@@ -63,7 +63,6 @@ struct Process_ : protected IMPL {
         }
         /// @brief The exit code if the child exited.
         int exitCode() const {
-            assert(didExit());
             return ES_IMPL::exitCode();
         }
         /// @brief Did the child exit normally by e.g. calling exit(0) or returning 0 from main.

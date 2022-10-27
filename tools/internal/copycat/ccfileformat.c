@@ -111,13 +111,13 @@ static const char exttable [] =
     "pbi\tPacBioBAMIndex\n"
 };
 
-static const char classtable [] =
-{
-    "Archive\n"
-    "Cached\n"
-    "Compressed\n"
-    "Read\n"
-};
+// static const char classtable [] =
+// {
+//     "Archive\n"
+//     "Cached\n"
+//     "Compressed\n"
+//     "Read\n"
+// };
 
 static const char formattable [] =
 {

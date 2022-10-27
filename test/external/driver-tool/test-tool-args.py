@@ -2,6 +2,8 @@
 import sys
 import argparse
 from pathlib import PurePath
+from collections import Counter
+from itertools import chain
 import json
 
 
@@ -32,9 +34,31 @@ toolArgs = json.load(args.json)
 index = {x['name']: i for i, x in enumerate(toolArgs)}
 
 for tool in toolArgs:
+    # look for ambiguous parameter names and short names
+    allKeys = Counter([x['name'] for x in tool['parameters']])
+    ambiguous = set([k for k,v in allKeys.items() if v > 1])
+    if ambiguous:
+        print('removing ambiguous parameter names', ambiguous, f'of {tool["name"]}', file=sys.stderr)
+        tool['parameters'] = [x for x in tool['parameters'] if x['name'] not in ambiguous]
+
+    allKeys = list(chain.from_iterable([list(set(x.get('alias', []))) for x in tool['parameters']]))
+    allKeysCounted = Counter(allKeys)
+    ambiguous = set([k for k,v in allKeysCounted.items() if v > 1])
+    if ambiguous:
+        print('removing ambiguous parameter aliases', ambiguous, f'of {tool["name"]}', file=sys.stderr)
+        for param in tool['parameters']:
+            aliases = set(param.get('alias', []))
+            if any(set(param.get('alias', [])) & ambiguous):
+                aliases = set(param['alias']) - ambiguous
+                if aliases:
+                    param['alias'] = list(aliases)
+                else:
+                    del param['alias']
+
     for i, x in enumerate(tool['parameters']):
         x['index'] = i
     tool['index'] = {x['name']: x['index'] for x in tool['parameters']}
+
 
 overrides = {
     'all tools': {
@@ -55,8 +79,8 @@ overrides = {
         'disk-limit-tmp': {'value': 500 * 1024 * 1024},
         'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'outdir': {'value': '.'},
-        'qual-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
-        'seq-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
+        'qual-defline': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
+        'seq-defline': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
         'size-check': {'values': ['on', 'off', 'only']},
         'stdout': {'skip-tool': True},
         'table': {'value': 'SEQUENCE'},
@@ -65,8 +89,8 @@ overrides = {
     },
     'fastq-dump': {
         'accession': {'value': 'SRR000001'},
-        'defline-qual': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
-        'defline-seq': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
+        'defline-qual': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
+        'defline-seq': {'values': ['\$ac.\$si.\$ri', '\$sg.\$sn.\$ri']},
         'dumpcs': {'values': ['A', 'C', 'G', 'T']},
         'fasta': { 'value': 75 },
         'matepair-distance': {'values': ['400-500', 'unknown']},
@@ -95,7 +119,6 @@ overrides = {
     'sra-pileup': {
         'table': {'values': 'p|s'.split('|')},
         'function': {'values': 'ref ref-ex count stat mismatch index varcount deletes indels'.split()},
-        'minmapq': {'alias': []}, # -q alias is deprecated
         'ncbi_error_report': {'values': 'never|error'.split('|')},
         'skip parameters': [
             'schema',  # this is too complicated to make work
@@ -226,10 +249,11 @@ def effectiveVersion():
     return version
 
 
-def quoteForShell(s):
-    return f"'{s}'" if '$' in str(s) and not '${' in str(s) else f'"{s}"'
-
 version = effectiveVersion()
+
+
+def quoteForShell(s):
+    return f'"{s}"'
 
 
 def prepare(tool):

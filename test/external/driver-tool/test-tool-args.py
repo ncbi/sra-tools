@@ -227,7 +227,7 @@ def effectiveVersion():
 
 
 def quoteForShell(s):
-    return f"'{s}" if '$' in str(s) else f'"{s}"'
+    return f"'{s}'" if '$' in str(s) and not '${' in str(s) else f'"{s}"'
 
 version = effectiveVersion()
 
@@ -262,7 +262,8 @@ def preamble():
         print(f"# assuming{' ' if args.installed else ' not '}installed")
 
     if args.path:
-        print(f'PATH="{args.path}":'+'${PATH}')
+        path = str(args.path) if args.path.is_absolute() else '/'.join(['${PWD}', str(args.path)])
+        print(f'PATH="{path}":'+'${PATH}')
 
     if not args.installed:
         print('SRATOOLS="sratools"')
@@ -374,11 +375,10 @@ printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
     exit 1
 }
 
-[[ -e "${DATAFILE}" ]] || {
-    echo no data file "${DATAFILE}" >&2
+[[ -r "${DATAFILE}" ]] || {
+    echo "not readable: ${DATAFILE}" >&2
     exit 1
 }
-DATAFILE="$( cd $(dirname "${DATAFILE}"); pwd -P )"
 """)
 
     if not args.quiet:
@@ -394,6 +394,7 @@ def process(tool):
     print("")
     params = parametersFor(tool)
     print(f'# {toolName} has {len(params)} parameters to test')
+
     if not args.installed:
         print(f'SRATOOLS_IMPERSONATE="{toolName}"')
 
@@ -432,13 +433,20 @@ def process(tool):
             for cmd in command(arg):
                 print(cmdbase + cmd)
 
+
 for tool in toolArgs:
     prepare(tool)
 
 preamble()
 
+if not args.installed:
+    print("export SRATOOLS_IMPERSONATE=''  # driver tool needs to know what to run")
+
 for tool in toolArgs:
     process(tool)
+
+if not args.installed:
+    print(f'unset SRATOOLS_IMPERSONATE')
 
 print("""
 [[ "${SUCCESS}" ]] && {

@@ -9,7 +9,7 @@ BINDIR=$(cd "${1}"; echo $PWD) || exit 1
 CONV_OUT="${PWD}/tool-arguments.h"
 {
     echo     "/* Tool arguments definitions"
-    date -u +" * auto-generated at %Y-%m-%dT%H:%M:%SZ"
+#   date -u +" * auto-generated at %Y-%m-%dT%H:%M:%SZ"
     echo     " */"
     echo     ""
 } > "${CONV_OUT}"

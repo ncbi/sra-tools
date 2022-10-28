@@ -162,10 +162,4 @@ struct Response2 {
     static Response2 makeFrom(std::string const &json) {
         return makeFrom(json.c_str());
     }
-
-#if DEBUG || _DEBUGGING
-    static void test();
-private:
-    static void test_vdbcache();
-#endif
 };

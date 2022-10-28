@@ -824,11 +824,7 @@ struct Response2Tests {
     }
 };
 
-void Response2::test()  {
-    test_vdbcache();
-}
-
-void Response2::test_vdbcache() {
+static void Response2_test_vdbcache() {
     Response2Tests response2Tests;
 
     auto const testJSON = R"###(
@@ -946,7 +942,7 @@ int main ( int argc, char *argv[], char *envp[])
 #endif
 {
     try {
-        Response2::test();
+        Response2_test_vdbcache();
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

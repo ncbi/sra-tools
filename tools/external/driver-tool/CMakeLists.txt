@@ -60,8 +60,8 @@ set( sources
     fastq-dump-arguments.h
 )
 
-if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-    # UPDATE TOOL ARGUMENTS ONLY WORKS IN DEBUG CODE
+if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
+    # UPDATING THE TOOL ARGUMENTS HEADER ONLY WORKS IN DEBUG CODE
 
     add_custom_target(
         tool-arguments-header COMMAND
@@ -77,10 +77,11 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         sra-pileup
     )
 else()
+    # use the header that was put into source control
     list(APPEND sources tool-arguments.h)
 endif()
 
-if(WIN32)
+if( WIN32 )
     list(APPEND sources
         file-path.win32.cpp
         proc.win32.cpp
@@ -99,16 +100,16 @@ else()
 endif()
 
 set(link_libs ncbi-vdb)
-if(WIN32)
-    list(APPEND compile_defs USE_WIDE_API=1 )
+if( WIN32 )
+    list(APPEND compile_defs USE_WIDE_API=1)
     list(APPEND link_libs
         libcmt$<$<CONFIG:Debug>:d>
         libcpmt$<$<CONFIG:Debug>:d>
         libucrt$<$<CONFIG:Debug>:d>
         libvcruntime$<$<CONFIG:Debug>:d>
-        Ws2_32 Crypt32 ShLwApi Pathcch
+        Ws2_32 Crypt32 ShLwApi PathCch
     )
-elseif(LINUX)
+elseif( LINUX )
     list(APPEND link_libs m)
 endif()
 

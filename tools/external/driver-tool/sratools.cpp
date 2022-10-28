@@ -67,6 +67,7 @@
 
 #include <klib/debug.h> /* KDbgSetString */
 #include <klib/log.h> /* KLogLibHandlerSetStdErr */
+#include <klib/status.h> /* KStsLevelSet */
 
 namespace sratools {
 

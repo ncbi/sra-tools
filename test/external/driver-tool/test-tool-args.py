@@ -64,6 +64,7 @@ overrides = {
     'all tools': {
         'debug': {'values': ['ARGS', 'KDB']},
         'log-level': {'values': 'fatal|sys|int|err|warn|info|debug'.split('|')},
+        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'skip parameters': [
             'cart',        # I don't have a cart file
             'location',
@@ -77,7 +78,6 @@ overrides = {
         'bufsize': {'value': 1024 * 1024},
         'disk-limit': {'value': 500 * 1024 * 1024},
         'disk-limit-tmp': {'value': 500 * 1024 * 1024},
-        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'outdir': {'value': '.'},
         'qual-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
         'seq-defline': {'values': ['$ac.$si.$ri', '$sg.$sn.$ri']},
@@ -98,7 +98,6 @@ overrides = {
         'dumpcs': {'values': ['A', 'C', 'G', 'T']},
         'fasta': { 'value': 75 },
         'matepair-distance': {'values': ['400-500', 'unknown']},
-        'ncbi_error_report': {'values': 'never|error'.split('|')},
         'offset': { 'values': [33, 64] },
         'outdir': {'value': '.'},
         'read-filter': {'values': 'pass|reject|criteria|redacted'.split('|')},
@@ -113,7 +112,6 @@ overrides = {
         'matepair-distance': {'values': ['400-500', 'unknown']},
         'header-comment': {'value': "\t".join(['@CO', 'This is a comment.'])},
         'header-file': {'value': "${SAM_HDR}"},
-        'ncbi_error_report': {'values': 'never|error'.split('|')},
         'qual-quant': {'value': '1:10,10:20,20:30,30:-'},
         'skip parameters': [
             'cigar-test',   # I don't know how to use this one
@@ -123,7 +121,6 @@ overrides = {
     'sra-pileup': {
         'table': {'values': 'p|s'.split('|')},
         'function': {'values': 'ref ref-ex count stat mismatch index varcount deletes indels'.split()},
-        'ncbi_error_report': {'values': 'never|error'.split('|')},
         'skip parameters': [
             'schema',  # this is too complicated to make work
             'noskip'   # this one makes sra-pileup run very slow
@@ -134,7 +131,6 @@ overrides = {
         'columns': {'value': 'NAME,READ'},
         'exclude': {'value': 'CSREAD'},
         'max_length': {'value': 75},
-        'ncbi_error_report': {'values': 'never|error|always'.split('|')},
         'format': {'values': "csv xml json piped tab fastq fastq1 fasta fasta1 fasta2 qual qual1".split()},
         'boolean': {'values': '1|T'.split('|')},
         'idx-range': { 'data file': '${SRR000001}', 'value': 'skey' },

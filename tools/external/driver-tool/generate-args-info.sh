@@ -8,10 +8,10 @@ BINDIR=$(cd "${1}"; echo $PWD) || exit 1
 
 CONV_OUT="${PWD}/tool-arguments.h"
 {
-    echo     "/* Tool arguments definitions"
-#   date -u +" * auto-generated at %Y-%m-%dT%H:%M:%SZ"
-    echo     " */"
-    echo     ""
+    echo "/* Tool arguments definitions"
+    echo " * auto-generated"
+    echo " */"
+    echo ""
 } > "${CONV_OUT}"
 (
     for exe in 'vdb-dump' 'fasterq-dump' 'sam-dump' 'sra-pileup'
@@ -21,5 +21,5 @@ CONV_OUT="${PWD}/tool-arguments.h"
         echo "${EXEPATH}"
         SRATOOLS_DUMP_OPTIONS="${CONV_OUT}" "${EXEPATH}" || exit $?
     done
-)
+) && { date -u +"* generated at %Y-%m-%dT%H:%M:%SZ * " > "${CONV_OUT}.timestamp" }
 exit $?

@@ -58,6 +58,7 @@ set( sources
     opt_string.hpp
     common-arguments.h
     fastq-dump-arguments.h
+    tool-arguments.h
 )
 
 if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
@@ -66,7 +67,7 @@ if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
     add_custom_target(
         tool-arguments-header COMMAND
         sh generate-args-info.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-        BYPRODUCTS tool-arguments.h
+        BYPRODUCTS tool-arguments.h.timestamp
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
     add_dependencies(
@@ -76,9 +77,6 @@ if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
         sam-dump
         sra-pileup
     )
-else()
-    # use the header that was put into source control
-    list(APPEND sources tool-arguments.h)
 endif()
 
 if( WIN32 )
@@ -116,6 +114,6 @@ endif()
 GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )
 
-if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+if ( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
     add_dependencies(sratools tool-arguments-header)
 endif()

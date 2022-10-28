@@ -18,8 +18,7 @@ CONV_OUT="${PWD}/tool-arguments.h"
     do
         EXEPATH="${BINDIR}/${exe}"
         [ -x "${EXEPATH}" ] || { echo "${EXEPATH} no such executable" >&2 ; exit 1; }
-        echo "${EXEPATH}"
         SRATOOLS_DUMP_OPTIONS="${CONV_OUT}" "${EXEPATH}" || exit $?
     done
-) && { date -u +"* generated at %Y-%m-%dT%H:%M:%SZ * " > "${CONV_OUT}.timestamp" }
+) && { date -u +"* generated at %Y-%m-%dT%H:%M:%SZ * " > "${CONV_OUT}.timestamp"; }
 exit $?

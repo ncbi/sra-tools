@@ -6,60 +6,6 @@ from collections import Counter
 from itertools import chain
 import json
 
-
-def yes_or_no(v):
-    if v.lower() in ['y', 'yes', 't', 'true', 1]:
-        return True
-    if v.lower() in ['n', 'no', 'f', 'false', 0]:
-        return False
-    raise argparse.ArgumentTypeError("Expected a boolean or yes/no")
-
-
-parser = argparse.ArgumentParser(description='Generate tests for tool args', allow_abbrev=False)
-parser.add_argument('--json', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='json file with tool args definitions.')
-parser.add_argument('--quiet', action='store_true', help='Make the script quiet.')
-parser.add_argument('--all', action='store_true', help='Test all parameters.')
-parser.add_argument('--use-version', nargs='?', dest='version', help='Use this as the version instead of the version in the definitions.')
-parser.add_argument('--path', nargs='?', type=PurePath, help='Path to prepend to tool name; expected path to binaries.')
-parser.add_argument('--installed', nargs='?', type=yes_or_no, const=True, default=None)
-parser.add_argument('data', nargs='?', default='/panfs/pan1/sra-test/bam/GOOD_CMP_READ.csra', help='Accession or path to test with.')
-args = parser.parse_args()
-
-have_installed = False if args.installed == None else True
-if not have_installed:
-    args.installed = False if args.path else True
-
-toolArgs = json.load(args.json)
-
-index = {x['name']: i for i, x in enumerate(toolArgs)}
-
-for tool in toolArgs:
-    # look for ambiguous parameter names and short names
-    allKeys = Counter([x['name'] for x in tool['parameters']])
-    ambiguous = set([k for k,v in allKeys.items() if v > 1])
-    if ambiguous:
-        print('removing ambiguous parameter names', ambiguous, f'of {tool["name"]}', file=sys.stderr)
-        tool['parameters'] = [x for x in tool['parameters'] if x['name'] not in ambiguous]
-
-    allKeys = list(chain.from_iterable([list(set(x.get('alias', []))) for x in tool['parameters']]))
-    allKeysCounted = Counter(allKeys)
-    ambiguous = set([k for k,v in allKeysCounted.items() if v > 1])
-    if ambiguous:
-        print('removing ambiguous parameter aliases', ambiguous, f'of {tool["name"]}', file=sys.stderr)
-        for param in tool['parameters']:
-            aliases = set(param.get('alias', []))
-            if any(set(param.get('alias', [])) & ambiguous):
-                aliases = set(param['alias']) - ambiguous
-                if aliases:
-                    param['alias'] = list(aliases)
-                else:
-                    del param['alias']
-
-    for i, x in enumerate(tool['parameters']):
-        x['index'] = i
-    tool['index'] = {x['name']: x['index'] for x in tool['parameters']}
-
-
 overrides = {
     'all tools': {
         'debug': {'values': ['ARGS', 'KDB']},
@@ -136,17 +82,70 @@ overrides = {
         'idx-range': { 'data file': '${SRR000001}', 'value': 'skey' },
         'skip parameters': [
             'schema',
-            'slice',
-            'filter',
-            'static'  # doesn't work right
+            'slice',  # not implemented
+            'filter', # not implemented
+            'static'  # not implemented
         ]
     }
 }
 
+def yes_or_no(v):
+    if v.lower() in ['y', 'yes', 't', 'true', 1]:
+        return True
+    if v.lower() in ['n', 'no', 'f', 'false', 0]:
+        return False
+    raise argparse.ArgumentTypeError("Expected a boolean or yes/no")
+
+
+parser = argparse.ArgumentParser(description='Generate tests for tool args', allow_abbrev=False)
+parser.add_argument('--json', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='json file with tool args definitions.')
+parser.add_argument('--quiet', action='store_true', help='Make the script quiet.')
+parser.add_argument('--all', action='store_true', help='Test all parameters (not recommended).')
+parser.add_argument('--use-version', nargs='?', dest='version', help='Use this as the version instead of the version in the definitions (not recommended).')
+parser.add_argument('--path', nargs='?', type=PurePath, help='Path to prepend to tool name; expected path to binaries.')
+parser.add_argument('--installed', nargs='?', type=yes_or_no, const=True, default=None)
+parser.add_argument('data', nargs='?', default='/panfs/pan1/sra-test/bam/GOOD_CMP_READ.csra', help='Accession or path to test with.')
+args = parser.parse_args()
+
 if args.all:
-    for key in overrides:
-        if 'skip parameters' in overrides[key]:
-            del overrides[key]['skip parameters']
+    for v in overrides.values():
+        try:
+            del v['skip parameters']
+        except KeyError:
+            pass
+
+have_installed = False if args.installed == None else True
+if not have_installed:
+    args.installed = False if args.path else True
+
+toolArgs = json.load(args.json)
+
+
+for tool in toolArgs:
+    # look for ambiguous parameter names and short names
+    allKeys = Counter([x['name'] for x in tool['parameters']])
+    ambiguous = set([k for k,v in allKeys.items() if v > 1])
+    if ambiguous:
+        print('removing ambiguous parameter names', ambiguous, f'of {tool["name"]}', file=sys.stderr)
+        tool['parameters'] = [x for x in tool['parameters'] if x['name'] not in ambiguous]
+
+    allKeys = list(chain.from_iterable([list(set(x.get('alias', []))) for x in tool['parameters']]))
+    allKeysCounted = Counter(allKeys)
+    ambiguous = set([k for k,v in allKeysCounted.items() if v > 1])
+    if ambiguous:
+        print('removing ambiguous parameter aliases', ambiguous, f'of {tool["name"]}', file=sys.stderr)
+        for param in tool['parameters']:
+            aliases = set(param.get('alias', []))
+            if any(set(param.get('alias', [])) & ambiguous):
+                aliases = set(param['alias']) - ambiguous
+                if aliases:
+                    param['alias'] = list(aliases)
+                else:
+                    del param['alias']
+
+    for i, x in enumerate(tool['parameters']):
+        x['index'] = i
+    tool['index'] = {x['name']: x['index'] for x in tool['parameters']}
 
 
 def is_dicty(d):

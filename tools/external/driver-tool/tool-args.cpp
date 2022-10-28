@@ -376,7 +376,7 @@ public:
     {
         auto const eq = strchr(param, '=');
         auto const arg = eq ? (eq + 1) : nullptr;
-        auto const paramName = eq ? std::string(param, eq) : std::string(param);
+        auto const paramName = eq ? std::string(param, (char const *)eq) : std::string(param);
         auto const fnd = container.find(paramName);
 
         if (fnd.first != fnd.second)

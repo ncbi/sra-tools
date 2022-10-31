@@ -284,7 +284,7 @@ static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self, SBuffer_t
                                          const uint64_t * int_args, size_t int_args_len ) {
     if ( NULL != str_args && self -> idx < str_args_len ) {
         const String * src = str_args[ self -> idx ];
-        if ( NULL != src ) {
+        if ( NULL != src && NULL != src -> addr ) {
             /* we have a string to use */
             if ( self -> idx2 == 0xFF ) {
                 /* there is no alternative -> print the string even if len == 0 */
@@ -467,7 +467,9 @@ size_t var_fmt_buffer_size( const struct var_fmt_t * self,
                     if ( entry -> idx < str_args_len ) {
                         const String * S = str_args[ entry -> idx ];
                         if ( NULL != S ) {
-                            res += S -> len;
+                            if ( NULL != S -> addr ) {
+                                res += S -> len;
+                            }
                         }
                     }
                 }

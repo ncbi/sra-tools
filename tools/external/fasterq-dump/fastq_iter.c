@@ -254,7 +254,7 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * re
         }
 
         if ( 0 == rc1 && self -> opt . with_spotgroup ) {
-                rc1 = cmn_read_String( self -> cmn, self -> spotgroup_id, &( rec -> spotgroup ) );
+            rc1 = cmn_read_String( self -> cmn, self -> spotgroup_id, &( rec -> spotgroup ) );
         } else {
             rec -> spotgroup . len = 0;
             rec -> spotgroup . size = 0;
@@ -276,7 +276,7 @@ typedef struct fastq_sra_iter_t {
     struct cmn_iter_t * cmn;
     fastq_iter_opt_t opt;
     KDataBuffer qual_buffer;  /* klib/databuffer.h */
-    uint32_t name_id, read_id, quality_id, read_len_id, read_type_id;
+    uint32_t name_id, read_id, quality_id, read_len_id, read_type_id, spot_group_id;
     char qual_2_ascii[ 256 ];
 } fastq_sra_iter_t;
 
@@ -330,6 +330,10 @@ rc_t make_fastq_sra_iter( const cmn_iter_params_t * params,
 
             if ( 0 == rc && opt . with_read_type ) {
                 rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
+            }
+
+            if ( 0 == rc && opt . with_spotgroup ) {
+                rc = cmn_iter_add_column( self -> cmn, "SPOT_GROUP", &( self -> spot_group_id ) );
             }
 
             if ( 0 == rc ) {
@@ -405,6 +409,14 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter_t * self, fastq_rec_t * rec,
                                 &( rec -> quality ),
                                 sum_read_len );             
             }
+        }
+
+        if ( 0 == rc1 && self -> opt . with_spotgroup ) {
+            rc1 = cmn_read_String( self -> cmn, self -> spot_group_id, &( rec -> spotgroup ) );            
+        } else {
+            rec -> spotgroup . addr = NULL;
+            rec -> spotgroup . len = 0;
+            rec -> spotgroup . size = 0;
         }
 
         if ( NULL != rc ) { *rc = rc1; }

@@ -22,14 +22,8 @@
 #
 # ===========================================================================
 
-add_subdirectory( rd-filter-redact )
-add_subdirectory( copycat )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( make-read-filter )
-add_subdirectory( align-cache )
-add_subdirectory( vdb-sql )
-add_subdirectory( ccextract )
-add_subdirectory( md5cp )
-add_subdirectory( meta-cmp )
-add_subdirectory( meta-copy )
+# External
+set( SRC meta-cmp )
+
+GenerateExecutableWithDefs( meta-cmp "${SRC}" "__mod__=\"tools/internal/meta-cmp\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+MakeLinksExe( meta-cmp false )

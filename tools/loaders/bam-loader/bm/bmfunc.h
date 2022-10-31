@@ -699,7 +699,7 @@ unsigned short bitscan_bsf(unsigned w, B* bits) BMNOEXCEPT
     unsigned short pos = 0;
     while (w)
     {
-        bits[pos++] = count_trailing_zeros_u32(w);
+        bits[pos++] = (B)bm::count_trailing_zeros_u32(w);
         w &= w - 1;
     }
     return pos;
@@ -732,7 +732,7 @@ unsigned short bitscan_bsf64(bm::id64_t w, B* bits) BMNOEXCEPT
     unsigned short pos = 0;
     while (w)
     {
-        bits[pos++] = bm::count_trailing_zeros_u64(w);
+        bits[pos++] = (B)bm::count_trailing_zeros_u64(w);
         w &= w - 1;
     }
     return pos;
@@ -1358,7 +1358,7 @@ template<bool T> struct all_set
     {
         bm::word_t BM_VECT_ALIGN* _s[bm::set_sub_array_size] BM_VECT_ALIGN_ATTR;
         bm::word_t BM_VECT_ALIGN  _p[bm::set_block_size] BM_VECT_ALIGN_ATTR;
-        bm::word_t* _p_fullp;
+        bm::word_t*  _p_fullp;
 
         all_set_block() BMNOEXCEPT
         {
@@ -1721,41 +1721,62 @@ gap_find_first(const T* BMRESTRICT buf, unsigned* BMRESTRICT first) BMNOEXCEPT
    \return GAP index.
    @ingroup gapfunc
 */
-template<typename T> 
+template<typename T>
 unsigned gap_bfind(const T* BMRESTRICT buf,
                    unsigned pos, unsigned* BMRESTRICT is_set) BMNOEXCEPT
 {
     BM_ASSERT(pos < bm::gap_max_bits);
-    #undef VECT_GAP_BFIND // TODO: VECTOR bfind causes performance degradation
-    #ifdef VECT_GAP_BFIND
+    //#undef VECT_GAP_BFIND // TODO: VECTOR bfind causes performance degradation
+    #if defined(VECT_GAP_BFIND) //&& defined(BMAVX2OPT)
         return VECT_GAP_BFIND(buf, pos, is_set);
     #else
-        *is_set = (*buf) & 1;
-        unsigned start = 1;
-        unsigned end = 1 + ((*buf) >> 3);
-        while (start != end)
-        {
-            if ((end - start) < 16) // use direct scan on short span
-            {
-                do
-                {
-                    if (buf[start] >= pos)
-                        goto break2;
-                } while (++start);
-                BM_ASSERT(0); // should not get here
-                break;
-            }
-            unsigned curr = (start + end) >> 1;
-            if ( buf[curr] < pos )
-                start = curr + 1;
-            else
-                end = curr;
-        } // while
-        break2:
-        *is_set ^= ((start-1) & 1);
-        return start;
+    unsigned start = 1;
+    unsigned end = ((*buf) >> 3);
+
+    unsigned size = end - start;
+    for (; size >= 64; size = end - start)
+    {
+        unsigned mid = (start + end) >> 1;
+        if (buf[mid] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+    } // for
+
+    for (; size >= 16; size = end - start)
+    {
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
+        else
+            end = mid;
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
+        else
+            end = mid;
+    } // for
+
+    for(; true; ++start)
+        if (buf[start] >= pos)
+            break;
+
+    *is_set = ((*buf) & 1) ^ ((start-1) & 1);
+    return start;
     #endif
 }
+
+
 
 
 /*!
@@ -1792,10 +1813,10 @@ unsigned gap_test(const T* BMRESTRICT buf, unsigned pos) BMNOEXCEPT
         BM_ASSERT(start != end);
         do
         {
-            if (unsigned curr = (start + end) >> 1; buf[curr] < pos)
-                start = curr + 1;
+            if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+                start = mid + 1;
             else
-                end = curr;
+                end = mid;
         } while (start != end);
     }
     return ((*buf) & 1) ^ ((--start) & 1); 
@@ -2671,53 +2692,6 @@ SIZE_TYPE gap_find_rank(const T* const block,
 }
                        
 
-
-/*!
-    \brief Counts 1 bits in GAP buffer in the closed [0, right] range.
-    \param buf - GAP buffer pointer.
-    \param right- rightmost bit index
-    \param is_corrected - if true the result will be rank corrected
-                       if right bit == true count=count-1
-    \return Number of non-zero bits
-    @ingroup gapfunc
-*/
-/*
-template<typename T>
-unsigned gap_bit_count_to(const T* const buf, T right,
-                          bool is_corrected=false) BMNOEXCEPT
-{
-    const T* pcurr = buf;
-    const T* pend = pcurr + (*pcurr >> 3);
-
-    unsigned bits_counter = 0;
-    unsigned is_set = ~((unsigned(*buf) & 1u) - 1u); // 0xFFF.. if true (mask for branchless code)
-    BM_ASSERT(is_set == 0u || is_set == ~0u);
-    pcurr = buf + 1;
-
-    if (right <= *pcurr) // we are in the target block right now
-    {
-        bits_counter = (right + 1u) & is_set; // & is_set == if (is_set)
-        bits_counter -= (is_set & unsigned(is_corrected));
-        return bits_counter;
-    }
-    bits_counter += (*pcurr + 1u) & is_set;
-
-    unsigned prev_gap = *pcurr++;
-    for (is_set ^= ~0u; right > *pcurr; is_set ^= ~0u)
-    {
-        bits_counter += (*pcurr - prev_gap) & is_set;
-        if (pcurr == pend)
-        {
-            bits_counter -= (is_set & unsigned(is_corrected));
-            return bits_counter;
-        }
-        prev_gap = *pcurr++;
-    }
-    bits_counter += (right - prev_gap) & is_set;
-    bits_counter -= (is_set & unsigned(is_corrected));
-    return bits_counter;
-}
-*/
 template<typename T, bool TCORRECT=false>
 unsigned gap_bit_count_to(const T* const buf, T right) BMNOEXCEPT
 {
@@ -3183,20 +3157,20 @@ unsigned gap_buff_count_op(const T*  vect1, const T*  vect2) BMNOEXCEPT2
    \param buf - GAP buffer.
    \param pos - Index of bit to set.
    \param is_set - (OUT) flag if bit was actually set.
+   \param curr -  (pos) position index
 
-   \return New GAP buffer length. 
+   \return New GAP buffer length.
 
    @ingroup gapfunc
+   @internal
 */
 template<typename T>
-unsigned gap_set_value(unsigned val,
+unsigned gap_set_value_cpos(unsigned val,
                        T* BMRESTRICT buf,
                        unsigned pos,
-                       unsigned* BMRESTRICT is_set) BMNOEXCEPT
+                       unsigned* BMRESTRICT is_set,
+                       unsigned curr) BMNOEXCEPT
 {
-    BM_ASSERT(pos < bm::gap_max_bits);
-
-    unsigned curr = bm::gap_bfind(buf, pos, is_set);
     T end = (T)(*buf >> 3);
     if (*is_set == val)
     {
@@ -3240,7 +3214,7 @@ unsigned gap_set_value(unsigned val,
                 --end;
                 do { *pprev++ = *pcurr++; } while (pcurr < pend);
             }
-       }    
+       }
     }
     else
     if (*pcurr == pos) // Rightmost bit in the GAP. Border goes left.
@@ -3261,6 +3235,31 @@ unsigned gap_set_value(unsigned val,
     *buf = (T)((*buf & 7) + (end << 3));
     buf[end] = bm::gap_max_bits-1;
     return end;
+}
+
+
+/*!
+   \brief Sets or clears bit in the GAP buffer.
+
+   \param val - new bit value
+   \param buf - GAP buffer.
+   \param pos - Index of bit to set.
+   \param is_set - (OUT) flag if bit was actually set.
+
+   \return New GAP buffer length. 
+
+   @ingroup gapfunc
+*/
+template<typename T>
+unsigned gap_set_value(unsigned val,
+                       T* BMRESTRICT buf,
+                       unsigned pos,
+                       unsigned* BMRESTRICT is_set) BMNOEXCEPT
+{
+    BM_ASSERT(pos < bm::gap_max_bits);
+
+    unsigned curr = bm::gap_bfind(buf, pos, is_set);
+    return gap_set_value_cpos(val, buf, pos, is_set, curr);
 }
 
 

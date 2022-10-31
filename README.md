@@ -17,6 +17,25 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
+November 1, 2022 : SRA Toolkit 3.0.1, changes to the repository structure
+
+To better serve disparate groups of users, the tools/ directory of the sra-tools repository is divided into several subdirectories:
+- external/ - the tools that comprise the end user facing sra-toolkit. These are the tools that are installed on a toolkit user's machine. This is the default make target
+- internal/ - the tools oriented towards the toolkit's developers and NCBI-internal users
+- loaders/ - the tools used in archive loading pipelines, such as the NCBI SRA
+- test-tools/ - the tools used in the NCBI-internal testing of the toolkit.
+
+The default 'make' command will now only build the external tools. To build other categories of tools, use these targets/flags:
+
+- 'make all' - to build everything, including the test projects (located in sra-tools/test/)
+- 'make BUILD_TOOLS_INTERNAL=ON' - to build the external and the internal tools
+- 'make BUILD_TOOLS_LOADERS=ON' - to build the external tools and the loaders
+- 'make BUILD_TOOLS_TEST_TOOLS=ON' - to build the external tools and the test tools
+- 'make TOOLS_ONLY=ON' - to skip building the test projects
+
+The build flags shown above can be combined on the same command line, for instance 'make BUILD_TOOLS_LOADERS=ON BUILD_TOOLS_INTERNAL=ON TOOLS_ONLY=ON' will build everything except the test tools and the test projects.
+
+
 August 4, 2022 : Security Update
 
 Due to updated security at NCBI, versions of the SRA Toolkit 2.9.6 and older will no longer be able to connect to the NCBI data location service. We advise impacted users to update to the [latest version](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) of the SRA Toolkit.

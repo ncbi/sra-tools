@@ -20,7 +20,7 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# =============================================================================$
 
 #$VERBOSE = 1;
 
@@ -195,6 +195,7 @@ print "$CMD\n" if $VERBOSE;
 
 $SRA   =       'https://sra-download.ncbi.nlm.nih.gov';
 $SRAF  = 'fasp://dbtest@sra-download.ncbi.nlm.nih.gov';
+$SRAF  = 'fasp://dbtest@sra-download-nfs.be-md.ncbi.nlm.nih.gov';
 $REFSEQC = 'KC702174.1';
 $REFSEQ  =                "$SRA/traces/refseq/$REFSEQC";
 $REFSEQF = "$SRAF:data/sracloud/traces/refseq/$REFSEQC";
@@ -286,33 +287,6 @@ print "$CMD\n" if $VERBOSE;
 `which ascp 2> /dev/null`;
 unless ($?)
 {   $HAVE_NCBI_ASCP = 1 unless `hostname` eq "iebdev21\n" }
-
-if ($HAVE_NCBI_ASCP) {
-    print "REFSEQ FASP download when user repository is configured\n";
-    `rm -f tmp/refseq/$REFSEQC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQF";
-    print "$CMD\n" if $VERBOSE;
-    `$CMD 2> /dev/null`     ; die if $?;
-    `rm tmp/refseq/$REFSEQC`; die if $?;
-} else { print "download of $REFSEQF when ascp is not found is disabled\n" }
-
-if ($HAVE_NCBI_ASCP) {
-   print "NANNOT FASP download when user repository is configured\n";
-   `rm -f tmp/nannot/$KMERC`; die if $?;
-   $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $KMERF";
-   print "$CMD\n" if $VERBOSE;
-   `$CMD 2> /dev/null`   ; die if $?;
-   `rm tmp/nannot/$KMERC`; die if $?;
-} else { print "download of $KMERF when ascp is not found is disabled\n" }
-
-if ($HAVE_NCBI_ASCP) {
-    print "WGS FASP download when user repository is configured\n";
-    `rm -f tmp/wgs/$WGSC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $WGSF";
-    print "$CMD\n" if $VERBOSE;
-    `$CMD 2> /dev/null`   ; die if $?;
-    `rm tmp/wgs/$WGSC`; die if $?;
-} else { print "download of $WGSF when ascp is not found is disabled\n" }
 
 $SDL = 'https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve';
 

@@ -1,0 +1,33 @@
+#a list of references to use
+R:name=c1,value=NC_011752.1
+R:name=c2,value=NC_000001.10
+R:name=c3,value=NC_000002.11
+R:name=c4,value=NC_000003.11
+
+#a pair of 2 prim alignments
+P:name=A1,ref=c1,pos=1000,qual=!
+P:name=A1,ref=c1,pos=1200,cigar=10MAAAA10M,noqual=y
+L:name=A1
+
+# 100 alignment pairs
+A:name=AA,ref=c2
+A:name=AA,ref=c2
+C:name=AA
+
+#B:AA,0,c2,20,100
+
+#a different pair of 2 prim alignments
+P:name=A2,flags=0x0200,ref=c3,pos=1200,cigar=10MAAAA3D10M
+P:name=A2,flags=0x0400,ref=c3,pos=1400,cigar=ACGTACGT
+L:name=A2
+#and with a sec. alignment
+S:name=A2,ref=c4,pos=1500,cigar=45M
+L:name=A2,id0=0,id1=2
+
+#a different pair of 2 prim alignments
+P:name=A3,flags=0x0200,ref=c3,pos=1200,cigar=10MAAAA3D10M,mapq=2
+P:name=A3,ref=c4,pos=1200,cigar=ACGTACGT
+L:name=A3
+
+#a single unaligned read
+U:name=U1,seq=ACCGT

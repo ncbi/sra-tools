@@ -25,9 +25,7 @@
 add_subdirectory( adapter )
 add_subdirectory( dispatch )
 add_subdirectory( language )
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( examples )
-endif()
+add_subdirectory( examples )
 
 set( NGS_CPP_TARGETS
     ngs-bind-c++

@@ -37,6 +37,7 @@
 #undef LOG
 #include <ktst/unit_test.hpp>
 
+using ncbi::NK::test_skipped;
 using namespace std;
 
 #if WINDOWS

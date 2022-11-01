@@ -35,4 +35,4 @@ INSTALLED=${ALL_INSTALLED}
 TEST_SOURCE="${PWD}"
 "${BINDIR}/sratools.${VERSION}" print-args-json \
 | python3 "${TEST_SOURCE}/test-tool-args.py" --installed "${INSTALLED}" --path "${BINDIR}" --use-version "${VERSION}" "${@}" \
-# | sh
+| sh

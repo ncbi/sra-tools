@@ -1,5 +1,5 @@
 /* Tool arguments definitions
- * auto-generated at 2022-10-25T19:31:46Z
+ * auto-generated
  */
 
 #define TOOL_NAME_VDB_DUMP "vdb-dump" /* from argv[0] */

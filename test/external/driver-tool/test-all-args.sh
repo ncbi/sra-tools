@@ -12,7 +12,7 @@ do
     [ -x "${BINDIR}/${exe}-orig.${VERSION}" ] && ANY_INSTALLED='YES'
 done
 
-[ "${ALL_INSTALLED}" == "${ANY_INSTALLED}" ] || { echo 'some tools are installed and some are not!?' >&2 ; exit 1; }
+[ "${ALL_INSTALLED}" = "${ANY_INSTALLED}" ] && { echo 'some tools are installed and some are not!?' >&2 ; exit 1; }
 INSTALLED=${ALL_INSTALLED}
 
 TEST_SOURCE="${PWD}"

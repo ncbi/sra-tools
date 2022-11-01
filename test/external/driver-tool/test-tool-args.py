@@ -401,10 +401,13 @@ printf '\\n\\nStarting tests at %s\\n\\n' "$(date)" >> ${LOGFILE}
     exit 1
 }
 
-[[ -r "${DATAFILE}" ]] || {
+if [ -r "${DATAFILE}" ]
+then
+    # echo "have ${DATAFILE}"
+else
     echo "not readable: ${DATAFILE}" >&2
     exit 1
-}
+fi
 """)
 
     if not args.quiet:

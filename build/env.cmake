@@ -598,11 +598,6 @@ function(MakeLinksExe target install_via_driver)
                 )
 
                 if (WIN32)
-                    # plug in the driver tool as soon as the target builds
-                    add_custom_command(TARGET ${target}
-                        POST_BUILD
-                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
-                    )
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb

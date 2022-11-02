@@ -114,6 +114,16 @@ endif()
 GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )
 
+if( WIN32 )
+    # rename the executables
+    foreach (targ vdb-dump fasterq-dump sam-dump sra-pileup)
+        add_custom_command(TARGET sratools
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${targ}-driver${EXE}
+        )
+    endforeach ()    
+endif()
+
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
     add_dependencies(sratools tool-arguments-header)
 endif()

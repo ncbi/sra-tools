@@ -30,6 +30,9 @@
  *
  */
 
+#if WINDOWS
+#else
+
 #if DEBUG || _DEBUGGING
 #define USE_DEBUGGER 1
 #endif
@@ -49,12 +52,10 @@
 #include <sysexits.h>
 #include <signal.h>
 
-#include "debug.hpp"
+#include "proc.posix.hpp"
 #include "proc.hpp"
-#include "globals.hpp"
-#include "util.hpp"
-#include "env_vars.h"
-#include "constants.hpp"
+
+extern char **environ; // why!!!
 
 /// @brief c++ and const-friendly wrapper
 ///
@@ -105,51 +106,18 @@ static void exec_debugger [[noreturn]] (  char const *const debugger
 }
 #endif
 
-
-static void debugPrintDryRun(  char const *const toolpath
-                             , char const *const toolname
-                             , char const *const *const argv)
+/// @brief calls exec; does not return; no debugging or dry run
+///
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param argv argv
+///
+/// @throw system_error if exec fails
+static void exec_really [[noreturn]] (FilePath const &toolPath, std::string const &toolName, char const *const *argv)
 {
-    switch (logging_state::testing_level()) {
-    case 5:
-        for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
-            debugPrintEnvVarName(name);
-        }
-        exit(0);
-    case 4:
-        for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
-            debugPrintEnvVar(name, true);
-        }
-        debugPrintEnvVar(ENV_VAR_SESSION_ID, true);
-        std::cerr << toolpath;
-        for (auto i = 1; argv[i]; ++i)
-            std::cerr << ' ' << argv[i];
-        std::cerr << std::endl;
-        exit(0);
-    case 3:
-        std::cerr << "would exec '" << toolpath << "' as:\n";
-        for (auto i = 0; argv[i]; ++i)
-            std::cerr << ' ' << argv[i];
-        {
-            std::cerr << "\nwith environment:\n";
-            for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
-                debugPrintEnvVar(name);
-            }
-            debugPrintEnvVar(ENV_VAR_SESSION_ID);
-            std::cerr << std::endl;
-        }
-        exit(0);
-        break;
-    case 2:
-        std::cerr << toolname;
-        for (auto i = 1; argv[i]; ++i)
-            std::cerr << ' ' << argv[i];
-        std::cerr << std::endl;
-        exit(0);
-        break;
-    default:
-        break;
-    }
+    std::string const exepath = toolPath;
+    execve(exepath.c_str(), argv);
+    throw_system_error(std::string("failed to exec ")+toolName);
 }
 
 /// @brief calls exec; does not return
@@ -159,9 +127,7 @@ static void debugPrintDryRun(  char const *const toolpath
 /// @param argv argv
 ///
 /// @throw system_error if exec fails
-static void exec [[noreturn]] (  char const *const toolpath
-                               , char const *const toolname
-                               , char const *const *const argv)
+static void exec [[noreturn]] (FilePath const &toolPath, std::string const &toolName, char const *const *const argv)
 {
 #if USE_DEBUGGER
     auto const envar = getenv("SRATOOLS_DEBUG_CMD");
@@ -169,24 +135,12 @@ static void exec [[noreturn]] (  char const *const toolpath
         exec_debugger(envar, argv);
     }
 #endif
-    debugPrintDryRun(toolpath, toolname, argv);
-    execve(toolpath, argv);
-    throw_system_error(std::string("failed to exec ")+toolname);
-}
-
-/// @brief calls exec; does not return; no debugging or dry run
-///
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param argv argv
-///
-/// @throw system_error if exec fails
-static void exec_really [[noreturn]] (  char const *const toolpath
-                                      , char const *const toolname
-                                      , char const *const *const argv)
-{
-    execve(toolpath, argv);
-    throw_system_error(std::string("failed to exec ")+toolname);
+    switch (debugPrintDryRun(toolPath, toolName, argv)) {
+    case dpr_Continue:
+        exec_really(toolPath, toolName, argv);
+    default:
+        exit(0);
+    }
 }
 
 static pid_t forward_target_pid;
@@ -228,9 +182,51 @@ static int waitpid_with_signal_forwarding(pid_t const pid, int *const status)
     return rc;
 }
 
-namespace sratools {
+namespace POSIX {
 
-process::exit_status process::wait() const
+#define CASE_SIGNAL(SIG) case SIG: return "" # SIG
+
+char const *Process::ExitStatus::signalName() const {
+    // list taken from https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
+    // removed entries that were not defined on CentOS Linux release 7.8.2003
+    switch (signal()) {
+    CASE_SIGNAL(SIGHUP);
+    CASE_SIGNAL(SIGINT);
+    CASE_SIGNAL(SIGQUIT);
+    CASE_SIGNAL(SIGILL);
+    CASE_SIGNAL(SIGTRAP);
+    CASE_SIGNAL(SIGABRT);
+    CASE_SIGNAL(SIGBUS);
+    CASE_SIGNAL(SIGFPE);
+    CASE_SIGNAL(SIGKILL);
+    CASE_SIGNAL(SIGUSR1);
+    CASE_SIGNAL(SIGSEGV);
+    CASE_SIGNAL(SIGUSR2);
+    CASE_SIGNAL(SIGPIPE);
+    CASE_SIGNAL(SIGALRM);
+    CASE_SIGNAL(SIGTERM);
+    CASE_SIGNAL(SIGCHLD);
+    CASE_SIGNAL(SIGCONT);
+    CASE_SIGNAL(SIGSTOP);
+    CASE_SIGNAL(SIGTSTP);
+    CASE_SIGNAL(SIGTTIN);
+    CASE_SIGNAL(SIGTTOU);
+    CASE_SIGNAL(SIGURG);
+    CASE_SIGNAL(SIGXCPU);
+    CASE_SIGNAL(SIGXFSZ);
+    CASE_SIGNAL(SIGVTALRM);
+    CASE_SIGNAL(SIGPROF);
+    CASE_SIGNAL(SIGWINCH);
+    CASE_SIGNAL(SIGIO);
+    CASE_SIGNAL(SIGSYS);
+    default:
+        return nullptr;
+    }
+}
+
+#undef CASE_SIGNAL
+
+Process::ExitStatus Process::wait() const
 {
     assert(pid != 0); ///< you can't wait on yourself
     if (pid == 0)
@@ -242,7 +238,7 @@ process::exit_status process::wait() const
 
         if (rc > 0) {
             assert(rc == pid);
-            return exit_status(status); ///< normal return is here
+            return ExitStatus(status); ///< normal return is here
         }
 
         assert(rc != 0); // only happens if WNOHANG is given
@@ -257,7 +253,7 @@ process::exit_status process::wait() const
     throw_system_error("waitpid failed");
 }
 
-void process::run_child(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
+void Process::runChild [[noreturn]] (::FilePath const &toolpath, std::string const &toolname, char const *const *argv, Dictionary const &env)
 {
     for (auto && v : env) {
         setenv(v.first.c_str(), v.second.c_str(), 1);
@@ -265,18 +261,19 @@ void process::run_child(char const *toolpath, char const *toolname, char const *
     exec(toolpath, toolname, argv);
 }
 
-process::exit_status process::run_child_and_wait(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
+Process::ExitStatus Process::runChildAndWait(::FilePath const &toolpath, std::string const &toolname, char const *const *argv, Dictionary const &env)
 {
     auto const pid = ::fork();
     if (pid < 0)
         throw_system_error("fork failed");
     if (pid == 0) {
-        run_child(toolpath, toolname, argv, env);
+        runChild(toolpath, toolname, argv, env);
     }
-    return process(pid).wait();
+    return Process(pid).wait();
 }
 
-process::exit_status process::run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real, Dictionary const &env)
+#if 0
+process::exit_status process::run_child_and_get_stdout(std::string *out, FilePath const &toolpath, char const *toolname, char const **argv, bool const for_real, Dictionary const &env)
 {
     int fds[2];
 
@@ -299,11 +296,9 @@ process::exit_status process::run_child_and_get_stdout(std::string *out, char co
             setenv(v.first.c_str(), v.second.c_str(), 1);
         }
         if (for_real)
-            exec_really(toolpath, toolname, argv);
+            exec_really(toolpath.get(), toolname, argv);
         else
-            exec(toolpath, toolname, argv);
-        assert(!"reachable");
-        throw std::logic_error("child must not return");
+            exec(toolpath.get(), toolname, argv);
     }
     close(fds[1]);
 
@@ -324,5 +319,8 @@ process::exit_status process::run_child_and_get_stdout(std::string *out, char co
             throw std::system_error(error, "read failed");
     }
 }
+#endif
 
-} // namespace sratools
+} // namespace POSIX
+
+#endif // !WINDOWS

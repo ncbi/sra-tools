@@ -363,7 +363,7 @@ static const char* VALIDATE_USAGE[] = {
 
 #define DRY_RUN_OPTION "dryrun"
 static const char* DRY_RUN_USAGE[] = {
-    "Dry run the application: don't download, only check resolving." };
+    "Dry run the application: don't download, only check resolving.", NULL };
 
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
@@ -384,7 +384,7 @@ static const char* RESUME_USAGE[] = {
 #define FAIL_ASCP_OPTION "FAIL-ASCP"
 #define FAIL_ASCP_ALIAS  "F"
 static const char* FAIL_ASCP_USAGE[] = {
-    "Force ascp download fail to test ascp->http download combination." };
+    "Force ascp download fail to test ascp->http download combination.", NULL };
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"

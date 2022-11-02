@@ -33,107 +33,101 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "parse_args.hpp"
-
-namespace sratools {
-
-/// @brief Contains the source info for a VDB database.
-struct source {
-    std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
-    std::string projectId;
-    bool needCE = false, needPmt = false;
-    bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
-    bool encrypted;
-    bool fullQuality = true;
-    bool haveQualityType = false;
-    
-    std::string const &key() const {
-        assert(haveAccession || haveLocalPath);
-        return haveAccession ? accession : localPath;
-    }
-    bool isSimple() const {
-        return (haveAccession || haveLocalPath)
-            && accession == localPath
-            && !(needCE || needPmt || haveCachePath || haveSize);
-    }
-};
-
-/// @brief Contains the source info for a run and any associated vdbcache file.
-class data_source {
-    data_source() {}
-    source run, vdbcache;
-    bool haveVdbCache;
-public:
-    explicit data_source(source const &run) : run(run), haveVdbCache(false) {}
-    data_source(source const &run, source const &vcache)
-    : run(run)
-    , vdbcache(vcache)
-    , haveVdbCache(true)
-    {}
-    
-    std::string const &key() const { return run.key(); }
-    
-    static data_source local_file(std::string const &file, std::string const &cache = "") {
-        source result = {};
-        result.accession = file;
-        result.localPath = file;
-        result.haveLocalPath = true;
-        result.cachePath = cache;
-        result.haveCachePath = !cache.empty();
-
-        return data_source(result);
-    }
-    void set_environment() const;
-    Dictionary get_environment() const;
-    std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
-    bool encrypted() const { return run.encrypted; }
-    std::string const &accession() const { return run.accession; }
-    std::string const &projectId() const { return run.projectId; }
-    bool haveQualityType() const { return run.haveQualityType; }
-    bool haveFullQuality() const { return run.haveQualityType && run.fullQuality; }
-    bool haveZeroQuality() const { return run.haveQualityType && !run.fullQuality; }
-};
+#include "util.hpp"
+#include "constants.hpp"
+#include "opt_string.hpp"
+#include "sratools.hpp"
+#include "command-line.hpp"
+#include "tool-args.hpp"
 
 /// @brief Contains the response from SDL and/or local file info.
 class data_sources {
 public:
-    using container = std::vector<data_source>;
+    class accession {
+    public:
+        class info {
+            friend class accession;
+            info(Dictionary const *info, unsigned index);
+        public:
+            std::string service;
+            opt_string qualityType;
+            opt_string project;
+            Dictionary environment;
+
+            bool haveQualityType() const {
+                return qualityType.has_value();
+            }
+            bool haveFullQuality() const {
+                return qualityType.has_value() && qualityType.value() == sratools::Accession::qualityTypeForFull;
+            }
+            bool haveZeroQuality() const {
+                return qualityType.has_value() && qualityType.value() == sratools::Accession::qualityTypeForLite;
+            }
+            bool encrypted() const {
+                return project.has_value();
+            }
+        };
+        struct const_iterator {
+            const_iterator &operator ++() {
+                index += 1;
+                return *this;
+            }
+            const_iterator operator ++(int) {
+                auto const save = index++;
+                return const_iterator(parent, save);
+            }
+            bool operator ==(const_iterator const &other) const {
+                return parent == other.parent && index == other.index;
+            }
+            bool operator !=(const_iterator const &other) const {
+                return !(*this == other);
+            }
+            accession::info operator *() const {
+                return parent->get(index);
+            }
+        private:
+            friend accession;
+            
+            explicit const_iterator(accession const *parent, unsigned index)
+            : parent(parent)
+            , index(index)
+            {}
+
+            accession const *parent;
+            unsigned index;
+        };
+    private:
+        friend class data_sources;
+        friend const_iterator;
+
+        Dictionary queryInfo;
+        unsigned first;
+        unsigned count;
+
+        info get(unsigned index) const {
+            return info(&queryInfo, index);
+        }
+        accession(Dictionary const &info);
+    public:
+        const_iterator begin() const { return const_iterator(this, first); }
+        const_iterator end() const { return const_iterator(this, count); }
+    };
 private:
-    // std::vector<data_source> sources;
-    std::map<std::string, std::vector<data_source>> sources;
+    std::map<std::string, Dictionary> queryInfo;
+
     std::string ce_token_;
     bool have_ce_token;
 
-    data_sources(std::vector<std::string> const &runs);
-    data_sources(std::vector<std::string> const &runs, bool withSDL);
-    
-    /// @brief add a data sources, creates container if needed
-    ///
-    /// @param source the data source
-    void addSource(data_source && source)
-    {
-        auto const iter = sources.find(source.key());
-        if (iter != sources.end())
-            iter->second.emplace_back(std::move(source));
-        else {
-            auto key = source.key();
-            sources.insert({key, container({std::move(source)})});
-        }
-    }
-    
-#if DEBUG || _DEBUGGING
-    static void test_empty();
-    static void test_vdbcache();
-    static void test_2();
-    static void test_top_error();
-    static void test_inner_error();
-    static void test_WGS();
-#endif
+    data_sources(CommandLine const &cmdline, Arguments const &parsed);
+    data_sources(CommandLine const &cmdline, Arguments const &parsed, bool withSDL);
 
 public:
-    /// @brief true if there are no sources
-    bool empty() const {
-        return sources.empty();
+    accession operator [](std::string const &name) const {
+        auto const fnd = queryInfo.find(name);
+        assert(fnd != queryInfo.end());
+        if (fnd != queryInfo.end())
+            return accession(fnd->second);
+        throw std::out_of_range(name + " is not in the set.");
     }
     
     /// @brief informative only
@@ -144,15 +138,9 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
+    void set_param_bits_env_var(uint64_t bits) const;
+    
     static void preferNoQual();
-
-    /// @brief the data sources for an accession
-    container const &sourcesFor(std::string const &accession) const
-    {
-        static auto const empty = container();
-        auto const iter = sources.find(accession);
-        return (iter != sources.end()) ? iter->second : empty;
-    }
 
     struct QualityPreference {
         bool isSet;
@@ -162,19 +150,5 @@ public:
 
     /// @brief Call SDL with accesion/query list and process the results.
     /// Can use local file info if no response from SDL.
-    static data_sources preload(std::vector<std::string> const &runs
-                                , ParamList const &parameters = {});
-    
-#if DEBUG || _DEBUGGING
-    static void test() {
-        test_empty();
-        test_vdbcache();
-        test_2();
-        test_top_error();
-        test_inner_error();
-        test_WGS();
-    }
-#endif
+    static data_sources preload(CommandLine const &cmdline, Arguments const &parsed);
 };
-
-} // namespace sratools

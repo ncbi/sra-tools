@@ -1,17 +1,18 @@
 # Purpose
 
-To provide a central location for converting user-input accessions to location-
-appropriate URLs that can then be used directly by sra-toolkit.
+To provide a central location for converting user-input accessions to URLs that
+can be used directly by the sra-toolkit tools. The URLs are appropriate for the
+location, i.e. if the user is in a cloud region that has a copy of the requested
+data, the URL will be to that copy.
 
-## Description:
+# Description:
 
 With the move of SRA data to various cloud platforms, there becomes more than
-one source for data. The sra-toolkit will need to respond to this in a
-reasonable way. Depending on the location of the user, some sources may be fast
-and cheap and others may be slow and costly to access. Moreover, not all sources
-will provide the exact same data, e.g. some sources might not provide original
-spot names and quality scores. There becomes a complicated and arbitrary matrix
-of choices.
+one source for data. The sra-toolkit responds to this in a reasonable way.
+Depending on the location of the user, some sources may be fast and cheap and
+others may be slow and costly to access. Moreover, not all sources will provide
+the exact same data, e.g. some sources might not provide original spot names and
+quality scores. There becomes a complicated and arbitrary matrix of choices.
 
 Additionally, users have expected to be able to act directly on accessions that
 are not runs, e.g. to run fastq-dump on an experiment accession and have that
@@ -24,48 +25,56 @@ to be done by the tool, preferably before any other action is attempted on the
 request. But this is a complicated process often requiring two-way interaction
 with the user before anything can be done.
 
-Rather than change all the tools to be able to perform these tasks, we will
-create a single tool to interact with the user. This new tool will determine the
-proper objects and tools to satisfy the user's requests. It will drive the tools
-with the correct URLs for the runs they are to work on.
+Rather than change all the tools to be able to perform these tasks, we have
+created a single tool to interact with the user. This tool determines the proper
+objects and options to satisfy the user's request. It drives the tools with the
+correct URLs for the data they are to work on.
 
-## Path resolution:
+# Executable path resolution:
 
 The driver tool uses the following rules for locating the tools it is supposed
 to use:
-
-1. Search the same directory as itself
-2. Search the directories in the PATH environment variable
-3. Search the current directory
+- `<tool name>` is taken from `argv[0]`.
+- The search is limited to the same directory as the `sratools` executable.
+- On Windows, it tries `<tool name>-orig.exe`.
+- On everything else,
+  1. It tries `<tool name>-orig.version`.
+  2. If that is not executable, it tries `<tool name>-orig`.
+  3. In debug builds, if that is not executable, it tries `<tool name>`.
 
 If the tool is not found, a message is printed.
 
+----
+
+# Developer notes
+
+## `generate-args-info.sh`:
+
+This script runs each tool in its list, with an environment variable
+(`SRATOOLS_DUMP_OPTIONS`) set. This causes the `kapp` args processing code to
+print out the options definitions and exit. For each tool, the output is a pair
+of preprocessor defines:
+  1. `TOOL_NAME_<...>` is the name of the tool.
+  2. `TOOL_ARGS_<...>` is the list of arguments.
+
+`<...>` is the uppercased name of the tool. This is all collected into
+`tool-arguments.h`. This only works with a debug build.
+
+## Adding a new command line option for a driven tool:
+
+1. Add the new option to the tool and build it.
+2. Run `generate-args-info.sh`.
+
 ## Adding a tool to the driver tool:
 
-In `support2.hpp`,
-1. Create an entry in the `Imposter` enum.
-2. Add to the comparisons in `WhatImposter::detect_imposter` to map the tool
-name to the enum value from Step 1.
-3. Add the new tool to the cases in `WhatImposter::imposter_2_string`.
-4. Declare a new impersonator function. (Look for `TODO: the impersonators are
-declared here.`)
-
-In `sratools.cpp`, add to the `switch` cases in
-```
-int main(int argc, char *argv[], char *envp[], ToolPath const &toolpath)
-```
-mapping the new enum value from Step 1 to the new impersonator function from 
-Step 4.
- 
-Finally, create a new impersonator class. The main job of an impersonator is to
-declare the command line parameters so that the driver tool can correctly parse
-the added tool's command line. 
-
-* Use `imp_fasterq_dump.cpp` as a starting point if the added tool needs
-accession resolution via SDL.
-* Look for any tool options that would benefit from using SRA Lite files and
-override `preferNoQual` to return `true` when appropriate.
-* Use `imp_prefetch.cpp` as a starting point if the added tool handles SDL on its own.
+1. In `generate-args-info.sh`, add the tool to the `for ... in` on line 17 (the
+ order doesn't matter).
+2. In `tool-args.cpp`, search for "MARK: NEW TOOLS GO HERE" and add it to the
+ list (the order doesn't matter).
+3. If the new tool has options that change whether or not quality scores are
+ used, add a function to `sratools.cpp` to return true if quality scores are not
+ used. Search for "MARK: Checks for QUALITY", and add the tool name check and
+ function.
 
 ## Environment variables for logging and debugging:
 
@@ -80,7 +89,7 @@ tool to run `srapath`: `SRATOOLS_IMPERSONATE=srapath sratools SRR000001`
 * `SRATOOLS_DRY_RUN` - setting to 1 (or anything not falsy) will cause the tool
 to print out the commands it would have executed.
 * `SRATOOLS_TESTING=[1-9]` - setting various values with invoke various testing
-modes. 
+modes.
   1. Run internal tests and quit.
   2. Print resulting command line.
   3. Print resulting command line and changed environment variable names.

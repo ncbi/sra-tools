@@ -30,33 +30,36 @@
 *
 */
 
+#include "util.hpp"
+
 #include <string>
 #include <vector>
 #include <map>
 #include <set>
 #include <utility>
 #include <algorithm>
+#include <functional>
+#include <cstdint>
 
-#include "support2.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
 #include "debug.hpp"
 #include "proc.hpp"
 #include "util.hpp"
+#include "file-path.hpp"
 #include "opt_string.hpp"
 #include "run-source.hpp"
+#include "SDL-response.hpp"
 #include "sratools.hpp"
-#include "ncbi/json.hpp"
 
 #include "service.hpp"
 using Service = vdb::Service;
 
 using namespace constants;
+using namespace sratools;
 
 #include <vdb/manager.h> // VDBManagerPreferZeroQuality
 #include <vdb/vdb-priv.h> // VDBManagerGetQualityString
-
-namespace sratools {
 
 static std::string config_or_default(char const *const config_node, char const *const default_value)
 {
@@ -64,82 +67,17 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-struct SDL_unexpected_error : public std::runtime_error
-{
-    SDL_unexpected_error(std::string const &what) : std::runtime_error(std::string("unexpected response from SDL: ") + what) {}
-};
-
-static std::string getString(ncbi::JSONObject const &obj, char const *const member)
-{
-    try {
-        auto const &value = obj.getValue(member);
-
-        if (!value.isNull() && !value.isArray() && !value.isObject())
-            return value.toString().toSTLString();
-    }
-    catch (...) {}
-    throw SDL_unexpected_error(std::string("expected a string value labeled ") + member);
-}
-
-static opt_string getOptionalString(ncbi::JSONObject const &obj, char const *const member)
-{
-    auto result = opt_string();
-    try {
-        auto const &value = obj.getValue(member); // if throws, return false
-
-        if (value.isNull())
-            return result;
-
-        if (!value.isArray() && !value.isObject()) {
-            auto const &string = value.toString();
-            result = opt_string(string.toSTLString());
-            return result;
-        }
-    }
-    catch (...) {
-        // member not found
-        return result;
-    }
-    // member existed but value is an array or object
-    throw SDL_unexpected_error(std::string("expected a scalar value labeled ") + member);
-}
-
-static bool getOptionalBool(ncbi::JSONObject const &obj, char const *const member, bool const default_value)
-{
-    try {
-        auto const &value = obj.getValue(member);
-        if (value.isBoolean())
-            return value.toBoolean();
-    }
-    catch (...) {
-        // member not found
-        return default_value;
-    }
-    // member existed but value is not a boolean
-    throw SDL_unexpected_error(std::string("expected a boolean value labeled ") + member);
-}
-
-template <typename F>
-static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
-{
-    if (!obj.exists(member)) return;
-
-    auto const &array = obj.getValue(member).toArray();
-    auto const n = array.count();
-    for (auto i = decltype(n)(0); i < n; ++i) {
-        auto const &value = array.getValue(i);
-        f(value);
-    }
-}
-
-static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
+static Service::Response get_SDL_response(std::vector<std::string> const &runs, bool const haveCE)
 {
     if (runs.empty())
         throw std::domain_error("No query");
-    
+ 
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
+
+    assert(!runs.empty());
     
+    auto const query = Service::make();
     query.add(runs);
 
     if (location)
@@ -147,302 +85,146 @@ static Service::Response get_SDL_response(Service const &query, std::vector<std:
 
     if (perm && haveCE)
         query.setPermissionsFile(*perm);
-    
+
     if (ngc)
         query.setNGCFile(*ngc);
 
     return query.response(url_string, version_string);
 }
 
-static inline std::string guess_region(opt_string const &region_, std::string const &service)
-{
-    if (region_) return region_.value();
-    if (service == "ncbi")
-        return "be-md";
-    std::cerr << "No default region for service '" << service << "'" << std::endl;
-    throw std::runtime_error("no default region for service");
-}
+struct RemoteKey {
+    std::string prefix;
+    std::string filePath;
+    std::string fileSize;
+    std::string service;
+    std::string region;
+    std::string project;
+    std::string CER;
+    std::string payR;
+    std::string qualityType;
+    std::string cachePath;
+    std::string cacheSize;
+    std::string cacheCER;
+    std::string cachePayR;
 
-static inline std::string guess_type(opt_string const &type_, opt_string const &object)
-{
-    if (type_) return type_.value();
-    if (object) {
-        auto const &name = object.value();
-        auto const pipe_symbol_at = name.find('|');
-        if (pipe_symbol_at != std::string::npos) {
-            auto const type_from_name = name.substr(0, pipe_symbol_at);
-            if (type_from_name == "wgs")
-                return "sra";
-            std::cerr << "Unknown type '" << type_from_name << "'" << std::endl;
-        }
-        else
-            std::cerr << "No type for '" << name << "'" << std::endl;
-    }
-    throw std::runtime_error("no type");
-}
-
-/// @brief holds SDL version 2 response
-/// @Note member names generally match the corresponding member names in the SDL response JSON
-struct Response2 {
-    /// @brief holds a single element of the result array
-    struct ResultEntry {
-        /// @brief holds a single file (element of the files array)
-        struct FileEntry {
-            /// @brief holds a single element of the locations array
-            struct LocationEntry {
-                std::string link;           // url to data
-                std::string service;        // who is providing the data
-                std::string region;         // as defined by service
-                opt_string region_;         // as defined by service
-                opt_string expirationDate;
-                opt_string projectId;       // encryptedForProjectId
-                bool ceRequired;            // compute environment required
-                bool payRequired;           // data from this location is not free
-                
-                LocationEntry(ncbi::JSONObject const &obj)
-                : link(getString(obj, "link"))
-                , service(getString(obj, "service"))
-                , region_(getOptionalString(obj, "region"))
-                , expirationDate(getOptionalString(obj, "expirationDate"))
-                , projectId(getOptionalString(obj, "encryptedForProjectId"))
-                , ceRequired(getOptionalBool(obj, "ceRequired", false))
-                , payRequired(getOptionalBool(obj, "payRequired", false))
-                {
-                    region = guess_region(region_, service);
-                }
-
-                /// @brief is the data from this location readable using the encryption from other location
-                /// @Note if not encrypted then this location is always readable
-                bool readableWith(LocationEntry const &other) const {
-                    return !projectId ? true : !other.projectId ? false : projectId.value() == other.projectId.value();
-                }
-            };
-            using Locations = std::vector<LocationEntry>;
-            opt_string type_;
-            std::string type;
-            std::string name;
-            opt_string object;
-            opt_string size;
-            opt_string md5;
-            opt_string format;
-            opt_string modificationDate;
-            bool noqual;
-            Locations locations;
-            
-            FileEntry(ncbi::JSONObject const &obj)
-            : type_(getOptionalString(obj, "type"))
-            , name(getString(obj, "name"))
-            , object(getOptionalString(obj, "object"))
-            , size(getOptionalString(obj, "size"))
-            , md5(getOptionalString(obj, "md5"))
-            , format(getOptionalString(obj, "format"))
-            , modificationDate(getOptionalString(obj, "modificationDate"))
-            , noqual(getOptionalBool(obj, "noqual", false))
-            {
-                type = guess_type(type_, object);
-                forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
-                    assert(value.isObject());
-                    try {
-                        auto const &entry = LocationEntry(value.toObject());
-                        locations.emplace_back(entry);
-                    }
-                    catch (...) {
-                        std::cerr << "Invalid response from SDL: Bad location info for " << name << std::endl;
-                    }
-                });
-            }
-
-            /// @brief find the location that is provided by NCBI/NLM/NIH
-            /// @Note might be encrypted
-            Locations::const_iterator from_ncbi() const {
-                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    return x.service == "sra-ncbi" || x.service == "ncbi";
-                });
-            }
-
-            /// @brief find the location that is the same service and region
-            Locations::const_iterator matching(LocationEntry const &other) const {
-                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    return x.service == other.service && x.region == other.region;
-                });
-            }
-
-            /// @brief find the location that is the best match for another location
-            /// @Note same service/region, else NCBI and compatible encryption, else any compatible encryption
-            Locations::const_iterator best_matching(LocationEntry const &other) const {
-                auto const match = matching(other);
-                if (match != locations.end())
-                    return match;
-
-                auto const ncbi = from_ncbi();
-                if (ncbi != locations.end() && ncbi->readableWith(other))
-                    return ncbi;
-
-                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    return x.readableWith(other);
-                });
-            }
-
-            /// @brief This is part of the interface to the rest of the program
-            source make_source(LocationEntry const &location, std::string const &accession, Service::FileInfo const &fileInfo) const {
-                auto result = source();
-                
-                if ((result.haveLocalPath = fileInfo.have) != false) {
-                    result.localPath = fileInfo.path;
-                    if ((result.haveCachePath = !fileInfo.cachepath.empty()) != false)
-                        result.cachePath = fileInfo.cachepath;
-                    if ((result.haveSize = (fileInfo.size != 0)) != false)
-                        result.fileSize = std::to_string(fileInfo.size);
-                }
-                result.accession = accession;
-                result.service = location.service;
-                result.remoteUrl = location.link;
-                result.needCE = location.ceRequired;
-                result.needPmt = location.payRequired;
-                result.encrypted = location.projectId;
-                result.projectId = result.encrypted ? location.projectId.value() : std::string();
-                result.haveAccession = true;
-                result.fullQuality = !noqual;
-                result.haveQualityType = true;
-                
-                return result;
-            }
-        };
-        using Files = std::vector<FileEntry>;
-        std::string query;
-        std::string status;
-        std::string message;
-        Files files;
-
-        ResultEntry(ncbi::JSONObject const &obj)
-        : status(getString(obj, "status"))
-        {
-            message = getString(obj, "msg");
-            query = getString(obj, "bundle");
-            
-            forEach(obj, "files", [&](ncbi::JSONValue const &value) {
-                assert(value.isObject());
-                try {
-                    auto const &entry = FileEntry(value.toObject());
-                    files.emplace_back(entry);
-                }
-                catch (...) {
-                    std::cerr << "Invalid response from SDL for " << query << std::endl;
-                }
-            });
-        }
-
-        /// @brief find the file that matches but has a different type
-        Files::const_iterator matching(FileEntry const &entry, std::string const &type) const {
-            return std::find_if(files.begin(), files.end(), [&](FileEntry const &x) {
-                return x.object == entry.object && x.type == type;
-            });
-        }
-
-        /// @brief Filter files and join to matching vdbcache file.
-        ///
-        /// It is probably best to do this here in the version specific code.
-        ///
-        /// @param accession containing accession, aka bundle.
-        /// @param response for local file lookups.
-        /// @param func callback, is called for each data source object.
-        ///
-        /// @Note This is the *primary* means by which information is handed out to the rest of the program.
-        template <typename F>
-        void process(std::string const &accession, Service::Response const &response, F &&func) const
-        {
-            for (auto & file : files) {
-                if (file.type != "sra") continue;
-                if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
-
-                auto const vcache = matching(file, "vdbcache");
-                if (vcache == files.end()) {
-                    // there is no vdbcache with this object, nothing to join
-                    for (auto &location : file.locations) {
-                        // if the user had run prefetch and not moved the
-                        // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
-                        func(std::move(data_source(run_source)));
-                    }
-                }
-                else {
-                    // there is a vdbcache with this object, do the join
-                    for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
-                        auto const &best = vcache->best_matching(location);
-                        if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, response.localInfo(accession, vcache->name, vcache->type));
-                            func(std::move(data_source(run_source, cache_source)));
-                        }
-                        else {
-                            // there was no matching vdbcache for this source
-                            func(std::move(data_source(run_source)));
-                        }
-                    }
-                }
-            }
-        }
-    };
-    using Results = std::vector<ResultEntry>;
-    Results result;
-    std::string status;
-    std::string message;
-    opt_string nextToken;
-    
-    Response2(ncbi::JSONObject const &obj)
-    : status(getOptionalString(obj, "status").value_or("200"))  ///< there is no status when there is no error
-    , message(getOptionalString(obj, "message").value_or("OK")) ///< there is no message when there is no error
-    , nextToken(getOptionalString(obj, "nextToken"))
-    {
-#if DEBUG || _DEBUGGING
-        // caller should have checked this first
-        auto const version = getString(obj, "version");
-        assert(version == "2" || version == "unstable");
-#endif
-        forEach(obj, "result", [&](ncbi::JSONValue const &value) {
-            assert(value.isObject());
-            auto const &entry = ResultEntry(value.toObject());
-            result.emplace_back(entry);
-        });
-    }
+    RemoteKey(unsigned index)
+    : prefix(std::string("remote/") + std::to_string(index))
+    , filePath(prefix + "/filePath")
+    , fileSize(prefix + "/fileSize")
+    , service(prefix + "/service")
+    , region(prefix + "/region")
+    , project(prefix + "/project")
+    , CER(prefix + "/needCE")
+    , payR(prefix + "/needPmt")
+    , qualityType(prefix + "/qualityType")
+    , cachePath(prefix + "/cachePath")
+    , cacheSize(prefix + "/cacheSize")
+    , cacheCER(prefix + "/cacheNeedCE")
+    , cachePayR(prefix + "/cacheNeedPmt")
+    {}
 };
 
-/// @brief get run environment variables
-Dictionary data_source::get_environment() const
+struct LocalKey {
+    static char const filePath[];
+    static char const qualityType[];
+    static char const cachePath[];
+};
+char const LocalKey::filePath[] = "local/filePath";
+char const LocalKey::qualityType[] = "local/qualityType";
+char const LocalKey::cachePath[] = "local/cachePath";
+
+data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
 {
-    auto result = Dictionary();
-    auto const names = env_var::names();
+    auto const &info = *pinfo;
+    auto const &names = env_var::names();
+    auto constexpr useSize = false; // old version didn't use this
 
-    if (!haveVdbCache && run.isSimple())
-        goto RETURN_ENV_VARS;
-
-    result[names[env_var::REMOTE_URL]] = run.remoteUrl;
-    if (run.haveCachePath)
-        result[names[env_var::CACHE_URL]] = run.cachePath;
-    if (run.haveLocalPath)
-        result[names[env_var::LOCAL_URL]] = run.localPath;
-    if (run.haveSize)
-        result[names[env_var::SIZE_URL]] = run.fileSize;
-    if (run.needCE)
-        result[names[env_var::REMOTE_NEED_CE]] = "1";
-    if (run.needPmt)
-        result[names[env_var::REMOTE_NEED_PMT]] = "1";
-
-    if (haveVdbCache) {
-        result[names[env_var::REMOTE_VDBCACHE]] = vdbcache.remoteUrl;
-        if (vdbcache.haveCachePath)
-            result[names[env_var::CACHE_VDBCACHE]] = vdbcache.cachePath;
-        if (vdbcache.haveLocalPath)
-            result[names[env_var::LOCAL_VDBCACHE]] = vdbcache.localPath;
-        if (vdbcache.haveSize)
-            result[names[env_var::SIZE_VDBCACHE]] = vdbcache.fileSize;
-        if (vdbcache.needCE)
-            result[names[env_var::CACHE_NEED_CE]] = "1";
-        if (haveVdbCache && vdbcache.needPmt)
-            result[names[env_var::CACHE_NEED_PMT]] = "1";
+#if MS_Visual_C
+    /// WTH! CL thinks it is a warning if a constant expression is in a control statement!
+#pragma warning (push)
+#pragma warning (disable: 4127)
+// #pragma warning (disable: 4390)
+#endif
+    if (index == 0) {
+        auto const filePath = info.find(LocalKey::filePath);
+        auto const qualityType = info.find(LocalKey::qualityType);
+        auto const cachePath = info.find(LocalKey::cachePath);
+        
+        if (filePath != info.end())
+            environment[names[env_var::LOCAL_URL]] = filePath->second;
+        if (cachePath != info.end())
+            environment[names[env_var::LOCAL_VDBCACHE]] = cachePath->second;
+        if (qualityType != info.end())
+            this->qualityType = qualityType->second;
+        if (filePath != info.end())
+            service = filePath->second;
+        else
+            service = "the file system";
     }
-RETURN_ENV_VARS:
-    return result;
+    else {
+        auto const key = RemoteKey(index);
+        auto const filePath = info.find(key.filePath);
+        auto const fileSize = info.find(key.fileSize);
+        auto const CER = info.find(key.CER);
+        auto const payR = info.find(key.payR);
+        auto const qualityType = info.find(key.qualityType);
+        auto const service = info.find(key.service);
+        auto const region = info.find(key.region);
+        auto const project = info.find(key.project);
+        auto const cachePath = info.find(key.cachePath);
+
+        if (filePath != info.end())
+            environment[names[env_var::REMOTE_URL]] = filePath->second;
+        if (useSize && fileSize != info.end())
+            environment[names[env_var::SIZE_URL]] = fileSize->second;
+        if (CER != info.end())
+            environment[names[env_var::REMOTE_NEED_CE]] = "1";
+        if (payR != info.end())
+            environment[names[env_var::REMOTE_NEED_PMT]] = "1";
+
+        if (cachePath != info.end()) {
+            auto const cacheSize = info.find(key.cacheSize);
+            auto const cacheCER = info.find(key.cacheCER);
+            auto const cachePayR = info.find(key.cachePayR);
+            
+            environment[names[env_var::REMOTE_VDBCACHE]] = cachePath->second;
+            if (useSize && cacheSize != info.end())
+                environment[names[env_var::SIZE_VDBCACHE]] = cacheSize->second;
+            if (cacheCER != info.end())
+                environment[names[env_var::CACHE_NEED_CE]] = "1";
+            if (cachePayR != info.end())
+                environment[names[env_var::CACHE_NEED_PMT]] = "1";
+        }
+        
+        if (service != info.end() && region != info.end())
+            this->service = service->second + "." + region->second;
+        else
+            this->service = "the file system";
+
+        if (qualityType != info.end())
+            this->qualityType = qualityType->second;
+
+        if (project != info.end())
+            this->project = project->second;
+    }
+#if MS_Visual_C
+#pragma warning (pop)
+#endif
+}
+
+data_sources::accession::accession(Dictionary const &p_queryInfo)
+: queryInfo(p_queryInfo)
+{
+    auto const remote = queryInfo.find("remote");
+    if (remote == queryInfo.end()) {
+        first = 0;
+        count = 1;
+    }
+    else {
+        auto const n = std::stoi(remote->second);
+        first = 1;
+        count = n + 1;
+    }
 }
 
 #define SETENV(VAR, VAL) env_var::set(env_var::VAR, VAL.c_str())
@@ -453,6 +235,21 @@ RETURN_ENV_VARS:
 void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
+
+void data_sources::set_param_bits_env_var(uint64_t bits) const {
+    char buffer[32];
+    auto i = sizeof(buffer);
+    
+    buffer[--i] = '\0';
+    while (bits) {
+        auto const nibble = bits & 0x0F;
+        buffer[--i] = (char)(nibble < 10 ? (nibble + '0') : (nibble - 10 + 'A'));
+        bits >>= 4;
+    }
+    
+    env_var::set(env_var::PARAMETER_BITS, buffer + i);
+}
+
 
 void data_sources::preferNoQual() {
     VDBManager * v = NULL;
@@ -467,23 +264,26 @@ void data_sources::preferNoQual() {
     VDBManagerRelease(v);
 }
 
-data_sources::data_sources(std::vector<std::string> const &runs)
+data_sources::data_sources(CommandLine const &cmdline, Arguments const &parsed)
 {
     have_ce_token = false;
 
-    auto notfound = std::set<std::string>(runs.begin(), runs.end());
-    for (auto const &run : notfound) {
-        source s = {};
-        s.accession = run;
-        s.localPath = run;
-        s.haveLocalPath = true;
-        addSource(data_source(s));
-    }
+    parsed.eachArgument([&](Argument const &arg) {
+        std::string const i = arg.argument;
+        auto &x = queryInfo[i];
+        
+        x["name"] = i;
+        x["local"] = i;
+        x[LocalKey::filePath].assign(cmdline.pathForArgument(arg));
+    });
 }
 
 data_sources::QualityPreference data_sources::qualityPreference() {
     QualityPreference result = {};
 
+#if MS_Visual_C
+#pragma warning(disable: 4061) // garbage!!! doesn't know what default is!!!!!
+#endif
     switch (Service::preferredQualityType()) {
     case vdb::Service::full:
         result.isFullQuality = true;
@@ -495,8 +295,188 @@ data_sources::QualityPreference data_sources::qualityPreference() {
     return result;
 }
 
-data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
+static bool setIfExists(Dictionary &result, std::string const &key, std::string const &name)
 {
+    if (FilePath(name.c_str()).exists()) {
+        result[key] = name;
+        return true;
+    }
+    return false;
+}
+
+static bool cwdSetIfExists(Dictionary &result, std::string const &key, FilePath const &cwd, std::string const &name)
+{
+    if (FilePath::exists(name)) {
+        result[key].assign(cwd.append(name));
+        return true;
+    }
+    return false;
+}
+
+/// \brief Adds extensions to name and checks for existence.
+/// \note The invariant is `result["path"]` is set to the name of the file system object if it exists.
+/// \returns true if it is a file system object.
+static bool tryWithSraExtensions(Dictionary &result, std::string const &name, bool const wantFullQuality)
+{
+    for (auto ext : Accession::extensionsFor(wantFullQuality)) {
+        if (setIfExists(result, "path", name + ext))
+            return true;
+    }
+    return false;
+}
+
+static void lookForCacheFileIn(FilePath const &directory, Dictionary &result, bool const wantFullQuality, Accession const &accession)
+{
+    auto const &key = LocalKey::cachePath;
+    auto const suffix = ".vdbcache";
+    auto const &path = result[LocalKey::filePath];
+    std::string const base = FilePath(path.c_str()).baseName();
+    auto temp = base;
+
+    // try acc.ext.vdbcache
+    if (cwdSetIfExists(result, key, directory, base + suffix))
+        return;
+
+    for (auto sep = temp.find_last_of("."); sep != temp.npos; sep = temp.find_last_of(".")) {
+        temp = temp.substr(0, sep);
+        
+        // try acc.vdbcache.ext
+        if (cwdSetIfExists(result, key, directory, temp + suffix + base.substr(sep)))
+            return;
+
+        // try acc.vdbcache
+        if (cwdSetIfExists(result, key, directory, temp + suffix))
+            return;
+    }
+    // try accession.vdbcache
+    cwdSetIfExists(result, key, directory, accession.accession() + suffix);
+
+    (void)(wantFullQuality);
+}
+
+/// \note The invariant is `result["path"]` is set to the name of the file system object if it exists.
+/// \returns true if name is a file system object.
+static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::string const &name, bool const wantFullQuality)
+{
+    if (!setIfExists(result, "path", name) && !tryWithSraExtensions(result, name, wantFullQuality))
+        return false;
+    
+    auto const &filename = result["path"]; // might have extension added
+    LOG(9) << name << " is " << filename << " in directory " << (std::string)cwd << "." << std::endl;
+
+    auto const accession = Accession(filename.c_str());
+    auto const exts = accession.sraExtensions();
+
+    LOG(9) << filename << " has " << exts.size() << " sra extensions." << std::endl;
+    if (exts.size() == 1) {
+        result[LocalKey::filePath] = result["path"];
+        result[LocalKey::qualityType] = exts.front().first > 0 ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
+        lookForCacheFileIn(cwd, result, wantFullQuality, accession);
+        return true;
+    }
+    LOG(3) << name << " does not look like an SRA file?" << std::endl;
+    return true;
+}
+
+static void getADInfo(Dictionary &result, FilePath const &cwd, Accession const &accession, bool const wantFullQuality)
+{
+    auto const name = accession.accession();
+    for (auto ext : Accession::extensionsFor(wantFullQuality)) {
+        auto const withExt = name + ext;
+        if (FilePath::exists(withExt)) {
+            auto const qualityType = Accession::qualityTypeFor(ext);
+
+            result[LocalKey::filePath].assign(cwd.append(withExt));
+            result[LocalKey::qualityType] = qualityType;
+
+            LOG(9) << result["name"] << " looks like an SRA Accession Directory, found file " << withExt << " with " << qualityType << " quality scores." << std::endl;
+            lookForCacheFileIn(cwd, result, wantFullQuality, accession);
+            return;
+        }
+    }
+    LOG(2) << result["name"] << " looks like an SRA Accession Directory?" << std::endl;
+}
+
+static
+std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, Arguments const &parsed, FilePath const &cwd, bool const wantFullQuality)
+{
+    std::map<std::string, Dictionary> result;
+    
+    parsed.eachArgument([&](Argument const &arg) {
+#if MS_Visual_C
+#pragma warning(disable: 4456) // garbage!!!
+#endif
+        auto const name = std::string(arg.argument);
+        auto const path = cmdline.pathForArgument(arg);
+        auto const dir_base = path.split();
+        auto const filename = std::string(dir_base.second);
+        auto const hasDirName = !dir_base.first.empty();
+
+        result[name]["name"] = name;
+        
+        auto &i = *result.find(name);
+        auto const accession = Accession(filename);
+        auto const isaRun = accession.type() == run;
+
+        if (!path.exists())
+            return;
+        LOG(9) << "Examining path: " << name << std::endl;
+
+        try {
+            path.makeCurrentDirectory();
+
+            i.second["local"] = name;
+            LOG(9) << name << " is a directory." << std::endl;
+
+            auto const path = FilePath::cwd(); // canonical path
+            i.second["path"].assign(path);
+
+            if (isaRun && accession.extension().empty()) // accession directories don't have extensions
+                getADInfo(i.second, path, accession, wantFullQuality);
+            else
+                LOG(3) << name << " is a directory, but doesn't look like an SRA Accession Directory." << std::endl;
+
+            cwd.makeCurrentDirectory();
+            return;
+        }
+        catch (std::system_error const &e) {
+            auto const what = std::string(e.what());
+            if (what.find("chdir") == std::string::npos || what.find(name) == std::string::npos)
+                throw;
+            LOG(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
+        }
+        
+        if (hasDirName) {
+            LOG(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
+            try {
+                auto const dir = dir_base.first.copy();
+                
+                dir.makeCurrentDirectory();
+                {
+                    auto const path = FilePath::cwd(); // canonical path
+                    if (getLocalFilePath(i.second, path, filename, wantFullQuality))
+                        i.second["local"] = name;
+                }
+                cwd.makeCurrentDirectory();
+            }
+            catch (std::system_error const &e) {
+                LOG(1) << std::string(dir_base.first) << " is a directory, but can't chdir to it: " << e.what() << std::endl;
+            }
+            return;
+        }
+        if (getLocalFilePath(i.second, cwd, filename, wantFullQuality))
+            i.second["local"] = name;
+    });
+    return result;
+}
+
+data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bool withSDL)
+{
+    {
+        auto const cwd = FilePath::cwd();
+        queryInfo = getLocalFileInfo(cmdline, args, cwd, qualityPreference().isFullQuality);
+        cwd.makeCurrentDirectory();
+    }
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
     if (logging_state::is_dry_run()) ; else assert(!(havePerm && !canSendCE));
@@ -506,75 +486,125 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
-    auto not_processed = std::set<std::string>(runs.begin(), runs.end());
-    auto const service = Service::make();
 
     if (withSDL) {
-        std::set<std::string> seen;
         std::vector<std::string> terms;
 
-        for (auto && i : runs) {
-            if (!seen.insert(i).second) continue;
-            if (pathExists(i)) continue;
-
-            terms.emplace_back(i);
+        for (auto const &i : queryInfo) {
+            auto const f = i.second.find("local");
+            if (f == i.second.end())
+                terms.emplace_back(i.first);
+            else {
+                LOG(9) << "already found " << i.first << " at path " << f->second << std::endl;
+            }
+        }
+        if (terms.empty()) {
+            LOG(2) << "nothing left to resolve, skipping SDL lookup" << std::endl;
+            return;
+        }
+        else {
+            LOG(2) << "will send " << terms.size() << " terms to SDL" << std::endl;
         }
         try {
-            auto const &response = get_SDL_response(service, terms, have_ce_token);
+            auto const response = get_SDL_response(terms, have_ce_token);
             LOG(8) << "SDL response:\n" << response << std::endl;
+            
+            auto const parsed = Response2::makeFrom(response.responseText());
+            LOG(7) << "Parsed SDL Response" << std::endl;
 
-            auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
-            auto const &obj = jvRef->toObject();
-            auto const version = getString(obj, "version");
-            auto const version_is = [&](std::string const &vers) {
-                return version == vers || (version == "unstable" && vers == resolver::unstable_version());
-            };
+            for (auto const &sdl_result : parsed.results) {
+                auto const &query = sdl_result.query;
+                auto &info = queryInfo[query];
 
-            if (version_is("2")) {
-                auto const &raw = Response2(obj);
-                LOG(7) << "Parsed SDL Response" << std::endl;
+                LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                info["accession"] = query;
+                info["SDL/status"] = sdl_result.status;
+                info["SDL/message"] = sdl_result.message;
 
-                for (auto &sdl_result : raw.result) {
-                    auto const &query = sdl_result.query;
+                if (sdl_result.status == "200") {
+                    // The first pass rejects files that do not have the desired quality type.
+                    // SDL should have applied similar logic, so this is probably unneccessary.
+                    unsigned added = 0, pass = qualityPreference().isFullQuality ? 0 : 1;
+                    auto encrypted = false;
 
-                    LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
-                    if (sdl_result.status == "200") {
-                        unsigned added = 0;
-                        auto encrypted = false;
+                    do {
+                        ++pass;
+                        for (auto const &fl : sdl_result.getByType("sra")) {
+                            auto const &file = fl.first;
+#if MS_Visual_C
+#pragma warning(disable: 4459)
+#endif
+                            auto const &location = fl.second;
+                            
+                            if (file.hasExtension(".pileup")) continue;
+                            if (!file.object) continue;
 
-                        sdl_result.process(query, response, [&](data_source &&source) {
-                            if (havePerm && source.encrypted()) {
+                            if (pass == 1 && qualityPreference().isFullQuality && file.noqual)
+                                continue;
+                            
+                            auto const &projectId = location.projectId;
+                            auto const &service = location.service;
+                            auto const &region = location.region;
+
+                            if (ngc == nullptr && projectId) {
+                                std::cerr <<
+                                    "The data for " << query << " from " << service << "." << region << " is encrypted.\n"
+                                    "To use this data, please get an ngc file from dbGaP for " << projectId << ", and rerun with --ngc <file>." << std::endl;
                                 encrypted = true;
-                                std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
+                                continue;
                             }
-                            else {
-                                addSource(std::move(source));
-                                added += 1;
+
+                            auto const key = RemoteKey(added + 1);
+
+                            info[key.filePath] = location.link;
+                            info[key.service] = service;
+                            info[key.region] = region;
+                            info[key.qualityType] = file.noqual ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
+                            if (projectId.has_value())
+                                info[key.project] = projectId.value();
+                            if (file.size.has_value())
+                                info[key.fileSize] = file.size.value();
+                            if (location.ceRequired)
+                                info[key.CER] = "1";
+                            if (location.payRequired)
+                                info[key.payR] = "1";
+
+                            auto const cache = sdl_result.getCacheFor(fl);
+                            if (cache >= 0) {
+                                auto const cacheFile = sdl_result.flat(cache);
+                                info[key.cachePath] = cacheFile.second.link;
+                                if (cacheFile.first.size.has_value())
+                                    info[key.cacheSize] = cacheFile.first.size.value();
+                                if (cacheFile.second.ceRequired)
+                                    info[key.cacheCER] = "1";
+                                if (cacheFile.second.payRequired)
+                                    info[key.cachePayR] = "1";
                             }
-                        });
-                        if (added == 0) {
-                            std::cerr << "No usable source for " << query << " was found.\n" <<
-                                query << " might be available in a different region or on a different cloud provider." << std::endl;
-                            if (encrypted)
-                                std::cerr << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                            added += 1;
                         }
-                        else {
-                            auto const localInfo = not_processed.find(query);
-                            not_processed.erase(localInfo); // remove since we found and processed it
-                        }
-                    }
-                    else if (sdl_result.status == "404") {
-                        // use the local data (see below)
-                        LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
+                    } while (added == 0 && pass == 1);
+                    
+                    if (added == 0) {
+                        std::cerr << "No usable source for " << query << " was found.\n" <<
+                            query << " might be available in a different cloud provider or region." << std::endl;
+                        if (encrypted)
+                            std::cerr << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
                     }
                     else {
-                        std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                        queryInfo[query]["remote"] = std::to_string(added);
                     }
                 }
+                else if (sdl_result.status == "404") {
+                    // use the local data (see below)
+                    LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
+                }
+                else {
+                    std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                }
             }
-            else {
-                throw SDL_unexpected_error(std::string("unexpected version ") + version);
-            }
+        }
+        catch (Response2::DecodingError const &err) {
+            LOG(1) << err << std::endl;
         }
         catch (std::domain_error const &de) {
             if (de.what() && strcmp(de.what(), "No query") == 0)
@@ -588,305 +618,14 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
             std::cerr << e.msg << "." << std::endl;
             exit(EX_USAGE);
-
-        }
-        catch (SDL_unexpected_error const &e) {
-            LOG(1) << e.what() << std::endl;
-            throw std::logic_error("Error communicating with NCBI");
         }
         catch (...) {
             throw std::logic_error("Error communicating with NCBI");
         }
     }
-    // make "file" sources for unprocessed or unrecognized query items
-    for (auto const &run : not_processed) {
-        auto const fi = service.localInfo(run);
-        auto s = source();
-
-        s.accession = run;
-        if ((s.haveLocalPath = fi.have) != false)
-            s.localPath = fi.path;
-        if ((s.haveCachePath = !fi.cachepath.empty()) != false)
-            s.cachePath = fi.cachepath;
-        if ((s.haveSize = fi.size != 0) != false)
-            s.fileSize = fi.size;
-        s.haveQualityType = fi.qualityType != vdb::Service::unknown;
-        s.fullQuality = fi.qualityType == vdb::Service::full;
-
-        addSource(data_source(s));
-    }
 }
 
-data_sources data_sources::preload(std::vector<std::string> const &runs,
-                                   ParamList const &parameters)
+data_sources data_sources::preload(CommandLine const &cmdline, Arguments const &parsed)
 {
-    return logging_state::testing_level() != 2 ? data_sources(runs, config->canUseSDL()) : data_sources(runs);
+    return logging_state::testing_level() != 2 ? data_sources(cmdline, parsed, config->canUseSDL()) : data_sources(cmdline, parsed);
 }
-
-#if DEBUG || _DEBUGGING
-// these tests all use asserts because these are all hard-coded values
-
-void data_sources::test_vdbcache() {
-    auto const testJSON = R"###(
-{
-    "version": "unstable",
-    "result": [
-        {
-            "bundle": "SRR850901",
-            "status": 200,
-            "msg": "ok",
-            "files": [
-                {
-                    "object": "srapub_files|SRR850901",
-                    "type": "reference_fasta",
-                    "name": "SRR850901.contigs.fasta",
-                    "size": 5417080,
-                    "md5": "e0572326534bbf310c0ac744bd51c1ec",
-                    "modificationDate": "2016-11-19T08:00:46Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra7/SRZ/000850/SRR850901/SRR850901.contigs.fasta",
-                            "service": "sra-ncbi",
-                            "region": "public"
-                        }
-                    ]
-                },
-                {
-                    "object": "srapub_files|SRR850901",
-                    "type": "sra",
-                    "name": "SRR850901.pileup",
-                    "size": 842809,
-                    "md5": "323d0b76f741ae0b71aeec0176645301",
-                    "modificationDate": "2016-11-20T07:38:19Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra14/SRZ/000850/SRR850901/SRR850901.pileup",
-                            "service": "sra-ncbi",
-                            "region": "public"
-                        }
-                    ]
-                },
-                {
-                    "object": "srapub|SRR850901",
-                    "type": "sra",
-                    "name": "SRR850901",
-                    "size": 323741972,
-                    "md5": "5e213b2319bd1af17c47120ee8b16dbc",
-                    "modificationDate": "2016-11-19T07:35:20Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2",
-                            "service": "ncbi",
-                            "region": "be-md"
-                        }
-                    ]
-                },
-                {
-                    "object": "srapub|SRR850901",
-                    "type": "vdbcache",
-                    "name": "SRR850901.vdbcache",
-                    "size": 17615526,
-                    "md5": "2eb204cedf5eefe45819c228817ee466",
-                    "modificationDate": "2016-02-08T16:31:35Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache",
-                            "service": "sra-ncbi",
-                            "region": "public"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-}
-)###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-    
-    assert(raw.result.size() == 1);
-    auto passed = false;
-    auto files = 0;
-    auto sras = 0;
-    auto srrs = 0;
-    
-    for (auto &file : raw.result[0].files) {
-        ++files;
-        if (file.type != "sra") continue;
-        ++sras;
-        if (ends_with(".pileup", file.name)) continue;
-        ++srrs;
-        
-        assert(file.locations.size() == 1);
-        
-        auto const vcache = raw.result[0].matching(file, "vdbcache");
-        assert(vcache != raw.result[0].files.end());
-        
-        auto const &location = file.locations[0];
-        auto const &vdbcache = vcache->best_matching(location);
-        assert(vdbcache != vcache->locations.end());
-        assert(vdbcache->service == "sra-ncbi");
-        assert(vdbcache->region == "public");
-        
-        passed = true;
-    }
-    assert(files == 4);
-    assert(sras == 2);
-    assert(srrs == 1);
-    assert(passed);
-}
-
-void data_sources::test_2() {
-    auto const testJSON = R"###(
-{
-    "version": "2",
-    "result": [
-        {
-            "bundle": "SRR000001",
-            "status": 200,
-            "msg": "ok",
-            "files": [
-                {
-                    "object": "srapub|SRR000001",
-                    "type": "sra",
-                    "name": "SRR000001",
-                    "size": 312527083,
-                    "md5": "9bde35fefa9d955f457e22d9be52bcd9",
-                    "modificationDate": "2015-04-08T02:54:13Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-5/SRR000001/SRR000001.4",
-                            "service": "ncbi",
-                            "region": "be-md"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "bundle": "SRR000002",
-            "status": 200,
-            "msg": "ok",
-            "files": [
-                {
-                    "object": "srapub|SRR000002",
-                    "type": "sra",
-                    "name": "SRR000002",
-                    "size": 358999861,
-                    "md5": "22c8b51d7caae31920df904a6b4164c0",
-                    "modificationDate": "2012-01-19T20:14:00Z",
-                    "locations": [
-                        {
-                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-5/SRR000002/SRR000002.3",
-                            "service": "ncbi",
-                            "region": "be-md"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-}
-)###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-    
-    assert(raw.result.size() == 2);
-}
-
-void data_sources::test_top_error() {
-    auto const testJSON = R"###(
-{
-    "version": "2",
-    "status": 400,
-    "message": "Wrong service or/and region name"
-})###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-    
-    assert(raw.result.size() == 0);
-    assert(raw.status == "400");
-}
-
-void data_sources::test_empty() {
-    auto const testJSON = R"###(
-{
-    "version": "2",
-    "result": [
-    ]
-})###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-    
-    assert(raw.result.size() == 0);
-}
-
-void data_sources::test_inner_error() {
-    auto const testJSON = R"###(
-{
-    "version": "2",
-    "result": [
-        {
-            "bundle": "SRR867664",
-            "status": 404,
-            "msg": "No data at given location.region"
-        }
-    ]
-})###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-    
-    assert(raw.result.size() == 1);
-    assert(raw.result[0].status == "404");
-}
-
-void data_sources::test_WGS() {
-auto const testJSON = R"###(
-{
-    "version": "2",
-    "result": [
-        {
-            "bundle": "AAAA00",
-            "status": 200,
-            "msg": "ok",
-            "files": [
-                {
-                    "object": "wgs|AAAA00",
-                    "name": "AAAA02.11",
-                    "locations": [
-                        {
-                            "service": "ncbi",
-                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/WGS/AA/AA/AAAA02.11"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-})###";
-    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
-    auto const &obj = jvRef->toObject();
-    auto const &raw = Response2(obj);
-
-    assert(raw.result.size() == 1);
-
-    for (auto &file : raw.result[0].files) {
-        assert(!file.type_); // no type was sent
-        assert(file.type == "sra");
-
-        assert(file.locations.size() == 1);
-
-        auto const &location = file.locations[0];
-        assert(location.service == "ncbi");
-        assert(!location.region_); // no region was sent
-        assert(location.region == "be-md");
-    }
-}
-#endif // DEBUG || _DEBUGGING
-
-} // namespace sratools

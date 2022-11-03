@@ -17,7 +17,7 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-October 27, 2022 : SRA Toolkit 3.0.1, changes to the repository structure
+November 1, 2022 : SRA Toolkit 3.0.1, changes to the repository structure
 
 To better serve disparate groups of users, the tools/ directory of the sra-tools repository is divided into several subdirectories:
 - external/ - the tools that comprise the end user facing sra-toolkit. These are the tools that are installed on a toolkit user's machine. This is the default make target

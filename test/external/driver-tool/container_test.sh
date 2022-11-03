@@ -11,10 +11,10 @@ TEMPDIR=.
 mkdir -p actual
 
 output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
-PATH="${bin_dir}:$PATH" \
-SRATOOLS_IMPERSONATE=fastq-dump \
-${bin_dir}/${sratools} ${container} 2>actual/${container}.stderr ; \
-diff expected/${container}.stderr actual/${container}.stderr)
+         PATH="${bin_dir}:$PATH" \
+         SRATOOLS_IMPERSONATE=fastq-dump \
+         ${bin_dir}/${sratools} ${container} 2>actual/${container}.stderr ; \
+         diff expected/${container}.stderr actual/${container}.stderr)
 
 res=$?
 if [ "$res" != "0" ];

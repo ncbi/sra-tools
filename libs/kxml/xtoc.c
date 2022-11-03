@@ -516,7 +516,7 @@ rc_t XTocTreeAddDir (XTocEntry * self, XTocEntry ** pentry, XTocEntry * containe
 rc_t XTocTreeAddSymlink   (XTocEntry * self, XTocEntry ** pentry, XTocEntry * container,
                            const char * name, KTime_t mtime, const char * target)
 {
-    XTocEntry * entry;
+    XTocEntry * entry = NULL;
     size_t z = string_size (target) + 1;
     rc_t rc = XTocEntryMakeInt (&entry, name, self, container, mtime, z);
 
@@ -540,7 +540,7 @@ rc_t XTocTreeAddFile      (XTocEntry * self, XTocEntry ** pentry,
                            const char * filetype, uint64_t size,
                            uint64_t offset, uint8_t md5 [16])
 {
-    XTocEntry * entry;
+    XTocEntry * entry = NULL;
     size_t z;
     rc_t rc;
 

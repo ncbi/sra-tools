@@ -102,7 +102,7 @@ elseif( "linux" STREQUAL ${OS} )
     set( LMCHECK -lmcheck )
     set( EXE "" )
 elseif( "windows" STREQUAL ${OS} )
-    add_compile_definitions( WINDOWS _WIN32_WINNT=0x0502 )
+    add_compile_definitions( WINDOWS _WIN32_WINNT=0x0600 )
     set( LMCHECK "" )
     set( EXE ".exe" )
 endif()
@@ -112,7 +112,7 @@ endif()
 if ("armv7l" STREQUAL ${ARCH})
 	set( BITS 32 )
 	add_compile_options( -Wno-psabi )
-elseif ("arm64" STREQUAL ${ARCH} )
+elseif ("aarch64" STREQUAL ${ARCH} OR "arm64" STREQUAL ${ARCH})
 	set ( BITS 64 )
 elseif ("x86_64" STREQUAL ${ARCH} )
     set ( BITS 64 )
@@ -147,9 +147,9 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
     #
     # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
-    # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-    # Warning C4668	'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
-    # Warning C5105	macro expansion producing 'defined' has undefined behavior
+    # Warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # Warning C4668: 'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C5105: macro expansion producing 'defined' has undefined behavior
     # Warning C4514: 'XXX': unreferenced inline function has been removed
     # warning C4623: 'XXX': default constructor was implicitly defined as deleted
     # warning C4625: 'XXX': copy constructor was implicitly defined as deleted
@@ -161,9 +161,12 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
     # warning C4710: 'XXX': function not inlined
     # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
-	# warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
+    # warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
     set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032")
     set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall)
 endif()
 set( CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
 set( CMAKE_CXX_FLAGS "-Wall ${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
@@ -182,6 +185,14 @@ endif()
 if ( SINGLE_TARGET )
     message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 endif()
+
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-msse4.2" COMPILER_OPTION_SSE42_SUPPORTED)
+# if (COMPILER_OPTION_SSE42_SUPPORTED)
+#     message("compiler accepts sse4.2 flag")
+# else()
+#     message("compiler does not accept sse4.2 flag")
+# endif()
 
 #message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
@@ -208,10 +219,13 @@ if( LibXml2_FOUND )
     message( LIBXML2_LIBRARIES=${LIBXML2_LIBRARIES} )
 endif()
 
-find_package(Java COMPONENTS Development)
-if( Java_FOUND AND NOT Java_VERSION )
-    message(STATUS "No version of Java found")
-    unset( Java_FOUND )
+if(NO_JAVA)
+else()
+    find_package(Java COMPONENTS Development)
+    if( Java_FOUND AND NOT Java_VERSION )
+        message(STATUS "No version of Java found")
+        unset( Java_FOUND )
+    endif()
 endif()
 
 if ( PYTHON_PATH )
@@ -263,6 +277,9 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
 
+    if (VDB_BINDIR)
+        message( "Using ncbi-vdb build in ${VDB_BINDIR}.")
+    endif ()
     if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
         message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain one or both subdirectories Debug/ and Release/, with bin/, lib/ and ilib/ underneath each.")
     endif()
@@ -517,9 +534,10 @@ function(MakeLinksExe target install_via_driver)
         target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
     endif()
 
-    if ( install_via_driver )
-        add_dependencies( ${target} sratools )
-    endif()
+# creates dependency loops
+#     if ( install_via_driver )
+#         add_dependencies( ${target} sratools )
+#     endif()
 
     if( SINGLE_CONFIG )
 
@@ -539,17 +557,17 @@ function(MakeLinksExe target install_via_driver)
                 PROGRAMS
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                DESTINATION ${CMAKE_INSTALL_BINDIR}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
             install(
                 PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                 RENAME ${target}-orig.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_BINDIR}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
             install(
                 PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
                 RENAME ${target}.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_BINDIR}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
 
         else()
@@ -565,7 +583,7 @@ function(MakeLinksExe target install_via_driver)
             install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
-                    DESTINATION ${CMAKE_INSTALL_BINDIR}
+                    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
 
@@ -589,11 +607,6 @@ function(MakeLinksExe target install_via_driver)
                 )
 
                 if (WIN32)
-                    # plug in the driver tool as soon as the target builds
-                    add_custom_command(TARGET ${target}
-                        POST_BUILD
-                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
-                    )
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
@@ -662,14 +675,14 @@ if ( SINGLE_CONFIG )
         set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
     endif()
     install( SCRIPT CODE
-        "execute_process( COMMAND /bin/bash -c \
+        "execute_process( COMMAND /bin/bash -c      \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                '${VDB_COPY_DIR}'  \
-                ${CMAKE_INSTALL_BINDIR}/ncbi              \
+                '${VDB_COPY_DIR}'                   \
+                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
-                ${CMAKE_INSTALL_BINDIR}                   \
-                ${CMAKE_INSTALL_LIBDIR}                   \
+                ${CMAKE_INSTALL_BINDIR}             \
+                ${CMAKE_INSTALL_LIBDIR}             \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )
@@ -742,46 +755,34 @@ endfunction()
 function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )
     add_executable( ${target_name} ${sources} )
     if( NOT "" STREQUAL "${compile_defs}" )
-        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+        target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
     endif()
     if( NOT "" STREQUAL "${include_dirs}" )
-        target_include_directories( ${target_name} PUBLIC "${include_dirs}" )
+        target_include_directories( ${target_name} PRIVATE "${include_dirs}" )
     endif()
-
     if( NOT "" STREQUAL "${link_libs}" )
         target_link_libraries( ${target_name} "${link_libs}" )
     endif()
 
-    if( RUN_SANITIZER_TESTS )
-        set( asan_defs "-fsanitize=address" )
+    if (RUN_SANITIZER_TESTS)
         add_executable( "${target_name}-asan" ${sources} )
-        if( NOT "" STREQUAL "${compile_defs}" )
-            target_compile_definitions( "${target_name}-asan" PRIVATE ${compile_defs} )
-        endif()
-        if( NOT "" STREQUAL "${include_dirs}" )
-            target_include_directories( "${target_name}-asan" PUBLIC "${include_dirs}" )
-        endif()
-        target_compile_options( "${target_name}-asan" PRIVATE ${asan_defs} )
-        target_link_options( "${target_name}-asan" PRIVATE ${asan_defs} )
-
-        if( NOT "" STREQUAL "${link_libs}" )
-            target_link_libraries( "${target_name}-asan" "${link_libs}" )
-        endif()
-
-        set( tsan_defs "-fsanitize=thread" )
         add_executable( "${target_name}-tsan" ${sources} )
         if( NOT "" STREQUAL "${compile_defs}" )
-            target_compile_definitions( "${target_name}-tsan" PRIVATE ${compile_defs} )
+            target_compile_definitions( "${target_name}-asan" PRIVATE "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE "${compile_defs}" )
         endif()
         if( NOT "" STREQUAL "${include_dirs}" )
-            target_include_directories( "${target_name}-tsan" PUBLIC "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PRIVATE "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PRIVATE "${include_dirs}" )
         endif()
-        target_compile_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
-        target_link_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
-
         if( NOT "" STREQUAL "${link_libs}" )
+            target_link_libraries( "${target_name}-asan" "${link_libs}" )
             target_link_libraries( "${target_name}-tsan" "${link_libs}" )
         endif()
+        target_compile_definitions( "${target_name}-asan" PRIVATE "-fsanitize=address")
+        target_compile_definitions( "${target_name}-tsan" PRIVATE "-fsanitize=thread" )
+        target_link_libraries( "${target_name}-asan" "-fsanitize=address" )
+        target_link_libraries( "${target_name}-tsan" "-fsanitize=thread" )
     endif()
 endfunction()
 

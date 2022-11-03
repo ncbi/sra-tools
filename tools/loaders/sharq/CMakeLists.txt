@@ -53,7 +53,9 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
 set(CMAKE_CXX_STANDARD 17)
 
 #specific to BitMagic
-add_definitions(-msse4.2 -DBMSSE42OPT)
+if (COMPILER_OPTION_SSE42_SUPPORTED)
+    add_definitions(-msse4.2 -DBMSSE42OPT)
+endif()
 
 set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)

@@ -22,7 +22,6 @@
 #
 # ===========================================================================
 
-add_subdirectory( driver-tool )
 add_subdirectory( prefetch )
 add_subdirectory( vdb-config )
 add_subdirectory( sra-dump )
@@ -41,3 +40,4 @@ add_subdirectory( ref-variation )
 add_subdirectory( sra-search )
 add_subdirectory( test-sra )
 add_subdirectory( cache-mgr ) # obsolete
+add_subdirectory( driver-tool )

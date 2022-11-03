@@ -22,45 +22,108 @@
 #
 # ===========================================================================
 
-#add_compile_definitions( __mod__="tools/driver-tool" )
+set( compile_defs __mod__="tools/driver-tool" )
 
-add_subdirectory( json )
-add_subdirectory( secure )
-add_subdirectory( utf8proc )
-
-#include_directories( inc )
-
-set( SRATOOLS_SRC
-	sratools
-	sratools2
-	imp_fasterq_dump
-	imp_fastq_dump
-	imp_prefetch
-	imp_sam_dump
-	imp_sra_pileup
-	imp_srapath
-	imp_vdb_dump
-	cmdline
-	config
-	proc
-	run-source
-	uuid
-	service
-    support2
+set( sources
+    sratools.cpp
+    sratools.hpp
+    config.cpp
+    config.hpp
+    command-line.cpp
+    command-line.hpp
+    run-source.cpp
+    run-source.hpp
+    proc.cpp
+    proc.hpp
+    uuid.cpp
+    uuid.hpp
+    accession.cpp
+    accession.hpp
+    service.cpp
+    service.hpp
+    json-parse.cpp
+    json-parse.hpp
+    SDL-response.cpp
+    SDL-response.hpp
+    tool-args.cpp
+    tool-args.hpp
+    build-version.cpp
+    build-version.hpp
+    globals.hpp
+    constants.hpp
+    debug.hpp
+    utf8-16.hpp
+    util.hpp
+    file-path.hpp
+    opt_string.hpp
+    common-arguments.h
+    fastq-dump-arguments.h
+    tool-arguments.h
 )
 
-if( WIN32 )
-    set( ADDITIONAL_LIBS
-            libcmt$<$<CONFIG:Debug>:d>
-            libcpmt$<$<CONFIG:Debug>:d>
-            libucrt$<$<CONFIG:Debug>:d>
-            libvcruntime$<$<CONFIG:Debug>:d>
+if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
+    # UPDATING THE TOOL ARGUMENTS HEADER ONLY WORKS IN DEBUG CODE
+
+    add_custom_target(
+        tool-arguments-header COMMAND
+        sh generate-args-info.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        BYPRODUCTS tool-arguments.h.timestamp
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
-else()
-	set( ADDITIONAL_LIBS m )
+    add_dependencies(
+        tool-arguments-header
+        vdb-dump
+        fasterq-dump
+        sam-dump
+        sra-pileup
+    )
 endif()
 
-set( link_libs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} ${MBEDTLS_LIBS} )
+if( WIN32 )
+    list(APPEND sources
+        file-path.win32.cpp
+        proc.win32.cpp
+        proc.win32.hpp
+        util.win32.hpp
+        wide-char.hpp
+        win32-cmdline.hpp
+    )
+else()
+    list(APPEND sources
+        file-path.posix.cpp
+        proc.posix.cpp
+        proc.posix.hpp
+        util.posix.hpp
+    )
+endif()
 
-GenerateExecutableWithDefs( sratools "${SRATOOLS_SRC}" "__mod__=\"tools/driver-tool\"" "inc" "${link_libs}" )
+set(link_libs ncbi-vdb)
+if( WIN32 )
+    list(APPEND compile_defs USE_WIDE_API=1)
+    list(APPEND link_libs
+        libcmt$<$<CONFIG:Debug>:d>
+        libcpmt$<$<CONFIG:Debug>:d>
+        libucrt$<$<CONFIG:Debug>:d>
+        libvcruntime$<$<CONFIG:Debug>:d>
+        Ws2_32 Crypt32 ShLwApi PathCch
+    )
+elseif( LINUX )
+    list(APPEND link_libs m)
+endif()
+
+GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )
+
+if( WIN32 )
+    # rename the executables
+    foreach (targ vdb-dump fasterq-dump sam-dump sra-pileup)
+        add_custom_command(TARGET sratools
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${targ}-driver${EXE}
+        )
+    endforeach ()    
+endif()
+
+if ( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
+    add_dependencies(sratools tool-arguments-header)
+endif()

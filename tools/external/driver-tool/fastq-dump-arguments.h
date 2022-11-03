@@ -1,0 +1,39 @@
+#define TOOL_NAME_FASTQ_DUMP "fastq-dump" /* from argv[0] */
+#define TOOL_ARGS_FASTQ_DUMP TOOL_ARGS ( \
+    FQD_TOOL_ARG("accession", "A", 1, TOOL_HELP(0)), \
+    FQD_TOOL_ARG("table", "", 1, TOOL_HELP(0)), \
+    FQD_TOOL_ARG("split-spot", "", 0, TOOL_HELP(0)), \
+    FQD_TOOL_ARG("minSpotId", "N", 1, TOOL_HELP(0)), \
+    FQD_TOOL_ARG("maxSpotId", "X", 1, TOOL_HELP(0)), \
+    FQD_TOOL_ARG("spot-groups", "", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("clip", "W", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("minReadLen", "M", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("read-filter", "R", -1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("qual-filter", "E", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("qual-filter-1", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("aligned", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("unaligned", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("aligned-region", "", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("matepair-distance", "", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("skip-technical", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("outdir", "O", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("stdout", "Z", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("gzip", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("bzip2", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("split-files", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("split-3", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("spot-group", "G", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("read-filter", "R", -1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("group-in-dirs", "T", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("keep-empty-files", "K", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("dumpcs", "C", -1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("dumpbase", "B", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("offset", "Q", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("fasta", "", -1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("suppress-qual-for-cskey", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("origfmt", "F", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("readids", "I", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("helicos", "", 0, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("defline-seq", "", 1, TOOL_HELP(0)), \
+	FQD_TOOL_ARG("defline-qual", "", 1, TOOL_HELP(0)), \
+    FQD_TOOL_ARG(0, 0, 0, TOOL_HELP(0)))

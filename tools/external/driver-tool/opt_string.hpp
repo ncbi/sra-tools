@@ -32,8 +32,13 @@
 
 #pragma once
 
-#if __cplusplus < 201703L
+#include <string>
+
+#if __cplusplus < 201703L || !defined(__cpp_lib_optional)
 #include <cassert>
+#include <type_traits>
+#include <utility>
+
 /**
  @brief minimally compatible with std::optional
  */
@@ -42,30 +47,60 @@ class opt_string {
     std::string maybe_value;
 
     /// @brief true if a value was set
-    bool is_set;
+    bool is_set = false;
 public:
     /// @brief without the value set
-    opt_string()
-    : is_set(false)
-    {}
+    opt_string() = default;
     
+    /// @brief copied
+    opt_string(opt_string const &other) = default;
+    opt_string(opt_string &&other) = default;
+
+    /// @brief assigned
+    opt_string &operator =(opt_string const &other) = default;
+    opt_string &operator =(opt_string &&other) = default;
+
     /// @brief with the value set
-    opt_string(std::string const &other)
+    explicit opt_string(char const *other)
+    : is_set(other != nullptr)
+    {
+        if (is_set)
+            maybe_value.assign(other);
+    }
+
+    /// @brief with the value set
+    explicit opt_string(std::string const &other)
     : maybe_value(other)
     , is_set(true)
     {}
 
-    /// @brief copied
-    opt_string(opt_string const &other)
-    : maybe_value(other.maybe_value) // safe for std::string
-    , is_set(other.is_set)
+    /// @brief with the value set
+    explicit opt_string(std::string &&other)
+    : maybe_value(std::move(other))
+    , is_set(true)
     {}
 
-    /// @brief assigned
-    opt_string &operator =(opt_string const &other)
+    opt_string &operator= (std::string const &other)
     {
-        is_set = other.is_set;
-        maybe_value = other.maybe_value;
+        is_set = true;
+        maybe_value = other;
+        return *this;
+    }
+
+    opt_string &operator= (std::string &&other)
+    {
+        is_set = true;
+        maybe_value = std::move(other);
+        return *this;
+    }
+    
+    opt_string &operator= (char const *other)
+    {
+        is_set = other != nullptr;
+        if (is_set)
+            maybe_value.assign(other);
+        else
+            maybe_value.clear();
         return *this;
     }
 
@@ -86,6 +121,12 @@ public:
     }
 
     /// @brief get the value; undefined if no value was set
+    std::string &value() {
+        assert(is_set);
+        return maybe_value;
+    }
+
+    /// @brief get the value; undefined if no value was set
     std::string const &value() const {
         assert(is_set);
         return maybe_value;
@@ -96,6 +137,9 @@ public:
     std::string const &value_or(std::string const &alt) const {
         return is_set ? maybe_value : alt;
     }
+    
+    std::string &operator* () { return value(); }
+    std::string const &operator* () const { return value(); }
 };
 
 #else // c++17 or higher

@@ -94,12 +94,17 @@ static const char magictable [] =
     "gzip compressed data\tGnuZip\n"
     "Hierarchical Data Format (version 5) data\tHD5\n"
     "Binary Alignment Map\tBinaryAlignmentMap\n"
+    "Binary Alignment Map Index\tBAMIndex\n"
+    "Compressed Reference-oriented Alignment Map\tCompressedReferenceOrientedAlignment\n"
 };
 static const char exttable [] =
 {
     "Unknown\tUnknown\n"
     "bam\tBinaryAlignmentMap\n"
+    "bai\tBAMIndex\n"
     "bz2\tBzip\n"
+    "cram\tCompressedReferenceOrientedAlignment\n"
+    "crai\tCRAMIndex\n"
     "gz\tGnuZip\n"
     "tgz\tGnuZip\n"
     "sff\tStandardFlowgramFormat\n"
@@ -111,18 +116,13 @@ static const char exttable [] =
     "pbi\tPacBioBAMIndex\n"
 };
 
-// static const char classtable [] =
-// {
-//     "Archive\n"
-//     "Cached\n"
-//     "Compressed\n"
-//     "Read\n"
-// };
-
 static const char formattable [] =
 {
     "BinaryAlignmentMap\tRead\n"
+    "BAMIndex\tRead\n"
     "Bzip\tCompressed\n"
+    "CompressedReferenceOrientedAlignment\tRead\n"
+    "CRAMIndex\tRead\n"
     "GnuZip\tCompressed\n"
     "WinZip\tRead\n"
     "ExtensibleMarkupLanguage\tCached\n"
@@ -300,6 +300,14 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                         else if (strcmp("PacBioBAMIndex", etypebuf) == 0 && strcmp("GnuZip", mtypebuf) == 0)
                         {
                             /* pbi files have gnuzip magic, we need to treat them as data files ***/
+                            strcpy (mclassbuf, eclassbuf );
+                            strcpy (mtypebuf, etypebuf);
+                            mtype = etype;
+                            mclass = eclass;
+                        }
+                        else if (strcmp("CRAMIndex", etypebuf) == 0 && strcmp ("GnuZip", mtypebuf) == 0)
+                        {
+                            /* crai files have gnuzip magic, we need to treat them as data files ***/
                             strcpy (mclassbuf, eclassbuf );
                             strcpy (mtypebuf, etypebuf);
                             mtype = etype;

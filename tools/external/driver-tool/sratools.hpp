@@ -26,18 +26,7 @@
 
 #pragma once
 #include <string>
-
-namespace sratools {
-    enum AccessionType {
-        unknown = 0,
-        submitter = 'A',
-        project = 'P',
-        run = 'R',
-        study = 'S',
-        experiment = 'X'
-    };
-
-    bool isSRAPattern(std::string const &accession);
-    AccessionType accessionType(std::string const &accession);
-}
-
+#include <cstring>
+#include "util.hpp"
+#include "accession.hpp"
+#include "uuid.hpp"

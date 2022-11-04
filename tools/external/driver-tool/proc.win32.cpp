@@ -46,8 +46,8 @@
 #include "wide-char.hpp"
 #include "win32-cmdline.hpp"
 
-extern std::string getPathA(FilePath const &in) const;
-extern std::wstring getPathW(FilePath const &in) const;
+extern std::string getPathA(FilePath const &in);
+extern std::wstring getPathW(FilePath const &in);
 
 #if USE_WIDE_API
 

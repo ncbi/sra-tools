@@ -421,7 +421,7 @@ static NativeString pathCombine(NativeString const &left, NativeString const &in
                         );
 }
 
-std::string getPathA(FilePath const &in) const
+std::string getPathA(FilePath const &in)
 {
     auto const &path = in.rawValue();
     if (path.empty())
@@ -433,7 +433,7 @@ std::string getPathA(FilePath const &in) const
     return std::string(cpath.get());
 }
 
-std::wstring getPathW(FilePath const &in) const
+std::wstring getPathW(FilePath const &in)
 {
     auto const &path = in.rawValue();
     if (path.empty())

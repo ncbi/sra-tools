@@ -68,16 +68,6 @@
 #include "fastq-dump-arguments.h"
 #include "tool-arguments.h"
 
-ParameterDefinition const &ParameterDefinition::unknownParameter() {
-    static auto const y = ParameterDefinition(TOOL_ARG(nullptr, nullptr, false, {}));
-    return y;
-}
-
-ParameterDefinition const &ParameterDefinition::argument() {
-    static auto const y = ParameterDefinition(TOOL_ARG(nullptr, nullptr, true, {}));
-    return y;
-}
-
 class JSON_Printer {
     std::ostream &out;
     int indent;

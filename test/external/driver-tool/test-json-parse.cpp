@@ -39,10 +39,34 @@
 #include <type_traits>
 #include <initializer_list>
 #include <algorithm>
+#include <cassert>
 
 struct UnicharTests;
 
 #include "json-parse.cpp"
+
+#define IGNORE(X) do { (void)(X); } while (0)
+
+struct test_failure: public std::exception
+{
+    char const *test_name;
+    test_failure(char const *test) : test_name(test) {}
+    char const *what() const throw() { return test_name; }
+};
+
+struct assertion_failure: public std::exception
+{
+    std::string message;
+    assertion_failure(char const *expr, char const *function, int line)
+    {
+        message = std::string(__FILE__) + ":" + std::to_string(line) + " in function " + function + " assertion failed: " + expr;
+    }
+    char const *what() const throw() { return message.c_str(); }
+};
+
+#define S_(X) #X
+#define S(X) S_(X)
+#define ASSERT(X) do { if (X) break; throw assertion_failure(#X, __FUNCTION__, __LINE__); } while (0)
 
 using BitsEngine = std::independent_bits_engine<std::default_random_engine, 64, uint64_t>;
 static BitsEngine bitsEngine() {
@@ -68,100 +92,110 @@ struct JSONParserTests {
     void testBadJSON1() const {
         try {
             parsed("{");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// Unbalanced braces: no open
     void testBadJSON1_1() const {
         try {
             parsed("}");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::ExpectationFailure const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
+            IGNORE(e);
         }
     }
     /// Unbalanced brackets: no close
     void testBadJSON2() const {
         try {
             parsed("[");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// Unbalanced brackets: no open
     void testBadJSON2_1() const {
         try {
             parsed("]");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::ExpectationFailure const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::Error" << std::endl;
+            IGNORE(e);
         }
     }
     /// 'true' is a good value, but not top level JSON.
     void testBadJSON2_2() const {
         try {
             parsed("true");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// 'false' is a good value, but not top level JSON
     void testBadJSON2_3() const {
         try {
             parsed("false");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// 'null' is a good value, but not top level JSON
     void testBadJSON2_4() const {
         try {
             parsed("null");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// '"foo"' is a good value, but not top level JSON
     void testBadJSON2_5() const {
         try {
             parsed("\"foo\"");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
+            IGNORE(e);
         }
     }
     /// 'adsfa' is **not** a good value
     void testBadJSON2_6() const {
         try {
             parsed("adsfa");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::Unexpected const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::Unexpected" << std::endl;
+            IGNORE(e);
         }
     }
     /// ',' is **not** a good value
     void testBadJSON3() const {
         try {
             parsed(",");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::ExpectationFailure const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
+            IGNORE(e);
         }
     }
     /// build a random deeply nested JSON structure
@@ -189,7 +223,9 @@ struct JSONParserTests {
         biggest = std::max(biggest, (unsigned)depth);
 
         torture.append(torture2.rbegin(), torture2.rend());
-        assert(parsed(torture));
+
+        auto const did_parse = parsed(torture);
+        ASSERT(did_parse);
     }
     /// test deeply nested structures
     void testNestedStructs() const {
@@ -207,54 +243,43 @@ struct JSONParserTests {
         catch (...) {
             std::cerr << __FUNCTION__ << " failed" << std::endl;
         }
-        throw __FUNCTION__;
+        throw test_failure(__FUNCTION__);
     }
     /// empty is not top level JSON
     void testEmpty() {
         try {
             parsed("");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONParser::EndOfInput const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::EndOfInput" << std::endl;
         }
     }
     JSONParserTests()
-    : failed(nullptr)
+    : failed("failed")
     {
-        try {
-            testBadJSON1();
-            testBadJSON1_1();
-            testBadJSON2();
-            testBadJSON2_1();
-            testBadJSON2_2();
-            testBadJSON2_3();
-            testBadJSON2_4();
-            testBadJSON2_5();
-            testBadJSON2_6();
-            testBadJSON3();
-            testEmpty();
-            testNestedStructs();
-        }
-        catch (char const *function) {
-            failed = function;
-        }
+        testBadJSON1();
+        testBadJSON1_1();
+        testBadJSON2();
+        testBadJSON2_1();
+        testBadJSON2_2();
+        testBadJSON2_3();
+        testBadJSON2_4();
+        testBadJSON2_5();
+        testBadJSON2_6();
+        testBadJSON3();
+        testEmpty();
+        testNestedStructs();
+
+        failed = nullptr;
     }
 };
 
 static void JSONParser_runTests() {
-    try {
-        JSONParserTests tests;
-        if (tests) {
-            LOG(8) << "All JSON parsing tests passed." << std::endl;
-            return;
-        }
-        std::cerr << tests.failed << " failed." << std::endl;
-    }
-    catch (...) {
-        std::cerr << __FUNCTION__ << " failed." << std::endl;
-    }
-    abort();
+    JSONParserTests tests;
+    IGNORE(tests);
+
+    LOG(8) << "All JSON parsing tests passed." << std::endl;
 }
 
 struct UnicharTests {
@@ -269,7 +294,7 @@ struct UnicharTests {
         char buffer[16];
         auto const expectedSize = expected.size();
         buffer[testValue.utf8(buffer)] = '\0';
-        
+
         assert(function != nullptr && expectedSize > 0);
         if (buffer[expectedSize] == '\0' &&
             std::lexicographical_compare(expected.begin(), expected.end(), buffer, buffer + expectedSize) == false &&
@@ -278,7 +303,7 @@ struct UnicharTests {
             LOG(9) << function << " successful." << std::endl;
             return;
         }
-        throw function;
+        throw test_failure(function);
     }
     void testDecode_UTF8(std::initializer_list<char> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
     {
@@ -289,7 +314,7 @@ struct UnicharTests {
         assert(function != nullptr);
         if (cur == in.end() && u == expected)
             return;
-        throw function;
+        throw test_failure(function);
     }
     void testDecode_UTF16(std::initializer_list<uint16_t> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
     {
@@ -300,7 +325,7 @@ struct UnicharTests {
         assert(function != nullptr);
         if (cur == in.end() && u == expected)
             return;
-        throw function;
+        throw test_failure(function);
     }
     void testDecode_Hex16(std::initializer_list<char> const &in, Unichar const expected = Unichar{0}, char const *const function = nullptr)
     {
@@ -311,7 +336,7 @@ struct UnicharTests {
         assert(function != nullptr);
         if (cur == in.end() && u == expected)
             return;
-        throw function;
+        throw test_failure(function);
     }
     /// encodes to one byte
     void testEncodingAscii() {
@@ -328,7 +353,7 @@ struct UnicharTests {
     void testMissingSurrogate1() {
         try {
             testEncode(Unichar{0xDC37});
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONStringConversionInvalidUTF8Error." << std::endl;
@@ -337,7 +362,7 @@ struct UnicharTests {
     void testMissingSurrogate2() {
         try {
             testEncode(Unichar{0xD801});
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONStringConversionInvalidUTF8Error." << std::endl;
@@ -346,7 +371,7 @@ struct UnicharTests {
     void testEncodingTooBig() {
         try {
             testEncode(Unichar(0x200348));
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONStringConversionInvalidUTF8Error const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONStringConversionInvalidUTF8Error." << std::endl;
@@ -367,7 +392,7 @@ struct UnicharTests {
     void testDecodingUTF16_3() {
         try {
             testDecode_UTF16({0xD801, 0xD037}); ///< expected to throw
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -382,7 +407,7 @@ struct UnicharTests {
     void testDecodingHex16_3() {
         try {
             testDecode_Hex16({'2', 'x', 'A', 'C'}); ///< expected to throw
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -391,7 +416,7 @@ struct UnicharTests {
     void testDecodingHex16_4() {
         try {
             testDecode_Hex16({'D', '8', '0', '1', 'D', '0', '3', '7'}); ///< expected to throw
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -422,16 +447,10 @@ struct UnicharTests {
 };
 
 static void Unichar_runTests() {
-    try {
-        UnicharTests unicharTests;
+    UnicharTests unicharTests;
 
-        LOG(8) << "All UTF8 encoding tests passed." << std::endl;
-        return;
-    }
-    catch (char const *function) {
-        std::cerr << function << " failed." << std::endl;
-    }
-    abort();
+    LOG(8) << "All UTF8 encoding tests passed." << std::endl;
+    return;
 }
 
 struct JSONStringTests {
@@ -446,90 +465,93 @@ struct JSONStringTests {
         try {
             make("\"foo\"");
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            return;
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testDecodeUTF8_UTF16() {
         try {
             std::string const s1 = make(u8"\"\u20AC\"");
             std::string const s2 = make("\"\xE2\x82\xAC\"");
-            assert(s1 == s2);
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s1 == s2) {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testDecode16String1() {
         try {
             std::string s = make(u8"\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u20AC\"");
-            assert(s == "\"\\/\b\f\n\r\t\xE2\x82\xAC");
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\"\\/\b\f\n\r\t\xE2\x82\xAC") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testDecode16String2() {
         try {
             std::string const s = make(u8"\"\\uD801\\uDC37\"");
-            assert(s == "\xF0\x90\x90\xB7");
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\xF0\x90\x90\xB7") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testBigUTF8_1() {
         try {
             std::string const s = make("\"\x7F\"");
-            assert(s == "\x7F");
-
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\x7F") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testBigUTF8_2() {
         try {
             std::string const s = make("\"\xDF\xBF\"");
-            assert(s == "\xDF\xBF");
-
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\xDF\xBF") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testBigUTF8_3() {
         try {
             std::string const s = make("\"\xEF\xBF\xBF\"");
-            assert(s == "\xEF\xBF\xBF");
-
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\xEF\xBF\xBF") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testBigUTF8_4() {
         try {
             std::string const s = make("\"\xF4\x8F\xBF\xBF\"");
-            assert(s == "\xF4\x8F\xBF\xBF");
-
-            LOG(9) << __FUNCTION__ << " successful." << std::endl;
+            if (s == "\xF4\x8F\xBF\xBF") {
+                LOG(9) << __FUNCTION__ << " successful." << std::endl;
+                return;
+            }
         }
-        catch (...) {
-            throw __FUNCTION__;
-        }
+        catch (...) {}
+        throw test_failure(__FUNCTION__);
     }
     void testNotAString() {
         try {
             make("foo");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -538,7 +560,7 @@ struct JSONStringTests {
     void testTooBigUTF8() {
         try {
             std::string const s = make("\"\xF7\xBF\xBF\xBF\""); // fails is_valid_as_UTF8; line 565
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -547,7 +569,7 @@ struct JSONStringTests {
     void testTooTooBigUTF8() {
         try {
             std::string const s = make("\"\xFB\xBF\xBF\xBF\xBF\"");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -556,7 +578,7 @@ struct JSONStringTests {
     void testBadDecode1() {
         try {
             std::string const s = make("\"\\v\""); // fails case unrecognized escaped character; line 550
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -565,7 +587,7 @@ struct JSONStringTests {
     void testBadDecode1_2() {
         try {
             std::string const s = make("\"\\\""); // fails end of input in escape sequence; line 580
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -574,7 +596,7 @@ struct JSONStringTests {
     void testBadDecode2_1() {
         try {
             std::string const s = make("\"\\uA\"");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -583,7 +605,7 @@ struct JSONStringTests {
     void testBadDecode2_2() {
         try {
             std::string const s = make("\"\\uA0\"");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -592,7 +614,7 @@ struct JSONStringTests {
     void testBadDecode2_3() {
         try {
             std::string const s = make("\"\\uA0F\"");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -601,7 +623,7 @@ struct JSONStringTests {
     void testBadDecode2_4() {
         try {
             std::string const s = make("\"\\uA0\\F0\""); // fails escape in hex string; line 522
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -622,7 +644,7 @@ struct JSONStringTests {
         buffer[n + 2] = '\0';
         try {
             std::string const s = make(buffer); // fails is_valid_as_UTF8; line 565
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -638,7 +660,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer); // fails end of input while decoding UTF-8; line 578
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -654,7 +676,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer); // fails end of input while decoding UTF-8; line 578
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -670,7 +692,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -686,7 +708,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -702,7 +724,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -718,7 +740,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -733,7 +755,7 @@ struct JSONStringTests {
         buffer[++n] = '\0';
         try {
             std::string const s = make(buffer);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -742,7 +764,7 @@ struct JSONStringTests {
     void testBadMemberNameEmpty() {
         try {
             std::string const s = make("", true);
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError." << std::endl;
@@ -789,7 +811,7 @@ struct JSONMemberNameConstraintsTests {
     void testBadMemberNameNumeric() {
         try {
             std::string const s = make("1foo");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (BadMemberNameError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got BadMemberNameError." << std::endl;
@@ -798,7 +820,7 @@ struct JSONMemberNameConstraintsTests {
     void testBadMemberName1() {
         try {
             std::string const s = make(".foo");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (BadMemberNameError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got BadMemberNameError." << std::endl;
@@ -807,7 +829,7 @@ struct JSONMemberNameConstraintsTests {
     void testBadMemberName2() {
         try {
             std::string const s = make("foo.1");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (BadMemberNameError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got BadMemberNameError." << std::endl;
@@ -819,7 +841,7 @@ struct JSONMemberNameConstraintsTests {
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
         }
         catch (...) {
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
     }
     void testMemberName2() {
@@ -828,7 +850,7 @@ struct JSONMemberNameConstraintsTests {
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
         }
         catch (...) {
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
     }
     void testMemberName3() {
@@ -837,7 +859,7 @@ struct JSONMemberNameConstraintsTests {
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
         }
         catch (...) {
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
     }
 #endif
@@ -854,54 +876,73 @@ struct JSONMemberNameConstraintsTests {
 };
 
 static void JSONString_runTests() {
-    try {
-        {
-            JSONStringTests tests;
+    {
+        JSONStringTests tests;
 
-            (void)(tests);
-            LOG(8) << "All JSON string decoding tests passed." << std::endl;
-        }
-        {
-            JSONMemberNameConstraintsTests tests;
+        IGNORE(tests);
+        LOG(8) << "All JSON string decoding tests passed." << std::endl;
+    }
+    {
+        JSONMemberNameConstraintsTests tests;
 
-            (void)(tests);
-            LOG(8) << "All JSON member name constraints tests passed." << std::endl;
-        }
-        return;
+        IGNORE(tests);
+        LOG(8) << "All JSON member name constraints tests passed." << std::endl;
     }
-    catch (char const *function) {
-        std::cerr << function << " failed." << std::endl;
-    }
-    abort();
 }
 
 static void JSONBool_runTests() {
+    bool failed = true;
     try {
         auto const T = JSONBool(StringView("foo"));
-        (void)(T);
-        throw "JSONBoolTests failed";
+        IGNORE(T);
     }
-    catch (JSONScalarConversionError const &) {
+    catch (JSONScalarConversionError const &e) {
+        failed = false;
+        IGNORE(e);
     }
-    auto const T = JSONBool(StringView("true"));
-    auto const F = JSONBool(StringView("false"));
+    if (failed) {
+        throw test_failure(__FUNCTION__);
+    }
 
-    assert(!F);
-    assert(!!T);
+    failed = true;
+    {
+        auto const T = JSONBool(StringView("true"));
+        if (!!T)
+            failed = false;
+    }
+    if (failed) {
+        throw test_failure(__FUNCTION__);
+    }
+
+    failed = true;
+    {
+        auto const F = JSONBool(StringView("false"));
+        if (!F)
+            failed = false;
+    }
+    if (failed) {
+        throw test_failure(__FUNCTION__);
+    }
     LOG(8) << "All JSON bool tests passed." << std::endl;
 }
 
 static void JSONNull_runTests() {
+    bool failed = true;
     try {
         auto const T = JSONNull(StringView("foo"));
-        (void)(T);
-        throw "JSONNullTests failed";
+        IGNORE(T);
     }
-    catch (JSONScalarConversionError const &) {
+    catch (JSONScalarConversionError const &e) {
+        failed = false;
+        IGNORE(e);
     }
-    auto const T = JSONNull(StringView("null"));
-    (void)(T);
-
+    if (failed) {
+        throw test_failure(__FUNCTION__);
+    }
+    {
+        auto const T = JSONNull(StringView("null"));
+        IGNORE(T);
+    }
     LOG(8) << "All JSON null tests passed." << std::endl;
 }
 
@@ -916,10 +957,13 @@ int main ( int argc, char *argv[], char *envp[])
         JSONNull_runTests();
         JSONString_runTests();
         JSONParser_runTests();
+        return 0;
+    }
+    catch (test_failure const &e) {
+        std::cerr << "test " << e.what() << " failed." << std::endl;
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
-        return 3;
     }
-    return 0;
+    return 3;
 }

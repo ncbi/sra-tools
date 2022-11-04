@@ -430,6 +430,11 @@ FilePath::operator std::string() const
 #endif
 }
 
+NativeString FilePath::fileSystemRepresentation() const
+{
+    return path.empty() ? path : canonicalPath(path);
+}
+
 #if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
@@ -568,10 +573,10 @@ bool FilePath::removeSuffix(std::string const &in_suffix)
 
     if (path.size() < suffix.size())
         return false;
-    
+
     if (path.substr(path.size() - suffix.size()) != suffix)
         return false;
-        
+
     path.resize(path.size() - suffix.size());
     return true;
 }

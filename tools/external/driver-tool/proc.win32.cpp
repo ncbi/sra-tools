@@ -46,6 +46,9 @@
 #include "wide-char.hpp"
 #include "win32-cmdline.hpp"
 
+extern std::string getPathA(FilePath const &in) const;
+extern std::wstring getPathW(FilePath const &in) const;
+
 #if USE_WIDE_API
 
 static
@@ -67,7 +70,8 @@ DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, wchar_t 
         si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
         si.dwFlags |= STARTF_USESTDHANDLES;
 
-        if (!CreateProcessW(std::wstring(toolpath).c_str(), (LPWSTR)wcmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
+        auto const path = getPathW(toolpath);
+        if (!CreateProcessW(path.c_str(), (LPWSTR)wcmdline.get(), NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
         {
             throw_system_error("CreateProcess");
         }
@@ -81,8 +85,6 @@ DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, wchar_t 
         ExitProcess(0);
     return 0;
 }
-
-#else
 
 #endif
 
@@ -104,7 +106,8 @@ DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, char con
         si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
         si.dwFlags |= STARTF_USESTDHANDLES;
 
-        if (!CreateProcessA(std::string(toolpath).c_str(), (LPSTR)cmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
+        auto const path = getPathA(toolpath);
+        if (!CreateProcessA(path.c_str(), (LPSTR)cmdline.get(), NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
         {
             throw_system_error("CreateProcess");
         }

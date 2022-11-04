@@ -433,7 +433,7 @@ FilePath::operator std::string() const
 #if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
-    return path.empty() ? path : canonicalPath(path);
+    return path.empty() ? path : std::wstring(canonicalPathPOSIX(path).get());
 }
 
 size_t FilePath::size() const
@@ -441,6 +441,7 @@ size_t FilePath::size() const
     auto const &asString = this->operator std::wstring();
     return asString.size();
 }
+#else
 #endif
 
 static NativeString trimPath(NativeString const &path, bool canTrim = true)

@@ -68,11 +68,6 @@ FilePath::operator std::string() const {
     return path;
 }
 
-NativeString FilePath::fileSystemRepresentation() const
-{
-    return path;
-}
-
 size_t FilePath::size() const {
     return trimPath(path).size();
 }

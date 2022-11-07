@@ -29,43 +29,36 @@ if( NOT WIN32)
 
 	include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ./) # zlib.h
 
-	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
 	if (APPLE)
-		# This is a bug in CMake that causes it to prefer the system version over
-		# the one in the specified ROOT folder.
-		if ( NOT OPENSSL_ROOT_DIR )
-			set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/local/Cellar/openssl@1.1/1.1.1q)
-		endif()
-		set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
-		set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
+	    set(CRYPTO_HASH_LIB "") # it is system supplied
+	else()
+    	find_package(OpenSSL) # for SHA1 SHA224 SHA256
+	    set(CRYPTO_HASH_LIB OpenSSL::SSL)
 	endif()
-	find_package(OpenSSL)
 
-	if (OpenSSL_FOUND)
-        set( SRC
-            bam-loader
-            bam
-            sam
-            alignment-writer
-            reference-writer
-            sequence-writer
-            loader-imp
-            mem-bank
-            low-match-count
-        )
-        set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
-        set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
+    set( SRC
+        bam-loader
+        bam
+        sam
+        alignment-writer
+        reference-writer
+        sequence-writer
+        loader-imp
+        mem-bank
+        low-match-count
+    )
+    set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
+    set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
 
-        GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-        target_compile_features(bam-load PUBLIC cxx_std_17)
-        if (COMPILER_OPTION_SSE42_SUPPORTED)
-            target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
-        endif()
-        target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-        target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+    GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    target_compile_features(bam-load PUBLIC cxx_std_17)
+    if (COMPILER_OPTION_SSE42_SUPPORTED)
+        target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+    endif()
+    target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+    target_link_libraries( bam-load  loader ${CRYPTO_HASH_LIB} ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
-        MakeLinksExe( bam-load false )
-	endif()
+    MakeLinksExe( bam-load false )
 
 	# Internal
 	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

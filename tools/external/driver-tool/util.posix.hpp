@@ -44,7 +44,8 @@ static inline std::error_code error_code_from_errno()
 namespace POSIX {
 struct EnvironmentVariables {
     static opt_string get(char const *name) {
-        return opt_string(getenv(name));
+        auto const val = getenv(name);
+        return val ? opt_string(val) : opt_string();
     }
     static void set(char const *name, char const *value) {
         if (value)

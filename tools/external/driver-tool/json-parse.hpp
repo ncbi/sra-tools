@@ -217,7 +217,7 @@ private:
     void send(enum EventType const type, char const *const start, char const *const end)
     {
         auto const delegate = delegates.back();
-        auto const nd = delegate->receive(type, StringView(start, end));
+        auto const nd = delegate->receive(type, StringView(start, end - start));
 
         if (nd == nullptr)
             delegates.pop_back();
@@ -335,7 +335,7 @@ struct JSONString {
     bool isMemberName;
 #endif
     explicit JSONString(StringView const &value, bool isMemberName = false)
-    : value(value.begin() + (isMemberName ? 0 : 1), value.end() - (isMemberName ? 0 : 1))
+    : value(value.begin() + (isMemberName ? 0 : 1), value.size() - (isMemberName ? 0 : 2))
 #if PEDANTIC_MEMBER_NAMES
     , isMemberName(isMemberName)
 #endif

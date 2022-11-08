@@ -421,6 +421,29 @@ static NativeString pathCombine(NativeString const &left, NativeString const &in
                         );
 }
 
+std::string getPathA(FilePath const &in)
+{
+    auto const &path = in.rawValue();
+    if (path.empty())
+        return std::string();
+
+    auto const wcpath = canonicalPathW(path);
+    auto const cpath = Win32Support::makeUnwide(wcpath.get());
+
+    return std::string(cpath.get());
+}
+
+std::wstring getPathW(FilePath const &in)
+{
+    auto const &path = in.rawValue();
+    if (path.empty())
+        return std::wstring();
+
+    auto const wcpath = canonicalPathW(path);
+
+    return std::wstring(wcpath.get());
+}
+
 FilePath::operator std::string() const
 {
 #if USE_WIDE_API
@@ -569,10 +592,10 @@ bool FilePath::removeSuffix(std::string const &in_suffix)
 
     if (path.size() < suffix.size())
         return false;
-    
+
     if (path.substr(path.size() - suffix.size()) != suffix)
         return false;
-        
+
     path.resize(path.size() - suffix.size());
     return true;
 }

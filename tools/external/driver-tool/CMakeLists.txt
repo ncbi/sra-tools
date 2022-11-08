@@ -97,7 +97,7 @@ else()
     )
 endif()
 
-set(link_libs ncbi-vdb)
+set(link_libs ${COMMON_LIBS_READ})
 if( WIN32 )
     list(APPEND compile_defs USE_WIDE_API=1)
     list(APPEND link_libs
@@ -107,8 +107,6 @@ if( WIN32 )
         libvcruntime$<$<CONFIG:Debug>:d>
         Ws2_32 Crypt32 ShLwApi PathCch
     )
-elseif( LINUX )
-    list(APPEND link_libs m)
 endif()
 
 GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
@@ -121,7 +119,7 @@ if( WIN32 )
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${targ}-driver${EXE}
         )
-    endforeach ()    
+    endforeach ()
 endif()
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )

@@ -36,8 +36,30 @@
 #endif
 
 #include <string>
-#include <cassert>
 #include "accession.cpp"
+
+#define IGNORE(X) do { (void)(X); } while (0)
+
+struct test_failure: public std::exception
+{
+    char const *test_name;
+    test_failure(char const *test) : test_name(test) {}
+    char const *what() const throw() { return test_name; }
+};
+
+struct assertion_failure: public std::exception
+{
+    std::string message;
+    assertion_failure(char const *expr, char const *function, int line)
+    {
+        message = std::string(__FILE__) + ":" + std::to_string(line) + " in function " + function + " assertion failed: " + expr;
+    }
+    char const *what() const throw() { return message.c_str(); }
+};
+
+#define S_(X) #X
+#define S(X) S_(X)
+#define ASSERT(X) do { if (X) break; throw assertion_failure(#X, __FUNCTION__, __LINE__); } while (0)
 
 using namespace sratools;
 
@@ -47,23 +69,22 @@ static AccessionType accessionType(std::string const &accession)
 }
 
 static void testAccessionType() {
-    // asserts because these are all hard-coded values
-    assert(accessionType("SRR000000") == run);
-    assert(accessionType("ERR000000") == run);
-    assert(accessionType("DRR000000") == run);
-    assert(accessionType("srr000000") == run);
+    ASSERT(accessionType("SRR000000") == run);
+    ASSERT(accessionType("ERR000000") == run);
+    ASSERT(accessionType("DRR000000") == run);
+    ASSERT(accessionType("srr000000") == run);
 
-    assert(accessionType("SRA000000") == submitter);
-    assert(accessionType("SRP000000") == project);
-    assert(accessionType("SRS000000") == study);
-    assert(accessionType("SRX000000") == experiment);
+    ASSERT(accessionType("SRA000000") == submitter);
+    ASSERT(accessionType("SRP000000") == project);
+    ASSERT(accessionType("SRS000000") == study);
+    ASSERT(accessionType("SRX000000") == experiment);
 
-    assert(accessionType("SRR000000.2") == run); // not certain of this one
+    ASSERT(accessionType("SRR000000.2") == run); // not certain of this one
 
-    assert(accessionType("SRR00000") == unknown); // too short
-    assert(accessionType("SRF000000") == unknown); // bad type
-    assert(accessionType("ZRR000000") == unknown); // bad issuer
-    assert(accessionType("SRRR00000") == unknown); // not digits
+    ASSERT(accessionType("SRR00000") == unknown); // too short
+    ASSERT(accessionType("SRF000000") == unknown); // bad type
+    ASSERT(accessionType("ZRR000000") == unknown); // bad issuer
+    ASSERT(accessionType("SRRR00000") == unknown); // not digits
 }
 
 #if WINDOWS
@@ -74,10 +95,10 @@ int main ( int argc, char *argv[], char *envp[])
 {
     try {
         testAccessionType();
+        return 0;
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
-        return 3;
     }
-    return 0;
+    return 3;
 }

@@ -155,7 +155,7 @@ struct Response2 : public ::Response2 {
         {}
 
         static std::string ordinalString(unsigned ordinal) {
-            return STD_STRING_LITERAL("# ") + std::to_string(ordinal);
+            return std::string("# ") + std::to_string(ordinal);
         }
         DecodingError setCause(std::string const &field) {
             this->field = field;
@@ -490,7 +490,8 @@ struct Response2 : public ::Response2 {
         };
 
         struct Delegate final : public JSONParser::Delegate {
-            JSONValueDelegate<std::string> query, status, message;
+            JSONValueDelegate<std::string> query, message;
+            JSONValueDelegate<std::string, JSONNumber> status;
             ArrayDelegate<FileEntry, Base::Files> files;
 
             bool wasSet = false;
@@ -551,7 +552,7 @@ struct Response2 : public ::Response2 {
 
                 return {
                       query.get()
-                    , status.rawValue()
+                    , status.get()
                     , message.get()
                     , files.get()
                 };
@@ -571,7 +572,8 @@ struct Response2 : public ::Response2 {
     };
 
     struct Delegate final : public JSONParser::Delegate {
-        JSONValueDelegate<std::string> version, status, message, nextToken;
+        JSONValueDelegate<std::string> version, message, nextToken;
+        JSONValueDelegate<std::string, JSONNumber> status;
         ArrayDelegate<ResultEntry, Base::Results> results;
 
         bool wasSet = false; ///< becomes true if we received at least one member event
@@ -637,7 +639,7 @@ struct Response2 : public ::Response2 {
                 };
             }
             return {
-                  status.rawValue()
+                  status.get()
                 , message ? message.get() : ""
             };
         }

@@ -33,10 +33,13 @@ The default 'make' command will now only build the external tools. To build othe
 
 The build flags shown above can be combined on the same command line, for instance 'make BUILD_TOOLS_LOADERS=ON BUILD_TOOLS_INTERNAL=ON TOOLS_ONLY=ON' will build everything except the test tools and the test projects.
 
+----
 
 August 4, 2022 : Security Update
 
 Due to updated security at NCBI, versions of the SRA Toolkit 2.9.6 and older will no longer be able to connect to the NCBI data location service. We advise impacted users to update to the [latest version](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) of the SRA Toolkit.
+
+----
 
 February 10, 2022 : SRA Toolkit 3.0.0
 

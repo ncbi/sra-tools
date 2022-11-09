@@ -99,7 +99,7 @@ struct StringView {
 private:
     char const *begin_;
     char const *end_;
-    
+
     size_type copy(char *dst) const {
         auto cur = dst;
         for (auto ch : *this)
@@ -116,7 +116,7 @@ private:
     }
 public:
     static const size_type npos = ~(size_type(0));
-    
+
     StringView()
     : begin_(nullptr)
     , end_(nullptr)
@@ -154,7 +154,7 @@ public:
     char const *end() const { return end_; }
     char const *cbegin() const { return begin_; }
     char const *cend() const { return end_; }
-    
+
     char const &operator [](size_type i) const {
         auto const ptr = begin_ + i;
         assert(ptr < end_);
@@ -198,7 +198,7 @@ public:
     StringView substr(size_type pos, size_type count) const {
         if (count == npos)
             return substr(pos);
-        
+
         if (pos < size()) {
             auto const ptr = begin_ + pos;
             return StringView(ptr, std::min(ptr + count, end_));
@@ -208,13 +208,13 @@ public:
     size_type copy(char *dst, size_type count, size_type pos = 0) {
         if (pos < size())
             return substr(pos, count).copy(dst);
-        
+
         throw std::out_of_range("StringView::copy: pos beyond end");
     }
     int compare(StringView const &rhs) const {
         auto const lsize = size();
         auto const rsize = rhs.size();
-        
+
         if (rsize < lsize)
             return -rhs.compare(*this);
 
@@ -266,7 +266,7 @@ public:
     bool ends_with(char const *other) const {
         return ends_with(StringView(other));
     }
-    
+
     operator std::string() const {
         return std::string(begin(), end());
     }
@@ -351,9 +351,9 @@ public:
     private:
         SmallArray *const parent;
         size_type current;
-        
+
         friend SmallArray;
-        
+
         Iterator(SmallArray *const par, size_type const cur = 0)
         : parent(par)
         , current(cur)
@@ -404,7 +404,7 @@ public:
         Iterator &operator+= (difference_type i) {
             if (i < 0)
                 return this -= -i;
-            
+
             if (parent->validIndex(current + i))
                 current += i;
             else
@@ -435,7 +435,7 @@ public:
     private:
         Iterator base_;
         friend SmallArray;
-        
+
         ConstIterator(Iterator const &other)
         : base_(other)
         {}
@@ -554,7 +554,7 @@ ITER lowerBound(ITER const &beg, ITER const &end, VALUE const &value, COMP comp)
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (comp(*m, value))
@@ -570,7 +570,7 @@ ITER lowerBound(ITER const &beg, ITER const &end, VALUE const &value)
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (*m < value)
@@ -586,7 +586,7 @@ ITER upperBound(ITER const &beg, ITER const &end, VALUE const &value, COMP comp)
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (!comp(value, *m))
@@ -602,7 +602,7 @@ ITER upperBound(ITER const &beg, ITER const &end, VALUE const &value)
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (!(value < *m))
@@ -618,7 +618,7 @@ std::pair<ITER, ITER> equalRange(ITER const &beg, ITER const &end, VALUE const &
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (less(*m, value))
@@ -636,7 +636,7 @@ std::pair<ITER, ITER> equalRange(ITER const &beg, ITER const &end, VALUE const &
 {
     auto f = beg;
     auto e = end;
-    
+
     while (f < e) {
         auto const m = middle(f, e);
         if (*m < value)
@@ -717,10 +717,9 @@ public:
     {
         if (container.empty()) {
     AT_BACK:
-            auto const at = (decltype(std::distance(container.begin(), container.end())))(container.size());
-            auto result = container.begin();
             container.emplace_back(value);
-            std::advance(result, at);
+            auto result = (container.rbegin() + 1).base();
+            assert(&*result == &container.back());
             return result;
         }
 
@@ -735,7 +734,7 @@ public:
         auto const at = std::distance(container.begin(), before);
         if (UNIQUE && at > 0 && container[at - 1] == value)
             goto NOT_UNIQUE;
-        
+
         container.insert(before, value);
         {
             auto result = container.begin();

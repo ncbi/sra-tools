@@ -40,6 +40,29 @@
 #include <cassert>
 #include "uuid.cpp"
 
+#define IGNORE(X) do { (void)(X); } while (0)
+
+struct test_failure: public std::exception
+{
+    char const *test_name;
+    test_failure(char const *test) : test_name(test) {}
+    char const *what() const throw() { return test_name; }
+};
+
+struct assertion_failure: public std::exception
+{
+    std::string message;
+    assertion_failure(char const *expr, char const *function, int line)
+    {
+        message = std::string(__FILE__) + ":" + std::to_string(line) + " in function " + function + " assertion failed: " + expr;
+    }
+    char const *what() const throw() { return message.c_str(); }
+};
+
+#define S_(X) #X
+#define S(X) S_(X)
+#define ASSERT(X) do { if (X) break; throw assertion_failure(#X, __FUNCTION__, __LINE__); } while (0)
+
 static bool uuid_is_valid(std::string const &buffer)
 {
     if (buffer.size() != 36) return false;
@@ -81,35 +104,35 @@ static bool uuid_is_valid(std::string const &buffer)
 
 void uuid_test(void)
 {
-    assert(uuid_is_valid("a38fa5da-1456-498a-8ef5-1f39e35bfe57"));
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35bfe57"));
-    assert(uuid_is_valid("a38fa5da-1456-498a-aef5-1f39e35bfe57"));
-    assert(uuid_is_valid("a38fa5da-1456-498a-bef5-1f39e35bfe57"));
-    assert(uuid_is_valid("a38fa5da-1456-098a-9ef5-1f39e35bfe57") == false); // invalid type
-    assert(uuid_is_valid("a38fa5da-1456-498a-0ef5-1f39e35bfe57") == false); // invalid subtype
-    assert(uuid_is_valid("a38fa5da11456-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-14562498a-9ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-498a39ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef541f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38f-5da-1456-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-14-6-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-49-a-9ef5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-498a-9e-5-1f39e35bfe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35-fe57") == false); // invalid seperator
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35b") == false);     // too short
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-fe571f39e35bfe57") == false); // too long
-    assert(uuid_is_valid("a38fX5da-1456-498a-9ef5-1f39e35bfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-14x6-498a-9ef5-1f39e35bfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-1456-49za-9ef5-1f39e35bfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ey5-1f39e35bfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-1fq9e35bfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e3Sbfe57") == false); // invalid character
-    assert(uuid_is_valid("a38fa5da-l33t-498a-9ef5-1f39e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-8ef5-1f39e35bfe57"));
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35bfe57"));
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-aef5-1f39e35bfe57"));
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-bef5-1f39e35bfe57"));
+    ASSERT(uuid_is_valid("a38fa5da-1456-098a-9ef5-1f39e35bfe57") == false); // invalid type
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-0ef5-1f39e35bfe57") == false); // invalid subtype
+    ASSERT(uuid_is_valid("a38fa5da11456-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-14562498a-9ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a39ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef541f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38f-5da-1456-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-14-6-498a-9ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-49-a-9ef5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9e-5-1f39e35bfe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35-fe57") == false); // invalid seperator
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e35b") == false);     // too short
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-fe571f39e35bfe57") == false); // too long
+    ASSERT(uuid_is_valid("a38fX5da-1456-498a-9ef5-1f39e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-14x6-498a-9ef5-1f39e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-1456-49za-9ef5-1f39e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ey5-1f39e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-1fq9e35bfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-1456-498a-9ef5-1f39e3Sbfe57") == false); // invalid character
+    ASSERT(uuid_is_valid("a38fa5da-l33t-498a-9ef5-1f39e35bfe57") == false); // invalid character
 
     for (auto i = 0; i < 100000; ++i) {
         char buffer[37];
         uuid_random(buffer);
-        assert(uuid_is_valid(buffer));
+        ASSERT(uuid_is_valid(buffer));
     }
 }
 
@@ -121,10 +144,10 @@ int main ( int argc, char *argv[], char *envp[])
 {
     try {
         uuid_test();
+        return 0;
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
-        return 3;
     }
-    return 0;
+    return 3;
 }

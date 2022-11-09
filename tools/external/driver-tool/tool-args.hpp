@@ -55,11 +55,21 @@ struct ParameterDefinition {
     bool argumentIsOptional; ///< only fastq-dump has parameters with optional arguments, other tools do not.
 
     /// @brief The argument appears to be a parameter, but it is not in the list of known parameters for the tool. It does not take an argument.
-    static ParameterDefinition const &unknownParameter();
+    static ParameterDefinition const &unknownParameter() {
+        static constexpr ParameterDefinition const value { nullptr, nullptr, 0, false, false };
+        static_assert(value.hasArgument == false, "");
+        static_assert(value.name == nullptr, "");
+        return value;
+    }
 
     /// @brief The query is not a parameter for the tool, it is an argument.
-    static ParameterDefinition const &argument();
-
+    static ParameterDefinition const &argument() {
+        static constexpr ParameterDefinition const value { nullptr, nullptr, 0, true, false };
+        static_assert(value.hasArgument == true, "");
+        static_assert(value.name == nullptr, "");
+        return value;
+    }
+    
     /// @brief False for unknown parameters.
     operator bool() const {
         return !!name;

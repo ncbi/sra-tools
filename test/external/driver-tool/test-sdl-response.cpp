@@ -38,6 +38,29 @@
 #include "json-parse.cpp"
 #include "SDL-response.cpp"
 
+#define IGNORE(X) do { (void)(X); } while (0)
+
+struct test_failure: public std::exception
+{
+    char const *test_name;
+    test_failure(char const *test) : test_name(test) {}
+    char const *what() const throw() { return test_name; }
+};
+
+struct assertion_failure: public std::exception
+{
+    std::string message;
+    assertion_failure(char const *expr, char const *function, int line)
+    {
+        message = std::string(__FILE__) + ":" + std::to_string(line) + " in function " + function + " assertion failed: " + expr;
+    }
+    char const *what() const throw() { return message.c_str(); }
+};
+
+#define S_(X) #X
+#define S(X) S_(X)
+#define ASSERT(X) do { if (X) break; throw assertion_failure(#X, __FUNCTION__, __LINE__); } while (0)
+
 template <typename IMPL, typename RESPONSE = typename IMPL::Base, typename DELEGATE = typename IMPL::Delegate>
 static RESPONSE makeFrom(char const *json)
 {
@@ -83,7 +106,7 @@ struct Response2Tests {
                                 "payRequired": true
                             }
                             )###");
-                        assert(obj.payRequired == true);
+                        ASSERT(obj.payRequired == true);
                         LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
@@ -96,10 +119,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void havePayRTestFalse() {
                     try {
@@ -123,10 +143,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void badCER() {
                     try {
@@ -138,7 +155,7 @@ struct Response2Tests {
                                 "ceRequired": "foo"
                             }
                             )###");
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (JSONScalarConversionError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
@@ -154,7 +171,7 @@ struct Response2Tests {
                                 "ceRequired": null
                             }
                             )###");
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (JSONScalarConversionError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
@@ -170,7 +187,7 @@ struct Response2Tests {
                                 "ceRequired": true
                             }
                             )###");
-                        assert(obj.ceRequired == true);
+                        ASSERT(obj.ceRequired == true);
                         LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
@@ -183,10 +200,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void haveCERTestFalse() {
                     try {
@@ -210,10 +224,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void haveProjectTest() {
                     try {
@@ -225,7 +236,7 @@ struct Response2Tests {
                                 "encryptedForProjectId": "phs-1234"
                             }
                             )###");
-                        assert(obj.projectId && obj.projectId.value() == "phs-1234");
+                        ASSERT(obj.projectId && obj.projectId.value() == "phs-1234");
                         LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
@@ -238,10 +249,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void haveExpDateTest() {
                     try {
@@ -253,7 +261,7 @@ struct Response2Tests {
                                 "expirationDate": "2012-01-19T20:14:00Z"
                             }
                             )###");
-                        assert(obj.expirationDate && obj.expirationDate.value() == "2012-01-19T20:14:00Z");
+                        ASSERT(obj.expirationDate && obj.expirationDate.value() == "2012-01-19T20:14:00Z");
                         LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
@@ -266,10 +274,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void defaultedRegionTest() {
                     try {
@@ -279,7 +284,7 @@ struct Response2Tests {
                                 "link": "https://foo.bar.baz"
                             }
                             )###");
-                        assert(obj.region == "be-md");
+                        ASSERT(obj.region == "be-md");
                         LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
@@ -292,10 +297,7 @@ struct Response2Tests {
                     catch (Response2::DecodingError const &e) {
                         std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                     }
-                    catch (...) {
-                        std::cerr << __FUNCTION__ << " failed" << std::endl;
-                    }
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 void missingRegionTest() {
                     try {
@@ -305,7 +307,7 @@ struct Response2Tests {
                                 "link": "https://foo.bar.baz"
                             }
                             )###");
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (Response2::DecodingError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -316,7 +318,7 @@ struct Response2Tests {
                         makeFrom(
                             R"###( { "service": "sra-ncbi" } )###"
                         );
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (Response2::DecodingError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -325,7 +327,7 @@ struct Response2Tests {
                 void missingServiceTest() {
                     try {
                         makeFrom(R"###( { "link": "https" } )###");
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (Response2::DecodingError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -334,7 +336,7 @@ struct Response2Tests {
                 void emptyObjectTest() {
                     try {
                         makeFrom("{}");
-                        throw __FUNCTION__;
+                        throw test_failure(__FUNCTION__);
                     }
                     catch (Response2::DecodingError const &e) {
                         LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -369,7 +371,7 @@ struct Response2Tests {
                             "format": "text/fasta"
                         }
                         )###");
-                    assert(obj.format && obj.format.value() == "text/fasta");
+                    ASSERT(obj.format && obj.format.value() == "text/fasta");
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -382,10 +384,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void haveNoQualTest() {
                 try {
@@ -397,7 +396,7 @@ struct Response2Tests {
                             "noqual": true
                         }
                         )###");
-                    assert(obj.noqual == true);
+                    ASSERT(obj.noqual == true);
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -410,10 +409,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void haveModDateTest() {
                 try {
@@ -425,7 +421,7 @@ struct Response2Tests {
                             "modificationDate": "2016-11-20T07:38:19Z"
                         }
                         )###");
-                    assert(obj.modificationDate && obj.modificationDate.value() == "2016-11-20T07:38:19Z");
+                    ASSERT(obj.modificationDate && obj.modificationDate.value() == "2016-11-20T07:38:19Z");
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -438,10 +434,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void haveMD5Test() {
                 try {
@@ -453,7 +446,7 @@ struct Response2Tests {
                             "md5": "323d0b76f741ae0b71aeec0176645301"
                         }
                         )###");
-                    assert(obj.md5 && obj.md5.value() == "323d0b76f741ae0b71aeec0176645301");
+                    ASSERT(obj.md5 && obj.md5.value() == "323d0b76f741ae0b71aeec0176645301");
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -466,10 +459,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void haveSizeTest() {
                 try {
@@ -481,7 +471,7 @@ struct Response2Tests {
                             "size": 842809
                         }
                         )###");
-                    assert(obj.size && obj.size.value() == "842809");
+                    ASSERT(obj.size && obj.size.value() == "842809");
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -494,10 +484,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void defaultedTypeTest() {
                 try {
@@ -507,7 +494,7 @@ struct Response2Tests {
                             "name": "AAAA02.11"
                         }
                         )###");
-                    assert(obj.type == "sra");
+                    ASSERT(obj.type == "sra");
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -520,10 +507,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void emptyLocationsTest() {
                 try {
@@ -534,7 +518,7 @@ struct Response2Tests {
                             "locations": []
                         }
                         )###");
-                    assert(obj.locations.empty());
+                    ASSERT(obj.locations.empty());
                     LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
@@ -547,10 +531,7 @@ struct Response2Tests {
                 catch (Response2::DecodingError const &e) {
                     std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
                 }
-                catch (...) {
-                    std::cerr << __FUNCTION__ << " failed" << std::endl;
-                }
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             void noDefaultTypeTest() {
                 try {
@@ -558,7 +539,7 @@ struct Response2Tests {
                         "name": "SRR000002",
                         "object": "srapub|SRR000002"
                     } )###");
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 catch (Response2::DecodingError const &e) {
                     LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -567,7 +548,7 @@ struct Response2Tests {
             void missingTypeTest() {
                 try {
                     makeFrom(R"###( { "name": "SRR000002" } )###");
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 catch (Response2::DecodingError const &e) {
                     LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -576,7 +557,7 @@ struct Response2Tests {
             void missingNameTest() {
                 try {
                     makeFrom(R"###( { "type": "sra" } )###");
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 catch (Response2::DecodingError const &e) {
                     LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -585,7 +566,7 @@ struct Response2Tests {
             void emptyObjectTest() {
                 try {
                     makeFrom("{}");
-                    throw __FUNCTION__;
+                    throw test_failure(__FUNCTION__);
                 }
                 catch (Response2::DecodingError const &e) {
                     LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -613,9 +594,9 @@ struct Response2Tests {
                         "msg": "No data at given location.region"
                     }
                     )###");
-                assert(obj.query == "SRR867664");
-                assert(obj.status == "404");
-                assert(obj.message == "No data at given location.region");
+                ASSERT(obj.query == "SRR867664");
+                ASSERT(obj.status == "404");
+                ASSERT(obj.message == "No data at given location.region");
                 LOG(9) << __FUNCTION__ << " successful" << std::endl;
                 return;
             }
@@ -628,10 +609,7 @@ struct Response2Tests {
             catch (Response2::DecodingError const &e) {
                 std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
             }
-            catch (...) {
-                std::cerr << __FUNCTION__ << " failed" << std::endl;
-            }
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         void missingMessageTest() {
             try {
@@ -641,7 +619,7 @@ struct Response2Tests {
                         "bundle": "foo"
                     }
                 )###");
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             catch (Response2::DecodingError const &e) {
                 LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -655,7 +633,7 @@ struct Response2Tests {
                         "msg": "Hello World"
                     }
                 )###");
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             catch (Response2::DecodingError const &e) {
                 LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -669,7 +647,7 @@ struct Response2Tests {
                         "bundle": "foo"
                     }
                 )###");
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             catch (Response2::DecodingError const &e) {
                 LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -678,7 +656,7 @@ struct Response2Tests {
         void emptyObjectTest() {
             try {
                 makeFrom("{}");
-                throw __FUNCTION__;
+                throw test_failure(__FUNCTION__);
             }
             catch (Response2::DecodingError const &e) {
                 LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -702,13 +680,13 @@ struct Response2Tests {
         }
         catch (char const *function) {
             std::cerr << function << " failed." << std::endl;
+            throw test_failure(function);
         }
-        abort();
     }
     static void testEmpty2() {
         try {
             Response2::makeFrom("{}");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (Response2::DecodingError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
@@ -718,7 +696,7 @@ struct Response2Tests {
         // version is supposed to be a string value.
         try {
             Response2::makeFrom(R"###({ "version": 99 })###");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (JSONScalarConversionError const &e) {
             LOG(9) << __FUNCTION__ << " successful, got: JSONScalarConversionError" << std::endl;
@@ -728,11 +706,11 @@ struct Response2Tests {
         // version is supposed to "2" or "2.x".
         try {
             Response2::makeFrom(R"###({ "version": "99" })###");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (Response2::DecodingError const &e) {
-            assert(e.object == Response2::DecodingError::topLevel);
-            assert(e.haveCause("version"));
+            ASSERT(e.object == Response2::DecodingError::topLevel);
+            ASSERT(e.haveCause("version"));
             LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
         }
     }
@@ -751,10 +729,7 @@ struct Response2Tests {
         catch (Response2::DecodingError const &e) {
             std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
         }
-        catch (...) {
-            std::cerr << __FUNCTION__ << " failed" << std::endl;
-        }
-        throw __FUNCTION__;
+        throw test_failure(__FUNCTION__);
     }
     static void testBadResult() {
         try {
@@ -763,10 +738,10 @@ struct Response2Tests {
                     "version": "2",
                     "result": [{}]
                 })###");
-            throw __FUNCTION__;
+            throw test_failure(__FUNCTION__);
         }
         catch (Response2::DecodingError const &e) {
-            assert(e.object == Response2::DecodingError::result);
+            ASSERT(e.object == Response2::DecodingError::result);
             LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
         }
     }
@@ -778,8 +753,9 @@ struct Response2Tests {
                     "status": 500,
                     "message": "Internal Server Error"
                 })###");
-            assert(response.status == "500" && response.message == "Internal Server Error");
+            ASSERT(response.status == "500" && response.message == "Internal Server Error");
             LOG(9) << __FUNCTION__ << " successful" << std::endl;
+            return;
         }
         catch (JSONParser::Error const &e) {
             std::cerr << __FUNCTION__ << " failed, got: JSONParser::Error" << std::endl;
@@ -790,9 +766,7 @@ struct Response2Tests {
         catch (Response2::DecodingError const &e) {
             std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
         }
-        catch (...) {
-            std::cerr << __FUNCTION__ << " failed" << std::endl;
-        }
+        throw test_failure(__FUNCTION__);
     }
     static void testGoodResponse() {
         try {
@@ -808,6 +782,7 @@ struct Response2Tests {
                     ]
                 })###");
             LOG(9) << __FUNCTION__ << " successful" << std::endl;
+            return;
         }
         catch (JSONParser::Error const &e) {
             std::cerr << __FUNCTION__ << " failed, got: JSONParser::Error" << std::endl;
@@ -818,9 +793,7 @@ struct Response2Tests {
         catch (Response2::DecodingError const &e) {
             std::cerr << __FUNCTION__ << " failed, got: " << e << std::endl;
         }
-        catch (...) {
-            std::cerr << __FUNCTION__ << " failed" << std::endl;
-        }
+        throw test_failure(__FUNCTION__);
     }
 };
 
@@ -829,7 +802,7 @@ static void Response2_test_vdbcache() {
 
     auto const testJSON = R"###(
 {
-    "version": "unstable",
+    "version": "2",
     "result": [
         {
             "bundle": "SRR850901",
@@ -901,38 +874,44 @@ static void Response2_test_vdbcache() {
     ]
 }
 )###";
-    auto const &raw = Response2::makeFrom(testJSON);
+    try {
+        auto const &raw = Response2::makeFrom(testJSON);
 
-    assert(raw.results.size() == 1);
-    auto passed = false;
-    auto const files = raw.results[0].files.size();
-    auto sras = 0;
-    auto srrs = 0;
+        ASSERT(raw.results.size() == 1);
+        auto passed = false;
+        auto const files = raw.results[0].files.size();
+        auto sras = 0;
+        auto srrs = 0;
 
-    for (auto const &fl : raw.results[0].getByType("sra")) {
-        auto const &file = fl.first;
+        for (auto const &fl : raw.results[0].getByType("sra")) {
+            auto const &file = fl.first;
 
-        assert(file.type == "sra");
-        ++sras;
+            ASSERT(file.type == "sra");
+            ++sras;
 
-        if (file.hasExtension(".pileup")) continue;
-        ++srrs;
+            if (file.hasExtension(".pileup")) continue;
+            ++srrs;
 
-        auto const vcache = raw.results[0].getCacheFor(fl);
-        assert(vcache >= 0);
+            auto const vcache = raw.results[0].getCacheFor(fl);
+            ASSERT(vcache >= 0);
 
-        auto const &vdbcache = raw.results[0].flat(vcache).second;
-        assert(vdbcache.service == "sra-ncbi");
-        assert(vdbcache.region == "public");
+            auto const &vdbcache = raw.results[0].flat(vcache).second;
+            ASSERT(vdbcache.service == "sra-ncbi");
+            ASSERT(vdbcache.region == "public");
 
-        passed = true;
+            passed = true;
+        }
+        ASSERT(files == 4);
+        ASSERT(sras == 2);
+        ASSERT(srrs == 1);
+        ASSERT(passed);
+
+        LOG(8) << "vdbcache location matching passed." << std::endl;
     }
-    assert(files == 4);
-    assert(sras == 2);
-    assert(srrs == 1);
-    assert(passed);
-
-    LOG(8) << "vdbcache location matching passed." << std::endl;
+    catch (Response2::DecodingError const &e) {
+        std::cerr << e << std::endl;
+        throw test_failure(__FUNCTION__);
+    }
 }
 
 #if WINDOWS
@@ -943,10 +922,13 @@ int main ( int argc, char *argv[], char *envp[])
 {
     try {
         Response2_test_vdbcache();
+        return 0;
+    }
+    catch (test_failure const &e) {
+        std::cerr << "test " << e.what() << " failed." << std::endl;
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
-        return 3;
     }
-    return 0;
+    return 3;
 }

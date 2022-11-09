@@ -71,6 +71,7 @@ public:
 #if USE_WIDE_API
     operator std::wstring() const;
 #endif
+    NativeString const &rawValue() const { return path; }
 
     size_t size() const;
     bool empty() const { return path.empty(); }

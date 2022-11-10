@@ -376,6 +376,7 @@ endif()
 
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
+include_directories( ${VDB_INTERFACES_DIR}/ext )
 
 # ===========================================================================
 

@@ -5,16 +5,6 @@
 #include "result.hpp"
 #include "sam_db.hpp"
 
-class SPOT_ITER {
-    private :
-        SAM_DB &db;
-
-        SPOT_ITER( const SPOT_ITER& ) = delete;
-
-    public :
-        SPOT_ITER( SAM_DB &a_db ) : db( a_db ) { }
-};
-
 class ANALYZER {
     private :
         const ANALYZE_PARAMS& params;
@@ -22,7 +12,15 @@ class ANALYZER {
         SAM_DB &db;
 
         ANALYZER( const ANALYZER& ) = delete;
-        
+
+        void analyze_spots( void ) {
+            ALIG_ITER alig_iter( db, ALIG_ORDER_NAME );
+            SAM_ALIG alig;
+            while ( alig_iter . next( alig ) ) {
+
+            }
+        }
+
     public :
         ANALYZER( SAM_DB& a_db, const ANALYZE_PARAMS& a_params, ANALYZE_RESULT& a_result )
             : params( a_params ),

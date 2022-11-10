@@ -2,29 +2,16 @@
 #define SAM_DB_H
 
 #include <memory>
+#include <algorithm>
+#include <vector>
 #include "database.hpp"
-
-struct SAM_SPOT {
-    std::string NAME;
-    uint16_t FLAGS;
-    std::string RNAME;
-    uint32_t RPOS;
-    uint8_t MAPQ;
-    std::string CIGAR;
-    std::string MRNAME;
-    uint32_t MRPOS;
-    int32_t TLEN;
-    std::string SEQ;
-    std::string QUAL;
-    std::string TAGS;
-};
 
 class SAM_DB : public mt_database::DB {
     private :
         int status;
-        std::shared_ptr< mt_database::PREP_STM > ins_ref_stm;
-        std::shared_ptr< mt_database::PREP_STM > ins_hdr_stm;
-        std::shared_ptr< mt_database::PREP_STM > ins_alig_stm;
+        mt_database::PREP_STM_PTR ins_ref_stm;
+        mt_database::PREP_STM_PTR ins_hdr_stm;
+        mt_database::PREP_STM_PTR ins_alig_stm;
         
         SAM_DB( const SAM_DB& ) = delete;
         
@@ -102,9 +89,9 @@ class SAM_DB : public mt_database::DB {
         uint64_t select_number( const char * sql ) {
             uint64_t res = 0;
             if ( ok_or_done( status ) ) {
-                mt_database::PREP_STM stm( get_db_handle(), sql );
+                auto stm( make_prep_stm( sql ) );
                 uint64_t tmp;
-                status = stm . read_long( tmp );
+                status = stm -> read_long( tmp );
                 if ( ok_or_done( status ) ) { res = tmp; }
             }
             return res;
@@ -120,20 +107,17 @@ class SAM_DB : public mt_database::DB {
             if ( ok_or_done( status ) ) { make_spots_tbl(); }
             if ( ok_or_done( status ) ) { make_spot_mode_tbl(); }
             if ( ok_or_done( status ) ) {
-                ins_ref_stm = std::make_shared< mt_database::PREP_STM >(
-                    get_db_handle(), 
-                    "INSERT INTO REF ( NAME, LENGTH, OTHER ) VALUES( ?, ?, ? );" );
+                ins_ref_stm = make_prep_stm(
+                    "INSERT INTO REF ( NAME, LENGTH, OTHER ) VALUES( ?, ?, ? );" );                    
                 status = ins_ref_stm -> get_status();
             }
             if ( ok_or_done( status ) ) {
-                ins_hdr_stm = std::make_shared< mt_database::PREP_STM >(
-                    get_db_handle(),
+                ins_hdr_stm = make_prep_stm(
                     "INSERT INTO HDR ( VALUE ) VALUES( ? );" );
                 status = ins_hdr_stm -> get_status();
             }
             if ( ok_or_done( status ) ) {
-                ins_alig_stm = std::make_shared< mt_database::PREP_STM >(
-                    get_db_handle(),
+                ins_alig_stm = make_prep_stm(
                     "INSERT INTO ALIG "\
                     "( NAME, FLAG, RNAME, RPOS, MAPQ, CIGAR, MRNAME, MRPOS, TLEN, SEQ, QUAL, TAGS )"\
                     " VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );" );
@@ -233,9 +217,148 @@ class SAM_DB : public mt_database::DB {
             }
             return status;
         }
+};
+
+typedef enum ALIG_ORDER{ ALIG_ORDER_NONE, ALIG_ORDER_NAME, ALIG_ORDER_REFPOS } ALIG_ORDER;
+
+struct SAM_ALIG {
+    std::string NAME;
+    uint16_t FLAGS;
+    std::string RNAME;
+    uint32_t RPOS;
+    uint8_t MAPQ;
+    std::string CIGAR;
+    std::string MRNAME;
+    uint32_t MRPOS;
+    int32_t TLEN;
+    std::string SEQ;
+    std::string QUAL;
+    std::string TAGS;
+    bool empty;
+    
+    void read( mt_database::PREP_STM_PTR stm ) {
+        NAME . assign( stm -> read_column_text( 0 ) );
+        FLAGS = stm -> read_column_int( 1 );
+        RNAME . assign( stm -> read_column_text( 2 ) );
+        RPOS = stm -> read_column_int64( 3 );
+        MAPQ = stm -> read_column_int( 4 );
+        CIGAR . assign( stm -> read_column_text( 5 ) );
+        MRNAME . assign( stm -> read_column_text( 6 ) );
+        MRPOS = stm -> read_column_int64( 7 );
+        TLEN = stm -> read_column_int( 8 );
+        SEQ . assign( stm -> read_column_text( 9 ) );
+        QUAL . assign( stm -> read_column_text( 10 ) );
+        TAGS . assign( stm -> read_column_text( 11 ) );
+        empty = false;
+    }
+
+    SAM_ALIG() : empty( true ) {}
+    
+    void print( std::ostream& stream ) const {
+        stream << NAME << "\t" << FLAGS << "\t" << RNAME << "\t" << RPOS << "\t" << MAPQ << "\t"
+            << CIGAR << "\t" << MRNAME << "\t" << MRPOS << "\t" << TLEN << "\t" << SEQ << "\t"
+            << QUAL << "\t" << TAGS << std::endl;
+    }
+    
+    void fix_name( void ) {
+        std::replace( NAME . begin(), NAME . end(), ' ', '_' );
+    }
+    
+    bool same_name( const SAM_ALIG& other ) const {
+        return ( NAME == other . NAME );
+    }
+};
+
+class ALIG_ITER {
+    private :
+        mt_database::PREP_STM_PTR stm;
         
-        std::shared_ptr< mt_database::PREP_STM > make_prep_stm( const std::string& stm ) {
-            return std::make_shared< mt_database::PREP_STM >( get_db_handle(), stm );
+        ALIG_ITER( const ALIG_ITER& ) = delete;
+
+    public :
+        ALIG_ITER( SAM_DB &db, ALIG_ORDER spot_order ) { 
+            std::string cols( "NAME,FLAG,RNAME,RPOS,MAPQ,CIGAR,MRNAME,MRPOS,TLEN,SEQ,QUAL,TAGS" );
+            std::string sstmu( "SELECT " + cols + " FROM ALIG;" );
+            std::string sstms( "SELECT " + cols + " FROM ALIG order by RNAME,RPOS;" );
+            std::string sstmn( "SELECT " + cols + " FROM ALIG order by NAME;" );
+            std::string sst;
+            switch( spot_order ) {
+                case ALIG_ORDER_NAME   : sst = sstmn; break;
+                case ALIG_ORDER_REFPOS : sst = sstms; break;
+                default : sst = sstmu; break;
+            };
+            stm = db . make_prep_stm( sst );
+        }
+
+        bool next( SAM_ALIG& alig ) {
+            bool res = stm -> step_if_ok_or_row();
+            if ( res ) { alig . read( stm ); }
+            return res;;
+        }
+};
+
+struct SAM_SPOT {
+    std::vector< SAM_ALIG > aligs;
+    
+    void clear( SAM_ALIG& alig ) {
+        aligs . clear();
+        if ( ! alig . empty ) { aligs . push_back( alig ); }
+    }
+
+    bool add( SAM_ALIG& alig ) {
+        bool res = true;
+        if ( aligs . empty() ) {
+            aligs . push_back( alig );
+        } else {
+            auto last = aligs . back();
+            res = ( alig . same_name( last ) );
+            if ( res ) {
+                aligs . push_back( alig );
+            }
+        }
+        return res;
+    }
+
+    size_t count( void ) { return aligs . size(); }
+    
+    size_t aligned_count( void ) {
+        size_t res = 0;
+        for ( auto & entry : aligs ) {
+            if ( entry . RNAME != "*" ) res++;
+        }
+        return res;
+    }
+};
+
+class SPOT_ITER {
+    private :
+        ALIG_ITER alig_iter;
+        SAM_ALIG alig;
+
+        SPOT_ITER( const SPOT_ITER& ) = delete;
+
+    public :
+        SPOT_ITER( SAM_DB &db ) : alig_iter( db, ALIG_ORDER_NAME ) { }
+        
+        bool next( SAM_SPOT& spot ) {
+            bool done = false;
+            bool res = false;
+            spot . clear( alig );
+            while ( !done ) {
+                bool res = alig_iter . next( alig );
+                if ( res ) {
+                    if ( spot . add( alig ) ) {
+                        // belongs to the current spot, continue
+                    } else {
+                        done = true;
+                        // no: different name, keep it in alig for the next call
+                    }
+                } else {
+                    // no more alignments in the alig-iter
+                    done = true;
+                }
+            }
+            return res;
         }
 };
 

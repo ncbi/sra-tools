@@ -20,6 +20,22 @@ struct BASE_PARAMS {
         }
         return res;
     }
+    
+    static ALIG_ORDER encode_alig_order( bool by_pos, bool by_name ) {
+        ALIG_ORDER res = ALIG_ORDER_NONE;
+        if ( by_pos ) { res = ALIG_ORDER_REFPOS; }
+        if ( by_name ) { res = ALIG_ORDER_NAME; }
+        return res;
+    }
+    
+    static std::string alig_order_to_string( ALIG_ORDER spot_order ) {
+        switch( spot_order ) {
+            case ALIG_ORDER_NONE : return std::string( "NONE" ); break;
+            case ALIG_ORDER_NAME : return std::string( "NAME" ); break;
+            case ALIG_ORDER_REFPOS : return std::string( "REFPOS" ); break;
+        }
+        return std::string( "UNKNOWN" );
+    }
 };
 
 struct COMMON_PARAMS {
@@ -136,16 +152,16 @@ struct EXPORT_PARAMS {
     const std::string export_filename;
     const bool only_used_refs;
     const bool fix_names;
-    const bool sort_by_ref_pos;
-    const bool sort_by_name;
+    const ALIG_ORDER alig_order;
     
     EXPORT_PARAMS( const ARGS& args, const COMMON_PARAMS& a_cmn ) :
         cmn( a_cmn ),
         export_filename( args . get_str( "-e", "--export" ) ),
         only_used_refs( args . has( "-u", "--only-used-refs" ) ),
         fix_names( args . has( "-f", "--fix-names" ) ),
-        sort_by_ref_pos( args . has( "-s", "--sort-by-refpos" ) ),
-        sort_by_name( args . has( "-n", "--sort-by-name" ) ) { }
+        alig_order( BASE_PARAMS::encode_alig_order( 
+            args . has( "-s", "--sort-by-refpos" ),
+            args . has( "-n", "--sort-by-name" ) ) ) { }
         
     static void populate_hints( ARGS::str_vec& hints ) {
         hints.push_back( "-e" );
@@ -156,6 +172,7 @@ struct EXPORT_PARAMS {
         std::cerr << "export-file   : '" << export_filename << "'" << std::endl;        
         std::cerr << "used-refs     : " << BASE_PARAMS::yes_no( only_used_refs ) << std::endl;
         std::cerr << "fix-names     : " << BASE_PARAMS::yes_no( fix_names ) << std::endl;
+        std::cerr << "sort-by       : " << BASE_PARAMS::alig_order_to_string( alig_order ) << std::endl;
     }
 
     bool requested( void ) const { return ! export_filename . empty (); }

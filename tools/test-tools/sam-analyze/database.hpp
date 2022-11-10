@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <memory>
 #include "sqlite3.h"
 
 namespace mt_database {
@@ -35,9 +36,29 @@ class PREP_STM {
 
         int16_t get_status( void ) const { return status; }
         
-        void print_status( int16_t status ) {
+        void print_status( int16_t status ) const {
             const char * e = sqlite3_errstr( status );
             std::cout << "status:" << e << std::endl;
+        }
+
+        bool step_if_ok_or_row( void ) {
+            if ( SQLITE_OK == status || SQLITE_ROW == status ) {
+                status = sqlite3_step( stmt );
+                return ( SQLITE_ROW == status );
+            }
+            return false;
+        }
+        
+        const char * read_column_text( uint16_t column ) {
+            return ( const char * )sqlite3_column_text( stmt, column );
+        }
+
+        int read_column_int( uint16_t column ) {
+            return sqlite3_column_int( stmt, column );
+        }
+
+        int64_t read_column_int64( uint16_t column ) {
+            return sqlite3_column_int64( stmt, column );
         }
         
         int16_t step( void ) {
@@ -98,7 +119,7 @@ class PREP_STM {
             return read_text( result );            
         }
 
-        int16_t read_long( unsigned long& result ) {
+        int16_t read_long( uint64_t& result ) {
             step();
             if ( SQLITE_ROW == status ) {
                 result = sqlite3_column_int64( stmt, 0 );
@@ -110,12 +131,12 @@ class PREP_STM {
             return status;
         }
 
-        int16_t read_long_1( const std::string& data, unsigned long& result ) {
+        int16_t read_long_1( const std::string& data, uint64_t& result ) {
             bind_str( data );
             return read_long( result );
         }
         
-        int16_t read_long_n( const str_vec& data, unsigned long& result ) {
+        int16_t read_long_n( const str_vec& data, uint64_t& result ) {
             bind_str_vec( data );
             return read_long( result );            
         }
@@ -151,6 +172,8 @@ class PREP_STM {
         }
 };
 
+typedef std::shared_ptr< PREP_STM > PREP_STM_PTR;
+
 class DB {
     public :
         typedef std::vector< std::string > str_vec;
@@ -168,7 +191,10 @@ class DB {
             }
         }
 
-        
+        PREP_STM_PTR make_prep_stm( const std::string& stm ) {
+            return std::make_shared< PREP_STM >( db, stm );
+        }
+            
         int16_t exec( const char * stm ) {
             int16_t res = -1;
             if ( SQLITE_OK == rc_open && nullptr != db ) {
@@ -180,8 +206,6 @@ class DB {
             }
             return res;
         }
-
-        sqlite3* get_db_handle( void ) const { return db; }
 
         int16_t begin_transaction( void ) { return exec( "BEGIN TRANSACTION" ); }
         int16_t commit_transaction( void ) { return exec( "COMMIT TRANSACTION" ); }

@@ -5,6 +5,7 @@
 **November 15, 2022**
 
   **bam-load**: bam-load is not built if openssl is not found  
+  **bam-load**: distributing bam-load for Mac stopped  
   **bam-load**: reference resolution honors more the configuration information  
   **bam-load**: spot assembly redesign  
   **build**: added support for generating coverage reports  
@@ -12,6 +13,7 @@
   **build**: improvements to build system. see `make help`  
   **build**: now supports custom library installation directory  
   **build**: will use a system-provided libmbedtls, otherwise the copy included in the source code will be used  
+  **fasterq-dump**: having the same sequence in the sequence-table as well as in the alignment table is tolerated now  
   **fasterq-dump**: includes accession in help-text now  
   **kff**: now using system-provided libmagic if present  
   **kfg**: fixed a bug that caused override of user configuration  
@@ -31,7 +33,7 @@
   **sra-tools, vfs**: fixed infinite loop when processing bad response when resolving accession  
   **test**: stopped distribution of Makefiles for NGS C++ examples  
   **vdb**: kxml and kxfs are combined and moved to sra-tools  
-  **vdb**: updated zlib version to fix vulnerability.  
+  **vdb**: updated zlib version to fix vulnerability  
   **vfs**: now recognizes sralite.vdbcache files  
 
 

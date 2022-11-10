@@ -4,6 +4,21 @@
 #include <memory>
 #include "database.hpp"
 
+struct SAM_SPOT {
+    std::string NAME;
+    uint16_t FLAGS;
+    std::string RNAME;
+    uint32_t RPOS;
+    uint8_t MAPQ;
+    std::string CIGAR;
+    std::string MRNAME;
+    uint32_t MRPOS;
+    int32_t TLEN;
+    std::string SEQ;
+    std::string QUAL;
+    std::string TAGS;
+};
+
 class SAM_DB : public mt_database::DB {
     private :
         int status;
@@ -13,7 +28,7 @@ class SAM_DB : public mt_database::DB {
         
         SAM_DB( const SAM_DB& ) = delete;
         
-        int make_ref_hdr_tbl( void ) {
+        int16_t make_ref_hdr_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS REF( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "NAME TEXT NOT NULL UNIQUE," \
@@ -22,14 +37,14 @@ class SAM_DB : public mt_database::DB {
             return exec( stm );
         }
 
-        int make_hdr_tbl( void ) {
+        int16_t make_hdr_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS HDR( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "VALUE TEXT NOT NULL );";
             return exec( stm );
         }
 
-        int make_alig_tbl( void ) {
+        int16_t make_alig_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS ALIG( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "NAME TEXT NOT NULL," \
@@ -47,7 +62,7 @@ class SAM_DB : public mt_database::DB {
             return exec( stm );
         }
         
-        int make_refcnt_tbl( void ) {
+        int16_t make_refcnt_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS REF_CNT( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "RNAME TEXT NOT NULL UNIQUE," \
@@ -55,7 +70,7 @@ class SAM_DB : public mt_database::DB {
             return exec( stm );
         }
 
-        int make_spots_tbl( void ) {
+        int16_t make_spots_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS SPOTS( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "NAME TEXT NOT NULL UNIQUE," \
@@ -63,12 +78,12 @@ class SAM_DB : public mt_database::DB {
             return exec( stm );
         }
 
-        int make_spot_mode_tbl( void ) {
+        int16_t make_spot_mode_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS SPOT_MODE( " \
                 "ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," \
                 "NAME TEXT NOT NULL UNIQUE," \
                 "CNT INT NOT NULL );";
-            int res = exec( stm );
+            int16_t res = exec( stm );
             if ( ok_or_done( res ) ) {
                 const char * stm = "CREATE TRIGGER IF NOT EXISTS after_spot_insert " \
                     "AFTER INSERT ON SPOTS " \
@@ -84,11 +99,11 @@ class SAM_DB : public mt_database::DB {
             return res;
         }
 
-        unsigned long select_number( const char * sql ) {
-            unsigned long res = 0;
+        uint64_t select_number( const char * sql ) {
+            uint64_t res = 0;
             if ( ok_or_done( status ) ) {
                 mt_database::PREP_STM stm( get_db_handle(), sql );
-                unsigned long tmp;
+                uint64_t tmp;
                 status = stm . read_long( tmp );
                 if ( ok_or_done( status ) ) { res = tmp; }
             }
@@ -126,7 +141,7 @@ class SAM_DB : public mt_database::DB {
             }
         }
         
-        int drop_all( void ) {
+        int16_t drop_all( void ) {
             str_vec tables;
             tables . push_back( "REF" );
             tables . push_back( "HDR" );
@@ -135,37 +150,37 @@ class SAM_DB : public mt_database::DB {
             return status; 
         }
         
-        int create_alig_tbl_idx( void ) {
+        int16_t create_alig_tbl_idx( void ) {
             exec( "CREATE INDEX ALIG_RNAME_IDX on ALIG( RNAME );" );
             return exec( "CREATE INDEX ALIG_NAME_IDX on ALIG( NAME );" );            
         }
 
-        int create_refcnt_tbl_idx( void ) {
+        int16_t create_refcnt_tbl_idx( void ) {
             return exec( "CREATE INDEX REF_CNT_RNAME_IDX on REF_CNT( RNAME );" );            
         }
 
-        int add_ref( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_ref( const mt_database::PREP_STM::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_ref_stm -> bind_and_step( data );
             }
             return status;
         }
         
-        int add_hdr( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_hdr( const mt_database::PREP_STM::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_hdr_stm -> bind_and_step( data );
             }
             return status;
         }
         
-        int add_alig( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_alig( const mt_database::PREP_STM::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_alig_stm -> bind_and_step( data );
             }
             return status;
         }
         
-        int populate_refcnt( void ) {
+        int16_t populate_refcnt( void ) {
             if ( ok_or_done( status ) ) {
                 const char * stm = "INSERT INTO REF_CNT( RNAME, CNT ) " \
                     "SELECT RNAME,COUNT(RNAME) AS RNCNT FROM ALIG " \
@@ -175,7 +190,7 @@ class SAM_DB : public mt_database::DB {
             return status;
         }
 
-        int populate_spots( void ) {
+        int16_t populate_spots( void ) {
             if ( ok_or_done( status ) ) {
                 const char * stm = "INSERT INTO SPOTS( NAME, CNT ) " \
                     "SELECT NAME,COUNT(NAME) AS NCNT FROM ALIG " \
@@ -185,31 +200,31 @@ class SAM_DB : public mt_database::DB {
             return status;
         }
 
-        unsigned long spot_count( void ) {
+        uint64_t spot_count( void ) {
             return select_number( "SELECT count(*) FROM SPOTS;" );
         }
         
-        unsigned long refs_in_use_count( void ) {
+        uint64_t refs_in_use_count( void ) {
             return select_number( "SELECT count(*) FROM REF_CNT WHERE RNAME != '*';" );
         }
         
-        unsigned long alig_count( void ) {
+        uint64_t alig_count( void ) {
             return select_number( "SELECT count(*) FROM ALIG;" );            
         }
 
-        unsigned long count_unaligned( void ) {
+        uint64_t count_unaligned( void ) {
             return select_number( "select count( NAME ) from SPOT_MODE where CNT > 1;" );
         }
 
-        unsigned long count_fully_aligned( void ) {
+        uint64_t count_fully_aligned( void ) {
             return select_number( "select count( NAME ) from SPOT_MODE where CNT = 0;" );
         }
 
-        unsigned long count_half_aligned( void ) {
+        uint64_t count_half_aligned( void ) {
             return select_number( "select count( NAME ) from SPOT_MODE where CNT = 1;" );
         }
         
-        int exec_pragma( const std::string& value ) {
+        int16_t exec_pragma( const std::string& value ) {
             if ( ok_or_done( status ) ) {
                 std::string stm( "PRAGMA " );
                 stm += value;

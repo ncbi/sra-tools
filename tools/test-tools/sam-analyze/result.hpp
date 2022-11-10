@@ -11,7 +11,7 @@ struct BASE_RESULT {
         return std::string( "NO" );
     }
 
-    static std::string with_ths( unsigned long x ) {
+    static std::string with_ths( uint64_t x ) {
         std::ostringstream ss;
         ss . imbue( std::locale( "" ) );
         ss << x;
@@ -21,9 +21,9 @@ struct BASE_RESULT {
 
 struct IMPORT_RESULT {
     bool success;
-    unsigned long total_lines;
-    unsigned long header_lines;
-    unsigned long alignment_lines;
+    uint64_t total_lines;
+    uint64_t header_lines;
+    uint64_t alignment_lines;
 
     IMPORT_RESULT() : 
         success( false ), total_lines( 0 ), header_lines( 0 ), alignment_lines( 0 ) {}
@@ -39,21 +39,21 @@ struct IMPORT_RESULT {
 };
 
 struct ANALYZE_RESULT {
-    typedef std::pair< unsigned long, unsigned long > t_long_pair;
-    typedef std::vector< t_long_pair > t_long_pair_vec;
+    typedef std::pair< uint64_t, uint64_t > t_u64_pair;
+    typedef std::vector< t_u64_pair > t_u64_pair_vec;
     
     bool success;
-    unsigned long spot_count;
-    unsigned long refs_in_use;
-    unsigned long unaligned;
-    unsigned long half_aligned;
-    unsigned long fully_aligned;
-    t_long_pair_vec spot_sizes;
+    uint64_t spot_count;
+    uint64_t refs_in_use;
+    uint64_t unaligned;
+    uint64_t half_aligned;
+    uint64_t fully_aligned;
+    t_u64_pair_vec spot_sizes;
     
     ANALYZE_RESULT() : 
         success( false ), spot_count( 0 ), refs_in_use( 0 ) {}
 
-    void add_spot_size( unsigned long spot_size, unsigned long count ) {
+        void add_spot_size( uint64_t spot_size, uint64_t count ) {
         spot_sizes . push_back( std::make_pair( spot_size, count ) );
     }
     
@@ -75,8 +75,8 @@ struct ANALYZE_RESULT {
 
 struct EXPORT_RESULT {
     bool success;
-    unsigned long header_lines;
-    unsigned long alignment_lines;
+    uint64_t header_lines;
+    uint64_t alignment_lines;
 
     EXPORT_RESULT() : 
         success( false ), header_lines( 0 ), alignment_lines( 0 ) {}

@@ -9,12 +9,12 @@
 class FILE_READER {
     private :
         std::istream* data;
-        unsigned long line_limit;
-        unsigned long line_nr;
+        uint64_t line_limit;
+        uint64_t line_nr;
         bool stdin_mode;
 
     public:
-        FILE_READER( const std::string& filename, unsigned long a_line_limit = 0 ) 
+        FILE_READER( const std::string& filename, uint64_t a_line_limit = 0 ) 
             : data( nullptr ), line_limit( a_line_limit ), line_nr( 0 ) {
             stdin_mode = ( filename == "stdin" );
             if ( stdin_mode ) {
@@ -28,7 +28,7 @@ class FILE_READER {
         ~FILE_READER( void ) { if ( !stdin_mode ) { delete data; }
         }
         
-        unsigned long get_line_nr( void ) const { return line_nr; }
+        uint64_t get_line_nr( void ) const { return line_nr; }
 
         bool next( std::string& line ) {
             bool res = data -> good();
@@ -88,9 +88,9 @@ class STRING_PARTS {
             return v.size();
         }
         
-        int size( void ) const { return v . size(); }
+        size_t size( void ) const { return v . size(); }
         
-        std::string& get( int idx ) {
+        std::string& get( uint16_t idx ) {
             if ( idx > v . size() ) { return empty; }
             return v[ idx ];
         }

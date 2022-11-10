@@ -45,7 +45,7 @@ class EXPORTER {
             auto stm = mt_database::PREP_STM( db . get_db_handle(), sstm );
             if ( SQLITE_OK == stm . get_status() ) {
                 mt_database::DB::str_vec data;
-                int st;
+                int16_t st;
                 do {
                     st = stm . read_row( data, 3 );
                     if ( SQLITE_ROW == st ) {

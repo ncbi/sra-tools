@@ -5,6 +5,16 @@
 #include "result.hpp"
 #include "sam_db.hpp"
 
+class SPOT_ITER {
+    private :
+        SAM_DB &db;
+
+        SPOT_ITER( const SPOT_ITER& ) = delete;
+
+    public :
+        SPOT_ITER( SAM_DB &a_db ) : db( a_db ) { }
+};
+
 class ANALYZER {
     private :
         const ANALYZE_PARAMS& params;
@@ -35,7 +45,6 @@ class ANALYZER {
             }
             result . success = true;
         }
-
 };
 
 #endif

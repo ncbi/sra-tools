@@ -38,20 +38,13 @@ class ARGS {
             return std::string( it -> second );
         }
 
-        int get_int( const char * short_key,
-                     const char *long_key = nullptr, 
-                     int dflt = 0 ) const {
+        template < typename T >
+        T get_int( const char * short_key,
+                   const char *long_key = nullptr, 
+                   T dflt = 0 ) const {
             str_iter it = find( short_key, long_key );
             if ( it == values.end() ) { return dflt; };
-            return str_2_int( it -> second, dflt );
-        }
-
-        long get_long( const char * short_key,
-                     const char *long_key = nullptr, 
-                     long dflt = 0 ) const {
-            str_iter it = find( short_key, long_key );
-            if ( it == values.end() ) { return dflt; };
-            return str_2_long( it -> second, dflt );
+            return from_string<T>( it -> second, dflt );
         }
 
         bool has( const char * short_key, const char *long_key ) const {
@@ -82,8 +75,9 @@ class ARGS {
         str_map values;
         str_vec arguments;
 
-        int str_2_int( const std::string& s, int dflt ) const {
-            int res = dflt;
+        template < typename T >
+        T from_string( const std::string& s, T dflt ) const {
+            T res = dflt;
             std::stringstream ss;
             ss << s;
             try {
@@ -93,19 +87,7 @@ class ARGS {
             }
             return res;
         }
-
-        long str_2_long( const std::string& s, long dflt ) const {
-            long res = dflt;
-            std::stringstream ss;
-            ss << s;
-            try {
-                ss >> res;
-            } catch( const std::exception& e ) {
-                res = dflt;
-            }
-            return res;
-        }
-
+        
         str_iter find( const char * short_key, const char *long_key ) const {
             str_iter it = values.end();
             if ( nullptr != short_key ) { it = values.find( short_key ); }
@@ -127,10 +109,10 @@ class ARGS {
             if ( l > 2 ) {
                 // potential multi-flag
                 if ( key . substr( 1, 1 ) == "-" ) {
-                    // no, it was not ( starts with -- )
+                    // no, it was not ( s            tarts with -- )
                     store_key_and_value( key, value );
                 } else {
-                    for ( int i = 1; i < l; ++i ) {
+                    for ( int32_t i = 1; i < l; ++i ) {
                         std::string ins_key( "-" );
                         ins_key += key[ i ];
                         store_key_and_value( ins_key, value );
@@ -144,7 +126,7 @@ class ARGS {
         void scan( int argc, char * argv[], const str_vec& hints ) {
             if ( argv != nullptr ) {
                 std::string key;
-                for ( int i = 1; i < argc; ++i ) {
+                for ( int32_t i = 1; i < argc; ++i ) {
                     if ( argv[ i ] != nullptr ) {
                         std::string arg( argv[ i ] );
                         if ( ! arg . empty() ) {

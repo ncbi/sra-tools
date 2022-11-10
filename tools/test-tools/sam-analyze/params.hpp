@@ -24,14 +24,14 @@ struct BASE_PARAMS {
 
 struct COMMON_PARAMS {
     const std::string db_filename;
-    const unsigned long transaction_size;
+    const uint32_t transaction_size;
     const bool help;
     const bool report;
     const bool progress;
 
     COMMON_PARAMS( const ARGS& args ) :
         db_filename( args . get_str( "-d", "--db", "sam.db" ) ),
-        transaction_size( args . get_long( "-t", "--trans", 50000 ) ),
+        transaction_size( args . get_int<uint32_t>( "-t", "--trans", 50000 ) ),
         help( args . has( "-h", "--help" ) ),
         report( args . has( "-r", "--report" ) ),
         progress( args . has( "-p", "--progress" ) ) { }
@@ -62,12 +62,12 @@ struct COMMON_PARAMS {
 struct IMPORT_PARAMS {
     const COMMON_PARAMS &cmn;
     const std::string import_filename;
-    const unsigned long align_limit;
+    const uint64_t align_limit;
 
     IMPORT_PARAMS( const ARGS& args, const COMMON_PARAMS& a_cmn ) :
         cmn( a_cmn ),
         import_filename( args . get_str( "-i", "--import" ) ),
-        align_limit( args . get_long( "-l", "--import-alig" ) ) { }
+        align_limit( args . get_int< uint64_t >( "-l", "--import-alig" ) ) { }
 
     static void populate_hints( ARGS::str_vec& hints ) {
         hints.push_back( "-i" );

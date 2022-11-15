@@ -9,7 +9,7 @@
 class IMPORTER {
     private :
         const IMPORT_PARAMS& params;
-        IMPORT_RESULT& result;
+        IMPORT_RESULT result;
         FILE_READER reader;
         STRING_PARTS line_parts;
         STRING_PARTS hdr_parts;
@@ -112,13 +112,7 @@ class IMPORTER {
         }
 
         bool synchronous( bool on ) {
-            int status;
-            if ( on ) {
-                status = db . exec_pragma( "synchronous=ON" );
-            } else {
-                status = db . exec_pragma( "synchronous=OFF" );
-            }
-            return db . ok_or_done( status );
+            return db . ok_or_done( db . synchronous( on ) );
         }
 
         bool import_lines( void ) {
@@ -142,9 +136,8 @@ class IMPORTER {
         }
 
     public :
-        IMPORTER( SAM_DB& a_db, const IMPORT_PARAMS& a_params, IMPORT_RESULT& a_result )
+        IMPORTER( SAM_DB& a_db, const IMPORT_PARAMS& a_params )
             : params( a_params ),
-              result( a_result ),
               reader( a_params . import_filename ),
               line_parts( '\t' ),
               hdr_parts( ':' ),
@@ -152,24 +145,24 @@ class IMPORTER {
                   db . drop_all();
                 }
               
-        void run( void ) {
+        bool run( bool show_report ) {
+            if ( show_report ) {
+                std::cerr << "IMPORT:" << std::endl;
+            }
+
             bool ok = synchronous( false );
-            
+
+            // this takes a while
             if ( ok ) { ok = import_lines(); }
 
             // create the name-index on the ALIG table
             if ( ok ) { ok = db . ok_or_done( db.create_alig_tbl_idx() ); }
-            // analyze the occurances of reference-names...
-            if ( ok ) { ok = db . ok_or_done( db . populate_refcnt() ); }
-            // create the name-index on the REF_CNT table
-            if ( ok ) { ok = db . ok_or_done( db.create_refcnt_tbl_idx() ); }
 
-            // analyze for spots 
-            if ( ok ) { ok = db . ok_or_done( db . populate_spots() ); }
-
-           
             result . total_lines = reader . get_line_nr();
             result . success =  ok;
+            
+            if ( show_report ) { result . report(); }
+            return result . success;
         }
 };
 

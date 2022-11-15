@@ -26,13 +26,9 @@ class PREP_STM {
             status = sqlite3_prepare_v2( db, sql.c_str(), sql.length(), &stmt, nullptr );
         }
 
-        ~PREP_STM( void ) {
-            sqlite3_finalize( stmt );
-        }
+        ~PREP_STM( void ) { sqlite3_finalize( stmt ); }
 
-        bool ok_or_done( int16_t st ) {
-            return ( SQLITE_OK == st || SQLITE_DONE == st );
-        }
+        bool ok_or_done( int16_t st ) { return ( SQLITE_OK == st || SQLITE_DONE == st ); }
 
         int16_t get_status( void ) const { return status; }
         
@@ -170,6 +166,7 @@ class PREP_STM {
             }
             return res;
         }
+
 };
 
 typedef std::shared_ptr< PREP_STM > PREP_STM_PTR;
@@ -247,6 +244,22 @@ class DB {
                 dst . push_back( token );
             }
         }
+        
+        int16_t exec_pragma( const std::string& value ) {
+            std::string stm( "PRAGMA " );
+            stm += value;
+            stm += ";";
+            return exec( stm . c_str() );
+        }
+
+        int16_t synchronous( bool on ) {
+            if ( on ) {
+                return exec_pragma( "synchronous=ON" );
+            } else {
+                return exec_pragma( "synchronous=OFF" );
+            }
+        }
+        
 };
 
 }; /* namespace mt_database */

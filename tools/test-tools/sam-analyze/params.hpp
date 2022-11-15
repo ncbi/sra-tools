@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include "args.hpp"
+#include "alig.hpp"
 #include "sam_db.hpp"
 
 struct BASE_PARAMS {
@@ -21,18 +22,18 @@ struct BASE_PARAMS {
         return res;
     }
     
-    static ALIG_ORDER encode_alig_order( bool by_pos, bool by_name ) {
-        ALIG_ORDER res = ALIG_ORDER_NONE;
-        if ( by_pos ) { res = ALIG_ORDER_REFPOS; }
-        if ( by_name ) { res = ALIG_ORDER_NAME; }
+    static ALIG_ITER::ALIG_ORDER encode_alig_order( bool by_pos, bool by_name ) {
+        ALIG_ITER::ALIG_ORDER res = ALIG_ITER::ALIG_ORDER_NONE;
+        if ( by_pos ) { res = ALIG_ITER::ALIG_ORDER_REFPOS; }
+        if ( by_name ) { res = ALIG_ITER::ALIG_ORDER_NAME; }
         return res;
     }
     
-    static std::string alig_order_to_string( ALIG_ORDER spot_order ) {
+    static std::string alig_order_to_string( ALIG_ITER::ALIG_ORDER spot_order ) {
         switch( spot_order ) {
-            case ALIG_ORDER_NONE : return std::string( "NONE" ); break;
-            case ALIG_ORDER_NAME : return std::string( "NAME" ); break;
-            case ALIG_ORDER_REFPOS : return std::string( "REFPOS" ); break;
+            case ALIG_ITER::ALIG_ORDER_NONE : return std::string( "NONE" ); break;
+            case ALIG_ITER::ALIG_ORDER_NAME : return std::string( "NAME" ); break;
+            case ALIG_ITER::ALIG_ORDER_REFPOS : return std::string( "REFPOS" ); break;
         }
         return std::string( "UNKNOWN" );
     }
@@ -152,7 +153,7 @@ struct EXPORT_PARAMS {
     const std::string export_filename;
     const bool only_used_refs;
     const bool fix_names;
-    const ALIG_ORDER alig_order;
+    const ALIG_ITER::ALIG_ORDER alig_order;
     
     EXPORT_PARAMS( const ARGS& args, const COMMON_PARAMS& a_cmn ) :
         cmn( a_cmn ),

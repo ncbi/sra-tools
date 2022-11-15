@@ -4,44 +4,45 @@
 #include "params.hpp"
 #include "result.hpp"
 #include "sam_db.hpp"
+#include "ref_dict.hpp"
+#include "spot.hpp"
 
 class ANALYZER {
     private :
         const ANALYZE_PARAMS& params;
-        ANALYZE_RESULT& result;
+        ref_dict_t& ref_dict;
         SAM_DB &db;
-
+        ANALYZE_RESULT result;
+        
         ANALYZER( const ANALYZER& ) = delete;
 
         void analyze_spots( void ) {
-            ALIG_ITER alig_iter( db, ALIG_ORDER_NAME );
-            SAM_ALIG alig;
-            while ( alig_iter . next( alig ) ) {
-
+            SAM_SPOT spot;
+            SPOT_ITER spot_iter( db );
+            while ( spot_iter . next( spot ) ) {
+                result . spot_count += 1;
+                result . counter_dict . add( spot .count() );
+                spot . enter_into_reflist( ref_dict );
+                switch ( spot . spot_type() ) {
+                    case SAM_SPOT::SPOT_ALIGNED      : result . fully_aligned += 1; break;
+                    case SAM_SPOT::SPOT_UNALIGNED    : result . unaligned += 1; break;
+                    case SAM_SPOT::SPOT_HALF_ALIGNED : result . half_aligned += 1; break;
+                }
+                spot . count_flags( result . flag_counts, result . flag_problems );
             }
         }
 
     public :
-        ANALYZER( SAM_DB& a_db, const ANALYZE_PARAMS& a_params, ANALYZE_RESULT& a_result )
-            : params( a_params ),
-              result( a_result ),
-              db( a_db ) { }
+        ANALYZER( SAM_DB& a_db, const ANALYZE_PARAMS& a_params, ref_dict_t& a_ref_dict )
+            : params( a_params ), db( a_db ), ref_dict( a_ref_dict ) { }
 
-        void run( void ) {
-            result . spot_count = db . spot_count();
-            result . refs_in_use = db . refs_in_use_count();
-
-            result . unaligned = db . count_unaligned();
-            result . fully_aligned = db . count_fully_aligned();
-            result . half_aligned = db . count_half_aligned();
-            
-            std::shared_ptr< mt_database::PREP_STM > get_spot_counts =
-                db . make_prep_stm( "select count(NAME),CNT from SPOTS group by CNT;" );
-            unsigned long v1, v2;
-            while ( get_spot_counts -> read_2_longs( v1, v2 ) ) {
-                result . add_spot_size( v1, v2 );
-            }
+        bool run( void ) {
+            std::cerr << "ANALYZE:" << std::endl;
+            analyze_spots();
+            result . refs_in_use = ref_dict . size();
             result . success = true;
+            result . report();
+            return result . success;
         }
 };
 

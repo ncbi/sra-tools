@@ -15,7 +15,11 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
-November 15, 2022 : SRA Toolkit 3.0.1, changes to the repository structure
+November 15, 2022 : SRA Toolkit 3.0.1
+
+Removed interactive requirement to configure SRA Toolkit.
+
+Changes to the repository structure:
 
 To better serve disparate groups of users, the tools/ directory of the sra-tools repository is divided into several subdirectories:
 - external/ - the tools that comprise the end user facing sra-toolkit. These are the tools that are installed on a toolkit user's machine. This is the default make target

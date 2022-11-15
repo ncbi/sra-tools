@@ -30,19 +30,32 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
 endif()
 
-link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${MBEDTLS_LIBS} )
 
-add_executable( FragTest FragTest.cpp )
-add_executable( AlignTest AlignTest.cpp )
-add_executable( AlignSliceTest AlignSliceTest.cpp )
-add_executable( PileupTest PileupTest.cpp )
-add_executable( RefTest RefTest.cpp )
-add_executable( DumpReferenceFASTA DumpReferenceFASTA.cpp )
+if ( NOT TOOLS_ONLY )
 
-#TODO: FastqTableDump
+    # this is where test executables will be created
+    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
-if ( NOT WIN32 )
-	add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${BINDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_executable( FragTest FragTest.cpp )
+    add_executable( AlignTest AlignTest.cpp )
+    add_executable( AlignSliceTest AlignSliceTest.cpp )
+    add_executable( PileupTest PileupTest.cpp )
+    add_executable( RefTest RefTest.cpp )
+    add_executable( DumpReferenceFASTA DumpReferenceFASTA.cpp )
+
+    #TODO: FastqTableDump
+
+    if ( NOT WIN32 )
+        add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${TESTBINDIR}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties( SlowTest_NGS_Run_and_diff
+            PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R"
+        )
+    endif()
+
 endif()
 
 if ( SINGLE_CONFIG )

@@ -15,7 +15,29 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
-### ANNOUNCEMENT:
+November 15, 2022 : SRA Toolkit 3.0.1
+
+Removed interactive requirement to configure SRA Toolkit.
+
+Changes to the repository structure:
+
+To better serve disparate groups of users, the tools/ directory of the sra-tools repository is divided into several subdirectories:
+- external/ - the tools that comprise the end user facing sra-toolkit. These are the tools that are installed on a toolkit user's machine. This is the default make target
+- internal/ - the tools oriented towards the toolkit's developers and NCBI-internal users
+- loaders/ - the tools used in archive loading pipelines, such as the NCBI SRA
+- test-tools/ - the tools used in the NCBI-internal testing of the toolkit.
+
+The default 'make' command will now only build the external tools. To build other categories of tools, use these targets/flags:
+
+- 'make all' - to build everything, including the test projects (located in sra-tools/test/)
+- 'make BUILD_TOOLS_INTERNAL=ON' - to build the external and the internal tools
+- 'make BUILD_TOOLS_LOADERS=ON' - to build the external tools and the loaders
+- 'make BUILD_TOOLS_TEST_TOOLS=ON' - to build the external tools and the test tools
+- 'make TOOLS_ONLY=ON' - to skip building the test projects
+
+The build flags shown above can be combined on the same command line, for instance 'make BUILD_TOOLS_LOADERS=ON BUILD_TOOLS_INTERNAL=ON TOOLS_ONLY=ON' will build everything except the test tools and the test projects.
+
+----
 
 August 4, 2022 : Security Update
 
@@ -54,7 +76,6 @@ This change also includes the structure of GitHub repositories, which underwent 
 3) [ncbi/sra-tools](https://github.com/ncbi/sra-tools) (This repository)
 
    This project's build system is based on CMake. The project acquired some new components, as listed in the table above.
-
 
 ----
 

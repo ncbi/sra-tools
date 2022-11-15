@@ -32,6 +32,19 @@ if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
     cmake_policy(SET CMP0115 OLD)
 endif()
 
+# ===========================================================================
+# set of build targets
+
+# external tools are always included
+set(BUILD_TOOLS_INTERNAL "OFF" CACHE STRING "If set to ON, build internal tools")
+set(BUILD_TOOLS_LOADERS "OFF" CACHE STRING "If set to ON, build loaders")
+set(BUILD_TOOLS_TEST_TOOLS "OFF" CACHE STRING "If set to ON, build test tools")
+set(TOOLS_ONLY "OFF" CACHE STRING  "If set to ON, generate tools targets only")
+
+option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
+
+# ===========================================================================
+
 set( VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shared/toolkit.vers")
 file( READ ${VERSION_FILE} VERSION )
 string( STRIP ${VERSION} VERSION )
@@ -68,9 +81,9 @@ endif()
 if ( ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "armv7l")
 	set(ARCH "armv7l")
 elseif ( ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "arm64")
-    set(ARCH "aarch64")
+    set(ARCH "arm64")
 elseif ( ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "aarch64")
-    set(ARCH "aarch64")
+    set(ARCH "arm64")
 elseif ( ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
     set(ARCH "x86_64")
 elseif ( ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
@@ -89,7 +102,7 @@ elseif( "linux" STREQUAL ${OS} )
     set( LMCHECK -lmcheck )
     set( EXE "" )
 elseif( "windows" STREQUAL ${OS} )
-    add_compile_definitions( WINDOWS _WIN32_WINNT=0x0502 )
+    add_compile_definitions( WINDOWS _WIN32_WINNT=0x0600 )
     set( LMCHECK "" )
     set( EXE ".exe" )
 endif()
@@ -99,7 +112,7 @@ endif()
 if ("armv7l" STREQUAL ${ARCH})
 	set( BITS 32 )
 	add_compile_options( -Wno-psabi )
-elseif ("aarch64" STREQUAL ${ARCH} )
+elseif ("aarch64" STREQUAL ${ARCH} OR "arm64" STREQUAL ${ARCH})
 	set ( BITS 64 )
 elseif ("x86_64" STREQUAL ${ARCH} )
     set ( BITS 64 )
@@ -110,7 +123,7 @@ endif()
 if     ( "mac-x86_84" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-x86_64" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-armv7l" STREQUAL ${OS}-${ARCH})
-elseif ( "linux-aarch64" STREQUAL ${OS}-${ARCH})
+elseif ( "linux-arm64" STREQUAL ${OS}-${ARCH})
     add_compile_definitions( __float128=_Float128 )
 endif()
 
@@ -121,7 +134,33 @@ if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
-add_definitions( -Wall )
+
+# global compiler warnings settings
+if (MSVC)
+    #
+    # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
+    #
+    # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
+    # Warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # Warning C4668: 'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C5105: macro expansion producing 'defined' has undefined behavior
+    # Warning C4514: 'XXX': unreferenced inline function has been removed
+    # warning C4623: 'XXX': default constructor was implicitly defined as deleted
+    # warning C4625: 'XXX': copy constructor was implicitly defined as deleted
+    # warning C4626: 'XXX': assignment operator was implicitly defined as deleted
+    # warning C5026: 'XXX': move constructor was implicitly defined as deleted
+    # warning C5027: 'XXX': move assignment operator was implicitly defined as deleted
+    # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
+    # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
+    # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
+    # warning C4710: 'XXX': function not inlined
+    # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
+    # warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
+    # add_compile_options(/Wall /wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall)
+endif()
 
 # assume debug build by default
 if ( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
@@ -138,7 +177,15 @@ if ( SINGLE_TARGET )
     message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 endif()
 
-message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-msse4.2" COMPILER_OPTION_SSE42_SUPPORTED)
+# if (COMPILER_OPTION_SSE42_SUPPORTED)
+#     message("compiler accepts sse4.2 flag")
+# else()
+#     message("compiler does not accept sse4.2 flag")
+# endif()
+
+#message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
 # ===========================================================================
 # 3d party packages
@@ -150,16 +197,26 @@ find_package( BISON 3 )
 if (XML2_LIBDIR)
     find_library( LIBXML2_LIBRARIES libxml2.a HINTS ${XML2_LIBDIR} )
     if ( LIBXML2_LIBRARIES )
-       set( LibXml2_FOUND true )
+        set( LibXml2_FOUND true )
+        if ( XML2_INCDIR )
+            set( LIBXML2_INCLUDE_DIR ${XML2_INCDIR} )
+        endif()
     endif()
 else()
     find_package( LibXml2 )
 endif()
+if( LibXml2_FOUND )
+    message( LIBXML2_INCLUDE_DIR=${LIBXML2_INCLUDE_DIR} )
+    message( LIBXML2_LIBRARIES=${LIBXML2_LIBRARIES} )
+endif()
 
-find_package(Java COMPONENTS Development)
-if( Java_FOUND AND NOT Java_VERSION )
-    message(STATUS "No version of Java found")
-    unset( Java_FOUND )
+if(NO_JAVA)
+else()
+    find_package(Java COMPONENTS Development)
+    if( Java_FOUND AND NOT Java_VERSION )
+        message(STATUS "No version of Java found")
+        unset( Java_FOUND )
+    endif()
 endif()
 
 if ( PYTHON_PATH )
@@ -168,8 +225,22 @@ endif()
 find_package( Python3 COMPONENTS Interpreter )
 
 # ===========================================================================
+# testing
 
 enable_testing()
+
+option(COVERAGE "Generate test coverage" OFF)
+
+if( COVERAGE AND "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    message( COVERAGE=${COVERAGE} )
+
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-coverage -fprofile-arcs -ftest-coverage")
+    SET(GCC_COVERAGE_LINK_FLAGS    "-coverage -lgcov")
+
+    SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
+endif()
 
 # ===========================================================================
 # singfle vs. multitarget generators, ncbi-vdb binaries
@@ -197,6 +268,9 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
 
+    if (VDB_BINDIR)
+        message( "Using ncbi-vdb build in ${VDB_BINDIR}.")
+    endif ()
     if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
         message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain one or both subdirectories Debug/ and Release/, with bin/, lib/ and ilib/ underneath each.")
     endif()
@@ -301,6 +375,7 @@ elseif( "windows" STREQUAL ${OS} )
 endif()
 
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
 
 # ===========================================================================
 
@@ -324,16 +399,14 @@ endif()
 # Common functions for creation of build artefacts
 #
 
-function( GenerateStaticLibsWithDefs target_name sources compile_defs )
-    add_library( ${target_name} STATIC ${sources} )
-    if( NOT "" STREQUAL "${compile_defs}" )
-        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
-    endif()
-endfunction()
+# provide ability to override installation directories
+if ( NOT CMAKE_INSTALL_BINDIR )
+    set( CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin )
+endif()
 
-function( GenerateStaticLibs target_name sources )
-    GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" )
-endfunction()
+if ( NOT CMAKE_INSTALL_LIBDIR )
+    set( CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib64 )
+endif()
 
 function( ExportStatic name install )
     # the output goes to .../lib
@@ -362,7 +435,7 @@ function( ExportStatic name install )
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
          endif()
     else()
@@ -371,7 +444,7 @@ function( ExportStatic name install )
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
-            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64 )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
         endif()
     endif()
 endfunction()
@@ -408,7 +481,7 @@ function(MakeLinksShared target name install)
             install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
         endif()
     else()
@@ -418,13 +491,13 @@ function(MakeLinksShared target name install)
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
             install( TARGETS ${target}
-                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 
         if (WIN32)
-            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
 
     endif()
@@ -452,29 +525,25 @@ function(MakeLinksExe target install_via_driver)
         target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
     endif()
 
-    if ( install_via_driver )
-        add_dependencies( ${target} sratools )
-    endif()
+# creates dependency loops
+#     if ( install_via_driver )
+#         add_dependencies( ${target} sratools )
+#     endif()
 
     if( SINGLE_CONFIG )
 
-        add_custom_command(TARGET ${target}
-            POST_BUILD
-            COMMAND rm -f ${target}.${VERSION}
-            COMMAND mv ${target} ${target}.${VERSION}
-            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
-            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
-            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-        )
-
-        set_property(
-            TARGET    ${target}
-            APPEND
-            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
-        )
-
         if ( install_via_driver )
+
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                COMMAND ln -f -s sratools.${VERSION} ${target}-driver
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install(
                 PROGRAMS
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
@@ -493,47 +562,58 @@ function(MakeLinksExe target install_via_driver)
             )
 
         else()
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
+        )
+
     else()
 
         if ( install_via_driver )
-
+                # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
                          RENAME ${target}${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
 
                 if (WIN32)
-                    # plug in the driver tool as soon as the target builds
-                    add_custom_command(TARGET ${target}
-                        POST_BUILD
-                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
-                    )
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                     # add the driver-tool's .pdb
                     install(FILES $<TARGET_PDB_FILE:sratools>
                             RENAME ${target}.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                 endif()
 
         else()
 
-            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
             if (WIN32) # copy the .pdb files if any
-                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
             endif()
 
         endif()
@@ -541,48 +621,167 @@ function(MakeLinksExe target install_via_driver)
     endif()
 endfunction()
 
+include(CheckIncludeFileCXX)
+unset(HAVE_MBEDTLS_H CACHE) # TODO: remove
+unset(HAVE_MBEDTLS_F CACHE) # TODO: remove
+check_include_file_cxx(mbedtls/md.h HAVE_MBEDTLS_H)
+if ( HAVE_MBEDTLS_H )
+	set( MBEDTLS_LIBS mbedx509 mbedtls mbedcrypto )
+	set(CMAKE_REQUIRED_LIBRARIES ${MBEDTLS_LIBS})
+	include(CheckCXXSourceRuns)
+	check_cxx_source_runs("
+#include <stdio.h>
+#include \"mbedtls/md.h\"
+#include \"mbedtls/sha256.h\"
+int main(int argc, char *argv[]) {
+	mbedtls_md_context_t ctx;
+	mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+	mbedtls_md_init(&ctx);
+	printf(\"test p: %p\", ctx.md_ctx);
+}
+" HAVE_MBEDTLS_F)
+endif()
 
 if( NOT SINGLE_CONFIG )
-    set( COMMON_LINK_LIBRARIES kapp load tk-version )
-    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
+    set( COMMON_LINK_LIBRARIES kapp tk-version )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} ${MBEDTLS_LIBS} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
-    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
-    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
-    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
+    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
 endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
-    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
+    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()
-
-function( BuildExecutableForTest exe_name sources libraries )
-	add_executable( ${exe_name} ${sources} )
-	target_link_libraries( ${exe_name} ${libraries} )
-endfunction()
-
-function( AddExecutableTest test_name sources libraries )
-	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
-	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endfunction()
-
 
 if ( SINGLE_CONFIG )
     # standard kfg files
+    if ( BUILD_TOOLS_INTERNAL )
+        set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
+    endif()
     install( SCRIPT CODE
-        "execute_process( COMMAND /bin/bash -c \
+        "execute_process( COMMAND /bin/bash -c      \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                '${VDB_COPY_DIR}'                   \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
-                ${CMAKE_INSTALL_PREFIX}/bin         \
-                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_INSTALL_BINDIR}             \
+                ${CMAKE_INSTALL_LIBDIR}             \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )
 endif()
+
+if( NOT SINGLE_CONFIG )
+	if( RUN_SANITIZER_TESTS )
+		message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
+	endif()
+	set( RUN_SANITIZER_TESTS OFF )
+endif()
+
+if( RUN_SANITIZER_TESTS )
+	find_program(LSB_RELEASE_EXEC lsb_release)
+	execute_process(COMMAND ${LSB_RELEASE_EXEC} -is
+		OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	message("LSB_RELEASE_ID_SHORT: ${LSB_RELEASE_ID_SHORT}")
+	if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
+		message("Disabling sanitizer tests on Ubuntu...")
+		set( RUN_SANITIZER_TESTS OFF )
+	endif()
+endif()
+
+if( RUN_SANITIZER_TESTS_OVERRIDE )
+	message("Overriding sanitizer tests due to RUN_SANITIZER_TESTS_OVERRIDE: ${RUN_SANITIZER_TESTS_OVERRIDE}")
+	set( RUN_SANITIZER_TESTS ON )
+endif()
+message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
+
+function( GenerateStaticLibsWithDefs target_name sources compile_defs include_dirs )
+    add_library( ${target_name} STATIC ${sources} )
+    if( NOT "" STREQUAL "${compile_defs}" )
+        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+    endif()
+    if( NOT "" STREQUAL "${include_dirs}" )
+        target_include_directories( ${target_name} PUBLIC "${include_dirs}" )
+    endif()
+
+    if( RUN_SANITIZER_TESTS )
+        set( asan_defs "-fsanitize=address" )
+        add_library( "${target_name}-asan" STATIC ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+        target_link_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+
+        set( tsan_defs "-fsanitize=thread" )
+        add_library( "${target_name}-tsan" STATIC ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+        target_link_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+    endif()
+endfunction()
+
+function( GenerateStaticLibs target_name sources )
+    GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" "" )
+endfunction()
+
+function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )
+    add_executable( ${target_name} ${sources} )
+    if( NOT "" STREQUAL "${compile_defs}" )
+        target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
+    endif()
+    if( NOT "" STREQUAL "${include_dirs}" )
+        target_include_directories( ${target_name} PRIVATE "${include_dirs}" )
+    endif()
+    if( NOT "" STREQUAL "${link_libs}" )
+        target_link_libraries( ${target_name} "${link_libs}" )
+    endif()
+
+    if (RUN_SANITIZER_TESTS)
+        add_executable( "${target_name}-asan" ${sources} )
+        add_executable( "${target_name}-tsan" ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE "${compile_defs}" )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PRIVATE "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PRIVATE "${include_dirs}" )
+        endif()
+        if( NOT "" STREQUAL "${link_libs}" )
+            target_link_libraries( "${target_name}-asan" "${link_libs}" )
+            target_link_libraries( "${target_name}-tsan" "${link_libs}" )
+        endif()
+        target_compile_definitions( "${target_name}-asan" PRIVATE "-fsanitize=address")
+        target_compile_definitions( "${target_name}-tsan" PRIVATE "-fsanitize=thread" )
+        target_link_libraries( "${target_name}-asan" "-fsanitize=address" )
+        target_link_libraries( "${target_name}-tsan" "-fsanitize=thread" )
+    endif()
+endfunction()
+
+function( AddExecutableTest test_name sources libraries include_dirs )
+	GenerateExecutableWithDefs( "${test_name}" "${sources}" "" "${include_dirs}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME "${test_name}-asan" COMMAND "${test_name}-asan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME "${test_name}-tsan" COMMAND "${test_name}-tsan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+endfunction()

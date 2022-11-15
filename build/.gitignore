@@ -1,6 +1,5 @@
-.cvsignore
-RHOST* ARCH* COMP* OUTDIR*
-STATIC
 ld.linux.exe_cmd.sh
-LNKG.*
 Makefile.config*
+.cmake
+CMakeCache.txt
+CMakeFiles

@@ -1,6 +1,42 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.1
+**November 15, 2022**
+
+  **bam-load**: bam-load is not built if openssl is not found  
+  **bam-load**: distributing bam-load for Mac stopped  
+  **bam-load**: reference resolution honors more the configuration information  
+  **bam-load**: spot assembly redesign  
+  **build**: added support for generating coverage reports  
+  **build**: added support for overriding cmake and ctest commands  
+  **build**: improvements to build system. see `make help`  
+  **build**: now supports custom library installation directory  
+  **build**: will use a system-provided libmbedtls, otherwise the copy included in the source code will be used  
+  **fasterq-dump**: having the same sequence in the sequence-table as well as in the alignment table is tolerated now  
+  **fasterq-dump**: includes accession in help-text now  
+  **kff**: now using system-provided libmagic if present  
+  **kfg**: fixed a bug that caused override of user configuration  
+  **kfg, sra-tools**: removed interactive requirement to configure SRA Toolkit  
+  **kfs**: fixed bug with long paths  
+  **kns, sra-tools**: allow to use AWS data with compute environment via proxy  
+  **latf-load**: fixed a bug causing a potential freeze on reaching a maximum number of errors  
+  **pacbio-load, vdb**: hdf5 support is now a part of sra-tools/pacbio-load; uses system-provided libhdf5   
+  **ref-variation**: added libraries and tools: ngs-vdb, general-writer, ref-variation, sra-search, general-loader, pileup-stats  
+  **sam-dump**: missing quality score printed as *  
+  **sam-dump**: new option to output '*' for quality scores  
+  **SharQ**: supports nanopore FASTQ format  
+  **sra-pileup, vfs**: fixed crash when working with no-quality run  
+  **sra-stat**: prints detailed information for detected mismatch of recorded and calculated statistics  
+  **sra-tools**: new parameters to make:  BUILD_TOOLS_LOADERS: build loaders (OFF by default);  BUILD_TOOLS_INTERNAL: build internal pipeline tools (OFF by default);  BUILD_TOOLS_TEST_TOOLS: build internal test tools (OFF by default)  
+  **sra-tools, vdb**: retired vdb-get  
+  **sra-tools, vfs**: fixed infinite loop when processing bad response when resolving accession  
+  **test**: stopped distribution of Makefiles for NGS C++ examples  
+  **vdb**: kxml and kxfs are combined and moved to sra-tools  
+  **vdb**: updated zlib version to fix vulnerability  
+  **vfs**: now recognizes sralite.vdbcache files  
+
+
 ## SRA Toolkit 3.0.0
 **February 10, 2022**
 

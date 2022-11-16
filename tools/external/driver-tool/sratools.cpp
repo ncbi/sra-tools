@@ -460,9 +460,11 @@ static int main(CommandLine const &argv)
         });
 
         // MARK: Set debug flags
+#if _DEBUGGING
         parsed.each("debug", [](Argument const &arg) {
             KDbgSetString(arg.argument);
         });
+#endif        
 
         // MARK: Check for special parameters that trigger immediate tool execution.
         if (parsed.any("help"))

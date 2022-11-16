@@ -3042,7 +3042,8 @@ rc_t print_results(const Ctx* ctx)
         OUTMSG(("</Run>\n"));
     }
 
-    if (mismatchCMP_BASE_COUNT != 0) /* ignore it */;
+    if (mismatchCMP_BASE_COUNT != 0) 
+        /* ignore it */;
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
 

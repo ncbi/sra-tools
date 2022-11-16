@@ -1381,7 +1381,7 @@ static rc_t ric_align_generic(int64_t const startId,
 
     for (chunk = startId; chunk < endId; ) {
         rc_t rc = 0;
-        int64_t last;
+        int64_t last = 0;
         size_t const n = load_key_pairs(chunk, endId, pairs, pair, acurs, aci, &last, &rc);
         size_t i;
         int64_t cur_fkey = 0;

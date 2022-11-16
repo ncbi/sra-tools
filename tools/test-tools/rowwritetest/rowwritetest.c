@@ -99,7 +99,7 @@ rc_t run (const char * table_path, uint64_t N )
     uint64_t total[COLUMNS];
     int i = 0, j = 0, prev = 0;
     char *buffer[BUFFERS];
-    
+
 
 
 
@@ -262,11 +262,11 @@ rc_t run (const char * table_path, uint64_t N )
     /* Log */
     if (rc == 0) {
         PLOGMSG(klogInfo, (klogInfo, "$(t)", "t=%s", tablePath));
-        PLOGMSG(klogInfo,(klogInfo, 
+        PLOGMSG(klogInfo,(klogInfo,
             "$(n)($(N)) rows written - $(b) bytes per row",
                           PLOG_I64(n) "," PLOG_X64(N) ",b=%d", N, N, ROWLEN));
         for (i = 0; i < COLUMNS; ++i) {
-            PLOGMSG(klogInfo,(klogInfo, 
+            PLOGMSG(klogInfo,(klogInfo,
                               "$(i): $(n)($(N)) bytes",
                               "i=%s," PLOG_I64(n) "," PLOG_X64(N),
                               colInf[i], total[i], total[i]));
@@ -284,6 +284,7 @@ rc_t run (const char * table_path, uint64_t N )
                 uint64_t size = 0;
 #define  FORMAT    "%s/col/%s/data"
 #define KFORMAT "$(d)/col/$(n)/data", "d=%s,n=%s"
+#undef STATUS
 #define  STATUS(action) (action FORMAT, tablePath, name)
                 char name[3];
 
@@ -373,14 +374,14 @@ rc_t CC KMain ( int argc, char *argv[] )
                     snprintf (tablePath, sizeof (tablePath),
                               "/home/%s/%s", user, default_name);
                 else
-                    strncpy (tablePath, default_name, sizeof (tablePath));
+                    strncpy (tablePath, default_name, sizeof (tablePath) - 1);
             }
             else
             {
                 const char * pc;
 
                 ArgsOptionValue (args, OPTION_TABLE, 0, (const void **)&pc);
-                strncpy (tablePath, pc, sizeof (tablePath));
+                strncpy (tablePath, pc, sizeof (tablePath) - 1);
             }
 
             rc = ArgsHandleStandardOptions (args);
@@ -390,7 +391,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             rc = ArgsParamCount (args, &pcount);
             if (rc)
                 break;
-            
+
             if (pcount)
             {
                 const char * pc;
@@ -400,7 +401,7 @@ rc_t CC KMain ( int argc, char *argv[] )
                     break;
 
                 rc = RC (rcExe, rcNoTarg, rcParsing, rcParam, rcExcessive);
-              
+
                 PLOGERR (klogFatal, (klogFatal, rc, "$(P) takes no parameters", PLOG_S(P), pc));
                 break;
             }

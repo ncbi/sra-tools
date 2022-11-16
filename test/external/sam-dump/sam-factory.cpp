@@ -69,14 +69,14 @@ class cigar_t {
                             case 'A' :
                             case 'C' :
                             case 'G' :
-                            case 'T' : for ( int i = 0; i < opt . count; ++i ) { res += opt . op; }
+                            case 'T' : for ( uint32_t i = 0; i < opt . count; ++i ) { res += opt . op; }
                             case 'D' : ref_idx += opt . count;
                                        break;
                             case 'I' : res += ins_bases . substr ( ins_idx, opt . count );
                                        ins_idx += opt . count;
                                        break;
                             case 'M' : res += ref_bases . substr ( ref_idx, opt . count );
-                                       ref_idx += opt . count;                            
+                                       ref_idx += opt . count;
                                        break;
                         }
                     }
@@ -310,7 +310,7 @@ class t_params {
             if ( entry != values . end() ) { return entry -> first; }
             return dflt;
         }
-        
+
         const std::string& get_string_key( const std::string& key, const std::string& dflt ) const {
             auto found = values . find( key );
             if ( found != values . end() ) { return found -> second; }
@@ -336,7 +336,7 @@ class t_progline {
 
     public :
         t_progline( const std::string &line, const char * a_file_name, int a_line_nr )
-            : filename( a_file_name ), line_nr( a_line_nr ), org( line ), 
+            : filename( a_file_name ), line_nr( a_line_nr ), org( line ),
               cmd(), kv( t_params::make( line ) ) {
             int colon_pos = line.find( ':' );
             if ( colon_pos != -1 ) {
@@ -348,7 +348,7 @@ class t_progline {
         static t_progline_ptr make( const std::string &line, const char * filename, int line_nr ) {
             return std::make_shared< t_progline>( t_progline( line, filename, line_nr ) );
         }
-        
+
         bool is_ref( void ) const { return cmd == "ref" || cmd == "r"; }
         bool is_ref_out( void ) const { return cmd == "ref-out"; }
         bool is_sam_out( void ) const { return cmd == "sam-out"; }
@@ -362,7 +362,7 @@ class t_progline {
         bool is_link( void ) const { return cmd == "lnk" || cmd == "l"; }
         bool is_sort_alignments( void ) const { return cmd == "sort"; }
 
-        std::string get_org( void ) const { 
+        std::string get_org( void ) const {
             std::stringstream ss;
             ss << filename << "#" << line_nr << " : " << org;
             return ss.str();
@@ -397,13 +397,13 @@ class t_progline {
             if ( value . empty() ) { return dflt; }
             return str_to_bool( value );
         }
-        
+
         int get_int_key( const std::string& key, int dflt ) const {
             auto value = kv -> get_string_key( key, empty_string );
             if ( value . empty() ) { return dflt; }
             return str_to_int( value, dflt );
         }
-        
+
         static void consume_stream( std::istream &stream, const char * file_name, t_proglines& proglines ) {
             int line_nr = 0;
             for ( std::string line; std::getline( stream, line ); ) {
@@ -413,7 +413,7 @@ class t_progline {
                 line_nr++;
             }
         }
-        
+
         static void consume_lines( int argc, char *argv[], t_proglines& proglines ) {
             if ( argc > 1 ) {
                 // looping through the file( s ) given at the commandline...
@@ -439,7 +439,7 @@ class t_progline {
 class t_errors {
     private :
         std::vector< std::string > errors;
-    
+
     public :
         const bool empty( void ) const { return errors.empty(); }
 
@@ -448,7 +448,7 @@ class t_errors {
             ss << msg << org;
             errors . push_back( ss.str() );
         }
-        
+
         bool print( void ) const {
             for ( const std::string &err : errors ) {
                 std::cerr << err << std::endl;
@@ -464,7 +464,7 @@ class t_errors {
 class t_reference;
 typedef std::shared_ptr< t_reference > t_reference_ptr;
 typedef std::map< std::string, t_reference_ptr > t_reference_map;
-        
+
 class t_reference {
     private :
         std::string name;
@@ -472,15 +472,15 @@ class t_reference {
         std::string bases;
 
     public :
-        t_reference ( const std::string &a_name, const std::string &a_alias ) 
+        t_reference ( const std::string &a_name, const std::string &a_alias )
             : name( a_name ), alias( a_alias ) { }
-        
+
         static t_reference_ptr make( const std::string &a_name, const std::string &a_alias ) {
-            return std::make_shared< t_reference >( t_reference( a_name, a_alias ) ); 
+            return std::make_shared< t_reference >( t_reference( a_name, a_alias ) );
         }
 
         static t_reference_ptr make( const std::string &a_name ) {
-            return std::make_shared< t_reference >( t_reference( a_name, a_name ) ); 
+            return std::make_shared< t_reference >( t_reference( a_name, a_name ) );
         }
 
         void make_random( int length ) { bases = random_bases( length ); }
@@ -491,14 +491,14 @@ class t_reference {
         const std::string& get_bases( void ) const { return bases; }
         const std::string& get_alias( void ) const { return alias; }
         const std::string& get_name( void ) const { return name; }
-        
+
         void print_HDR( std::ostream &out ) const {
             int l = length();
             out << "@SQ\tSN:" << name << "\tAS:n/a" << "\tLN:" << l << tab_string;
             out << "UR:file:rand_ref.fasta";
             out << std::endl;
         }
-  
+
         void static insert_ref( const t_reference_ptr ref, t_reference_map& references, t_errors& errors ) {
             const std::string& alias = ref -> get_alias();
             auto found = references . find( alias );
@@ -601,7 +601,7 @@ class t_reference {
                 }
             }
         }
-        
+
         static const t_reference_ptr lookup( const std::string &alias, const t_reference_map& refs ) {
             auto found = refs . find( alias );
             if ( found == refs . end() ) { return nullptr; }
@@ -669,11 +669,11 @@ class t_alignment {
         // ctor for PRIM/SEC alignments
         t_alignment( const std::string &a_name, int a_flags, const t_reference_ptr a_ref, int a_pos,
                    int a_mapq, const std::string &a_cigar, int a_tlen, const std::string &a_qual,
-                   const std::string &a_opts, const std::string &a_ins_bases, int qual_div ) 
-                   : name( a_name ), flags( a_flags ), ref( a_ref ), ref_pos( a_pos ), mapq( a_mapq ), 
+                   const std::string &a_opts, const std::string &a_ins_bases, int qual_div )
+                   : name( a_name ), flags( a_flags ), ref( a_ref ), ref_pos( a_pos ), mapq( a_mapq ),
                      special_cigar( a_cigar ), pure_cigar( cigar_t::purify( a_cigar ) ), tlen( a_tlen ),
                      qual( a_qual ), opts( a_opts ), ins_bases( a_ins_bases )  {
-            if ( ref_pos == 0 ) { 
+            if ( ref_pos == 0 ) {
                 ref_pos = random_int( 1, ref -> length() );
                 size_t spec_cig_len = cigar_t::reflen_of( special_cigar );
                 size_t rlen = ref -> length();
@@ -700,7 +700,7 @@ class t_alignment {
             return std::make_shared< t_alignment >( t_alignment( name, flags, ref, pos, mapq, cigar,
                                        tlen, qual, opts, ins_bases, qual_div ) );
         }
-        
+
         static t_alignment_ptr make( const std::string &name, int flags, const std::string &seq,
                                    const std::string &qual, const std::string &opts, int qual_div ) {
             return std::make_shared< t_alignment > ( t_alignment( name, flags, seq, qual, opts, qual_div ) );
@@ -752,8 +752,8 @@ class t_alignment {
 class t_alignment_comparer {
     public :
         bool operator()( const t_alignment_ptr& a, const t_alignment_ptr& b ) {
-            return *a < *b && !(*b < *a);    
-        }    
+            return *a < *b && !(*b < *a);
+        }
 };
 
 /* -----------------------------------------------------------------
@@ -774,7 +774,7 @@ class t_alignment_group {
     public :
         t_alignment_group( std::string a_name ) : name( a_name ) {}
 
-        static t_alignment_group_ptr make( t_alignment_ptr a ) { 
+        static t_alignment_group_ptr make( t_alignment_ptr a ) {
             t_alignment_group_ptr ag = std::make_shared< t_alignment_group >( t_alignment_group( a -> get_name() ) );
             ag -> add( a );
             return ag;
@@ -800,7 +800,7 @@ class t_alignment_group {
             int cnt = v.size();
             if ( cnt > 1 ) {
                 int idx = 0;
-                for( t_alignment_ptr a : v ) { 
+                for( t_alignment_ptr a : v ) {
                     if ( idx == 0 ) {
                         // first ...
                         a -> set_mate( v[ 1 ] );
@@ -826,7 +826,7 @@ class t_alignment_group {
 
         void finish_alignments( void ) {
             t_alignment_group::finish_alignmnet_vector( prim_alignments );
-            t_alignment_group::finish_alignmnet_vector( sec_alignments );            
+            t_alignment_group::finish_alignmnet_vector( sec_alignments );
         }
 
         void bin_alignment_by_ref( t_alignment_ptr a, t_alignment_bins &by_ref, t_alignment_vec &without_ref ) {
@@ -836,12 +836,12 @@ class t_alignment_group {
                 if ( bin == by_ref . end() ) {
                     // no : we have to make one ...
                     t_alignment_vec v{ a };
-                    by_ref . insert( std::pair< std::string, std::vector< t_alignment_ptr > >( name, v ) );                                
+                    by_ref . insert( std::pair< std::string, std::vector< t_alignment_ptr > >( name, v ) );
                 } else {
                     // yes : just add it
                     bin -> second . push_back( a );
                 }
-                
+
             } else {
                 // has no reference, comes at the end...
                 without_ref . push_back( a );
@@ -858,7 +858,7 @@ class t_alignment_group {
             const std::string& name = a -> get_name();
             auto found = alignment_groups . find( name );
             if ( found == alignment_groups . end() ) {
-                alignment_groups . insert( 
+                alignment_groups . insert(
                     std::pair< std::string, t_alignment_group_ptr >( name, t_alignment_group::make( a ) ) );
             } else {
                 ( found -> second ) -> add( a );
@@ -889,7 +889,7 @@ class t_settings {
         }
 
     public :
-        t_settings( const t_proglines& proglines, t_errors & errors ) 
+        t_settings( const t_proglines& proglines, t_errors & errors )
             : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ), sort_alignments( true ) {
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref_out() ) {
@@ -934,7 +934,7 @@ class t_factory {
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref() ) {
                     const std::string& t = pl -> get_string_key( "type" );
-                    if ( t == "random" ) { 
+                    if ( t == "random" ) {
                         t_reference::random_ref( pl, refs, errors );
                     } else if ( t == "fasta" ) {
                         t_reference::fasta_ref( pl, refs, errors );
@@ -948,7 +948,7 @@ class t_factory {
 
             // generate error if we do not have any references at this point
             if ( refs . empty() ) { errors . msg( "no references found!", empty_string ); }
-            
+
             // write a reference-fasta-file ( if requested )
             if ( errors . empty() ) {
                 settings . set_dflt_alias( t_reference::get_first_ref_alias( refs ) );
@@ -973,7 +973,7 @@ class t_factory {
             t_alignment_group::insert_alignment(
                 t_alignment::make( name,
                                 flags,
-                                ref, 
+                                ref,
                                 pl -> get_int_key( "pos", 0 ),
                                 pl -> get_int_key( "mapq", settings.get_dflt_mapq() ),
                                 pl -> get_string_key( "cigar", settings.get_dflt_cigar() ),
@@ -1068,12 +1068,12 @@ class t_factory {
             for( const auto &ag : alignment_groups ) {
                 ag . second -> bin_by_refname( by_ref, without_ref );
             }
-            
+
             // sort each reference...
             for ( auto &rb : by_ref ) {
                 sort( rb . second . begin(), rb . second . end(), t_alignment_comparer() );
             }
-            
+
             // produce the SAM-output...
             for ( const auto &rb : by_ref ) {
                 for ( const auto &a : rb . second ) { a -> print_SAM( out ); }
@@ -1119,7 +1119,7 @@ class t_factory {
     public :
         t_factory( const t_proglines& lines, t_errors& error_list )
             : proglines( lines ), errors( error_list ), settings( lines, error_list ) {}
-        
+
         int produce( void ) {
             if ( phase1() ) {
                 if ( phase2() ) {

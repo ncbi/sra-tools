@@ -690,10 +690,10 @@ static const flex_int32_t yy_rule_can_match_eol[35] =
 
 static const flex_int16_t yy_rule_linenum[34] =
     {   0,
-       92,   93,   95,   99,  100,  101,  102,  103,  104,  105,
-      106,  107,  110,  114,  115,  116,  117,  122,  123,  124,
-      125,  130,  131,  136,  141,  142,  149,  154,  155,  156,
-      161,  162,  165
+       93,   94,   96,  100,  101,  102,  103,  104,  105,  106,
+      107,  108,  111,  115,  116,  117,  118,  123,  124,  125,
+      126,  131,  132,  137,  142,  143,  150,  155,  156,  157,
+      162,  163,  166
     } ;
 
 #define YY_TRAILING_MASK 0x2000
@@ -747,6 +747,7 @@ goto find_rule; \
     #include "fastq-grammar.h"
 
     #define YYSTYPE FASTQToken
+    #undef YY_BUF_SIZE
     #define YY_BUF_SIZE 16777216
 
     /* code to populate token with internal values */

@@ -53,8 +53,8 @@ static const char * ref_usage[] = { "Filter by position on genome.",
 static const char * outf_usage[] = { "Output will be written to this file",
                               "instead of std-out", NULL };
 
-static const char * table_usage[] = { "Which alignment table(s) to use (p|s|e):", 
-                               "p - primary, s - secondary, e - evidence-interval", 
+static const char * table_usage[] = { "Which alignment table(s) to use (p|s|e):",
+                               "p - primary, s - secondary, e - evidence-interval",
                                "(default = p)", NULL };
 
 static const char * gzip_usage[] = { "Compress output using gzip", NULL };
@@ -103,7 +103,7 @@ OptDef CommonOptions[] = {
     { OPTION_BZIP,    ALIAS_BZIP,    NULL, bzip_usage,    1,        false,       false },
     { OPTION_INF,     ALIAS_INF,     NULL, inf_usage,     0,        true,        false },
     { OPTION_SCHEMA,  ALIAS_SCHEMA,  NULL, schema_usage,  1,        true,        false },
-    { OPTION_NO_MT,   NULL,          NULL, no_mt_usage,   1,        false,       false },  
+    { OPTION_NO_MT,   NULL,          NULL, no_mt_usage,   1,        false,       false },
     { OPTION_TIMING,  NULL,          NULL, timing_usage,  1,        true,        false }
 };
 
@@ -399,7 +399,7 @@ static rc_t split_argument_into_path_and_readgroup( const char *argument, char *
         rc = split_argument( argument, path, attribute, '=' );
     } else {
         VFSManager * mgr;
-        rc_t rc = VFSManagerMake ( & mgr );
+        rc = VFSManagerMake ( & mgr );
 
         *path = NULL;
         *attribute = NULL;

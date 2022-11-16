@@ -477,7 +477,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         queryInfo = getLocalFileInfo(cmdline, args, cwd, qualityPreference().isFullQuality);
         cwd.makeCurrentDirectory();
     }
-    auto const havePerm = perm != nullptr;
+    auto const havePerm = perm != nullptr; UNUSED(havePerm); // only for asserts
     auto const canSendCE = config->canSendCEToken();
     if (logging_state::is_dry_run()) ; else assert(!(havePerm && !canSendCE));
 

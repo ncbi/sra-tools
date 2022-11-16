@@ -569,7 +569,7 @@ rc_t Experiment_FillRead(const ReadSpecXML_read* spec, PoolReadSpec* pool,
                 char r[4096];
                 uint32_t i;
                 ExpectedTableMatch data;
-                
+
                 data.len = pool[1].start - start;
                 DEBUG_MSG(3, ("agrep find read %u rev in: '%.*s' = %u\n", nreads, data.len, &bases[start], data.len));
                 if( data.len > sizeof(r) ) {
@@ -714,6 +714,7 @@ rc_t Experiment_FillSegAgrep(const ExperimentXML* self, PoolReadSpec* pool, cons
         }
         DEBUG_MSG(3, ("Read %u. [%hd:%hd] - '%.*s'",
                        i, pool[i].start, pool[i].length, pool[i].length < 0 ? 0 : pool[i].length, b));
+        UNUSED(b);
         if( self->reads->spec[i].coord_type == rdsp_FIXED_BRACKET_ct ) {
             DEBUG_MSG(3, (" terminator???"));
         }

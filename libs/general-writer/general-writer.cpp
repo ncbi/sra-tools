@@ -27,6 +27,8 @@
 #include <general-writer/general-writer.hpp>
 #include <general-writer/utf8-like-int-codec.h>
 
+#include <kfc/defs.h>
+
 #include <iterator>
 #include <cstdlib>
 #include <iomanip>
@@ -645,6 +647,7 @@ namespace ncbi
             uint16_t val2;
             int ret2 = decode_uint16 ( start, start + ret, & val2 );
             assert ( ret == ret2 && val == val2 );
+            UNUSED(ret2);
         }
         return ret;
     }
@@ -658,6 +661,7 @@ namespace ncbi
             uint32_t val2;
             int ret2 = decode_uint32 ( start, start + ret, & val2 );
             assert ( ret == ret2 && val == val2 );
+            UNUSED(ret2);
         }
         return ret;
     }
@@ -671,6 +675,7 @@ namespace ncbi
             uint64_t val2;
             int ret2 = decode_uint64 ( start, start + ret, & val2 );
             assert ( ret == ret2 && val == val2 );
+            UNUSED(ret2);
         }
         return ret;
     }

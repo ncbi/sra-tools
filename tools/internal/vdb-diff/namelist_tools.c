@@ -145,7 +145,7 @@ rc_t nlt_remove_names_from_namelist( const KNamelist *source,
 {
     rc_t rc = 0;
     uint32_t count;
-    
+
     if ( source == NULL || dest == NULL || to_remove == NULL )
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     *dest = NULL;
@@ -178,7 +178,7 @@ rc_t nlt_remove_strings_from_namelist( const KNamelist *source,
 {
     rc_t rc = 0;
     const KNamelist *to_remove;
-    
+
     if ( source == NULL || dest == NULL || items_to_remove == NULL )
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     rc = nlt_make_namelist_from_string( &to_remove, items_to_remove );
@@ -277,7 +277,7 @@ rc_t nlt_build_intersect( const KNamelist *nl1, const KNamelist *nl2, const KNam
         VNamelistRelease( v_names );
 
 	}
-	return rc;	
+	return rc;
 }
 
 bool nlt_namelist_is_sub_set_in_full_set( const KNamelist * sub_set, const KNamelist * full_set )
@@ -324,7 +324,7 @@ rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, co
 				rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
 				if ( rc != 0 )
 				{
-					LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+					LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );
 				}
 			}
 			else
@@ -338,7 +338,7 @@ rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, co
 		}
 		else
 		{
-			uint32_t found_in_both;
+			uint32_t found_in_both = 0;
 			bool equal = nlt_compare_namelists( cols_1, cols_2, &found_in_both );
 			if ( equal )
 			{
@@ -355,7 +355,7 @@ rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, co
 					rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
 					if ( rc != 0 )
 					{
-						LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+						LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );
 					}
 				}
 				else

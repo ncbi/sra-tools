@@ -562,7 +562,7 @@ static const unsigned DEFAULT_BATCH_SIZE = 240e6;
 rc_t CC Usage (const Args * args)
 {
     rc_t rc;
-    int i;
+    size_t i;
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
     const size_t argsQty = sizeof(Options) / sizeof(Options[0]);
@@ -1301,12 +1301,12 @@ rc_t CC KMain(int argc, char *argv[])
 
     if (has_help) {
         argc = 2;
-        argv[1] = "--help";
+        argv[1] = (char*)"--help";
         return main_help_vers(argc, argv);
     }
     if (has_vers) {
         argc = 2;
-        argv[1] = "--version";
+        argv[1] = (char*)"--version";
         return main_help_vers(argc, argv);
     }
 

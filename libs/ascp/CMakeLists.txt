@@ -40,6 +40,10 @@ set( SRC
     ${OS_SPECIFIC_SRC}
 )
 
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    SET_SOURCE_FILES_PROPERTIES(${UNIX_SRC} PROPERTIES COMPILE_FLAGS -Wno-unused-result)
+endif()
+
 GenerateStaticLibs(ascp
     "${SRC}"
 )

@@ -48,7 +48,7 @@
 
 #include <sysexits.h>
 #include <unistd.h>
-#include <sys/mman.h> 
+#include <sys/mman.h>
 
 #define TEMP_MAIN_OBJECT_NAME "out"
 #define TEMP_CACHE_OBJECT_NAME "cache"
@@ -123,6 +123,7 @@ static uint64_t rowCount(VCursor const *const curs, int64_t *const first, uint32
     uint64_t count = 0;
     rc_t const rc = VCursorIdRange(curs, cid, first, &count);
     assert(rc == 0);
+    UNUSED(rc);
     return count;
 }
 
@@ -186,7 +187,7 @@ static VDatabase const *openDatabase(char const *const input, VDBManager const *
     rc_t const rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", input);
     if (rc == 0)
         return db;
-        
+
     LogErr(klogFatal, rc, "can't open input database");
     exit(EX_SOFTWARE);
 }
@@ -308,7 +309,7 @@ static VDBManager *manager()
     rc_t const rc = VDBManagerMakeUpdate(&mgr, NULL);
     if (rc == 0)
         return mgr;
-    
+
     LogErr(klogFatal, rc, "VDBManagerMake failed!");
     exit(EX_TEMPFAIL);
 }
@@ -464,7 +465,7 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
         LogErr(klogFatal, rc, "can't get metadata node to read");
         exit(EX_SOFTWARE);
     }
-    
+
     return node;
 }
 
@@ -479,7 +480,7 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...
         LogErr(klogFatal, rc, "can't open table metadata!!!");
         exit(EX_SOFTWARE);
     }
-    
+
     va_start(va, path);
     rc = KMetadataVOpenNodeUpdate(meta, &node, path, va);
     va_end(va);
@@ -488,7 +489,7 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...
         LogErr(klogFatal, rc, "can't get metadata node to update");
         exit(EX_DATAERR);
     }
-    
+
     return node;
 }
 
@@ -608,7 +609,7 @@ static void removeTempDir(char const *const temp)
 {
     KDirectory *ndir = rootDir();
     rc_t rc;
-    
+
     rc = KDirectoryRemove(ndir, true, "%s", temp);
     KDirectoryRelease(ndir);
     if (GetRCState(rc) == (int)rcBusy && GetRCObject(rc) == (int)rcPath) {

@@ -45,15 +45,15 @@ namespace ngs
         ItfTok ( const char * name )
             : itf_name ( name )
         {
-            assert ( parent == 0 );
-            assert ( idx == 0 );
+            //assert ( parent == 0 );
+            //assert ( idx == 0 );
         }
 
         ItfTok ( const char * name, const ItfTok & dad )
             : itf_name ( name )
             , parent ( & dad )
         {
-            assert ( idx == 0 );
+            //assert ( idx == 0 );
         }
 
         /* name of the interface */

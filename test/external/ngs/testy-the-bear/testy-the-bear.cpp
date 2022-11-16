@@ -1,5 +1,8 @@
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReadCollection.hpp>
+
+#define SRC_LOC_DEFINED 1
+
 #include <kfc/ctx.h>
 #include <kfc/rsrc.h>
 #include <kfc/xcdefs.h>

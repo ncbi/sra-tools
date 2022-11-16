@@ -61,7 +61,7 @@
  */
 
 static uint64_t num_files;
-static uint64_t max_size = 0; 
+static uint64_t max_size = 0;
 static uint64_t max_offset = 0;
 static uint32_t max_size_fw;
 static uint32_t max_offset_fw;
@@ -78,7 +78,7 @@ struct KAREntry
 
     const char *name;
     KARDir *parentDir;
-    
+
     uint32_t access_mode;
 
     uint8_t type;
@@ -87,7 +87,7 @@ struct KAREntry
 struct KARDir
 {
     KAREntry dad;
-    
+
     BSTree contents;
 };
 
@@ -170,7 +170,7 @@ void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
         pLogErr ( klogErr, rc, "Failed to write path for entry '$(name)'",
                   "name=%s", entry -> name );
         exit ( 3 );
-    }        
+    }
 
     switch ( kpm -> pm )
     {
@@ -182,9 +182,9 @@ void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
         KTime tm;
         KTimeLocal ( &tm, entry -> mod_time );
 
-        KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s", 
-                  
-                  tm . year, tm . month + 1, tm . day + 1, 
+        KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s",
+
+                  tm . year, tm . month + 1, tm . day + 1,
                   tm . hour, tm . minute, tm . second, buffer);
         break;
     }
@@ -215,7 +215,7 @@ void printFile ( const KARFile *file, KARPrintMode *kpm )
             KOutMsg ( "%*c ", max_size_fw, '-' );
         else
             KOutMsg ( "%*lu ", max_size_fw, file -> byte_size );
-            
+
         KOutMsg ( "%*lu ", max_offset_fw, file -> byte_offset );
     }
 
@@ -249,7 +249,7 @@ void printAlias ( const KARAlias *alias, KARPrintMode *kpm, uint8_t type )
     }
     else
         printEntry ( ( KAREntry * ) alias, kpm );
-    
+
     KOutMsg ( "\n" );
 }
 
@@ -359,7 +359,7 @@ void kar_print ( BSTNode *node, void *data )
 
 /********** KAREntry */
 
-static 
+static
 void kar_entry_whack ( BSTNode *node, void *data )
 {
     KAREntry *entry = ( KAREntry * ) node;
@@ -441,14 +441,14 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
     return rc;
 }
 
-static 
-rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, size_t name_len, 
+static
+rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, size_t name_len,
                          uint64_t mod_time, uint32_t access_mode, uint8_t type )
 {
     rc_t rc;
     KAREntry * entry;
 
-    STATUS ( STAT_QA, "inflating entry for '%s' with name_len: %u + entry_size: %u", 
+    STATUS ( STAT_QA, "inflating entry for '%s' with name_len: %u + entry_size: %u",
              name, ( uint32_t ) name_len, ( uint32_t ) entry_size );
     entry = calloc ( 1, entry_size + name_len + 1 );
     if ( entry == NULL )
@@ -494,7 +494,7 @@ void kar_entry_link_parent_dir ( BSTNode *node, void *data )
     if ( entry -> type == kptDir )
     {
         KARDir *dir = ( KARDir * ) entry;
-        BSTreeForEach ( &dir -> contents, false, kar_entry_link_parent_dir, dir ); 
+        BSTreeForEach ( &dir -> contents, false, kar_entry_link_parent_dir, dir );
     }
 }
 
@@ -514,7 +514,7 @@ void kar_entry_insert_file ( BSTNode *node, void *data )
     case kptDir:
     {
         KARDir *dir = ( KARDir * ) entry;
-        BSTreeForEach ( &dir -> contents, false, kar_entry_insert_file, data ); 
+        BSTreeForEach ( &dir -> contents, false, kar_entry_insert_file, data );
         break;
     }
     default:
@@ -655,11 +655,11 @@ rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data, uint32
                 rc = BSTreeInsert ( ( BSTree * ) data, &alias -> dad . dad, kar_entry_cmp );
                 if ( rc == 0 )
                     return 0;
-                
-                
+
+
                 pLogErr ( klogErr, rc, "Failed to insert file '$(name)' into tree",
                       "name=%s", alias -> dad . name );
-                
+
             }
         }
     }
@@ -725,7 +725,7 @@ rc_t kar_scan_path ( const KDirectory *dir, BSTree *tree, const char *path )
 
 /********** md5  */
 
-static 
+static
 rc_t kar_md5 ( KDirectory *wd, KFile **archive, const char *path, KCreateMode mode )
 {
     rc_t rc = 0;
@@ -738,7 +738,7 @@ rc_t kar_md5 ( KDirectory *wd, KFile **archive, const char *path, KCreateMode mo
     else
     {
         KMD5SumFmt *fmt;
-                    
+
         /* create md5 formatter to write to md5_f */
         rc = KMD5SumFmtMakeUpdate ( &fmt, md5_f );
         if ( rc )
@@ -916,7 +916,7 @@ rc_t kar_persist_karentry ( const KAREntry * entry, int type_code,
 static
 rc_t kar_persist_karfile ( const KARFile * entry, size_t *num_writ, PTWriteFunc write, void *write_param )
 {
-    size_t total_expected, total_written;
+    size_t total_expected, total_written = 0;
     rc_t rc = kar_persist_karentry ( & entry -> dad,
                                      entry -> byte_size == 0 ? ktocentrytype_emptyfile : ktocentrytype_file,
                                      num_writ, write, write_param );
@@ -985,7 +985,7 @@ rc_t kar_persist_kardir ( const KARDir * entry, size_t *num_writ, PTWriteFunc wr
 static
 rc_t kar_persist_karalias ( const KARAlias *entry, size_t *num_writ, PTWriteFunc write, void *write_param )
 {
-    size_t total_expected, total_written;
+    size_t total_expected, total_written = 0;
     rc_t rc = kar_persist_karentry ( & entry -> dad, ktocentrytype_softlink, num_writ, write, write_param );
     if ( rc == 0 )
     {
@@ -996,7 +996,7 @@ rc_t kar_persist_karalias ( const KARAlias *entry, size_t *num_writ, PTWriteFunc
             return RC (rcExe, rcNode, rcWriting, rcPath, rcExcessive);
 
         total_written = * num_writ;
-        
+
         /* determine size */
         total_expected
             = total_written               /* from KAREntry       */
@@ -1129,11 +1129,11 @@ void kar_write_toc ( KARArchiveFile * af, const BSTree * tree )
 }
 
 
-static 
+static
 rc_t kar_prepare_toc ( const BSTree *tree, KARFilePtrArray *file_array_ptr )
 {
     rc_t rc = 0;
-    
+
     /* create an array of KARFile* that will be sorted by size */
     KARFilePtrArray file_array = calloc ( num_files, sizeof * file_array );
     if ( file_array == NULL )
@@ -1149,23 +1149,23 @@ rc_t kar_prepare_toc ( const BSTree *tree, KARFilePtrArray *file_array_ptr )
 
         /* now fill the array with KARFile* by walking the tree again */
         BSTreeForEach ( tree, false, kar_entry_insert_file, file_array );
-        
+
         /* now, sort the array based upon size - use <klib/sort.h> */
         ksort ( file_array, num_files, sizeof * file_array, kar_entry_sort_size, NULL );
-        
+
         /* now you can assign offsets to the files in the array */
         for ( i = offset = 0; i < num_files; ++ i )
         {
             KARFile *f = file_array [ i ];
             f -> byte_offset = offset;
-            
+
             offset += f -> byte_size;
 
             /* perform aligning to boundary */
             offset = align_offset ( offset, 4 );
         }
     }
-    
+
     return rc;
 }
 
@@ -1224,11 +1224,11 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     STATUS ( STAT_QA, "opening: full path is '%s'", filename );
     rc = KDirectoryOpenFileRead ( wd, &f, "%s", filename );
     if ( rc != 0 )
-    {        
+    {
         pLogErr ( klogInt, rc, "Failed to open file $(fname)", "fname=%s", file -> dad . name );
         exit (6);
     }
-    
+
     STATUS ( STAT_QA, "allocating buffer of %,zu bytes", bsize );
     buffer = malloc ( bsize );
     if ( buffer == NULL )
@@ -1257,7 +1257,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
         if ( rc != 0 || num_read == 0 )
             break;
 
-        STATUS ( STAT_QA, "about to write %zu bytes to archive", num_read );    
+        STATUS ( STAT_QA, "about to write %zu bytes to archive", num_read );
         rc = KFileWriteAll ( af -> archive, af -> pos, buffer, num_read, & num_writ );
         if ( rc != 0 || num_writ != num_read )
         {
@@ -1282,7 +1282,7 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree, const
     rc_t rc = 0;
 
     KARFilePtrArray file_array;
-    
+
     rc = kar_prepare_toc ( tree, &file_array );
     if ( rc == 0 )
     {
@@ -1308,10 +1308,10 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree, const
             STATUS ( STAT_QA, "writing file %u: '%s'", i, file_array [ i ] -> dad . name );
             kar_write_file ( & af, wd, file_array [ i ], root_dir );
         }
-        
+
         free ( file_array );
     }
-    
+
     return rc;
 }
 
@@ -1333,7 +1333,7 @@ rc_t kar_create ( const Params *p )
     {
         KFile *archive;
         KCreateMode mode = ( p -> force ? kcmInit : kcmCreate ) | kcmParents;
-        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, mode, 
+        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, mode,
                                     "%s", p -> archive_path );
         if ( rc != 0 )
         {
@@ -1344,37 +1344,37 @@ rc_t kar_create ( const Params *p )
         {
             if ( p -> md5sum )
                 rc = kar_md5 ( wd, &archive, p -> archive_path, mode );
- 
+
             if ( rc == 0 )
             {
                 BSTree tree;
                 BSTreeInit ( & tree );
-                
+
                 /* build contents by walking input directory if given,
                    and adding the individual members if given */
                 if ( p -> dir_count != 0 )
                 {
                     rc = kar_scan_directory ( wd, & tree, p -> directory_path );
                     if ( rc == 0 )
-                    {   
+                    {
                         uint64_t i;
                         for ( i = 1; rc == 0 && i <= p -> mem_count; ++ i )
                             rc = kar_scan_path ( wd, & tree, p -> members [ i ] );
-                        
+
                         if ( rc == 0 )
                         {
                             BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
-                            
+
                             rc = kar_make ( wd, archive, &tree, p -> directory_path );
                             if ( rc != 0 )
                                 LogErr ( klogInt, rc, "Failed to build archive" );
                         }
                     }
                 }
-            
+
                 BSTreeWhack ( & tree, kar_entry_whack, NULL );
             }
-            
+
             KFileRelease ( archive );
         }
 
@@ -1392,9 +1392,9 @@ static
 uint64_t kar_verify_header ( const KFile *archive, KSraHeader *hdr )
 {
     rc_t rc;
-    
+
     size_t num_read;
-   
+
 
     STSMSG (1, ("Verifying header\n"));
 
@@ -1481,7 +1481,7 @@ int64_t kar_alias_find_link ( const void *item, const BSTNode *node )
 {
     const char *link = ( const char * ) item;
     KAREntry *entry = ( KAREntry * ) node;
-    
+
     uint64_t link_size = string_size ( link );
     uint64_t name_size = string_size ( entry -> name );
 
@@ -1610,7 +1610,7 @@ void kar_alias_link_type ( BSTNode *node, void *data )
     }
 }
 
-static 
+static
 void kar_inflate_toc ( PBSTNode *node, void *data )
 {
     rc_t rc = 0;
@@ -1715,7 +1715,7 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
         else
         {
             PBSTreeForEach ( ptree, false, kar_inflate_toc, &dir -> contents );
-            
+
             PBSTreeWhack ( ptree );
         }
 
@@ -1725,7 +1725,7 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
             LOGERR (klogErr, rc, "failed insert KARDir into tree");
             exit ( 3 );
         }
-        
+
         break;
     }
     case ktocentrytype_softlink:
@@ -1742,7 +1742,7 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
         /* need to reuse name* for soft-link string */
         if ( name != buffer )
             free ( name );
-        
+
         offset = toc_data_copy ( & name_len, sizeof name_len, toc_data, node -> data . size, offset );
         name = malloc ( name_len + 1 );
         if ( name == NULL )
@@ -1801,7 +1801,7 @@ rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, co
         else
         {
             PBSTree *ptree;
-            
+
             rc = PBSTreeMake ( &ptree, buffer, num_read, false );
             if ( rc != 0 )
                 LOGERR (klogErr, rc, "failed make PBSTree");
@@ -1822,7 +1822,7 @@ rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, co
 /****************************************************************
  * JOJOBA: Changes I made
  * We are splitting extracting archive to two phases :
- * 1) during first phase we will go through all items and will 
+ * 1) during first phase we will go through all items and will
  *    create directories, and will collect data about files to store
  * 2) We will sort array of files to store by offset in original
  *    archive file, and we will restore each file, so reading of
@@ -2021,7 +2021,7 @@ typedef struct extract_block extract_block;
 struct extract_block
 {
     uint64_t extract_pos;
-    
+
     KDirectory *cdir;
     const KFile *archive;
 
@@ -2054,9 +2054,9 @@ rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
     char *buffer;
     size_t num_writ = 0, num_read = 0, total = 0;
     size_t bsize = 256 * 1024 *1024;
-    
-    rc_t rc = KDirectoryCreateFile ( sf -> cdir, &dst, false, 0200, 
-                                 kcmCreate, "%s", SF_SE(sf,name) ); 
+
+    rc_t rc = KDirectoryCreateFile ( sf -> cdir, &dst, false, 0200,
+                                 kcmCreate, "%s", SF_SE(sf,name) );
     if ( rc != 0 )
     {
         pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", SF_SE(sf,name) );
@@ -2077,7 +2077,7 @@ rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
         size_t to_read =  SF_SF(sf,byte_size) - total;
         if ( to_read > bsize )
             to_read = bsize;
-        
+
         rc = KFileReadAll ( eb -> archive, SF_SF(sf,byte_offset) + eb -> extract_pos + total,
                             buffer, to_read, &num_read );
         if ( rc != 0 )
@@ -2099,7 +2099,7 @@ rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
             pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", SF_SE(sf,name) );
             exit ( 4 );
         }
-        
+
         if ( num_writ < num_read )
         {
             rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
@@ -2167,7 +2167,7 @@ rc_t extract_dir ( const KARDir *src, const extract_block *eb )
         extract_block c_eb = *eb;
         rc = KDirectoryOpenDirUpdate ( eb -> cdir, &c_eb . cdir, false, "%s", src -> dad . name );
         if ( rc == 0 )
-        {      
+        {
             BSTreeDoUntil ( &src -> contents, false, kar_extract, &c_eb );
 
             rc = c_eb . rc;
@@ -2198,7 +2198,7 @@ bool CC kar_extract ( BSTNode *node, void *data )
         eb -> rc = extract_file ( ( const KARFile * ) entry, eb );
         break;
     case kptDir:
-        eb -> rc = extract_dir ( ( const KARDir * ) entry, eb ); 
+        eb -> rc = extract_dir ( ( const KARDir * ) entry, eb );
         break;
     case kptAlias:
     case kptFile | kptAlias:
@@ -2239,7 +2239,7 @@ rc_t set_attributes_dir ( const KARDir *src, const extract_block *eb )
     extract_block c_eb = *eb;
     rc = KDirectoryOpenDirUpdate ( eb -> cdir, &c_eb . cdir, false, "%s", src -> dad . name );
     if ( rc == 0 )
-    {      
+    {
         BSTreeDoUntil ( &src -> contents, false, kar_set_attributes, &c_eb );
 
         rc = c_eb . rc;
@@ -2308,7 +2308,7 @@ rc_t kar_test_extract ( const Params *p )
             KSraHeader hdr;
             uint64_t toc_pos, toc_size, file_offset;
 
-            toc_pos = kar_verify_header ( archive, &hdr );            
+            toc_pos = kar_verify_header ( archive, &hdr );
             file_offset = hdr . u . v1 . file_offset;
             toc_size = file_offset - toc_pos;
 
@@ -2399,7 +2399,7 @@ rc_t kar_test_extract ( const Params *p )
             BSTreeWhack ( tree, kar_entry_whack, NULL );
             KFileRelease ( archive );
         }
-        
+
         KDirectoryRelease ( wd );
     }
 
@@ -2422,7 +2422,7 @@ rc_t run ( const Params *p )
     assert ( p -> t_count != 0 );
     return kar_test_extract ( p );
 }
-    
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Params params;

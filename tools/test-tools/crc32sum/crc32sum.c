@@ -74,7 +74,7 @@ int crc32sum_check ( FILE *in, const char *fname )
         char *p;
         FILE *src;
         int status, bin = 0;
-        uint32_t prior, crc32;
+        uint32_t prior, crc32 = 0;
 
         if ( line [ 0 ] == 0 )
         {
@@ -134,7 +134,7 @@ int crc32sum_check ( FILE *in, const char *fname )
 static
 int crc32sum_gen ( FILE *in, const char *fname, int bin )
 {
-    uint32_t crc32;
+    uint32_t crc32 = 0;
     int status = crc32sum_calc ( in, & crc32 );
     if ( status != 0 )
         fprintf ( stderr, "error processing file '%s': %s\n", fname, strerror ( status ) );

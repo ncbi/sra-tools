@@ -189,7 +189,7 @@ FIXTURE_TEST_CASE(CSRA1_PileupIterator_AccessAfterNext_PileupGetReferenceBase, C
     ENTRY_GET_PILEUP_NEXT ( CSRA1_PrimaryOnly, "supercont2.1" );
 
     char base = NGS_PileupGetReferenceBase ( m_pileup, ctx );
-    //REQUIRE ( ! FAILED () && base != 0 );
+    REQUIRE ( ! FAILED () && base != 0 );
 
     EXIT;
 }
@@ -384,7 +384,7 @@ FIXTURE_TEST_CASE(CSRA1_PileupIteratorSlice_AccessAfterNext_PileupGetReferenceBa
     ENTRY_GET_PILEUP_SLICE_NEXT( CSRA1_PrimaryOnly, "supercont2.1", 5431, 4 );
 
     char base = NGS_PileupGetReferenceBase ( m_pileup, ctx );
-    //REQUIRE ( ! FAILED () && base != 0 );
+    REQUIRE ( ! FAILED () && base != 0 );
 
     EXIT;
 }

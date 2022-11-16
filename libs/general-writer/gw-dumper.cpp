@@ -1195,7 +1195,7 @@ namespace gw_dump
             throw "bad version";
         if ( * end != 0 && * end != term )
             throw "bad version";
-        if ( num < 0 || num > max )
+        if ( num < 0 || (unsigned long)num > max )
             throw "bad version";
     }
 
@@ -1312,6 +1312,7 @@ namespace gw_dump
         case mnr_column:
             return "column-id";
         }
+        return "<invalid root node>";
     }
 
     /* dump_metadata_node

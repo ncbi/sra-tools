@@ -126,7 +126,7 @@ public:
             hb.init();
         }
     }
-    virtual bool seen_before(const char* value, size_t sz) 
+    virtual bool seen_before(const char* value, size_t sz) override
     {
         bool hits[4];
         m_name_hash = hashing::fnv1a(value, sz);

@@ -353,7 +353,7 @@ typedef struct context_t {
             s->release_search_memory();
         }
     }
-
+/*
 #if defined(HAS_CTX_VALUE)
     template<typename F>
     void visit_keyId(F&& f) {
@@ -363,9 +363,8 @@ typedef struct context_t {
             ++group_id;
         }
     }
-
 #endif
-
+*/
     /**
      * @brief Extracts all spot_ids from metadata into m_spot_id_buffer and purges metadata spotId columns
      *
@@ -1968,6 +1967,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         primaryId[1] = 0;
         opt_pcr_dup.reset();
         opt_is_primary.reset();
+        opt_is_unmated.reset();
         opt_frag_len[0].reset();
         opt_frag_len[1].reset();
 #endif
@@ -2465,8 +2465,8 @@ MIXED_BASE_AND_COLOR:
             auto v_unmated = opt_is_unmated.value_or(metadata.get<bit_t>(metadata_t::e_unmated).test(row_id));
 #ifdef HAS_CTX_VALUE
             if (v_unmated != value->unmated) {
-                spdlog::error("Inconsistent unamted");
-                throw runtime_error("Inconsistent unamted");
+                spdlog::error("Inconsistent unmated");
+                throw runtime_error("Inconsistent unmated");
             }
 
 #endif

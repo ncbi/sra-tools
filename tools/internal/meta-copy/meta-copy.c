@@ -115,7 +115,7 @@ static rc_t print_ctx( const struct copy_ctx * ctx ) {
     if ( 0 == rc ) { rc = KOutMsg( "\tsrc  = %s\n", ctx -> src ); }
     if ( 0 == rc ) { rc = KOutMsg( "\tdst  = %s\n", ctx -> dst ); }
     if ( 0 == rc ) { rc = KOutMsg( "\tnode = %s\n", ctx -> node_path ); }
-    if ( 0 == rc && NULL != ctx -> table ) { rc = KOutMsg( "\ttbl  = %s\n", ctx -> table ); }    
+    if ( 0 == rc && NULL != ctx -> table ) { rc = KOutMsg( "\ttbl  = %s\n", ctx -> table ); }
     return rc;
 }
 
@@ -208,7 +208,7 @@ static rc_t copy_tbl( const struct copy_ctx * ctx, const VTable * src, VTable * 
         if ( NULL == tbl_name ) {
             rc = KOutMsg( "\tcopying the node(s) was successful\n" );
         } else {
-            rc = KOutMsg( "\tcopying the node(s) in '%s'-tables was successful\n", tbl_name );                
+            rc = KOutMsg( "\tcopying the node(s) in '%s'-tables was successful\n", tbl_name );
         }
     }
     return rc;
@@ -229,7 +229,7 @@ static rc_t copy_tbl_in_db( const struct copy_ctx * ctx,
                                 "tbl=%s,acc=%s", tbl_name, ctx ->dst ) );
         } else {
             rc = copy_tbl( ctx, src_tbl, dst_tbl, tbl_name );
-            VTableRelease( dst_tbl );            
+            VTableRelease( dst_tbl );
         }
         VTableRelease( src_tbl );
     }
@@ -251,7 +251,7 @@ static rc_t copy_all_tables_in_db( const struct copy_ctx * ctx,
                                 "acc=%s", ctx -> src ) );
         } else {
             uint32_t idx;
-            for ( idx = 0; 0 == rc && idx < count; ++idx ) { 
+            for ( idx = 0; 0 == rc && idx < count; ++idx ) {
                 const char * tbl_name;
                 rc = KNamelistGet( tables, idx, &tbl_name );
                 if ( 0 != rc ) {
@@ -327,7 +327,6 @@ static rc_t copy( const struct copy_ctx * ctx )
 ***************************************************************************/
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    unsigned long int diffs = 0;
     Args * args;
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,  NULL, 0 );
     if ( rc != 0 ) {

@@ -46,7 +46,7 @@ endif()
 #add_subdirectory( align ) # moved to test/internal
 #add_subdirectory( test_sanitizers ) # move to test/internal
 
-add_subdirectory( scripts ) # mobe to test/internal
+add_subdirectory( scripts ) # move to test/internal
 
 # add_subdirectory(samline) # command line tool; move to tools/internal
 

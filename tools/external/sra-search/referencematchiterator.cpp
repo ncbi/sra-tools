@@ -91,7 +91,7 @@ ReverseComplementDNA ( const string& p_source)
     ret.reserve ( p_source . size () );
     for ( string :: const_reverse_iterator i = p_source . rbegin (); i != p_source . rend (); ++i )
     {
-        char ch = complement [ *i ];
+        char ch = complement [ (unsigned int)*i ];
         if ( ch == 0 )
         {
             throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
@@ -571,7 +571,7 @@ ReferenceSearch :: NextIterator ()
             ++ m_refIt;
             return ret;
         }
-        catch ( ngs :: ErrorMsg ex )
+        catch ( ngs :: ErrorMsg & ex )
         {
             const string NotFoundMsg = "Reference not found";
             if ( string ( ex . what (), NotFoundMsg . size () ) == NotFoundMsg )

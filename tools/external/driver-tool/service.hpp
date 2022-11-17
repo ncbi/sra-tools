@@ -43,7 +43,7 @@ class exception : public std::runtime_error {
     uint32_t rc;
 public:
 
-    const std::string msg;
+    std::string msg;
 
     uint32_t resultCode() const { return rc; }
     std::string const &failedCall() const { return from; }
@@ -72,20 +72,6 @@ public:
         full,
         none
     };
-    struct FileInfo {
-        std::string path, cachepath;
-        size_t size;
-        bool have;
-        enum QualityType qualityType = Service::unknown;
-
-        operator bool() const { return have; }
-    };
-private:
-    FileInfo _localInfo(std::string const &accession, std::string const &path) const;
-    FileInfo localInfo(std::string const &accession, std::string const &extension) const;
-
-public:
-    FileInfo localInfo(std::string const &accession) const;
 
     class Response {
         void *obj;
@@ -98,10 +84,6 @@ public:
         friend class Service;
     public:
         std::string const &responseText() const { return text; }
-
-        Service::FileInfo localInfo(  std::string const &accession
-                                    , std::string const &name
-                                    , std::string const &type) const;
 
         ~Response();
 

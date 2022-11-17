@@ -38,7 +38,3 @@
 ///
 /// @returns a type 4 version 1 UUID
 extern std::string uuid();
-
-#if DEBUG || _DEBUGGING
-extern void uuid_test(void);
-#endif

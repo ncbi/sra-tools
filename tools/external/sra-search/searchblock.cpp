@@ -213,10 +213,10 @@ void
 NucStrstrSearch :: ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLen, unsigned char* pBuf2NA, size_t nBuf2NASize )
 {
     static unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
-    map['A'] = map['a'] = 0;
-    map['C'] = map['c'] = 1;
-    map['G'] = map['g'] = 2;
-    map['T'] = map['t'] = 3;
+    map[(unsigned)'A'] = map[(unsigned)'a'] = 0;
+    map[(unsigned)'C'] = map[(unsigned)'c'] = 1;
+    map[(unsigned)'G'] = map[(unsigned)'g'] = 2;
+    map[(unsigned)'T'] = map[(unsigned)'t'] = 3;
 
     static size_t shiftLeft [ 4 ] = { 6, 4, 2, 0 };
 
@@ -237,7 +237,6 @@ NucStrstrSearch :: ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLe
 
 SmithWatermanSearch :: SmithWatermanSearch ( const string& p_query, uint8_t p_minScorePct )
 :   SearchBlock ( p_query ),
-    m_matrixSize ( 0 ),
     m_minScorePct ( p_minScorePct )
 {
     rc_t rc = SmithWatermanMake ( &m_sw, m_query . c_str() );

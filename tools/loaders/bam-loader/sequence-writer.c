@@ -314,9 +314,9 @@ rc_t SequenceWriteRecord(Sequence *self,
 static rc_t ReadSequenceData(TableWriterSeqData *const data, VCursor const *const curs, int64_t const row, uint32_t const colId[])
 {
     int i;
-    
+
     memset(data, 0, sizeof(*data));
-    
+
     for (i = 0; i <= 8; ++i) {
         uint32_t elem_bits = 0;
         uint32_t row_len = 0;
@@ -325,7 +325,7 @@ static rc_t ReadSequenceData(TableWriterSeqData *const data, VCursor const *cons
         rc_t const rc = VCursorCellDataDirect(curs, row, colId[i], &elem_bits, &base, &boff, &row_len);
         if (rc == 0) {
             TableWriterData *tdata = NULL;
-            
+
             switch (i) {
                 case 0:
                     assert(elem_bits == sizeof(data->tmp_key_id) * 8);
@@ -377,22 +377,22 @@ rc_t SequenceDoneWriting(Sequence *self)
         /* copy the SEQUENCE table from the first output */
         VDBManager *mgr = NULL;
         rc_t rc;
-        
+
         getTable(self, false);
 
         rc = VDatabaseOpenManagerUpdate(self->db, &mgr);
         assert(rc == 0);
-        
+
         if (rc == 0) {
             VDatabase const *db = NULL;
-            
+
             rc = VDBManagerOpenDBRead(mgr, &db, NULL, G.firstOut);
             assert(rc == 0);
-            
+
             VDBManagerRelease(mgr);
             if (rc == 0) {
                 VTable const *tbl = NULL;
-                
+
                 rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
                 assert(rc == 0);
                 VDatabaseRelease(db);
@@ -403,7 +403,7 @@ rc_t SequenceDoneWriting(Sequence *self)
                     VTableRelease(tbl);
                     if (rc == 0) {
                         uint32_t colId[9];
-                        
+
                         rc = VCursorAddColumn(curs, &colId[0], "TMP_KEY_ID");
                         assert(rc == 0);
                         rc = VCursorAddColumn(curs, &colId[1], "(INSDC:dna:text)READ");
@@ -430,12 +430,12 @@ rc_t SequenceDoneWriting(Sequence *self)
                                 uint64_t count;
                                 uint64_t row;
                                 TableWriterSeqData data;
-                                
+
                                 rc = VCursorIdRange(curs, colId[0], &first, &count);
                                 assert(rc == 0);
                                 for (row = 0; row < count; ++row) {
                                     int64_t dummyRowId = 0;
-                                    
+
                                     rc = ReadSequenceData(&data, curs, row+first, colId);
                                     assert(rc == 0);
                                     if (rc) return rc;
@@ -467,7 +467,7 @@ rc_t SequenceUpdateAlignData(Sequence *self, int64_t rowId, unsigned nreads,
                              uint8_t const algnCnt[/* nreads */])
 {
     TableWriterData data[2];
-    
+
     data[0].buffer = primeId; data[0].elements = nreads;
     data[1].buffer = algnCnt; data[1].elements = nreads;
 
@@ -476,10 +476,10 @@ rc_t SequenceUpdateAlignData(Sequence *self, int64_t rowId, unsigned nreads,
 
 void SequenceWhack(Sequence *self, bool commit) {
     uint64_t dummyRows;
-    
+
     if (self->tbl == NULL)
         return;
-    
+
     (void)TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
     if (G.mode == mode_Remap) {
         /* This only happens for the second and subsequent loads.
@@ -489,6 +489,7 @@ void SequenceWhack(Sequence *self, bool commit) {
         VTable *tbl = NULL;
         rc_t rc = VDatabaseOpenTableUpdate(self->db, &tbl, "SEQUENCE");
         assert(rc == 0);
+        UNUSED(rc);
         VTableDropColumn(tbl, "TMP_KEY_ID");
         VTableDropColumn(tbl, "READ");
         VTableRelease(tbl);

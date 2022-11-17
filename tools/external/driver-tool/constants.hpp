@@ -44,107 +44,6 @@
 
 namespace constants {
 
-/// @brief constants used for tool names
-struct tool_name {
-    /// @brief tools names as symbols
-    enum {
-        FASTERQ_DUMP,
-        FASTQ_DUMP,
-        PREFETCH,
-        SAM_DUMP,
-        SRA_PILEUP,
-        SRAPATH,
-        END_ENUM
-    };
-    
-    /// @brief array of tool names in same order as above enum
-    static char const *const *real() {
-        static char const *const value[] = {
-            "fasterq-dump-orig",
-            "fastq-dump-orig",
-            "prefetch-orig",
-            "sam-dump-orig",
-            "sra-pileup-orig",
-            "srapath-orig"
-        };
-        return value;
-    }
-    
-    /// @brief array of impersonated tool names in same order as above enum
-    static char const *const *runasNames() {
-        static char const *const value[] = {
-            "fasterq-dump",
-            "fastq-dump",
-            "prefetch",
-            "sam-dump",
-            "sra-pileup",
-            "srapath"
-        };
-        return value;
-    }
-    
-    /// @brief get full path to tool by id
-    static char const *path(int const iid)
-    {
-        extern std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real);
-        extern void pathHelp [[noreturn]] (std::string const &toolname);
-
-        static auto const cache = load_tool_paths(END_ENUM, runasNames(), real());
-        auto const &result = cache.at(iid);
-        if (result)
-            return result.value().c_str();
-        
-        pathHelp(runas(iid));
-    }
-    
-    /// @brief convert id to string
-    ///
-    /// @param iid integer id of tool (range checked)
-    ///
-    /// @returns the real name of the tool in the filesystem
-    static char const *real(int const iid) {
-        assert(0 <= iid && iid < END_ENUM);
-        if (0 <= iid && iid < END_ENUM)
-            return real()[iid];
-        throw std::range_error("unknown tool id");
-    }
-    
-    /// @brief convert id to string
-    ///
-    /// @param iid integer id of tool (range checked)
-    ///
-    /// @returns the impersonated name of the tool
-    static char const *runas(int const iid) {
-        assert(0 <= iid && iid < END_ENUM);
-        if (0 <= iid && iid < END_ENUM)
-            return runasNames()[iid];
-        throw std::range_error("unknown tool id");
-    }
-    
-    /// @brief convert impersonated name to id
-    ///
-    /// @param qry the impersonated name
-    ///
-    /// @returns the id or -1 if not found
-    static int lookup_iid(char const *const qry) {
-        auto const values = runasNames();
-        int f = 0;
-        int e = END_ENUM;
-        
-        while (f < e) {
-            auto const m = f + ((e - f) >> 1);
-            auto const c = strcmp(values[m], qry);
-            if (c < 0)
-                f = m + 1;
-            else if (c > 0)
-                e = m;
-            else
-                return m;
-        }
-        return -1;
-    }
-};
-
 /// @brief constants used for calling SRA Data Locator
 struct resolver {
     static constexpr char const *version() { return "130"; }
@@ -180,6 +79,7 @@ struct env_var {
         SIZE_URL,
         SIZE_VDBCACHE,
         QUALITY_PREFERENCE,
+        PARAMETER_BITS,
         END_ENUM
     };
     
@@ -200,6 +100,7 @@ struct env_var {
             ENV_VAR_SIZE_URL,
             ENV_VAR_SIZE_VDBCACHE,
             ENV_VAR_QUALITY_PREFERENCE,
+            ENV_VAR_PARAMETER_BITS,
         };
         return value;
     }
@@ -217,7 +118,7 @@ struct env_var {
         assert(0 <= iid && iid < END_ENUM);
         if (0 <= iid && iid < END_ENUM)
             return names()[iid];
-        throw std::range_error("unknown environment variable id");
+        throw std::invalid_argument("unknown environment variable id");
     }
     
     /// @brief convert string to id
@@ -264,6 +165,8 @@ struct env_var {
     static void set(int const iid, char const *const value, bool const overwrite = true) {
         auto const envar = name(iid);
         EnvironmentVariables::set(envar, value ? EnvironmentVariables::Value(value) : EnvironmentVariables::Value());
+
+        (void)(overwrite);
     }
 };
 

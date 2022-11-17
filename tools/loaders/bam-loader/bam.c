@@ -149,7 +149,7 @@ static int SAMFileRead1(SAMFile *const self)
         for ( ; ; ) {
             if (self->file.bpos == self->file.bmax) {
                 rc_t const rc = BufferedFileRead(&self->file);
-                
+
                 self->last = rc;
                 if (rc) return -1;
                 if (self->file.bmax == 0) return cr ? '\r' : -1;
@@ -193,11 +193,11 @@ static rc_t SAMFileInit(SAMFile *self, RawFile_vt *vt)
         (rc_t (*)(void *, uint64_t))BufferedFileSetPos,
         (void (*)(void *))NULL
     };
-    
+
     self->putback = -1;
     self->last = 0;
     *vt = my_vt;
-    
+
     return 0;
 }
 
@@ -215,13 +215,13 @@ static rc_t BGZFileGetMoreBytes(BGZFile *self)
     rc_t const rc = BufferedFileRead(&self->file);
     if (rc)
         return rc;
-    
+
     if (self->file.bmax == 0)
         return RC(rcAlign, rcFile, rcReading, rcData, rcInsufficient);
 
     self->zs.avail_in = (uInt)(self->file.bmax);
     self->zs.next_in = (Bytef *)self->file.buf;
-    
+
     return 0;
 }
 
@@ -234,7 +234,7 @@ static rc_t BGZFileRead(BGZFile *self, zlib_block_t dst, unsigned *pNumRead)
     rc_t rc = 0;
     unsigned loops;
     int zr;
-    
+
     *pNumRead = 0;
     if (self->file.bmax == 0 || self->zs.avail_in == 0) {
         rc = BGZFileGetMoreBytes(self);
@@ -246,28 +246,28 @@ static rc_t BGZFileRead(BGZFile *self, zlib_block_t dst, unsigned *pNumRead)
     memset(&head, 0, sizeof(head));
     head.extra = extra;
     head.extra_max = sizeof(extra);
-    
+
     zr = inflateGetHeader(&self->zs, &head);
     assert(zr == Z_OK);
 #endif
-    
+
     self->zs.next_out = (Bytef *)dst;
     self->zs.avail_out = sizeof(zlib_block_t);
 
     for (loops = 0; loops != 2; ++loops) {
         {
             uLong const initial = self->zs.total_in;
-            
+
             zr = inflate(&self->zs, Z_FINISH);
             {
                 uLong const final = self->zs.total_in;
                 uLong const len = final - initial;
-                
+
                 self->file.bpos += len;
             }
         }
         assert(self->zs.avail_in == self->file.bmax - self->file.bpos);
-        
+
         switch (zr) {
         case Z_OK:
         case Z_BUF_ERROR:
@@ -289,13 +289,13 @@ static rc_t BGZFileRead(BGZFile *self, zlib_block_t dst, unsigned *pNumRead)
                 unsigned const extra_len = head.extra_len;
                 unsigned i;
                 unsigned bsize = 0;
-                
+
                 DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BGZF), ("GZIP Header extra length: %u\n", extra_len));
                 for (i = 0; i < extra_len; ) {
                     uint8_t const si1 = extra[i + 0];
                     uint8_t const si2 = extra[i + 1];
                     unsigned const slen = LE2HUI16(&extra[i + 2]);
-                    
+
                     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BGZF), ("GZIP Header extra: %c%c(%u)\n", si1, si2, slen));
                     if (si1 == 'B' && si2 == 'C') {
                         bsize = 1 + LE2HUI16(&extra[i + 4]);
@@ -343,7 +343,7 @@ static rc_t BGZFileInit(BGZFile *const self, RawFile_vt *const vt)
         (rc_t (*)(void *, uint64_t))BufferedFileSetPos,
         (void (*)(void *))BGZFileWhack
     };
-    
+
     *vt = my_vt;
 
     i = inflateInit2(&self->zs, MAX_WBITS + 16); /* max + enable gzip headers */
@@ -355,7 +355,7 @@ static rc_t BGZFileInit(BGZFile *const self, RawFile_vt *const vt)
     default:
         return RC(rcAlign, rcFile, rcConstructing, rcNoObj, rcUnexpected);
     }
-    
+
     return 0;
 }
 
@@ -386,7 +386,7 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
     char const *const a = (char const *)&self->data->raw[a_off];
     char const *const b = (char const *)&self->data->raw[b_off];
     int const diff = opt_tag_cmp(a, b);
-    
+
     if ( diff != 0 )
         return diff;
     else if ( a < b )
@@ -400,12 +400,12 @@ static unsigned tag_search(BAM_Alignment const *const self, char const tag[2])
 {
     unsigned f = 0;
     unsigned e = self->numExtra;
-    
+
     while (f < e) {
         unsigned const m = f + ((e - f) >> 1);
         char const *const mtag = (char const *)&self->data->raw[self->extra[m].offset];
         int const d = opt_tag_cmp(tag, mtag);
-        
+
         if (d > 0)
             f = m + 1;
         else
@@ -419,7 +419,7 @@ static unsigned tag_count(BAM_Alignment const *const self,
                               unsigned const at)
 {
     unsigned n;
-    
+
     for (n = 0; n + at < self->numExtra; ++n) {
         if (opt_tag_cmp(tag, (char const *)&self->data->raw[self->extra[n + at].offset]) != 0)
             break;
@@ -566,10 +566,10 @@ static rc_t BAM_FileReadn(BAM_File *self, const unsigned len, uint8_t dst[/* len
     rc_t rc;
     unsigned cur;
     unsigned n = 0;
-    
+
     if (len == 0)
         return 0;
-    
+
     for (cur = 0; ; cur += n) {
         if (self->bufSize > self->bufCurrent) {
             n = self->bufSize - self->bufCurrent;
@@ -621,7 +621,7 @@ static rc_t BAM_FileReadI32(BAM_File *self, int32_t *rhs)
 {
     uint8_t buf[sizeof(int32_t)];
     rc_t rc = BAM_FileReadn(self, sizeof(int32_t), buf);
-    
+
     if (rc == 0)
         *rhs = LE2HI32(buf);
     return rc;
@@ -632,18 +632,18 @@ static rc_t BAM_FileReadI32(BAM_File *self, int32_t *rhs)
 static unsigned ParseHD(char const **rslt, unsigned const hlen, char hdata[])
 {
     unsigned i;
-    unsigned tag;
-    unsigned value;
+    unsigned tag = 0;
+    unsigned value = 0;
     int st = 0;
     int ws = 1;
 
     for (i = 0; i < hlen; ++i) {
         char const cc = hdata[i];
-        
+
         if (ws && isspace(cc))
             continue;
         ws = 0;
-        
+
         switch (st) {
         case 0:
             tag = i;
@@ -664,10 +664,10 @@ static unsigned ParseHD(char const **rslt, unsigned const hlen, char hdata[])
         case 3:
             if (cc == '\t' || cc == '\r' || cc == '\n') {
                 hdata[i] = '\0';
-                
+
                 if (strcmp(&hdata[tag], "VN") == 0)
                     *rslt = &hdata[value];
-                
+
                 ++st;
                 ws = 1;
             }
@@ -686,18 +686,18 @@ static unsigned ParseHD(char const **rslt, unsigned const hlen, char hdata[])
 static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
 {
     unsigned i;
-    unsigned tag;
-    unsigned value;
+    unsigned tag = 0;
+    unsigned value = 0;
     int st = 0;
     int ws = 1;
-    
+
     for (i = 0; i < hlen; ++i) {
         char const cc = hdata[i];
-        
+
         if (ws && isspace(cc))
             continue;
         ws = 0;
-        
+
         switch (st) {
         case 0:
             tag = i;
@@ -728,14 +728,14 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
         case 3:
             if (cc == '\t' || cc == '\r' || cc == '\n') {
                 unsigned j;
-                
+
                 hdata[i] = '\0';
-                
+
                 while (value < i && isspace(hdata[value]))
                     ++value;
                 for (j = i; value < j && isspace(hdata[j - 1]); )
                     hdata[--j] = '\0';
-                
+
                 if (strcmp(&hdata[tag], "SN") == 0)
                     rs->name = &hdata[value];
                 else if (strcmp(&hdata[tag], "LN") == 0)
@@ -750,7 +750,7 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
 #undef HACKAMATIC
                 {
                     unsigned len = j - value;
-                    
+
                     if ((hdata[value] == '\'' || hdata[value] == '"') && hdata[value + len - 1] == hdata[value]) {
                         ++value;
                         len -= 2;
@@ -760,7 +760,7 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
                         for (j = 0; j != 16; ++j) {
                             int const ch1 = toupper(hdata[value + j * 2 + 0]);
                             int const ch2 = toupper(hdata[value + j * 2 + 1]);
-                            
+
                             if (isxdigit(ch1) && isxdigit(ch2)) {
                                 rs->checksum_array[j] =
                                     ((ch1 > '9' ? (ch1 - ('A' - 10)) : (ch1 - '0')) << 4) +
@@ -777,7 +777,7 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
                     rs->uri = &hdata[value];
                 else if (strcmp(&hdata[tag], "SP") == 0)
                     rs->species = &hdata[value];
-                
+
                 ++st;
                 ws = 1;
             }
@@ -796,18 +796,18 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
 static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
 {
     unsigned i;
-    unsigned tag;
-    unsigned value;
+    unsigned tag = 0;
+    unsigned value = 0;
     int st = 0;
     int ws = 1;
-    
+
     for (i = 0; i < hlen; ++i) {
         char const cc = hdata[i];
-        
+
         if (ws && isspace(cc))
             continue;
         ws = 0;
-        
+
         switch (st) {
         case 0:
             tag = i;
@@ -835,7 +835,7 @@ static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
                     ++value;
                 while (value < j && isspace(hdata[j - 1]))
                     hdata[--j] = '\0';
-                
+
                 if ((hdata[value] == '\"' || hdata[value] == '\'') && hdata[value] == hdata[j - 1]) {
                     ++value;
                     hdata[j - 1] = '\0';
@@ -858,7 +858,7 @@ static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
                     dst->runDate = &hdata[value];
                 else if (strcmp(&hdata[tag], "PL") == 0)
                     dst->platform = &hdata[value];
-                
+
                 ++st;
                 ws = 1;
             }
@@ -881,14 +881,14 @@ static bool ParseHeader(BAM_File *self, char hdata[], size_t hlen) {
     unsigned tag;
     int st = 0;
     int ws = 1;
-    
+
     for (i = 0; i < hlen; ++i) {
         char const cc = hdata[i];
-        
+
         if (ws && isspace(cc))
             continue;
         ws = 0;
-        
+
         switch (st) {
         case 0:
             if (cc == '@')
@@ -958,7 +958,7 @@ static int64_t comp_ReadGroup(const void *A, const void *B, void *ignored) {
         return 1;
     if (b->name == NULL)
         return -1;
-    
+
     /* make empty names sort to the bottom */
     if (a->name[0] == '\0' || b->name[0] == '\0')
         return 0;
@@ -966,14 +966,14 @@ static int64_t comp_ReadGroup(const void *A, const void *B, void *ignored) {
         return 1;
     if (b->name[0] == '\0')
         return -1;
-    
+
     return strcmp(a->name, b->name);
 }
 
 static int64_t comp_RefSeqName(const void *A, const void *B, void *ignored) {
     BAMRefSeq const *const a = A;
     BAMRefSeq const *const b = B;
-    
+
     /* make null names sort to the bottom */
     if (a->name == NULL || b->name == NULL)
         return 0;
@@ -981,7 +981,7 @@ static int64_t comp_RefSeqName(const void *A, const void *B, void *ignored) {
         return 1;
     if (b->name == NULL)
         return -1;
-    
+
     /* make empty names sort to the bottom */
     if (a->name[0] == '\0' || b->name[0] == '\0')
         return 0;
@@ -1058,7 +1058,7 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
         return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
     self->headerData1 = copy; /* so it's not leaked */
     memmove(copy, text, size + 1);
-    
+
     {
     bool const parsed = ParseHeader(self, copy, size);
     if (!parsed)
@@ -1067,9 +1067,9 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
     }
     for (i = 0; i < self->readGroups; ++i)
         self->readGroup[i].id = i;
-    
+
     ksort(self->readGroup, self->readGroups, sizeof(self->readGroup[0]), comp_ReadGroup, NULL);
-    
+
     /* remove read groups with missing and empty names */
     for (i = self->readGroups; i != 0; ) {
         BAMReadGroup const *const rg = &self->readGroup[--i];
@@ -1079,12 +1079,12 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
             --self->readGroups;
         }
     }
-    
+
     /* check for duplicate read groups names */
     for (i = 1; i < self->readGroups; ++i) {
         BAMReadGroup const *const a = &self->readGroup[i - 1];
         BAMReadGroup const *const b = &self->readGroup[i - 0];
-        
+
         if (strcmp(a->name, b->name) == 0) {
             (void)PLOGMSG(klogWarn, (klogWarn, "Read Groups #$(r1) and #$(r2) have the same ID '$(id)' in SAM header",
                                      "r1=%i,r2=%i,id=%s", (int)a->id, (int)b->id, a->name));
@@ -1097,9 +1097,9 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
      */
     for (i = 0; i < self->refSeqs; ++i)
         self->refSeq[i].id = i;
-    
+
     ksort(self->refSeq, self->refSeqs, sizeof(self->refSeq[0]), comp_RefSeqName, NULL);
-    
+
     /* remove references with missing and empty names */
     for (i = self->refSeqs; i != 0; ) {
         BAMRefSeq const *const ref = &self->refSeq[--i];
@@ -1109,12 +1109,12 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
             --self->refSeqs;
         }
     }
-    
+
     /* check for and remove duplicate reference names */
     for (i = self->refSeqs; i > 1; --i) {
         BAMRefSeq *const a = &self->refSeq[i - 2];
         BAMRefSeq *const b = &self->refSeq[i - 1];
-        
+
         if (strcmp(a->name, b->name) == 0) {
             (void)PLOGMSG(klogWarn, (klogWarn, "References #$(r1) and #$(r2) have the same name '$(id)' in SAM header",
                                      "r1=%i,r2=%i,id=%s", (int)a->id, (int)b->id, a->name));
@@ -1122,11 +1122,11 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
             --self->refSeqs;
         }
     }
-    
+
     /* check for zero-length references */
     for (i = 0; i != self->refSeqs; ++i) {
         BAMRefSeq const *const rs = &self->refSeq[i];
-        
+
         if (rs->length == 0)
             (void)PLOGMSG(klogWarn, (klogWarn, "Reference '$(ref)' has zero length", "ref=%s", rs->name));
     }
@@ -1138,7 +1138,7 @@ static rc_t ReadMagic(BAM_File *self)
 {
     uint8_t sig[4];
     rc_t rc = BAM_FileReadn(self, 4, sig);
-    
+
     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("BAM signature: '%c%c%c' %u\n", sig[0], sig[1], sig[2], sig[3]));
     if (rc == 0 && (sig[0] != 'B' || sig[1] != 'A' || sig[2] != 'M' || sig[3] != 1))
         rc = RC(rcAlign, rcFile, rcReading, rcHeader, rcBadVersion);
@@ -1158,7 +1158,7 @@ static rc_t ReadHeaders(BAM_File *self,
     unsigned i;
     int32_t i32;
     rc_t rc = BAM_FileReadI32(self, &i32);
-    
+
     if (rc) return rc;
 
     if (i32 < 0) {
@@ -1173,7 +1173,7 @@ static rc_t ReadHeaders(BAM_File *self,
         rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
         goto BAILOUT;
     }
-    
+
     rc = BAM_FileReadn(self, hlen, (uint8_t *)htxt); if (rc) goto BAILOUT;
     htxt[hlen] = '\0';
 
@@ -1201,7 +1201,7 @@ static rc_t ReadHeaders(BAM_File *self,
             }
             if (rdsz + i32 + 8 > rdms) {
                 void *tmp;
-                
+
                 do { rdms <<= 1; } while (rdsz + i32 + 8 > rdms);
                 tmp = realloc(rdat, rdms);
                 if (tmp == NULL) {
@@ -1220,19 +1220,19 @@ static rc_t ReadHeaders(BAM_File *self,
         }
     }
     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("BAM Header reference size: %u\n", rdsz));
-    
+
     *headerText = htxt;
     *headerTextLen = hlen;
     *refData = rdat;
     *numrefs = nrefs;
     return 0;
-    
+
 BAILOUT:
     if (htxt)
         free(htxt);
     if (rdat)
         free(rdat);
-    
+
     return rc;
 }
 
@@ -1240,11 +1240,11 @@ static unsigned FindRefSeqByName(char const name[], bool match, unsigned const N
 {
     unsigned f = 0;
     unsigned e = N;
-        
+
     while (f < e) {
         unsigned const m = f + ((e - f) >> 1);
         int const cmp = strcmp(name, refSeq[m].name);
-            
+
         if (cmp < 0)
             e = m;
         else if (cmp > 0)
@@ -1279,14 +1279,14 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     char *rdat;
     size_t hlen;
     unsigned nrefs;
-    BAMRefSeq *refSeq;
+    BAMRefSeq *refSeq = NULL;
     rc_t rc = ReadMagic(self);
 
     if (rc) return rc;
 
     rc = ReadHeaders(self, &htxt, &hlen, &rdat, &nrefs);
     if (rc) return rc;
-    
+
     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("BAM Data records start at: %lu+%u\n", self->fpos_cur, self->bufCurrent));
 
     if (nrefs) {
@@ -1303,12 +1303,12 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
         rc = ProcessHeaderText(self, htxt, false);
 
     if (rc) return rc;
-        
+
     for (i = cp = 0; i < nrefs; ++i) {
         unsigned const nlen = LE2HUI32(rdat + cp);
         char *const name = rdat + cp + 4;
         unsigned const rlen = LE2HUI32(rdat + cp + nlen + 4);
-        
+
         cp += nlen + 8;
         name[nlen] = '\0';
 
@@ -1321,7 +1321,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     self->refSeq = refSeq;
     self->refSeqs = nrefs;
     self->headerData2 = rdat; /* so it's not leaked */
-    
+
     return 0;
 }
 
@@ -1332,14 +1332,14 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
     char *headerText = NULL;
     rc_t rc;
     int st = 0;
-    
+
     for ( ; ; ) {
         void *const tmp = headerText;
         int const ch = SAMFileRead1(file);
-        
+
         if (ch == -1)
             return SAMFileLastError(file);
-        
+
         if (st == 0) {
             if (ch != '@') {
                 SAMFilePutBack(file, ch);
@@ -1405,16 +1405,16 @@ static rc_t BAM_FileMakeWithKFileAndHeader(BAM_File **cself,
 {
     BAM_File *self = calloc(1, sizeof(*self));
     rc_t rc;
-    
+
     if (self == NULL)
         return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
-    
+
     rc = BufferedFileInit(&self->file.bam.file, file);
     if (rc) {
         free(self);
         return rc;
     }
-    
+
     /* try to read it as BAM */
     rc = BGZFileInit(&self->file.bam, &self->vt);
     if (rc == 0) {
@@ -1454,7 +1454,7 @@ rc_t BAM_FileMake(const BAM_File **cself,
     rc_t rc;
     const KFile *kf;
     void *nocopy;
-    
+
     if (cself == NULL)
         return RC(rcAlign, rcFile, rcOpening, rcParam, rcNull);
     *cself = NULL;
@@ -1473,7 +1473,7 @@ rc_t BAM_FileMake(const BAM_File **cself,
     nocopy = malloc(64u * 1024u);
     if (nocopy == NULL)
         rc = RC(rcAlign, rcFile, rcOpening, rcMemory, rcExhausted);
-    
+
     if (rc == 0) {
         BAM_File *self = NULL;
         rc = BAM_FileMakeWithKFileAndHeader(&self, kf, headerText);
@@ -1499,7 +1499,7 @@ rc_t BAM_FileAddRef(const BAM_File *cself) {
 
 rc_t BAM_FileRelease(const BAM_File *cself) {
     BAM_File *self = (BAM_File *)cself;
-    
+
     if (cself != NULL) {
         BAM_FileWhack(self);
         free(self);
@@ -1566,7 +1566,7 @@ static void ColorCheck(BAM_Alignment *const self, char const tag[2], unsigned co
     if (tag[0] == 'C' && len != 0) {
         int const ch = tag[1];
         int const flag = ch == 'Q' ? 2 : ch == 'S' ? 1 : 0;
-        
+
         if (flag)
             self->hasColor ^= (len << 2) | flag;
     }
@@ -1580,18 +1580,18 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
     unsigned i = 0;
     unsigned len;
     unsigned offset;
-    
+
     self->numExtra = 0;
     for (len = 0, offset = (unsigned)xtra; offset < datasize; offset += len) {
         int const type = base[offset + 2];
         int const valuelen1 = TagTypeSize(type);
         unsigned valuelen;
-        
+
         if (valuelen1 > 0)
             valuelen = valuelen1;
         else if (valuelen1 < 0) {
             char const *const value = &base[offset + 3];
-            
+
             if (-valuelen1 == 'S') {
                 valuelen = 0;
                 while (value[valuelen] != '\0') {
@@ -1610,7 +1610,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
             else {
                 int const elem_type = value[0];
                 int const elem_size = TagTypeSize(elem_type);
-                
+
                 assert(-valuelen1 == 'A');
                 if (elem_size <= 0) {
                     rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcUnexpected);
@@ -1621,7 +1621,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
                 }
                 else {
                     int const elem_count = LE2HI32(&value[1]);
-                    
+
                     valuelen = elem_size * elem_count + 1 + 4;
                     if (offset + valuelen >= datasize) {
                         rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
@@ -1640,7 +1640,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
                                     "unknown type");
             return rc;
         }
-        
+
         len = valuelen + 3;
         if (i < maxExtra) {
             self->extra[i].offset = offset;
@@ -1651,7 +1651,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
     self->numExtra = i;
     if (2 <= i && i <= maxExtra)
         ksort(self->extra, i, sizeof(self->extra[0]), OptTag_sort, self);
-    
+
     return 0;
 }
 
@@ -1664,11 +1664,11 @@ static unsigned BAM_AlignmentSetOffsets(BAM_Alignment *const self)
     unsigned const seq     = cigar + 4 * cigCnt;
     unsigned const qual    = seq + (readLen + 1) / 2;
     unsigned const xtra    = qual + readLen;
-    
+
     self->cigar = cigar;
     self->seq   = seq;
     self->qual  = qual;
-    
+
     return xtra;
 }
 
@@ -1699,14 +1699,14 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
     self->datasize = datasize;
     {
         unsigned const xtra = BAM_AlignmentSetOffsets(self);
-        
+
         if (   datasize >= xtra
             && datasize >= self->cigar
             && datasize >= self->seq
             && datasize >= self->qual)
         {
             rc_t const rc = ParseOptData(self, maxsize, xtra, datasize);
-            
+
             if (rc == 0) {
                 BAM_AlignmentDebugPrint(self);
                 return true;
@@ -1723,14 +1723,14 @@ static void BAM_AlignmentLogParseError(BAM_Alignment const *self)
                              : self->qual  > self->datasize ? "BAM Record QUAL too long"
                              : self->qual + getReadLen(self) > self->datasize ? "BAM Record EXTRA too long"
                              : "BAM Record EXTRA parsing failure";
-    
+
     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), reason);
 }
 
 static int BAM_AlignmentNumExtraFromData(unsigned const datasize, void const *data)
 {
     BAM_Alignment temp;
-    
+
     if (BAM_AlignmentInit(&temp, sizeof(temp), datasize, data))
         return temp.numExtra;
     return -1;
@@ -1779,13 +1779,13 @@ static BAM_Alignment *BAM_FileMakeAlignment(BAM_File *const self, size_t const d
     y->parent = self;
     *rc = BAM_AlignmentIsEmpty(y) ? RC(rcAlign, rcFile, rcReading, rcRow, rcEmpty) : 0;
     return y;
-    
+
 INVALID_DATA:
     if (y != self->nocopy)
         free(y);
     *rc = RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
     return NULL;
-    
+
 OUT_OF_MEMORY:
     *rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
     return NULL;
@@ -1824,10 +1824,10 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self)
         int numExtra;
         void *data;
         size_t datasize;
-        
+
         if (i32 <= 0)
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-        
+
         if (maxPeek < i32 + 4)
             return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
 
@@ -1857,7 +1857,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
     unsigned datasize;
     int numExtra;
     rc_t rc;
-    
+
     {
         int32_t i32;
 
@@ -1871,14 +1871,14 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
         }
         if (i32 <= 0)
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-        
+
         datasize = i32;
     }
     if (BAM_FileMaxPeek(self) < datasize) {
         storage = data = malloc(datasize);
         if (storage == NULL)
             return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
-        
+
         rc = BAM_FileReadn(self, datasize, data);
         if (rc) {
             free(storage);
@@ -1924,7 +1924,7 @@ static bool BAM_FileRefNameIncrementalLookup(RefNameLookupContext *const self, i
         unsigned f = depth == 0 ? 0 : self->first;
         unsigned e = depth == 0 ? self->refSeqs : self->last;
         unsigned const save = e;
-        
+
         while (f < e) {
             unsigned const m = ((e - f) >> 1) + f;
             int const fnd = self->refSeq[m].name[depth];
@@ -1937,7 +1937,7 @@ static bool BAM_FileRefNameIncrementalLookup(RefNameLookupContext *const self, i
         }
         if (f >= self->refSeqs || self->refSeq[f].name[depth] != ch)
             goto NOT_FOUND;
-        
+
         e = save;
         self->first = f;
         while (f < e) {
@@ -1964,7 +1964,7 @@ static void BAM_FileReadSAM_SplitLine(char const *const line, unsigned const fie
 {
     unsigned fld = 0;
     unsigned i = 0;
-    
+
     while (fld < fields) {
         if (line[i++] == '\0')
             start[fld++] = i;
@@ -1987,16 +1987,16 @@ static rc_t BAM_FileReadSAM_1(BAM_File *const self, KDataBuffer *data, KDataBuff
         nread += 1;
         if (ch != '\t' && ch != '\n')
             continue;
-        
+
         ++fields;
         ((char *)data->base)[nread - 1] = '\0';
         if (ch == '\t')
             continue;
-        
+
         KDataBufferResize(data, nread);
         rc = KDataBufferResize(starts, fields);
         if (rc) return rc;
-        
+
         BAM_FileReadSAM_SplitLine(data->base, fields, starts->base);
         return 0;
     }
@@ -2017,10 +2017,10 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
 
     memset(&data, 0, sizeof(data));
     memset(&offsets, 0, sizeof(offsets));
-    
+
     rc = KDataBufferMakeBytes(&data, 65536);
     if (rc) return rc;
-    
+
     rc = KDataBufferMake(&offsets, sizeof(unsigned) * 8, 4080 / sizeof(unsigned));
     if (rc == 0) {
         rc = BAM_FileReadSAM_1(self, &data, &offsets);
@@ -2030,7 +2030,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
             ctx.refSeq = self->refSeq;
             ctx.refSeqs = self->refSeqs;
             ctx.depth = 0;
-            
+
             parser = SAM2BAM_Parser_parse(data.base, offsets.elem_count, offsets.base, self->buffer, sizeof(self->buffer), BAM_FileRefNameIncrementalLookup, &ctx, &rc);
         }
     }
@@ -2053,10 +2053,10 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
 static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
 {
     rc_t rc;
-    
+
     if (self->bufCurrent >= self->bufSize && self->eof)
         return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
-    
+
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
         if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
@@ -2107,7 +2107,7 @@ static rc_t readDefer(BAM_File *const self, BAM_Alignment **const rslt)
         storage = buffer = malloc(datasize);
         if (buffer == NULL)
             return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
-    }            
+    }
     rc = KFileReadAll(self->defer, self->deferPos + 4, buffer, datasize, &nread);
     if (rc) return rc;
     assert(nread == datasize);
@@ -2157,7 +2157,7 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
 
     if (self == NULL || rhs == NULL)
         return RC(rcAlign, rcFile, rcReading, rcParam, rcNull);
-    
+
     *rhs = NULL;
 
     if (self->eof && self->defer != NULL)
@@ -2213,7 +2213,7 @@ rc_t BAM_FileGetRefSeqById(const BAM_File *cself, int32_t id, const BAMRefSeq **
 rc_t BAM_FileGetReadGroupByName(const BAM_File *cself, const char *name, const BAMReadGroup **rhs)
 {
     BAMReadGroup rg;
-    
+
     *rhs = NULL;
 
     rg.name = name;
@@ -2387,13 +2387,13 @@ rc_t BAM_AlignmentGetAlignmentDetail(
     rlen = getReadLen(self);
     ccnt = getCigarCount(self);
     gpos = getPosition(self);
-    
+
     if (gpos < 0)
         ccnt = 0;
-    
+
     if (actual)
         *actual = ccnt;
-    
+
     if (pfirst)
         *pfirst = -1;
 
@@ -2402,31 +2402,31 @@ rc_t BAM_AlignmentGetAlignmentDetail(
 
     if (ccnt == 0)
         return 0;
-    
+
     if (rslt == NULL) {
         if (actual == NULL)
             return RC(rcAlign, rcFile, rcReading, rcParam, rcNull);
         count = 0;
     }
-    
+
     if (count < ccnt)
         return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
-        
+
     for (rpos = 0, i = 0; i != ccnt; ++i) {
         uint32_t len = BAM_AlignmentGetCigarElement(self, i);
         int op = len & 0x0F;
-        
+
         if (op > sizeof(cigarChars))
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-        
+
         op = cigarChars[op];
         len >>= 4;
-        
+
         rslt[i].refSeq_pos = gpos;
         rslt[i].read_pos = rpos;
         rslt[i].length = len;
         rslt[i].type = (BAMCigarType)op;
-        
+
         switch ((BAMCigarType)op) {
         case ct_Match:
         case ct_Equal:
@@ -2452,16 +2452,16 @@ rc_t BAM_AlignmentGetAlignmentDetail(
         default:
             break;
         }
-        
+
         if (rslt[i].read_pos > rlen)
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
     }
     if (pfirst)
         *pfirst = first;
-    
+
     if (plast)
         *plast = last;
-    
+
     return 0;
 }
 
@@ -2471,10 +2471,10 @@ unsigned ReferenceLengthFromCIGAR(const BAM_Alignment *self)
     unsigned i;
     unsigned n = getCigarCount(self);
     unsigned y;
-    
+
     for (i = 0, y = 0; i != n; ++i) {
         uint32_t const len = BAM_AlignmentGetCigarElement(self, i);
-        
+
         switch (cigarChars[len & 0x0F]) {
         case ct_Match:
         case ct_Equal:
@@ -2496,10 +2496,10 @@ static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
     unsigned i;
     unsigned n = getCigarCount(self);
     unsigned y;
-    
+
     for (i = 0, y = 0; i != n; ++i) {
         uint32_t const len = BAM_AlignmentGetCigarElement(self, i);
-        
+
         switch (cigarChars[len & 0x0F]) {
         case ct_Match:
         case ct_Equal:
@@ -2548,10 +2548,10 @@ rc_t BAM_AlignmentGetReadName3(const BAM_Alignment *cself, const char **rhs, siz
     char const *const name = getReadName(cself);
     size_t len = getReadNameLength(cself);
     size_t i;
-    
+
     for (i = len; i; ) {
         int const ch = name[--i];
-        
+
         if (ch == '/') {
             len = i;
             break;
@@ -2593,7 +2593,7 @@ rc_t BAM_AlignmentGetRawCigar(const BAM_Alignment *cself, uint32_t const *rslt[]
 rc_t BAM_AlignmentGetCigar(const BAM_Alignment *cself, uint32_t i, BAMCigarType *type, uint32_t *length)
 {
     uint32_t x;
-    
+
     if (i >= getCigarCount(cself))
         return RC(rcAlign, rcFile, rcReading, rcParam, rcInvalid);
 
@@ -2622,14 +2622,14 @@ static int get1Base(BAM_Alignment const *const self, unsigned const i)
     uint8_t const *const seq = &self->data->raw[self->seq];
     unsigned const b4na2 = seq[i >> 1];
     unsigned const b4na = (i & 1) == 0 ? (b4na2 >> 4) : (b4na2 & 0x0F);
-    
+
     return tr[b4na];
 }
 
 static int get1Qual(BAM_Alignment const *const self, unsigned const i)
 {
     uint8_t const *const src = &self->data->raw[self->qual];
-    
+
     return src[i];
 }
 
@@ -2637,10 +2637,10 @@ rc_t BAM_AlignmentGetSequence2(const BAM_Alignment *cself, char *rhs, uint32_t s
 {
     unsigned const n = getReadLen(cself);
     unsigned si, di;
-    
+
     if (stop == 0 || stop > n)
         stop = n;
-    
+
     for (di = 0, si = start; si != stop; ++si, ++di) {
         rhs[di] = get1Base(cself, si);
     }
@@ -2660,7 +2660,7 @@ bool BAM_AlignmentHasColorSpace(BAM_Alignment const *cself)
 rc_t BAM_AlignmentGetCSKey(BAM_Alignment const *cself, char rhs[1])
 {
     char const *const vCS = get_CS(cself);
-    
+
     if (vCS)
         rhs[0] = vCS[0];
     return 0;
@@ -2669,7 +2669,7 @@ rc_t BAM_AlignmentGetCSKey(BAM_Alignment const *cself, char rhs[1])
 rc_t BAM_AlignmentGetCSSeqLen(BAM_Alignment const *cself, uint32_t *rhs)
 {
     struct offset_size_s const *const vCS = get_CS_info(cself);
-    
+
     *rhs = vCS ? vCS->size - 5 : 0;
     return 0;
 }
@@ -2677,13 +2677,13 @@ rc_t BAM_AlignmentGetCSSeqLen(BAM_Alignment const *cself, uint32_t *rhs)
 rc_t BAM_AlignmentGetCSSequence(BAM_Alignment const *cself, char rhs[], uint32_t seqlen)
 {
     char const *const vCS = get_CS(cself);
-    
+
     if (vCS) {
         unsigned i;
-        
+
         for (i = 0;i != seqlen; ++i) {
             char const ch = vCS[i+1];
-            
+
             rhs[i] = (ch == '4') ? '.' : ch;
         }
     }
@@ -2699,10 +2699,10 @@ rc_t BAM_AlignmentGetQuality(const BAM_Alignment *cself, const uint8_t **rhs)
 rc_t BAM_AlignmentGetQuality2(BAM_Alignment const *cself, uint8_t const **rhs, uint8_t *offset)
 {
     uint8_t const *const OQ = get_OQ(cself);
-    
+
     if (OQ) {
         struct offset_size_s const *const oq = get_OQ_info(cself);
-        
+
         if (oq->size - 4 == getReadLen(cself)) {
             *offset = 33;
             *rhs = OQ;
@@ -2722,7 +2722,7 @@ rc_t BAM_AlignmentGetCSQuality(BAM_Alignment const *cself, uint8_t const **rhs, 
     struct offset_size_s const *const cs = get_CS_info(cself);
     struct offset_size_s const *const cq = get_CQ_info(cself);
     uint8_t const *const CQ = get_CQ(cself);
-    
+
     if (cs && cq && CQ) {
         if (cs->size == cq->size) {
             *offset = 33;
@@ -2768,11 +2768,11 @@ static int FormatOptData(BAM_Alignment const *const self,
     unsigned offset;
     unsigned cur = 0;
     int j;
-    
+
     for (i = 0, offset = 0; i < self->numExtra; ++i) {
         int type;
         union { float f; uint32_t i; } fi;
-        
+
         if (cur + 7 > maxsize)
             return -1;
         buffer[cur++] = '\t';
@@ -2805,7 +2805,7 @@ static int FormatOptData(BAM_Alignment const *const self,
                     return -1;
                 offset += 1;
                 break;
-                
+
             case dt_INT16:      /* s */
                 buffer[cur++] = 'i';
                 buffer[cur++] = ':';
@@ -2823,7 +2823,7 @@ static int FormatOptData(BAM_Alignment const *const self,
                     return -1;
                 offset += 2;
                 break;
-                
+
             case dt_INT:        /* i */
                 buffer[cur++] = 'i';
                 buffer[cur++] = ':';
@@ -2858,7 +2858,7 @@ static int FormatOptData(BAM_Alignment const *const self,
                 buffer[cur++] = ':';
                 for ( ; ; ) {
                     int const ch = base[offset++];
-                    
+
                     if (ch == '\0')
                         break;
                     if (cur >= maxsize)
@@ -2888,42 +2888,42 @@ static int FormatOptData(BAM_Alignment const *const self,
                                     return -1;
                                 offset += 1;
                                 break;
-                                
+
                             case dt_UINT8:
                                 j = snprintf(buffer + cur, maxsize - cur, "%u", (unsigned)*((uint8_t const *)(base + offset)));
                                 if ((cur += j) >= maxsize)
                                     return -1;
                                 offset += 1;
                                 break;
-                                
+
                             case dt_INT16:
                                 j = snprintf(buffer + cur, maxsize - cur, "%i", (int)LE2HI16(base + offset));
                                 if ((cur += j) >= maxsize)
                                     return -1;
                                 offset += 2;
                                 break;
-                                
+
                             case dt_UINT16:
                                 j = snprintf(buffer + cur, maxsize - cur, "%u", (unsigned)LE2HUI16(base + offset));
                                 if ((cur += j) >= maxsize)
                                     return -1;
                                 offset += 2;
                                 break;
-                                
+
                             case dt_INT:
                                 j = snprintf(buffer + cur, maxsize - cur, "%i", (int)LE2HI32(base + offset));
                                 if ((cur += j) >= maxsize)
                                     return -1;
                                 offset += 4;
                                 break;
-                                
+
                             case dt_UINT:
                                 j = snprintf(buffer + cur, maxsize - cur, "%u", (unsigned)LE2HUI32(base + offset));
                                 if ((cur += j) >= maxsize)
                                     return -1;
                                 offset += 4;
                                 break;
-                                
+
                             case dt_FLOAT32:
                                 fi.i = LE2HUI32(base + offset);
                                 j = snprintf(buffer + cur, maxsize - cur, "%g", fi.f);
@@ -3001,14 +3001,14 @@ static rc_t FormatSAM(BAM_Alignment const *self,
         return RC(rcAlign, rcRow, rcReading, rcData, rcExcessive);
     if (readlen) {
         uint8_t const *const qual = &self->data->raw[self->qual];
-        
+
         if (cur + 2 * readlen + 1 > maxsize)
             return RC(rcAlign, rcRow, rcReading, rcData, rcExcessive);
         BAM_AlignmentGetSequence(self, &buffer[cur]);
         cur += readlen;
         buffer[cur] = '\t';
         ++cur;
-        
+
         for (j = 0; j < readlen; ++j) {
             if (qual[j] != 0xFF)
                 goto HAS_QUAL;
@@ -3051,7 +3051,7 @@ static rc_t FormatSAMBuffer(BAM_Alignment const *self,
 
     actSize[0] = actsize;
     if (rc) return rc;
-    
+
     if (actsize > maxsize)
         return RC(rcAlign, rcReading, rcRow, rcBuffer, rcInsufficient);
 
@@ -3091,7 +3091,7 @@ static bool i_OptDataForEach(BAM_Alignment const *cself, void *Ctx, char const t
 {
     OptForEach_ctx_t *ctx = (OptForEach_ctx_t *)Ctx;
     size_t const need = (size_t)&((BAMOptData const *)NULL)->u.f64[(count * size + sizeof(double) - 1)/sizeof(double)];
-    
+
     if (need > ctx->valsize) {
         void *const temp = realloc(ctx->alloced, need);
         if (temp == NULL) {
@@ -3103,13 +3103,13 @@ static bool i_OptDataForEach(BAM_Alignment const *cself, void *Ctx, char const t
     }
     ctx->val->type = type;
     ctx->val->element_count = (type == dt_CSTRING || type == dt_HEXSTRING) ? size - 1 : count;
-    
+
     memmove(ctx->val->u.u8, value, size * count);
 #if __BYTE_ORDER == __BIG_ENDIAN
     {{
         unsigned di;
         uint32_t elem_count = ctx->val->element_count;
-        
+
         switch (size) {
         case 2:
             for (di = 0; di != elem_count; ++di)
@@ -3139,14 +3139,14 @@ rc_t BAM_AlignmentOptDataForEach(const BAM_Alignment *cself, void *user_ctx, BAM
     OptForEach_ctx_t ctx;
     rc_t rc = 0;
     unsigned i;
-    
+
     ctx.val = &value_auto.value;
     ctx.alloced = NULL;
     ctx.valsize = sizeof(value_auto);
     ctx.rc = 0;
     ctx.user_f = f;
     ctx.user_ctx = user_ctx;
-    
+
     for (i = 0; i != cself->numExtra; ++i) {
         char const *const tag = (char const *)&cself->data->raw[cself->extra[i].offset];
         uint8_t type = tag[2];
@@ -3155,11 +3155,11 @@ rc_t BAM_AlignmentOptDataForEach(const BAM_Alignment *cself, void *user_ctx, BAM
         unsigned size = cself->extra[i].size - 3;
         unsigned count = 1;
         unsigned offset = 0;
-        
+
         if (type == dt_NUM_ARRAY) {
             unsigned elem_size = 0;
             uint32_t elem_count = 0;
-            
+
             offset = len = 5;
             switch (vp[0]) {
             case dt_INT8:
@@ -3214,7 +3214,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
     struct offset_size_s const *const GCi = get_CG_GC_info(self);
     struct offset_size_s const *const GSi = get_CG_GS_info(self);
     struct offset_size_s const *const GQi = get_CG_GQ_info(self);
-    
+
     if (GCi && GSi && GQi) {
         char const *GS = (char const *)&self->data->raw[GSi->offset + 3];
         char const *GQ = (char const *)&self->data->raw[GQi->offset + 3];
@@ -3223,10 +3223,10 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
         unsigned i;
         unsigned di = 0;
         unsigned si = 0;
-        
+
         for (i = 0; ; ++i) {
             int const ch = GC[i];
-            
+
             if (ch == '\0')
                 break;
             if (isdigit(ch)) {
@@ -3237,7 +3237,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
             else {
                 unsigned const jmax = (ch == 'G') ? (oplen * 2) : oplen;
                 unsigned j;
-                
+
                 if (ch == 'S') {
                     ;
                 }
@@ -3245,7 +3245,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
                     for (j = 0; j < jmax; ++j) {
                         int const base = *GS++;
                         int const qual = *GQ++;
-                        
+
                         switch (base) {
                             case 'A':
                             case 'C':
@@ -3277,7 +3277,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
         }
         if (*GS != '\0' || *GQ != '\0' || si != getReadLen(self))
             return RC(rcAlign, rcRow, rcReading, rcData, rcInvalid);
-        
+
         *readlen = di;
         return 0;
     }
@@ -3292,12 +3292,12 @@ static unsigned BAM_AlignmentParseCGTag(BAM_Alignment const *self, size_t const 
     int last_op = 0;
 
     memset(cg_segs, 0, max_cg_segs * sizeof(cg_segs[0]));
-    
+
     while (*cur != '\0' && i < max_cg_segs) {
         char *endp;
         unsigned const op_len = (unsigned)strtol(cur, &endp, 10);
         int const op = *endp;
-        
+
         cur = endp + 1;
         if (op == last_op)
             cg_segs[i - 1] += op_len;
@@ -3315,7 +3315,7 @@ rc_t ExtractInt32(BAM_Alignment const *self, int32_t *result,
     int64_t y;
     int const type = self->data->raw[tag->offset + 2];
     void const *const pvalue = &self->data->raw[tag->offset + 3];
-    
+
     switch (type) {
     case 'c':
         if (tag->size == 4)
@@ -3370,12 +3370,12 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
 {
     struct offset_size_s const *const ZA = get_CG_ZA_info(self);
     struct offset_size_s const *const ZI = get_CG_ZI_info(self);
-    
+
     if (ZA && ZI) {
         rc_t rc;
         int32_t za;
         int32_t zi;
-        
+
         rc = ExtractInt32(self, &za, ZA); if (rc) return rc;
         rc = ExtractInt32(self, &zi, ZI); if (rc) return rc;
         return string_printf(buffer, max_size, act_size, "%i_%i", zi, za);
@@ -3390,7 +3390,7 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
     struct offset_size_s const *const GCi = get_CG_GC_info(self);
     struct offset_size_s const *const GSi = get_CG_GS_info(self);
     struct offset_size_s const *const GQi = get_CG_GQ_info(self);
-    
+
     if (GCi && GSi && GQi) {
         char const *GS = (char const *)&self->data->raw[GSi->offset + 3];
         char const *GQ = (char const *)&self->data->raw[GQi->offset + 3];
@@ -3398,7 +3398,7 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
         unsigned oplen = 0;
         unsigned di = 0;
         unsigned si = 0;
-        
+
         for ( ; ; ) {
             int const ch = *GC++;
 
@@ -3410,22 +3410,22 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
             }
             if (ch == 'S') {
                 unsigned i;
-                
+
                 for (i = 0; i < oplen; ++i, ++di, ++si) {
                     unsigned const base = get1Base(self, si);
                     unsigned const qual = get1Qual(self, si);
-                    
+
                     sequence[di] = base;
                     quality [di] = qual;
                 }
             }
             else {
                 unsigned i;
-                
+
                 for (i = 0; i < oplen * 2; ++i, ++di) {
                     unsigned const base = *GS++;
                     unsigned const qual = *GQ++ - 33;
-                    
+
                     sequence[di] = base;
                     quality [di] = qual;
                 }
@@ -3454,10 +3454,10 @@ static unsigned insert_B(unsigned const T, unsigned const G, unsigned const n, u
 {
     unsigned i;
     unsigned pos;
-    
+
     for (pos = i = 0; i < n; ++i) {
         int const opcode = cigar[i] & 0xF;
-        
+
         switch (opcode) {
         case 0:
         case 1:
@@ -3467,17 +3467,17 @@ static unsigned insert_B(unsigned const T, unsigned const G, unsigned const n, u
             {{
                 unsigned const len = cigar[i] >> 4;
                 unsigned const nxt = pos + len;
-                
+
                 if (pos <= T && T <= nxt) {
                     unsigned const l = T - pos;
                     unsigned const r = len - l;
                     uint32_t op[4];
-                    
+
                     op[0] = (l << 4) | opcode;
                     op[1] = (G << 4) | 9; /* B */
                     op[2] = (G << 4) | 0; /* M this is not backwards */
                     op[3] = (r << 4) | opcode;
-                    
+
                     return splice(cigar, n, i, 1,
                                    4 - (l == 0 ? 1 : 0) - (r == 0 ? 1 : 0),
                                   op + (l == 0 ? 1 : 0));
@@ -3495,7 +3495,7 @@ static unsigned insert_B(unsigned const T, unsigned const G, unsigned const n, u
 static unsigned canonicalizeCIGAR(uint32_t cigar[], unsigned n)
 {
     unsigned i;
-    
+
     /* remove zero-length and P operations */
     for (i = n; i > 0; ) {
         --i;
@@ -3506,7 +3506,7 @@ static unsigned canonicalizeCIGAR(uint32_t cigar[], unsigned n)
     for (i = 1; i < n; ) {
         unsigned const opL = cigar[i-1] & 0xF;
         unsigned const opI = cigar[ i ] & 0xF;
-        
+
         if (opI == opL) {
             unsigned const oplen = (cigar[i] >> 4) + (cigar[i-1] >> 4);
             uint32_t const op = (oplen << 4) | opI;
@@ -3527,18 +3527,18 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
     unsigned seg[64];
     unsigned const segs = BAM_AlignmentParseCGTag(self, sizeof(seg)/sizeof(seg[0]), seg);
     unsigned const gaps = (segs - 1) >> 1;
-    
+
     if (2 * gaps + 1 != segs)
         return RC(rcAlign, rcRow, rcReading, rcData, rcUnexpected);
-    
+
     if (N < n + 2 * gaps)
         return RC(rcAlign, rcRow, rcReading, rcBuffer, rcInsufficient);
-    
+
     memmove(cigar, getCigarBase(self), n * 4);
 
     if (n > 1)
         n = canonicalizeCIGAR(cigar, n); /* just in case */
-    
+
     for (i = 0, S = 0; i < gaps; ++i) {
         unsigned const s = seg[2 * i + 0];
         unsigned const g = seg[2 * i + 1];
@@ -3557,9 +3557,9 @@ rc_t BAM_AlignmentGetCGCigar(BAM_Alignment const *self,
                                uint32_t *cig_act)
 {
     struct offset_size_s const *const GCi = get_CG_GC_info(self);
-    
+
     *cig_act = 0;
-    
+
     if (GCi) {
         *cig_act = GetCGCigar(self, cig_max, cigar);
         return 0;
@@ -3573,7 +3573,7 @@ rc_t BAM_AlignmentGetTI(BAM_Alignment const *self, uint64_t *ti)
 {
     char const *const TI = get_XT(self);
     long long unsigned temp;
-    
+
     if (TI && sscanf(TI, "ti|%llu", &temp) == 1) {
         *ti = (uint64_t)temp;
         return 0;
@@ -3585,7 +3585,7 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
 {
     if (rslt) {
         uint8_t const *const XS = get_XS(self);
-        
+
 	    *rslt = XS ? XS[0] : ' ';
     }
     return 0;

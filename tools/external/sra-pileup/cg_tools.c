@@ -79,7 +79,7 @@ int32_t ExplodeCIGAR( CigOps dst[], uint32_t len, char const cigar[], uint32_t c
     uint32_t i;
     uint32_t j;
     int32_t opLen;
-    
+
     for ( i = j = opLen = 0; i < ciglen; ++i ) {
         if ( isdigit( cigar[ i ] ) ) {
             opLen = opLen * 10 + cigar[ i ] - '0';
@@ -104,7 +104,7 @@ typedef struct cgOp_s {
 static void print_CG_cigar( int line, cgOp const op[], unsigned const ops, unsigned const gap[ 3 ] ) {
 #if _DEBUGGING
     unsigned i;
-    
+
     SAM_DUMP_DBG( 3, ( "%5i: ", line ) );
     for ( i = 0; i < ops; ++i ) {
         if ( gap && ( i == gap[ 0 ] || i == gap[ 1 ] || i == gap[ 2 ] ) ) {
@@ -159,7 +159,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
             return RC( rcExe, rcData, rcReading, rcBuffer, rcInsufficient );
         }
         i += n;
-        
+
         tmp->cigOp[ ops ].length = opLen;
         tmp->cigOp[ ops ].code = opChar;
         switch ( opChar )
@@ -193,7 +193,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
         unsigned fwd = 0; /* 5 10 10 10 */
         unsigned rev = 0; /* 10 10 10 5 */
         unsigned acc; /* accumulated length */
-        
+
         if ( ( input->seq_req_id == 1 && !input->orientation ) ||
              ( input->seq_req_id == 2 && input->orientation ) ) {
             for ( i = 0, acc = 0; i < ops  && acc <= 5; ++i ) {
@@ -205,16 +205,16 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                     } else if ( acc > 5 ) {
                         unsigned const right = acc - 5;
                         unsigned const left = tmp->cigOp[ i ].length - right;
-                        
+
                         memmove( &tmp->cigOp[ i + 2 ], &tmp->cigOp[ i ], ( ops - i ) * sizeof( tmp->cigOp[ 0 ] ) );
                         ops += 2;
                         tmp->cigOp[ i ].length = left;
                         tmp->cigOp[ i + 2 ].length = right;
-                        
+
                         tmp->cigOp[ i + 1 ].type = 1;
                         tmp->cigOp[ i + 1 ].code = 'B';
                         tmp->cigOp[ i + 1 ].length = 0;
-                        
+
                         fwd = i + 1;
                         break;
                     }
@@ -232,16 +232,16 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                     } else if ( acc > 5 ) {
                         unsigned const left = acc - 5;
                         unsigned const right = tmp->cigOp[ i ].length - left;
-                        
+
                         memmove( &tmp->cigOp[ i + 2 ], &tmp->cigOp[ i ], ( ops - i ) * sizeof( tmp->cigOp[ 0 ] ) );
                         ops += 2;
                         tmp->cigOp[ i ].length = left;
                         tmp->cigOp[ i + 2 ].length = right;
-                        
+
                         tmp->cigOp[ i + 1 ].type = 1;
                         tmp->cigOp[ i + 1 ].code = 'B';
                         tmp->cigOp[ i + 1 ].length = 0;
-                         
+
                         rev = i + 1;
                         break;
                     }
@@ -285,7 +285,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                         if ( acc > 10 ) {
                             unsigned const r = 10 + tmp->cigOp[ i ].length - acc;
                             unsigned const l = tmp->cigOp[ i ].length - r;
-                            
+
                             if ( ops + 2 >= MAX_READ_LEN ) {
                                 return RC( rcExe, rcData, rcReading, rcBuffer, rcInsufficient );
                             }
@@ -293,7 +293,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                             ops += 2;
                             tmp->cigOp[ i + 2 ].length = r;
                             tmp->cigOp[ i ].length = l;
-                            
+
                             tmp->cigOp[ i + 1 ].length = 0;
                             tmp->cigOp[ i + 1 ].type = 2;
                             tmp->cigOp[ i + 1 ].code = 'N';
@@ -342,7 +342,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                         if ( acc > 10 ) {
                             unsigned const l = 10 + tmp->cigOp[ i ].length - acc;
                             unsigned const r = tmp->cigOp[ i ].length - l;
-                            
+
                             if ( ops + 2 >= MAX_READ_LEN ) {
                                 return RC( rcExe, rcData, rcReading, rcBuffer, rcInsufficient );
                             }
@@ -350,7 +350,7 @@ static rc_t CIGAR_to_CG_Ops( const cg_cigar_input * input,
                             ops += 2;
                             tmp->cigOp[ i + 2 ].length = r;
                             tmp->cigOp[ i ].length = l;
-                            
+
                             tmp->cigOp[ i + 1 ].length = 0;
                             tmp->cigOp[ i + 1 ].type = 2;
                             tmp->cigOp[ i + 1 ].code = 'N';
@@ -490,6 +490,7 @@ static size_t fmt_cigar_elem( char * dst, uint32_t cig_oplen, char cig_op ) {
     size_t num_writ;
     rc_t rc = string_printf ( dst, 11, &num_writ, "%d%c", cig_oplen, cig_op );
     assert ( rc == 0 && num_writ > 1 );
+    UNUSED(rc);
     return num_writ;
 }
 
@@ -516,7 +517,7 @@ uint32_t CombineCIGAR( char dst[], CigOps const seqOp[], uint32_t seq_len,
                 ciglen = ciglen      + fmt_cigar_elem( dst + last_ciglen, last_cig_oplen, last_cig_op );	\
         }
     while( !done ) {
-        while ( delta < 0 ) { 
+        while ( delta < 0 ) {
             ref_pos += delta; /** we will make it to back up this way **/
             if ( ri > 0 ) { /** backing up on ref if possible ***/
                 int avail_oplen = refOp[ ri - 1 ].oplen - ref_cop.oplen;
@@ -534,14 +535,14 @@ uint32_t CombineCIGAR( char dst[], CigOps const seqOp[], uint32_t seq_len,
                     ri--;
                     /** pick the previous as used up **/
                     ref_cop = refOp[ri-1];
-                    ref_cop.oplen =0; 
+                    ref_cop.oplen =0;
                 }
             } else {
                 /** extending the reference **/
                 SetCigOp( &ref_cop, '=', ref_cop.oplen - delta );
                 delta = 0;
             }
-            ref_pos -= delta; 
+            ref_pos -= delta;
         }
         if ( ref_cop.oplen == 0 ) {
             /*** advance the reference ***/
@@ -600,7 +601,7 @@ uint32_t CombineCIGAR( char dst[], CigOps const seqOp[], uint32_t seq_len,
                     ref_cop.oplen = 0;
                 } else {
                     int min_len = ( seq_cop.oplen < ref_cop.oplen ) ? seq_cop.oplen : ref_cop.oplen;
-                    if( seq_seq_step == 0 ) { 
+                    if( seq_seq_step == 0 ) {
                         /** DN agains SI **/
                         MACRO_BUILD_CIGAR( 'P', min_len );
                     } else {
@@ -708,17 +709,17 @@ rc_t make_cg_merge( const cg_cigar_input * input, cg_cigar_output * output ) {
     if ( rc == 0 ) {
         uint32_t const B_len = tmp.cigOp[ tmp.gap[ 0 ] ].length;
         uint32_t const B_at = tmp.gap[ 0 ] < tmp.gap[ 2 ] ? 5 : 30;
-            
+
         if ( 0 < B_len && B_len < 5 ) {
             memmove( output->newSeq,  input->p_read.ptr, MAX_READ_LEN );
             memmove( output->newQual, input->p_quality.ptr, MAX_READ_LEN );
-            
+
             output->p_read.ptr = output->newSeq;
             output->p_read.len = ( MAX_READ_LEN - B_len );
-            
+
             output->p_quality.ptr = output->newQual;
             output->p_quality.len = ( MAX_READ_LEN - B_len );
-            
+
             output->p_tags.ptr = output->tags;
             output->p_tags.len = 0;
 
@@ -768,7 +769,7 @@ rc_t make_cg_merge( const cg_cigar_input * input, cg_cigar_output * output ) {
             }
         } else {
             uint32_t i, len = tmp.cigOp[ tmp.gap[ 0 ] ].length;
-            
+
             tmp.cigOp[ tmp.gap[ 0 ] ].code = 'I';
             for ( i = tmp.gap[ 0 ] + 1; i < tmp.opCnt && len > 0; ++i ) {
                 if ( tmp.cigOp[ i ].length <= len ) {
@@ -1544,9 +1545,9 @@ rc_t change_rna_splicing_cigar( uint32_t cigar_len, char * cigar, rna_splice_can
 }
 
 rc_t cg_canonical_print_cigar( const char * cigar, size_t cigar_len) {
-    rc_t rc;
+    rc_t rc = 0;
     if ( cigar_len > 0 ) {
-        int i, total_cnt, cnt;
+        int i, total_cnt = 0, cnt;
         char op;
         for( i = 0, cnt = 0, op = 0, cnt = 0; i < cigar_len; i++ ) {
             if ( isdigit( cigar[ i ] ) ) {

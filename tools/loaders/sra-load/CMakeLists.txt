@@ -37,6 +37,10 @@ if( LibXml2_FOUND )
 		loader
 	)
 
+	if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+		set_source_files_properties( sra-writer PROPERTIES COMPILE_FLAGS -Wno-stringop-truncation )
+	endif()
+
 	if (SINGLE_CONFIG )
 		set( LOADER_LIB
 			loader

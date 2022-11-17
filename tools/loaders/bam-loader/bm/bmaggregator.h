@@ -144,7 +144,7 @@ public:
         BM_SHIFT_R_AND = 1
     };
 
-    enum operation_status
+    enum class operation_status
     {
         op_undefined = 0,
         op_prepared,
@@ -828,7 +828,7 @@ private:
 
     bm::word_t*          temp_blk_= 0;   ///< external temp block ptr
     int                  operation_ = 0; ///< operation code (default: not defined)
-    operation_status     operation_status_ = op_undefined;
+    operation_status     operation_status_{ operation_status::op_undefined };
     bvector_type*        bv_target_ = 0; ///< target bit-vector
     unsigned             top_block_size_ = 0; ///< operation top block (i) size
     pipeline_bcache*     bcache_ptr_ = 0; /// pipeline blocks cache ptr
@@ -892,10 +892,10 @@ void aggregator_pipeline_execute(It  first, It last)
             {
                 Agg& agg = *(*it);
                 auto op_st = agg.get_operation_status();
-                if (op_st != Agg::op_done)
+                if (op_st != Agg::operation_status::op_done)
                 {
                     op_st = agg.run_step(i, j);
-                    pipeline_size -= (op_st == Agg::op_done);
+                    pipeline_size -= (op_st == Agg::operation_status::op_done);
                 }
             } // for it
             if (pipeline_size <= 0)
@@ -952,7 +952,7 @@ void aggregator<BV>::reset_vars()
     ag_.reset();
     ar_->reset_all_blocks();
     operation_ = top_block_size_ = 0;
-    operation_status_ = op_undefined;
+    operation_status_ = operation_status::op_undefined;
     count_ = 0; bcache_ptr_ = 0; gap_cache_cnt_ = 0;
 }
 
@@ -2706,7 +2706,7 @@ void aggregator<BV>::stage(bm::word_t* temp_block)
         break;
     case BM_SHIFT_R_AND:
         prepare_shift_right_and(*bv_target, ag_.arg_bv0.data(), ag_.arg_bv0.size());//arg_group0_size);
-        operation_status_ = op_prepared;
+        operation_status_ = operation_status::op_prepared;
         break;
     default:
         BM_ASSERT(0);
@@ -2719,7 +2719,8 @@ template<typename BV>
 typename aggregator<BV>::operation_status
 aggregator<BV>::run_step(unsigned i, unsigned j)
 {
-    BM_ASSERT(operation_status_ == op_prepared || operation_status_ == op_in_progress);
+    BM_ASSERT(operation_status_ == operation_status::op_prepared
+              || operation_status_ == operation_status::op_in_progress);
     BM_ASSERT(j < bm::set_sub_array_size);
     
     switch (operation_)
@@ -2733,14 +2734,14 @@ aggregator<BV>::run_step(unsigned i, unsigned j)
         {
             if (!this->any_carry_overs(ar_->carry_overs.data(), ag_.arg_bv0.size()))//arg_group0_size))
             {
-                operation_status_ = op_done;
+                operation_status_ = operation_status::op_done;
                 return operation_status_;
             }
         }
         //bool found =
            this->combine_shift_right_and(i, j, *bv_target_,
                                         ag_.arg_bv0.data(), ag_.arg_bv0.size());//arg_group0_size);
-        operation_status_ = op_in_progress;
+        operation_status_ = operation_status::op_in_progress;
         }
         break;
     default:

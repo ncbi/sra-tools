@@ -209,7 +209,7 @@ namespace NSRefVariation
     char const* USAGE_VAR_LEN_ON_REF[] = { "the length of the variation on the reference (0 means pure insertion)", NULL };
 
     char const OPTION_VERBOSITY[] = "verbose";
-    char const ALIAS_VERBOSITY[]  = "v";
+//    char const ALIAS_VERBOSITY[]  = "v";
     char const* USAGE_VERBOSITY[] = { "increase the verbosity of the program. use multiple times for more verbosity.", NULL };
 
     char const OPTION_THREADS[] = "threads";
@@ -570,6 +570,7 @@ namespace NSRefVariation
                     size_t allele_size = obj.GetAlleleSize();
                     char const* allele = obj.GetAllele();
                     assert (count == 0 || pos - ref_pos < allele_size );
+                    UNUSED(allele_size);
                     size_t alignments_matched = count == 0 ? 0 :
                         mismatch [base2na_to_index(allele[pos - ref_pos])];
 

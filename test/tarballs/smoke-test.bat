@@ -82,7 +82,7 @@ for %%t in ( %TOOLS% ) do (
     if "%%t" EQU "tblastn_vdb.exe"      ( set VERSION_OPTION=-version )
     if "%%t" EQU "dump-ref-fasta.exe"   ( set VERSION_OPTION=--version )
     echo %%t !VERSION_OPTION!
-    start /b /wait %%t !VERSION_OPTION! | "C:\Program Files\Python38\python" %VERSION_CHECKER% %VERSION% 2>&1
+    start /b /wait %%t !VERSION_OPTION! | python %VERSION_CHECKER% %VERSION% 2>&1
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t !VERSION_OPTION!; )
 )
 

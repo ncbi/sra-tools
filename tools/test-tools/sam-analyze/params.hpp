@@ -69,7 +69,7 @@ struct COMMON_PARAMS {
         std::cout << "bam_analyze OPTIONS" << std::endl;
         std::cout << "\t-h --help ... show this help-text" << std::endl;
         std::cout <<  std::endl;
-        std::cout << "\t-d=file --db=file ....... sqlite3-database for storage ( can be ':memory:' ), dflf:sam.db" << std::endl;        
+        std::cout << "\t-d=file --db=file ....... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
         std::cout << "\t-t=count --trans=count .. transaction size for writing to sqlite3-db" << std::endl;
         std::cout << "\t-r --report ............. produce report about import/export on stderr" << std::endl;
         std::cout << "\t-p --progress ........... show progress of import/export on stderr" << std::endl;

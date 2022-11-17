@@ -50,9 +50,11 @@ class SAM_DB : public mt_database::DB {
             uint64_t res = 0;
             if ( ok_or_done( status ) ) {
                 auto stm( make_prep_stm( sql ) );
-                uint64_t tmp;
-                status = stm -> read_long( tmp );
-                if ( ok_or_done( status ) ) { res = tmp; }
+                uint16_t st( stm -> get_status() );
+                if ( SQLITE_OK == st ) { 
+                    st = stm -> step();
+                    if ( SQLITE_ROW == st ) { res = stm -> read_uint64_t(); }
+                }
             }
             return res;
         }

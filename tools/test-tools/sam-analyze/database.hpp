@@ -37,28 +37,8 @@ class PREP_STM {
             std::cout << "status:" << e << std::endl;
         }
 
-        bool step_if_ok_or_row( void ) {
-            if ( SQLITE_OK == status || SQLITE_ROW == status ) {
-                status = sqlite3_step( stmt );
-                return ( SQLITE_ROW == status );
-            }
-            return false;
-        }
-        
-        const char * read_column_text( uint16_t column ) {
-            return ( const char * )sqlite3_column_text( stmt, column );
-        }
-
-        int read_column_int( uint16_t column ) {
-            return sqlite3_column_int( stmt, column );
-        }
-
-        int64_t read_column_int64( uint16_t column ) {
-            return sqlite3_column_int64( stmt, column );
-        }
-        
-        int16_t step( void ) {
-            if ( ok_or_done( status ) ) { status = sqlite3_step( stmt ); }
+        int16_t step( void ) { 
+            status =  sqlite3_step( stmt );
             return status;
         }
 
@@ -94,79 +74,18 @@ class PREP_STM {
             return status;
         }
 
-        int16_t read_text( std::string& result ) {
-            if ( SQLITE_ROW == step() ) {
-                const unsigned char * txt = sqlite3_column_text( stmt, 0 );
-                std::string s( (const char *)txt );
-                result = s;
-                step();
+        std::string read_string( uint32_t idx = 0 ) {
+            const unsigned char * txt = sqlite3_column_text( stmt, idx );
+            if ( nullptr != txt ) {
+                return std::string( (const char *)txt );
             }
-            reset();
-            return status;
+            return std::string( "" );
         }
 
-        int16_t read_text_1( const std::string& data, std::string& result ) {
-            bind_str( data );
-            return read_text( result );
-        }
-        
-        int16_t read_text_n( const str_vec& data, std::string& result ) {
-            bind_str_vec( data );
-            return read_text( result );            
-        }
-
-        int16_t read_long( uint64_t& result ) {
-            step();
-            if ( SQLITE_ROW == status ) {
-                result = sqlite3_column_int64( stmt, 0 );
-                while ( SQLITE_ROW == status ) {
-                    status = sqlite3_step( stmt );
-                }
-            }
-            reset();
-            return status;
-        }
-
-        int16_t read_long_1( const std::string& data, uint64_t& result ) {
-            bind_str( data );
-            return read_long( result );
-        }
-        
-        int16_t read_long_n( const str_vec& data, uint64_t& result ) {
-            bind_str_vec( data );
-            return read_long( result );            
-        }
-
-        int16_t read_row( str_vec& data, int16_t count ) {
-            data . clear();
-            if ( status == SQLITE_OK || status == SQLITE_ROW ) {
-                status = sqlite3_step( stmt );
-            }
-            if ( SQLITE_ROW == status ) {
-                for ( int16_t i = 0; i < count; ++ i ) {
-                    const unsigned char * txt = sqlite3_column_text( stmt, i );
-                    data . push_back( std::string( ( const char * )txt ) );
-                }
-            }
-            return status;
-        }
-        
-        bool read_2_longs( uint64_t& v1, uint64_t& v2 ) {
-            if ( status == SQLITE_OK || status == SQLITE_ROW ) {
-                status = sqlite3_step( stmt );
-            }
-            bool res =  ( SQLITE_ROW == status );
-            if ( res ) {
-                v1 = sqlite3_column_int64( stmt, 0 );
-                res =  ( SQLITE_ROW == status );
-                if ( res ) {
-                    v2 = sqlite3_column_int64( stmt, 1 );
-                    res =  ( SQLITE_ROW == status );
-                }
-            }
-            return res;
-        }
-
+        uint16_t column_count( void ) { return sqlite3_column_count( stmt ); }
+        uint64_t read_uint64_t( uint32_t idx = 0 ) { return sqlite3_column_int64( stmt, idx ); }
+        uint32_t read_uint32_t( uint32_t idx = 0 ) { return sqlite3_column_int( stmt, idx ); }
+        int32_t read_int32_t( uint32_t idx = 0 ) { return sqlite3_column_int( stmt, idx ); }
 };
 
 typedef std::shared_ptr< PREP_STM > PREP_STM_PTR;

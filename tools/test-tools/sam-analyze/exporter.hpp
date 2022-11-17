@@ -19,53 +19,49 @@ class EXPORTER {
         
         EXPORTER( const EXPORTER& ) = delete;
         
-        bool export_HD_headers( std::ostream& stream, bool negate ) {
+        bool export_HD_headers( std::ostream& stream, bool print_HD_hdrs ) {
             auto stm = db . make_prep_stm( 
-                negate ? "SELECT VALUE FROM HDR WHERE NOT VALUE LIKE '@HD%';"
-                       : "SELECT VALUE FROM HDR WHERE VALUE LIKE '@HD%';" );
+                print_HD_hdrs
+                    ? "SELECT VALUE FROM HDR WHERE NOT VALUE LIKE '@HD%';"
+                    : "SELECT VALUE FROM HDR WHERE VALUE LIKE '@HD%';" );
             uint16_t st( stm -> get_status() );
             if ( SQLITE_OK == st ) {
-                mt_database::DB::str_vec data;
-                do {
-                    st = stm -> read_row( data, 1 );
-                    if ( SQLITE_ROW == st ) {
-                        stream << data[ 0 ] << std::endl;
-                        result . header_lines += 1;
-                    }
-                } while ( SQLITE_ROW == st );
+                st = stm -> step();
+                while( SQLITE_ROW == st ) {
+                    stream << stm -> read_string() << std::endl;
+                    result . header_lines += 1;
+                    st = stm -> step();
+                }
             }
-            bool res = ( SQLITE_DONE == st );
-            return res;
+            return ( SQLITE_DONE == st );
         }
 
         bool export_ref_headers( std::ostream& stream ) {
-            std::string sstm( "SELECT NAME,LENGTH,OTHER FROM REF;" );
-            auto stm = db . make_prep_stm( sstm );
+            auto stm = db . make_prep_stm(  "SELECT NAME,LENGTH,OTHER FROM REF;" );
             uint16_t st( stm -> get_status() );
-            
-            if ( SQLITE_OK == st || SQLITE_DONE == st ) {
-                mt_database::DB::str_vec data;
-                do {
-                    st = stm -> read_row( data, 3 );
+            if ( SQLITE_OK == st ) {
+                st = stm -> step();
+                while ( SQLITE_ROW == st ) {
+                    uint16_t col_cnt = stm -> column_count();
+                    std::string ref_name = stm -> read_string();
                     bool used = true;
                     if ( params . only_used_refs ) {
-                        used = ref_dict . contains( data[ 0 ] );
+                        used = ref_dict . contains( ref_name );
                     }
-                    if ( used && SQLITE_ROW == st ) {
-                        stream << "@SQ\tSN:" << data[ 0 ] << "\tLN:" << data[ 1 ] << std::endl;
+                    if ( used  ) {
+                        uint32_t ln = stm -> read_uint32_t( 1 );
+                        std::string other = stm -> read_string( 2 );
+                        if ( other . empty() ) {
+                            stream << "@SQ\tSN:" << ref_name << "\tLN:" << ln << std::endl;
+                        } else {
+                            stream << "@SQ\tSN:" << ref_name << "\tLN:" << ln << "\t" << other << std::endl;                            
+                        }
                         result . header_lines += 1;
                     }
-                } while ( SQLITE_ROW == st );
+                    st = stm -> step();
+                }
             }
-            bool res = ( SQLITE_DONE == st );            
-            return res;
-        }
-
-        bool export_headers( std::ostream& stream ) {
-            bool res = export_HD_headers( stream, false );
-            if ( res ) { res = export_ref_headers( stream ); }
-            if ( res ) { res = export_HD_headers( stream, true ); }
-            return res;
+            return ( SQLITE_DONE == st );            
         }
 
         bool export_alignments( std::ostream& stream ) {
@@ -107,11 +103,12 @@ class EXPORTER {
             }
             FILE_WRITER writer( params . export_filename );
             std::ostream *stream = writer . get();
-            bool ok = export_headers( *stream );
-            if ( ok ) { ok = export_alignments( *stream ); }
-            result . success = ok;
-            if ( ok && show_report ) { result . report(); }
-            return ok;
+            result . success = export_HD_headers( *stream, false );
+            if ( result . success ) { result . success = export_ref_headers( *stream ); }
+            if ( result . success ) { result . success = export_HD_headers( *stream, true ); }
+            if ( result . success ) { result . success = export_alignments( *stream ); }
+            if ( result . success && show_report ) { result . report(); }
+            return result . success;
         }
 
 };

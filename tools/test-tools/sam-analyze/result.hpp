@@ -30,7 +30,6 @@ struct IMPORT_RESULT {
         success( false ), total_lines( 0 ), header_lines( 0 ), alignment_lines( 0 ) {}
 
     void report( void ) {
-        std::cerr << "\tsuccess    : " << BASE_RESULT::yes_no( success ) << std::endl;            
         std::cerr << "\ttotal lines: " << BASE_RESULT::with_ths( total_lines ) << std::endl;
         std::cerr << "\theaders    : " << BASE_RESULT::with_ths( header_lines ) << std::endl;
         std::cerr << "\talignments : " << BASE_RESULT::with_ths( alignment_lines ) << std::endl;
@@ -124,7 +123,6 @@ struct ANALYZE_RESULT {
         unaligned( 0 ), half_aligned( 0 ), fully_aligned( 0 ), flag_problems( 0 ) {}
 
     void report( void ) {
-        std::cerr << "\tsuccess    : " << BASE_RESULT::yes_no( success ) << std::endl;
         std::cerr << "\tspots      : " << BASE_RESULT::with_ths( spot_count ) << std::endl;
         std::cerr << "\tused refs  : " << BASE_RESULT::with_ths( refs_in_use ) << std::endl;
         std::cerr << "\tunalig.    : " << BASE_RESULT::with_ths( unaligned ) << std::endl;
@@ -152,7 +150,6 @@ struct EXPORT_RESULT {
         success( false ), header_lines( 0 ), alignment_lines( 0 ) {}
 
     void report( void ) {
-        std::cerr << "\tsuccess    : " << BASE_RESULT::yes_no( success ) << std::endl;
         std::cerr << "\theaders    : " << BASE_RESULT::with_ths( header_lines ) << std::endl;
         std::cerr << "\talignments : " << BASE_RESULT::with_ths( alignment_lines ) << std::endl;
     }

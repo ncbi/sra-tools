@@ -9,11 +9,11 @@ struct SAM_ALIG {
     std::string NAME;
     uint16_t FLAGS;
     std::string RNAME;
-    uint32_t RPOS;
-    uint8_t MAPQ;
+    int32_t RPOS;
+    uint32_t MAPQ;
     std::string CIGAR;
     std::string MRNAME;
-    uint32_t MRPOS;
+    int32_t MRPOS;
     int32_t TLEN;
     std::string SEQ;
     std::string QUAL;
@@ -69,23 +69,25 @@ class ALIG_ITER {
                 default : sst = sstmu; break;
             };
             stm = db . make_prep_stm( sst );
+            stm -> step();
         }
         
         bool next( SAM_ALIG& alig ) {
-            bool res = stm -> step_if_ok_or_row();
+            bool res = ( SQLITE_ROW == stm -> get_status() );
             if ( res ) {
-                alig . NAME . assign( stm -> read_column_text( 0 ) );
-                alig . FLAGS = stm -> read_column_int( 1 );
-                alig . RNAME . assign( stm -> read_column_text( 2 ) );
-                alig . RPOS = stm -> read_column_int64( 3 );
-                alig . MAPQ = stm -> read_column_int( 4 );
-                alig . CIGAR . assign( stm -> read_column_text( 5 ) );
-                alig . MRNAME . assign( stm -> read_column_text( 6 ) );
-                alig . MRPOS = stm -> read_column_int64( 7 );
-                alig . TLEN = stm -> read_column_int( 8 );
-                alig . SEQ . assign( stm -> read_column_text( 9 ) );
-                alig . QUAL . assign( stm -> read_column_text( 10 ) );
-                alig . TAGS . assign( stm -> read_column_text( 11 ) );
+                alig . NAME . assign( stm -> read_string( 0 ) );
+                alig . FLAGS = stm -> read_uint32_t( 1 );
+                alig . RNAME . assign( stm -> read_string( 2 ) );
+                alig . RPOS = stm -> read_int32_t( 3 );
+                alig . MAPQ = stm -> read_uint32_t( 4 );
+                alig . CIGAR . assign( stm -> read_string( 5 ) );
+                alig . MRNAME . assign( stm -> read_string( 6 ) );
+                alig . MRPOS = stm -> read_int32_t( 7 );
+                alig . TLEN = stm -> read_int32_t( 8 );
+                alig . SEQ . assign( stm -> read_string( 9 ) );
+                alig . QUAL . assign( stm -> read_string( 10 ) );
+                alig . TAGS . assign( stm -> read_string( 11 ) );
+                stm -> step();
             }
             return res;;
         }

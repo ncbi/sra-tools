@@ -27,7 +27,7 @@ class ref_dict_t {
         
         void reset( void ) { at_start = true; }
 
-        size_t size( void ) { return dict . size(); }
+        size_t size( void ) const { return dict . size(); }
 
         bool next( std::string& value, uint64_t& count ) {
             if ( at_start ) {
@@ -43,9 +43,10 @@ class ref_dict_t {
             return res;
         }
         
-        bool contains( std::string& name ) {
+        bool contains( const std::string& name ) const {
             auto found = dict . find( name );
-            return ( found != dict . end() );
+            bool res = ( found != dict . end() );
+            return res;
         }
 };
 

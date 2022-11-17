@@ -24,6 +24,8 @@
 
 @echo off
 
+dir "C:\Program Files"
+
 set FAILED=
 
 echo Smoke testing ngs tarball in %3 ...

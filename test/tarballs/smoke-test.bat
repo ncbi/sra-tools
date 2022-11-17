@@ -31,19 +31,19 @@ echo Smoke testing ngs tarball in %3 ...
 if exist %3\ngs-java\ngs-java.jar (
     echo ngs-java.jar exists
 ) else (
-    FAILED=%FAILED% ngs-java.jar doesn't exist;
+    set FAILED=%FAILED% ngs-java.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-doc.jar (
     echo ngs-doc.jar exists
 ) else (
-    FAILED=%FAILED% ngs-doc.jar doesn't exist;
+    set FAILED=%FAILED% ngs-doc.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-src.jar (
     echo ngs-src.jar exists
 ) else (
-    FAILED=%FAILED% ngs-src.jar doesn't exist;
+    set FAILED=%FAILED% ngs-src.jar doesn't exist;
 )
 
 if "%FAILED%" NEQ "" (
@@ -82,7 +82,7 @@ for %%t in ( %TOOLS% ) do (
     if "%%t" EQU "tblastn_vdb.exe"      ( set VERSION_OPTION=-version )
     if "%%t" EQU "dump-ref-fasta.exe"   ( set VERSION_OPTION=--version )
     echo %%t !VERSION_OPTION!
-    start /b /wait %%t !VERSION_OPTION! | perl -w %VERSION_CHECKER% %VERSION% 2>&1
+    start /b /wait %%t !VERSION_OPTION! | python %VERSION_CHECKER% %VERSION% 2>&1
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t !VERSION_OPTION!; )
 )
 

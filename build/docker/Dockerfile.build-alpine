@@ -10,52 +10,32 @@ RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git &&
     git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
 WORKDIR ncbi-vdb
 RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt && \
-    sed -i.orig -e '/\bARCH\b/ s/\baarch64\b/arm64/' build/env.cmake
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt
 WORKDIR /root
-RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
+RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Release \
           -S ncbi-vdb -B build/ncbi-vdb && \
     cmake --build build/ncbi-vdb
-WORKDIR sra-tools
-RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*copycat\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*sharq\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-load*\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kget\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*cache-mgr\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*util\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-sql\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ngs-pileup\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-diff\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ccextract\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*align-.*\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-redact\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-sort\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-copy\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-stat\s*)\s*$/ d' tools/CMakeLists.txt && \
-    sed -i.orig -e '/\bARCH\b/ s/\baarch64\b/arm64/' build/env.cmake && \
-    sed -i.orig -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' tools/driver-tool/secure/except.cpp
-WORKDIR /root
-RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
-          -DVDB_INCDIR=/root/ncbi-vdb/interfaces \
-          -DVDB_LIBDIR=/root/build/ncbi-vdb/lib \
-          -S sra-tools -B build/sra-tools && \
-    cmake --build build/sra-tools
-RUN cmake -P build/sra-tools/cmake_install.cmake
+RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kxml\|vdb-sqlite\s*)\s*$/ d' sra-tools/libs/CMakeLists.txt && \
+    sed -i.orig -e '/\bCPACK\|CPack/ d' sra-tools/CMakeLists.txt
+RUN cmake -G Ninja                                  \
+          -D CMAKE_BUILD_TYPE=Release               \
+          -D VDB_LIBDIR=/root/build/ncbi-vdb/lib    \
+          -S sra-tools -B build/sra-tools &&        \
+    cmake --build build/sra-tools --target install
 RUN mkdir -p /etc/ncbi
 RUN printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` > /etc/ncbi/settings.kfg && \
     printf '/libs/cloud/report_instance_identity = "true"\n' >> /etc/ncbi/settings.kfg
 
 FROM alpine:latest
-LABEL author="Kenneth Durbrow" \
-      maintainer="kenneth.durbrow@nih.gov" \
-      vendor="NCBI/NLM/NIH" \
+LABEL author="Kenneth Durbrow"                                              \
+      maintainer="kenneth.durbrow@nih.gov"                                  \
+      vendor="NCBI/NLM/NIH"                                                 \
       url="https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software" \
-      vcs-url="https://github.com/ncbi/sra-tools/" \
-      description="NCBI SRA Toolkit + a working default configuration." \
+      vcs-url="https://github.com/ncbi/sra-tools/"                          \
+      description="NCBI SRA Toolkit + a working default configuration."     \
       notice="WHEN USING THIS IMAGE IN A CLOUD ENVIRONMENT, YOU WILL BE SENDING YOUR CLOUD INSTANCE IDENTITY TO NCBI."
 RUN apk add --no-cache libstdc++ libgcc
 COPY --from=build /usr/local/bin /usr/local/bin
 COPY --from=build /etc/ncbi /etc/ncbi
 # very basic smoke test to check if runnable
-# touch foo && srapath ./foo && rm foo
+RUN touch foo && srapath ./foo && rm foo

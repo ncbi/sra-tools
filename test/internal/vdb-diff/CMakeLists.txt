@@ -43,7 +43,7 @@ endif()
 
 if( NOT WIN32 )
 	add_test( NAME Test_VDB_Diff_Check_success
-		COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
+		COMMAND sh test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME Test_VDB_Diff_Check_success-asan
@@ -55,7 +55,7 @@ if( NOT WIN32 )
 	endif()
 
 	add_test( NAME Test_VDB_Diff_Check_failure
-		COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
+		COMMAND sh test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME Test_VDB_Diff_Check_failure-asan

@@ -1,25 +1,33 @@
 ### Building the docker image
 
 #### Example:
-```
-$ make VERSION=2.11.1 build test scan
+```sh
+$ make VERSION=2.11.1 build test
 $ make VERSION=2.11.1 push clean
 ```
+In general, `docker build` will create an image for the host architecture. It is
+easiest to build architecture images on same architecture hosts. After all of
+the individual architecture images have been built and pushed, a manifest list
+is created with all of them. A manifest list is a small blob of JSON, its
+component images are included by their hashes. A 
+`docker pull ncbi/sra-tools:latest` will result in a manifest list, and docker 
+will pick the image that best suits the host.
+
 
 #### Makefile targets:
 
-Target | Explanation
------- | -----------
-build | Builds `Dockerfile.build-alpine` and tags the image
-test | After building the image, runs `fastq-dump` inside the image
-scan | Runs vulnerability scan (requires user credentials)
-push | Pushes the image to dockerhub (requires user credentials and permissions)
-clean | Removes the image from your docker image cache
+|   Target   | Explanation |
+|------------|-------------|
+| `build`    | Builds `Dockerfile.build-alpine` and tags the image. |
+| `test`     | After building the image, runs `fastq-dump` inside the image. |
+| `push`     | Pushes the image to DockerHub (requires user credentials and permissions). |
+| `manifest` | Creates and pushes a manifest list with all the platform tags for the version. Run this **after** all the platform images have been pushed. |
+| `clean`    | Removes the image from your docker image cache. |
 
 #### General process of the build:
-1. Clones `ngs`, `ncbi-vdb`, and `sra-tools` from their github repositories.
+1. Clones `ncbi-vdb`, and `sra-tools` from their github repositories.
 2. Builds them.
-3. Adds a configuration file to `/root/.ncbi`.
+3. Adds a configuration file to `/etc/.ncbi`.
 4. Creates a new image from Alpine Linux and copies the executables and configuration.
 
 The result should be a working standalone installation of the toolkit.
@@ -27,13 +35,13 @@ The result should be a working standalone installation of the toolkit.
 ### Check your Docker version
 
 You should have Docker version >= 20.10.0. E.g.
-```
+```sh
 $ docker --version
 Docker version 20.10.8, build 3967b7d
 ```
 
 #### Basic Docker-ing
-```
+```sh
 $ docker run -it --rm ncbi/sra-tools
 / # which fastq-dump
 /usr/local/ncbi/sra-tools/bin/fastq-dump

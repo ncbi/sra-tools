@@ -24,13 +24,18 @@ test:
 
 push:
 	docker push ${REPO}:${TAG}
-	@ echo remember to make VERSION=${VERSION} manifest 
+	@ echo Remember to make VERSION=${VERSION} manifest once all the images are built.
 
 manifest:
-	docker manifest create ${REPO}:${VERSION} ${REPO}:x86_64-${VERSION} ${REPO}:aarch64-${VERSION}
+	# Need to remove any old manifests with the same tags we are creating
+	docker manifest rm ${REPO}:latest || true
+	docker manifest rm ${REPO}:${VERSION} || true
+	docker manifest create ${REPO}:${VERSION} $(shell perl find-parts.pl ${VERSION})
 	docker manifest push ${REPO}:${VERSION}
-#	docker manifest create ${REPO}:latest ${REPO}:x86_64-${VERSION} ${REPO}:aarch64-${VERSION}
-#	docker manifest push ${REPO}:latest
+	docker manifest create ${REPO}:latest ${REPO}:x86_64-${VERSION} ${REPO}:aarch64-${VERSION}
+	docker manifest push ${REPO}:latest
 
 clean:
-	docker image rm ${REPO}:${TAG} ${REPO}:${VERSION}
+	docker image rm ${REPO}:${TAG}
+	docker manifest rm ${REPO}:latest
+	docker manifest rm ${REPO}:${VERSION}

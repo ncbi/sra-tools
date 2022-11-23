@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-class FILE_READER {
+class file_reader_t {
     private :
         std::istream* data;
         uint64_t line_limit;
@@ -14,7 +14,7 @@ class FILE_READER {
         bool stdin_mode;
 
     public:
-        FILE_READER( const std::string& filename, uint64_t a_line_limit = 0 ) 
+        file_reader_t( const std::string& filename, uint64_t a_line_limit = 0 ) 
             : data( nullptr ), line_limit( a_line_limit ), line_nr( 0 ) {
             stdin_mode = ( filename == "stdin" );
             if ( stdin_mode ) {
@@ -23,9 +23,9 @@ class FILE_READER {
                 data = new std::ifstream( filename );
             }
         }
-        FILE_READER() = delete;  // no copy ctor!
+        file_reader_t() = delete;  // no copy ctor!
 
-        ~FILE_READER( void ) { if ( !stdin_mode ) { delete data; }
+        ~file_reader_t( void ) { if ( !stdin_mode ) { delete data; }
         }
         
         uint64_t get_line_nr( void ) const { return line_nr; }
@@ -48,13 +48,13 @@ class FILE_READER {
         }
 };
 
-class FILE_WRITER {
+class file_writer_t {
     private :
         std::ostream* data;
         bool stdout_mode;
 
     public :
-        FILE_WRITER( const std::string& filename ) : data( nullptr ) {
+        file_writer_t( const std::string& filename ) : data( nullptr ) {
             stdout_mode = ( filename == "stdout" );
             if ( stdout_mode ) {
                 data = &std::cout;
@@ -62,21 +62,21 @@ class FILE_WRITER {
                 data = new std::ofstream( filename );
             }
         }
-        FILE_WRITER() = delete; // not copy ctor!
+        file_writer_t() = delete; // not copy ctor!
         
-        ~FILE_WRITER( void ) { if ( !stdout_mode ) { delete data; } }
+        ~file_writer_t( void ) { if ( !stdout_mode ) { delete data; } }
         
         std::ostream* get( void ) { return data; }
 };
 
-class STRING_PARTS {
+class string_parts_t {
     private :
         char delim;
         std::vector< std::string > v;
         std::string empty;
 
     public:
-        STRING_PARTS( char a_delim ) : delim( a_delim ) {}
+        string_parts_t( char a_delim ) : delim( a_delim ) {}
 
         int split( const std::string& s ) {
             std::stringstream ss( s );

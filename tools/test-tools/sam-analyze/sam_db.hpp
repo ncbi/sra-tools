@@ -3,14 +3,14 @@
 
 #include "database.hpp"
 
-class SAM_DB : public mt_database::DB {
+class sam_database_t : public mt_database::database_t {
     private :
         int status;
-        mt_database::PREP_STM_PTR ins_ref_stm;
-        mt_database::PREP_STM_PTR ins_hdr_stm;
-        mt_database::PREP_STM_PTR ins_alig_stm;
+        mt_database::prep_stm_ptr_t ins_ref_stm;
+        mt_database::prep_stm_ptr_t ins_hdr_stm;
+        mt_database::prep_stm_ptr_t ins_alig_stm;
         
-        SAM_DB( const SAM_DB& ) = delete;
+        sam_database_t( const sam_database_t& ) = delete;
         
         int16_t make_ref_hdr_tbl( void ) {
             const char * stm = "CREATE TABLE IF NOT EXISTS REF( " \
@@ -60,8 +60,8 @@ class SAM_DB : public mt_database::DB {
         }
 
     public :
-        SAM_DB( const std::string& filename ) 
-            : DB( filename.c_str() ), status( SQLITE_OK ) {
+        sam_database_t( const std::string& filename ) 
+        : database_t( filename.c_str() ), status( SQLITE_OK ) {
             status = make_ref_hdr_tbl();
             if ( ok_or_done( status ) ) { status = make_hdr_tbl(); }
             if ( ok_or_done( status ) ) { status = make_alig_tbl(); }
@@ -90,29 +90,38 @@ class SAM_DB : public mt_database::DB {
             tables . push_back( "HDR" );
             tables . push_back( "ALIG" );
             status = clear_tables( tables );
+            if ( SQLITE_OK == status ) {
+                status = exec( "DROP INDEX IF EXISTS ALIG_RNAME_IDX;" );
+            }
+            if ( SQLITE_OK == status ) {
+                status = exec( "DROP INDEX IF EXISTS ALIG_NAME_IDX;" );
+            }
             return status; 
         }
         
         int16_t create_alig_tbl_idx( void ) {
-            exec( "CREATE INDEX ALIG_RNAME_IDX on ALIG( RNAME );" );
-            return exec( "CREATE INDEX ALIG_NAME_IDX on ALIG( NAME );" );            
+            uint16_t st = exec( "CREATE INDEX ALIG_RNAME_IDX on ALIG( RNAME );" );
+            if ( SQLITE_OK == st ) {
+                st = exec( "CREATE INDEX ALIG_NAME_IDX on ALIG( NAME );" );
+            }
+            return st;
         }
 
-        int16_t add_ref( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_ref( const mt_database::prep_stm_t::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_ref_stm -> bind_and_step( data );
             }
             return status;
         }
         
-        int16_t add_hdr( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_hdr( const mt_database::prep_stm_t::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_hdr_stm -> bind_and_step( data );
             }
             return status;
         }
         
-        int16_t add_alig( const mt_database::PREP_STM::str_vec& data ) {
+        int16_t add_alig( const mt_database::prep_stm_t::str_vec& data ) {
             if ( ok_or_done( status ) ) {
                 status = ins_alig_stm -> bind_and_step( data );
             }

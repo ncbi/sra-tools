@@ -5,7 +5,7 @@
 #include <algorithm>
 #include "database.hpp"
 
-struct SAM_ALIG {
+struct sam_alig_t {
     std::string NAME;
     uint16_t FLAGS;
     std::string RNAME;
@@ -19,7 +19,7 @@ struct SAM_ALIG {
     std::string QUAL;
     std::string TAGS;
     
-    SAM_ALIG() {}
+    sam_alig_t() {}
     
     void print( std::ostream& stream ) const {
         stream << NAME << "\t" << FLAGS << "\t" << RNAME << "\t" << RPOS << "\t" << MAPQ << "\t"
@@ -31,7 +31,7 @@ struct SAM_ALIG {
         std::replace( NAME . begin(), NAME . end(), ' ', '_' );
     }
     
-    bool same_name( const SAM_ALIG& other ) const {
+    bool same_name( const sam_alig_t& other ) const {
         return ( NAME == other . NAME );
     }
     
@@ -48,16 +48,17 @@ struct SAM_ALIG {
     bool duplicate( void ) { return ( ( FLAGS & 0x400 ) == 0x400 ); }
 };
 
-class ALIG_ITER {
+class sam_alig_iter_t {
     private :
-        mt_database::PREP_STM_PTR stm;
+        mt_database::prep_stm_ptr_t stm;
+        uint64_t count;
         
-        ALIG_ITER( const ALIG_ITER& ) = delete;
+        sam_alig_iter_t( const sam_alig_iter_t& ) = delete;
         
     public :
         typedef enum ALIG_ORDER{ ALIG_ORDER_NONE, ALIG_ORDER_NAME, ALIG_ORDER_REFPOS } ALIG_ORDER;
         
-        ALIG_ITER( mt_database::DB& db, ALIG_ORDER spot_order ) { 
+        sam_alig_iter_t( mt_database::database_t& db, ALIG_ORDER spot_order ) : count( 0 ) { 
             std::string cols( "NAME,FLAG,RNAME,RPOS,MAPQ,CIGAR,MRNAME,MRPOS,TLEN,SEQ,QUAL,TAGS" );
             std::string sstmu( "SELECT " + cols + " FROM ALIG;" );
             std::string sstms( "SELECT " + cols + " FROM ALIG order by RNAME,RPOS;" );
@@ -68,13 +69,11 @@ class ALIG_ITER {
                 case ALIG_ORDER_REFPOS : sst = sstms; break;
                 default : sst = sstmu; break;
             };
-            stm = db . make_prep_stm( sst );
-            stm -> step();
+            stm = db . make_prep_stm( sst, true );
         }
         
-        bool next( SAM_ALIG& alig ) {
-            bool res = ( SQLITE_ROW == stm -> get_status() );
-            if ( res ) {
+        bool next( sam_alig_t& alig ) {
+            if ( SQLITE_ROW == stm -> get_status() ) {
                 alig . NAME . assign( stm -> read_string( 0 ) );
                 alig . FLAGS = stm -> read_uint32_t( 1 );
                 alig . RNAME . assign( stm -> read_string( 2 ) );
@@ -87,10 +86,63 @@ class ALIG_ITER {
                 alig . SEQ . assign( stm -> read_string( 9 ) );
                 alig . QUAL . assign( stm -> read_string( 10 ) );
                 alig . TAGS . assign( stm -> read_string( 11 ) );
+                count++;
                 stm -> step();
+                return true;
             }
-            return res;;
+            return false;
         }
+        
+        bool done( void ) { return ( SQLITE_DONE == stm -> get_status() ); }
+        uint64_t get_count( void ) { return count; }
+};
+
+struct sam_alig_rname_t {
+    std::string NAME;
+    std::string RNAME;
+    
+    sam_alig_rname_t() {}
+    
+    bool same_name( const sam_alig_rname_t& other ) const {
+        return ( NAME == other . NAME );
+    }
+};
+
+class sam_alig_rname_iter_t {
+private :
+    mt_database::prep_stm_ptr_t stm;
+    uint64_t count;
+    
+    sam_alig_rname_iter_t( const sam_alig_rname_iter_t& ) = delete;
+    
+public :
+    sam_alig_rname_iter_t( mt_database::database_t& db, sam_alig_iter_t::ALIG_ORDER spot_order ) : count( 0 ) { 
+        std::string cols( "NAME,RNAME" );
+        std::string sstmu( "SELECT " + cols + " FROM ALIG;" );
+        std::string sstms( "SELECT " + cols + " FROM ALIG order by RNAME,RPOS;" );
+        std::string sstmn( "SELECT " + cols + " FROM ALIG order by NAME;" );
+        std::string sst;
+        switch( spot_order ) {
+            case sam_alig_iter_t::ALIG_ORDER_NAME   : sst = sstmn; break;
+            case sam_alig_iter_t::ALIG_ORDER_REFPOS : sst = sstms; break;
+            default : sst = sstmu; break;
+        };
+        stm = db . make_prep_stm( sst, true );
+    }
+    
+    bool next( sam_alig_rname_t& alig ) {
+        if ( SQLITE_ROW == stm -> get_status() ) {
+            alig . NAME . assign( stm -> read_string() );
+            alig . RNAME . assign( stm -> read_string( 1 ) );
+            count++;
+            stm -> step();
+            return true;
+        }
+        return false;
+    }
+    
+    bool done( void ) { return ( SQLITE_DONE == stm -> get_status() ); }
+    uint64_t get_count( void ) { return count; }
 };
 
 #endif

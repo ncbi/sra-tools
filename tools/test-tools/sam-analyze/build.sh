@@ -2,7 +2,7 @@ OUTPUT1="sam-analyze"
 OUTPUT2="sam-analyze-fast"
 LIBS="-pthread -lm -ldl"
 
-rm -rf $OUTPUT1 $OUTPUT2 main.o
+rm -rf $OUTPUT1 $OUTPUT2
 
 if [ ! -f "sqlite3.o" ]; then
     gcc -c sqlite3.c

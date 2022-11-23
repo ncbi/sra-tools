@@ -6,7 +6,7 @@
 #include "alig.hpp"
 #include "sam_db.hpp"
 
-struct BASE_PARAMS {
+struct base_params_t {
     static std::string yes_no( bool flag ) {
         if ( flag ) { return std::string( "YES" ); }
         return std::string( "NO" );
@@ -22,47 +22,55 @@ struct BASE_PARAMS {
         return res;
     }
     
-    static ALIG_ITER::ALIG_ORDER encode_alig_order( bool by_pos, bool by_name ) {
-        ALIG_ITER::ALIG_ORDER res = ALIG_ITER::ALIG_ORDER_NONE;
-        if ( by_pos ) { res = ALIG_ITER::ALIG_ORDER_REFPOS; }
-        if ( by_name ) { res = ALIG_ITER::ALIG_ORDER_NAME; }
+    static sam_alig_iter_t::ALIG_ORDER encode_alig_order( bool by_pos, bool by_name ) {
+        sam_alig_iter_t::ALIG_ORDER res = sam_alig_iter_t::ALIG_ORDER_NONE;
+        if ( by_pos ) { res = sam_alig_iter_t::ALIG_ORDER_REFPOS; }
+        if ( by_name ) { res = sam_alig_iter_t::ALIG_ORDER_NAME; }
         return res;
     }
     
-    static std::string alig_order_to_string( ALIG_ITER::ALIG_ORDER spot_order ) {
+    static std::string alig_order_to_string( sam_alig_iter_t::ALIG_ORDER spot_order ) {
         switch( spot_order ) {
-            case ALIG_ITER::ALIG_ORDER_NONE : return std::string( "NONE" ); break;
-            case ALIG_ITER::ALIG_ORDER_NAME : return std::string( "NAME" ); break;
-            case ALIG_ITER::ALIG_ORDER_REFPOS : return std::string( "REFPOS" ); break;
+            case sam_alig_iter_t::ALIG_ORDER_NONE : return std::string( "NONE" ); break;
+            case sam_alig_iter_t::ALIG_ORDER_NAME : return std::string( "NAME" ); break;
+            case sam_alig_iter_t::ALIG_ORDER_REFPOS : return std::string( "REFPOS" ); break;
         }
         return std::string( "UNKNOWN" );
     }
+    
+    static std::string with_ths( uint64_t x ) {
+        std::ostringstream ss;
+        ss . imbue( std::locale( "" ) );
+        ss << x;
+        return ss.str();
+    }
 };
 
-struct COMMON_PARAMS {
+struct cmn_params_t {
     const std::string db_filename;
     const uint32_t transaction_size;
     const bool help;
     const bool report;
     const bool progress;
 
-    COMMON_PARAMS( const ARGS& args ) :
+    cmn_params_t( const args_t& args ) :
         db_filename( args . get_str( "-d", "--db", "sam.db" ) ),
         transaction_size( args . get_int<uint32_t>( "-t", "--trans", 50000 ) ),
         help( args . has( "-h", "--help" ) ),
         report( args . has( "-r", "--report" ) ),
-        progress( args . has( "-p", "--progress" ) ) { }
+        progress( args . has( "-p", "--progress" ) ) { 
+    }
 
-    static void populate_hints( ARGS::str_vec& hints ) {
-        hints.push_back( "-d" );
-        hints.push_back( "--db" );        
-        hints.push_back( "-t" );
-        hints.push_back( "--trans" );        
+    static void populate_hints( args_t::str_vec_t& hints ) {
+        hints . push_back( "-d" );
+        hints . push_back( "--db" );        
+        hints . push_back( "-t" );
+        hints . push_back( "--trans" );        
     }
 
     void show_report( void ) const {
         std::cerr << "database-file : '" << db_filename << "'" << std::endl;
-        std::cerr << "progress      : " << BASE_PARAMS::yes_no( progress ) << std::endl;
+        std::cerr << "progress      : " << base_params_t::yes_no( progress ) << std::endl;
     }
     
     void show_help( void ) const {
@@ -70,27 +78,28 @@ struct COMMON_PARAMS {
         std::cout << "\t-h --help ... show this help-text" << std::endl;
         std::cout <<  std::endl;
         std::cout << "\t-d=file --db=file ....... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
-        std::cout << "\t-t=count --trans=count .. transaction size for writing to sqlite3-db" << std::endl;
-        std::cout << "\t-r --report ............. produce report about import/export on stderr" << std::endl;
+        std::cout << "\t-t=count --trans=count .. transaction size for writing to sqlite3-db ( dflt: 50,000 )" << std::endl;
+        std::cout << "\t-r --report ............. produce report about import/analysis/export on stderr" << std::endl;
         std::cout << "\t-p --progress ........... show progress of import/export on stderr" << std::endl;
     }
 };
 
-struct IMPORT_PARAMS {
-    const COMMON_PARAMS &cmn;
+struct import_params_t {
+    const cmn_params_t &cmn;
     const std::string import_filename;
     const uint64_t align_limit;
 
-    IMPORT_PARAMS( const ARGS& args, const COMMON_PARAMS& a_cmn ) :
+    import_params_t( const args_t& args, const cmn_params_t& a_cmn ) :
         cmn( a_cmn ),
         import_filename( args . get_str( "-i", "--import" ) ),
-        align_limit( args . get_int< uint64_t >( "-l", "--import-alig" ) ) { }
+        align_limit( args . get_int< uint64_t >( "-l", "--import-alig" ) ) { 
+    }
 
-    static void populate_hints( ARGS::str_vec& hints ) {
-        hints.push_back( "-i" );
-        hints.push_back( "--import" );        
-        hints.push_back( "-l" );
-        hints.push_back( "--import-alig" );        
+    static void populate_hints( args_t::str_vec_t& hints ) {
+        hints . push_back( "-i" );
+        hints . push_back( "--import" );        
+        hints . push_back( "-l" );
+        hints . push_back( "--import-alig" );        
     }
 
     void show_report( void ) const {
@@ -105,7 +114,7 @@ struct IMPORT_PARAMS {
     bool check( void ) const {
         bool res = true;
         if ( !( import_filename == "stdin" ) ) {
-            res = BASE_PARAMS::FileExists( import_filename );
+            res = base_params_t::FileExists( import_filename );
         }
         if ( !res ) {
             std::cerr << "import-file not found: '" << import_filename << "'" << std::endl;
@@ -119,22 +128,22 @@ struct IMPORT_PARAMS {
     }
 };
 
-struct ANALYZE_PARAMS {
+struct analyze_params_t {
     const bool analyze;
 
-    ANALYZE_PARAMS( const ARGS& args ) :
+    analyze_params_t( const args_t& args ) :
         analyze( args . has( "-a", "--analyze" ) ) { }
 
-    static void populate_hints( ARGS::str_vec& hints ) {
+    static void populate_hints( args_t::str_vec_t& hints ) {
     }
 
     void show_report( void ) const {
-        std::cerr << "analyze data  : " << BASE_PARAMS::yes_no( analyze ) << std::endl;
+        std::cerr << "analyze data  : " << base_params_t::yes_no( analyze ) << std::endl;
     }
 
     bool requested( void ) const { return analyze; }
     
-    bool check( SAM_DB& db ) const {
+    bool check( sam_database_t& db ) const {
         bool res = ( db . alig_count() > 0 );
         if ( !res ) {
             std::cerr << "database is empty!" << std::endl;            
@@ -148,37 +157,50 @@ struct ANALYZE_PARAMS {
 
 };
 
-struct EXPORT_PARAMS {
-    const COMMON_PARAMS &cmn;
+struct export_params_t {
+    const cmn_params_t &cmn;
     const std::string export_filename;
+    const std::string ref_report_filename;
     const bool only_used_refs;
     const bool fix_names;
-    const ALIG_ITER::ALIG_ORDER alig_order;
+    const sam_alig_iter_t::ALIG_ORDER alig_order;
+    const uint64_t spot_limit;
+    const bool min_refs;
     
-    EXPORT_PARAMS( const ARGS& args, const COMMON_PARAMS& a_cmn ) :
+    export_params_t( const args_t& args, const cmn_params_t& a_cmn ) :
         cmn( a_cmn ),
         export_filename( args . get_str( "-e", "--export" ) ),
+        ref_report_filename( args . get_str( "-R", "--ref-report" ) ),
         only_used_refs( args . has( "-u", "--only-used-refs" ) ),
         fix_names( args . has( "-f", "--fix-names" ) ),
-        alig_order( BASE_PARAMS::encode_alig_order( 
+        alig_order( base_params_t::encode_alig_order( 
             args . has( "-s", "--sort-by-refpos" ),
-            args . has( "-n", "--sort-by-name" ) ) ) { }
+            args . has( "-n", "--sort-by-name" ) ) ),
+        spot_limit( args . get_int<uint64_t>( "-E", "--export-spot-limit" ) ),
+        min_refs( args . has( "-M", "--export-min-refs" ) )  { }
         
-    static void populate_hints( ARGS::str_vec& hints ) {
-        hints.push_back( "-e" );
-        hints.push_back( "--export" );        
+    static void populate_hints( args_t::str_vec_t& hints ) {
+        hints . push_back( "-e" );
+        hints . push_back( "--export" );
+        hints . push_back( "-R" );
+        hints . push_back( "--ref-file" );
+        hints . push_back( "-E" );
+        hints . push_back( "--export-spot-limit" );        
     }
 
     void show_report( void ) const {
-        std::cerr << "export-file   : '" << export_filename << "'" << std::endl;        
-        std::cerr << "used-refs     : " << BASE_PARAMS::yes_no( only_used_refs ) << std::endl;
-        std::cerr << "fix-names     : " << BASE_PARAMS::yes_no( fix_names ) << std::endl;
-        std::cerr << "sort-by       : " << BASE_PARAMS::alig_order_to_string( alig_order ) << std::endl;
+        std::cerr << "export-file   : '" << export_filename << "'" << std::endl;
+        std::cerr << "ref-rep.-file : '" << ref_report_filename << "'" << std::endl;
+        std::cerr << "used-refs     : " << base_params_t::yes_no( only_used_refs ) << std::endl;
+        std::cerr << "fix-names     : " << base_params_t::yes_no( fix_names ) << std::endl;
+        std::cerr << "sort-by       : " << base_params_t::alig_order_to_string( alig_order ) << std::endl;
+        std::cerr << "spot-limit    : " << base_params_t::with_ths( spot_limit ) << std::endl;
+        std::cerr << "min-refs      : " << base_params_t::yes_no( min_refs ) << std::endl;        
     }
 
     bool requested( void ) const { return ! export_filename . empty (); }
 
-    bool check( SAM_DB& db ) const {
+    bool check( sam_database_t& db ) const {
         bool res = ( db . alig_count() > 0 );
         if ( !res ) {
             std::cerr << "database is empty!" << std::endl;            
@@ -187,20 +209,23 @@ struct EXPORT_PARAMS {
     }
 
     void show_help( void ) const {
-        std::cout << "\t-e=file --export=file ... export into this SAM-file ( can be 'stdout' )" << std::endl;
-        std::cout << "\t-u --only-used-refs ..... export only used reference-header-lines" << std::endl;
-        std::cout << "\t-f --fix-names .......... fix names in alignments ( remove space )" << std::endl;
-        std::cout << "\t-s --sort ............... sort alignments by ref-position in export" << std::endl;
+        std::cout << "\t-e=file --export=file ..... export into this SAM-file ( can be 'stdout' )" << std::endl;
+        std::cout << "\t-R=file --ref-report=file . produce report of used references" << std::endl;
+        std::cout << "\t-u --only-used-refs ....... export only used reference-header-lines" << std::endl;
+        std::cout << "\t-f --fix-names ............ fix names in alignments ( remove space )" << std::endl;
+        std::cout << "\t-s --sort ................. sort alignments by ref-position in export" << std::endl;
+        std::cout << "\t-E --export-spot-limit=N... limit how many spots are exported" << std::endl;
+        std::cout << "\t-M --export-min-refs ...... used smallest number of refs for export" << std::endl;
     }
 };
 
-struct PARAMS {
-    const COMMON_PARAMS cmn;
-    const IMPORT_PARAMS imp;
-    const ANALYZE_PARAMS ana;
-    const EXPORT_PARAMS exp;
+struct params_t {
+    const cmn_params_t cmn;
+    const import_params_t imp;
+    const analyze_params_t ana;
+    const export_params_t exp;
     
-    PARAMS( const ARGS& args ) : cmn( args ), imp( args, cmn ), ana( args ), exp( args, cmn ) { }
+    params_t( const args_t& args ) : cmn( args ), imp( args, cmn ), ana( args ), exp( args, cmn ) { }
 
     void show_report( void ) const {
         cmn . show_report();
@@ -216,11 +241,11 @@ struct PARAMS {
         exp . show_help();
     }
     
-    static void populate_hints( ARGS::str_vec& hints ) {
-        COMMON_PARAMS::populate_hints( hints );
-        IMPORT_PARAMS::populate_hints( hints );
-        ANALYZE_PARAMS::populate_hints( hints );
-        EXPORT_PARAMS::populate_hints( hints );        
+    static void populate_hints( args_t::str_vec_t& hints ) {
+        cmn_params_t::populate_hints( hints );
+        import_params_t::populate_hints( hints );
+        analyze_params_t::populate_hints( hints );
+        export_params_t::populate_hints( hints );        
     }
 };
 

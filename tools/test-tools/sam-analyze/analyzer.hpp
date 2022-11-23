@@ -7,33 +7,33 @@
 #include "ref_dict.hpp"
 #include "spot.hpp"
 
-class ANALYZER {
+class analyzer_t {
     private :
-        const ANALYZE_PARAMS& params;
+        const analyze_params_t& params;
         ref_dict_t& ref_dict;
-        SAM_DB &db;
-        ANALYZE_RESULT result;
+        sam_database_t &db;
+        analyze_result_t result;
         
-        ANALYZER( const ANALYZER& ) = delete;
+        analyzer_t( const analyzer_t& ) = delete;
 
         void analyze_spots( void ) {
-            SAM_SPOT spot;
-            SPOT_ITER spot_iter( db );
+            sam_spot_t spot;
+            sam_spot_iter_t spot_iter( db );
             while ( spot_iter . next( spot ) ) {
                 result . spot_count += 1;
                 result . counter_dict . add( spot .count() );
-                spot . enter_into_reflist( ref_dict );
+                spot . enter_into_ref_dict( ref_dict );
                 switch ( spot . spot_type() ) {
-                    case SAM_SPOT::SPOT_ALIGNED      : result . fully_aligned += 1; break;
-                    case SAM_SPOT::SPOT_UNALIGNED    : result . unaligned += 1; break;
-                    case SAM_SPOT::SPOT_HALF_ALIGNED : result . half_aligned += 1; break;
+                    case sam_spot_t::SPOT_ALIGNED      : result . fully_aligned += 1; break;
+                    case sam_spot_t::SPOT_UNALIGNED    : result . unaligned += 1; break;
+                    case sam_spot_t::SPOT_HALF_ALIGNED : result . half_aligned += 1; break;
                 }
                 spot . count_flags( result . flag_counts, result . flag_problems );
             }
         }
 
     public :
-        ANALYZER( SAM_DB& a_db, const ANALYZE_PARAMS& a_params, ref_dict_t& a_ref_dict )
+        analyzer_t( sam_database_t& a_db, const analyze_params_t& a_params, ref_dict_t& a_ref_dict )
             : params( a_params ), db( a_db ), ref_dict( a_ref_dict ) { }
 
         bool run( void ) {

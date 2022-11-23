@@ -14,21 +14,21 @@
  *  prog -a 10 -b 20 c ... -a and -b will be value-less again! 10, 20, and c are arguments
  */
 
-class ARGS {
-    typedef std::map< std::string, std::string > str_map;
-    typedef str_map::const_iterator str_iter;
+class args_t {
+    typedef std::map< std::string, std::string > str_map_t;
+    typedef str_map_t::const_iterator str_mapt_iter_t;
     
     public:
-        typedef std::vector< std::string > str_vec;
-        ARGS( int argc, char * argv[], const str_vec& hints ) {
+        typedef std::vector< std::string > str_vec_t;
+        args_t( int argc, char * argv[], const str_vec_t& hints ) {
             scan( argc, argv, hints );
         };
 
         const std::string get_str( const char * short_key,
                              const char *long_key = nullptr,
                              const char * dflt = nullptr ) const {
-            str_iter it = find( short_key, long_key );
-            if ( it == values.end() ) { 
+            auto it = find( short_key, long_key );
+            if ( it == values . end() ) { 
                 if ( nullptr != dflt ) {
                     return std::string( dflt );
                 } else {
@@ -42,8 +42,8 @@ class ARGS {
         T get_int( const char * short_key,
                    const char *long_key = nullptr, 
                    T dflt = 0 ) const {
-            str_iter it = find( short_key, long_key );
-            if ( it == values.end() ) { return dflt; };
+            auto it = find( short_key, long_key );
+            if ( it == values . end() ) { return dflt; };
             return from_string<T>( it -> second, dflt );
         }
 
@@ -64,7 +64,7 @@ class ARGS {
             for ( int i = 0; i < arg_count(); ++i ) {
                 std::cout << "arg[" << i << "] = " << get_arg( i ) << std::endl;
             }
-            for ( str_iter it = values.begin(); it != values.end(); ++it ) {
+            for ( auto it = values . begin(); it != values . end(); ++it ) {
                 std::string key = it -> first;
                 std::string value = get_str( key.c_str(), nullptr, nullptr );
                 std::cout << "[ '" << key << "' ] = '" << value << "'" << std::endl;
@@ -72,8 +72,8 @@ class ARGS {
         }
 
     private:
-        str_map values;
-        str_vec arguments;
+        str_map_t values;
+        str_vec_t arguments;
 
         template < typename T >
         T from_string( const std::string& s, T dflt ) const {
@@ -88,14 +88,14 @@ class ARGS {
             return res;
         }
         
-        str_iter find( const char * short_key, const char *long_key ) const {
-            str_iter it = values.end();
-            if ( nullptr != short_key ) { it = values.find( short_key ); }
-            if ( nullptr != long_key && it == values.end() ) { it = values.find( long_key ); }
+        str_mapt_iter_t find( const char * short_key, const char *long_key ) const {
+            auto it = values . end();
+            if ( nullptr != short_key ) { it = values . find( short_key ); }
+            if ( nullptr != long_key && it == values . end() ) { it = values . find( long_key ); }
             return it;
         }
 
-        static bool str_vector_contains( const str_vec& v, const std::string& key ) {
+        static bool str_vector_contains( const str_vec_t& v, const std::string& key ) {
             return std::find( v . begin(), v . end(), key ) != v . end();
         }
 
@@ -123,7 +123,7 @@ class ARGS {
             }
         }
 
-        void scan( int argc, char * argv[], const str_vec& hints ) {
+        void scan( int argc, char * argv[], const str_vec_t& hints ) {
             if ( argv != nullptr ) {
                 std::string key;
                 for ( int32_t i = 1; i < argc; ++i ) {

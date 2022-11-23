@@ -7,16 +7,16 @@
 #include "database.hpp"
 #include "result.hpp"
 
-struct SAM_SPOT {
+struct sam_spot_t {
     typedef enum SPOT_TYPE{ SPOT_ALIGNED, SPOT_HALF_ALIGNED, SPOT_UNALIGNED } SPOT_TYPE;
-    std::vector< SAM_ALIG > aligs;
+    std::vector< sam_alig_t > aligs;
     
-    void clear( SAM_ALIG& alig ) {
+    void clear( sam_alig_t& alig ) {
         aligs . clear();
         if ( ! alig . NAME . empty() ) { aligs . push_back( alig ); }
     }
     
-    bool add( SAM_ALIG& alig ) {
+    bool add( sam_alig_t& alig ) {
         bool res = true;
         if ( aligs . empty() ) {
             aligs . push_back( alig );
@@ -40,7 +40,7 @@ struct SAM_SPOT {
         return res;
     }
     
-    void enter_into_reflist( ref_dict_t& ref_dict ) {
+    void enter_into_ref_dict( ref_dict_t& ref_dict ) {
         for ( auto & alig : aligs ) {
             ref_dict . add ( alig . RNAME );
         }
@@ -59,7 +59,7 @@ struct SAM_SPOT {
         return res;
     }
     
-    void count_flags( FLAG_COUNTS& flag_counts, uint64_t& flag_problems ) {
+    void count_flags( flag_count_t& flag_counts, uint64_t& flag_problems ) {
         for ( auto & alig : aligs ) {
             if ( alig . paired_in_seq() ) { flag_counts . paired_in_seq ++; }
             if ( alig . propper_mapped() ) { flag_counts . propper_mapped ++; }
@@ -77,22 +77,24 @@ struct SAM_SPOT {
     }
 };
 
-class SPOT_ITER {
+class sam_spot_iter_t {
     private :
-        ALIG_ITER alig_iter;
-        SAM_ALIG alig;
-        
-        SPOT_ITER( const SPOT_ITER& ) = delete;
+        sam_alig_iter_t iter;
+        sam_alig_t alig;
+        uint64_t count;
+
+        sam_spot_iter_t( const sam_spot_iter_t& ) = delete;
         
     public :
-        SPOT_ITER( mt_database::DB& db ) : alig_iter( db, ALIG_ITER::ALIG_ORDER_NAME ) { }
+        sam_spot_iter_t( mt_database::database_t& db ) 
+            : iter( db, sam_alig_iter_t::ALIG_ORDER_NAME ), count( 0 ) { }
         
-        bool next( SAM_SPOT& spot ) {
+        bool next( sam_spot_t& spot ) {
             bool done = false;
             bool res = false;
             spot . clear( alig );
             while ( !done ) {
-                res = alig_iter . next( alig );
+                res = iter . next( alig );
                 if ( res ) {
                     if ( spot . add( alig ) ) {
                         // belongs to the current spot, continue
@@ -105,8 +107,79 @@ class SPOT_ITER {
                     done = true;
                 }
             }
+            if ( res ) { count++; }
             return res;
         }
+        
+        uint64_t get_count( void ) const { return count; }
+};
+
+struct sam_spot_rname_t {
+    std::vector< sam_alig_rname_t > aligs;
+    
+    void clear( sam_alig_rname_t& alig ) {
+        aligs . clear();
+        if ( ! alig . NAME . empty() ) { aligs . push_back( alig ); }
+    }
+    
+    bool add( sam_alig_rname_t& alig ) {
+        bool res = true;
+        if ( aligs . empty() ) {
+            aligs . push_back( alig );
+        } else {
+            auto last = aligs . back();
+            res = ( alig . same_name( last ) );
+            if ( res ) {
+                aligs . push_back( alig );
+            }
+        }
+        return res;
+    }
+
+    void enter_into_ref_dict( ref_dict_t& ref_dict ) {
+        for ( auto & alig : aligs ) {
+            ref_dict . add ( alig . RNAME );
+        }
+    }
+    
+    size_t count( void ) { return aligs . size(); }
+};
+
+class sam_spot_rname_iter_t {
+private :
+    sam_alig_rname_iter_t iter;
+    sam_alig_rname_t alig;
+    uint64_t count;
+    
+    sam_spot_rname_iter_t( const sam_spot_rname_iter_t& ) = delete;
+    
+public :
+    sam_spot_rname_iter_t( mt_database::database_t& db )
+        : iter( db, sam_alig_iter_t::ALIG_ORDER_NAME ), count( 0 ) { }
+    
+    bool next( sam_spot_rname_t& spot ) {
+        bool done = false;
+        bool res = false;
+        spot . clear( alig );
+        while ( !done ) {
+            res = iter . next( alig );
+            if ( res ) {
+                if ( spot . add( alig ) ) {
+                    // belongs to the current spot, continue
+                } else {
+                    done = true;
+                    // no: different name, keep it in alig for the next call
+                }
+            } else {
+                // no more alignments in the alig-iter
+                done = true;
+            }
+        }
+        if ( res ) { count++; }
+        return res;
+    }
+    
+    uint64_t get_count( void ) const { return count; }
 };
 
 #endif

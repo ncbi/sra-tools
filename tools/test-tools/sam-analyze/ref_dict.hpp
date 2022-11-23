@@ -3,6 +3,8 @@
 
 #include <string>
 #include <map>
+#include <vector>
+#include <algorithm>
 
 class ref_dict_t {
     private :
@@ -26,7 +28,6 @@ class ref_dict_t {
         }
         
         void reset( void ) { at_start = true; }
-
         size_t size( void ) const { return dict . size(); }
 
         bool next( std::string& value, uint64_t& count ) {
@@ -48,6 +49,47 @@ class ref_dict_t {
             bool res = ( found != dict . end() );
             return res;
         }
+};
+
+struct ref_freq_t {
+    std::string name;
+    uint64_t count;
+};
+
+class ref_by_freq_t {
+    private :
+        typedef std::vector< ref_freq_t > ref_freq_vec_t;
+        typedef ref_freq_vec_t::iterator ref_freq_vec_iter_t;
+        ref_freq_vec_t ref_freq_vec;
+        ref_freq_vec_iter_t iter;
+        
+        static bool cmp( ref_freq_t& a, ref_freq_t& b ) {
+            return a . count > b . count;
+        }
+        
+    public :
+        ref_by_freq_t( ref_dict_t& ref_dict ) {
+            ref_freq_t entry;
+            ref_dict . reset();
+            while ( ref_dict . next( entry . name, entry . count ) ) {
+                ref_freq_vec . push_back( entry );
+            }
+            sort( ref_freq_vec . begin(), ref_freq_vec . end(), cmp );
+            reset();
+        }
+        
+        void reset( void ) { iter = ref_freq_vec . begin(); }
+        size_t size( void ) const { return ref_freq_vec . size(); }
+  
+        bool next( ref_freq_t& ref_freq ) {
+            bool res = ( iter != ref_freq_vec . end() );
+            if ( res ) {
+                ref_freq = *iter;
+                iter ++;
+            }
+            return res;
+        }
+  
 };
 
 #endif

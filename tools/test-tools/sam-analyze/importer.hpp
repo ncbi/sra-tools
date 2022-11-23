@@ -6,17 +6,17 @@
 #include "result.hpp"
 #include "sam_db.hpp"
 
-class IMPORTER {
+class importer_t {
     private :
-        const IMPORT_PARAMS& params;
-        IMPORT_RESULT result;
-        FILE_READER reader;
-        STRING_PARTS line_parts;
-        STRING_PARTS hdr_parts;
-        SAM_DB &db;
-        mt_database::PREP_STM::str_vec data;
+        const import_params_t& params;
+        import_result_t result;
+        file_reader_t reader;
+        string_parts_t line_parts;
+        string_parts_t hdr_parts;
+        sam_database_t &db;
+        mt_database::prep_stm_t::str_vec data;
 
-        IMPORTER( const IMPORTER& ) = delete;
+        importer_t( const importer_t& ) = delete;
         
         static bool StartsWith( const std::string& s, const char * p ) {
             bool res = false;
@@ -116,8 +116,7 @@ class IMPORTER {
         }
 
         bool import_lines( void ) {
-            int status = db . begin_transaction();
-            bool ok = db . ok_or_done( status );
+            bool ok = ( SQLITE_OK == db . begin_transaction() );
             bool has_align_limit = params . align_limit > 0;
             std::string line;
             while ( ok && reader . next( line ) ) {
@@ -136,32 +135,26 @@ class IMPORTER {
         }
 
     public :
-        IMPORTER( SAM_DB& a_db, const IMPORT_PARAMS& a_params )
+        importer_t( sam_database_t& a_db, const import_params_t& a_params )
             : params( a_params ),
               reader( a_params . import_filename ),
               line_parts( '\t' ),
               hdr_parts( ':' ),
               db( a_db ) {
-                  db . drop_all();
-                }
+            uint16_t st = db . drop_all();
+            
+        }
               
-        bool run( bool show_report ) {
-            if ( show_report ) {
-                std::cerr << "IMPORT:" << std::endl;
-            }
-
+        bool run( void ) {
+            if ( params . cmn . report ) { std::cerr << "IMPORT:" << std::endl;  }
             bool ok = synchronous( false );
-
             // this takes a while
             if ( ok ) { ok = import_lines(); }
-
             // create the name-index on the ALIG table
-            if ( ok ) { ok = db . ok_or_done( db.create_alig_tbl_idx() ); }
-
+            if ( ok ) { ok = db . ok_or_done( db . create_alig_tbl_idx() ); }
             result . total_lines = reader . get_line_nr();
             result . success =  ok;
-            
-            if ( show_report ) { result . report(); }
+            if ( params . cmn . report ) { result . report(); }
             return result . success;
         }
 };

@@ -11,7 +11,14 @@
 
 namespace mt_database {
 
-class PREP_STM {
+struct db_func_t {
+    static void print_status( int16_t status ) {
+        const char * e = sqlite3_errstr( status );
+        std::cerr << "status:" << e << std::endl;
+    }
+};
+
+class prep_stm_t {
     private :
         sqlite3 *db;
         sqlite3_stmt * stmt;
@@ -19,23 +26,22 @@ class PREP_STM {
 
     public :
         typedef std::vector< std::string > str_vec;
-
        
-        PREP_STM( sqlite3* a_db, const std::string& sql )
+        prep_stm_t( sqlite3* a_db, const std::string& sql, bool and_step = false )
             : db( a_db ), stmt( nullptr ) {
             status = sqlite3_prepare_v2( db, sql.c_str(), sql.length(), &stmt, nullptr );
+            if ( and_step && SQLITE_OK == status ) {
+                status = sqlite3_step( stmt );
+            }
         }
 
-        ~PREP_STM( void ) { sqlite3_finalize( stmt ); }
+        ~prep_stm_t( void ) { sqlite3_finalize( stmt ); }
 
         bool ok_or_done( int16_t st ) { return ( SQLITE_OK == st || SQLITE_DONE == st ); }
 
         int16_t get_status( void ) const { return status; }
         
-        void print_status( int16_t status ) const {
-            const char * e = sqlite3_errstr( status );
-            std::cout << "status:" << e << std::endl;
-        }
+        void print_status( void ) const { db_func_t::print_status( status ); }
 
         int16_t step( void ) { 
             status =  sqlite3_step( stmt );
@@ -88,27 +94,27 @@ class PREP_STM {
         int32_t read_int32_t( uint32_t idx = 0 ) { return sqlite3_column_int( stmt, idx ); }
 };
 
-typedef std::shared_ptr< PREP_STM > PREP_STM_PTR;
+typedef std::shared_ptr< prep_stm_t > prep_stm_ptr_t;
 
-class DB {
+class database_t {
     public :
         typedef std::vector< std::string > str_vec;
 
         sqlite3 *db;
         int16_t rc_open;
         
-        DB( const char * name ) : db( nullptr ) {
+        database_t( const char * name ) : db( nullptr ) {
             rc_open = sqlite3_open( name, &db );
         }
         
-        ~DB( void ) {
+        ~database_t( void ) {
             if ( SQLITE_OK == rc_open && nullptr != db ) {
                 sqlite3_close( db );
             }
         }
 
-        PREP_STM_PTR make_prep_stm( const std::string& stm ) {
-            return std::make_shared< PREP_STM >( db, stm );
+        prep_stm_ptr_t make_prep_stm( const std::string& stm, bool and_step = false ) {
+            return std::make_shared< prep_stm_t >( db, stm, and_step );
         }
             
         int16_t exec( const char * stm ) {
@@ -128,7 +134,7 @@ class DB {
         
         int16_t clear_table( const std::string& tbl_name, bool vacuum = false ) {
             std::string sql = "DELETE FROM " + tbl_name + ";";
-            PREP_STM drop( db, sql );
+            prep_stm_t drop( db, sql );
             int16_t res = drop . step();
             if ( ok_or_done( res ) && vacuum ) {
                 res = exec( "VACUUM" );
@@ -151,10 +157,7 @@ class DB {
             return ( SQLITE_OK == status || SQLITE_DONE == status );
         }
 
-        void print_status( int16_t status ) {
-            const char * e = sqlite3_errstr( status );
-            std::cout << "status:" << e << std::endl;
-        }
+        void print_status( int16_t status ) { db_func_t::print_status( status ); }
 
         void split_at( std::vector< std::string >& dst, const std::string& src, char delim ) {
             std::stringstream ss( src );

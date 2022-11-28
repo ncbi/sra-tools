@@ -213,9 +213,10 @@ struct export_params_t {
         std::cout << "\t-R=file --ref-report=file . produce report of used references" << std::endl;
         std::cout << "\t-u --only-used-refs ....... export only used reference-header-lines" << std::endl;
         std::cout << "\t-f --fix-names ............ fix names in alignments ( remove space )" << std::endl;
-        std::cout << "\t-s --sort ................. sort alignments by ref-position in export" << std::endl;
+        std::cout << "\t-s --sort-by-refpos ....... sort alignments by ref-position in export" << std::endl;
+        std::cout << "\t-n --sort-by-name ......... sort alignments by QNAME" << std::endl;
         std::cout << "\t-E --export-spot-limit=N... limit how many spots are exported" << std::endl;
-        std::cout << "\t-M --export-min-refs ...... used smallest number of refs for export" << std::endl;
+        //std::cout << "\t-M --export-min-refs ...... used smallest number of refs for export" << std::endl;
     }
 };
 

@@ -50,13 +50,9 @@
 #include <vfs/resolver.h> /* VResolverRelease */
 
 #include "PrfMain.h"
+#include "PrfOutFile.h" /* PATH_MAX */
 
 #include <time.h> /* time */
-
-#include <limits.h> /* PATH_MAX */
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
 
 bool _StringIsXYZ(const String *self, const char **withoutScheme,
     const char * scheme, size_t scheme_size)

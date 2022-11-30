@@ -122,6 +122,14 @@ bool spot_group_requested( const char * seq_defline, const char * qual_defline )
     return ( var_requested( seq_defline, "$sg" ) || var_requested( qual_defline, "$sg" ) );
 }
 
+bool read_id_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( var_requested( seq_defline, "$ri" ) || var_requested( qual_defline, "$ri" ) );
+}
+
+bool spot_name_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( var_requested( seq_defline, "$sn" ) || var_requested( qual_defline, "$sn" ) );    
+}
+
 /* ------------------------------------------------------------------------------------------- */
 
 #include <klib/out.h>

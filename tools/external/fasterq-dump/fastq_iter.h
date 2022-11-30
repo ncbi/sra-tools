@@ -104,7 +104,8 @@ struct align_iter_t;
 void destroy_align_iter( struct align_iter_t * self );
 
 rc_t make_align_iter( const cmn_iter_params_t * params,
-                      struct align_iter_t ** iter );
+                      struct align_iter_t ** iter,
+                      bool uses_read_id );
 
 bool get_from_align_iter( struct align_iter_t * self, align_rec_t * rec, rc_t * rc );
 uint64_t get_row_count_of_align_iter( struct align_iter_t * self );

@@ -1239,8 +1239,8 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
 
                             /* fill out the data-record for the flex-printer */
                             data . row_id = rec . row_id;
-                            data . read_id = 0;         /* not picked up by format in this case*/
-                            data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
+                            data . read_id = read_id_0 + 1;
+                            data . dst_id = 0; /* not used, because registry=NULL - output to common final file */
 
                             data . spotname = ( jo -> rowid_as_name ) ? NULL : &( rec . name );
                             data . spotgroup = &( rec . spotgroup );

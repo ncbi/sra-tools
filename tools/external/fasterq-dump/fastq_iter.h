@@ -95,6 +95,7 @@ typedef struct align_rec_t
 {
     int64_t row_id;
     uint64_t spot_id;
+    uint32_t read_id;
     String read;
 } align_rec_t;
 

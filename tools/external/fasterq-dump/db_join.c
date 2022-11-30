@@ -1913,7 +1913,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
 
                         /* fill out the data-record for the flex-printer */
                         data . row_id = rec . spot_id;
-                        data . read_id = 0;         /* not picked up by format in this case*/
+                        data . read_id = rec . read_id;
                         data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
 
                         data . spotname = NULL;     /* we do not have the spot-name in the align-table */

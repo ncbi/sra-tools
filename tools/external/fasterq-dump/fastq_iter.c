@@ -432,7 +432,9 @@ uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter_t * self ) {
 
 typedef struct align_iter_t {
     struct cmn_iter_t * cmn;
-    uint32_t spot_id, read_id;
+    uint32_t cur_idx_raw_read;
+    uint32_t cur_idx_spot_id;
+    uint32_t cur_idx_seq_read_id;
 } align_iter_t;
 
 
@@ -455,13 +457,16 @@ rc_t make_align_iter( const cmn_iter_params_t * params, struct align_iter_t ** i
             ErrMsg( "make_align_iter.make_cmn_iter() -> %R", rc );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_add_column( self -> cmn, "RAW_READ", &( self -> read_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "RAW_READ", &( self -> cur_idx_raw_read ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_add_column( self -> cmn, "SEQ_SPOT_ID", &( self -> spot_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "SEQ_SPOT_ID", &( self -> cur_idx_spot_id ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_range( self -> cmn, self -> read_id );
+            rc = cmn_iter_add_column( self -> cmn, "SEQ_READ_ID", &( self -> cur_idx_seq_read_id ) );
+        }
+                if ( 0 == rc ) {
+            rc = cmn_iter_range( self -> cmn, self -> cur_idx_raw_read );
         }
         if ( 0 != rc ) {
             destroy_align_iter( self );
@@ -479,12 +484,16 @@ bool get_from_align_iter( struct align_iter_t * self, align_rec_t * rec, rc_t * 
         rc_t rc1 = 0;
 
         rec -> row_id = cmn_iter_row_id( self -> cmn );
-        rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
+        rc1 = cmn_read_String( self -> cmn, self -> cur_idx_raw_read, &( rec -> read ) );
 
         if ( 0 == rc1 ) {
-            rc1 = cmn_read_uint64( self -> cmn, self -> spot_id, &( rec -> spot_id ) );
+            rc1 = cmn_read_uint64( self -> cmn, self -> cur_idx_spot_id, &( rec -> spot_id ) );
         }
 
+        if ( 0 == rc1 ) {
+            rc1 = cmn_read_uint32( self -> cmn, self -> cur_idx_seq_read_id, &( rec -> read_id ) );
+        }
+        
         if ( NULL != rc ) { *rc = rc1; }
     }
     return res;

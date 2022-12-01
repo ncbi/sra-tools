@@ -117,8 +117,6 @@ echo "OS=$OS"
 for tool in ${TOOLS}
 do
 
-    RunTool ${BIN_DIR}/$tool -h
-
     # All tools are supposed to respond to -V and --version, yet some respond only to --version, or -version, or nothing at all
     VERSION_OPTION="-V"
     if [ "${tool}" = "blastn_vdb" ]     ; then VERSION_OPTION="-version"; fi
@@ -127,6 +125,7 @@ do
     if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
     if [ "${OS}" != "Ubuntu" ] || [ "${tool}" != "bam-load" ]; then
+      RunTool ${BIN_DIR}/$tool -h
       RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
     fi
 

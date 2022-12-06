@@ -1128,7 +1128,7 @@ public:
             {
                 block = alloc_.alloc_bit_block();
                 // initialize block depending on its previous status
-                bit_block_set(block, block_flag ? 0xFF : 0);
+                bm::bit_block_set(block, block_flag ? ~0u : 0);
                 set_block(nb, block);
             }
             else // gap block requested
@@ -1944,11 +1944,33 @@ public:
     
     /// if tree of blocks already up
     bool is_init() const BMNOEXCEPT { return top_blocks_ != 0; }
-    
+
+    // ----------------------------------------------------------------
+
     /// allocate first level of descr. of blocks 
     void init_tree()
     {
-        BM_ASSERT(top_blocks_ == 0);
+    // not clear why but GCC reports "maybe uninit" for top_blocks_ in -O3
+    // all attempts to do a different fix failed, supressed for now...
+#if defined(__GNUG__)
+    #if defined( __has_warning )
+        #if __has_warning("-Wmaybe-uninitialized")
+            #define BM_SUPPRESSING
+        #endif
+    #else
+        #define BM_SUPPRESSING
+    #endif
+    #ifdef BM_SUPPRESSING
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #endif
+#endif
+        if(top_blocks_ != 0)
+            return;
+#ifdef BM_SUPPRESSING
+#pragma GCC diagnostic pop
+#undef  BM_SUPPRESSING
+#endif
         if (top_block_size_)
         {
             top_blocks_ = (bm::word_t***) alloc_.alloc_ptr(top_block_size_);

@@ -97,24 +97,6 @@ print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
-$SRAF  = 'fasp://dbtest@sra-download.ncbi.nlm.nih.gov';
-$REFSEQC = 'KC702174.1';
-$REFSEQF = "$SRAF:data/sracloud/traces/refseq/$REFSEQC";
-
-`which ascp 2> /dev/null`;
-unless ($?)
-{   $HAVE_NCBI_ASCP = 1 unless `hostname` eq "iebdev21\n" }
-
-if ($HAVE_NCBI_ASCP) {
-    print "PREFETCH FASP URL TO OUT-FILE\n";
-    `rm -f tmp3/dir/file`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-           "$DIRTOTEST/$PREFETCH $REFSEQF -O / -o tmp3/dir/file";
-    print "$CMD\n" if $VERBOSE;
-    `$CMD 2> /dev/null`     ; die if $?;
-    `rm tmp3/dir/file`; die if $?;
-} else { print "download of FASP URL when ascp is not found is disabled\n" }
-
 print "downloading multiple items to file\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
        "$DIRTOTEST/$PREFETCH SRR045450 $SRAC -o tmp/o";
@@ -156,17 +138,6 @@ print "$CMD\n" if $VERBOSE;
 `rm wiki`          ; die if $?;
 chdir $CWD        or die;
 
-if ($HAVE_NCBI_ASCP) {
-    print "PREFETCH FASP URL / DEFAULT\n";
-    chdir 'tmp2'   or die;
-    `rm -f $REFSEQC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQF";
-    print "$CMD\n" if $VERBOSE;
-    `$CMD 2> /dev/null`; die if $?;
-    `rm $REFSEQC`      ; die if $?;
-    chdir $CWD        or die;
-} else { print "download of FASP URL when ascp is not found is disabled\n" }
-
 print "PREFETCH ACCESSION TO OUT-DIR\n";
 `rm -f tmp3/dir/$SRAC/$SRAC.sra`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
@@ -198,17 +169,5 @@ $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/wiki` ; die if $?;
-
-if ($HAVE_NCBI_ASCP) {
-    print "PREFETCH FASP URL TO OUT-DIR\n";
-    `rm -f tmp3/dir/$REFSEQC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/$PREFETCH $REFSEQF -O tmp3/dir";
-    print "$CMD\n" if $VERBOSE;
-    `$CMD 2> /dev/null`; die if $?;
-    `rm tmp3/dir/$REFSEQC` ; die if $?;
-} else {
-    print "download of FASP URL TO OUT-DIR when ascp is not found is disabled\n"
-}
 
 `rm -r tmp*`; die if $?;

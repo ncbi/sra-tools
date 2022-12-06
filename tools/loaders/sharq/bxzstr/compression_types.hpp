@@ -18,22 +18,18 @@
 namespace bxz {
 enum Compression { z, bz2, lzma, plaintext };
 inline Compression detect_type(char* in_buff_start, char* in_buff_end) {
+#ifdef BXZSTR_Z_STREAM_WRAPPER_HPP
     unsigned char b0 = *reinterpret_cast< unsigned char * >(in_buff_start);
     unsigned char b1 = *reinterpret_cast< unsigned char * >(in_buff_start + 1);
-#ifdef BXZSTR_Z_STREAM_WRAPPER_HPP
     bool gzip_header = (b0 == 0x1F && b1 == 0x8B);
     bool zlib_header = (b0 == 0x78 && (b1 == 0x01 || b1 == 0x9C || b1 == 0xDA));
     if (in_buff_start + 2 <= in_buff_end && (gzip_header || zlib_header)) return z;
-#endif
     unsigned char b2 = *reinterpret_cast< unsigned char * >(in_buff_start + 2);
-#ifdef BXZSTR_BZ_STREAM_WRAPPER_HPP
     bool bz2_header = (b0 == 0x42 && b1 == 0x5a && b2 == 0x68);
     if (in_buff_start + 2 <= in_buff_end && bz2_header) return bz2;
-#endif
     unsigned char b3 = *reinterpret_cast< unsigned char * >(in_buff_start + 3);
     unsigned char b4 = *reinterpret_cast< unsigned char * >(in_buff_start + 4);
     unsigned char b5 = *reinterpret_cast< unsigned char * >(in_buff_start + 5);
-#ifdef BXZSTR_LZMA_STREAM_WRAPPER_HPP
     bool lzma_header = (b0 == 0xFD && b1 == 0x37 && b2 == 0x7A
 			&& b3 == 0x58 && b4 == 0x5A && b5 == 0x00);
     if (in_buff_start + 6 <= in_buff_end && lzma_header) return lzma;

@@ -156,7 +156,7 @@ static uint8_t * vdt_get_bits( p_bit_iter iter, size_t num_bytes )
     }
     return res;
 }
-    
+
 static void vdt_move_to_value( void* dst, const p_dump_src src, const uint32_t n_bits )
 {
     char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
@@ -317,7 +317,7 @@ static rc_t vdt_dump_boolean_element( p_dump_str s, const p_dump_src src,
                         rc = vds_append_str( s, "1" );
                     }
                     break;
-                    
+
         case 'T' :  if ( 0 == value )
                     {
                         rc = vds_append_str( s, "F" );
@@ -454,14 +454,14 @@ static rc_t vdt_dump_float_element( p_dump_str s, const p_dump_src src,
     {
         if ( BITSIZE_OF_FLOAT == def -> type_desc . intrinsic_bits )
         {
-            float value;
+            float value = 0;
             vdt_move_to_value( &value, src, def -> type_desc . intrinsic_bits );
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DOUBLE, "%e", value );
             DISP_RC( rc, "dump_str_append_fmt() failed" );
         }
         else if ( BITSIZE_OF_DOUBLE == def -> type_desc . intrinsic_bits )
         {
-            double value;
+            double value = 0;
             vdt_move_to_value( &value, src, def -> type_desc . intrinsic_bits );
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DOUBLE, "%e", value );
             DISP_RC( rc, "dump_str_append_fmt() failed" );
@@ -517,7 +517,7 @@ rc_t vdt_dump_dim_trans( const p_dump_src src, const p_col_def def,
     uint8_t *sbuf = ( uint8_t * )src -> buf;
     char trans_txt[ 512 ];
     size_t written;
-    
+
     sbuf += ( src -> offset_in_bits >> 3 );
     rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written, sbuf, src -> output_format );
     src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * dimension );
@@ -578,7 +578,7 @@ static rc_t vdt_dump_cell_element( const p_dump_src src, const p_col_def def, bo
     dimension   = def -> type_desc . intrinsic_dim;
     selection   = def -> type_desc . domain - 1;
 
-   
+
     if ( 1 == dimension )
     {
         /* we have only 1 dimension ---> just print this value */
@@ -741,7 +741,7 @@ const char * bool_false_dflt  = "false";
 static void vdt_get_bool_strings( char c_boolean, const char ** s_true, const char ** s_false )
 {
     *s_true  = bool_true_dflt;
-    *s_false = bool_false_dflt;    
+    *s_false = bool_false_dflt;
     switch( c_boolean )
     {
         case '1' :  *s_true = bool_true_1; *s_false = bool_false_1; break;
@@ -827,14 +827,14 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
         MACRO_NBB_IN_HEX
     } else {
         const char * bt_true;
-        const char * bt_false;    
+        const char * bt_false;
 
         vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
         if ( 1 == n ) {
             uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
             rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
             DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" ); \
-            
+
         } else {
             for ( i = 0; 0 == rc && i < n - 1; ++i )
             {
@@ -1024,7 +1024,7 @@ static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def de
         }
         else if ( 64 == def -> type_desc . intrinsic_bits )
         {
-            MACRO_NBB_PRINT( double, vdt_get_f64, "%e", "%e, " )            
+            MACRO_NBB_PRINT( double, vdt_get_f64, "%e", "%e, " )
         }
         else
         {
@@ -1110,13 +1110,13 @@ static rc_t vdt_format_slice_nbb( const p_dump_src src, const p_col_def def, p_b
     {
         /* boolean */
         case 1 : return vdt_format_slice_nbb_bool( src, def, bi, n ); break;
-        
+
         /* unsigned integers */
         case 2 : return vdt_format_slice_nbb_unsig( src, def, bi, n ); break;
-        
+
         /* signed integers */
         case 3 : return vdt_format_slice_nbb_sig( src, def, bi, n ); break;
-        
+
         /* floats */
         case 4 : return vdt_format_slice_nbb_float( src, def, bi, n ); break;
 
@@ -1205,7 +1205,7 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
 {
     rc_t rc = 0;
     bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
-    
+
     if ( group_trans )
     {
         switch ( src -> output_format )
@@ -1334,11 +1334,11 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         const char * bt_true;
         const char * bt_false;
         vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
-        
+
         if ( 1 == n ) {
             rc = vds_append_str( s, 0 == data[ 0 ] ? bt_false : bt_true );
             DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
-            
+
         } else {
             for ( i = 0; 0 == rc && i < n - 1; ++i )
             {
@@ -1519,7 +1519,7 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     } \
     return rc;
 
-    
+
 static rc_t vdt_format_slice_bb_u8( const p_dump_src src, const p_col_def def,
                                     const uint8_t * data, uint32_t n, bool brackets )
 {
@@ -1679,7 +1679,7 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     {
         /* boolean */
         case 1 : return vdt_format_slice_bb_bool( src, def, src -> buf, n, true ); break;
-        
+
         /* unsigned integers */
         case 2 : switch( def -> type_desc . intrinsic_bits )
                  {
@@ -1689,7 +1689,7 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
                     case 64 : return vdt_format_slice_bb_u64( src, def, src -> buf, n, true ); break;
                  }
                  break;
-        
+
         /* signed integers */
         case 3 : switch( def -> type_desc . intrinsic_bits )
                  {
@@ -1699,7 +1699,7 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
                     case 64 : return vdt_format_slice_bb_i64( src, def, src -> buf, n, true ); break;
                  }
                  break;
-        
+
         /* floats */
         case 4 : switch( def -> type_desc . intrinsic_bits )
                  {
@@ -1750,7 +1750,7 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     } \
     return rc;
 
-/* on a byte-boundary, 2 dimensional array of bool ( aka 1 byte ) 
+/* on a byte-boundary, 2 dimensional array of bool ( aka 1 byte )
  called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_bool( const p_dump_src src, const p_col_def def )
 {
@@ -1881,7 +1881,7 @@ static rc_t vdt_format_bb_dim2_trans_dflt( const p_dump_src src, const p_col_def
     const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
     char trans_txt[ TRANS_TXT_SIZE ];
     size_t written;
-    
+
     if ( 1 == group_count ) {
         rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
                                   data, src -> output_format );
@@ -1913,7 +1913,7 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
 {
     rc_t rc = 0;
     bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
-    
+
     if ( group_trans )
     {
         switch ( src -> output_format )
@@ -1927,7 +1927,7 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
     {
         switch( def -> type_desc . domain )
         {
-            /* boolean */        
+            /* boolean */
             case 1 : return vdt_format_cell_bb_dim2_bool( src, def ); break;
 
             /* unsigned integers */
@@ -1949,7 +1949,7 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
                         case 64 : return vdt_format_cell_bb_dim2_i64( src, def ); break;
                     }
                     break;
-            
+
             /* floats */
             case 4 : switch( def -> type_desc . intrinsic_bits )
                     {
@@ -1957,7 +1957,7 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
                         case 64 : return vdt_format_cell_bb_dim2_f64( src, def ); break;
                     }
                     break;
-            
+
             /* text */
             case 5 :
             case 6 : return vdt_format_cell_bb_dim2_ascii( src, def ); break; /* can that happen? */
@@ -1972,7 +1972,7 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
 src         [IN] ... buffer containing the data
 my_col_def  [IN] ... the definition of the column to be dumped
 
-new and improved print of a cell, takes advantage of the fact that most ( if not 
+new and improved print of a cell, takes advantage of the fact that most ( if not
 all ) cells have bit-offset == 0 and can be printed as a typecast to an array
 called by vdm_read_cell_data() in vdb-dump.c
 *************************************************************************************/
@@ -2016,14 +2016,14 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
         }
         else if ( src -> number_of_elements > 0 )
         {
-            /* we can take a simpler and faster approach if the data is on a byte-boundary! 
+            /* we can take a simpler and faster approach if the data is on a byte-boundary!
             * it always seems to be...
             */
-            
+
             uint32_t bits = def -> type_desc . intrinsic_bits;
             uint32_t ofs  = src -> offset_in_bits;
             bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
-            
+
             /* precompute this setting to prevent it from beeing computed later in the detailed functions */
             src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn );
             src -> group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
@@ -2041,7 +2041,7 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
                     /* the cell is a 2-dimensional vector of elements ... */
                     rc = vdt_format_cell_bb_dim2_v2( src, def );
                 }
-            }    
+            }
             else
             {
                 /* NOT on a byte-boundary, or bit-size is NOT 8 or 16 or 32 or 64 : the rare case */

@@ -828,7 +828,7 @@ void distance_operation(const BV& bv1,
 
             arg_blk = bman2.get_block(i, j);
 
-            if (!blk & !arg_blk)
+            if (!blk && !arg_blk)
                 continue;
                 
             combine_count_operation_with_block(blk, 

@@ -1391,10 +1391,34 @@ unsigned sse42_gap_bfind(const unsigned short* BMRESTRICT buf,
                          unsigned pos, unsigned* BMRESTRICT is_set) BMNOEXCEPT
 {
     unsigned start = 1;
-    unsigned end = 1 + ((*buf) >> 3);
+//    unsigned end = 1 + ((*buf) >> 3);
+    unsigned end = ((*buf) >> 3);
+    BM_ASSERT(buf[end] == 65535);
 
-    const unsigned arr_end = end;
+//    const unsigned arr_end = end+1;
     unsigned size = end - start;
+    for (; size >= 64; size = end - start)
+    {
+        unsigned mid = (start + end) >> 1;
+        if (buf[mid] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+        if (buf[mid = (start + end) >> 1] < pos)
+            start = mid+1;
+        else
+            end = mid;
+    } // for
+    BM_ASSERT(buf[end] >= pos);
+
     for (; size >= 16; size = end - start)
     {
         if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
@@ -1406,7 +1430,8 @@ unsigned sse42_gap_bfind(const unsigned short* BMRESTRICT buf,
         else
             end = mid;
     } // for
-    size += (end != arr_end);
+//    size += (end != arr_end);
+    ++size;
     if (size < 4) // for very short vector use conventional scan
     {
         const unsigned short* BMRESTRICT pbuf = buf + start;
@@ -1426,59 +1451,20 @@ unsigned sse42_gap_bfind(const unsigned short* BMRESTRICT buf,
     return start;
 }
 
-/*
-inline
-unsigned sse42_gap_bfind(const unsigned short* BMRESTRICT buf,
-                         unsigned pos, unsigned* BMRESTRICT is_set) BMNOEXCEPT
-{
-    unsigned start = 1;
-    unsigned end = start + ((*buf) >> 3);
-
-    if (unsigned dsize = end - start; dsize < 17)
-    {
-        start = bm::sse4_gap_find(buf+1, (bm::gap_word_t)pos, dsize);
-        *is_set = ((*buf) & 1) ^ (start & 1);
-        BM_ASSERT(buf[start+1] >= pos);
-        BM_ASSERT(buf[start] < pos || (start==0));
-        return start+1;
-    }
-    const unsigned arr_end = end;
-    BM_ASSERT (start != end);
-    do
-    {
-        if (unsigned curr = (start + end) >> 1; buf[curr] < pos)
-            start = curr + 1;
-        else
-            end = curr;
-        if (unsigned size = end - start; size < 16)
-        {
-            size += (end != arr_end);
-            unsigned idx =
-                bm::sse4_gap_find(buf + start, (bm::gap_word_t)pos, size);
-            start += idx;
-
-            BM_ASSERT(buf[start] >= pos);
-            BM_ASSERT(buf[start - 1] < pos || (start == 1));
-            break;
-        }
-    } while (start != end);
-
-    *is_set = ((*buf) & 1) ^ ((start-1) & 1);
-    return start;
-}
-*/
 
 /**
     Hybrid binary search to test GAP value, starts as binary, then switches to scan
     @return test result
     @ingroup SSE4
 */
+inline
 unsigned sse42_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos) BMNOEXCEPT
 {
     unsigned start = 1;
-    unsigned end = start + ((*buf) >> 3);
+//    unsigned end = start + ((*buf) >> 3);
+    unsigned end = ((*buf) >> 3);
     unsigned size = end - start;
-    const unsigned arr_end = end;
+//    const unsigned arr_end = end;
     for (; size >= 64; size = end - start)
     {
         unsigned mid = (start + end) >> 1;
@@ -1506,7 +1492,8 @@ unsigned sse42_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos) BMNO
         else
             end = mid;
     } // for
-    size += (end != arr_end);
+    //size += (end != arr_end);
+    ++size;
     if (size < 4) // for very short vector use conventional scan
     {
         const unsigned short* BMRESTRICT pbuf = buf + start;
@@ -1528,50 +1515,6 @@ unsigned sse42_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos) BMNO
     return ((*buf) & 1) ^ ((--start) & 1);
 }
 
-
-/*
-unsigned sse42_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos) BMNOEXCEPT
-{
-    unsigned start = 1;
-    unsigned end = start + ((*buf) >> 3);
-
-    unsigned size = end - start;
-    if (size < 17)
-    {
-        start = bm::sse4_gap_find(buf + start, (bm::gap_word_t)pos, size);
-        BM_ASSERT(buf[start+1] >= pos);
-        BM_ASSERT(buf[start] < pos || (start==0));
-        return ((*buf) & 1) ^ (start & 1);
-    }
-    const unsigned arr_end = end;
-    BM_ASSERT (start != end);
-    do
-    {
-        if (unsigned curr = (start + end) >> 1; buf[curr] < pos)
-            start = curr + 1;
-        else
-            end = curr;
-        if (unsigned curr = (start + end) >> 1; buf[curr] < pos)
-            start = curr + 1;
-        else
-            end = curr;
-
-        size = end - start;
-        if (size < 16)
-        {
-            size += (end != arr_end);
-            unsigned idx =
-                bm::sse4_gap_find(buf + start, (bm::gap_word_t)pos, size);
-            start += idx;
-            BM_ASSERT(buf[start] >= pos);
-            BM_ASSERT(buf[start - 1] < pos || (start == 1));
-            break;
-        }
-    } while (1);
-
-    return ((*buf) & 1) ^ ((--start) & 1);
-}
-*/
 
 /**
     Experimental (test) function to do SIMD vector search (lower bound)

@@ -24,7 +24,7 @@
 
 add_compile_definitions( __mod__="test/internal/test_sanitizers" )
 
-if ( NOT WIN32 )
+if ( RUN_SANITIZER_TESTS AND NOT WIN32 )
 	add_executable(asan asan.cpp)
 	set(asan_defs "-fsanitize=address")
 	target_compile_options( asan PRIVATE ${asan_defs} )

@@ -1,5 +1,4 @@
 /*==============================================================================
-/*==============================================================================
  *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
@@ -480,7 +479,7 @@ namespace ncbi
     const XMsg XBackTrace :: getName () const noexcept
     {
         if ( cur_frame >= num_frames )
-            return copyXMsg ( "<NO MORE FRAMES>" ); 
+            return copyXMsg ( "<NO MORE FRAMES>" );
 
         XMsg m;
         const char * name = frames [ cur_frame ];

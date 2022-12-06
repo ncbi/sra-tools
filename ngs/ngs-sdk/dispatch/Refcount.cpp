@@ -66,57 +66,51 @@ namespace ngs
     void OpaqueRefcount :: Release ()
         NGS_NOTHROW ()
     {
-        if ( this != 0 )
+        // cast to C object
+        NGS_Refcount_v1 * self = Self ();
+
+        try
         {
-            // cast to C object
-            NGS_Refcount_v1 * self = Self ();
+            // extract VTable
+            const NGS_Refcount_v1_vt * vt = Cast ( self -> vt );
 
-            try
-            {
-                // extract VTable
-                const NGS_Refcount_v1_vt * vt = Cast ( self -> vt );
+            // release object
+            ErrBlock err;
+            assert ( vt -> release != 0 );
+            ( * vt -> release ) ( self, & err );
 
-                // release object
-                ErrBlock err;
-                assert ( vt -> release != 0 );
-                ( * vt -> release ) ( self, & err );
-
-                // check for errors
-                err . Check ();
-            }
-            catch ( ErrorMsg & x )
-            {
-                // good place for a message to console or error log
-            }
-            catch ( ... )
-            {
-            }
+            // check for errors
+            err . Check ();
+        }
+        catch ( ErrorMsg & x )
+        {
+            // good place for a message to console or error log
+        }
+        catch ( ... )
+        {
         }
     }
 
     void * OpaqueRefcount :: Duplicate () const
         NGS_THROWS ( ErrorMsg )
     {
-        if ( this != 0 )
-        {
-            // cast to C object
-            const NGS_Refcount_v1 * self = Self ();
+        // cast to C object
+        const NGS_Refcount_v1 * self = Self ();
 
-            // extract VTable
-            const NGS_Refcount_v1_vt * vt = Cast ( self -> vt );
+        // extract VTable
+        const NGS_Refcount_v1_vt * vt = Cast ( self -> vt );
 
-            // duplicate object reference
-            ErrBlock err;
-            assert ( vt -> duplicate != 0 );
-            void * dup = ( * vt -> duplicate ) ( self, & err );
+        // duplicate object reference
+        ErrBlock err;
+        assert ( vt -> duplicate != 0 );
+        void * dup = ( * vt -> duplicate ) ( self, & err );
 
-            // check for errors
-            err. Check ();
+        // check for errors
+        err. Check ();
 
-            // return duplicated reference
-            assert ( dup != 0 );
-            return dup;
-        }
+        // return duplicated reference
+        assert ( dup != 0 );
+        return dup;
 
         return 0;
     }

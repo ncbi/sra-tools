@@ -409,7 +409,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
 {
     const typename BV::blocks_manager_type& bman = bv.get_blocks_manager();
 
-    bm::id_t count = 0;
+    bm::id_t count = 0; (void)count;
     int printed = 0;
 
     int total_gap_eff = 0;

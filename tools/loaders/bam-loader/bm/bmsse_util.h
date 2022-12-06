@@ -811,7 +811,7 @@ void sse2_set_block(__m128i* BMRESTRICT dst, bm::word_t value) BMNOEXCEPT
     __m128i* BMRESTRICT dst_end =
         (__m128i*)((bm::word_t*)(dst) + bm::set_block_size);
 
-    __m128i xmm0 = _mm_set1_epi32((int)value);
+    __m128i xmm0 = _mm_set1_epi32(int(value));
     do
     {            
         _mm_store_si128(dst, xmm0);        

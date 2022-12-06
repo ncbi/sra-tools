@@ -24,8 +24,6 @@
 *
 */
 
-#include "samline.vers.h"
-
 #include <kfs/file.h>
 #include <kfs/directory.h>
 
@@ -184,11 +182,12 @@ rc_t CC Usage ( const Args * args )
  *      mm = minor release
  *    rrrr = bug-fix release
  */
+/*
 ver_t CC KAppVersion ( void )
 {
     return SAMLINE_VERS;
 }
-
+*/
 
 static const char * get_str_option( const Args * args, const char * name, uint32_t idx, const char * dflt )
 {

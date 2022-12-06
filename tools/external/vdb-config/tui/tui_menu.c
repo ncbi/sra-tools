@@ -271,7 +271,7 @@ static bool find_node_by_id ( KTUI_Menu_Node * node, uint32_t id, KTUI_Menu_Node
             return RC( rcNS, rcMgr, rcAttaching, rcRefcount, rcInvalid );
         default:
             rc = RC( rcNS, rcMgr, rcAttaching, rcRefcount, rcUnknown );
-            break;            
+            break;
         }
     }
     return rc;
@@ -398,13 +398,13 @@ static bool find_index_of_child( KTUI_Menu_Node * node, uint32_t child_id, uint3
         else
         {
             /* find out which index the node has in it's parents list */
-            uint32_t idx;
+            uint32_t idx = 0;
             found = find_index_of_child( parent, id, &idx );
             if ( !found )
                 rc = RC( rcApp, rcAttr, rcRemoving, rcItem, rcInvalid ); /* something is wrong ! */
             else
             {
-                void * removed;
+                void * removed = NULL;
                 rc = VectorRemove ( &parent->children, idx, &removed );
                 if ( rc == 0 )
                     destroy_node( ( KTUI_Menu_Node * ) removed );

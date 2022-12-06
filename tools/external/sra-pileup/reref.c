@@ -134,7 +134,7 @@ static rc_t report_ref_table( const VDBManager *vdb_mgr, const char * path, int6
 
 static rc_t report_ref_table2( const ReferenceObj* ref_obj, int64_t start, int64_t stop ) {
     rc_t rc = 0;
-    int64_t row_id, max_prim_at, max_sec_at, max_ev_at;
+    int64_t row_id, max_prim_at = 0, max_sec_at = 0, max_ev_at = 0;
     uint64_t sum_prim, sum_sec, sum_ev, max_prim, max_sec, max_ev;
     sum_prim = sum_sec = sum_ev = max_prim = max_sec = max_ev = 0;
 
@@ -289,7 +289,7 @@ static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc,
                 } else if ( remote != NULL ) {
                     rc = VPathMakeString( remote, resolved );
                 } else {
-                    rc = KOutMsg( "cannot resolve '%s'\n", acc );					
+                    rc = KOutMsg( "cannot resolve '%s'\n", acc );
                 }
                 if ( local != NULL ) { VPathRelease ( local ); }
                 if ( remote != NULL ) { VPathRelease ( remote ); }
@@ -454,7 +454,7 @@ rc_t report_on_reference( Args * args, bool extended ) {
     if ( rc != 0 ) {
         LOGERR( klogInt, rc, "ArgsParamCount() failed" );
     } else {
-        KDirectory *dir; 
+        KDirectory *dir;
         rc = KDirectoryNativeDir( &dir );
         if ( rc != 0 ) {
             LOGERR( klogInt, rc, "KDirectoryNativeDir() failed" );

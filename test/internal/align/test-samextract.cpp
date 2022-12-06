@@ -114,13 +114,15 @@ static rc_t extract_buf(const char* buf, const size_t sz,
                         SAMExtractor** extractor)
 {
     rc_t rc;
-    char* tmpfname = tempnam(NULL, "tst");
-    FILE* fout = fopen(tmpfname, "wbx");
-    fwrite(buf, sz, 1, fout);
-    fclose(fout);
+    char tmpfname[23];
+    strcpy(tmpfname, "test-samextract-XXXXXX");
+    int fd = mkstemp( tmpfname);
+    ssize_t wr = write(fd, buf, sz);
+    assert( wr == (ssize_t)sz );
+    UNUSED(wr);
+    close(fd);
     rc = extract_file(tmpfname, extractor);
     unlink(tmpfname);
-    free(tmpfname);
     return rc;
 }
 

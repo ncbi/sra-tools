@@ -26,57 +26,36 @@
 
 #pragma once
 
-#include <string>
-#include <map>
+#if WINDOWS
+#else
+
+#include <system_error>
 #include <unistd.h>
+#include <cerrno>
+#include <string>
+#include <utility>
+#include "opt_string.hpp"
 
 static inline std::error_code error_code_from_errno()
 {
     return std::error_code(errno, std::system_category());
 }
 
-static inline bool pathExists(std::string const &path) {
-    return access(path.c_str(), F_OK) == 0;
-}
-
-class EnvironmentVariables {
-public:
-    class Value : public std::string {
-        bool notSet;
-    public:
-        Value(std::string const &value) : std::string(value), notSet(false) {}
-        Value() : notSet(true) {}
-        operator bool() const { return !notSet; }
-        bool operator !() const { return notSet; }
-    };
-    using Set = std::map<std::string, Value>;
-
-    static Value get(std::string const &name) {
-        auto const value = getenv(name.c_str());
-        if (value)
-            return Value(std::string(value));
-        return Value();
+namespace POSIX {
+struct EnvironmentVariables {
+    static opt_string get(char const *name) {
+        auto const val = getenv(name);
+        return val ? opt_string(val) : opt_string();
     }
-    static void set(std::string const &name, Value const &value) {
+    static void set(char const *name, char const *value) {
         if (value)
-            setenv(name.c_str(), value.c_str(), 1);
+            setenv(name, value, 1);
         else
-            unsetenv(name.c_str());
-    }
-    static Set set_with_restore(std::map<std::string, std::string> const &vars) {
-        auto result = Set();
-        for (auto && v : vars) {
-            result[v.first] = get(v.first);
-            set(v.first, v.second.empty() ? Value() : v.second);
-        }
-        return result;
-    }
-    static void restore(Set const &save) {
-        for (auto && v : save) {
-            set(v.first, v.second);
-        }
-    }
-    static char const *impersonate() {
-        return getenv("SRATOOLS_IMPERSONATE");
+            unsetenv(name);
     }
 };
+}
+
+using PlatformEnvironmentVariables = POSIX::EnvironmentVariables;
+
+#endif

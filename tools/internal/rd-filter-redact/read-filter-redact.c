@@ -20,7 +20,7 @@
  *
  *  Please cite the author in any work or product based on this material.
  *
- * ============================================================================$
+ * =============================================================================
  */
 
 #include <kapp/main.h>
@@ -28,12 +28,11 @@
 #include <sra/wsradb.h> /* spotid_t */
 #include <sra/sradb-priv.h> /* SRASchemaMake */
 
-#include <vdb/cursor.h> /* VCursor */
-#include <vdb/database.h> /* VDatabase */
 #include <vdb/manager.h> /* VDBManager */
-#include <vdb/schema.h> /* VSchemaRelease */
 #include <vdb/table.h> /* VDBTable */
-#include <vdb/vdb-priv.h> /* VTableDropColumn */
+#include <vdb/database.h> /* VDatabase */
+#include <vdb/cursor.h> /* VCursor */
+#include <vdb/schema.h> /* VSchemaRelease */
 
 #include <kdb/manager.h> /* KDBPathType */
 #include <kdb/meta.h> /* KMetadataRelease */
@@ -59,9 +58,6 @@
 #include <string.h> /* memset */
 
 #define DISP_RC(rc,msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
-
-#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
 static KDirectory* __SpotIteratorDirectory = NULL;
 
@@ -92,25 +88,20 @@ typedef struct Db {
     const char* table;
 
     VDBManager* mgr;
-    const VDatabase* rDb;
-    VTable* wTbl;   /* table to redact */
-    VTable* newTbl; /* temporary table */
+    VTable *tbl;
 
-    const VCursor* rCursor; /* read cursor */
-    uint32_t rFilterIdx;    /* column read index */
+    const VCursor *rCursor;
+    uint32_t rFilterIdx;
 
-    VCursor* wCursor;       /* write cursor */
-    uint32_t wIdx;          /* column write index */
+    VCursor *wCursor;
+    uint32_t wIdx;
 
-    KMetadata* meta;        /* original Table/DB metadata to record HISTORY */
-    const KMetadata* dMeta; /* original DB metadata */
+    KMetadata *meta;
 
-    bool locked;            /* original run will be locked at the end? */
+    bool locked;
 
-    spotid_t nSpots;        /* total number of copied spots */
-    spotid_t redactedSpots; /* number of redacted spots */
-    
-    bool VCursorOpenFAILED; /* copy in place failed: copy to temp will be done*/
+    spotid_t nSpots;
+    spotid_t redactedSpots;
 } Db;
 /** Init the static directory object */
 static rc_t SpotIteratorInitDirectory(void) {
@@ -473,11 +464,9 @@ static bool SpotIteratorNext(SpotIterator* self, rc_t* rc,
     return hasNext;
 }
 
-static const char s_Column[] = "READ_FILTER";
-    
 static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
 {
-    const VTable* rTbl = NULL;
+    const char name[] = "READ_FILTER";
 
     assert(args && db);
 
@@ -520,68 +509,38 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
     }
 
     if (rc == 0) {
-/*      bool isDb = false; */
-
         db->locked = true; /* has to be locked in production mode */
-
-        rc = VDBManagerOpenTableUpdate (db->mgr, &db->wTbl, NULL, args->table);
-        if( rc == 0) {
-            rc = VTableOpenMetadataUpdate ( db->wTbl, & db->meta );
-            DISP_RC(rc, "while Opening Table Metadata");
-        }
-        else {
-            VDatabase* wDb = NULL;
-            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &wDb, NULL,
-                                                args->table );
-            DISP_RC(rc2, "while VDBManagerOpenDBUpdate");
-
-            if( rc2 == 0) {
-                rc2 = VDatabaseOpenTableUpdate( wDb, &db->wTbl, "SEQUENCE" );
-                DISP_RC(rc2, "while OpenTableUpdate");
-                if (rc2 == 0) {
-                    rc = 0;
-/*                  isDb = true; */
-		}
-            }
-
-            if (rc == 0) {	    
-                rc = VDBManagerOpenDBRead( db->mgr, &db->rDb, NULL,
-                                                args->table );
-                DISP_RC(rc, "while VDBManagerOpenDBRead");
-                if( rc == 0) {
-                    rc = VDatabaseOpenTableRead(db->rDb, &rTbl, "SEQUENCE");
-                    DISP_RC(rc, "while OpenTableRead");
-                }
-
-                if( rc == 0) {
-                    rc = VDatabaseOpenMetadataRead(db->rDb, &db->dMeta);
-                    DISP_RC(rc, "while Opening DB Metadata");
-                }
-            }
-
-            if (rc == 0) {
-                rc = VDatabaseOpenMetadataUpdate(wDb, &db->meta);
-                DISP_RC(rc, "while Opening Db Metadata");
-            }
-
-	    RELEASE(VDatabase, wDb);
-        }
-
+        rc = VDBManagerOpenTableUpdate (db->mgr, &db->tbl, NULL, args->table);
         if (rc != 0) {
+            VDatabase *vdb;
+            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL,
+                                                args->table );
+            if( rc2 == 0) {
+                rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
+                if (rc2 == 0 )
+                    rc = 0;
+                VDatabaseRelease ( vdb );
+            }
+        }
+        if(rc != 0){
             PLOGERR(klogErr, (klogErr, rc,
                 "while opening VTable '$(table)'", "table=%s", args->table));
         }
     } 
 
     if( rc == 0) {
-        VTable* t = rTbl ? (VTable*)rTbl : db->wTbl;
-        rc = VTableCreateCursorRead(t, &db->rCursor);
+        rc = VTableOpenMetadataUpdate ( db->tbl, & db->meta );
+        DISP_RC(rc, "while Opening Metadata");
+    }
+
+    if( rc == 0) {
+        rc = VTableCreateCursorRead(db->tbl, &db->rCursor);
         DISP_RC(rc, "while creating read cursor");
         if (rc == 0) {
-            rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx, s_Column);
+            rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx, "%s", name);
             if (rc != 0) {
                 PLOGERR(klogErr, (klogErr, rc,
-                    "while adding $(name) to read cursor", "name=%s", s_Column));
+                    "while adding $(name) to read cursor", "name=%s", name));
             }
         }
         if (rc == 0) {
@@ -589,102 +548,21 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
             DISP_RC(rc, "while opening read cursor");
         }
     }
-
     if (rc == 0) {
-        rc = VTableCreateCursorWrite(db->wTbl, &db->wCursor, kcmInsert);
+        rc = VTableCreateCursorWrite(db->tbl, &db->wCursor, kcmInsert);
         DISP_RC(rc, "while creating write cursor");
         if (rc == 0) {
-            rc = VCursorAddColumn(db->wCursor, &db->wIdx, s_Column);
+            rc = VCursorAddColumn(db->wCursor, &db->wIdx, "%s", name);
             if (rc != 0) {
                 PLOGERR(klogErr, (klogErr, rc,
-                   "while adding $(name) to write cursor", "name=%s", s_Column));
+                    "while adding $(name) to write cursor", "name=%s", name));
             }
         }
         if (rc == 0) {
             rc = VCursorOpen(db->wCursor);
-            if (rc != 0) {
-                db->VCursorOpenFAILED = true;
-                RELEASE(VCursor, db->wCursor);
-                db->wIdx = 0;
-	    }
+            DISP_RC(rc, "while opening write cursor");
         }
     }
-
-    RELEASE(VTable, rTbl);
-
-    return rc;
-}
-
-static const char s_TmpPath[] = "tmp";
-
-static rc_t DbInit2(Db* db) {
-    rc_t rc = 0;
-
-    const KMDataNode* node = NULL;
-    VSchema* schema = NULL;
-    char buffer[99999] = "";
-    size_t size = 0;
-
-    assert(db);
-
-    if (db->dMeta != NULL) {
-        VDatabase* newDb = NULL;
-        char typespec[ 128 ] = "";
-
-        rc = VDatabaseTypespec ( db->rDb, typespec, sizeof typespec );
-        DISP_RC( rc, "VDatabaseTypespec( db ) failed" );
-
-        if (rc == 0) {
-            rc = KMetadataOpenNodeRead(db->dMeta, &node, "schema");
-            DISP_RC( rc, "while KMetadataOpenNodeRead(db)" );
-        }
-        if (rc == 0) {
-            rc = KMDataNodeReadCString(node, buffer, sizeof buffer, &size);
-            DISP_RC( rc, "while KMDataNodeRead(db)" );
-        }
-
-        if (rc == 0) {
-            rc = VDBManagerMakeSchema(db->mgr, &schema);
-            DISP_RC( rc, "while VDBManagerMakeSchema(db)" );
-        }
-        if (rc == 0) {
-            rc = VSchemaParseText(schema, NULL, buffer, size);
-            DISP_RC( rc, "while VSchemaParseText(db)" );
-        }
-
-        if (rc == 0) {
-            rc = VDBManagerCreateDB
-                (db->mgr, &newDb, schema, typespec, 0, s_TmpPath);
-            DISP_RC( rc, "while VDBManagerCreateDB" );
-        }
-
-        if (rc == 0) {
-            const char name[] = "SEQUENCE";
-            rc = VDatabaseCreateTable(newDb, &db->newTbl, name, 0, name);
-            DISP_RC( rc, "while VDatabaseCreateTable" );
-        }
-
-        if (rc == 0) {
-            rc = VTableCreateCursorWrite(db->newTbl, &db->wCursor, kcmInsert);
-            DISP_RC( rc, "while VTableCreateCursorWrite(new table)" );
-            if (rc == 0) {
-                rc = VCursorAddColumn(db->wCursor, &db->wIdx, s_Column);
-                if (rc != 0) {
-                  PLOGERR(klogErr, (klogErr, rc,
-                   "while adding $(name) to write cursor", "name=%s", s_Column));
-                }
-                else {
-                    rc = VCursorOpen(db->wCursor);
-                    DISP_RC( rc, "while VCursorOpen(new table)" );
-                }
-            }
-        }
-
-        RELEASE(VDatabase, newDb);
-    }
-
-    RELEASE(VSchema, schema);
-    RELEASE(KMDataNode, node);
 
     return rc;
 }
@@ -703,13 +581,6 @@ static rc_t DbDestroy(Db* db)
     }
 
     {
-        rc_t rc2 = KMetadataRelease(db->dMeta);
-        db->dMeta = NULL;
-        if (rc == 0)
-            rc = rc2;
-    }
-
-    {
         rc_t rc2 = VCursorRelease(db->rCursor);
         db->rCursor = NULL;
         if (rc == 0)
@@ -723,41 +594,11 @@ static rc_t DbDestroy(Db* db)
         {   rc = rc2; }
     }
 
-    if (db->VCursorOpenFAILED) {
-        rc_t r2 = VTableDropColumn(db->wTbl, s_Column);
-        if (r2 == SILENT_RC(rcDB, rcDirectory, rcRemoving, rcPath, rcNotFound))
-            r2 = 0;
-        DISP_RC(r2, "during VTableDropColumn()");
-        if (rc == 0 && r2 != 0)
-            rc = r2;
-
-        if (r2 == 0) {
-            r2 = VTableCopyColumn(db->wTbl, true, db->newTbl, "RD_FILTER");
-            DISP_RC(r2, "during TableCopyColumn()");
-            if (rc == 0 && r2 != 0)
-                rc = r2;
-        }
-    }
-
     {
-        rc_t rc2 = VTableRelease(db->wTbl);
-        db->wTbl = NULL;
+        rc_t rc2 = VTableRelease(db->tbl);
+        db->tbl = NULL;
         if (rc == 0)
         {   rc = rc2; }
-    }
-
-    {
-        rc_t rc2 = VTableRelease(db->newTbl);
-        db->newTbl = NULL;
-        if (rc == 0)
-        {   rc = rc2; }
-    }
-
-    {
-        rc_t rc2 = VDatabaseRelease(db->rDb);
-        db->rDb = NULL;
-        if (rc == 0)
-            rc = rc2;
     }
 
     if (db->locked) {
@@ -771,21 +612,6 @@ static rc_t DbDestroy(Db* db)
         db->mgr = NULL;
         if (rc == 0)
         {   rc = rc2; }
-    }
-
-    if (db->VCursorOpenFAILED) {
-        KDirectory* d = NULL;
-        rc_t r2 = KDirectoryNativeDir(&d);
-        if (r2 != 0) {
-            if (rc == 0)
-                rc = r2;
-        } else {
-            r2 = KDirectoryRemove(d, true, s_TmpPath);
-            DISP_RC(r2, "during KDirectoryRemove");
-            if (r2 != 0&& rc == 0)
-                rc = r2;
-        }
-        RELEASE(KDirectory, d);
     }
 
     return rc;
@@ -1027,21 +853,9 @@ static rc_t Run(const CmdLine* args)
     rc_t rc = 0;
 
     Db db;
-
     SpotIterator it;
-    memset(&it, 0, sizeof it);
 
     assert(args);
-
-    if (string_chr(args->table, string_measure(args->table, NULL), '/') != NULL)
-    {
-        rc = RC(rcExe, rcArgv, rcParsing, rcPath, rcUnsupported);
-        PLOGERR(klogErr, (klogErr, rc,
-            "table is expected to be a directory in the current directory. "
-            "Don't use absolute or relative path: $(path)",
-            "path=%s", args->table));
-        return rc;
-    } 
 
     if (!SpotIteratorFileExists(args->file)) {
         rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
@@ -1056,10 +870,8 @@ static rc_t Run(const CmdLine* args)
 
     {
         rc_t rc2 = DbInit(rc, args, &db);
-        if (rc2 != 0 && db.VCursorOpenFAILED)
-            rc2 = DbInit2(&db);
-        if (rc == 0 && rc2 != 0)
-            rc = rc2;
+        if (rc == 0)
+        {   rc = rc2; }
     }
 
     if (rc == 0) {
@@ -1108,7 +920,7 @@ rc_t CC UsageSummary (const char* progname)
 {
     return KOutMsg (
         "Usage:\n"
-        "  %s [Options] -" ALIAS_FILE " <file> <run>\n", progname);
+        "  %s [Options] -" ALIAS_FILE " <file> <table>\n", progname);
 }
 
 const char UsageDefaultName[] = "rd-filter-redact";
@@ -1128,12 +940,7 @@ rc_t CC Usage(const Args* args)
 
     UsageSummary (progname);
 
-    KOutMsg(
-        "\n"
-        "  N.B. <run> is expected to be a directory in the current directory.\n"
-        "  Don't use relative or absolute path. \n"
-        "\n"
-        "Options:\n");
+    KOutMsg ("Options:\n");
 
     HelpOptionLine(ALIAS_FILE, OPTION_FILE, "file", file_usage);
 

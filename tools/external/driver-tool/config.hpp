@@ -35,7 +35,6 @@
 #include <string>
 #include <map>
 #include "opt_string.hpp"
-#include "tool-path.hpp"
 
 namespace sratools {
 
@@ -49,7 +48,7 @@ class Config {
 public:
     /// @brief create a new KConfig object
     /// @param runpath ignored
-    Config(ToolPath const &runpath);
+    Config();
 
     /// @brief release the KConfig object
     ~Config();

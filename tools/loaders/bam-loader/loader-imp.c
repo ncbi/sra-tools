@@ -102,7 +102,7 @@ extern "C" {
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/sinks/null_sink.h>
 
-#include <spdlog/stopwatch.h> 
+#include <spdlog/stopwatch.h>
 
 #include <fstream>
 #include "data_frame.hpp"
@@ -122,11 +122,11 @@ extern "C" {
 #define NEW_QUEUE
 #if defined(NEW_QUEUE)
     #include "rwqueue/readerwriterqueue.h"
-#endif    
+#endif
 
 
 //#define HAS_CTX_VALUE 1
-//#define NO_METADATA 1 
+//#define NO_METADATA 1
 
 using namespace std;
 using namespace moodycamel;
@@ -206,7 +206,7 @@ typedef struct {
 #endif
 
 
-typedef struct 
+typedef struct
 {
     vector<uint32_t> values;
     vector<uint8_t> ext;
@@ -235,9 +235,9 @@ typedef struct FragmentInfo {
 
 /**
  * @brief Data returned by bam_read threads
- * 
+ *
  */
-typedef struct 
+typedef struct
 {
     BAM_Alignment* alignment{nullptr};  ///< BAM Alignment
     metadata_t* metadata{nullptr};      ///< Pointer to metadata
@@ -256,23 +256,23 @@ typedef struct context_t {
     bool isColorSpace;
     BAM_FilePosition m_fileOffset = 0;    ///< Position in the current BAM file
     uint64_t m_inputSize = 0;             ///< Total size in bytes of all input files (can be 0 for stdin inputs)
-    uint64_t m_processedSize = 0;         ///< Number of already processed bytes 
+    uint64_t m_processedSize = 0;         ///< Number of already processed bytes
     size_t m_estimatedBatchSize = 0;      ///< Estimated size of the search batch
     bool m_calcBatchSize = true;          ///< Flag to indicate whether the batch needs to be calculated
     unique_ptr<tf::Executor> m_executor;  ///< Taskflow executor
-#if defined(HAS_CTX_VALUE)    
+#if defined(HAS_CTX_VALUE)
      MMArray *id2value;
 #endif
     bool m_isSingleGroup{false};          ///< All reads belong to a single group (case when the number of groups in the header exceeds the allowed number)
 
-    unsigned m_emptyGroupIndex = -1;      /**< When m_isSingleGroup is set, the index indicates that single group index, 
+    unsigned m_emptyGroupIndex = (unsigned)-1;      /**< When m_isSingleGroup is set, the index indicates that single group index,
                                                important when there are multiple inputs and one of them is determined to be singleGroup one*/
     using group_name_t = char;
     using group_index_t = uint32_t;
     tsl::array_map<group_name_t, group_index_t> m_group_map;  ///< group name to group index
 
     vector<unique_ptr<spot_assembly>> m_read_groups; ///< list of read groups
-    shared_ptr<spot_name_filter> m_key_filter;   ///< Bloom filter (all spot names in scope) 
+    shared_ptr<spot_name_filter> m_key_filter;   ///< Bloom filter (all spot names in scope)
     vector<u40_t> m_spot_id_buffer;              ///< Temporary buffer for spot name extraction
 
     // reset everything but spotId and spot assembly related fields
@@ -295,8 +295,8 @@ typedef struct context_t {
      * >2e9 - sha242
      * >1e9 - sha1
      * otherwise default: fnv + murmur
-     * 
-     * @param num_spots 
+     *
+     * @param num_spots
      */
     void set_key_filter(size_t num_spots) {
         assert(num_spots > 0);
@@ -332,17 +332,17 @@ typedef struct context_t {
                 });
             }
             spdlog::info("SHA1 bloom filter rebuilt in {:.3}", sw);
-        } 
+        }
         is_set = true;
     }
     spot_assembly& add_read_group() {
         m_read_groups.emplace_back(make_unique<spot_assembly>(*m_executor, m_key_filter, m_read_groups.size(), G.searchBatchSize));
-        return *m_read_groups.back().get();        
+        return *m_read_groups.back().get();
     }
 
     /**
      * @brief Release memory spot assembly memory (volume's data, index. scanner). It doesn't touch metadata
-     * 
+     *
      */
 
     void release_search_memory() {
@@ -353,7 +353,7 @@ typedef struct context_t {
             s->release_search_memory();
         }
     }
-
+/*
 #if defined(HAS_CTX_VALUE)
     template<typename F>
     void visit_keyId(F&& f) {
@@ -363,12 +363,11 @@ typedef struct context_t {
             ++group_id;
         }
     }
-
-#endif  
-
+#endif
+*/
     /**
      * @brief Extracts all spot_ids from metadata into m_spot_id_buffer and purges metadata spotId columns
-     *  
+     *
      */
     void extract_spotid() {
         m_spot_id_buffer.clear();
@@ -383,26 +382,26 @@ typedef struct context_t {
 
     /**
      * @brief Purges metadata column
-     * 
-     * @tparam T 
-     * @param col_index 
+     *
+     * @tparam T
+     * @param col_index
      */
-    
+
     template<typename T>
     void clear_column(unsigned col_index) {
         for (auto& rg : m_read_groups) {
             rg->template clear_column<T>(col_index);
         }
     }
-    
+
 
     /**
      * @brief Packs all groups that exceed batch_size limit
      *        groups with less then 1M spots ignored
-     * 
-     * @param batch_size 
+     *
+     * @param batch_size
      */
-    void pack_read_groups(size_t batch_size) 
+    void pack_read_groups(size_t batch_size)
     {
         size_t total_sz = 0;
         unsigned num_candidates = 0;
@@ -414,7 +413,7 @@ typedef struct context_t {
         }
         if (num_candidates > 0) {
             int batch_half = batch_size / 2;
-            auto limit = ((num_candidates * batch_half) + batch_half) / num_candidates; 
+            auto limit = ((num_candidates * batch_half) + batch_half) / num_candidates;
             for (auto& rg : m_read_groups) {
                 if (rg->m_curr_row >= limit) {
                     total_sz -= rg->m_curr_row;
@@ -616,7 +615,7 @@ static void MMArrayWhack(MMArray *self)
 #endif
 
 
-static rc_t GetKeyIDOld(context_t *const ctx, 
+static rc_t GetKeyIDOld(context_t *const ctx,
             queue_rec_t& queue_rec,
             char const key[], char const name[], unsigned const namelen)
 {
@@ -626,7 +625,7 @@ static rc_t GetKeyIDOld(context_t *const ctx,
     BAM_Alignment& rec = *queue_rec.alignment;
 
     if (memcmp(key, name, keylen) == 0) {
-        // qname starts with read group; no append 
+        // qname starts with read group; no append
         auto& r = rs.find(name, namelen);
         rec.keyId = r.pos;
         rec.wasInserted = r.wasInserted;
@@ -803,7 +802,7 @@ rc_t GetKeyID(context_t *const ctx,
         }
 
     } else {
-        auto [it, inserted] = ctx->m_group_map.emplace(key, group_id); 
+        auto [it, inserted] = ctx->m_group_map.emplace(key, group_id);
         if (!inserted) {
             group_id = it.value();
         } else {
@@ -846,10 +845,10 @@ rc_t GetKeyID(context_t *const ctx,
                 ctx->m_estimatedBatchSize = max<int>(10e6, ctx->m_estimatedBatchSize);
                 if ((float)ctx->m_processedSize/ctx->m_inputSize > 0.1f) {
                     ctx->m_calcBatchSize = false;
-                } 
+                }
                 spdlog::info("Current spot_count: {:L}, estimated spot count {:L}, estimated batch size: {:L}", spot_count, num_spots, ctx->m_estimatedBatchSize);
             }
-        } 
+        }
         ctx->pack_read_groups(ctx->m_estimatedBatchSize);
     }
     return 0;
@@ -898,10 +897,10 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
         fragSize[0] = fragSize[1] * 4;
 
         rc = TmpfsDirectory(&dir);
-#if defined HAS_CTX_VALUE        
+#if defined HAS_CTX_VALUE
         if (rc == 0)
             rc = OpenMMapFile(ctx, dir);
-#endif            
+#endif
         if (rc == 0)
             rc = MemBankMake(&ctx->frags, dir, G.pid, fragSize);
         KDirectoryRelease(dir);
@@ -1510,14 +1509,14 @@ static bool isHardClipped(unsigned const ops, uint32_t const cigar[/* ops */])
 static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint32_t refPos, uint32_t refLen, uint32_t readlen)
 {
     uint32_t const *cigar = (uint32_t*)cigBuf->base;
-    int refend = refPos;
-    int seqpos = 0;
-    unsigned i;
+    uint32_t refend = refPos;
+    uint32_t seqpos = 0;
+    uint32_t i;
 
     for (i = 0; i < *opCount; ++i) {
         uint32_t const op = cigar[i];
-        int const len = op >> 4;
-        int const code = op & 0x0F;
+        uint32_t const len = op >> 4;
+        uint32_t const code = op & 0x0F;
 
         switch (code) {
         case 0: /* M */
@@ -1538,11 +1537,11 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
             break;
         }
         if (refend > refLen) {
-            int const chop = refend - refLen;
-            int const newlen = len - chop;
-            int const left = seqpos - chop;
+            uint32_t const chop = refend - refLen;
+            uint32_t const newlen = len - chop;
+            uint32_t const left = seqpos - chop;
             if (left * 2 > readlen) {
-                int const clip = readlen - left;
+                uint32_t const clip = readlen - left;
                 rc_t rc;
 
                 *opCount = i + 2;
@@ -1606,7 +1605,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
         queue_rec_t queue_rec;
 #else
         queue_rec_t* queue_rec = new queue_rec_t;
-#endif        
+#endif
 
         {
             static char const dummy[] = "";
@@ -1624,33 +1623,33 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
             queue_rec->alignment = rec;
             queue_rec->metadata = nullptr;
             rc = GetKeyID(&GlobalContext, bam, *queue_rec, spotGroup ? spotGroup : dummy, name, namelen);
-#endif            
+#endif
             if (rc) break;
         }
 
         for ( ; ; ) {
-#ifdef NEW_QUEUE            
+#ifdef NEW_QUEUE
             if (rw_queue.try_enqueue(move(queue_rec))) {
                 break;
             }
-            if (rw_done) 
+            if (rw_done)
                 break;
 
-#else                
+#else
             timeout_t tm;
             TimeoutInit(&tm, 1000);
             rc = KQueuePush(bamq, queue_rec, &tm);
             if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
                 break;
-#endif                
+#endif
         }
     }
 
-#ifndef NEW_QUEUE                
+#ifndef NEW_QUEUE
     KQueueSeal(bamq);
 #else
     rw_done.store(true);
-#endif    
+#endif
     if (rc) {
         (void)LOGERR(klogErr, rc, "bamread_thread done");
     }
@@ -1668,12 +1667,12 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
 #endif
 {
 #ifdef NEW_QUEUE
-    queue_rec_t queue_rec = {nullptr, nullptr}; 
+    queue_rec_t queue_rec = {nullptr, nullptr};
 #else
     queue_rec_t* queue_rec = nullptr;
-#endif    
+#endif
 
-#ifndef NEW_QUEUE                
+#ifndef NEW_QUEUE
     if (bamq == NULL) {
         *rc = KQueueMake(&bamq, 4096);
         if (*rc) return queue_rec;
@@ -1688,19 +1687,19 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
     static size_t dequeued = 0;
     while (*rc == 0 && (*rc = Quitting()) == 0) {
         //BAM_Alignment const *rec = NULL;
-#ifdef NEW_QUEUE                
+#ifdef NEW_QUEUE
         if (rw_queue.try_dequeue(queue_rec)) {
             ++dequeued;
             return queue_rec;
         }
-        if (rw_done.load())            
+        if (rw_done.load())
             break;
-#else            
+#else
         timeout_t tm;
         TimeoutInit(&tm, 10000);
         *rc = KQueuePop(bamq, (void **)&queue_rec, &tm);
         if (*rc == 0) {
-            return queue_rec; // this is the normal return 
+            return queue_rec; // this is the normal return
         }
 
         if ((int)GetRCObject(*rc) == rcTimeout)
@@ -1723,7 +1722,7 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
     }
     KThreadRelease(bamread_thread);
     bamread_thread = NULL;
-#ifndef NEW_QUEUE                
+#ifndef NEW_QUEUE
 	KQueueRelease(bamq);
     bamq = NULL;
 #endif
@@ -1781,9 +1780,9 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     const BAM_Alignment *rec;
 #if defined(NEW_QUEUE)
     queue_rec_t queue_rec;
-#else    
+#else
     queue_rec_t* queue_rec;
-#endif    
+#endif
     KDataBuffer buf;
     KDataBuffer fragBuf;
     KDataBuffer cigBuf;
@@ -1847,7 +1846,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 
         BAM_FileGetReadGroupCount(bam, &rgcount);
         ctx->m_isSingleGroup = rgcount >= MAX_GROUPS_ALLOWED; // TODO
-        if (ctx->m_isSingleGroup && ctx->m_emptyGroupIndex == -1) {
+        if (ctx->m_isSingleGroup && ctx->m_emptyGroupIndex == (unsigned)-1) {
             ctx->add_read_group();
             ctx->m_emptyGroupIndex = ctx->m_read_groups.size() - 1;
         }
@@ -1900,7 +1899,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (_rc) {
         return 0;
     }
-#endif        
+#endif
     size_t new_spots = 0;
     string prev_rec;
 
@@ -1908,7 +1907,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     while (true) {
         queue_rec = getNextRecord(bam, &rc);
         rec = queue_rec.alignment;
-#else            
+#else
     while ((queue_rec = getNextRecord(bam, &rc)) != NULL) {
         rec = queue_rec->alignment;
 #endif
@@ -1922,7 +1921,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         char *seqDNA;
 #ifdef HAS_CTX_VALUE
         ctx_value_t *value;
-#endif        
+#endif
         bool wasInserted;
         int32_t refSeqId=-1;
         uint8_t *qual;
@@ -1948,7 +1947,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         wasInserted = rec->wasInserted;
         if (wasInserted)
             ++new_spots;
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
         //uint64_t row_id = keyId & 0xffffffffff; //(64 - MAX_GROUP_BITS) bits
 #if defined(NEW_QUEUE)
         auto& metadata = *queue_rec.metadata;
@@ -1968,9 +1967,10 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         primaryId[1] = 0;
         opt_pcr_dup.reset();
         opt_is_primary.reset();
+        opt_is_unmated.reset();
         opt_frag_len[0].reset();
         opt_frag_len[1].reset();
-#endif        
+#endif
         ++recordsRead;
         if (recordsRead % 10000000 == 0) {
 
@@ -2005,7 +2005,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
             goto LOOP_END;
         }
-#endif        
+#endif
 
         linkageGroup = getLinkageGroup(rec);
 
@@ -2061,7 +2061,7 @@ MIXED_BASE_AND_COLOR:
             readNo = 1;
 
         isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
         if (G.deferSecondary && !isPrimary && aligned) {
             if (wasInserted) {
                 isPrimary = true;
@@ -2075,8 +2075,8 @@ MIXED_BASE_AND_COLOR:
                 }
             }
         }
-       
-#else 
+
+#else
         if (G.deferSecondary && !isPrimary && aligned && CTX_VALUE_GET_P_ID(*value, readNo - 1) == 0) {
             /* promote to primary alignment */
             isPrimary = true;
@@ -2098,13 +2098,13 @@ MIXED_BASE_AND_COLOR:
             /* need to make sure that every goto LOOP_END */
             /* above this point is with rc != 0           */
             /* else this structure won't get initialized  */
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
             opt_is_unmated = !mated;
-            if (!mated) 
+            if (!mated)
                 metadata.get<bit_t>(metadata_t::e_unmated).set(row_id);
             if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
                 opt_pcr_dup = flags & BAMFlags_IsDuplicate;
-                if (flags & BAMFlags_IsDuplicate) 
+                if (flags & BAMFlags_IsDuplicate)
                     metadata.get<bit_t>(metadata_t::e_pcr_dup).set(row_id);
                 if (ctx->m_isSingleGroup)
                     metadata.get<u16_t>(metadata_t::e_platform).set(row_id, GetINSDCPlatform(bam, spotGroup));
@@ -2121,7 +2121,7 @@ MIXED_BASE_AND_COLOR:
                 //assert(value->platform == rec.platform);
                 value->primary_is_set = 1;
             }
-#endif 
+#endif
 
 
         }
@@ -2225,16 +2225,16 @@ MIXED_BASE_AND_COLOR:
                         frag_len = metadata.get<u16_t>(metadata_t::E_FRAG_LEN[readNo - 1]).get_no_check(row_id);
                         opt_frag_len[readNo - 1] = frag_len;
                     }
-                    
-#if defined HAS_CTX_VALUE 
+
+#if defined HAS_CTX_VALUE
                     if (frag_len != value->fragment_len[readNo - 1]) {
                         spdlog::error("Inconsistent fragment_len");
                         throw runtime_error("Inconsistent fragment_len");
                     }
-#endif                    
+#endif
 #else
                     auto frag_len = value->fragment_len[readNo -1];
-#endif                    
+#endif
                     if ( l < frag_len) {
                         rc = KDataBufferResize(&cigBuf, opCount + 1);
                         assert(rc == 0);
@@ -2431,7 +2431,7 @@ MIXED_BASE_AND_COLOR:
             int o_pcr_dup = 0;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
 
-#ifndef NO_METADATA     
+#ifndef NO_METADATA
             if (!opt_is_primary.has_value())
                 opt_is_primary = metadata.get<bit_t>(metadata_t::e_primary_is_set).test(row_id);
             if (!opt_is_primary.value()) {
@@ -2439,8 +2439,8 @@ MIXED_BASE_AND_COLOR:
                 o_pcr_dup = n_pcr_dup;
                 opt_is_primary = true;
             } else {
-                if (!opt_pcr_dup.has_value()) 
-                    opt_pcr_dup = metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id); 
+                if (!opt_pcr_dup.has_value())
+                    opt_pcr_dup = metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id);
                 o_pcr_dup = opt_pcr_dup.value() ? 1 : 0;
             }
             if (!opt_pcr_dup.has_value() || opt_pcr_dup.value() != (o_pcr_dup & n_pcr_dup)) {
@@ -2449,7 +2449,7 @@ MIXED_BASE_AND_COLOR:
             }
 
 #endif
-#if defined(HAS_CTX_VALUE) 
+#if defined(HAS_CTX_VALUE)
             if (!value->primary_is_set) {
                 o_pcr_dup = n_pcr_dup;
                 value->primary_is_set = 1;
@@ -2461,15 +2461,15 @@ MIXED_BASE_AND_COLOR:
             if (o_pcr_dup != (o_pcr_dup & n_pcr_dup)) {
                 FLAG_CHANGED_PCR_DUP;
             }
-#ifndef NO_METADATA             
+#ifndef NO_METADATA
             auto v_unmated = opt_is_unmated.value_or(metadata.get<bit_t>(metadata_t::e_unmated).test(row_id));
 #ifdef HAS_CTX_VALUE
             if (v_unmated != value->unmated) {
-                spdlog::error("Inconsistent unamted");
-                throw runtime_error("Inconsistent unamted");
+                spdlog::error("Inconsistent unmated");
+                throw runtime_error("Inconsistent unmated");
             }
 
-#endif            
+#endif
 #else
             auto v_unmated = value->unmated;
 #endif
@@ -2493,7 +2493,7 @@ MIXED_BASE_AND_COLOR:
         if (isPrimary) {
             switch (readNo) {
             case 1: {
-#if !defined NO_METADATA 
+#if !defined NO_METADATA
                 if (!primaryId[0])
                     primaryId[0] = wasInserted ? 0 : metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(row_id);
                 auto v = primaryId[0];
@@ -2502,7 +2502,7 @@ MIXED_BASE_AND_COLOR:
                     spdlog::error("Inconsistent primaryId");
                     throw runtime_error("Inconsistent primaryId");
                 }
-#endif                
+#endif
 #else
                 auto v = CTX_VALUE_GET_P_ID(*value, 0);
 #endif
@@ -2511,15 +2511,15 @@ MIXED_BASE_AND_COLOR:
                     FLAG_CHANGED_PRIMARY_DUP;
                 }
                 else if (aligned) {
-#if !defined NO_METADATA 
+#if !defined NO_METADATA
                     auto v_unaligned_1 = wasInserted ? 0 : metadata.get<bit_t>(metadata_t::e_unaligned_1).test(row_id);
 #ifdef HAS_CTX_VALUE
                     if (v_unaligned_1 != value->unaligned_1) {
                         spdlog::error("Inconsistent v_unaligned_1");
                         throw runtime_error("Inconsistent v_unaligned_1");
                     }
-#endif                    
-#else           
+#endif
+#else
                     auto v_unaligned_1 = value->unaligned_1;
 #endif
                     if (v_unaligned_1) {
@@ -2532,7 +2532,7 @@ MIXED_BASE_AND_COLOR:
             }
             case 2:
             {
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
                 if (!primaryId[1])
                     primaryId[1] = wasInserted ? 0 : metadata.get<u64_t>(metadata_t::E_PRIM_ID[1]).get_no_check(row_id);
                 auto v = primaryId[1];
@@ -2542,16 +2542,16 @@ MIXED_BASE_AND_COLOR:
                     throw runtime_error("Inconsistent primaryId[1]");
                 }
 
-#endif                
-#else           
+#endif
+#else
                 auto v = CTX_VALUE_GET_P_ID(*value, 1);
-#endif                
+#endif
                 if (v != 0) {
                     isPrimary = false;
                     FLAG_CHANGED_PRIMARY_DUP;
                 }
                 else if (aligned) {
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
                     auto v_unaligned_2 = wasInserted ? 0 : metadata.get<bit_t>(metadata_t::e_unaligned_2).test(row_id);
 #ifdef HAS_CTX_VALUE
                     if (v_unaligned_2 != value->unaligned_2) {
@@ -2559,7 +2559,7 @@ MIXED_BASE_AND_COLOR:
                         throw runtime_error("Inconsistent v_unaligned_2");
                     }
 
-#endif                    
+#endif
 #else
                     auto v_unaligned_2 = value->unaligned_2;
 #endif
@@ -2576,12 +2576,12 @@ MIXED_BASE_AND_COLOR:
             }
         }
         if (hardclipped) {
-#ifndef NO_METADATA 
+#ifndef NO_METADATA
             metadata.get<bit_t>(metadata_t::e_hardclipped).set(row_id);
 #endif
 #if defined(HAS_CTX_VALUE)
             value->hardclipped = 1;
-#endif            
+#endif
         }
 #if 0 /** EY TO REVIEW **/
         if (!isPrimary && value->hardclipped) {
@@ -2612,14 +2612,14 @@ MIXED_BASE_AND_COLOR:
                 int const i = readNo - 1;
                 int const clipped_rl = readlen < 255 ? readlen : 255;
                 if (i >= 0 && i < 2) {
-#if !defined NO_METADATA 
+#if !defined NO_METADATA
                     int const rl = wasInserted ? 0 : opt_frag_len[i].value_or(metadata.get<u16_t>(metadata_t::E_FRAG_LEN[i]).get_no_check(row_id));
 #ifdef HAS_CTX_VALUE
                     if (rl != value->fragment_len[i]) {
                         spdlog::error("Inconsistent fragment_len");
                         throw runtime_error("Inconsistent fragment_len");
                     }
-#endif                    
+#endif
 #else
                     int const rl = value->fragment_len[i];
 #endif
@@ -2630,7 +2630,7 @@ MIXED_BASE_AND_COLOR:
 #endif
 #ifdef HAS_CTX_VALUE
                         value->fragment_len[i] = clipped_rl;
-#endif                        
+#endif
                     }
                     else if (rl != clipped_rl) {
                         if (isPrimary) {
@@ -2696,22 +2696,22 @@ MIXED_BASE_AND_COLOR:
 #endif
 #ifdef HAS_CTX_VALUE
                 value->unaligned_1 = 1;
-#endif                
+#endif
                 break;
             case 2:
-#if !defined NO_METADATA             
+#if !defined NO_METADATA
                 metadata.get<bit_t>(metadata_t::e_unaligned_2).set(row_id);
 #endif
 #ifdef HAS_CTX_VALUE
                 value->unaligned_2 = 1;
-#endif                
+#endif
                 break;
             default:
                 break;
             }
         }
         if (isPrimary && aligned) {
-#if !defined NO_METADATA             
+#if !defined NO_METADATA
             if (!primaryId[readNo-1])
                 primaryId[readNo-1] = wasInserted ? 0 : metadata.get<u64_t>(metadata_t::E_PRIM_ID[readNo-1]).get_no_check(row_id);
             auto v = primaryId[readNo-1];
@@ -2720,7 +2720,7 @@ MIXED_BASE_AND_COLOR:
                 spdlog::error("Inconsistent CTX_VALUE_GET_P_ID");
                 throw runtime_error("Inconsistent CTX_VALUE_GET_P_ID");
             }
-#endif            
+#endif
 #else
             auto v = CTX_VALUE_GET_P_ID(*value, readNo - 1);
 #endif
@@ -2731,20 +2731,20 @@ MIXED_BASE_AND_COLOR:
 #ifndef NO_METADATA
                     metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).set(row_id, data.alignId);
 #endif
-#if defined(HAS_CTX_VALUE) 
+#if defined(HAS_CTX_VALUE)
                     CTX_VALUE_SET_P_ID(*value, 0, data.alignId);
-#endif                    
+#endif
                 }
                 break;
             case 2:
                 if (v == 0) {
                     data.alignId = ++ctx->primaryId;
-#ifndef NO_METADATA             
+#ifndef NO_METADATA
                     metadata.get<u64_t>(metadata_t::E_PRIM_ID[1]).set(row_id, data.alignId);
 #endif
-#if defined(HAS_CTX_VALUE) 
+#if defined(HAS_CTX_VALUE)
                     CTX_VALUE_SET_P_ID(*value, 1, data.alignId);
-#endif                    
+#endif
                 }
                 break;
             default:
@@ -2757,7 +2757,7 @@ MIXED_BASE_AND_COLOR:
             goto WRITE_ALIGNMENT;
         if (0) {
 WRITE_SEQUENCE:
-#ifndef NO_METADATA                         
+#ifndef NO_METADATA
 //            int64_t const spotId = metadata.Uint64(e_spotId).get_no_check(row_id);
             int64_t const spotId = wasInserted ? 0 : metadata.get<u64_t>(metadata_t::e_spotId).get_no_check(row_id);
 #ifdef HAS_CTX_VALUE
@@ -2765,7 +2765,7 @@ WRITE_SEQUENCE:
                 spdlog::error("Inconsistent spotId");
                 throw runtime_error("Inconsistent spotId");
             }
-#endif            
+#endif
 #else
             int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
 #endif
@@ -2780,7 +2780,7 @@ WRITE_SEQUENCE:
                         spdlog::error("Inconsistent fragmentId");
                         throw runtime_error("Inconsistent fragmentId");
                     }
-#endif                
+#endif
 #else
                     uint32_t fragmentId = value->fragmentId;
 #endif
@@ -2791,7 +2791,7 @@ WRITE_SEQUENCE:
                     if (spotIsFirstSeen) {
 
                         if (!isPrimary) {
-                            if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) { 
+                            if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                 goto WRITE_ALIGNMENT;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2844,15 +2844,15 @@ WRITE_SEQUENCE:
                         metadata.get<u32_t>(metadata_t::e_fragmentId).set(row_id, fragmentId);
 #endif
 #if defined (HAS_CTX_VALUE)
-                        value->fragmentId = fragmentId; 
+                        value->fragmentId = fragmentId;
 #endif
-                        
+
                         if (rc) {
                             (void)LOGERR(klogErr, rc, "KMemBankAlloc failed");
                             goto LOOP_END;
                         }
                         /*printf("IN:%10d\tcnt2=%ld\tcnt1=%ld\n",value->fragmentId,fcountBoth,fcountOne);*/
-                        
+
                         rc = KDataBufferResize(&fragBuf, sz);
                         if (rc) {
                             (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
@@ -2860,7 +2860,7 @@ WRITE_SEQUENCE:
                         }
                         {{
                             uint8_t *dst = (uint8_t*) fragBuf.base;
-                            
+
                             memmove(dst,&fi,sizeof(fi));
                             dst += sizeof(fi);
                             memmove(dst, seqBuffer.base, readlen);
@@ -2888,20 +2888,20 @@ WRITE_SEQUENCE:
                         {
                             size_t size1;
                             size_t size2;
-                            
+
                             rc = MemBankSize(ctx->frags, fragmentId, &size1);
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
-                            
+
                             rc = KDataBufferResize(&fragBuf, size1);
                             fip = (FragmentInfo *)fragBuf.base;
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
                                 goto LOOP_END;
                             }
-                            
+
                             rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
@@ -2999,15 +2999,15 @@ WRITE_SEQUENCE:
 
                             srec.seq = (char*)seqBuffer.base;
                             srec.qual = (uint8_t*)qualBuffer.base;
-    #ifndef NO_METADATA                        
+    #ifndef NO_METADATA
                             auto v_pcr_dup = opt_pcr_dup.value_or(metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id));
     #ifdef HAS_CTX_VALUE
                             if (v_pcr_dup != value->pcr_dup) {
                                 spdlog::error("Inconsistent pcr_dup");
                                 throw runtime_error("Inconsistent pcr_dup");
                             }
-    #endif                  
-    #else      
+    #endif
+    #else
                             auto v_pcr_dup = value->pcr_dup;
     #endif
                             rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
@@ -3023,7 +3023,7 @@ WRITE_SEQUENCE:
     #endif
     #if defined (HAS_CTX_VALUE)
                             CTX_VALUE_SET_S_ID(*value, ctx->spotId);
-    #endif                        
+    #endif
                             if(fragmentId & 1){
                                 fcountOne--;
                             } else {
@@ -3042,7 +3042,7 @@ WRITE_SEQUENCE:
     #if defined (HAS_CTX_VALUE)
                             value->fragmentId = 0;
     #endif
-                            
+
                             if (revcmp) {
                                 QUAL_CHANGED_REVERSED;
                                 SEQ__CHANGED_REV_COMP;
@@ -3063,7 +3063,7 @@ WRITE_SEQUENCE:
                         (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
                         assert("this should never happen");
                     }
-                } else { // Spot has been written 
+                } else { // Spot has been written
                 }
             }
             else if (spotId == 0) {
@@ -3116,7 +3116,7 @@ WRITE_SEQUENCE:
                     spdlog::error("Inconsistent pcr_dup");
                     throw runtime_error("Inconsistent pcr_dup");
                 }
-#endif                
+#endif
 #else
                 auto v_pcr_dup = value->pcr_dup;
 #endif
@@ -3202,11 +3202,11 @@ WRITE_ALIGNMENT:
                 spdlog::error("Inconsistent alignmentCount");
                 throw runtime_error("Inconsistent alignmentCount");
             }
-#endif            
+#endif
             if (v_aln_count < 254) {
 #ifdef HAS_CTX_VALUE
                 ++value->alignmentCount[readNo - 1];
-#endif                
+#endif
                 metadata.get<u16_t>(metadata_t::E_ALN_COUNT[readNo - 1]).inc(row_id);
             }
 #else
@@ -3245,7 +3245,7 @@ WRITE_ALIGNMENT:
         BAM_AlignmentRelease(rec);
 #if !defined(NEW_QUEUE)
         delete queue_rec;
-#endif        
+#endif
         ++reccount;
 
         if (G.maxAlignCount > 0 && reccount >= G.maxAlignCount)
@@ -3263,7 +3263,7 @@ WRITE_ALIGNMENT:
 */
 
     //ctx->m_fs->close();
-#ifndef NEW_QUEUE    
+#ifndef NEW_QUEUE
     if (bamread_thread != NULL && bamq != NULL) {
         KQueueSeal(bamq);
         for ( ; ; ) {
@@ -3289,11 +3289,11 @@ WRITE_ALIGNMENT:
         }
     }
 
-#endif        
+#endif
     KThreadRelease(bamread_thread);
-#ifndef NEW_QUEUE    
+#ifndef NEW_QUEUE
     KQueueRelease(bamq);
-#endif    
+#endif
     if (rc) {
         if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
             || (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound))
@@ -3316,9 +3316,9 @@ WRITE_ALIGNMENT:
     }
 
     BAM_FileRelease(bam);
-#ifdef HAS_CTX_VALUE    
+#ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);
-#endif    
+#endif
     KDataBufferWhack(&seqBuffer);
     KDataBufferWhack(&qualBuffer);
     KDataBufferWhack(&buf);
@@ -3338,7 +3338,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     KDataBuffer fragBuf;
     SequenceRecordStorage srecStorage;
     SequenceRecord srec;
-    
+
     ++ctx->pass;
     memset(&srec, 0, sizeof(srec));
 
@@ -3575,7 +3575,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     }
 
     uint64_t idCount = 0;
-    for(const auto& rg : ctx->m_read_groups) 
+    for(const auto& rg : ctx->m_read_groups)
         idCount += rg->m_total_spots;
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], idCount);
     unsigned group_id = 0;
@@ -3631,7 +3631,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                     srec.orientation[0] = fip->orientation;
                     srec.cskey[0] = fip->cskey;
                 } else {
-                    unsigned const read = ((fip->aligned && metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(row_id) == 0) || metadata.get<bit_t>(metadata_t::e_unaligned_2).test(row_id)) 
+                    unsigned const read = ((fip->aligned && metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(row_id) == 0) || metadata.get<bit_t>(metadata_t::e_unaligned_2).test(row_id))
                         ? 1 : 0;
                     srec.numreads = 2;
                     srec.readLen[read] = fip->readlen;
@@ -3660,7 +3660,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 assert(metadata.get<u64_t>(metadata_t::e_spotId).get_no_check(row_id) == 0);
                 metadata.get<u64_t>(metadata_t::e_spotId).set(row_id, ++ctx->spotId);
 #ifdef HAS_CTX_VALUE
-                CTX_VALUE_SET_S_ID(*value, ctx->spotId);                
+                CTX_VALUE_SET_S_ID(*value, ctx->spotId);
 #endif
             }
             fragment_it.advance();
@@ -3721,7 +3721,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                     srec.orientation[0] = fip->orientation;
                     srec.cskey[0] = fip->cskey;
                 } else {
-                    unsigned const read = ((fip->aligned && metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(row_id) == 0) || metadata.get<bit_t>(metadata_t::e_unaligned_2).test(row_id)) 
+                    unsigned const read = ((fip->aligned && metadata.get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(row_id) == 0) || metadata.get<bit_t>(metadata_t::e_unaligned_2).test(row_id))
                         ? 1 : 0;
                     srec.numreads = 2;
                     srec.readLen[read] = fip->readlen;
@@ -3750,7 +3750,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 assert(metadata.get<u64_t>(metadata_t::e_spotId).get_no_check(row_id) == 0);
                 metadata.get<u64_t>(metadata_t::e_spotId).set(row_id, ++ctx->spotId);
 #ifdef HAS_CTX_VALUE
-                CTX_VALUE_SET_S_ID(*value, ctx->spotId);                
+                CTX_VALUE_SET_S_ID(*value, ctx->spotId);
 #endif
             }
             fragment_it.advance();
@@ -3759,7 +3759,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     });
 */
     KDataBufferWhack(&fragBuf);
-    
+
     ctx->clear_column<u32_t>(metadata_t::e_fragmentId);
     ctx->clear_column<u16_t>(metadata_t::e_fragment_len1);
     ctx->clear_column<u16_t>(metadata_t::e_fragment_len2);
@@ -3778,7 +3778,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     uint64_t row;
     uint64_t keyId;
     ++ctx->pass;
-    
+
     if (G.mode != mode_Remap) {
         spdlog::info("Extraction start, memory: {:L}", getCurrentRSS());
         ctx->extract_spotid();
@@ -3814,7 +3814,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
      * Main thread puts keyIds into gather_queue
      * Gather task works on gather_queue, extracts metadata and pus them into update_queue
      * Update task works on update queue and updates VDB
-     * 
+     *
      */
     size_t expected_batches = (ctx->spotId/BUFFER_SIZE) + 1;
     auto gather_task = ctx->m_executor->async([&]() {
@@ -3962,7 +3962,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     update_task.get();
 
     assert(exit_on_error || num_gathered == num_updated);
-    assert(exit_on_error || batches_processed == expected_batches); 
+    assert(exit_on_error || batches_processed == expected_batches);
     assert(exit_on_error || batches_gathered == expected_batches);
     assert(exit_on_error || batches_updated == expected_batches);
 
@@ -4004,7 +4004,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
     }
     spdlog::info("Align Update Spot Info: {:.3} sec", sw);
     return rc;
-} 
+}
 #endif
 
 static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
@@ -4023,7 +4023,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     }
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
     spdlog::info("SIMD code = {}", bm::simd_version());
-    spdlog::info("Num threads  = {}", G.numThreads);    
+    spdlog::info("Num threads  = {}", G.numThreads);
     spdlog::info("Search batch size = {}", G.searchBatchSize);
 
 
@@ -4064,7 +4064,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         }
     }
     spdlog::info("Number of files: {},  Total size: {:L}", bamFiles, ctx->m_inputSize);
-    ctx->m_calcBatchSize = ctx->m_inputSize > 0; 
+    ctx->m_calcBatchSize = ctx->m_inputSize > 0;
 
     rc = SetupContext(ctx, bamFiles + seqFiles);
     if (rc)
@@ -4086,7 +4086,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
-    spdlog::info("Processing done, memory: {:L}, spotCount: {:L}", getCurrentRSS(), ctx->spotId); 
+    spdlog::info("Processing done, memory: {:L}, spotCount: {:L}", getCurrentRSS(), ctx->spotId);
 
     if (!continuing) {
         ctx->release_search_memory();
@@ -4095,8 +4095,8 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         ctx->clear_column<bit_t>(metadata_t::e_unaligned_2);
         ctx->clear_column<bit_t>(metadata_t::e_hardclipped);
         ctx->clear_column<bit_t>(metadata_t::e_primary_is_set);
-        
-        spdlog::info("Spot assembly memory release, memory: {:L}", getCurrentRSS()); 
+
+        spdlog::info("Spot assembly memory release, memory: {:L}", getCurrentRSS());
     }
 
     if (has_sequences) {
@@ -4115,7 +4115,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
             }
         }
     } else {
-        
+
         // Clear the metadata columns that we don't need anymore
         ctx->clear_column<u64_t>(metadata_t::e_primaryId1);
         ctx->clear_column<u64_t>(metadata_t::e_primaryId2);
@@ -4127,7 +4127,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         ctx->clear_column<u16_t>(metadata_t::e_alignmentCount2);
         ctx->clear_column<u16_t>(metadata_t::e_platform);
         ctx->clear_column<bit_t>(metadata_t::e_pcr_dup);
-        
+
     }
 
     if (*has_alignments && rc == 0 && (rc = Quitting()) == 0) {

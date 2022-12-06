@@ -517,6 +517,15 @@ public:
     */
     void erase(size_type idx, bool erase_null = true);
 
+
+    /**
+        \brief swap two vector elements between each other
+        \param idx1  - element index 1
+        \param idx1  - element index 2
+     */
+    void swap(size_type idx1, size_type idx2);
+    
+
     /*!
         \brief clear specified element with bounds checking and automatic resize
         \param idx - element index
@@ -1430,9 +1439,9 @@ sparse_vector<Val, BV>::gather(value_type*       arr,
 
         // process block co-located elements at ones for best (CPU cache opt)
         //
-        unsigned i0 = unsigned(nb >> bm::set_array_shift); // top block address
-        unsigned j0 = unsigned(nb &  bm::set_array_mask);  // address in sub-block
-        
+        unsigned i0, j0;
+        bm::get_block_coord(nb, i0, j0);
+
         unsigned eff_planes = this->effective_slices(); // TODO: get real effective planes for [i,j]
         BM_ASSERT(eff_planes <= (sizeof(value_type) * 8));
 
@@ -1530,8 +1539,9 @@ sparse_vector<Val, BV>::extract_range(value_type* arr,
     // calculate logical block coordinates and masks
     //
     block_idx_type nb = (start >>  bm::set_block_shift);
-    unsigned i0 = unsigned(nb >> bm::set_array_shift); // top block address
-    unsigned j0 = unsigned(nb &  bm::set_array_mask);  // address in sub-block
+    unsigned i0, j0;
+    bm::get_block_coord(nb, i0, j0);
+
     unsigned nbit = unsigned(start & bm::set_block_mask);
     unsigned nword  = unsigned(nbit >> bm::set_word_shift);
     unsigned mask0 = 1u << (nbit & bm::set_word_mask);
@@ -1552,8 +1562,7 @@ sparse_vector<Val, BV>::extract_range(value_type* arr,
             if (nb1 != nb) // block switch boundaries
             {
                 nb = nb1;
-                i0 = unsigned(nb >> bm::set_array_shift);
-                j0 = unsigned(nb &  bm::set_array_mask);
+                bm::get_block_coord(nb, i0, j0);
                 blk = this->bmatr_.get_block(j, i0, j0);
                 is_gap = BM_IS_GAP(blk);
             }
@@ -1852,6 +1861,17 @@ void sparse_vector<Val, BV>::push_back_null(size_type count)
     this->size_ += count;
 }
 
+//---------------------------------------------------------------------
+
+template<class Val, class BV>
+void sparse_vector<Val, BV>::swap(size_type idx1, size_type idx2)
+{
+    BM_ASSERT(idx1 < this->size());
+    BM_ASSERT(idx2 < this->size());
+
+    this->swap_elements(idx1, idx2);
+}
+
 
 //---------------------------------------------------------------------
 
@@ -1953,12 +1973,6 @@ void sparse_vector<Val, BV>::set_value_no_null(size_type idx,
 {
     unsigned_value_type uv = this->s2u(v);
 
-    // calculate logical block coordinates and masks
-    //
-    block_idx_type nb = (idx >>  bm::set_block_shift);
-    unsigned i0 = unsigned(nb >> bm::set_array_shift); // top block address
-    unsigned j0 = unsigned(nb &  bm::set_array_mask);  // address in sub-block
-
     // clear the planes where needed
     unsigned bsr = uv ? bm::bit_scan_reverse(uv) : 0u;
     if (need_clear)
@@ -1979,9 +1993,13 @@ void sparse_vector<Val, BV>::set_value_no_null(size_type idx,
             }
             else if (need_clear)
             {
+                block_idx_type nb = (idx >>  bm::set_block_shift);
+                unsigned i0, j0;
+                bm::get_block_coord(nb, i0, j0);
+
                 if (const bm::word_t* blk = this->bmatr_.get_block(j, i0, j0))
                 {
-                    // TODO: more efficient set/clear on on block
+                    // TODO: more efficient set/clear on the block
                     bvector_type* bv = this->bmatr_.get_row(j);
                     bv->clear_bit_no_check(idx);
                 }

@@ -525,15 +525,22 @@ void initialize_caps ( const ctx_t *ctx, Caps *caps, Args *args )
     }
 }
 
+rc_t copy_stats_metadata( const char * src_path, const char * dst_path );
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
     DECLARE_CTX_INFO ();
 
     /* initialize context */
     Caps caps;
+    char cp_src_path [ 4096 ];
+    char cp_dst_path [ 4096 ];
     ctx_t main_ctx = { & caps, NULL, & ctx_info };
     const ctx_t *ctx = & main_ctx;
     CapsInit ( & caps, NULL );
+
+    cp_src_path[ 0 ] = 0;
+    cp_dst_path[ 0 ] = 0;
 
     if ( argc <= 1 )
         main_ctx . rc = UsageSummary ( "sra-sort" );
@@ -723,8 +730,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                                                         }
                                                     }
 
-                                                    if ( ! FAILED () )
+                                                    if ( ! FAILED () ) {
+                                                        string_copy( cp_src_path, sizeof cp_src_path, 
+                                                                     tp . src_path, string_size( tp . src_path ) );
+                                                        string_copy( cp_dst_path, sizeof cp_dst_path, 
+                                                                     tp . dst_path, string_size( tp . dst_path ) );
                                                         run ( ctx );
+                                                    }
                                                 }
                                             }
                                         }
@@ -742,5 +754,8 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
     }
 
+    if ( 0 == main_ctx . rc && 0 != cp_src_path[ 0 ] && 0 != cp_dst_path[ 0 ] ) {
+        main_ctx . rc = copy_stats_metadata( cp_src_path, cp_dst_path );
+    }
     return main_ctx . rc;
 }

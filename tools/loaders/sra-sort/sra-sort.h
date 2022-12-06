@@ -167,5 +167,6 @@ struct TypeParams
  */
 void run ( const ctx_t *ctx );
 
-
+rc_t copy_stats_metadata( const char * src_path, const char * dst_path );
+    
 #endif

@@ -185,11 +185,19 @@ typedef enum CCFileFormatTypeEncoded
     ccffteWGA
 } CCFileFormatTypeEncoded;
 
+typedef enum CCFastqFormatLineType
+{
+    ccfqfltError = -1,
+    ccfqfltIdentifier,
+    ccfqfltSeqLetters,
+    ccfqfltPlus,
+    ccfqfltQualityValues
+} CCFastqFormatLineType;
+
 rc_t CCFileFormatMake ( CCFileFormat ** p );
 rc_t CCFileFormatRelease ( const CCFileFormat *self );
 rc_t CCFileFormatGetType ( const CCFileFormat *self, struct KFile const *file,
-    const char *path, char *buffer, size_t buffsize,
-    uint32_t *type, uint32_t *class );
+    const char *path, CCFileNode *node, uint32_t *type, uint32_t *class );
 
 
 rc_t ccat_tar ( CCContainerNode *np, const struct KFile *sf, const char *name );

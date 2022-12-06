@@ -450,14 +450,14 @@ rc_t ccat_arc ( CCContainerNode **np, const KFile *sf, KTime_t mtime,
     /* ensure we handle this type of archive */
     switch ( type_id )
     {
+    case ccfftaHD5:
+        * np = NULL;
+        return 0;
     case ccfftaSra:
 #if ! EXAMINE_KAR_FILES
         * np = NULL;
         return 0;
 #endif
-    case ccfftaHD5:
-        * np = NULL;
-        return 0;
     case ccfftaTar:
         break;
     default:
@@ -718,7 +718,7 @@ rc_t ccat_path_append (const char * name)
 {
     size_t z;
     z = string_size (name);
-    DEBUG_STATUS (("%s:in epath %s name %s z %zu \n",__func__, epath, name, z));
+    DEBUG_STATUS (("%s: in epath %s name %s z %zu \n",__func__, epath, name, z));
     if (ehere + z + 1 >= epath + sizeof (epath))
         return RC (rcExe, rcNoTarg, rcConcatenating, rcBuffer, rcTooShort);
     memmove(ehere, name, z);
@@ -740,8 +740,7 @@ rc_t ccat_main ( CCTree *tree, const KFile *sf, KTime_t mtime,
     /* determine file type based upon contents and name */
     uint32_t type_id, class_id;
 /*     rc_t orc; */
-    rc_t rc = CCFileFormatGetType ( filefmt, sf, name,
-                                    node -> ftype, sizeof node -> ftype, & type_id, & class_id );
+    rc_t rc = CCFileFormatGetType ( filefmt, sf, name, node, & type_id, & class_id );
 
     DEBUG_STATUS (("%s: name '%s' type '%s'\n",__func__,name,node->ftype));
 

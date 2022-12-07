@@ -14,7 +14,7 @@
 
 set -e
 
-source ./check_bin_tools.sh $1 $2 $3
+source ./check_bin_tools.sh $1
 
 print_verbose "testing the omit-qual - option for sam-dump"
 print_verbose "-------------------------------------------"

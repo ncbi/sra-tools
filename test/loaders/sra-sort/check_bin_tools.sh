@@ -5,13 +5,12 @@
 #
 
 BINDIR="$1"
-TESTBINDIR="$2"
-VERBOSE="$3"
+VERBOSE="$2"
 KAR="${BINDIR}/kar"
 BAMLOAD="${BINDIR}/bam-load"
 SRASORT="${BINDIR}/sra-sort"
 SRASTAT="${BINDIR}/sra-stat"
-SAMFACTORY="${TESTBINDIR}/sam-factory-1"
+SAMFACTORY="${BINDIR}/sam-factory"
 
 #------------------------------------------------------------
 # function to print message if $VERBOSE is not empty
@@ -32,4 +31,4 @@ do
     fi
 done
 
-print_verbose "kar, bam-load, sra-sort, sra-stat and sam-factory-1 executables found!"
+print_verbose "kar, bam-load, sra-sort, sra-stat and sam-factory executables found!"

@@ -125,6 +125,10 @@ int Response2::ResultEntry::getCacheFor(Flattened const &match) const
         for (auto i : fnd->second) {
             auto const &p = flattened[i];
             auto const &file = files[p.first];
+
+            if (file.noqual != match.first.noqual) ///< quality must match
+                continue;
+
             auto const &location = file.locations[p.second];
 
             if (location.service == service && location.region == region)
@@ -142,13 +146,13 @@ int Response2::ResultEntry::getCacheFor(Flattened const &match) const
     return result;
 }
 
+using Response2Data = Response2;
 namespace impl {
-/// @brief holds SDL version 2 response
-/// @Note member names generally match the corresponding member names in the SDL response JSON
-struct Response2 : public ::Response2 {
-    using Base = ::Response2;
-    struct DecodingError : public ::Response2::DecodingError {
-        using Base = ::Response2::DecodingError;
+/// @brief parses SDL version 2 response
+struct Response2 : public Response2Data {
+    using Base = Response2Data;
+    struct DecodingError : public Response2Data::DecodingError {
+        using Base = Response2Data::DecodingError;
 
         DecodingError(Base const &other)
         : Base(other)
@@ -224,14 +228,14 @@ struct Response2 : public ::Response2 {
         }
     };
 
-    struct ResultEntry : public ::Response2::ResultEntry {
-        using Base = ::Response2::ResultEntry;
+    struct ResultEntry : public Response2Data::ResultEntry {
+        using Base = Response2Data::ResultEntry;
 
-        struct FileEntry : public ::Response2::ResultEntry::FileEntry {
-            using Base = ::Response2::ResultEntry::FileEntry;
+        struct FileEntry : public Response2Data::ResultEntry::FileEntry {
+            using Base = Response2Data::ResultEntry::FileEntry;
 
-            struct LocationEntry : public ::Response2::ResultEntry::FileEntry::LocationEntry {
-                using Base = ::Response2::ResultEntry::FileEntry::LocationEntry;
+            struct LocationEntry : public Response2Data::ResultEntry::FileEntry::LocationEntry {
+                using Base = Response2Data::ResultEntry::FileEntry::LocationEntry;
 
                 struct Delegate final : public JSONParser::Delegate {
                     JSONValueDelegate<std::string> link, service, region, expirationDate, projectId;
@@ -322,7 +326,7 @@ struct Response2 : public ::Response2 {
                             DecodingError::no_default, DecodingError::locations
                         }).setVictim("region").setCause("service", service).setLocation(service);
                     }
-                    static std::ostream &print(std::ostream &os, ::Response2::DecodingError const &err) {
+                    static std::ostream &print(std::ostream &os, Response2Data::DecodingError const &err) {
                         assert(err.object == Response2::DecodingError::locations);
                         switch (err.errorType) {
                         case Response2::DecodingError::missing:
@@ -462,7 +466,7 @@ struct Response2 : public ::Response2 {
                     }).setVictim("type").setCause("object", object);
                 }
 
-                static std::ostream &print(std::ostream &os, ::Response2::DecodingError const &err) {
+                static std::ostream &print(std::ostream &os, Response2Data::DecodingError const &err) {
                     assert(err.object == Response2::DecodingError::files);
                     switch (err.errorType) {
                     case Response2::DecodingError::missing:
@@ -557,7 +561,7 @@ struct Response2 : public ::Response2 {
                     , files.get()
                 };
             }
-            static std::ostream &print(std::ostream &os, ::Response2::DecodingError const &err) {
+            static std::ostream &print(std::ostream &os, Response2Data::DecodingError const &err) {
                 assert(err.object == Response2::DecodingError::result);
                 switch (err.errorType) {
                 case Response2::DecodingError::missing:
@@ -611,7 +615,7 @@ struct Response2 : public ::Response2 {
 
         Base get()
         {
-            auto error = DecodingError(DecodingError::Base {
+            auto error = DecodingError(DecodingError::Base{
                 DecodingError::missing, DecodingError::topLevel
             });
             if (!wasSet)
@@ -643,7 +647,7 @@ struct Response2 : public ::Response2 {
                 , message ? message.get() : ""
             };
         }
-        static std::ostream &print(std::ostream &os, ::Response2::DecodingError const &err) {
+        static std::ostream &print(std::ostream &os, Response2Data::DecodingError const &err) {
             switch (err.errorType) {
             case Response2::DecodingError::missing:
                 if (!err.haveVictim())

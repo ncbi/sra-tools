@@ -663,7 +663,11 @@ struct Response2Tests {
             }
         }
     } child;
-    Response2Tests() {
+
+    bool passed;
+    Response2Tests()
+    : passed(false)
+    {
         // These are expected to throw.
         try {
             child.runTests();
@@ -675,6 +679,7 @@ struct Response2Tests {
             testGoodResponse();
             testNoResult();
 
+            passed = true
             LOG(8) << "All SDL response parsing tests passed." << std::endl;
             return;
         }
@@ -797,9 +802,12 @@ struct Response2Tests {
     }
 };
 
-static void Response2_test_vdbcache() {
-    Response2Tests response2Tests;
+static bool test_parsing() {
+    auto const response2Tests = Response2Tests{};
+    return response2Tests.passed;
+}
 
+static void test_matching_vdbcache() {
     auto const testJSON = R"###(
 {
     "version": "2",
@@ -914,6 +922,81 @@ static void Response2_test_vdbcache() {
     }
 }
 
+static void test_nonmatching_vdbcache() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "SRR8117283",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub|SRR8117283.lite",
+                    "accession": "SRR8117283",
+                    "type": "sra",
+                    "name": "SRR8117283.lite",
+                    "size": 10626650910,
+                    "md5": "9a44fbc53c2955df8c4f57ecfbab779d",
+                    "modificationDate": "2022-10-20T11:09:01Z",
+                    "noqual": true,
+                    "locations": [
+                        {
+                            "service": "ncbi",
+                            "region": "be-md",
+                            "link": "https://sra-download-internal.ncbi.nlm.nih.gov/sos1/sra-pub-zq-38/SRR008/8117/SRR8117283/SRR8117283.lite.2"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub|SRR8117283",
+                    "accession": "SRR8117283",
+                    "type": "vdbcache",
+                    "name": "SRR8117283.vdbcache",
+                    "size": 1590373098,
+                    "md5": "67ac753e225d2b72d62671339598202f",
+                    "modificationDate": "2018-11-09T22:59:37Z",
+                    "locations": [
+                        {
+                            "service": "ncbi",
+                            "region": "be-md",
+                            "link": "https://sra-download-internal.ncbi.nlm.nih.gov/sos5/sra-pub-run-32/SRR008/8117/SRR8117283/SRR8117283.vdbcache.1"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+)###";
+    try {
+        auto const &raw = Response2::makeFrom(testJSON);
+
+        ASSERT(raw.results.size() == 1);
+        auto passed = false;
+        auto const files = raw.results[0].files.size();
+        auto sras = 0;
+        auto srrs = 0;
+
+        ASSERT(files == 2);
+        for (auto const &fl : raw.results[0].getByType("sra")) {
+            auto const &file = fl.first;
+            auto const vcache = raw.results[0].getCacheFor(fl);
+
+            ASSERT(vcache < 0);
+            passed = true;
+        }
+        ASSERT(passed);
+
+        LOG(8) << "vdbcache location non-matching passed." << std::endl;
+    }
+    catch (Response2::DecodingError const &e) {
+        std::cerr << e << std::endl;
+        throw test_failure(__FUNCTION__);
+    }
+}
+
 #if WINDOWS
 int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
 #else
@@ -921,8 +1004,11 @@ int main ( int argc, char *argv[], char *envp[])
 #endif
 {
     try {
-        Response2_test_vdbcache();
-        return 0;
+        if (test_parsing()) {
+            test_matching_vdbcache();
+            test_nonmatching_vdbcache();
+            return 0;
+        }
     }
     catch (test_failure const &e) {
         std::cerr << "test " << e.what() << " failed." << std::endl;

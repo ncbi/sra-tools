@@ -48,6 +48,12 @@ class cigar_t {
             }
         }
 
+        cigar_t( const cigar_t &other ) { //copy-ctor
+            for( const cigar_opt_t &opt : other . operations ) {
+                operations . push_back( opt );
+            }
+        }
+        
         std::string to_string( void ) const {
             std::string res;
             for( const cigar_opt_t &opt : operations ) {
@@ -70,6 +76,7 @@ class cigar_t {
                             case 'C' :
                             case 'G' :
                             case 'T' : for ( uint32_t i = 0; i < opt . count; ++i ) { res += opt . op; }
+                                    // break omited for reason!
                             case 'D' : ref_idx += opt . count;
                                        break;
                             case 'I' : res += ins_bases . substr ( ins_idx, opt . count );
@@ -85,16 +92,18 @@ class cigar_t {
             return res;
         }
 
+        // produces the READ against the given reference-bases, eventually using the insert-bases
         static std::string read_at( const std::string &cigar_str,
                                     int refpos,
                                     const std::string &ref_bases,
                                     const std::string &ins_bases ) {
             cigar_t cigar( cigar_str );
             uint32_t reflen = cigar . reflen();
-            const std::string &ref_slice = ref_bases.substr( refpos - 1, reflen );
-            return cigar.to_read( ref_slice, ins_bases );
+            const std::string &ref_slice = ref_bases . substr( refpos - 1, reflen );
+            return cigar . to_read( ref_slice, ins_bases );
         }
 
+        // merges M with ACGTM ...
         static std::string purify( const std::string& cigar_str ) {
             cigar_t cigar( cigar_str );
             cigar_t merged = cigar . merge();
@@ -111,6 +120,7 @@ class cigar_t {
                     case 'T'    : res += opt . count; break;
                     case 'D'    : res += opt . count; break;
                     case 'M'    : res += opt . count; break;
+                    // 'I' intenionally omited ...
                 }
             }
             return res;
@@ -158,23 +168,35 @@ class cigar_t {
             return ( mop1 == mop2 );
         }
 
-        cigar_t merge( void ) const {
+        cigar_t merge_step( uint32_t * merge_count ) const {
             cigar_t res( empty_string );
             uint32_t idx = 0;
             for( const cigar_opt_t &opt : operations ) {
                 if ( idx == 0  ) {
                     res . append( opt . op, opt . count );
+                    idx++;
                 } else {
                     cigar_opt_t last_op = res . operations[ idx - 1 ];
                     if ( can_merge( opt . op, last_op . op ) ) {
-                        last_op . count += opt . count;
-                        last_op . op = 'M';
-                        res . operations[ idx - 1 ] = last_op;
+                        res . operations[ idx - 1 ] . count += opt . count;
+                        res . operations[ idx - 1 ] . op = 'M';
+                        ( *merge_count )++;
                     } else {
                         res . append( opt . op, opt . count );
+                        idx++;
                     }
                 }
-                idx++;
+            }
+            return res;
+        }
+
+        cigar_t merge( void ) const {
+            cigar_t res( *this );
+            bool done = false;
+            while ( !done ) {
+                uint32_t merge_count = 0;
+                res = res . merge_step( &merge_count );
+                done = ( 0 == merge_count ); 
             }
             return res;
         }
@@ -1135,7 +1157,7 @@ class t_factory {
 int main( int argc, char *argv[] ) {
     int res = 3;
     try {
-    t_proglines proglines;
+        t_proglines proglines;
         t_progline::consume_lines( argc, argv, proglines );
         if ( !proglines.empty() ) {
             t_errors errors;

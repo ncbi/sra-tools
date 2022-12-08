@@ -34,6 +34,16 @@ if ( EXISTS "${DIRTOTEST}/fasterq-dump${EXE}" )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
 
+    add_test( NAME Test_FasterDump_Fasta_unsorted_flat_tbl_read_id
+        COMMAND
+            bash test_for_read_id_flat.sh ${DIRTOTEST}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
+        COMMAND
+            bash test_for_read_id_cSRA.sh ${DIRTOTEST}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     if( RUN_SANITIZER_TESTS )
         add_test( NAME Test_FasterqDump_Help-asan
             COMMAND ${BINDIR}/fasterq-dump-asan -h

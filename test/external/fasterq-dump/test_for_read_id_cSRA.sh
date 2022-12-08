@@ -2,54 +2,103 @@
 #
 #   Test #2 : cSRA
 #
-#   to keep the test quick we use a slice of SRR341578
-#   the slice is made by using sam-dump on a short reference-slice
-#   (NC_011748.1:2300001-2300005)
-#   this is then 'loaded' with bam-load
-#
 # ================================================================
 
 set -e
 
 BINDIR="$1"
 
-FASTERQDUMP="${BINDIR}/fasterq-dump"
-if [[ ! -x $FASTERQDUMP ]]; then
-    echo "${FASTERQDUMP} not found - exiting..."
+#-----------------------------------------------------------------
+# with the help of the sam-factory we produce random input for bam-load
+SAMFACTORY="${BINDIR}/sam-factory"
+if [[ ! -x $SAMFACTORY ]]; then
+    echo "${SAMFACTORY} not found - exiting..."
     exit 3
 fi
 
-CSRA_ACC="SRR341578"
+RNDREF="random-ref.FASTA"
+RNDSAM="random_sam.SAM"
+rm -rf $RNDREF $RNDSAM
+#with the help of HEREDOC we pipe the configuration into
+# the sam-factory-tool via stdin to produce 2 alignment-pairs
+# and one unaligned record, in total 5 entries, all without qualities
+$SAMFACTORY << EOF
+r:type=random,name=R1,length=3000
+ref-out:$RNDREF
+sam-out:$RNDSAM
+p:name=A,qual=*,repeat=10
+p:name=A,qual=*,repeat=10
+EOF
 
-if [[ ! -f $CSRA_ACC ]]; then
-    echo "${CSRA_ACC} not found here - recreating it"
-    CSRA_SLICE_SAM="${CSRA_ACC}.SAM"
-
-    if [[ ! -f $CSRA_SLICE_SAM ]]; then
-        echo "${CSRA_SLICE_SAM} not found here - recreating it"
-        SAM_DUMP="${BINDIR}/sam-dump"
-        if [[ ! -x $SAM_DUMP ]]; then
-            echo "${SAM_DUMP} not found - exiting..."
-            exit 3
-        fi
-
-        #SLICE="--aligned-region NC_011748.1:2300001-2300005 -r"
-        SLICE="--aligned-region NC_011752.1:40001-40010 -r"
-        CMD="${SAM_DUMP} ${CSRA_ACC} ${SLICE} > ${CSRA_SLICE_SAM}"
-        eval "${CMD}"
-    else
-        echo "${CSRA_SLICE_SAM} found here - no need to recreate it"
-    fi
-
-
+if [[ ! -f $RNDREF ]]; then
+    echo "${RNDREF} not produced - exiting..."
+    exit 3
 fi
 
-exit 0
+if [[ ! -f $RNDSAM ]]; then
+    echo "${RNDSAM} not produced - exiting..."
+    exit 3
+fi
 
-FLAT_TABLE_FASTA="${FLAT_TABLE_ACC}.fasta"
-#run fasterq-dump on the short slice and produce unsorted FASTA
-CMD="${FASTERQDUMP} ./${FLAT_TABLE_ACC} --fasta-unsorted -f"
-eval "${CMD}"
+#-----------------------------------------------------------------
+# load the random data produced above with bam-load
+
+BAMLOAD="${BINDIR}/bam-load"
+if [[ ! -x $BAMLOAD ]]; then
+    echo "${BAMLOAD} not found - exiting..."
+    exit 3
+fi
+
+RND_DATA_DIR="random-data.dir"
+rm -rf "${RND_DATA_DIR}"
+$BAMLOAD $RNDSAM --ref-file $RNDREF --output $RND_DATA_DIR
+
+if [[ ! -d $RND_DATA_DIR ]]; then
+    echo "${RND_DATA_DIR} not produced - exiting..."
+    exit 3
+else
+    rm -rf $RNDSAM $RNDREF
+fi
+
+#-----------------------------------------------------------------
+# kar the output of bam-load into a single file archive
+
+KAR="${BINDIR}/kar"
+if [[ ! -x $KAR ]]; then
+    echo "${KAR} not found - exiting..."
+    exit 3
+fi
+
+RND_DATA_SINGLE_FILE="random_data.csra"
+rm -f "${RND_DATA_SINGLE_FILE}"
+$KAR -c $RND_DATA_SINGLE_FILE -d $RND_DATA_DIR
+
+if [[ ! -f $RND_DATA_SINGLE_FILE ]]; then
+    echo "${RND_DATA_SINGLE_FILE} not produced - exiting..."
+    exit 3
+else
+    rm -rf $RND_DATA_DIR
+fi
+
+# ================================================================
+# >>>> the actual test if fasterq-dump does produce
+#       a FASTA-defline, that contains the READ-ID
+
+FASTERQDUMP="${BINDIR}/fasterq-dump"
+if [[ ! -x $FASTERQDUMP ]]; then
+    echo "${FASTERQDUMP} not found - exiting..."
+    rm -f $RND_DATA_SINGLE_FILE
+    exit 3
+fi
+
+$FASTERQDUMP $RND_DATA_SINGLE_FILE --fasta-unsorted -f
+
+rm -f $RND_DATA_SINGLE_FILE
+
+#-----------------------------------------------------------------
+# now count how many /1 and /2 reads we have
+
+RND_DATA_FASTA="$RND_DATA_SINGLE_FILE.fasta"
 
 READ_ID1=0
 READ_ID2=0
@@ -68,7 +117,7 @@ while read -r LINE; do
             READ_ID2=$(( READ_ID2 + 1 ))
         fi
     fi
-done <$FLAT_TABLE_FASTA
+done < $RND_DATA_FASTA
 
 if [[ ! $READ_ID1 -eq 10 ]]; then
     echo "error number of '/1' reads should be 10, but it is ${READ_ID1}"
@@ -84,5 +133,6 @@ else
     echo "READ_ID2: ${READ_ID2}"
 fi
 
-echo "success testing read-id for --fasta-unsorted mode on flat table"
+rm -f $RND_DATA_FASTA
+echo "success testing read-id for --fasta-unsorted mode on cSRA table"
 

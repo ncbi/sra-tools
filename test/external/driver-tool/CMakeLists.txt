@@ -36,6 +36,7 @@ AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "${SOURC
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
+AddExecutableTest( Test_Drivertool_RunSource "test-run-source.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/file-path.posix.cpp;${SOURCEDIR}/json-parse.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/tool-args.cpp;" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )

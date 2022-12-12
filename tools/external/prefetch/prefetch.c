@@ -91,6 +91,8 @@
 #define USE_CURL 0
 #define ALLOW_STRIP_QUALS 0
 
+#define URL_MAX 4096
+
 #define rcResolver   rcTree
 static bool NotFoundByResolver(rc_t rc) {
     if (GetRCModule(rc) == rcVFS) {
@@ -579,7 +581,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 }
 
                 if ( rc == 0 ) {
-                    char path [ PATH_MAX ] = "";
+                    char path [ URL_MAX ] = "";
                     size_t len = 0;
                     rc = VPathReadUri ( v -> path,
                                         path, sizeof path, & len );
@@ -1082,7 +1084,7 @@ static rc_t ResolvedLocal(const Resolved *self,
             const VPath * http = NULL;
             rc = KSrvRespFileGetHttp(self->respFile, &http);
             if (rc == 0 && http != NULL) {
-                char path[PATH_MAX] = "";
+                char path[URL_MAX] = "";
                 size_t len = 0;
                 rc = VPathReadUri(http, path, sizeof path, &len);
                 if (rc == 0) {
@@ -1286,11 +1288,9 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     progressbar * pb = NULL;
 
-    const VPathStr * remote = NULL;
-
     KStsLevel lvl = STAT_PWR;
 
-    char spath[PATH_MAX] = "";
+    char spath[URL_MAX] = "";
     size_t len = 0;
 
     String src;
@@ -1311,9 +1311,12 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     else
         StringInit(&src, spath, len, (uint32_t)len);
 
+/*
+    const VPathStr * remote = NULL;
     remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
                                                : & self -> remoteHttps;
     assert(remote);
+*/
 
     if (rc == 0 && !mane->dryRun)
         rc = PrfOutFileOpen(pof, mane->force == eForceALL);
@@ -1547,7 +1550,7 @@ static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
     const char *src = NULL;
     AscpOptions opt;
 
-    char spath[PATH_MAX] = "";
+    char spath[URL_MAX] = "";
     size_t len = 0;
 
     assert ( self && mane );
@@ -1730,7 +1733,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
     mane = item->mane;
     assert(mane && pof);
     {
-        char spath[PATH_MAX] = "";
+        char spath[URL_MAX] = "";
         KStsLevel lvl = STS_DBG;
         rc_t r = VPathReadUri(path, spath, sizeof spath, NULL);
         if (mane->dryRun)
@@ -2288,7 +2291,7 @@ static rc_t ItemSetDependency(Item *self,
                 v->path = remote;
             }
             if (rc == 0) {
-                char path[PATH_MAX] = "";
+                char path[URL_MAX] = "";
                 size_t len = 0;
                 rc = VPathReadUri(v->path,
                     path, sizeof path, &len);
@@ -2383,7 +2386,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                 else if ( StringEqual ( & scheme, & fasp ) )
                     remote = & resolved -> remoteFasp ;
                 if ( remote != NULL ) {
-                    char path[PATH_MAX] = "";
+                    char path[URL_MAX] = "";
                     size_t len = 0;
                     remote -> path = resolved -> accession;
                     rc = VPathReadUri(resolved->accession,

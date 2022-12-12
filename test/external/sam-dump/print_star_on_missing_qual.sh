@@ -15,7 +15,7 @@
 
 set -e
 
-source ./check_bin_tools.sh $1 $2
+source ./check_bin_tools.sh $1
 
 print_verbose "testing for '*' in the output of sam-dump if input has not quality"
 print_verbose "-------------------------------------------"

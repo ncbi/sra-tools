@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.2
+**December 12, 2022**
+
+  **prefetch**: extended URL buffer size that caused 'buffer insufficient while converting string within text module' failure on Mac  
+
+
 ## SRA Toolkit 3.0.1
 **November 15, 2022**
 

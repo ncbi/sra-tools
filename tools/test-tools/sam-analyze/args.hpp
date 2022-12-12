@@ -51,9 +51,9 @@ class args_t {
             return ( find( short_key, long_key ) != values.end() );
         }
 
-        int arg_count( void ) const { return arguments . size(); }
+        size_t arg_count( void ) const { return arguments . size(); }
 
-        const std::string get_arg( int idx ) const {
+        const std::string get_arg( size_t idx ) const {
             if ( idx < arguments.size() ) {
                 return arguments[ idx ];
             }
@@ -61,7 +61,7 @@ class args_t {
         }
         
         void report( void ) const {
-            for ( int i = 0; i < arg_count(); ++i ) {
+            for ( size_t i = 0; i < arg_count(); ++i ) {
                 std::cout << "arg[" << i << "] = " << get_arg( i ) << std::endl;
             }
             for ( auto it = values . begin(); it != values . end(); ++it ) {
@@ -112,7 +112,7 @@ class args_t {
                     // no, it was not ( s            tarts with -- )
                     store_key_and_value( key, value );
                 } else {
-                    for ( int32_t i = 1; i < l; ++i ) {
+                    for ( size_t i = 1; i < l; ++i ) {
                         std::string ins_key( "-" );
                         ins_key += key[ i ];
                         store_key_and_value( ins_key, value );

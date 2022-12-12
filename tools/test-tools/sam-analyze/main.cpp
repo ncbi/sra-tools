@@ -1,17 +1,17 @@
 #include "args.hpp"
 #include "params.hpp"
-#include "result.hpp"
 #include "sam_db.hpp"
 #include "importer.hpp"
 #include "analyzer.hpp"
 #include "exporter.hpp"
+#include "ref_dict.hpp"
 
 int main( int argc, char* argv[] ) {
     int res = 0;
-    ARGS::str_vec hints;
-    PARAMS::populate_hints( hints );
-    const ARGS args( argc, argv, hints ); // in args.hpp
-    const PARAMS params( args ); // in params.hpp
+    args_t::str_vec_t hints;
+    params_t::populate_hints( hints );
+    const args_t args( argc, argv, hints ); // in args.hpp
+    const params_t params( args ); // in params.hpp
     if ( params . cmn . help ) {
         params . show_help();
     } else {
@@ -19,53 +19,46 @@ int main( int argc, char* argv[] ) {
             params . show_report();
         }
 
-        SAM_DB db( params . cmn . db_filename ); // in sam_db.hpp
+        sam_database_t db( params . cmn . db_filename ); // in sam_db.hpp
 
-        if ( params . imp . requested() ) {
-            if ( params . imp . check() ) {
+        if ( params . imp . requested() ) {     // import was requested?
+            if ( params . imp . check() ) {     // import can be done?
                 /* ==============================================================
                 *  import a sam-file into the sqlite-database-file 
                 * ============================================================== */
-                IMPORT_RESULT result; // in result.hpp
-                IMPORTER importer( db, params . imp, result ); // in importer.hpp
-                importer . run();
-                if ( params . cmn . report ) { result . report(); }
-                res = result . success ? 0 : 3;
+                importer_t importer( db, params . imp ); // in importer.hpp
+                res = importer . run() ? 0 : 3;
                 /* ============================================================== */
             } else {
-                res = 3;
+                res = 3;    // import requested, but cannot be done
             }
         }
 
-        if ( 0 == res && params . ana . requested() ) {
-            if ( params . ana .check( db ) ) {
+        ref_dict_t ref_dict;    // either filled by analyze-step, or in export if needed
+
+        if ( 0 == res && params . ana . requested() ) {     // analyze was requested?
+            if ( params . ana . check( db ) ) {             // analyze can be done?
                 /* ==============================================================
                 *  analyze SAM-database ( sqlite )
                 * ============================================================== */
-                ANALYZE_RESULT result;
-                ANALYZER analyzer( db, params . ana, result ); // in analyzer.hpp
-                analyzer . run();
-                result . report();
-                res = result . success ? 0 : 3;
+                analyzer_t analyzer( db, params . ana, ref_dict ); // in analyzer.hpp
+                res = analyzer . run() ? 0 : 3;
                 /* ============================================================== */
             } else {
-                res = 3;
+                res = 3;    // analyze requested, but cannot be done
             }
         }
-        
-        if ( 0 == res && params . exp . requested() ) {
-            if ( params . exp . check( db ) ) {
+
+        if ( 0 == res && params . exp . requested() ) {     // export was requested?
+            if ( params . exp . check( db ) ) {             // export can be done?
                 /* ==============================================================
                 *  export from the sqlite-database into a sam-file
                 *  omit reference-headers which are not used by alignments
                 * ============================================================== */
-                EXPORT_RESULT result;
-                EXPORTER exporter( db, params . exp, result ); // in exporter.hpp
-                exporter . run();
-                if ( params . cmn . report ) { result . report(); }
-                res = result . success ? 0 : 3;
+                exporter_t exporter( db, params . exp, ref_dict ); // in exporter.hpp
+                res = exporter . run() ? 0 : 3;
             } else {
-                res =  3;
+                res =  3;    // export requested, but cannot be done
             }
         }
     }

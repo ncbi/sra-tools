@@ -34,7 +34,7 @@ class importer_t {
             std::string name, length, part;
             std::ostringstream ss;
             unsigned int ss_nr = 0;
-            for ( int i = 1; i < line_parts . size(); ++i ) {
+            for ( size_t i = 1; i < line_parts . size(); ++i ) {
                 part = line_parts . get( i );
                 hdr_parts . split( part );
                 if ( hdr_parts . size() > 0 ) {
@@ -92,7 +92,7 @@ class importer_t {
             data . clear();
             // copy the fields QNAME ... QUAL ( 11 of them ) + collect TAGS into one
             std::string tags;
-            for ( int i = 0; i < line_parts.size(); ++i ) {
+            for ( size_t i = 0; i < line_parts.size(); ++i ) {
                 if ( i < 11 ) { 
                     data . push_back( line_parts . get( i ) );
                 } else {
@@ -141,8 +141,7 @@ class importer_t {
               line_parts( '\t' ),
               hdr_parts( ':' ),
               db( a_db ) {
-            uint16_t st = db . drop_all();
-            
+            db . drop_all();
         }
               
         bool run( void ) {

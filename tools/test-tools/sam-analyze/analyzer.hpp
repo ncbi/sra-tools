@@ -9,9 +9,9 @@
 
 class analyzer_t {
     private :
+        sam_database_t &db;
         const analyze_params_t& params;
         ref_dict_t& ref_dict;
-        sam_database_t &db;
         analyze_result_t result;
         
         analyzer_t( const analyzer_t& ) = delete;
@@ -34,7 +34,7 @@ class analyzer_t {
 
     public :
         analyzer_t( sam_database_t& a_db, const analyze_params_t& a_params, ref_dict_t& a_ref_dict )
-            : params( a_params ), db( a_db ), ref_dict( a_ref_dict ) { }
+            : db( a_db ), params( a_params ), ref_dict( a_ref_dict ) { }
 
         bool run( void ) {
             std::cerr << "ANALYZE:" << std::endl;

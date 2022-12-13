@@ -6,19 +6,8 @@
 #include <vector>
 #include <map>
 
-struct base_result_t {
-    static std::string yes_no( bool flag ) {
-        if ( flag ) { return std::string( "YES" ); }
-        return std::string( "NO" );
-    }
-
-    static std::string with_ths( uint64_t x ) {
-        std::ostringstream ss;
-        ss . imbue( std::locale( "" ) );
-        ss << x;
-        return ss.str();
-    }
-};
+#include "tools.hpp"
+#include "alig.hpp"
 
 struct import_result_t {
     bool success;
@@ -30,9 +19,9 @@ struct import_result_t {
         success( false ), total_lines( 0 ), header_lines( 0 ), alignment_lines( 0 ) {}
 
     void report( void ) {
-        std::cerr << "\ttotal lines: " << base_result_t::with_ths( total_lines ) << std::endl;
-        std::cerr << "\theaders    : " << base_result_t::with_ths( header_lines ) << std::endl;
-        std::cerr << "\talignments : " << base_result_t::with_ths( alignment_lines ) << std::endl;
+        std::cerr << "\ttotal lines: " << tools_t::with_ths( total_lines ) << std::endl;
+        std::cerr << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
+        std::cerr << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
     }
     
 };
@@ -93,17 +82,17 @@ struct flag_count_t {
         not_primary( 0 ), bad_qual( 0 ), duplicate( 0 ) {}
     
     void report( void ) {
-        std::cerr << "\tpaired in seq  : " << base_result_t::with_ths( paired_in_seq ) << std::endl;
-        std::cerr << "\tpropper mapped : " << base_result_t::with_ths( propper_mapped ) << std::endl;
-        std::cerr << "\tunmapped       : " << base_result_t::with_ths( unmapped ) << std::endl;
-        std::cerr << "\tmate unmapped  : " << base_result_t::with_ths( mate_unmapped ) << std::endl;
-        std::cerr << "\treversed       : " << base_result_t::with_ths( reversed ) << std::endl;
-        std::cerr << "\tmate reversed  : " << base_result_t::with_ths( mate_reversed ) << std::endl;
-        std::cerr << "\tfirst in pair  : " << base_result_t::with_ths( first_in_pair ) << std::endl;
-        std::cerr << "\tsecond in pair : " << base_result_t::with_ths( second_in_pair ) << std::endl;
-        std::cerr << "\tnot primary    : " << base_result_t::with_ths( not_primary ) << std::endl;
-        std::cerr << "\tbad quality    : " << base_result_t::with_ths( bad_qual ) << std::endl;
-        std::cerr << "\tduplicate      : " << base_result_t::with_ths( duplicate ) << std::endl;
+        std::cerr << "\tpaired in seq  : " << tools_t::with_ths( paired_in_seq ) << std::endl;
+        std::cerr << "\tpropper mapped : " << tools_t::with_ths( propper_mapped ) << std::endl;
+        std::cerr << "\tunmapped       : " << tools_t::with_ths( unmapped ) << std::endl;
+        std::cerr << "\tmate unmapped  : " << tools_t::with_ths( mate_unmapped ) << std::endl;
+        std::cerr << "\treversed       : " << tools_t::with_ths( reversed ) << std::endl;
+        std::cerr << "\tmate reversed  : " << tools_t::with_ths( mate_reversed ) << std::endl;
+        std::cerr << "\tfirst in pair  : " << tools_t::with_ths( first_in_pair ) << std::endl;
+        std::cerr << "\tsecond in pair : " << tools_t::with_ths( second_in_pair ) << std::endl;
+        std::cerr << "\tnot primary    : " << tools_t::with_ths( not_primary ) << std::endl;
+        std::cerr << "\tbad quality    : " << tools_t::with_ths( bad_qual ) << std::endl;
+        std::cerr << "\tduplicate      : " << tools_t::with_ths( duplicate ) << std::endl;
     }
 };
 
@@ -117,27 +106,29 @@ struct analyze_result_t {
     uint64_t flag_problems;
     flag_count_t flag_counts;
     counter_dict_t counter_dict;
+    IUPAC_counts_t counts;
     
     analyze_result_t() : 
         success( false ), spot_count( 0 ), refs_in_use( 0 ),
         unaligned( 0 ), half_aligned( 0 ), fully_aligned( 0 ), flag_problems( 0 ) {}
 
-    void report( void ) {
-        std::cerr << "\tspots      : " << base_result_t::with_ths( spot_count ) << std::endl;
-        std::cerr << "\tused refs  : " << base_result_t::with_ths( refs_in_use ) << std::endl;
-        std::cerr << "\tunalig.    : " << base_result_t::with_ths( unaligned ) << std::endl;
-        std::cerr << "\thalf alig. : " << base_result_t::with_ths( half_aligned ) << std::endl;
-        std::cerr << "\tfull alig. : " << base_result_t::with_ths( fully_aligned ) << std::endl;
-        std::cerr << "\tflag-probl.: " << base_result_t::with_ths( flag_problems ) << std::endl;        
+    void report( bool produce_fingerprint ) {
+        std::cerr << "\tspots      : " << tools_t::with_ths( spot_count ) << std::endl;
+        std::cerr << "\tused refs  : " << tools_t::with_ths( refs_in_use ) << std::endl;
+        std::cerr << "\tunalig.    : " << tools_t::with_ths( unaligned ) << std::endl;
+        std::cerr << "\thalf alig. : " << tools_t::with_ths( half_aligned ) << std::endl;
+        std::cerr << "\tfull alig. : " << tools_t::with_ths( fully_aligned ) << std::endl;
+        std::cerr << "\tflag-probl.: " << tools_t::with_ths( flag_problems ) << std::endl;
         flag_counts . report();
         uint64_t value, count;
         counter_dict . reset();
         while( counter_dict . next( value, count ) ) {
             std::cerr << "\tspots with " << value << " alignment";
             if ( value ) { std::cerr << "s"; }
-            std::cerr << " : " << base_result_t::with_ths( count ) << std::endl;
+            std::cerr << " : " << tools_t::with_ths( count ) << std::endl;
             
         }
+        counts . report( produce_fingerprint );
     }
 };
 
@@ -150,8 +141,8 @@ struct export_result_t {
         success( false ), header_lines( 0 ), alignment_lines( 0 ) {}
 
     void report( void ) {
-        std::cerr << "\theaders    : " << base_result_t::with_ths( header_lines ) << std::endl;
-        std::cerr << "\talignments : " << base_result_t::with_ths( alignment_lines ) << std::endl;
+        std::cerr << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
+        std::cerr << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
     }
 };
 

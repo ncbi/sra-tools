@@ -4,6 +4,99 @@
 #include <string>
 #include <algorithm>
 #include "database.hpp"
+#include "tools.hpp"
+#include "md5.hpp"
+
+class IUPAC_counts_t {
+    private:
+        uint64_t A;     /* Adenine for sure */
+        uint64_t C;     /* Cytosine for sure */
+        uint64_t G;     /* Guanine for sure */
+        uint64_t T;     /* Thymine for sure ( or Uracil ) */
+
+        /* ambiguities: */
+        uint64_t R;     /* A or G */
+        uint64_t Y;     /* C or T */
+        uint64_t S;     /* G or C */
+        uint64_t W;     /* A or T */
+        uint64_t K;     /* G or T */
+        uint64_t M;     /* A or C */
+        uint64_t B;     /* C or G or T */
+        uint64_t D;     /* A or G or T */
+        uint64_t H;     /* A or C or T */
+        uint64_t V;     /* A or C or G */
+        uint64_t N;     /* dont know */
+        uint64_t gap;   /* '.' or '-' */
+        
+        uint64_t invalid;    
+        uint64_t total;    
+    
+        uint64_t *ascii_2_ptr[ 256 ];
+        
+    public:
+
+        IUPAC_counts_t() : A( 0 ), C( 0 ), G( 0 ), T( 0 ),
+            R( 0 ), Y( 0 ), S( 0 ), W( 0 ), K( 0 ), M( 0 ),
+            B( 0 ), D( 0 ), H( 0 ), V( 0 ), N( 0 ), gap( 0 ),
+            invalid( 0 ), total( 0 ) {
+                for ( uint16_t i = 0; i < 256; ++i ) {
+                    ascii_2_ptr[ i ] = &invalid;
+                }
+                ascii_2_ptr[ 45 ] = &gap;   ascii_2_ptr[ 46 ]  = &gap;
+                ascii_2_ptr[ 65 ] = &A;     ascii_2_ptr[ 97 ]  = &A;
+                ascii_2_ptr[ 66 ] = &B;     ascii_2_ptr[ 98 ]  = &B;
+                ascii_2_ptr[ 67 ] = &C;     ascii_2_ptr[ 99 ]  = &C;
+                ascii_2_ptr[ 68 ] = &D;     ascii_2_ptr[ 100 ] = &D;
+                ascii_2_ptr[ 71 ] = &G;     ascii_2_ptr[ 103 ] = &G;
+                ascii_2_ptr[ 72 ] = &H;     ascii_2_ptr[ 104 ] = &H;
+                ascii_2_ptr[ 75 ] = &K;     ascii_2_ptr[ 107 ] = &K;
+                ascii_2_ptr[ 77 ] = &M;     ascii_2_ptr[ 109 ] = &M;
+                ascii_2_ptr[ 78 ] = &N;     ascii_2_ptr[ 110 ] = &N;
+                ascii_2_ptr[ 82 ] = &R;     ascii_2_ptr[ 114 ] = &R;
+                ascii_2_ptr[ 83 ] = &S;     ascii_2_ptr[ 115 ] = &S;
+                ascii_2_ptr[ 84 ] = &T;     ascii_2_ptr[ 116 ] = &T;
+                ascii_2_ptr[ 85 ] = &T;     ascii_2_ptr[ 117 ] = &T;
+                ascii_2_ptr[ 86 ] = &V;     ascii_2_ptr[ 118 ] = &V;
+                ascii_2_ptr[ 87 ] = &W;     ascii_2_ptr[ 119 ] = &W;
+                ascii_2_ptr[ 89 ] = &Y;     ascii_2_ptr[ 121 ] = &Y;
+        }
+    
+        void count( const std::string& s ) {
+            for ( auto &c : s ) { ( *( ascii_2_ptr[ c & 0x0FF ] ) )++; }
+            total += s . length();
+        }
+
+        void report_if( uint64_t value, const char * txt ) {
+            if ( value > 0 ) {
+                std::cerr << "\t" << txt << " : " << tools_t::with_ths( value ) << std::endl;                
+            }
+        }
+        
+        void report( bool full ) {
+            std::cerr << "\tAT    : " << tools_t::with_ths( A + T ) << std::endl;
+            std::cerr << "\tCG    : " << tools_t::with_ths( C + G ) << std::endl;
+            report_if( N,       "N    " );
+            report_if( invalid, "inval" );            
+            std::cerr << "\ttotal : " << tools_t::with_ths( total ) << std::endl;
+            if ( full ) {
+                std::cerr << "\tA : " << tools_t::with_ths( A ) << std::endl;
+                std::cerr << "\tC : " << tools_t::with_ths( C ) << std::endl;
+                std::cerr << "\tG : " << tools_t::with_ths( G ) << std::endl;
+                std::cerr << "\tT : " << tools_t::with_ths( T ) << std::endl;
+                report_if( R, "R" );
+                report_if( Y, "Y" );
+                report_if( S, "S" );
+                report_if( W, "W" );
+                report_if( K, "K" );
+                report_if( M, "M" );
+                report_if( B, "B" );
+                report_if( D, "D" );
+                report_if( H, "H" );
+                report_if( V, "V" );
+                report_if( gap, "gap" );
+            }
+        }
+};
 
 struct sam_alig_t {
     std::string NAME;
@@ -46,6 +139,16 @@ struct sam_alig_t {
     bool not_primary( void ) { return ( ( FLAGS & 0x100 ) == 0x100 ); }
     bool bad_qual( void ) { return ( ( FLAGS & 0x200 ) == 0x200 ); }
     bool duplicate( void ) { return ( ( FLAGS & 0x400 ) == 0x400 ); }
+    
+    void count( IUPAC_counts_t& counts  ) { counts. count( SEQ ); };
+
+    digest_t md5( void ) {
+        MD5 md5_1( SEQ );
+        MD5 md5_2( tools_t::reverse_complement( SEQ ) );        
+        digest_t res = md5_1.get_digest();
+        res . digest_xor( md5_2 . get_digest() );
+        return res;
+    }
 };
 
 class sam_alig_iter_t {
@@ -89,6 +192,8 @@ class sam_alig_iter_t {
                 count++;
                 stm -> step();
                 return true;
+            } else {
+                alig . NAME . clear();                
             }
             return false;
         }

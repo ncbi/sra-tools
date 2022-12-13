@@ -22,5 +22,5 @@
 #
 # ===========================================================================
 
-add_executable( sam-analyze main.cpp sqlite3.c )
+add_executable( sam-analyze main.cpp md5.cpp sqlite3.c )
 target_link_libraries( sam-analyze pthread m dl )

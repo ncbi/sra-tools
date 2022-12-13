@@ -6,6 +6,7 @@
 #include "ref_dict.hpp"
 #include "database.hpp"
 #include "result.hpp"
+#include "md5.hpp"
 
 struct sam_spot_t {
     typedef enum SPOT_TYPE{ SPOT_ALIGNED, SPOT_HALF_ALIGNED, SPOT_UNALIGNED } SPOT_TYPE;
@@ -73,16 +74,29 @@ struct sam_spot_t {
             if ( alig . bad_qual() ) { flag_counts . bad_qual ++; }
             if ( alig . duplicate() ) { flag_counts . duplicate ++; }
         }
-        
+    }
+    
+    void count( IUPAC_counts_t& counts  ) {
+        for ( auto & alig : aligs ) {
+            if ( ! alig . not_primary() ) { alig . count( counts ); }
+        }
+    }
+    
+    digest_t md5( void ) {
+        digest_t res;
+        for ( auto & alig : aligs ) {
+            res . digest_xor( alig . md5() );
+        }
+        return res;
     }
 };
 
 class sam_spot_iter_t {
     private :
         sam_alig_iter_t iter;
-        sam_alig_t alig;
         uint64_t count;
-
+        sam_alig_t alig;
+        
         sam_spot_iter_t( const sam_spot_iter_t& ) = delete;
         
     public :
@@ -91,23 +105,22 @@ class sam_spot_iter_t {
         
         bool next( sam_spot_t& spot ) {
             bool done = false;
-            bool res = false;
-            spot . clear( alig );
+            bool keep = false;
+            spot . clear( alig ); // eventually add kept, not-empty alig
             while ( !done ) {
-                res = iter . next( alig );
-                if ( res ) {
+                if ( iter . next( alig ) ) {
                     if ( spot . add( alig ) ) {
                         // belongs to the current spot, continue
                     } else {
-                        done = true;
-                        // no: different name, keep it in alig for the next call
+                        done = keep = true; // no: different name, keep it in alig for the next call
                     }
                 } else {
-                    // no more alignments in the alig-iter
-                    done = true;
+                    done = true; // no more alignments in the alig-iter
                 }
             }
+            bool res = ( spot . count() > 0 );
             if ( res ) { count++; }
+            if ( !keep ) { alig . NAME . clear(); };
             return res;
         }
         
@@ -148,8 +161,8 @@ struct sam_spot_rname_t {
 class sam_spot_rname_iter_t {
 private :
     sam_alig_rname_iter_t iter;
-    sam_alig_rname_t alig;
     uint64_t count;
+    sam_alig_rname_t alig;
     
     sam_spot_rname_iter_t( const sam_spot_rname_iter_t& ) = delete;
     
@@ -159,23 +172,22 @@ public :
     
     bool next( sam_spot_rname_t& spot ) {
         bool done = false;
-        bool res = false;
-        spot . clear( alig );
+        bool keep = false;
+        spot . clear( alig ); // eventually add kept, not-empty alig
         while ( !done ) {
-            res = iter . next( alig );
-            if ( res ) {
+            if ( iter . next( alig ) ) {
                 if ( spot . add( alig ) ) {
                     // belongs to the current spot, continue
                 } else {
-                    done = true;
-                    // no: different name, keep it in alig for the next call
+                    done = keep = true;  // no: different name, keep it in alig for the next call
                 }
             } else {
-                // no more alignments in the alig-iter
-                done = true;
+                done = true; // no more alignments in the alig-iter
             }
         }
+        bool res = ( spot . count() > 0 );
         if ( res ) { count++; }
+        if ( !keep ) { alig . NAME . clear(); }
         return res;
     }
     

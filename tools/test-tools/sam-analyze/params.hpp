@@ -77,10 +77,11 @@ struct cmn_params_t {
         std::cout << "bam_analyze OPTIONS" << std::endl;
         std::cout << "\t-h --help ... show this help-text" << std::endl;
         std::cout <<  std::endl;
-        std::cout << "\t-d=file --db=file ....... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
-        std::cout << "\t-t=count --trans=count .. transaction size for writing to sqlite3-db ( dflt: 50,000 )" << std::endl;
-        std::cout << "\t-r --report ............. produce report about import/analysis/export on stderr" << std::endl;
-        std::cout << "\t-p --progress ........... show progress of import/export on stderr" << std::endl;
+        std::cout << "\t-d=file --db=file ......... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
+        std::cout << "\t-t=count --trans=count .... transaction size for writing to sqlite3-db ( dflt: 50,000 )" << std::endl;
+        std::cout << "\t-r --report ............... produce report about import/analysis/export on stderr" << std::endl;
+        std::cout << "\t-p --progress ............. show progress of import/export on stderr" << std::endl;
+        std::cout <<  std::endl;
     }
 };
 
@@ -124,24 +125,34 @@ struct import_params_t {
 
     void show_help( void ) const {
         std::cout << "\t-i=file --import=file ... import from this SAM-file ( can be 'stdin' )" << std::endl;
-        std::cout << "\t-l=count --import-alig=count ... limit number of alignments to import" << std::endl;        
+        std::cout << "\t-l=count --import-alig=count ... limit number of alignments to import" << std::endl;
+        std::cout <<  std::endl;
     }
 };
 
 struct analyze_params_t {
     const bool analyze;
-
+    const std::string fingerprint;
+    
     analyze_params_t( const args_t& args ) :
-        analyze( args . has( "-a", "--analyze" ) ) { }
+        analyze( args . has( "-a", "--analyze" ) ),
+        fingerprint( args . get_str( "-g", "--finger" ) ) {
+        }
+        
 
     static void populate_hints( args_t::str_vec_t& hints ) {
+        hints . push_back( "-g" );
+        hints . push_back( "--finger" );
     }
 
     void show_report( void ) const {
         std::cerr << "analyze data  : " << base_params_t::yes_no( analyze ) << std::endl;
+        std::cerr << "finger-print  : " << fingerprint << std::endl;        
     }
 
-    bool requested( void ) const { return analyze; }
+    bool requested( void ) const { 
+        return analyze || ( ! fingerprint . empty() );
+    }
     
     bool check( sam_database_t& db ) const {
         bool res = ( db . alig_count() > 0 );
@@ -152,7 +163,9 @@ struct analyze_params_t {
     }
     
     void show_help( void ) const {
-        std::cout << "\t-a --analyze          ... analyze imported data" << std::endl;
+        std::cout << "\t-a --analyze          ..... analyze imported data" << std::endl;
+        std::cout << "\t-g=file --finger=file ..... produce fingerprint of imported data" << std::endl;
+        std::cout <<  std::endl;
     }
 
 };

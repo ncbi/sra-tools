@@ -172,9 +172,9 @@ class exporter_t {
         exporter_t( sam_database_t& a_db, const export_params_t& a_params, ref_dict_t& a_ref_dict )
             : params( a_params ), db( a_db ), ref_dict( a_ref_dict ) { }
 
-        bool run() {
+        bool run( std::ostream * sink ) {
             if (  params . cmn . report ) {
-                std::cerr << "EXPORT:" << std::endl;
+                *sink << "EXPORT:" << std::endl;
             }
             if ( params . only_used_refs && ref_dict . size() == 0 ) {
                 populate_all_ref_dict();
@@ -188,7 +188,7 @@ class exporter_t {
                 result . success = export_some_spots( *stream );
             }
 
-            if ( result . success && params . cmn . report ) { result . report(); }            
+            if ( result . success && params . cmn . report ) { result . report( sink ); } 
             if ( result . success && !params . ref_report_filename . empty() ) { 
                 produce_ref_report();
             }

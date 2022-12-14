@@ -144,8 +144,8 @@ class importer_t {
             db . drop_all();
         }
               
-        bool run( void ) {
-            if ( params . cmn . report ) { std::cerr << "IMPORT:" << std::endl;  }
+              bool run( std::ostream * sink ) {
+            if ( params . cmn . report ) { *sink << "IMPORT:" << std::endl;  }
             bool ok = synchronous( false );
             // this takes a while
             if ( ok ) { ok = import_lines(); }
@@ -153,7 +153,7 @@ class importer_t {
             if ( ok ) { ok = db . ok_or_done( db . create_alig_tbl_idx() ); }
             result . total_lines = reader . get_line_nr();
             result . success =  ok;
-            if ( params . cmn . report ) { result . report(); }
+            if ( params . cmn . report ) { result . report( sink ); }
             return result . success;
         }
 };

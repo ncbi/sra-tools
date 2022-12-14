@@ -18,10 +18,10 @@ struct import_result_t {
     import_result_t() : 
         success( false ), total_lines( 0 ), header_lines( 0 ), alignment_lines( 0 ) {}
 
-    void report( void ) {
-        std::cerr << "\ttotal lines: " << tools_t::with_ths( total_lines ) << std::endl;
-        std::cerr << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
-        std::cerr << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
+    void report( std::ostream * sink ) {
+        *sink << "\ttotal lines: " << tools_t::with_ths( total_lines ) << std::endl;
+        *sink << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
+        *sink << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
     }
     
 };
@@ -81,24 +81,25 @@ struct flag_count_t {
         reversed( 0 ), mate_reversed( 0 ), first_in_pair( 0 ), second_in_pair( 0 ),
         not_primary( 0 ), bad_qual( 0 ), duplicate( 0 ) {}
     
-    void report( void ) {
-        std::cerr << "\tpaired in seq  : " << tools_t::with_ths( paired_in_seq ) << std::endl;
-        std::cerr << "\tpropper mapped : " << tools_t::with_ths( propper_mapped ) << std::endl;
-        std::cerr << "\tunmapped       : " << tools_t::with_ths( unmapped ) << std::endl;
-        std::cerr << "\tmate unmapped  : " << tools_t::with_ths( mate_unmapped ) << std::endl;
-        std::cerr << "\treversed       : " << tools_t::with_ths( reversed ) << std::endl;
-        std::cerr << "\tmate reversed  : " << tools_t::with_ths( mate_reversed ) << std::endl;
-        std::cerr << "\tfirst in pair  : " << tools_t::with_ths( first_in_pair ) << std::endl;
-        std::cerr << "\tsecond in pair : " << tools_t::with_ths( second_in_pair ) << std::endl;
-        std::cerr << "\tnot primary    : " << tools_t::with_ths( not_primary ) << std::endl;
-        std::cerr << "\tbad quality    : " << tools_t::with_ths( bad_qual ) << std::endl;
-        std::cerr << "\tduplicate      : " << tools_t::with_ths( duplicate ) << std::endl;
+    void report( std::ostream * sink ) {
+        *sink << "\tpaired in seq  : " << tools_t::with_ths( paired_in_seq ) << std::endl;
+        *sink << "\tpropper mapped : " << tools_t::with_ths( propper_mapped ) << std::endl;
+        *sink << "\tunmapped       : " << tools_t::with_ths( unmapped ) << std::endl;
+        *sink << "\tmate unmapped  : " << tools_t::with_ths( mate_unmapped ) << std::endl;
+        *sink << "\treversed       : " << tools_t::with_ths( reversed ) << std::endl;
+        *sink << "\tmate reversed  : " << tools_t::with_ths( mate_reversed ) << std::endl;
+        *sink << "\tfirst in pair  : " << tools_t::with_ths( first_in_pair ) << std::endl;
+        *sink << "\tsecond in pair : " << tools_t::with_ths( second_in_pair ) << std::endl;
+        *sink << "\tnot primary    : " << tools_t::with_ths( not_primary ) << std::endl;
+        *sink << "\tbad quality    : " << tools_t::with_ths( bad_qual ) << std::endl;
+        *sink << "\tduplicate      : " << tools_t::with_ths( duplicate ) << std::endl;
     }
 };
 
 struct analyze_result_t {
     bool success;
     uint64_t spot_count;
+    uint64_t alig_count;
     uint64_t refs_in_use;
     uint64_t unaligned;
     uint64_t half_aligned;
@@ -109,27 +110,29 @@ struct analyze_result_t {
     IUPAC_counts_t counts;
     
     analyze_result_t() : 
-        success( false ), spot_count( 0 ), refs_in_use( 0 ),
+        success( false ), spot_count( 0 ), alig_count( 0 ), refs_in_use( 0 ),
         unaligned( 0 ), half_aligned( 0 ), fully_aligned( 0 ), flag_problems( 0 ) {}
 
-    void report( bool produce_fingerprint ) {
-        std::cerr << "\tspots      : " << tools_t::with_ths( spot_count ) << std::endl;
-        std::cerr << "\tused refs  : " << tools_t::with_ths( refs_in_use ) << std::endl;
-        std::cerr << "\tunalig.    : " << tools_t::with_ths( unaligned ) << std::endl;
-        std::cerr << "\thalf alig. : " << tools_t::with_ths( half_aligned ) << std::endl;
-        std::cerr << "\tfull alig. : " << tools_t::with_ths( fully_aligned ) << std::endl;
-        std::cerr << "\tflag-probl.: " << tools_t::with_ths( flag_problems ) << std::endl;
-        flag_counts . report();
+    void report( std::ostream * sink, bool produce_fingerprint ) {
+        *sink << "\tspots      : " << tools_t::with_ths( spot_count ) << std::endl;
+        *sink << "\talignments : " << tools_t::with_ths( alig_count ) << std::endl;        
+        *sink << "\tused refs  : " << tools_t::with_ths( refs_in_use ) << std::endl;
+        *sink << "\tunalig.    : " << tools_t::with_ths( unaligned ) << std::endl;
+        *sink << "\thalf alig. : " << tools_t::with_ths( half_aligned ) << std::endl;
+        *sink << "\tfull alig. : " << tools_t::with_ths( fully_aligned ) << std::endl;
+        *sink << "\tflag-probl.: " << tools_t::with_ths( flag_problems ) << std::endl;
+        flag_counts . report( sink );
         uint64_t value, count;
         counter_dict . reset();
         while( counter_dict . next( value, count ) ) {
-            std::cerr << "\tspots with " << value << " alignment";
-            if ( value ) { std::cerr << "s"; }
-            std::cerr << " : " << tools_t::with_ths( count ) << std::endl;
+            *sink << "\tspots with " << value << " alignment";
+            if ( value ) { *sink << "s"; }
+            *sink << " : " << tools_t::with_ths( count ) << std::endl;
             
         }
-        counts . report( produce_fingerprint );
+        counts . report( sink, produce_fingerprint );
     }
+   
 };
 
 struct export_result_t {
@@ -140,9 +143,9 @@ struct export_result_t {
     export_result_t() : 
         success( false ), header_lines( 0 ), alignment_lines( 0 ) {}
 
-    void report( void ) {
-        std::cerr << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
-        std::cerr << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
+    void report( std::ostream * sink ) {
+        *sink << "\theaders    : " << tools_t::with_ths( header_lines ) << std::endl;
+        *sink << "\talignments : " << tools_t::with_ths( alignment_lines ) << std::endl;
     }
 };
 

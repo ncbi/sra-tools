@@ -30,6 +30,7 @@ function check_if_exists() {
 SAM_FILE="data.sam"
 
 ${BINDIR}/${SAM_FACTORY_BIN} << EOF
+seed:10
 r:type=random,name=R1,length=5000
 r:type=random,name=R2,length=4000
 r:type=random,name=R3,length=3000

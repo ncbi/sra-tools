@@ -383,7 +383,8 @@ class t_progline {
         bool is_unaligned( void ) const { return cmd == "unalig" || cmd == "u"; }
         bool is_link( void ) const { return cmd == "lnk" || cmd == "l"; }
         bool is_sort_alignments( void ) const { return cmd == "sort"; }
-
+        bool is_seed( void ) const { return cmd == "seed"; }
+        
         std::string get_org( void ) const {
             std::stringstream ss;
             ss << filename << "#" << line_nr << " : " << org;
@@ -899,6 +900,7 @@ class t_settings {
         int dflt_mapq;
         int dflt_qdiv;
         bool sort_alignments;
+        unsigned int rnd_seed;
 
         void set_string( const t_progline_ptr pl, const char * msg, std::string *out,
                          t_errors & errors ) {
@@ -912,7 +914,8 @@ class t_settings {
 
     public :
         t_settings( const t_proglines& proglines, t_errors & errors )
-            : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ), sort_alignments( true ) {
+            : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ),
+              sort_alignments( true ), rnd_seed( 0 ) {
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref_out() ) {
                     set_string( pl, "missing ref-file-name in: ", &ref_out, errors );
@@ -928,6 +931,8 @@ class t_settings {
                     set_string( pl, "missing value in: ", &dflt_cigar, errors );
                 } else if ( pl -> is_sort_alignments() ) {
                     sort_alignments = pl -> get_bool( sort_alignments );
+                } else if ( pl -> is_seed() ) {
+                    rnd_seed = pl -> get_int( 0 );
                 }
             }
         }
@@ -941,6 +946,7 @@ class t_settings {
         int get_dflt_mapq( void ) { return dflt_mapq; }
         int get_dflt_qdiv( void ) { return dflt_qdiv; }
         bool get_sort_alignments( void ) { return sort_alignments; }
+        unsigned int get_rnd_seed( void ) { return rnd_seed; }
 };
 
 class t_factory {
@@ -952,6 +958,13 @@ class t_factory {
         t_alignment_group_map alignment_groups;
 
         bool phase1( void ) {
+            unsigned int rnd_seed = settings . get_rnd_seed();
+            if ( 0 == rnd_seed ) {
+                srand( time( 0 ) );
+            } else {
+                srand( rnd_seed );
+            }
+            
             // populate references...
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref() ) {
@@ -1170,4 +1183,3 @@ int main( int argc, char *argv[] ) {
     }
     return res;
 }
-

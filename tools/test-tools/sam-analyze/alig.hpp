@@ -61,39 +61,45 @@ class IUPAC_counts_t {
                 ascii_2_ptr[ 89 ] = &Y;     ascii_2_ptr[ 121 ] = &Y;
         }
     
+        uint64_t get_AT( void ) { return A + T; }
+        uint64_t get_GC( void ) { return G + C; }
+        uint64_t get_N( void ) { return N; }
+        uint64_t get_total( void ) { return total; }
+        uint64_t get_other( void ) { return invalid + R + Y + S + W + K + M + B + D + H + V + gap; }
+        
         void count( const std::string& s ) {
             for ( auto &c : s ) { ( *( ascii_2_ptr[ c & 0x0FF ] ) )++; }
             total += s . length();
         }
 
-        void report_if( uint64_t value, const char * txt ) {
+        void report_if( std::ostream * sink, uint64_t value, const char * txt ) {
             if ( value > 0 ) {
-                std::cerr << "\t" << txt << " : " << tools_t::with_ths( value ) << std::endl;                
+                *sink << "\t" << txt << " : " << tools_t::with_ths( value ) << std::endl;                
             }
         }
         
-        void report( bool full ) {
-            std::cerr << "\tAT    : " << tools_t::with_ths( A + T ) << std::endl;
-            std::cerr << "\tCG    : " << tools_t::with_ths( C + G ) << std::endl;
-            report_if( N,       "N    " );
-            report_if( invalid, "inval" );            
-            std::cerr << "\ttotal : " << tools_t::with_ths( total ) << std::endl;
+        void report( std::ostream * sink, bool full ) {
+            *sink << "\tAT    : " << tools_t::with_ths( A + T ) << std::endl;
+            *sink << "\tCG    : " << tools_t::with_ths( C + G ) << std::endl;
+            report_if( sink, N,       "N    " );
+            report_if( sink, invalid, "inval" );            
+            *sink << "\ttotal : " << tools_t::with_ths( total ) << std::endl;
             if ( full ) {
-                std::cerr << "\tA : " << tools_t::with_ths( A ) << std::endl;
-                std::cerr << "\tC : " << tools_t::with_ths( C ) << std::endl;
-                std::cerr << "\tG : " << tools_t::with_ths( G ) << std::endl;
-                std::cerr << "\tT : " << tools_t::with_ths( T ) << std::endl;
-                report_if( R, "R" );
-                report_if( Y, "Y" );
-                report_if( S, "S" );
-                report_if( W, "W" );
-                report_if( K, "K" );
-                report_if( M, "M" );
-                report_if( B, "B" );
-                report_if( D, "D" );
-                report_if( H, "H" );
-                report_if( V, "V" );
-                report_if( gap, "gap" );
+                *sink << "\tA : " << tools_t::with_ths( A ) << std::endl;
+                *sink << "\tC : " << tools_t::with_ths( C ) << std::endl;
+                *sink << "\tG : " << tools_t::with_ths( G ) << std::endl;
+                *sink << "\tT : " << tools_t::with_ths( T ) << std::endl;
+                report_if( sink, R, "R" );
+                report_if( sink, Y, "Y" );
+                report_if( sink, S, "S" );
+                report_if( sink, W, "W" );
+                report_if( sink, K, "K" );
+                report_if( sink, M, "M" );
+                report_if( sink, B, "B" );
+                report_if( sink, D, "D" );
+                report_if( sink, H, "H" );
+                report_if( sink, V, "V" );
+                report_if( sink, gap, "gap" );
             }
         }
 };

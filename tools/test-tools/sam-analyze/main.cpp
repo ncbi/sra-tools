@@ -27,7 +27,7 @@ int main( int argc, char* argv[] ) {
                 *  import a sam-file into the sqlite-database-file 
                 * ============================================================== */
                 importer_t importer( db, params . imp ); // in importer.hpp
-                res = importer . run() ? 0 : 3;
+                res = importer . run( &std::cerr ) ? 0 : 3;
                 /* ============================================================== */
             } else {
                 res = 3;    // import requested, but cannot be done
@@ -42,7 +42,7 @@ int main( int argc, char* argv[] ) {
                 *  analyze SAM-database ( sqlite )
                 * ============================================================== */
                 analyzer_t analyzer( db, params . ana, ref_dict ); // in analyzer.hpp
-                res = analyzer . run() ? 0 : 3;
+                res = analyzer . run( &std::cerr ) ? 0 : 3;
                 /* ============================================================== */
             } else {
                 res = 3;    // analyze requested, but cannot be done
@@ -56,7 +56,7 @@ int main( int argc, char* argv[] ) {
                 *  omit reference-headers which are not used by alignments
                 * ============================================================== */
                 exporter_t exporter( db, params . exp, ref_dict ); // in exporter.hpp
-                res = exporter . run() ? 0 : 3;
+                res = exporter . run( &std::cerr ) ? 0 : 3;
             } else {
                 res =  3;    // export requested, but cannot be done
             }

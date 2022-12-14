@@ -2,6 +2,7 @@
 #define IMPORTER_H
 
 #include "line_split.hpp"
+#include "file_reader.hpp"
 #include "params.hpp"
 #include "result.hpp"
 #include "sam_db.hpp"

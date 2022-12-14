@@ -7,7 +7,7 @@
 #include "ref_dict.hpp"
 #include "spot.hpp"
 #include "md5.hpp"
-#include "line_split.hpp"
+#include "file_writer.hpp"
 
 class analyzer_t {
     private :

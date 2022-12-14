@@ -2,8 +2,7 @@
 #define EXPORTER_H
 
 #include <algorithm>
-
-#include "line_split.hpp"
+#include "file_writer.hpp"
 #include "params.hpp"
 #include "result.hpp"
 #include "sam_db.hpp"
@@ -196,6 +195,5 @@ class exporter_t {
             return result . success;
         }
 };
-
 
 #endif

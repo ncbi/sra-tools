@@ -112,7 +112,7 @@ public:
         const_iterator begin() const { return const_iterator(this, first); }
         const_iterator end() const { return const_iterator(this, count); }
     };
-private:
+public:
     std::map<std::string, Dictionary> queryInfo;
 
     std::string ce_token_;

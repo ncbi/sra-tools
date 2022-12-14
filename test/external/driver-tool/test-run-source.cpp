@@ -200,21 +200,99 @@ TEST_CASE( SetNoSDL )
     EnvironmentVariables::set("SRATOOLS_TESTING", "0");
 }
 
+TEST_CASE( ParseArgs )
+{
+    EnvironmentVariables::set("SRATOOLS_TESTING", "2");
+    REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
+    REQUIRE_EQ(2, logging_state::testing_level() );
+
+    char argv0[10] = "vdb-dump";
+    char argv1[10] = "SRR000123";
+    char argv2[20] = "--colname_off";
+    char argv3[10] = "--l 12";
+    char * argv[] = { argv0, argv1, argv2, argv3 };
+    char * envp[] = { nullptr };
+    CommandLine cl(4, argv, envp, nullptr);
+
+    Arguments args = argumentsParsed(cl);
+    REQUIRE_EQ(1u, args.countOfCommandArguments()); // SRR000123
+    auto it = args.begin();
+    {
+        const ParameterDefinition* def = (*it).def;
+        REQUIRE_NOT_NULL( def );
+        REQUIRE_NULL( def->name );
+        REQUIRE_NULL( def->aliases );
+        REQUIRE_EQ( 0lu, def->bitMask );
+        REQUIRE( def->hasArgument );
+        REQUIRE( ! def->argumentIsOptional );
+    }
+
+    ++it;
+    REQUIRE( args.end() != it );
+    {
+        const ParameterDefinition* def = (*it).def;
+        REQUIRE_NOT_NULL( def );
+        REQUIRE_EQ( string("colname_off"), string(def->name) );
+        REQUIRE_EQ( string("N"), string(def->aliases) );
+        REQUIRE_EQ( 32lu, def->bitMask ); //?
+        REQUIRE( ! def->hasArgument );
+        REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false ?
+    }
+
+    ++it;
+    REQUIRE( args.end() != it );
+    {
+        const ParameterDefinition* def = (*it).def;
+        REQUIRE_NOT_NULL( def );
+        REQUIRE_NULL( def->name ); //????
+        // REQUIRE_EQ( string("line_feed"), string(def->name) );
+        REQUIRE_NULL( def->aliases ); // ?????
+        // REQUIRE_EQ( string("l"), string(def->aliases) );
+        REQUIRE_EQ( 0lu, def->bitMask ); //?
+        REQUIRE( ! def->hasArgument );
+        REQUIRE( ! def->argumentIsOptional ); 
+    }
+
+    ++it;
+    REQUIRE( args.end() == it );
+
+    REQUIRE_EQ(2u, args.countOfParameters()); // --colname_off, --l 12
+    REQUIRE_EQ(32lu, args.argsUsed()); // ??????????
+
+}
+
 TEST_CASE( PreloadNoSDL )
 {
     EnvironmentVariables::set("SRATOOLS_TESTING", "2");
     REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
+    REQUIRE_EQ(2, logging_state::testing_level() );
 
     char argv0[10] = "vdb-dump";
-    char argv1[10] = "accession";
-    char argv2[10] = "-opt1";
-    char argv3[10] = "--opt2";
+    char argv1[10] = "SRR000123";
+    char argv2[20] = "--colname_off";
+    char argv3[10] = "--l 12";
     char * argv[] = { argv0, argv1, argv2, argv3 };
     char * envp[] = { nullptr };
-    CommandLine cl(1, argv, envp, nullptr);
-    data_sources ds = data_sources::preload(cl, argumentsParsed(cl));
+    CommandLine cl(4, argv, envp, nullptr);
 
-    //REQUIRE_EQ(2, logging_state::testing_level() );
+    data_sources ds = data_sources::preload(cl, argumentsParsed(cl));
+    data_sources::accession::const_iterator it = ds[argv1].begin();
+    REQUIRE( ds[argv1].end() != it );
+
+    REQUIRE_EQ( string(argv1), (*it).service );
+    REQUIRE( ! (*it).qualityType.has_value() );
+    REQUIRE( ! (*it).project.has_value() );
+    for (auto const& y : (*it).environment)
+        cout << "  env: " << y.first << ": " << y.second << endl;
+    ++it;
+    REQUIRE( ds[argv1].end() == it );
+
+    for (auto const& x : ds.queryInfo)
+    {
+        cout << "  " << x.first << ": " << endl;
+        for (auto const& y : x.second)
+            cout << "    " << y.first << ": " << y.second << endl;
+    }
 
     EnvironmentVariables::set("SRATOOLS_TESTING", "0");
 }

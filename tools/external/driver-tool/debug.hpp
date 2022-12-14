@@ -58,7 +58,7 @@ struct logging_state {
         return level <= verbosity();
     }
     static int testing_level() {
-        static auto const value(get_testing_value());
+        /*static*/ auto const value(get_testing_value());
         return value;
     }
     static bool is_dry_run() {

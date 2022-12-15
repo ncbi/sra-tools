@@ -51,4 +51,4 @@ EOF
 
 #and analyze it...
 
-${BINDIR}/${SAM_ANALYZE_BIN} -i ${SAM_FILE} -r -a -g finger.txt
+${BINDIR}/${SAM_ANALYZE_BIN} -i ${SAM_FILE} -g finger.txt -o

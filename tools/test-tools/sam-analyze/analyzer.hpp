@@ -59,13 +59,17 @@ class analyzer_t {
               produce_fingerprint( !a_params . fingerprint . empty() ) {}
 
         bool run( std::ostream * sink ) {
-            *sink << "ANALYZE:" << std::endl;
-            
+            if ( params . analyze ) {
+                *sink << "ANALYZE:" << std::endl;
+            }
+
             analyze_spots();
             result . refs_in_use = ref_dict . size();
             result . success = true;
-            result . report( sink, produce_fingerprint );
-            
+            if ( params . analyze ) {
+                result . report( sink, produce_fingerprint );
+            }
+
             if ( produce_fingerprint ) {
                 json_doc_t j;
                 j . add( "spot-count", result . spot_count );

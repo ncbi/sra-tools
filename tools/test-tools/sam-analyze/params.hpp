@@ -52,13 +52,15 @@ struct cmn_params_t {
     const bool help;
     const bool report;
     const bool progress;
+    const bool drop_db;
 
     cmn_params_t( const args_t& args ) :
         db_filename( args . get_str( "-d", "--db", "sam.db" ) ),
         transaction_size( args . get_int<uint32_t>( "-t", "--trans", 50000 ) ),
         help( args . has( "-h", "--help" ) ),
         report( args . has( "-r", "--report" ) ),
-        progress( args . has( "-p", "--progress" ) ) { 
+        progress( args . has( "-p", "--progress" ) ),
+        drop_db( args . has ( "-o", "--drop-db" ) ) { 
     }
 
     static void populate_hints( args_t::str_vec_t& hints ) {
@@ -68,20 +70,21 @@ struct cmn_params_t {
         hints . push_back( "--trans" );        
     }
 
-    void show_report( void ) const {
-        std::cerr << "database-file : '" << db_filename << "'" << std::endl;
-        std::cerr << "progress      : " << base_params_t::yes_no( progress ) << std::endl;
+    void show_report( std::ostream * sink ) const {
+        *sink << "database-file : '" << db_filename << "'" << std::endl;
+        *sink << "progress      : " << base_params_t::yes_no( progress ) << std::endl;
     }
     
-    void show_help( void ) const {
-        std::cout << "bam_analyze OPTIONS" << std::endl;
-        std::cout << "\t-h --help ... show this help-text" << std::endl;
-        std::cout <<  std::endl;
-        std::cout << "\t-d=file --db=file ......... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
-        std::cout << "\t-t=count --trans=count .... transaction size for writing to sqlite3-db ( dflt: 50,000 )" << std::endl;
-        std::cout << "\t-r --report ............... produce report about import/analysis/export on stderr" << std::endl;
-        std::cout << "\t-p --progress ............. show progress of import/export on stderr" << std::endl;
-        std::cout <<  std::endl;
+    void show_help( std::ostream * sink ) const {
+        *sink << "bam_analyze OPTIONS" << std::endl;
+        *sink << "\t-h --help ... show this help-text" << std::endl;
+        *sink <<  std::endl;
+        *sink << "\t-d=file --db=file ......... sqlite3-database for storage ( can be ':memory:' ), dflf:none" << std::endl;        
+        *sink << "\t-t=count --trans=count .... transaction size for writing to sqlite3-db ( dflt: 50,000 )" << std::endl;
+        *sink << "\t-r --report ............... produce report about import/analysis/export on stderr" << std::endl;
+        *sink << "\t-p --progress ............. show progress of import/export on stderr" << std::endl;
+        *sink << "\t-o --drop-db .............. drop database at the end" << std::endl;
+        *sink <<  std::endl;
     }
 };
 
@@ -103,30 +106,30 @@ struct import_params_t {
         hints . push_back( "--import-alig" );        
     }
 
-    void show_report( void ) const {
-        std::cerr << "import file   : '" << import_filename << "'" << std::endl;
+    void show_report( std::ostream * sink ) const {
+        *sink << "import file   : '" << import_filename << "'" << std::endl;
         if ( align_limit > 0 ) {
-            std::cerr << "align-limit   : " << align_limit << std::endl;
+            *sink << "align-limit   : " << align_limit << std::endl;
         }
     }
 
     bool requested( void ) const { return ! import_filename . empty (); }
 
-    bool check( void ) const {
+    bool check( std::ostream * sink ) const {
         bool res = true;
         if ( !( import_filename == "stdin" ) ) {
             res = base_params_t::FileExists( import_filename );
         }
         if ( !res ) {
-            std::cerr << "import-file not found: '" << import_filename << "'" << std::endl;
+            *sink << "import-file not found: '" << import_filename << "'" << std::endl;
         }
         return res;
     }
 
-    void show_help( void ) const {
-        std::cout << "\t-i=file --import=file ... import from this SAM-file ( can be 'stdin' )" << std::endl;
-        std::cout << "\t-l=count --import-alig=count ... limit number of alignments to import" << std::endl;
-        std::cout <<  std::endl;
+    void show_help( std::ostream * sink ) const {
+        *sink << "\t-i=file --import=file ... import from this SAM-file ( can be 'stdin' )" << std::endl;
+        *sink << "\t-l=count --import-alig=count ... limit number of alignments to import" << std::endl;
+        *sink <<  std::endl;
     }
 };
 
@@ -145,27 +148,27 @@ struct analyze_params_t {
         hints . push_back( "--finger" );
     }
 
-    void show_report( void ) const {
-        std::cerr << "analyze data  : " << base_params_t::yes_no( analyze ) << std::endl;
-        std::cerr << "finger-print  : " << fingerprint << std::endl;        
+    void show_report( std::ostream * sink ) const {
+        *sink << "analyze data  : " << base_params_t::yes_no( analyze ) << std::endl;
+        *sink << "finger-print  : " << fingerprint << std::endl;        
     }
 
     bool requested( void ) const { 
         return analyze || ( ! fingerprint . empty() );
     }
     
-    bool check( sam_database_t& db ) const {
+    bool check( std::ostream * sink, sam_database_t& db ) const {
         bool res = ( db . alig_count() > 0 );
         if ( !res ) {
-            std::cerr << "database is empty!" << std::endl;            
+            *sink << "database is empty!" << std::endl;            
         }
         return res;
     }
     
-    void show_help( void ) const {
-        std::cout << "\t-a --analyze          ..... analyze imported data" << std::endl;
-        std::cout << "\t-g=file --finger=file ..... produce fingerprint of imported data" << std::endl;
-        std::cout <<  std::endl;
+    void show_help( std::ostream * sink ) const {
+        *sink << "\t-a --analyze          ..... analyze imported data" << std::endl;
+        *sink << "\t-g=file --finger=file ..... produce fingerprint of imported data" << std::endl;
+        *sink <<  std::endl;
     }
 
 };
@@ -201,35 +204,35 @@ struct export_params_t {
         hints . push_back( "--export-spot-limit" );        
     }
 
-    void show_report( void ) const {
-        std::cerr << "export-file   : '" << export_filename << "'" << std::endl;
-        std::cerr << "ref-rep.-file : '" << ref_report_filename << "'" << std::endl;
-        std::cerr << "used-refs     : " << base_params_t::yes_no( only_used_refs ) << std::endl;
-        std::cerr << "fix-names     : " << base_params_t::yes_no( fix_names ) << std::endl;
-        std::cerr << "sort-by       : " << base_params_t::alig_order_to_string( alig_order ) << std::endl;
-        std::cerr << "spot-limit    : " << base_params_t::with_ths( spot_limit ) << std::endl;
-        std::cerr << "min-refs      : " << base_params_t::yes_no( min_refs ) << std::endl;        
+    void show_report( std::ostream * sink ) const {
+        *sink << "export-file   : '" << export_filename << "'" << std::endl;
+        *sink << "ref-rep.-file : '" << ref_report_filename << "'" << std::endl;
+        *sink << "used-refs     : " << base_params_t::yes_no( only_used_refs ) << std::endl;
+        *sink << "fix-names     : " << base_params_t::yes_no( fix_names ) << std::endl;
+        *sink << "sort-by       : " << base_params_t::alig_order_to_string( alig_order ) << std::endl;
+        *sink << "spot-limit    : " << base_params_t::with_ths( spot_limit ) << std::endl;
+        *sink << "min-refs      : " << base_params_t::yes_no( min_refs ) << std::endl;        
     }
 
     bool requested( void ) const { return ! export_filename . empty (); }
 
-    bool check( sam_database_t& db ) const {
+    bool check( std::ostream * sink, sam_database_t& db ) const {
         bool res = ( db . alig_count() > 0 );
         if ( !res ) {
-            std::cerr << "database is empty!" << std::endl;            
+            *sink << "database is empty!" << std::endl;            
         }
         return res;
     }
 
-    void show_help( void ) const {
-        std::cout << "\t-e=file --export=file ..... export into this SAM-file ( can be 'stdout' )" << std::endl;
-        std::cout << "\t-R=file --ref-report=file . produce report of used references" << std::endl;
-        std::cout << "\t-u --only-used-refs ....... export only used reference-header-lines" << std::endl;
-        std::cout << "\t-f --fix-names ............ fix names in alignments ( remove space )" << std::endl;
-        std::cout << "\t-s --sort-by-refpos ....... sort alignments by ref-position in export" << std::endl;
-        std::cout << "\t-n --sort-by-name ......... sort alignments by QNAME" << std::endl;
-        std::cout << "\t-E --export-spot-limit=N... limit how many spots are exported" << std::endl;
-        //std::cout << "\t-M --export-min-refs ...... used smallest number of refs for export" << std::endl;
+    void show_help( std::ostream * sink ) const {
+        *sink << "\t-e=file --export=file ..... export into this SAM-file ( can be 'stdout' )" << std::endl;
+        *sink << "\t-R=file --ref-report=file . produce report of used references" << std::endl;
+        *sink << "\t-u --only-used-refs ....... export only used reference-header-lines" << std::endl;
+        *sink << "\t-f --fix-names ............ fix names in alignments ( remove space )" << std::endl;
+        *sink << "\t-s --sort-by-refpos ....... sort alignments by ref-position in export" << std::endl;
+        *sink << "\t-n --sort-by-name ......... sort alignments by QNAME" << std::endl;
+        *sink << "\t-E --export-spot-limit=N... limit how many spots are exported" << std::endl;
+        //*sink << "\t-M --export-min-refs ...... used smallest number of refs for export" << std::endl;
     }
 };
 
@@ -241,18 +244,18 @@ struct params_t {
     
     params_t( const args_t& args ) : cmn( args ), imp( args, cmn ), ana( args ), exp( args, cmn ) { }
 
-    void show_report( void ) const {
-        cmn . show_report();
-        imp . show_report();
-        ana . show_report();
-        exp . show_report();
+    void show_report( std::ostream * sink ) const {
+        cmn . show_report( sink );
+        imp . show_report( sink );
+        ana . show_report( sink );
+        exp . show_report( sink );
     }
 
-    void show_help( void ) const  {
-        cmn . show_help();
-        imp . show_help();
-        ana . show_help();
-        exp . show_help();
+    void show_help( std::ostream * sink  ) const  {
+        cmn . show_help( sink );
+        imp . show_help( sink );
+        ana . show_help( sink );
+        exp . show_help( sink );
     }
     
     static void populate_hints( args_t::str_vec_t& hints ) {

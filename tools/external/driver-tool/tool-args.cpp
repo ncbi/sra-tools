@@ -281,7 +281,7 @@ struct ParamDefinitions_Common {
         unsigned shift = 0;
 
         assert(numAt[0] == '1' && numAt[1] == ' ');
-        assert(shiftAt[0] = '0' && shiftAt[1] == ')');
+        assert(shiftAt[0] == '0' && shiftAt[1] == ')');
         for (auto &def : container) {
             if (def.isArgument()) // obviously, doesn't apply to tool arguments.
                 continue;

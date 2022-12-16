@@ -187,86 +187,138 @@ TEST_CASE( UnknownTool )
     }
 }
 
-TEST_CASE( TestingLevelDefault )
-{
-    REQUIRE_EQ(0, logging_state::testing_level() ); // ensures that data_sources::preload() checks canUseSDL
-}
+//TODO: break out to a test suite for Arguments
+// TEST_CASE( ParseArgs )
+// {
+//     EnvironmentVariables::set("SRATOOLS_TESTING", "2");
+//     REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
+//     REQUIRE_EQ(2, logging_state::testing_level() );
 
-TEST_CASE( SetNoSDL )
-{
-    EnvironmentVariables::set("SRATOOLS_TESTING", "2");
-    REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
-    REQUIRE_EQ(2, logging_state::testing_level() );
-    EnvironmentVariables::set("SRATOOLS_TESTING", "0");
-}
+//     char argv0[10] = "vdb-dump";
+//     char argv1[10] = "SRR000123";
+//     char argv2[20] = "--colname_off";
+//     char argv3[10] = "--l 12"; // an error
+//     char * argv[] = { argv0, argv1, argv2, argv3, nullptr };
+//     char * envp[] = { nullptr };
+//     CommandLine cl(4, argv, envp, nullptr);
+
+//     Arguments args = argumentsParsed(cl);
+//     REQUIRE_EQ(1u, args.countOfCommandArguments()); // SRR000123
+//     auto it = args.begin();
+//     {   
+//         REQUIRE( (*it).isArgument() );
+//         REQUIRE_EQ( string("SRR000123"), string((*it).argument) );
+//     }
+
+//     ++it;
+//     REQUIRE( args.end() != it );
+//     {
+//         REQUIRE( ! (*it).isArgument() );
+//         const ParameterDefinition* def = (*it).def;
+//         REQUIRE_NOT_NULL( def );
+//         REQUIRE_EQ( string("colname_off"), string(def->name) );
+//         REQUIRE_EQ( string("N"), string(def->aliases) );
+//         // REQUIRE_EQ( 32lu, def->bitMask ); // unused for now
+//         REQUIRE( ! def->hasArgument );
+//         REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false 
+//     }
+
+//     ++it;
+//     REQUIRE( args.end() != it );
+//     {
+//         REQUIRE( ! (*it).isArgument() );
+//         const ParameterDefinition* def = (*it).def;
+//         REQUIRE_NOT_NULL( def );
+//         REQUIRE( ParameterDefinition::unknownParameter() == *def );
+//         // REQUIRE_NOT_NULL( def );
+//         // REQUIRE_NULL( def->name ); //????
+//         // // REQUIRE_EQ( string("line_feed"), string(def->name) );
+//         // REQUIRE_NULL( def->aliases ); // ?????
+//         // // REQUIRE_EQ( string("l"), string(def->aliases) );
+//         // REQUIRE( ! def->hasArgument );
+//         // REQUIRE( ! def->argumentIsOptional ); 
+//     }
+
+//     ++it;
+//     REQUIRE( args.end() == it );
+
+//     REQUIRE_EQ(2u, args.countOfParameters()); // --colname_off, --l 12
+//     REQUIRE_EQ(32lu, args.argsUsed()); // ??????????
+
+// }
 
 TEST_CASE( ParseArgs )
 {
-    EnvironmentVariables::set("SRATOOLS_TESTING", "2");
-    REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
-    REQUIRE_EQ(2, logging_state::testing_level() );
-
     char argv0[10] = "vdb-dump";
     char argv1[10] = "SRR000123";
     char argv2[20] = "--colname_off";
-    char argv3[10] = "--l 12";
-    char * argv[] = { argv0, argv1, argv2, argv3 };
+    char argv3[10] = "-l";
+    char argv4[10] = "12";
+    char argv5[10] = "-h";
+    char * argv[] = { argv0, argv1, argv2, argv3, argv4, argv5, nullptr };
     char * envp[] = { nullptr };
-    CommandLine cl(4, argv, envp, nullptr);
+    CommandLine cl(6, argv, envp, nullptr);
 
     Arguments args = argumentsParsed(cl);
     REQUIRE_EQ(1u, args.countOfCommandArguments()); // SRR000123
     auto it = args.begin();
-    {
-        const ParameterDefinition* def = (*it).def;
-        REQUIRE_NOT_NULL( def );
-        REQUIRE_NULL( def->name );
-        REQUIRE_NULL( def->aliases );
-        REQUIRE_EQ( 0lu, def->bitMask );
-        REQUIRE( def->hasArgument );
-        REQUIRE( ! def->argumentIsOptional );
+    {   
+        REQUIRE( (*it).isArgument() );
+        REQUIRE_EQ( string("SRR000123"), string((*it).argument) );
+        REQUIRE_EQ( 1, (*it).argind );
     }
 
     ++it;
     REQUIRE( args.end() != it );
     {
+        REQUIRE( ! (*it).isArgument() );
         const ParameterDefinition* def = (*it).def;
         REQUIRE_NOT_NULL( def );
         REQUIRE_EQ( string("colname_off"), string(def->name) );
         REQUIRE_EQ( string("N"), string(def->aliases) );
-        REQUIRE_EQ( 32lu, def->bitMask ); //?
+        // REQUIRE_EQ( 32lu, def->bitMask ); // unused for now
         REQUIRE( ! def->hasArgument );
-        REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false ?
+        REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false 
+        REQUIRE_EQ( 2, (*it).argind );
     }
 
     ++it;
     REQUIRE( args.end() != it );
     {
+        REQUIRE( ! (*it).isArgument() );
         const ParameterDefinition* def = (*it).def;
         REQUIRE_NOT_NULL( def );
-        REQUIRE_NULL( def->name ); //????
-        // REQUIRE_EQ( string("line_feed"), string(def->name) );
-        REQUIRE_NULL( def->aliases ); // ?????
-        // REQUIRE_EQ( string("l"), string(def->aliases) );
-        REQUIRE_EQ( 0lu, def->bitMask ); //?
-        REQUIRE( ! def->hasArgument );
+        REQUIRE_EQ( string("line_feed"), string(def->name) );
+        REQUIRE_EQ( string("l"), string(def->aliases) );
+        REQUIRE( def->hasArgument );
         REQUIRE( ! def->argumentIsOptional ); 
+
+        REQUIRE_EQ( 3, (*it).argind );
+        REQUIRE_EQ( string("12"), string((*it).argument) );
+    }
+
+    ++it;
+    REQUIRE( args.end() != it );
+    {
+        REQUIRE( ! (*it).isArgument() );
+        const ParameterDefinition* def = (*it).def;
+        REQUIRE_NOT_NULL( def );
+        REQUIRE_EQ( string("help"), string(def->name) );
+        REQUIRE_EQ( string("h?"), string(def->aliases) );
+        REQUIRE_EQ( 5, (*it).argind );
     }
 
     ++it;
     REQUIRE( args.end() == it );
 
-    REQUIRE_EQ(2u, args.countOfParameters()); // --colname_off, --l 12
-    REQUIRE_EQ(32lu, args.argsUsed()); // ??????????
+    REQUIRE_EQ(3u, args.countOfParameters()); // --colname_off, -l 12, -h
+    // REQUIRE_EQ(32lu, args.argsUsed()); // unused
 
+    //TODO: (*it).reason
 }
 
 TEST_CASE( PreloadNoSDL )
 {
-    EnvironmentVariables::set("SRATOOLS_TESTING", "2");
-    REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
-    REQUIRE_EQ(2, logging_state::testing_level() );
-
     char argv0[10] = "vdb-dump";
     char argv1[10] = "SRR000123";
     char argv2[20] = "--colname_off";
@@ -275,86 +327,38 @@ TEST_CASE( PreloadNoSDL )
     char * envp[] = { nullptr };
     CommandLine cl(4, argv, envp, nullptr);
 
-    data_sources ds = data_sources::preload(cl, argumentsParsed(cl));
+    data_sources ds(cl, argumentsParsed(cl)); // the non-SDL ctor
+
+    REQUIRE( ds.ce_token().empty() );
+
     data_sources::accession::const_iterator it = ds[argv1].begin();
     REQUIRE( ds[argv1].end() != it );
 
     REQUIRE_EQ( string(argv1), (*it).service );
     REQUIRE( ! (*it).qualityType.has_value() );
     REQUIRE( ! (*it).project.has_value() );
-    for (auto const& y : (*it).environment)
-        cout << "  env: " << y.first << ": " << y.second << endl;
+
+    {
+        const auto & env = (*it).environment;
+        auto env_it = env.begin();
+        REQUIRE_EQ( string("VDB_LOCAL_URL"), string( (*env_it).first) );
+        REQUIRE_EQ( string(argv1), string( (*env_it).second) );
+        ++env_it;
+        REQUIRE( env_it == env.end() );
+    }
+
     ++it;
     REQUIRE( ds[argv1].end() == it );
 
-    for (auto const& x : ds.queryInfo)
-    {
-        cout << "  " << x.first << ": " << endl;
-        for (auto const& y : x.second)
-            cout << "    " << y.first << ": " << y.second << endl;
-    }
-
-    EnvironmentVariables::set("SRATOOLS_TESTING", "0");
+    REQUIRE_EQ( (size_t)1, ds.queryInfo.size() );
+    auto dict = ds.queryInfo[ argv1 ];
+    REQUIRE_EQ( (size_t)3, dict.size() );
+    REQUIRE_EQ( string(argv1), string(dict["local"]) );
+    REQUIRE_EQ( string(argv1), string(dict["local/filePath"]) );
+    REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
 
-// TEST_CASE(Construct_NoArgs_NoSDL)
-// {
-//     char* argv[] = { (char*)TOOL_NAME_SRA_PILEUP };
-//     char* env[] = { nullptr };
-//     unique_ptr<CommandLine> cmdline ( new CommandLine(1, argv, env, nullptr) );
 
-//     data_sources ds = data_sources::preload( *cmdline, argumentsParsed(*cmdline) );
-
-//     REQUIRE( ds.ce_token().empty() );
-// }
-
-// TEST_CASE(QueryInfo)
-// {
-//     const char* argv[] = { TOOL_NAME_SRA_PILEUP, "SRR000123", "-v" };
-//     char* env[] = { (char*)"a=b", nullptr };
-//     char* extra[] = { (char*)"a1=b1", nullptr };
-//     CommandLine cl(3, (char**)argv, env, extra);
-
-//     cout << "argc=" << cl.argc << endl;
-//     for (int i = 0; i < cl.argc; ++i)
-//         cout << "argv=" << cl.argv[i] << endl;
-
-//     {
-//         int i=0;
-//         while( cl.envp[i] != nullptr )
-//         {
-//             cout << "envp["<<i<<"]=" << cl.envp[i] << endl;
-//             ++i;
-//         }
-//     }
-
-//     {
-//         int i=0;
-//         while( cl.extra[i] != nullptr )
-//         {
-//             cout << "extra["<<i<<"]=" << cl.extra[i] << endl;
-//             ++i;
-//         }
-//     }
-
-//     cout << "fakeName=" << (cl.fakeName?cl.fakeName:"<null>") << endl;
-//     cout << "baseName=" << cl.baseName << endl;
-//     cout << "toolName=" << cl.toolName << endl;
-//     cout << "fullPathToExe=" << (string)cl.fullPathToExe << endl;
-//     cout << "fullPath=" << (string)cl.fullPath << endl;
-// //    cout << "toolPath=" << (string)cl.toolPath << endl;
-//     // cout << "realName=" << cl.realName << endl;
-//     // cout << "buildVersion=" << cl.buildVersion << endl;
-//     // cout << "versionFromName=" << cl.versionFromName << endl;
-//     // cout << "runAsVersion=" << cl.runAsVersion << endl;
-
-//     data_sources ds = data_sources::preload( cl, argumentsParsed(cl) );
-
-// //    data_sources::accession acc = ds["v"];
-// //    REQUIRE_EQ( string("arg1"), ds["name"]);
-// }
-
-//TODO: data_sources::preload with testing_level == 2
 
 #if WIN32
 #define main wmain

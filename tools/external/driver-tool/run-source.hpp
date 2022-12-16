@@ -112,16 +112,16 @@ public:
         const_iterator begin() const { return const_iterator(this, first); }
         const_iterator end() const { return const_iterator(this, count); }
     };
-public:
-    std::map<std::string, Dictionary> queryInfo;
-
+private:
     std::string ce_token_;
     bool have_ce_token;
+
+public:
+    std::map<std::string, Dictionary> queryInfo;
 
     data_sources(CommandLine const &cmdline, Arguments const &parsed);
     data_sources(CommandLine const &cmdline, Arguments const &parsed, bool withSDL);
 
-public:
     accession operator [](std::string const &name) const {
         auto const fnd = queryInfo.find(name);
         assert(fnd != queryInfo.end());

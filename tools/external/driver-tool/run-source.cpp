@@ -67,6 +67,7 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
+// convert to a virtual method on Service, pass Service to preload and ctors
 static Service::Response get_SDL_response(std::vector<std::string> const &runs, bool const haveCE)
 {
     if (runs.empty())
@@ -511,7 +512,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
             
             auto const parsed = Response2::makeFrom(response.responseText());
             LOG(7) << "Parsed SDL Response" << std::endl;
-
+            //TODO: extract into a method
             for (auto const &sdl_result : parsed.results) {
                 auto const &query = sdl_result.query;
                 auto &info = queryInfo[query];

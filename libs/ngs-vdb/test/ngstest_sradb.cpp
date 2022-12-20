@@ -30,6 +30,8 @@
 
 #include "ngs_c_fixture.hpp"
 
+#include <os-native.h>
+
 #include <limits.h>
 
 #include <klib/printf.h>

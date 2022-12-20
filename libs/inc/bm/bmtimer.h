@@ -1,7 +1,7 @@
 #ifndef BMTIMER__H__INCLUDED__
 #define BMTIMER__H__INCLUDED__
 /*
-Copyright(c) 2002-2017 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
+Copyright(c) 2002-2021 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ namespace bm
 ///
 /// @internal
 ///
+template<typename TOut=std::ostream>
 class chrono_taker
 {
 public:
@@ -45,37 +46,39 @@ public:
     {
         std::chrono::duration<double, std::milli>  duration;
         unsigned                                   repeats;
-        
+
         statistics() : duration(0), repeats(1) {}
-        
+
         statistics(std::chrono::duration<double, std::milli> d, unsigned r)
         : duration(d), repeats(r)
         {}
     };
-    
+
     enum format
     {
         ct_time = 0,
         ct_ops_per_sec,
         ct_all
     };
-    
+
     /// test name to duration map
     ///
     typedef std::map<std::string, statistics > duration_map_type;
 
 public:
-    chrono_taker(const std::string name,
-                unsigned repeats = 1,
-                duration_map_type* dmap = 0)
-    : name_(name),
+    chrono_taker(TOut&              tout,
+                 const std::string  name,
+                 unsigned           repeats = 1,
+                 duration_map_type* dmap = 0)
+    : tout_(tout),
+      name_(name),
       repeats_(repeats),
       dmap_(dmap),
       is_stopped_(false)
     {
         start_ = std::chrono::steady_clock::now();
     }
-    
+
     ~chrono_taker()
     {
         try
@@ -88,8 +91,8 @@ public:
         catch(...)
         {}
     }
-    
-    
+
+
     void stop(bool silent=false)
     {
         finish_ = std::chrono::steady_clock::now();
@@ -97,7 +100,7 @@ public:
         if (dmap_)
         {
             statistics st(diff, repeats_);
-            duration_map_type::iterator it = dmap_->find(name_);
+            typename duration_map_type::iterator it = dmap_->find(name_);
             if (it == dmap_->end())
             {
                 (*dmap_)[name_] = st;
@@ -113,19 +116,19 @@ public:
             if (!silent)
             {
                 auto ms = std::chrono::duration <double, std::milli> (diff).count();
-                print_duration(name_, ms);
+                print_duration(tout_, name_, ms);
             }
         }
         is_stopped_ = true;
     }
-    
+
     void add_repeats(unsigned inc)
     {
         repeats_ += inc;
     }
 
     template<typename DT>
-    static void print_duration(const std::string& name, DT ms)
+    static void print_duration(TOut& tout, const std::string& name, DT ms)
     {
         if (ms > 1000)
         {
@@ -133,21 +136,22 @@ public:
             if (sec > 60)
             {
                 double min = sec / 60;
-                std::cout << name << "; " << std::setprecision(4) << min << " min" << std::endl;
+                tout << name << "; " << std::setprecision(4) << min << " min" << std::endl;
             }
             else
-                std::cout << name << "; " << std::setprecision(4) << sec << " sec" << std::endl;
+                tout << name << "; " << std::setprecision(4) << sec << " sec" << std::endl;
         }
         else
-            std::cout << name << "; " << ms << " ms" << std::endl;
+            tout << name << "; " << ms << " ms" << std::endl;
     }
 
-    
-    static void print_duration_map(const duration_map_type& dmap, format fmt = ct_time)
+
+    static
+    void print_duration_map(TOut& tout, const duration_map_type& dmap, format fmt = ct_time)
     {
-        duration_map_type::const_iterator it = dmap.begin();
-        duration_map_type::const_iterator it_end = dmap.end();
-        
+        typename duration_map_type::const_iterator it = dmap.begin();
+        typename duration_map_type::const_iterator it_end = dmap.end();
+
         for ( ;it != it_end; ++it)
         {
             const chrono_taker::statistics& st = it->second;
@@ -163,7 +167,7 @@ public:
             print_time:
                 {
                 auto ms = it->second.duration.count();
-                print_duration(it->first, ms);
+                print_duration(tout, it->first, ms);
                 }
                 break;
             case ct_ops_per_sec:
@@ -171,12 +175,12 @@ public:
                 unsigned iops = (unsigned)((double)st.repeats / (double)it->second.duration.count()) * 1000;
                 if (iops)
                 {
-                    std::cout << it->first << "; " << iops << " ops/sec" << std::endl;
+                    tout << it->first << "; " << iops << " ops/sec" << std::endl;
                 }
                 else
                 {
                     double ops = ((double)st.repeats / (double)it->second.duration.count()) * 1000;
-                    std::cout << it->first << "; " << std::setprecision(4) << ops << " ops/sec" << std::endl;
+                    tout << it->first << "; " << std::setprecision(4) << ops << " ops/sec" << std::endl;
                 }
                 }
                 break;
@@ -189,16 +193,15 @@ public:
                 unsigned iops = (unsigned)((double)st.repeats / (double)it->second.duration.count()) * 1000;
                 if (iops)
                 {
-                    std::cout << it->first << "; " << iops << " ops/sec; "
-                              << std::setprecision(4) << it->second.duration.count() << " ms" << std::endl;
+                    tout << it->first << "; " << iops << " ops/sec; "
+                         << std::setprecision(4) << it->second.duration.count() << " ms" << std::endl;
                 }
                 else
                 {
                     double sec = double(it->second.duration.count()) / 1000;
-
                     double ops = ((double)st.repeats / (double)it->second.duration.count()) * 1000;
-                    std::cout << it->first << "; " << std::setprecision(4) << ops << " ops/sec; "
-                              << std::setprecision(4) << sec << " sec." << std::endl;
+                    tout << it->first << "; " << std::setprecision(4) << ops << " ops/sec; "
+                         << std::setprecision(4) << sec << " sec." << std::endl;
                 }
                 }
                 break;
@@ -208,12 +211,13 @@ public:
             }
         } // for
     }
-    
+
 
     chrono_taker(const chrono_taker&) = delete;
     chrono_taker & operator=(const chrono_taker) = delete;
-    
+
 protected:
+    TOut&                                              tout_;
     std::string                                        name_;
     std::chrono::time_point<std::chrono::steady_clock> start_;
     std::chrono::time_point<std::chrono::steady_clock> finish_;

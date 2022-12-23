@@ -6,7 +6,9 @@
 #include "exporter.hpp"
 #include "ref_dict.hpp"
 
-int main( int argc, char* argv[] ) {
+extern "C" {
+
+int KMain( int argc, char* argv[] ) {
     int res = 0;
     args_t::str_vec_t hints;
     params_t::populate_hints( hints );
@@ -63,4 +65,6 @@ int main( int argc, char* argv[] ) {
         }
     }
     return res;
+}
+
 }

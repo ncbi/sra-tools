@@ -222,6 +222,12 @@ int str_to_int( const std::string &s, int dflt ) {
     return dflt;
 }
 
+#ifdef _MSC_VER 
+//not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 bool str_to_bool( const std::string &s ) {
     return( strcasecmp ( s.c_str (), "true" ) == 0 ||
             strcasecmp ( s.c_str (), "yes" ) == 0 ||
@@ -1154,7 +1160,9 @@ class t_factory {
         }
 };
 
-int main( int argc, char *argv[] ) {
+extern "C"
+{
+int KMain( int argc, char *argv[] ) {
     int res = 3;
     try {
         t_proglines proglines;
@@ -1171,3 +1179,4 @@ int main( int argc, char *argv[] ) {
     return res;
 }
 
+}

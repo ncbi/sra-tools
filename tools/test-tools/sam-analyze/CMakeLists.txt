@@ -22,6 +22,4 @@
 #
 # ===========================================================================
 
-#add_executable( sam-analyze main.cpp sqlite3.c )
-#target_link_libraries( sam-analyze pthread m dl )
 GenerateExecutableWithDefs( sam-analyze "main.cpp;sqlite3.c" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")

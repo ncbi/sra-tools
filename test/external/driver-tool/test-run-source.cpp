@@ -93,9 +93,12 @@ namespace vdb {
     void Service::setNGCFile(std::string const &path) const
     {
     }
+    string ServiceResponse;
+    string URL;
     Service::Response Service::response(std::string const &url, std::string const &version) const
     {
-        return Response(nullptr, "");
+        URL = url;
+        return Response(nullptr, ServiceResponse.c_str());
     }
     Service::Response::~Response()
     {
@@ -111,13 +114,6 @@ namespace vdb {
     Service::Service(void *obj){}
     Service::~Service(){}
 }
-
-// namespace sratools {
-//     Config const *config = new Config();
-//     string const *location = nullptr;
-//     FilePath const *perm = nullptr;
-//     FilePath const *ngc = nullptr;
-// }
 
 ////////////////////
 // stub for Config, use test flags instead of KConfig
@@ -149,6 +145,7 @@ opt_string sratools::Config::get(char const *const keypath) const
         result = std::string(value->addr, value->size);
         free(value);
     }
+    //cout<<"key="<<keypath << " result='" << (result?*result:"none") << "'" << endl;
     return result;
 }
 
@@ -181,152 +178,21 @@ TEST_CASE( UnknownTool )
     try
     {
         data_sources ds = data_sources::preload(cl, argumentsParsed(cl));
+        FAIL("Expected exception not thrown");
     }
     catch(const UnknownToolException&)
     {
     }
 }
 
-//TODO: break out to a test suite for Arguments
-// TEST_CASE( ParseArgs )
-// {
-//     EnvironmentVariables::set("SRATOOLS_TESTING", "2");
-//     REQUIRE_EQ(opt_string("2"), EnvironmentVariables::get("SRATOOLS_TESTING") );
-//     REQUIRE_EQ(2, logging_state::testing_level() );
+char argv0[10] = "vdb-dump";
+char argv1[10] = "SRR000123";
+char * argv[] = { argv0, argv1, nullptr };
+char * envp[] = { nullptr };
 
-//     char argv0[10] = "vdb-dump";
-//     char argv1[10] = "SRR000123";
-//     char argv2[20] = "--colname_off";
-//     char argv3[10] = "--l 12"; // an error
-//     char * argv[] = { argv0, argv1, argv2, argv3, nullptr };
-//     char * envp[] = { nullptr };
-//     CommandLine cl(4, argv, envp, nullptr);
-
-//     Arguments args = argumentsParsed(cl);
-//     REQUIRE_EQ(1u, args.countOfCommandArguments()); // SRR000123
-//     auto it = args.begin();
-//     {   
-//         REQUIRE( (*it).isArgument() );
-//         REQUIRE_EQ( string("SRR000123"), string((*it).argument) );
-//     }
-
-//     ++it;
-//     REQUIRE( args.end() != it );
-//     {
-//         REQUIRE( ! (*it).isArgument() );
-//         const ParameterDefinition* def = (*it).def;
-//         REQUIRE_NOT_NULL( def );
-//         REQUIRE_EQ( string("colname_off"), string(def->name) );
-//         REQUIRE_EQ( string("N"), string(def->aliases) );
-//         // REQUIRE_EQ( 32lu, def->bitMask ); // unused for now
-//         REQUIRE( ! def->hasArgument );
-//         REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false 
-//     }
-
-//     ++it;
-//     REQUIRE( args.end() != it );
-//     {
-//         REQUIRE( ! (*it).isArgument() );
-//         const ParameterDefinition* def = (*it).def;
-//         REQUIRE_NOT_NULL( def );
-//         REQUIRE( ParameterDefinition::unknownParameter() == *def );
-//         // REQUIRE_NOT_NULL( def );
-//         // REQUIRE_NULL( def->name ); //????
-//         // // REQUIRE_EQ( string("line_feed"), string(def->name) );
-//         // REQUIRE_NULL( def->aliases ); // ?????
-//         // // REQUIRE_EQ( string("l"), string(def->aliases) );
-//         // REQUIRE( ! def->hasArgument );
-//         // REQUIRE( ! def->argumentIsOptional ); 
-//     }
-
-//     ++it;
-//     REQUIRE( args.end() == it );
-
-//     REQUIRE_EQ(2u, args.countOfParameters()); // --colname_off, --l 12
-//     REQUIRE_EQ(32lu, args.argsUsed()); // ??????????
-
-// }
-
-TEST_CASE( ParseArgs )
+TEST_CASE( ConstructNoSDL )
 {
-    char argv0[10] = "vdb-dump";
-    char argv1[10] = "SRR000123";
-    char argv2[20] = "--colname_off";
-    char argv3[10] = "-l";
-    char argv4[10] = "12";
-    char argv5[10] = "-h";
-    char * argv[] = { argv0, argv1, argv2, argv3, argv4, argv5, nullptr };
-    char * envp[] = { nullptr };
-    CommandLine cl(6, argv, envp, nullptr);
-
-    Arguments args = argumentsParsed(cl);
-    REQUIRE_EQ(1u, args.countOfCommandArguments()); // SRR000123
-    auto it = args.begin();
-    {   
-        REQUIRE( (*it).isArgument() );
-        REQUIRE_EQ( string("SRR000123"), string((*it).argument) );
-        REQUIRE_EQ( 1, (*it).argind );
-    }
-
-    ++it;
-    REQUIRE( args.end() != it );
-    {
-        REQUIRE( ! (*it).isArgument() );
-        const ParameterDefinition* def = (*it).def;
-        REQUIRE_NOT_NULL( def );
-        REQUIRE_EQ( string("colname_off"), string(def->name) );
-        REQUIRE_EQ( string("N"), string(def->aliases) );
-        // REQUIRE_EQ( 32lu, def->bitMask ); // unused for now
-        REQUIRE( ! def->hasArgument );
-        REQUIRE( ! def->argumentIsOptional ); // set to false if hasArgument is false 
-        REQUIRE_EQ( 2, (*it).argind );
-    }
-
-    ++it;
-    REQUIRE( args.end() != it );
-    {
-        REQUIRE( ! (*it).isArgument() );
-        const ParameterDefinition* def = (*it).def;
-        REQUIRE_NOT_NULL( def );
-        REQUIRE_EQ( string("line_feed"), string(def->name) );
-        REQUIRE_EQ( string("l"), string(def->aliases) );
-        REQUIRE( def->hasArgument );
-        REQUIRE( ! def->argumentIsOptional ); 
-
-        REQUIRE_EQ( 3, (*it).argind );
-        REQUIRE_EQ( string("12"), string((*it).argument) );
-    }
-
-    ++it;
-    REQUIRE( args.end() != it );
-    {
-        REQUIRE( ! (*it).isArgument() );
-        const ParameterDefinition* def = (*it).def;
-        REQUIRE_NOT_NULL( def );
-        REQUIRE_EQ( string("help"), string(def->name) );
-        REQUIRE_EQ( string("h?"), string(def->aliases) );
-        REQUIRE_EQ( 5, (*it).argind );
-    }
-
-    ++it;
-    REQUIRE( args.end() == it );
-
-    REQUIRE_EQ(3u, args.countOfParameters()); // --colname_off, -l 12, -h
-    // REQUIRE_EQ(32lu, args.argsUsed()); // unused
-
-    //TODO: (*it).reason
-}
-
-TEST_CASE( PreloadNoSDL )
-{
-    char argv0[10] = "vdb-dump";
-    char argv1[10] = "SRR000123";
-    char argv2[20] = "--colname_off";
-    char argv3[10] = "--l 12";
-    char * argv[] = { argv0, argv1, argv2, argv3 };
-    char * envp[] = { nullptr };
-    CommandLine cl(4, argv, envp, nullptr);
-
+    CommandLine cl(2, argv, envp, nullptr);
     data_sources ds(cl, argumentsParsed(cl)); // the non-SDL ctor
 
     REQUIRE( ds.ce_token().empty() );
@@ -358,7 +224,59 @@ TEST_CASE( PreloadNoSDL )
     REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
 
+TEST_CASE( ConstructSDL_false )
+{
+    CommandLine cl(2, argv, envp, nullptr);
+    data_sources ds(cl, argumentsParsed(cl),false); // the SDL ctor, no SDL use
 
+    REQUIRE( ds.ce_token().empty() );
+
+    data_sources::accession::const_iterator it = ds[argv1].begin();
+    REQUIRE( ds[argv1].end() != it );
+
+    REQUIRE_EQ( string("the file system"), (*it).service ); // cf. ConstructNoSDL
+    REQUIRE( ! (*it).qualityType.has_value() );
+    REQUIRE( ! (*it).project.has_value() );
+
+    REQUIRE_EQ( (size_t)0, (*it).environment.size() );  // cf. ConstructNoSDL
+
+    ++it;
+    REQUIRE( ds[argv1].end() == it );
+
+    REQUIRE_EQ( (size_t)1, ds.queryInfo.size() );  // cf. ConstructNoSDL
+    auto dict = ds.queryInfo[ argv1 ];
+    REQUIRE_EQ( (size_t)1, dict.size() );
+    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+}
+
+TEST_CASE( ConstructSDL_true )
+{
+    CommandLine cl(2, argv, envp, nullptr);
+
+    opt_string url = sratools::config->get("/repository/remote/main/SDL.2/resolver-cgi");
+    vdb::ServiceResponse = "{}";
+    data_sources ds(cl, argumentsParsed(cl), true); // the SDL ctor, use SDL
+    REQUIRE_EQ( *url, vdb::URL );
+
+    REQUIRE( ds.ce_token().empty() );
+
+    data_sources::accession::const_iterator it = ds[argv1].begin();
+    REQUIRE( ds[argv1].end() != it );
+
+    REQUIRE_EQ( string("the file system"), (*it).service );
+    REQUIRE( ! (*it).qualityType.has_value() );
+    REQUIRE( ! (*it).project.has_value() );
+
+    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
+
+    ++it;
+    REQUIRE( ds[argv1].end() == it );
+
+    REQUIRE_EQ( (size_t)1, ds.queryInfo.size() );
+    auto dict = ds.queryInfo[ argv1 ];
+    REQUIRE_EQ( (size_t)1, dict.size() );
+    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+}
 
 #if WIN32
 #define main wmain

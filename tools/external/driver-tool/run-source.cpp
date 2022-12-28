@@ -72,12 +72,12 @@ static Service::Response get_SDL_response(std::vector<std::string> const &runs, 
 {
     if (runs.empty())
         throw std::domain_error("No query");
- 
+
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
 
     assert(!runs.empty());
-    
+
     auto const query = Service::make();
     query.add(runs);
 
@@ -150,7 +150,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         auto const filePath = info.find(LocalKey::filePath);
         auto const qualityType = info.find(LocalKey::qualityType);
         auto const cachePath = info.find(LocalKey::cachePath);
-        
+
         if (filePath != info.end())
             environment[names[env_var::LOCAL_URL]] = filePath->second;
         if (cachePath != info.end())
@@ -187,7 +187,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
             auto const cacheSize = info.find(key.cacheSize);
             auto const cacheCER = info.find(key.cacheCER);
             auto const cachePayR = info.find(key.cachePayR);
-            
+
             environment[names[env_var::REMOTE_VDBCACHE]] = cachePath->second;
             if (useSize && cacheSize != info.end())
                 environment[names[env_var::SIZE_VDBCACHE]] = cacheSize->second;
@@ -196,7 +196,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
             if (cachePayR != info.end())
                 environment[names[env_var::CACHE_NEED_PMT]] = "1";
         }
-        
+
         if (service != info.end() && region != info.end())
             this->service = service->second + "." + region->second;
         else
@@ -240,14 +240,14 @@ void data_sources::set_ce_token_env_var() const {
 void data_sources::set_param_bits_env_var(uint64_t bits) const {
     char buffer[32];
     auto i = sizeof(buffer);
-    
+
     buffer[--i] = '\0';
     while (bits) {
         auto const nibble = bits & 0x0F;
         buffer[--i] = (char)(nibble < 10 ? (nibble + '0') : (nibble - 10 + 'A'));
         bits >>= 4;
     }
-    
+
     env_var::set(env_var::PARAMETER_BITS, buffer + i);
 }
 
@@ -272,7 +272,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &parsed)
     parsed.eachArgument([&](Argument const &arg) {
         std::string const i = arg.argument;
         auto &x = queryInfo[i];
-        
+
         x["name"] = i;
         x["local"] = i;
         x[LocalKey::filePath].assign(cmdline.pathForArgument(arg));
@@ -340,7 +340,7 @@ static void lookForCacheFileIn(FilePath const &directory, Dictionary &result, bo
 
     for (auto sep = temp.find_last_of("."); sep != temp.npos; sep = temp.find_last_of(".")) {
         temp = temp.substr(0, sep);
-        
+
         // try acc.vdbcache.ext
         if (cwdSetIfExists(result, key, directory, temp + suffix + base.substr(sep)))
             return;
@@ -361,7 +361,7 @@ static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::strin
 {
     if (!setIfExists(result, "path", name) && !tryWithSraExtensions(result, name, wantFullQuality))
         return false;
-    
+
     auto const &filename = result["path"]; // might have extension added
     LOG(9) << name << " is " << filename << " in directory " << (std::string)cwd << "." << std::endl;
 
@@ -402,7 +402,7 @@ static
 std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, Arguments const &parsed, FilePath const &cwd, bool const wantFullQuality)
 {
     std::map<std::string, Dictionary> result;
-    
+
     parsed.eachArgument([&](Argument const &arg) {
 #if MS_Visual_C
 #pragma warning(disable: 4456) // garbage!!!
@@ -414,7 +414,7 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
         auto const hasDirName = !dir_base.first.empty();
 
         result[name]["name"] = name;
-        
+
         auto &i = *result.find(name);
         auto const accession = Accession(filename);
         auto const isaRun = accession.type() == run;
@@ -446,12 +446,12 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
                 throw;
             LOG(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
         }
-        
+
         if (hasDirName) {
             LOG(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
             try {
                 auto const dir = dir_base.first.copy();
-                
+
                 dir.makeCurrentDirectory();
                 {
                     auto const path = FilePath::cwd(); // canonical path
@@ -509,10 +509,9 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         try {
             auto const response = get_SDL_response(terms, have_ce_token);
             LOG(8) << "SDL response:\n" << response << std::endl;
-            
+
             auto const parsed = Response2::makeFrom(response.responseText());
             LOG(7) << "Parsed SDL Response" << std::endl;
-            //TODO: extract into a method
             for (auto const &sdl_result : parsed.results) {
                 auto const &query = sdl_result.query;
                 auto &info = queryInfo[query];
@@ -536,13 +535,13 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
 #pragma warning(disable: 4459)
 #endif
                             auto const &location = fl.second;
-                            
+
                             if (file.hasExtension(".pileup")) continue;
                             if (!file.object) continue;
 
                             if (pass == 1 && qualityPreference().isFullQuality && file.noqual)
                                 continue;
-                            
+
                             auto const &projectId = location.projectId;
                             auto const &service = location.service;
                             auto const &region = location.region;
@@ -584,7 +583,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
                             added += 1;
                         }
                     } while (added == 0 && pass == 1);
-                    
+
                     if (added == 0) {
                         std::cerr << "No usable source for " << query << " was found.\n" <<
                             query << " might be available in a different cloud provider or region." << std::endl;

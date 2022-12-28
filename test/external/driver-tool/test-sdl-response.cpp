@@ -679,7 +679,7 @@ struct Response2Tests {
             testGoodResponse();
             testNoResult();
 
-            passed = true
+            passed = true;
             LOG(8) << "All SDL response parsing tests passed." << std::endl;
             return;
         }

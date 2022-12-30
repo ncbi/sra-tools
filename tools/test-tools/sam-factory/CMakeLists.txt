@@ -22,4 +22,4 @@
 #
 # ===========================================================================
 
-add_executable( sam-factory sam-factory.cpp )
+GenerateExecutableWithDefs( sam-factory sam-factory.cpp "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")

@@ -22,12 +22,16 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/internal/rd-filter-redact" )
+if ( NOT WIN32 )
 
-# Internal
-GenerateExecutableWithDefs( test-read-write-cursor "test-read-write-cursor" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( test-read-write-cursor false )
+    add_compile_definitions( __mod__="tools/internal/rd-filter-redact" )
 
-# External
-GenerateExecutableWithDefs( read-filter-redact "read-filter-redact" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( read-filter-redact false )
+    # Internal
+    GenerateExecutableWithDefs( test-read-write-cursor "test-read-write-cursor" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    MakeLinksExe( test-read-write-cursor false )
+
+    # External
+    GenerateExecutableWithDefs( read-filter-redact "read-filter-redact" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    MakeLinksExe( read-filter-redact false )
+
+endif()

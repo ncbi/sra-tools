@@ -6,6 +6,17 @@ sra_stat=$2
 echo Testing ${sra_stat} from ${bin_dir}
 
 echo quick_bases:
+
+echo SRR22714250 is a small DB with default SPOT_GROUP
+rm -rf actual
+mkdir -p actual
+NCBI_SETTINGS=/ ${bin_dir}/${sra_stat} -x db/SRR22714250.lite.1 > actual/SRR22714250
+output=$(diff actual/SRR22714250 expected/SRR22714250-default-SPOT_GROUP)
+res=$?
+if [ "$res" != "0" ];
+	then echo "quick_bases test FAILED, res=$res output=$output" && exit 1;
+fi
+
 echo SRR053325 is a small table
 rm -rf actual
 mkdir -p actual

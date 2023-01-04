@@ -137,9 +137,11 @@ static const char * inspector_extract_acc_from_path_v2( const char * s ) {
                     ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", P_option_buffer, rc );
                 } else {
                     rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
+                    /* this error can happen, if the accession has a user-generated name, it is OK if it does...
                     if ( 0 != rc ) {
                         ErrMsg( "extract_acc2( '%s' ).VFSManagerExtractAccessionOrOID() -> %R", s, rc );
                     }
+                    */
                     {
                         rc_t r2 = VPathRelease ( orig );
                         if ( 0 != r2 ) {

@@ -8,6 +8,14 @@ set -e
 
 BINDIR="$1"
 
+RND_DATA_SINGLE_FILE="random_data.csra"
+
+#-----------------------------------------------------------------
+# create the random cSRA-file ( if it does not exist - yet )
+
+function create_random_csra_data {
+echo "creating: $RANDOM_CSRA_FILE"
+
 #-----------------------------------------------------------------
 # with the help of the sam-factory we produce random input for bam-load
 SAMFACTORY="${BINDIR}/sam-factory"
@@ -80,6 +88,12 @@ else
     rm -rf $RND_DATA_DIR
 fi
 
+}   #end of function create_random_csra_data
+
+if [[ ! -f $RND_DATA_SINGLE_FILE ]]; then
+    create_random_csra_data
+fi
+
 # ================================================================
 # >>>> the actual test if fasterq-dump does produce
 #       a FASTA-defline, that contains the READ-ID
@@ -92,8 +106,6 @@ if [[ ! -x $FASTERQDUMP ]]; then
 fi
 
 $FASTERQDUMP $RND_DATA_SINGLE_FILE --fasta-unsorted -f
-
-rm -f $RND_DATA_SINGLE_FILE
 
 #-----------------------------------------------------------------
 # now count how many /1 and /2 reads we have
@@ -135,4 +147,3 @@ fi
 
 rm -f $RND_DATA_FASTA
 echo "success testing read-id for --fasta-unsorted mode on cSRA table"
-

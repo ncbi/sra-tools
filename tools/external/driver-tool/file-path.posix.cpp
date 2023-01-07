@@ -43,6 +43,7 @@
 #include "file-path.hpp"
 #include <algorithm>
 #include <vector>
+#include <cstring>
 #include <string>
 
 FilePath::FilePath(NativeString const &in) : path(in) {}

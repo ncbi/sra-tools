@@ -14,7 +14,7 @@
 
 set -e
 
-source ./check_bin_tools.sh $1
+source ./check_bin_tools.sh $1 $3
 
 VDB_INCDIR="$2"
 

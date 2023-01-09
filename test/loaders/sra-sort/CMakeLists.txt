@@ -38,7 +38,7 @@ if ( NOT WIN32 )
         if ( EXISTS "${DIRTOTEST}/sra-sort${EXE}" )
 
             add_test( NAME Test_sra_sort_meta_copy
-                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${VDB_INCDIR}
+                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${VDB_INCDIR} ${BINDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         else()

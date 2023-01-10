@@ -1,0 +1,28 @@
+<Run accession="db/SRR22714250.lite.1" read_length="fixed" spot_count="10893" base_count="3289686" base_count_bio="3289686" spot_count_mates="10893" base_count_bio_mates="3289686" spot_count_bad="131" base_count_bio_bad="21291" spot_count_filtered="0" base_count_bio_filtered="0">
+  <Member member_name="" spot_count="2709" base_count="818118" base_count_bio="818118" spot_count_mates="2709" base_count_bio_mates="818118" spot_count_bad="15" base_count_bio_bad="2265" spot_count_filtered="0" base_count_bio_filtered="0"/>
+  <Member member_name="AAGTGTTTGCCG" spot_count="8184" base_count="2471568" base_count_bio="2471568" spot_count_mates="8184" base_count_bio_mates="2471568" spot_count_bad="116" base_count_bio_bad="19026" spot_count_filtered="0" base_count_bio_filtered="0"/>
+  <Size value="875428" units="bytes"/>
+  <Bases cs_native="false" count="3289686">
+    <Base value="A" count="806236"/>
+    <Base value="C" count="782354"/>
+    <Base value="G" count="872535"/>
+    <Base value="T" count="825806"/>
+    <Base value="N" count="2755"/>
+  </Bases>
+  <AlignInfo>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="3" count="21291"/>
+    <Quality value="30" count="3268395"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="10893"/>
+          <Elements count="3289686"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+</Run>

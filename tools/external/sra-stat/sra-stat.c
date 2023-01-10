@@ -2808,7 +2808,7 @@ rc_t print_results(const Ctx* ctx)
                 mNxt = &ctx->meta_stats->spotGroup[i];
                 assert(mNxt);
                 if (strcmp("default", mNxt->spot_group) != 0)
-                    spot_group = mDfl->spot_group;
+                    spot_group = mNxt->spot_group;
                 ssNxt = (SraStats*)
                     BSTreeFind(ctx->tr, spot_group, srastats_cmp);
                 if (ssNxt == NULL) {

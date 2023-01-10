@@ -5,12 +5,11 @@
 #
 
 BINDIR="$1"
-TESTBINDIR="$2"
-VERBOSE="$3"
+VERBOSE="$2"
 SAMDUMP="${BINDIR}/sam-dump"
 BAMLOAD="${BINDIR}/bam-load"
 KAR="${BINDIR}/kar"
-SAMFACTORY="${TESTBINDIR}/sam-factory"
+SAMFACTORY="${BINDIR}/sam-factory"
 
 #------------------------------------------------------------
 # function to print message if $VERBOSE is not empty

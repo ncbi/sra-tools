@@ -76,6 +76,8 @@
 #include <klib/printf.h>
 #endif
 
+#include <klib/report.h> /* ReportFinalize */
+
 /* ---------------------------------------------------------------------------------- */
 
 static const char * format_usage[] = { "format (special, fastq, default=fastq)", NULL };

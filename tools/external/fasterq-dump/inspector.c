@@ -90,17 +90,19 @@
 static const char * ACC_TYPE_CSRA_STR = "cSRA";
 static const char * ACC_TYPE_SRA_FLAT_STR = "SRA-flat";
 static const char * ACC_TYPE_SRA_DB_STR = "SRA-db";
-static const char * ACC_TYPE_SRA_PACBIO_STR = "SRA-pacbio";
+static const char * ACC_TYPE_SRA_PACBIO_BAM_STR = "SRA-pacbio-bam";
+static const char * ACC_TYPE_SRA_PACBIO_NATIVE_STR = "SRA-pacbio-native";
 static const char * ACC_TYPE_SRA_NONE_STR = "SRA-none";
 
 static const char * inspector_acc_type_to_string( acc_type_t acc_type ) {
     const char * res;
     switch( acc_type ) {
-        case acc_csra     : res = ACC_TYPE_CSRA_STR; break;
-        case acc_sra_flat : res = ACC_TYPE_SRA_FLAT_STR; break;
-        case acc_sra_db   : res = ACC_TYPE_SRA_DB_STR; break;
-        case acc_pacbio   : res = ACC_TYPE_SRA_PACBIO_STR; break;
-        case acc_none     : res = ACC_TYPE_SRA_NONE_STR;break;
+        case acc_csra          : res = ACC_TYPE_CSRA_STR; break;
+        case acc_sra_flat      : res = ACC_TYPE_SRA_FLAT_STR; break;
+        case acc_sra_db        : res = ACC_TYPE_SRA_DB_STR; break;
+        case acc_pacbio_bam    : res = ACC_TYPE_SRA_PACBIO_BAM_STR; break;
+        case acc_pacbio_native : res = ACC_TYPE_SRA_PACBIO_NATIVE_STR; break;
+        case acc_none          : res = ACC_TYPE_SRA_NONE_STR;break;
     }
     return res;
 }
@@ -548,7 +550,7 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
                     } else {
                         uint8_t pf = SRA_PLATFORM_UNDEFINED;
                         if ( !inspect_db_platform( input, db, &pf ) ) { /* above */
-                            pf = SRA_PLATFORM_UNDEFINED;                            
+                            pf = SRA_PLATFORM_UNDEFINED;
                         }
 
                         if ( SRA_PLATFORM_OXFORD_NANOPORE == pf ) {
@@ -563,15 +565,15 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
 
                             if ( has_cons_tbl || has_zmw_tbl || has_pass_tbl ) {
                                 if ( has_cons_tbl ) {
-                                    output -> seq . tbl_name = CONS_TBL_NAME;                             
+                                    output -> seq . tbl_name = CONS_TBL_NAME;
                                 }
-                                res = acc_pacbio;
+                                res = acc_pacbio_native;
                             } else {
                                 /* last resort try to find out what the database-type is 
                                 * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
                                 */
                                 if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
-                                    res = acc_pacbio;
+                                    res = acc_pacbio_bam;
                                 }
                             }
                         }
@@ -1010,11 +1012,12 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
             output -> acc_type = inspect_path_type_and_seq_tbl_name( input, output ); /* db or table? */
             
             switch( output -> acc_type ) {
-                case acc_csra       : rc = inspect_csra( input, output ); break; /* above */
-                case acc_sra_flat   : rc = inspect_sra_flat( input, output ); break; /* above */
-                case acc_sra_db     : ; /* break intentionally omited! */
-                case acc_pacbio     : rc = inspect_sra_db( input, output ); break; /* above */                    
-                default            : break;
+                case acc_csra          : rc = inspect_csra( input, output ); break; /* above */
+                case acc_sra_flat      : rc = inspect_sra_flat( input, output ); break; /* above */
+                case acc_sra_db        : ; /* break intentionally omited! */
+                case acc_pacbio_bam    : rc = inspect_sra_db( input, output ); break; /* above */
+                case acc_pacbio_native : rc = inspect_sra_db( input, output ); break; /* above */
+                default                : break;
             }
 
         }
@@ -1087,12 +1090,8 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
         rc = KOutMsg( "... has a size of %,lu bytes\n", output -> acc_size );
     }
     if ( 0 == rc ) {
-        switch( output -> acc_type ) {
-            case acc_csra       : rc = KOutMsg( "... is cSRA with alignments\n" ); break;
-            case acc_sra_flat   : rc = KOutMsg( "... is unaligned\n" ); break;
-            case acc_sra_db     : rc = KOutMsg( "... is cSRA without alignments\n" ); break;
-            case acc_pacbio     : rc = KOutMsg( "... is PACBIO\n" ); break;
-            case acc_none       : rc = KOutMsg( "... is unknown\n" ); break;
+        const char * s_acc_type = inspector_acc_type_to_string( output -> acc_type ); /* above */
+        rc = KOutMsg( "... is %s\n", s_acc_type );
         }
     }
     if ( 0 == rc ) {

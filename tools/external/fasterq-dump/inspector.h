@@ -60,7 +60,14 @@ typedef struct inspector_input_t
     const char * requested_seq_tbl_name;
 } inspector_input_t;
 
-typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
+typedef enum acc_type_t { 
+    acc_csra,               /* proper cSRA ( at least a SEQ, REF, and ALIGN table ) */
+    acc_pacbio_bam,         /* PLATFORM is PacBio, but schema is cSRA, loaded with bam-load */
+    acc_pacbio_native,      /* PLATFORM is PacBio, schema is PacBio, at least a SEQ-table, loaded with pacbio-load */
+    acc_sra_flat,           /* older SRA-format, unaligned, just a table */
+    acc_sra_db,             /* newer SRA-format, unaligned, a database with only 1 table: SEQ */
+    acc_none                /* none of the above */
+ } acc_type_t;
 
 typedef struct inspector_seq_data_t
 {

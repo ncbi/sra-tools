@@ -542,7 +542,7 @@ static rc_t produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     args . fmt = tool_ctx -> fmt;
 
     if ( rc == 0 ) {
-        rc = execute_db_join( &args ); /* join.c */
+        rc = execute_db_join( &args ); /* db_join.c */
     }
     
     /* from now on we do not need the lookup-file and it's index any more... */
@@ -607,7 +607,7 @@ static rc_t process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
     args . only_unaligned = tool_ctx -> only_unaligned;
     args . only_aligned = tool_ctx -> only_aligned;
 
-    rc = execute_unsorted_fasta_db_join( &args ); /* join.c */
+    rc = execute_unsorted_fasta_db_join( &args ); /* db_join.c */
 
     print_stats( &stats ); /* helper.c */
 

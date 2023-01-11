@@ -64,7 +64,8 @@
 
 using namespace std;
 
-bm::chrono_taker::duration_map_type timing_map;
+bm::chrono_taker<>::duration_map_type timing_map;
+
 typedef bm::bvector<> bvector_type;
 typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
 using json = nlohmann::json;
@@ -263,7 +264,7 @@ public:
         m_writer(writer) {}
 
     ~fastq_parser() {
-//        bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_ops_per_sec);
+//        bm::chrono_taker<>::print_duration_map(timing_map, bm::chrono_taker<>::ct_ops_per_sec);
     }
 
     /**
@@ -663,7 +664,7 @@ BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block
 static
 void serialize_vec(const string& file_name, str_sv_type& vec)
 {
-    //bm::chrono_taker tt1("Serialize acc list", 1, &timing_map);
+    //bm::chrono_taker<> tt1("Serialize acc list", 1, &timing_map);
     bm::sparse_vector_serializer<str_sv_type> serializer;
     bm::sparse_vector_serial_layout<str_sv_type> sv_lay;
     vec.optimize(TB);
@@ -1058,14 +1059,14 @@ void check_hash_file(const string& hash_file)
         value = it.value();
         sz = strlen(value);
         {
-            bm::chrono_taker tt1("check hits", 1, &timing_map);
+            bm::chrono_taker<> tt1(std::cout, "check hits", 1, &timing_map);
             hit = name_check.seen_before(value, sz);
         }
         if (hit) {
             ++hits;
             search_terms.push_back(value);
             if (search_terms.size() == 10000) {
-                bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
+                bm::chrono_taker<> tt1(std::cout, "scan", search_terms.size(), &timing_map);
                 int idx = s_search_terms(vec, str_scan, search_terms);
                 if (idx >= 0)
                     throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
@@ -1076,12 +1077,12 @@ void check_hash_file(const string& hash_file)
         if (++index % 100000000 == 0) {
             spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
-            bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
+            bm::chrono_taker<>::print_duration_map(std::cout, timing_map, bm::chrono_taker<>::ct_all);
             timing_map.clear();
         }
     }
     if (!search_terms.empty()) {
-        bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
+        bm::chrono_taker<> tt1(std::cout, "scan", search_terms.size(), &timing_map);
         int idx = s_search_terms(vec, str_scan, search_terms);
         if (idx >= 0)
             throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
@@ -1089,7 +1090,7 @@ void check_hash_file(const string& hash_file)
 
     {
         spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
-        bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
+        bm::chrono_taker<>::print_duration_map(std::cout, timing_map, bm::chrono_taker<>::ct_all);
     }
 
     //string collisions_file = hash_file + ".dups";

@@ -30,6 +30,8 @@
 
 #include "ngsfixture.hpp"
 
+#include <os-native.h>
+
 #include <ngs/Statistics.hpp>
 
 #include <klib/text.h>

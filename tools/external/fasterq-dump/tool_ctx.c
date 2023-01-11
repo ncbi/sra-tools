@@ -525,6 +525,22 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
+static bool format_produces_reads_in_single_file( format_t fmt ) {
+    switch ( fmt ) {
+        case ft_unknown          : return false; break; 
+        case ft_fastq_whole_spot : return false; break;
+        case ft_fastq_split_spot : return true; break;
+        case ft_fastq_split_file : return false; break;
+        case ft_fastq_split_3    : return false; break;
+        case ft_fasta_whole_spot : return false; break;
+        case ft_fasta_split_spot : return true; break;
+        case ft_fasta_split_file : return false; break;
+        case ft_fasta_split_3    : return false; break;
+        case ft_fasta_us_split_spot : return true; break;
+    }
+    return false;
+}
+
 /* taken form libs/kapp/main-priv.h */
 rc_t KAppGetTotalRam ( uint64_t * totalRam );
 
@@ -632,13 +648,15 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         bool has_name = tool_ctx -> insp_output . seq . has_name_column;
         bool use_name = true;
-        bool use_read_id = false;
+
+        /* use_read_id should be true if the output is a single file */
+        bool use_read_id = format_produces_reads_in_single_file( tool_ctx -> fmt ); /* above*/
 
         if ( NULL == tool_ctx -> seq_defline ) {
-            tool_ctx -> seq_defline  = dflt_seq_defline( has_name, use_name, use_read_id, fasta );
+            tool_ctx -> seq_defline  = dflt_seq_defline( has_name, use_name, use_read_id, fasta ); /* dflt_defline.c */
         }
         if ( NULL == tool_ctx -> qual_defline && !fasta ) {
-            tool_ctx -> qual_defline = dflt_qual_defline( has_name, use_name, use_read_id );
+            tool_ctx -> qual_defline = dflt_qual_defline( has_name, use_name, use_read_id ); /* dflt_defline.c */
         }
     }
 

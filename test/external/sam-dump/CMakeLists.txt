@@ -26,7 +26,7 @@ if ( "linux" STREQUAL ${OS} )
 if ( EXISTS "${DIRTOTEST}/sam-dump${EXE}" )
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME SamDumpTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME SamDumpTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-sam-dump-test\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(SamDumpTestSetup PROPERTIES FIXTURES_SETUP SamDumpTest)
 
     if ( EXISTS "{DIRTOTEST}/sam-factory${EXE}" )

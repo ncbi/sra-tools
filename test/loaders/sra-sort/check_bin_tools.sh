@@ -5,12 +5,13 @@
 #
 
 BINDIR="$1"
-VERBOSE="$2"
+REALDIR="$2"
+VERBOSE="$3"
 KAR="${BINDIR}/kar"
 BAMLOAD="${BINDIR}/bam-load"
 SRASORT="${BINDIR}/sra-sort"
 SRASTAT="${BINDIR}/sra-stat"
-SAMFACTORY="${BINDIR}/sam-factory"
+SAMFACTORY="${REALDIR}/sam-factory"
 
 #------------------------------------------------------------
 # function to print message if $VERBOSE is not empty

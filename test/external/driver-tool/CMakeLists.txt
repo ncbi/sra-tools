@@ -43,18 +43,25 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         target_include_directories(Drivertool_Win32_Args_Parsing_Test PRIVATE "${SOURCEDIR}")
         add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
     else ()
-        function( DriverToolGoodTest test_name tool_name )
+
+        function( DriverToolGoodTest_impl script_file test_name tool_name )
             add_test( NAME ${test_name}
-                COMMAND good_test.sh ${tool_name} "${DIRTOTEST}" sratools
+                COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
             if( RUN_SANITIZER_TESTS )
                 add_test( NAME ${test_name}-asan
-                    COMMAND good_test.sh ${tool_name} "${DIRTOTEST}" sratools-asan
+                    COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
                 add_test( NAME ${test_name}-tsan
-                    COMMAND good_test.sh ${tool_name} "${DIRTOTEST}" sratools-tsan
+                    COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
             endif()
+        endfunction()
+
+
+        function( DriverToolGoodTest test_name tool_name )
+            DriverToolGoodTest_impl( good_test.sh ${test_name} ${tool_name} )
+            DriverToolGoodTest_impl( good_test_url.sh ${test_name}_url ${tool_name} )
         endfunction()
 
         function( DriverToolContainerTest acc )
@@ -108,9 +115,6 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         add_test( NAME Test_Drivertool_2_accessions
             COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        add_test( NAME Test_Drivertool_Url
-            COMMAND good_test_url.sh prefetch "${DIRTOTEST}" sratools
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         if( RUN_SANITIZER_TESTS )
             add_test( NAME Test_Drivertool_2_accessions-asan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
@@ -118,12 +122,7 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME Test_Drivertool_2_accessions-tsan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            add_test( NAME Test_Drivertool_Url-asan
-                COMMAND good_test_url.sh prefetch "${DIRTOTEST}" sratools-asan
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            add_test( NAME Test_Drivertool_Url-tsan
-                COMMAND good_test_url.sh prefetch "${DIRTOTEST}" sratools-tsan
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
     endif()
 endif()
+

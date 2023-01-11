@@ -807,5 +807,12 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         }
     }
     unread_rc_info( false ); /* inspectory.c */
+
+    {
+        rc_t r = ReportFinalize( rc );
+        if ( r != 0  && rc == 0)
+            rc = r;
+    }
+
     return rc;
 }

@@ -54,6 +54,9 @@
 #include <klib/printf.h>
 #endif
 
+#include <klib/report.h> /* ReportResetObject */
+#include <vdb/report.h> /* ReportSetVDBManager */
+
 #ifndef _h_dflt_defline_
 #include "dflt_defline.h"
 #endif
@@ -286,6 +289,9 @@ rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
 static rc_t tool_ctx_extract_short_accession( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     tool_ctx -> accession_short = inspector_extract_acc_from_path( tool_ctx -> accession_path ); /* inspector.c */
+    ReportResetObject(  tool_ctx -> accession_path );
+    ReportBuildDate( __DATE__ );
+    ReportSetVDBManager( tool_ctx -> vdb_mgr );
 
     if ( NULL == tool_ctx -> accession_short ) {
         rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );

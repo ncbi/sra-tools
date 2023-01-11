@@ -54,6 +54,8 @@
 #include <vdb/database.h>
 #endif
 
+#include <vdb/report.h> /* ReportResetTable */
+
 #ifndef _h_vdb_table_
 #include <vdb/table.h>
 #endif
@@ -373,6 +375,10 @@ static rc_t inspector_open_db( const inspector_input_t * input, const VDatabase 
             ErrMsg( "inspector.c inspector_open_db().VDBManagerOpenDBReadVPath( '%s' ) -> %R\n",
                     input -> accession_path, rc );
         }
+        else {
+            assert( db );
+            ReportResetDatabase( input -> accession_path, *db );
+        }
         rc = inspector_release_vpath( v_path, rc );
     }
     return rc;
@@ -386,6 +392,10 @@ static rc_t inspector_open_tbl( const inspector_input_t * input, const VTable **
         if ( 0 != rc ) {
             ErrMsg( "inspector.c inspector_open_tbl().VDBManagerOpenTableReadVPath( '%s' ) -> %R\n",
                     input -> accession_path, rc );
+        }
+        else {
+            assert( tbl );
+            ReportResetTable( input -> accession_path, *tbl );
         }
         rc = inspector_release_vpath( v_path, rc );
     }

@@ -208,6 +208,8 @@ static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for te
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
+#define OPTION_FORCE_PACBIO     "force-pacbio"
+
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
@@ -243,7 +245,8 @@ OptDef ToolOptions[] = {
     { OPTION_DISK_LIMIT_OUT,NULL,               NULL, disk_limit_out_usage, 1, true,   false },
     { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },    
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
-    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
+    { OPTION_FORCE_PACBIO,  NULL,               NULL, NULL,                 1, false,  false }    
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -331,6 +334,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> disk_limit_out_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_OUT, 0 );
     tool_ctx -> disk_limit_tmp_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+    tool_ctx -> force_pabio = get_bool_option( args, OPTION_FORCE_PACBIO );
     
     /* join_options_t is defined in helper.h */
     tool_ctx -> join_options . rowid_as_name = false;
@@ -639,13 +643,11 @@ static rc_t process_table_in_seq_order( const tool_ctx_t * tool_ctx, const char 
     rc_t rc = 0;
     join_stats_t stats; /* helper.h */
     struct temp_registry_t * registry = NULL;   /* temp_registry.h */
-        
+    
     clear_join_stats( &stats ); /* helper.c */
 
     rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
 
-    //KOutMsg( "\ntbl-name=%s\n", tbl_name );
-    
     if ( 0 == rc ) {
         
         execute_tbl_join_args_t args; /* tbl_join.h */
@@ -782,23 +784,29 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */
-                        case acc_csra       : rc = process_csra( &tool_ctx ); break; /* above */
+                        case acc_csra       : rc = process_csra( &tool_ctx ); /* above */
+                                              break; /* above */
 
                         /* a PACBIO-database */
-                        case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx . accession_path );
-                                                rc = 3; /* signal to main() that the accession is not-processed */
-                                                break;
+                        case acc_pacbio     : if ( tool_ctx . force_pabio ) {
+                                                  rc = process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name ); /* above */                            
+                                              } else {
+                                                  ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx . accession_path );
+                                                  rc = 3; /* signal to main() that the accession is not-processed */
+                                              }
+                                              break;
 
                         /* a flat SRA-table */
-                        case acc_sra_flat   : rc = process_table( &tool_ctx, NULL ); break; /* above */
+                        case acc_sra_flat   : rc = process_table( &tool_ctx, NULL ); /* above */
+                                              break; /* above */
 
                         /* a SRA-database, containing only unaligned data */
                         case acc_sra_db     : rc = process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name ); /* above */
-                                                break;
+                                              break;
 
                         default             : ErrMsg( "invalid accession '%s'", tool_ctx . accession_path );
-                                                rc = 3; /* signal to main() that the accession is not-found/invalid */
-                                                break;
+                                              rc = 3; /* signal to main() that the accession is not-found/invalid */
+                                              break;
                     }
                 }
 

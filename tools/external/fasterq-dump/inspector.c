@@ -87,6 +87,24 @@
     #define PATH_MAX 4096
 #endif
 
+static const char * ACC_TYPE_CSRA_STR = "cSRA";
+static const char * ACC_TYPE_SRA_FLAT_STR = "SRA-flat";
+static const char * ACC_TYPE_SRA_DB_STR = "SRA-db";
+static const char * ACC_TYPE_SRA_PACBIO_STR = "SRA-pacbio";
+static const char * ACC_TYPE_SRA_NONE_STR = "SRA-none";
+
+static const char * inspector_acc_type_to_string( acc_type_t acc_type ) {
+    const char * res;
+    switch( acc_type ) {
+        case acc_csra     : res = ACC_TYPE_CSRA_STR; break;
+        case acc_sra_flat : res = ACC_TYPE_SRA_FLAT_STR; break;
+        case acc_sra_db   : res = ACC_TYPE_SRA_DB_STR; break;
+        case acc_pacbio   : res = ACC_TYPE_SRA_PACBIO_STR; break;
+        case acc_none     : res = ACC_TYPE_SRA_NONE_STR;break;
+    }
+    return res;
+}
+
 static const char * inspector_extract_acc_from_path_v1( const char * s ) {
     const char * res = NULL;
     if ( ( NULL != s ) && ( !ends_in_slash( s ) ) ) {
@@ -988,11 +1006,12 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
         rc = inspect_location_and_size( input, output );
         if ( 0 == rc ) {
             output -> acc_type = inspect_path_type_and_seq_tbl_name( input, output ); /* db or table? */
-
+            
             switch( output -> acc_type ) {
                 case acc_csra       : rc = inspect_csra( input, output ); break; /* above */
                 case acc_sra_flat   : rc = inspect_sra_flat( input, output ); break; /* above */
-                case acc_sra_db     : rc = inspect_sra_db( input, output ); break; /* above */
+                case acc_sra_db     : ; /* break intentionally omited! */
+                case acc_pacbio     : rc = inspect_sra_db( input, output ); break; /* above */                    
                 default            : break;
             }
 

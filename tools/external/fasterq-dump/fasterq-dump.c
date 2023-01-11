@@ -325,7 +325,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
     tool_ctx -> requested_temp_path = get_str_option( args, OPTION_TEMP, NULL );
-    tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
+    tool_ctx -> force = get_bool_option( args, OPTION_FORCE );
     tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT_F, NULL );
     tool_ctx -> output_dirname = get_str_option( args, OPTION_OUTPUT_D, NULL );
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
@@ -335,7 +335,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> disk_limit_tmp_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
     tool_ctx -> force_pabio = get_bool_option( args, OPTION_FORCE_PACBIO );
-    
+
     /* join_options_t is defined in helper.h */
     tool_ctx -> join_options . rowid_as_name = false;
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
@@ -371,7 +371,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
     tool_ctx -> seq_defline = get_str_option( args, OPTION_SEQ_DEFLINE, NULL );
-    tool_ctx -> qual_defline = get_str_option( args, OPTION_QUAL_DEFLINE, NULL );    
+    tool_ctx -> qual_defline = get_str_option( args, OPTION_QUAL_DEFLINE, NULL );
     tool_ctx -> only_unaligned = get_bool_option( args, OPTION_ONLY_UN );
     tool_ctx -> only_aligned = get_bool_option( args, OPTION_ONLY_ALIG );
 
@@ -388,7 +388,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
 /* --------------------------------------------------------------------------------------------
     produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
     produce fastq-output by iterating over the SEQUENCE - table:
-   -------------------------------------------------------------------------------------------- 
+   --------------------------------------------------------------------------------------------
    each thread iterates over a slice of the SEQUENCE-table
    for each SPOT it may look up an entry in the lookup-table to get the READ
    if it is not stored in the SEQ-tbl
@@ -622,15 +622,12 @@ static rc_t process_csra( const tool_ctx_t * tool_ctx ) {
     rc_t rc;
 
     if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-
         /* the common case the other cominations of FASTA/FASTQ : */
         rc = produce_lookup_files( tool_ctx ); /* above */
         if ( 0 == rc ) {
             rc = produce_final_db_output( tool_ctx ); /* above */
         }
-
     } else {
-        
         /* the special case of fasta-unsorted and split-spot : */
         rc = process_csra_fasta_unsorted( tool_ctx ); /* above */
     }
@@ -643,7 +640,7 @@ static rc_t process_table_in_seq_order( const tool_ctx_t * tool_ctx, const char 
     rc_t rc = 0;
     join_stats_t stats; /* helper.h */
     struct temp_registry_t * registry = NULL;   /* temp_registry.h */
-    
+
     clear_join_stats( &stats ); /* helper.c */
 
     rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */

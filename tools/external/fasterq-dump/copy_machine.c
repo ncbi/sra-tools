@@ -89,7 +89,7 @@ static rc_t destroy_copy_machine( copy_machine_t * self ) {
         }
     }
     KThreadWait ( self -> thread, &rc );
-    
+
     if ( NULL != self -> empty_q ){
         rc2 = KQueueRelease ( self -> empty_q );
         if ( 0 != rc2 ) {
@@ -264,7 +264,7 @@ static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data ) 
                     /* put the block back into the empty-q */
                     block -> available = 0;
                     rc = push2q ( self -> empty_q, block, self -> q_wait_time ); /* above */
-    
+
                     /* we are done ... seal the empty_q ( that will tell the reader to stop... */
                     {
                         rc_t rc2 = KQueueSeal ( self -> empty_q );
@@ -315,7 +315,7 @@ rc_t make_a_copy( KDirectory * dir,
         cm . sources = sources;
         cm . src_list_offset = src_list_offset;
         cm . q_wait_time = q_wait_time;
-            
+
         for ( i = 0; i < N_COPY_MACHINE_BLOCKS; ++i ) {
             cm . blocks[ i ] . buffer = NULL;
             cm . blocks[ i ] . available = 0;
@@ -621,7 +621,7 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
 
                     /* put the block back into the empty-q */
                     rc = multi_writer_push ( self -> empty_q, block, self -> q_wait_time ); /* above */
-    
+
                     /* we are done ... seal the empty_q ( that will tell the reader to stop... */
                     {
                         rc_t rc2 = KQueueSeal ( self -> empty_q );

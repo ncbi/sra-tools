@@ -382,9 +382,9 @@ rc_t lookup_bases( struct lookup_reader_t * self, int64_t row_id, uint32_t read_
     if ( NULL == self || NULL == B ) {
         rc = RC( rcRuntime, rcData, rcAccessing, rcMemory, rcNull );
     } else if ( NULL == B -> S . addr ) {
-        rc = RC( rcRuntime, rcData, rcAccessing, rcMemory, rcNull );        
+        rc = RC( rcRuntime, rcData, rcAccessing, rcMemory, rcNull );
     }
-    
+
     if ( 0 == rc ) {
         rc = lookup_reader_get( self, &key, &self -> buf );
         if ( 0 == rc ) {
@@ -511,7 +511,7 @@ rc_t write_out_lookup( const KDirectory *dir, size_t buf_size, const char * look
             }
             destroy_file_printer( printer );
         }
-        release_lookup_reader( reader );    
+        release_lookup_reader( reader );
     }
     return rc;
 }

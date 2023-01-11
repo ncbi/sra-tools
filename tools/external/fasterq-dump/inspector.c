@@ -222,12 +222,12 @@ static rc_t on_visit( const KDirectory *dir, uint32_t type, const char *name, vo
     }
     return rc;
 }
-    
+
 static uint64_t get_file_size( const KDirectory * dir, const char * path, bool remotely )
 {
     rc_t rc = 0;
     uint64_t res = 0;
-    
+
     if ( remotely ) {
         KNSManager * kns_mgr;
         rc = KNSManagerMake ( &kns_mgr );
@@ -484,7 +484,6 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
                         } else {
                             ErrMsg( "inspector.c inspect_db_platform().VCursorCellDataDirect( '%s' ) -> unexpected\n",
                                     input -> accession_short );
-                            
                         }
                     }
                 }
@@ -569,7 +568,7 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
                                 }
                                 res = acc_pacbio_native;
                             } else {
-                                /* last resort try to find out what the database-type is 
+                                /* last resort try to find out what the database-type is
                                 * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
                                 */
                                 if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
@@ -634,7 +633,7 @@ static rc_t inspect_location_and_size( const inspector_input_t * input,
                                        inspector_output_t * output ) {
     rc_t rc;
     char resolved[ PATH_MAX ];
-    
+
     /* try to resolve the path locally first */
     rc = resolve_accession( input -> accession_path, resolved, sizeof resolved, false ); /* above */
     if ( 0 == rc )
@@ -709,7 +708,7 @@ static rc_t inspect_seq_columns( const VTable * tbl, const inspector_input_t * i
 }
 
 static rc_t inspect_add_column( const VCursor * cur, uint32_t * id, const char * name ) {
-    rc_t rc = VCursorAddColumn( cur, id, name );    
+    rc_t rc = VCursorAddColumn( cur, id, name );
     if ( 0 != rc ) {
         ErrMsg( "inspector.c inspect_add_column( '%s' ) -> %R", name, rc );
     }
@@ -718,7 +717,7 @@ static rc_t inspect_add_column( const VCursor * cur, uint32_t * id, const char *
 
 static rc_t inspect_read_u64( const VCursor * cur, int64_t row_id, uint32_t col_id, const char * name, uint64_t * dst ) {
     const uint64_t * u64_ptr;
-    uint32_t elem_bits, boff, row_len;        
+    uint32_t elem_bits, boff, row_len;
     rc_t rc = VCursorCellDataDirect( cur, row_id, col_id, &elem_bits, (const void **)&u64_ptr, &boff, &row_len );
     if ( 0 != rc ) {
         ErrMsg( "inspector.c inspect_read_u64().VCursorCellDataDirect( %s ) -> %R", name, rc );
@@ -730,7 +729,7 @@ static rc_t inspect_read_u64( const VCursor * cur, int64_t row_id, uint32_t col_
 
 static rc_t inspect_read_len( const VCursor * cur, int64_t row_id, uint32_t col_id, const char * name, uint32_t * dst ) {
     const char * c_ptr;
-    uint32_t elem_bits, boff, row_len;        
+    uint32_t elem_bits, boff, row_len;
     rc_t rc = VCursorCellDataDirect( cur, row_id, col_id, &elem_bits, (const void **)&c_ptr, &boff, &row_len );
     if ( 0 != rc ) {
         ErrMsg( "inspector.c inspect_read_len().VCursorCellDataDirect( %s ) -> %R", name, rc );
@@ -773,7 +772,7 @@ static rc_t inspect_avg_read_type( const VCursor * cur, int64_t first_row, uint6
     if ( n > 0 ) {
         uint32_t i;
         const uint8_t * data_ptr;
-        uint32_t elem_bits, boff, row_len;        
+        uint32_t elem_bits, boff, row_len;
         for ( i = 0; 0 == rc && i < n; i++ ) {
             rc = VCursorCellDataDirect( cur, first_row + i, col_id, &elem_bits, (const void **)&data_ptr, &boff, &row_len );
             if ( 0 != rc ) {
@@ -799,12 +798,12 @@ static rc_t inspect_avg_read_type( const VCursor * cur, int64_t first_row, uint6
 
 static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * input, inspector_seq_data_t * seq ) {
     const VCursor * cur;
-    rc_t rc = VTableCreateCursorRead( tbl, &cur );    
+    rc_t rc = VTableCreateCursorRead( tbl, &cur );
     if ( 0 != 0 ) {
         ErrMsg( "inspector.c inspect_seq_data().VTableCreateCursorRead( '%s' ) -> %R", seq -> tbl_name, rc );
     } else {
         uint32_t id_read, id_name, id_spot_group, id_base_count, id_bio_base_count, id_spot_count, id_read_type;
-       
+
         /* we need this, because all other columns may by static - and because of that do not reveal the row-count! */
         rc = inspect_add_column( cur, &id_read, "READ" );
         if ( 0 == rc && seq -> has_name_column ) { rc = inspect_add_column( cur, &id_name, "NAME" ); }
@@ -847,7 +846,7 @@ static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * inpu
         }
         if ( 0 == rc ) {
             rc = inspect_avg_read_type( cur, seq -> first_row, seq -> row_count,
-                                  id_read_type, &( seq -> avg_bio_reads ), &( seq -> avg_tech_reads ) );                                        
+                                  id_read_type, &( seq -> avg_bio_reads ), &( seq -> avg_tech_reads ) );
         }
         {
             rc_t rc2 = VCursorRelease( cur );
@@ -870,12 +869,12 @@ static rc_t inspect_seq_tbl( const VTable * tbl, const inspector_input_t * input
 
 static rc_t inspect_align_tbl( const VTable * tbl, const inspector_input_t * input, inspector_align_data_t * align ) {
     const VCursor * cur;
-    rc_t rc = VTableCreateCursorRead( tbl, &cur );    
+    rc_t rc = VTableCreateCursorRead( tbl, &cur );
     if ( 0 != 0 ) {
         ErrMsg( "inspector.c inspect_align_tbl().VTableCreateCursorRead() -> %R", rc );
     } else {
         uint32_t id_read, id_base_count, id_bio_base_count, id_spot_count;
-       
+
         /* we need this, because all other columns may by static - and because of that do not reveal the row-count! */
         rc = inspect_add_column( cur, &id_read, "READ" );
         if ( 0 == rc ) { rc = inspect_add_column( cur, &id_base_count, "BASE_COUNT" ); }
@@ -1010,7 +1009,7 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
         rc = inspect_location_and_size( input, output );
         if ( 0 == rc ) {
             output -> acc_type = inspect_path_type_and_seq_tbl_name( input, output ); /* db or table? */
-            
+
             switch( output -> acc_type ) {
                 case acc_csra          : rc = inspect_csra( input, output ); break; /* above */
                 case acc_sra_flat      : rc = inspect_sra_flat( input, output ); break; /* above */
@@ -1152,8 +1151,8 @@ static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * inpu
     } else {
         defl_est_inp . avg_seq_len = insp_est_base_count( input );
     }
-    defl_est_inp . defline = input -> qual_defline;    
-    
+    defl_est_inp . defline = input -> qual_defline;
+
     return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
 }
 
@@ -1168,7 +1167,7 @@ static size_t insp_est_out_size_whole_spot( const inspector_estimate_input_t * i
         res += ( row_count * 2 );           /* add the new-lines */
         return res;
     }
-    
+
     l_qual_dl = insp_est_qual_defline_len( input );
     res *= 2;                               /* double the bases, because of quality */
     res += ( l_seq_dl * row_count );        /* add the length of the seq-defline for each row */
@@ -1186,13 +1185,13 @@ static size_t insp_est_out_size_split_spot( const inspector_estimate_input_t * i
 
     size_t read_count = insp_est_reads_per_spot( input ); /* this depends on skip_tech:
                                                             we need to know how many tech. and bio. reads per spot */
-    
+
     if ( fasta ) {
         res += ( l_seq_dl * row_count * read_count );    /* add the length of the seq-defline for each row and read */
         res += ( row_count * read_count * 2 );           /* add the new-lines */
         return res;
     }
-    
+
     l_qual_dl = insp_est_qual_defline_len( input );
     res *= 2;                                           /* double the bases, because of quality */
     res += ( l_seq_dl * row_count * read_count );       /* add the length of the seq-defline for each row and read */

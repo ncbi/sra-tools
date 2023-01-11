@@ -114,7 +114,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
                         size_t buf_size, uint64_t frequency, const char * fmt, ... ) {
     rc_t rc;
     struct KFile * f;
-    
+
     va_list args;
     va_start ( args, fmt );
 
@@ -339,7 +339,7 @@ rc_t get_max_key( const index_reader_t * self, uint64_t * max_key ) {
                 *max_key = data[ 2 ];
             } else {
                 rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                ErrMsg( "index.c get_max_key() - index file has invalid size of %lu", self -> file_size );    
+                ErrMsg( "index.c get_max_key() - index file has invalid size of %lu", self -> file_size );
             }
         }
     }

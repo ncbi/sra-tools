@@ -88,12 +88,11 @@ static merge_src_t * get_min_merge_src( merge_src_t * src, uint32_t count ) {
         }
     }
     return res;
-} 
+}
 
 /* ================================================================================= */
 
 typedef struct merge_sorter_t {
-    
     struct lookup_writer_t * dst; /* lookup_writer.h */
     struct index_writer_t * idx;  /* index.h */
     merge_src_t * src;            /* vector of input-files to be merged */
@@ -112,7 +111,7 @@ static rc_t init_merge_sorter( merge_sorter_t * self,
                                struct bg_update_t * gap ) {
     rc_t rc = 0;
     uint32_t i;
-    
+
     if ( NULL != index ) {
         rc = make_index_writer( dir, &( self -> idx ), buf_size,
                         DFLT_INDEX_FREQUENCY, "%s", index ); /* index.h */
@@ -124,7 +123,7 @@ static rc_t init_merge_sorter( merge_sorter_t * self,
     self -> total_entries = 0;
     self -> num_src = num_src;
     self -> gap = gap;
-    
+
     if ( 0 == rc ) {
         rc = make_lookup_writer( dir, self -> idx, &( self -> dst ), buf_size, "%s", output ); /* lookup_writer.h */
     }
@@ -136,7 +135,7 @@ static rc_t init_merge_sorter( merge_sorter_t * self,
             ErrMsg( "init_merge_sorter2.calloc( %d ) failed", ( ( sizeof * self -> src ) * self -> num_src ) );
         }
     }
-    
+
     for ( i = 0; 0 == rc && i < self -> num_src; ++i ) {
         const char * filename;
         rc = VNameListGet ( files, i, &filename );
@@ -160,7 +159,7 @@ static void release_merge_sorter( merge_sorter_t * self ) {
     release_lookup_writer( self -> dst );
     release_index_writer( self -> idx );
     if ( NULL != self -> src ) {
-        uint32_t i;    
+        uint32_t i;
         for ( i = 0; i < self -> num_src; ++i ) {
             merge_src_t * s = &self -> src[ i ];
             release_lookup_reader( s -> reader );
@@ -275,7 +274,7 @@ rc_t wait_for_and_release_background_vector_merger( background_vector_merger_t *
         }
         release_background_vector_merger( self );
     }
-    
+
     if ( 0 != rc ) {
         ErrMsg( "merge_sorter.c wait_for_and_release_background_vector_merger()", rc );
     }
@@ -315,7 +314,7 @@ static bg_vec_merge_src_t * get_min_bg_vec_merge_src( bg_vec_merge_src_t * batch
         }
     }
     return res;
-} 
+}
 
 static rc_t write_bg_vec_merge_src( bg_vec_merge_src_t * src, struct lookup_writer_t * writer ) {
     rc_t rc = src -> rc;
@@ -339,7 +338,7 @@ static rc_t background_vector_merger_collect_batch( background_vector_merger_t *
     bg_vec_merge_src_t * b = calloc( self -> batch_size, sizeof * b );
     *batch = NULL;
     *count = 0;
-    
+
     if ( NULL == b ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
@@ -430,7 +429,7 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
                 release_lookup_writer( writer ); /* lookup_writer.c */
             }
         }
-        
+
         /*
         if ( rc == 0 && self -> file_merger != NULL )
             rc = lookup_check_file( self -> dir, self -> buf_size, buffer );
@@ -452,7 +451,7 @@ static rc_t CC background_vector_merger_thread_func( const KThread * thread, voi
     while( 0 == rc && !done ) {
         bg_vec_merge_src_t * batch = NULL;
         uint32_t count = 0;
-        
+
         /* Step 1 : get n = batch_size KVector's out of the in_q */
         STATUS ( STAT_USR, "collecting batch" );
         rc = background_vector_merger_collect_batch( self, &batch, &count );
@@ -584,7 +583,7 @@ typedef struct background_file_merger_t {
     const char * index_filename;
     locked_file_list_t files;        /* a locked file-list */
     locked_value_t sealed;           /* flag to signal if the input is sealed */
-    struct KFastDumpCleanupTask_t * cleanup_task;     /* add the produced temp_files here too */    
+    struct KFastDumpCleanupTask_t * cleanup_task;     /* add the produced temp_files here too */
     KThread * thread;               /* the thread that performs the merge-sort */
     uint32_t product_id;            /* increased by one for each batch-run, used in temp-file-name */
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
@@ -635,7 +634,7 @@ rc_t wait_for_and_release_background_file_merger( background_file_merger_t * sel
 /* called from the background-thread */
 static rc_t process_background_file_merger( background_file_merger_t * self ) {
     char tmp_filename[ 4096 ];
-    
+
     rc_t rc = generate_bg_merge_filename( self -> temp_dir, tmp_filename, sizeof tmp_filename,
                                           self -> product_id );
     if ( 0 == rc ) {
@@ -664,7 +663,7 @@ static rc_t process_background_file_merger( background_file_merger_t * self ) {
                                         self -> dir,
                                         tmp_filename,   /* the output file */
                                         NULL,           /* opt. index_filename */
-                                        batch_files,    /* the input files */    
+                                        batch_files,    /* the input files */
                                         self -> buf_size,
                                         num_src,
                                         self -> gap );
@@ -705,7 +704,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
                 }
             }
         }
-        
+
         if ( 0 == rc ) {
             rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, self -> lookup_filename );
         }
@@ -718,7 +717,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
                                     self -> dir,
                                     self -> lookup_filename,   /* the output file */
                                     self -> index_filename,    /* opt. index_filename */
-                                    batch_files,               /* the input files */    
+                                    batch_files,               /* the input files */
                                     self -> buf_size,
                                     num_src,
                                     self -> gap );

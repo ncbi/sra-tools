@@ -74,7 +74,7 @@ void destroy_fastq_csra_iter( struct fastq_csra_iter_t * self );
 rc_t make_fastq_csra_iter( const cmn_iter_params_t * params,
                            fastq_iter_opt_t opt,
                            struct fastq_csra_iter_t ** iter );
-                         
+
 bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * rec, rc_t * rc );
 uint64_t get_row_count_of_fastq_csra_iter( struct fastq_csra_iter_t * self );
 

@@ -108,7 +108,7 @@ static rc_t init_join( cmn_iter_params_t * cp,
     j -> looked_up_bases_2 . S . addr = NULL;
     j -> loop_nr = 0;
     j -> cmp_read_present = cmp_read_present;
-    
+
     if ( NULL != index_filename ) {
         if ( file_exists( cp -> dir, "%s", index_filename ) ) {
             rc = make_index_reader( cp -> dir, &j -> index, buf_size, "%s", index_filename ); /* index.c */
@@ -622,7 +622,7 @@ static rc_t print_fasta_whole_spot_aligned( join_stats_t * stats,
                                  const join_options_t * jo ) {
     /* A0 and A1 are aligned ( 2 lookups ) */
     const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;    
+    const String * LOOKED_UP2 = NULL;
     rc_t rc = lookup1( j, rec, &LOOKED_UP1 ); /* above */
     if ( 0 == rc ) {
         rc = lookup2( j, rec, &LOOKED_UP2 ); /* above */
@@ -679,7 +679,7 @@ static uint32_t calc_dst_id_2( split_mode_t sm, bool process_0, bool process_1 )
         case sm_file  : return 2; break;
         case sm_3 : return ( process_0 && process_1 ) ? 2 : 0; break;
     }
-    return 0;    
+    return 0;
 }
 
 static rc_t print_fastq_splitted_cmn( join_stats_t * stats,
@@ -694,7 +694,7 @@ static rc_t print_fastq_splitted_cmn( join_stats_t * stats,
                                   const String * Q1,
                                   const String * Q2 ) {
     rc_t rc = 0;
-    process_0 = process_0 && R1 -> len > 0 && 
+    process_0 = process_0 && R1 -> len > 0 &&
                 filter_2na_1( j -> filter, R1 ); /* join-results.c */
     process_1 = process_1 && R2 -> len > 0 &&
                 filter_2na_1( j -> filter, R2 );
@@ -729,7 +729,7 @@ static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* fully unaligned */    
+    /* fully unaligned */
     String CMP_READ1, CMP_READ2;
     slice_read( rec, &CMP_READ1, &CMP_READ2 ); /* above */
     if ( process_0 ) {
@@ -889,7 +889,7 @@ static rc_t print_fastq_splitted( join_stats_t * stats,
     String Q1, Q2;
     bool process_0 = true;
     bool process_1 = true;
-    
+
     if ( sm != sm_none && jo -> skip_tech ) {
         process_0 = filter( stats, rec, jo, 0 ); /* above */
         process_1 = filter( stats, rec, jo, 1 ); /* above */
@@ -969,7 +969,7 @@ static rc_t print_fasta_splitted_unaligned( join_stats_t * stats,
                                   bool process_1 ) {
     /* fully unaligned */
     String CMP_READ1;
-    String CMP_READ2;    
+    String CMP_READ2;
     slice_read( rec, &CMP_READ1, &CMP_READ2 ); /* above */
     return print_fasta_splitted_cmn( stats, rec, j, sm, jo, process_0, process_1,
                                      &CMP_READ1, &CMP_READ2 );
@@ -1057,7 +1057,7 @@ static rc_t print_fasta_splitted( join_stats_t * stats,
     rc_t rc = 0;
     bool process_0 = true;
     bool process_1 = true;
-    
+
     if ( sm != sm_none && jo -> skip_tech ) {
         process_0 = filter( stats, rec, jo, 0 ); /* above */
         process_1 = filter( stats, rec, jo, 1 ); /* above */
@@ -1130,14 +1130,14 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
     opt . with_cmp_read = j -> cmp_read_present;
     opt . with_quality = true;
     opt . with_spotgroup = jo -> print_spotgroup;
-    
+
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
     } else {
         fastq_rec_t rec; /* fastq_iter.h */
         join_options_t local_opt = { jo -> rowid_as_name,
-                                   false, 
+                                   false,
                                    jo -> print_spotgroup,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
@@ -1232,7 +1232,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
     } else {
         fastq_rec_t rec; /* fastq_iter.h */
-        join_options_t local_opt = { 
+        join_options_t local_opt = {
                 jo -> rowid_as_name,
                 false,
                 jo -> print_spotgroup,
@@ -1342,7 +1342,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
     } else {
         fastq_rec_t rec; /* fastq_iter.h */
         join_options_t local_opt = { jo -> rowid_as_name,
-                                   false, 
+                                   false,
                                    jo -> print_spotgroup,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
@@ -1438,7 +1438,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
     } else {
         fastq_rec_t rec; /* fastq_iter.h */
-        join_options_t local_opt = { 
+        join_options_t local_opt = {
                 jo -> rowid_as_name,
                 false,
                 jo -> print_spotgroup,
@@ -1479,7 +1479,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
                                       const join_options_t * jo ) {
     rc_t rc;
     struct fastq_csra_iter_t * iter;
-    
+
     /* these are the options for the seq-table-iterator */
     fastq_iter_opt_t opt;
     opt . with_read_len = true;
@@ -1538,7 +1538,7 @@ typedef struct join_thread_data {
     char part_file[ 4096 ];
 
     join_stats_t stats; /* helper.h */
-    
+
     KDirectory * dir;
     const VDBManager * vdb_mgr;
 
@@ -1553,7 +1553,7 @@ typedef struct join_thread_data {
     struct filter_2na_t * filter;
 
     KThread * thread;
-    
+
     int64_t first_row;
     uint64_t row_count;
     uint64_t row_limit;
@@ -1716,7 +1716,7 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
             uint64_t rows_per_thread;
             uint32_t thread_id;
             uint32_t num_threads2 = args -> num_threads;
-            
+
             struct bg_progress_t * progress = NULL;
             join_options_t corrected_join_options;
 
@@ -1826,7 +1826,7 @@ rc_t check_lookup( const KDirectory * dir,
                             loop++;
                         }
                     }
-                    release_SBuffer( &buffer );                
+                    release_SBuffer( &buffer );
                 }
                 destroy_raw_read_iter( iter ); /* raw_read_iter.c */
             }
@@ -1926,7 +1926,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
                         /* finally print it out */
                         rc = flex_print( flex_printer, &data ); /* flex_printer.c */
                         if ( 0 == rc ) { stats -> reads_written++; }
-                    } else { 
+                    } else {
                         stats -> reads_zero_length++;
                     }
 
@@ -2054,7 +2054,7 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
                     uint32_t read_id_0 = 0;
                     uint32_t offset = 0;
                     stats -> spots_read++;
-                    
+
                     while ( 0 == rc && read_id_0 < rec . num_read_len ) {
                         if ( rec . read_len[ read_id_0 ] > 0 ) {
                             if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
@@ -2192,7 +2192,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
             rc = extract_align_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
                                           args -> cur_cache, &align_row_count ); /* above */
         }
-        
+
         if ( 0 == rc && ( seq_row_count > 0 || align_row_count > 0 ) ) {
             struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
                     args -> output_filename,

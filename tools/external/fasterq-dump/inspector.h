@@ -111,7 +111,7 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output );
 rc_t inspection_report( const inspector_input_t * input, const inspector_output_t * output );
 
 rc_t inspector_path_to_vpath( const char * path, VPath ** vpath );
-    
+
 const char * inspector_extract_acc_from_path( const char * s );
 
 /* ------------------------------------------------------------------------------------------- */

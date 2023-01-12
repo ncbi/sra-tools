@@ -1108,7 +1108,7 @@ static rc_t extract_align_row_count( KDirectory * dir,
                                    uint64_t * res ) {
     cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
     struct align_iter_t * iter;
-    rc_t rc = make_align_iter( &cp, &iter ); /* fastq_iter.c */
+    rc_t rc = make_align_iter( &cp, &iter, false ); /* fastq_iter.c */
     if ( 0 == rc ) {
         *res = get_row_count_of_align_iter( iter );
         destroy_align_iter( iter );
@@ -1898,7 +1898,8 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        rc = make_align_iter( &cp, &iter ); /* fastq-iter.c */
+        bool uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
+        rc = make_align_iter( &cp, &iter, uses_read_id ); /* fastq-iter.c */
         if ( 0 != rc ) {
             ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
         } else {
@@ -1913,7 +1914,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
 
                         /* fill out the data-record for the flex-printer */
                         data . row_id = rec . spot_id;
-                        data . read_id = 0;         /* not picked up by format in this case*/
+                        data . read_id = rec . read_id;
                         data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
 
                         data . spotname = NULL;     /* we do not have the spot-name in the align-table */

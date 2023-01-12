@@ -432,7 +432,10 @@ uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter_t * self ) {
 
 typedef struct align_iter_t {
     struct cmn_iter_t * cmn;
-    uint32_t spot_id, read_id;
+    uint32_t cur_idx_raw_read;
+    uint32_t cur_idx_spot_id;
+    uint32_t cur_idx_seq_read_id;
+    bool uses_read_id;
 } align_iter_t;
 
 
@@ -443,25 +446,29 @@ void destroy_align_iter( struct align_iter_t * self ) {
     }
 }
 
-rc_t make_align_iter( const cmn_iter_params_t * params, struct align_iter_t ** iter ) {
+rc_t make_align_iter( const cmn_iter_params_t * params, struct align_iter_t ** iter, bool uses_read_id ) {
     rc_t rc = 0;
     align_iter_t * self = calloc( 1, sizeof * self );
     if ( NULL == self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_fastq_tbl_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
     } else {
+        self -> uses_read_id = uses_read_id;
         rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &( self -> cmn ) );
         if ( 0 != rc ) {
             ErrMsg( "make_align_iter.make_cmn_iter() -> %R", rc );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_add_column( self -> cmn, "RAW_READ", &( self -> read_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "RAW_READ", &( self -> cur_idx_raw_read ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_add_column( self -> cmn, "SEQ_SPOT_ID", &( self -> spot_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "SEQ_SPOT_ID", &( self -> cur_idx_spot_id ) );
+        }
+        if ( 0 == rc && uses_read_id ) {
+            rc = cmn_iter_add_column( self -> cmn, "SEQ_READ_ID", &( self -> cur_idx_seq_read_id ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_range( self -> cmn, self -> read_id );
+            rc = cmn_iter_range( self -> cmn, self -> cur_idx_raw_read );
         }
         if ( 0 != rc ) {
             destroy_align_iter( self );
@@ -479,12 +486,20 @@ bool get_from_align_iter( struct align_iter_t * self, align_rec_t * rec, rc_t * 
         rc_t rc1 = 0;
 
         rec -> row_id = cmn_iter_row_id( self -> cmn );
-        rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
+        rc1 = cmn_read_String( self -> cmn, self -> cur_idx_raw_read, &( rec -> read ) );
 
         if ( 0 == rc1 ) {
-            rc1 = cmn_read_uint64( self -> cmn, self -> spot_id, &( rec -> spot_id ) );
+            rc1 = cmn_read_uint64( self -> cmn, self -> cur_idx_spot_id, &( rec -> spot_id ) );
+        } else {
+            rec -> spot_id = 0;
         }
 
+        if ( 0 == rc1 && self -> uses_read_id ) {
+            rc1 = cmn_read_uint32( self -> cmn, self -> cur_idx_seq_read_id, &( rec -> read_id ) );
+        } else {
+            rec -> read_id = 0;
+        }
+        
         if ( NULL != rc ) { *rc = rc1; }
     }
     return res;

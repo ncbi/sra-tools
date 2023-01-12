@@ -14,9 +14,9 @@
 
 set -e
 
-source ./check_bin_tools.sh $1 $2 $4
+source ./check_bin_tools.sh $1 $3
 
-VDB_INCDIR="$3"
+VDB_INCDIR="$2"
 
 print_verbose "testing sra-sort with post-sort metadata-copy"
 print_verbose "---------------------------------------------"
@@ -25,7 +25,7 @@ print_verbose "---------------------------------------------"
 #create a tempp. config-file
 cat << EOF > tmp.kfg
 /vdb/schema/paths = "${VDB_INCDIR}"
-/LIBS/GUID = "8test002-6abf-47b2-bfd0-bamfload"
+/LIBS/GUID = "8test002-6abf-47b2-bfd0-test-sra-sort"
 EOF
 
 #------------------------------------------------------------

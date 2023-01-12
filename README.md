@@ -15,7 +15,19 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
-November 15, 2022 : SRA Toolkit 3.0.1
+_January 3, 2023_ : **SRA Toolkit 3.0.3**
+
+Fixed regression in sra-stat.
+
+----
+
+_December 12, 2022_ : **SRA Toolkit 3.0.2**
+
+Fixed 'buffer insufficient while converting string within text module' failure of prefetch on Mac.
+
+----
+
+_November 15, 2022_ : **SRA Toolkit 3.0.1**
 
 Removed interactive requirement to configure SRA Toolkit.
 
@@ -39,13 +51,13 @@ The build flags shown above can be combined on the same command line, for instan
 
 ----
 
-August 4, 2022 : Security Update
+_August 4, 2022_ : Security Update
 
 Due to updated security at NCBI, versions of the SRA Toolkit 2.9.6 and older will no longer be able to connect to the NCBI data location service. We advise impacted users to update to the [latest version](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) of the SRA Toolkit.
 
 ----
 
-February 10, 2022 : SRA Toolkit 3.0.0
+_February 10, 2022_ : **SRA Toolkit 3.0.0**
 
 NCBI's SRA changed the source build system to use CMake in toolkit release 3.0.0. This change is an important step to improve developers' productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems are no longer supported.
 

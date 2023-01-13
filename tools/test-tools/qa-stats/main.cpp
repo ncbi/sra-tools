@@ -110,6 +110,13 @@ struct Event {
 struct Count {
     uint64_t total, biological, technical;
     Count() : total(0), biological(0), technical(0) {}
+
+    Count &operator +=(Count const &addend) {
+        total += addend.total;
+        biological += addend.biological;
+        technical += addend.technical;
+        return *this;
+    }
 };
 
 struct SpotStats : public std::map<unsigned, Count> {
@@ -264,6 +271,7 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
         for (auto &reference : self) {
             auto const refId = &reference - &self[0];
             auto const refName = Input::references[refId];
+            Count total;
 #if USE_REF_HASH
             auto hashPos = *reinterpret_cast<FNV1a const *>(&reference[0].total);
             auto hashSeq = *reinterpret_cast<FNV1a const *>(&reference[0].biological);
@@ -279,6 +287,7 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                 if (&counter == &reference[0] || counter.total == 0) continue;
 
                 auto const chunk = (&counter - &reference[0]) - 1;
+                total += counter;
 
                 out
                 << '{'
@@ -291,7 +300,12 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                     << '}'
                 << '}';
             }
-            out << ']';
+            out << JSON_Member{"alignments"} << '{'
+                    << JSON_Member{"total"} << total.total
+                    << JSON_Member{"5'"} << total.biological
+                    << JSON_Member{"3'"} << total.technical
+                << '}'
+            << ']';
 #if USE_REF_HASH
             out << JSON_Member{"position-hash"} << SeqHash_impl::Result::to_hex(posHash, buffer);
             out << JSON_Member{"sequence-hash"} << SeqHash_impl::Result::to_hex(seqHash, buffer);
@@ -416,12 +430,14 @@ struct Stats {
                 << JSON_Member{"hash"}; print(out, self.hash.total)
             << '}';
 
+            if (self.reads.biological > 0)
             out << JSON_Member{"biological"}
             << '{'
                 << JSON_Member{"count"} << self.reads.biological
                 << JSON_Member{"hash"}; print(out, self.hash.biological)
             << '}';
 
+            if (self.reads.technical > 0)
             out << JSON_Member{"technical"}
             << '{'
                 << JSON_Member{"count"} << self.reads.technical

@@ -219,8 +219,8 @@ struct SeqHash_impl {
         {}
 
         void accumulate(Result const &other) {
-            base = (base * other.base) % FNV1a64::PRIME;
-            unstranded = (unstranded * other.unstranded) % FNV1a64::PRIME;
+            base ^= other.base;
+            unstranded ^= other.unstranded;
             fnv1a ^= other.fnv1a;
         }
 

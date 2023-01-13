@@ -29,10 +29,8 @@
  *  Compute expected invariant statistics.
  */
 
-// FIXME: Ref Hashing is not order-insensitive
-#define USE_REF_HASH 0
-
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <functional>
 #include <sstream>
@@ -227,17 +225,17 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
     static constexpr int chunkSize = (1 << 14);
 
     void accumulate(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
+        auto hPSa = FNV1a();
+        hPSa.update(position);
+        hPSa.update(strand);
+
+        auto const hPS = hPSa.finish();
+        auto const hSeq = FNV1a::hash(sequence.size(), sequence.data());
+        auto const hCig = FNV1a::hash(cigar.operations.size(), cigar.operations.data());
+
         while (refId >= size()) {
             auto value = std::vector<Count>();
             auto hach = Count();
-#if USE_REF_HASH
-            static_assert(sizeof(hach.total) == sizeof(FNV1a)
-                          && sizeof(hach.biological) == sizeof(FNV1a)
-                          && sizeof(hach.technical) == sizeof(FNV1a), "expected 64 bit counters");
-            *reinterpret_cast<FNV1a *>(&hach.total) = FNV1a();
-            *reinterpret_cast<FNV1a *>(&hach.biological) = FNV1a();
-            *reinterpret_cast<FNV1a *>(&hach.technical) = FNV1a();
-#endif
             value.push_back(hach);
             push_back(value);
         }
@@ -255,14 +253,10 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                 counter.biological += 1;
             if (strand == 1)
                 counter.technical += 1;
-#if USE_REF_HASH
-            auto &hashPos = *reinterpret_cast<FNV1a *>(&reference[0].total);
-            auto &hashSeq = *reinterpret_cast<FNV1a *>(&reference[0].biological);
-            auto &hashCIGAR = *reinterpret_cast<FNV1a *>(&reference[0].technical);
-            hashPos.update(position);
-            hashSeq.update(sequence.size(), sequence.data());
-            hashCIGAR.update(cigar.operations.size(), cigar.operations.data());
-#endif
+
+            reference[0].total ^= hPS;
+            reference[0].biological ^= hSeq;
+            reference[0].technical ^= hCig;
         }
     }
     friend JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &self) {
@@ -272,14 +266,10 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
             auto const refId = &reference - &self[0];
             auto const refName = Input::references[refId];
             Count total;
-#if USE_REF_HASH
-            auto hashPos = *reinterpret_cast<FNV1a const *>(&reference[0].total);
-            auto hashSeq = *reinterpret_cast<FNV1a const *>(&reference[0].biological);
-            auto hashCIGAR = *reinterpret_cast<FNV1a const *>(&reference[0].technical);
-            auto const posHash = hashPos.finish();
-            auto const seqHash = hashSeq.finish();
-            auto const cigHash = hashCIGAR.finish();
-#endif
+            auto const &posHash = reference[0].total;
+            auto const &seqHash = reference[0].biological;
+            auto const &cigHash = reference[0].technical;
+
             out << '{';
             out << JSON_Member{"name"} << refName;
             out << JSON_Member{"chunks"} << '[';
@@ -300,18 +290,16 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                     << '}'
                 << '}';
             }
-            out << JSON_Member{"alignments"} << '{'
-                    << JSON_Member{"total"} << total.total
-                    << JSON_Member{"5'"} << total.biological
-                    << JSON_Member{"3'"} << total.technical
-                << '}'
-            << ']';
-#if USE_REF_HASH
-            out << JSON_Member{"position-hash"} << SeqHash_impl::Result::to_hex(posHash, buffer);
-            out << JSON_Member{"sequence-hash"} << SeqHash_impl::Result::to_hex(seqHash, buffer);
-            out << JSON_Member{"cigar-hash"} << SeqHash_impl::Result::to_hex(cigHash, buffer);
-#endif
-            out << '}';
+            out << ']'
+            << JSON_Member{"alignments"} << '{'
+                << JSON_Member{"total"} << total.total
+                << JSON_Member{"5'"} << total.biological
+                << JSON_Member{"3'"} << total.technical
+            << '}'
+            << JSON_Member{"position-hash"} << SeqHash_impl::Result::to_hex(posHash, buffer)
+            << JSON_Member{"sequence-hash"} << SeqHash_impl::Result::to_hex(seqHash, buffer)
+            << JSON_Member{"cigar-hash"} << SeqHash_impl::Result::to_hex(cigHash, buffer)
+            << '}';
         }
         return out;
     }
@@ -430,20 +418,21 @@ struct Stats {
                 << JSON_Member{"hash"}; print(out, self.hash.total)
             << '}';
 
-            if (self.reads.biological > 0)
-            out << JSON_Member{"biological"}
-            << '{'
-                << JSON_Member{"count"} << self.reads.biological
-                << JSON_Member{"hash"}; print(out, self.hash.biological)
-            << '}';
+            if (self.reads.biological > 0) {
+                out << JSON_Member{"biological"}
+                << '{'
+                    << JSON_Member{"count"} << self.reads.biological
+                    << JSON_Member{"hash"}; print(out, self.hash.biological)
+                << '}';
+            }
 
-            if (self.reads.technical > 0)
-            out << JSON_Member{"technical"}
-            << '{'
-                << JSON_Member{"count"} << self.reads.technical
-                << JSON_Member{"hash"}; print(out, self.hash.technical)
-            << '}';
-
+            if (self.reads.technical > 0) {
+                out << JSON_Member{"technical"}
+                << '{'
+                    << JSON_Member{"count"} << self.reads.technical
+                    << JSON_Member{"hash"}; print(out, self.hash.technical)
+                << '}';
+            }
             return out;
         }
     };
@@ -461,11 +450,14 @@ struct Stats {
 };
 
 static void gather(std::istream &in, Stats &stats, std::vector<Stats> &spotGroup) {
+    bool isfirst = true;
+
     in.exceptions(std::ios::badbit | std::ios::failbit);
     while (in) {
-        auto const spot = Input::readFrom(in);
+        auto const spot = Input::readFrom(in, isfirst);
         int naligned = 0;
 
+        isfirst = false;
         if (spotGroup.size() < Input::groups.size())
             spotGroup.resize(Input::groups.size(), Stats{});
 
@@ -495,6 +487,8 @@ int main(int argc, const char * argv[]) {
 
 #if 1
     auto &in = std::cin;
+#elif 1
+    auto in = std::ifstream(argv[1]);
 #else
     auto in = std::istringstream("GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL\n"
                                  "GTGGACATCCCTCTGTGTGNGTCAN\tCM_000001\t10001\t0\t24M1S\n");

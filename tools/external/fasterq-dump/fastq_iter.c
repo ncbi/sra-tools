@@ -407,7 +407,7 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter_t * self, fastq_rec_t * rec,
                                 &( self -> qual_buffer ),
                                 &( self -> qual_2_ascii[ 0 ] ),
                                 &( rec -> quality ),
-                                sum_read_len )
+                                sum_read_len );
             }
         }
 

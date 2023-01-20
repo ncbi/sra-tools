@@ -1091,7 +1091,6 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
     if ( 0 == rc ) {
         const char * s_acc_type = inspector_acc_type_to_string( output -> acc_type ); /* above */
         rc = KOutMsg( "... is %s\n", s_acc_type );
-        }
     }
     if ( 0 == rc ) {
         rc = inspection_report_seq( &( output -> seq ) );

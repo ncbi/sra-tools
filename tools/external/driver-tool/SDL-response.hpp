@@ -118,7 +118,7 @@ struct Response2 {
         };
 
         using Files = std::vector<FileEntry>;
-        using Flat = std::pair<unsigned, unsigned>; // files index, and files location index
+        using Flat = std::pair<unsigned, unsigned>; ///< files index, and files location index
         std::string query;
         std::string status;
         std::string message;
@@ -138,7 +138,7 @@ struct Response2 {
         TypeIndex indexTypes() const;
         std::vector<Flattened> getByType(std::string const &key) const;
 
-        /// \brief The cache file can come from either the same location, or it can come from NCBI if it is encrypted for the same project or is not encrypted.
+        /// \brief The cache file can come from either the same location, or it can come from NCBI if it is encrypted for the same project or is not encrypted. It also must match by quality type.
         /// \returns -1 if none found, else index in flattened.
         int getCacheFor(Flattened const &match) const;
 

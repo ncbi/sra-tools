@@ -27,8 +27,8 @@ if( SINGLE_CONFIG )
     find_package(ZLIB)
     find_package(BZip2)
     find_package (Threads)
-
-    if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
+message(RE2_FOUND=${RE2_FOUND})
+    if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
 
         set(CMAKE_CXX_STANDARD 17)
         add_definitions(-msse4.2 -DBMSSE42OPT)

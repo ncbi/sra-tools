@@ -41,7 +41,8 @@
 #endif
 
 /// @brief Event based parser. How-to-use: tl;dr Create delegate classes to fill out
-/// your C++ classes with values from the JSON string. Create chains of delegates to fill out structures.
+/// your C++ classes with values from the JSON string. Create chains of delegates to
+/// fill out nested structures structures.
 ///
 /// @discussion The general procedure is this: Suppose the top level
 /// construct in the JSON is an object (this is the usual case).
@@ -291,7 +292,7 @@ private:
     /// It subsumes the `object` and `array` productions.
     void value();
 
-    /// @brief Parse an array.
+    /// @brief Parse an string.
     void string();
 
     /// @brief Parse a word (stops at whitespace or punctuation).

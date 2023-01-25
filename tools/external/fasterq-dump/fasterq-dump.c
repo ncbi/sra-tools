@@ -213,6 +213,8 @@ static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
+    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
+    { OPTION_FORCE_PACBIO,  NULL,               NULL, NULL,                 1, false,  false },
     { OPTION_FORMAT,        ALIAS_FORMAT,       NULL, format_usage,         1, true,   false },
     { OPTION_OUTPUT_F,      ALIAS_OUTPUT_F,     NULL, outputf_usage,        1, true,   false },
     { OPTION_OUTPUT_D,      ALIAS_OUTPUT_D,     NULL, outputd_usage,        1, true,   false },
@@ -241,12 +243,10 @@ OptDef ToolOptions[] = {
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
     { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,         1, false,  false },
-    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
     { OPTION_DISK_LIMIT_OUT,NULL,               NULL, disk_limit_out_usage, 1, true,   false },
     { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
-    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
-    { OPTION_FORCE_PACBIO,  NULL,               NULL, NULL,                 1, false,  false }
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -284,13 +284,15 @@ rc_t CC Usage ( const Args * args ) {
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
-    for ( idx = 1; idx < count; ++idx ) { /* start with 1, do not advertize row-range-option*/
+    for ( idx = 2; idx < count; ++idx ) { /* start with 2, do not advertize row-limit and pacbio-force options */
         const OptDef * opt = &ToolOptions[ idx ];
         const char * param = NULL;
 
         assert( opt );
         if ( 0 == strcmp( opt -> name, OPTION_NGC ) ) { param = "PATH"; }
-        HelpOptionLine( opt -> aliases, opt -> name, param, opt -> help );
+        if ( NULL != opt -> help ) { /* safeguard if option has no help */
+            HelpOptionLine( opt -> aliases, opt -> name, param, opt -> help );
+        }
     }
 
     KOutMsg( "\n" );
@@ -810,7 +812,6 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                                               break;
                     }
                 }
-
                 rc = release_tool_ctx( &tool_ctx, rc ); /* tool_ctx.c */
             }
         }

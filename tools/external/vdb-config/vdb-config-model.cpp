@@ -888,6 +888,8 @@ void vdbconf_model::set_defaults( void )
 
     std::string dflt_profile( "default" );
     set_aws_profile( dflt_profile );
+
+    set_telemetry( true );
 }
 
 std::string vdbconf_model::get_dflt_import_path_start_dir( void )
@@ -934,5 +936,19 @@ bool vdbconf_model::get_full_quality( void ) const
 void vdbconf_model::set_full_quality( bool b )
 {
     MODEL_THROW_ON_RC ( KConfig_Set_PreferNoToFullQuality( _config.Get(), b ) );
+    _config.Updated();
+}
+
+/* telemetry related functions */
+bool vdbconf_model::get_telemetry( void ) const
+{
+    bool res = false;
+    MODEL_THROW_ON_RC ( KConfig_Get_SendTelemetry( _config.Get(), &res ) );
+    return res;
+}
+
+void vdbconf_model::set_telemetry( bool b )
+{
+    MODEL_THROW_ON_RC( KConfig_Set_SendTelemetry( _config.Get(), b ) );
     _config.Updated();
 }

@@ -55,7 +55,7 @@ enum e_id
     SAVE_BTN_ID, EXIT_BTN_ID, VERIFY_BTN_ID, DISCARD_BTN_ID, DEFAULT_BTN_ID, BOX_ID,
 
     MAIN_HDR_ID = 200,
-    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID, MAIN_FULL_QUALITY, MAIN_GUID_ID,
+    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID, MAIN_FULL_QUALITY, MAIN_TELEMETRY, MAIN_GUID_ID,
 
     CACHE_HDR_ID = 300,
     CACHE_USE_CACHE_ID,
@@ -672,6 +672,12 @@ class vdbconf_view2 : public Dlg
                               model.get_full_quality(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
 
+            y += 2;
+            PopulateCheckbox( zero_qual_rect( r, y ), resize, MAIN_TELEMETRY,
+            "Send te&lemetry ( options used for commandline-tools ) to NCBI",
+                              model.get_telemetry(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, page_id );
+
             /* the GUID-label at the bottom */
             std::stringstream ss;
             ss << "GUID: " << model.get_guid();
@@ -900,6 +906,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case MAIN_USE_REMOTE_ID : res = on_remote_repo( dlg, model ); break;
                 case MAIN_USE_SITE_ID   : res = on_site_repo( dlg, model ); break;
                 case MAIN_FULL_QUALITY  : res = on_full_quality( dlg, model ); break;
+                case MAIN_TELEMETRY     : res = on_telemetry( dlg, model ); break;
 
                 case CACHE_USE_CACHE_ID  : res = on_use_cache( dlg, model ); break;
                 case CACHE_HDR_ID         : res = dlg.SetActivePage( PAGE_CACHE ); break;
@@ -954,7 +961,8 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case MAIN_USE_REMOTE_ID : view.status_txt( "use remote repository" ); break;
                 case MAIN_USE_SITE_ID   : view.status_txt( "use site repository" ); break;
                 case MAIN_FULL_QUALITY  : view.status_txt( "request full qualities" ); break;
-                
+                case MAIN_TELEMETRY     : view.status_txt( "set telemetry usage" ); break;
+
                 case CACHE_USE_CACHE_ID  : view.status_txt( "use local cache" ); break;
                 case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
                 case CACHE_REPO_CLEAR_ID  : view.status_txt( "clear loacation of local repository" ); break;
@@ -1087,6 +1095,13 @@ class vdbconf_ctrl2 : public Dlg_Runner
         bool on_full_quality( Dlg &dlg, vdbconf_model *model )
         {
             model -> set_full_quality( dlg.GetWidgetBoolValue( MAIN_FULL_QUALITY ) ); /* model-connection */
+            return true;
+        }
+
+        // user has pressed the 'telemetry' checkbox
+        bool on_telemetry( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_telemetry( dlg.GetWidgetBoolValue( MAIN_TELEMETRY ) ); /* model-connection */
             return true;
         }
 

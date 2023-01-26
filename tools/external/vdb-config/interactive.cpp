@@ -24,6 +24,10 @@
 *
 */
 
+/*
+    !!! current code is now in interactive2.cpp !!!
+*/
+
 
 /*
     a clean new config tool in c++ with interactive interface...

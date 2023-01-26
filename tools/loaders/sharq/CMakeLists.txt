@@ -54,12 +54,12 @@ execute_process(COMMAND curl -Is ${RE2_URL}
                 COMMAND head -n 1
                 COMMAND grep -q 200
                 RESULTS_VARIABLE RE2_RC)
-if (RE2_RC STREQUAL "000")
+if ("${RE2_RC}" EQUAL 0)
   set( RE2_FOUND TRUE CACHE INTERNAL "" )
 else()
   set( RE2_FOUND FALSE CACHE INTERNAL "" )
 endif()
-message(RE2_FOUND = ${RE2_FOUND})
+message(RE2_FOUND = ${RE2_FOUND} )
 # RE2_FOUND will be used by sharQ tests
 
 if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )

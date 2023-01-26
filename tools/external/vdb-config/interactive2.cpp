@@ -674,7 +674,7 @@ class vdbconf_view2 : public Dlg
 
             y += 2;
             PopulateCheckbox( zero_qual_rect( r, y ), resize, MAIN_TELEMETRY,
-            "Send te&lemetry ( options used for commandline-tools ) to NCBI",
+            "Send te&lemetry ( options used for command-line tools ) to NCBI",
                               model.get_telemetry(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
 

@@ -842,7 +842,7 @@ rc_t GetKeyID(context_t *const ctx,
                 size_t num_spots = num_chunks * spot_count;
                 ctx->set_key_filter(num_spots);
                 ctx->m_estimatedBatchSize = min<int>(G.searchBatchSize, num_spots/(ctx->m_executor->num_workers() - 1));
-                ctx->m_estimatedBatchSize = max<int>(10e6, ctx->m_estimatedBatchSize);
+                ctx->m_estimatedBatchSize = max<int>(G.minBatchSize, ctx->m_estimatedBatchSize);
                 if ((float)ctx->m_processedSize/ctx->m_inputSize > 0.1f) {
                     ctx->m_calcBatchSize = false;
                 }

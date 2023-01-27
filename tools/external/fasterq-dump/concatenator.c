@@ -137,7 +137,7 @@ static rc_t execute_concat_un_compressed_no_append( KDirectory * dir,
 
                     bg_progress_update( progress, size_file1 ); /* progress_thread.c */
 
-                    rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size, 
+                    rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size,
                                       files_offset, q_wait_time ); /* copy_machine.c */
 
                     {

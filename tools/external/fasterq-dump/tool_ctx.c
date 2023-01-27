@@ -63,7 +63,7 @@
 
 static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
-    
+
     if ( 0 == rc ) {
         rc = KOutMsg( "cursor-cache : %,lu bytes\n", tool_ctx -> cursor_cache );
     }
@@ -96,7 +96,7 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
                     NULL != tool_ctx -> output_filename ? tool_ctx -> output_filename : "-" );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "output-dir   : '%s'\n", 
+        rc = KOutMsg( "output-dir   : '%s'\n",
                     NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "." );
     }
     if ( 0 == rc ) {
@@ -142,7 +142,7 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "disk-limit-tmp (OS)  : %,lu bytes\n", tool_ctx -> disk_limit_tmp_os );
     }
 
-    if ( 0 == rc ) {    
+    if ( 0 == rc ) {
         rc = KOutMsg( "out/tmp on same fs   : '%s'\n", yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
     }
     if ( 0 == rc ) {
@@ -162,7 +162,7 @@ static bool output_exists_whole( const tool_ctx_t * tool_ctx ) {
 static bool output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
     bool res = false;
     SBuffer_t s_filename;
-   
+
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
@@ -185,7 +185,7 @@ static bool output_exists_split( const tool_ctx_t * tool_ctx ) {
 
 static rc_t check_output_exits( const tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
-    /* check if the output-file(s) do already exist, in case we are not overwriting */    
+    /* check if the output-file(s) do already exist, in case we are not overwriting */
     if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) ) {
         bool exists = false;
         switch( tool_ctx -> fmt ) {
@@ -308,7 +308,7 @@ static rc_t tool_ctx_create_lookup_and_index_path( tool_ctx_t * tool_ctx ) {
         ErrMsg( "fasterq-dump.c handle_lookup_path( lookup_filename ) -> %R", rc );
     } else {
         size_t num_writ;
-        /* generate the full path of the lookup-index-table */                
+        /* generate the full path of the lookup-index-table */
         rc = string_printf( &tool_ctx -> index_filename[ 0 ], sizeof tool_ctx -> index_filename,
                             &num_writ,
                             "%s.idx",
@@ -379,13 +379,13 @@ static rc_t tool_ctx_resolve_output_filename( tool_ctx_t * tool_ctx ) {
                                 "%s",
                                 tool_ctx -> output_filename );
     if ( 0 != rc ) {
-        ErrMsg( "tool_ctx_resolve_output_filename.KDirectoryResolvePath() -> %R", rc );        
+        ErrMsg( "tool_ctx_resolve_output_filename.KDirectoryResolvePath() -> %R", rc );
     } else {
-        tool_ctx -> output_filename = tool_ctx -> dflt_output;        
+        tool_ctx -> output_filename = tool_ctx -> dflt_output;
     }
     return rc;
 }
-    
+
 static rc_t tool_ctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* we do have a output-filename : use it */
@@ -433,7 +433,7 @@ static void tool_ctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
 
 static size_t tool_ctx_temp_file_sizes( tool_ctx_t * tool_ctx ) {
     size_t res = 0;
-    
+
     /* if the accession is not local, each thread creates it's own local cache of it */
     if ( tool_ctx -> insp_output . is_remote ) {
         res = ( tool_ctx -> insp_output . acc_size * tool_ctx -> num_threads );
@@ -477,7 +477,7 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
         }
     } else {
-        /* we have to check for output- as well as for temp-file-size */        
+        /* we have to check for output- as well as for temp-file-size */
         if ( tool_ctx -> out_and_tmp_on_same_fs ) {
             /* output as well as temp-files are on the same file-system, temp-size includes the output */
             size_t needed_tmp = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
@@ -507,11 +507,10 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
             }
         }
     }
-    
+
     if ( 0 == rc ) {
         if ( tool_ctx -> show_details ) {
             rc_t rc2 = KOutHandlerSetStdErr();
-            
             if ( 0 == rc2 ) {
                 rc2 = KOutMsg( "disk-limit(s) not exeeded!\n" );
                 KOutHandlerSetStdOut();
@@ -519,11 +518,10 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
         }
     } else {
         rc_t rc2 = KOutHandlerSetStdErr();
-        
         if ( 0 == rc2 ) {
             rc2 = KOutMsg( "disk-limit exeeded!\n" );
             if ( 0 == rc2 && !tool_ctx -> show_details ) {
-                rc2 = KOutMsg( "to see limits: re-run with '-x' option.\n" );                
+                rc2 = KOutMsg( "to see limits: re-run with '-x' option.\n" );
             }
             KOutHandlerSetStdOut();
         }
@@ -533,7 +531,7 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
 
 static bool format_produces_reads_in_single_file( format_t fmt ) {
     switch ( fmt ) {
-        case ft_unknown          : return false; break; 
+        case ft_unknown          : return false; break;
         case ft_fastq_whole_spot : return false; break;
         case ft_fastq_split_spot : return true; break;
         case ft_fastq_split_file : return false; break;
@@ -668,7 +666,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
 
     /* evaluate the free-disk-space according the os */
     if ( 0 == rc ) { tool_ctx_get_disk_limits( tool_ctx ); /* above */  }
-    
+
     /* create an estimation of the output-size */
     if ( 0 == rc && is_perform_check( tool_ctx -> check_mode ) /* helper.c */ ) {
         inspector_estimate_input_t iei; /* inspector.h */
@@ -682,7 +680,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         iei . avg_tech_reads = tool_ctx -> insp_output . seq . avg_tech_reads;
         iei . skip_tech = tool_ctx -> join_options . skip_tech;
         iei . fmt = tool_ctx -> fmt;
-        
+
         tool_ctx -> estimated_output_size = inspector_estimate_output_size( &iei );
     }
 
@@ -690,7 +688,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         tool_ctx -> out_and_tmp_on_same_fs = paths_on_same_filesystem(
             tool_ctx -> output_filename, get_temp_dir( tool_ctx -> temp_dir ) ); /* helper.c */
     }
-    
+
     /* print all the values gathered here, if requested */
     if ( 0 == rc && tool_ctx -> show_details ) {
         rc = print_tool_ctx( tool_ctx ); /* above */

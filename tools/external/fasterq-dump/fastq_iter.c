@@ -60,7 +60,7 @@ static rc_t read_bounded_quality( struct cmn_iter_t * cmn,
     uint32_t num_qual = 0;
     rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
     if ( 0 == rc ) {
-        if ( num_qual > 0 && NULL != qual_values ) { 
+        if ( num_qual > 0 && NULL != qual_values ) {
             if ( num_qual > qual_buffer -> elem_count ) {
                 rc = KDataBufferResize ( qual_buffer, num_qual );
             }
@@ -95,7 +95,7 @@ static rc_t read_bounded_quality_fix( struct cmn_iter_t * cmn,
     uint32_t num_qual;
     rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
     num_qual = fixed_len;
-    if ( 0 == rc && num_qual > 0 && NULL != qual_values ) { 
+    if ( 0 == rc && num_qual > 0 && NULL != qual_values ) {
         if ( num_qual > qual_buffer -> elem_count ) {
             rc = KDataBufferResize ( qual_buffer, num_qual );
         }
@@ -246,7 +246,7 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * re
         } else {
             rec -> num_read_len = 1;
         }
-        
+
         if ( 0 == rc1 && self -> opt . with_read_type ) {
             rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
         } else {
@@ -407,12 +407,12 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter_t * self, fastq_rec_t * rec,
                                 &( self -> qual_buffer ),
                                 &( self -> qual_2_ascii[ 0 ] ),
                                 &( rec -> quality ),
-                                sum_read_len );             
+                                sum_read_len );
             }
         }
 
         if ( 0 == rc1 && self -> opt . with_spotgroup ) {
-            rc1 = cmn_read_String( self -> cmn, self -> spot_group_id, &( rec -> spotgroup ) );            
+            rc1 = cmn_read_String( self -> cmn, self -> spot_group_id, &( rec -> spotgroup ) );
         } else {
             rec -> spotgroup . addr = NULL;
             rec -> spotgroup . len = 0;
@@ -499,7 +499,7 @@ bool get_from_align_iter( struct align_iter_t * self, align_rec_t * rec, rc_t * 
         } else {
             rec -> read_id = 0;
         }
-        
+
         if ( NULL != rc ) { *rc = rc1; }
     }
     return res;

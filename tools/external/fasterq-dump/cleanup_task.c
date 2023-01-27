@@ -52,11 +52,10 @@ struct KFastDumpCleanupTask_t;
 typedef struct KFastDumpCleanupTask_t {
     KTask dad;
     locked_file_list_t files_to_clean;
-    locked_file_list_t dirs_to_clean;    
+    locked_file_list_t dirs_to_clean;
     KTaskTicket ticket;
     bool details;
 } KFastDumpCleanupTask_t;
-
 
 static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask_t * self ) {
     locked_file_list_release( & ( self -> files_to_clean ), NULL, self -> details ); /* helper.c */
@@ -148,10 +147,10 @@ rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task, bool det
                 ErrMsg( "cleanup_task.c Make_FastDump_Cleanup_Task().KTaskInit() -> %R", rc );
             }
         }
-        
+
         if ( 0 != rc ) {
             locked_file_list_release( &( t -> files_to_clean ), NULL, details ); /* helper.c */
-            locked_file_list_release( &( t -> dirs_to_clean ), NULL, details ); /* helper.c */            
+            locked_file_list_release( &( t -> dirs_to_clean ), NULL, details ); /* helper.c */
             free( ( void * ) t );
         } else {
             rc = add_to_proc_mgr_cleanup( *task ); /* above */

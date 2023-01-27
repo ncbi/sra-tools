@@ -50,7 +50,7 @@
 #include <klib/out.h>
 #endif
 
-/* 
+/*
     this is in interfaces/cc/XXX/YYY/atomic.h
     XXX ... the compiler ( cc, gcc, icc, vc++ )
     YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
@@ -209,7 +209,7 @@ static rc_t write_to_store( lookup_producer_t * self,
                 self -> bytes_in_store += item_size;
             }
         }
-        
+
         if ( 0 == rc &&
              self -> mem_limit > 0 &&
              self -> bytes_in_store >= self -> mem_limit ) {
@@ -284,7 +284,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
         struct bg_progress_t * progress = NULL; /* progress_thread.h */
         atomic64_t processed_row_count;
         uint64_t rows_per_thread = ( args -> align_row_count / args -> num_threads ) + 1;
-    
+
         atomic64_set( &processed_row_count, 0 );
         VectorInit( &threads, 0, args -> num_threads );
         if ( args -> show_progress ) {
@@ -366,7 +366,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
             }
         }
     }
-    
+
     /* signal to the receiver-end of the job-queue that nothing will be put into the
        queue any more... */
     if ( rc == 0 && args -> merger != NULL ) {

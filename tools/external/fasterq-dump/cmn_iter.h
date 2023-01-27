@@ -78,7 +78,7 @@ rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t 
 
 rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
                            uint32_t * values_read );
-                            
+
 rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String *value );
 
 rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,

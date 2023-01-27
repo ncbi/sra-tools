@@ -89,7 +89,7 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
                          const char * fmt, ... ) {
     rc_t rc;
     struct KFile * f;
-    
+
     va_list args;
     va_start ( args, fmt );
 
@@ -132,7 +132,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
         ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( key ) -> %R", rc );
     } else {
         uint64_t start_pos = writer -> pos; /* store the pos to be written later to the index... */
-            
+
         writer -> pos += num_writ;
         /* now write the packed 4na ( length + packed data ) */
         rc = KFileWriteAll( writer -> f,

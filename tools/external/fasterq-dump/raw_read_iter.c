@@ -108,14 +108,14 @@ rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache
     rc_t rc;
     struct raw_read_iter_t * iter;
     cmn_iter_params_t params; /* helper.h */
-    
+
     params . dir = dir;
     params . accession_short = accession_short;
     params . accession_path = accession_path;
     params . first_row = 0;
     params . row_count = 0;
     params . cursor_cache = cursor_cache;
-    
+
     rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
     if ( 0 == rc ) {
         struct file_printer_t * printer;
@@ -135,7 +135,7 @@ rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache
 
                 rc = file_print( printer, "%lu\n", key );
                 if ( 0 == rc ) {
-                    running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */    
+                    running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
                 }
             }
             destroy_file_printer( printer );

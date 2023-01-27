@@ -176,9 +176,9 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
     char buffer[ 4096 ];
     size_t num_writ;
     rc_t rc = 0;
-    if ( fasta ) {   
+    if ( fasta ) {
         /* ===== FASTA ===== */
-        if ( NULL == seq_defline ) { 
+        if ( NULL == seq_defline ) {
             rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
             ErrMsg( "make_flex_printer_format_string( FASTA ) seq_defline is NULL -> %R", rc );
         }
@@ -237,7 +237,7 @@ static struct flex_printer_t * make_flex_printer_cmn( flex_printer_t * self,
     self -> fasta = fasta;
     self -> in_transaction = false;
     make_SBuffer( &( self -> transaction_buffer ), 4096 );
-    
+
     /* pre-set the accession-variable in the string-data, this one does not change during the
         lifetime of the flex-printer */
     self -> string_data[ sdi_acc ] = make_string_copy( accession );
@@ -270,7 +270,7 @@ static struct flex_printer_t * make_flex_printer_cmn( flex_printer_t * self,
     }
     return self;
 }
-                                             
+
 struct flex_printer_t * make_flex_printer_1( file_printer_args_t * file_args,
                         const char * accession,
                         const char * seq_defline,
@@ -311,7 +311,7 @@ struct flex_printer_t * make_flex_printer_2( struct multi_writer_t * multi_write
     }
     return self;
 }
-    
+
 static join_printer_t * get_or_make_join_printer( Vector * v, uint32_t dst_id,
                                                   file_printer_args_t * file_args ) {
     join_printer_t * res = VectorGet ( v, dst_id );
@@ -401,7 +401,7 @@ rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data 
         struct var_fmt_t * fmt = flex_printer_prepare_data( self, data ); /* above */
         if ( NULL != self -> file_args ) {
             /* we are in file-per-read-id--mode */
-            join_printer_t * printer = get_or_make_join_printer( &( self -> printers ), 
+            join_printer_t * printer = get_or_make_join_printer( &( self -> printers ),
                             data -> dst_id, self -> file_args ); /* above */
             if ( NULL != printer ) {
                 rc = var_fmt_to_file( fmt,
@@ -417,7 +417,7 @@ rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data 
              * the return value is not allocated every-time, it is a reference to a buffer
              * enclosed in fmt...
              */
-            SBuffer_t * t = var_fmt_to_buffer( fmt, 
+            SBuffer_t * t = var_fmt_to_buffer( fmt,
                                                self -> string_data, sdi_qa + 1,
                                                self -> int_data, idi_rl + 1 ); /* var_fmt.c */
             if ( NULL != t ) {
@@ -441,7 +441,7 @@ rc_t flex_print_to( struct flex_printer_t * self, SBuffer_t * buffer, const flex
     } else {
         const String * string_data[ 8 ];        /* vector of strings, idx has to match var_desc_list */
         uint64_t int_data[ 4 ];                 /* vector of ints, idx has to match var_desc_list */
-        
+
         /* pick the right format-string, depending if we have 2 parts or only one */
         struct var_fmt_t * fmt = ( NULL == data -> read2 ) ? self -> fmt_v1 : self -> fmt_v2;
 

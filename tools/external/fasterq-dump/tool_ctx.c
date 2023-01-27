@@ -644,7 +644,8 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         tool_ctx -> insp_input . vdb_mgr = tool_ctx -> vdb_mgr;
         tool_ctx -> insp_input . accession_short = tool_ctx -> accession_short;
         tool_ctx -> insp_input . accession_path = tool_ctx -> accession_path;
-
+        tool_ctx -> insp_input . requested_seq_tbl_name = tool_ctx -> requested_seq_tbl_name;
+        
         rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* inspector.c */
     }
 

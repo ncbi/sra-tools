@@ -305,26 +305,25 @@ typedef struct SraStatsTotal {
     Bases bases_count;
 } SraStatsTotal;
 typedef struct srastat_parms {
+    SraStatsTotal total; /* is used in srastat_print */
+
     const char* table_path;
-
-    bool xml; /* output format (txt or xml) */
-    bool printMeta;
-    bool quick; /* quick mode: stats from meta */
-    bool skip_members; /* not to print spot_group statistics */
-    bool progress;     /* show progress */
-    bool skip_alignment; /* not to print alignment info */
-    bool print_arcinfo;
-    bool statistics; /* calculate average and stdev */
-    bool test; /* test stdev */
-
     const XMLLogger *logger;
 
-    int64_t  start, stop;
-
     bool hasSPOT_GROUP;
+    bool print_arcinfo;
+    bool printMeta;
+    bool progress;     /* show progress */
+    bool quick; /* quick mode: stats from meta */
+    bool skip_alignment; /* not to print alignment info */
+    bool repair; /* generate instructions for metadata repair tool */
+    bool skip_members; /* not to print spot_group statistics */
+    bool statistics; /* calculate average and stdev */
+    bool test; /* test stdev */
     bool variableReadLength;
+    bool xml; /* output format (txt or xml) */
 
-    SraStatsTotal total; /* is used in srastat_print */
+    int64_t  start, stop;
 } srastat_parms;
 
 static
@@ -4121,6 +4120,10 @@ static const char * ngc_usage[] = { "path to ngc file", NULL };
 static const char * quick_usage[] = {
    "quick mode: get statistics from metadata;", "do not scan the table", NULL };
 
+#define ALIAS_REPAIR   NULL
+#define OPTION_REPAIR "repair-data"
+static const char *repair_usage[] = { "generate data for repair tool", NULL };
+
 #define ALIAS_PROGRESS "p"
 #define OPTION_PROGRESS "show_progress"
 static const char *progress_usage[] = { "show the percentage of completion"
@@ -4154,18 +4157,19 @@ static const char * xml_usage[] = { "output as XML, default is text", NULL };
 
 OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
-    , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
-    , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
-    , { OPTION_PROGRESS, ALIAS_PROGRESS, NULL, progress_usage, 1, false, false }
     , { OPTION_ARCINFO , ALIAS_ARCINFO , NULL, arcinfo_usage , 0, false, false }
+    , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
     , { OPTION_META    , ALIAS_META    , NULL, meta_usage    , 1, false, false }
+    , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true , false }
+    , { OPTION_PROGRESS, ALIAS_PROGRESS, NULL, progress_usage, 1, false, false }
     , { OPTION_QUICK   , ALIAS_QUICK   , NULL, quick_usage   , 1, false, false }
+    , { OPTION_REPAIR  , ALIAS_REPAIR  , NULL, repair_usage  , 1, false, false }
+    , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
     , { OPTION_START   , ALIAS_START   , NULL, start_usage   , 1, true,  false }
     , { OPTION_STATS   , ALIAS_STATS   , NULL, stats_usage   , 1, false, false }
     , { OPTION_STOP    , ALIAS_STOP    , NULL, stop_usage    , 1, true,  false }
     , { OPTION_TEST    , ALIAS_TEST    , NULL, test_usage    , 1, false, false }
     , { OPTION_XML     , ALIAS_XML     , NULL, xml_usage     , 1, false, false }
-    , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true, false }
 };
 
 rc_t CC UsageSummary (const char * progname)
@@ -4210,6 +4214,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
     HelpOptionLine(ALIAS_NGC     , OPTION_NGC     , "path"    , ngc_usage);
     XMLLogger_Usage();
+    HelpOptionLine(ALIAS_REPAIR  , OPTION_REPAIR  , NULL      , repair_usage);
 
     KOutMsg ("\n");
 
@@ -4332,6 +4337,16 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
             }
 
+/* OPTION_REPAIR */
+            {
+                rc = ArgsOptionCount (args, OPTION_REPAIR, &pcount);
+                if (rc != 0)
+                    break;
+                if (pcount > 0)
+                    pb.repair = true;
+            }
+
+/* OPTION_PROGRESS */
             {
                 rc = ArgsOptionCount(args, OPTION_PROGRESS, &pcount);
                 if (rc != 0) {

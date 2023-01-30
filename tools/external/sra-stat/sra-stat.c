@@ -4091,66 +4091,66 @@ rc_t run(srastat_parms* pb)
     return rc;
 }
 
+
 /* Usage */
 #define ALIAS_ALIGN    "a"
 #define OPTION_ALIGN   "alignment"
+static const char * align_usage[] = { "print alignment info, default is on"
+                                                                   , NULL };
 
 #define ALIAS_ARCINFO  NULL
 #define OPTION_ARCINFO "archive-info"
-
-#define ALIAS_START    "b"
-#define OPTION_START   "start"
-
-#define ALIAS_STOP     "e"
-#define OPTION_STOP    "stop"
-
-#define ALIAS_SPT_D    "d"
-#define OPTION_SPT_D   "spot-desc"
-
-#define ALIAS_META     "m"
-#define OPTION_META    "meta"
+static const char * arcinfo_usage[] = { "output archive info, default is off"
+                                                                    , NULL };
 
 #define ALIAS_MEMBR    NULL
 #define OPTION_MEMBR   "member-stats"
+static const char * membr_usage[] = { "print member stats, default is on"
+                                                          , NULL };
 
-#define ALIAS_PROGRESS "p"
-#define OPTION_PROGRESS "show_progress"
-
-#define ALIAS_QUICK    "q"
-#define OPTION_QUICK   "quick"
-
-#define ALIAS_STATS    "s"
-#define OPTION_STATS   "statistics"
-
-#define ALIAS_TEST     "t"
-#define OPTION_TEST    "test"
-
-#define ALIAS_XML      "x"
-#define OPTION_XML     "xml"
+#define ALIAS_META     "m"
+#define OPTION_META    "meta"
+static const char * meta_usage[] = { "print load metadata", NULL };
 
 #define ALIAS_NGC    NULL
 #define OPTION_NGC     "ngc"
+static const char * ngc_usage[] = { "path to ngc file", NULL };
 
-static const char * align_usage[] = { "print alignment info, default is on"
-                                                                   , NULL };
-static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
-static const char * membr_usage[] = { "print member stats, default is on"
-                                                          , NULL };
-static const char *progress_usage[] = { "show the percentage of completion"
-                                                          , NULL };
-static const char * meta_usage[] = { "print load metadata", NULL };
-static const char * start_usage[] = { "starting spot id, default is 1", NULL };
-static const char * stop_usage[] = { "ending spot id, default is max", NULL };
-static const char * stats_usage[] = {
-       "calculate READ_LEN average and standard deviation", NULL };
+#define ALIAS_QUICK    "q"
+#define OPTION_QUICK   "quick"
 static const char * quick_usage[] = {
    "quick mode: get statistics from metadata;", "do not scan the table", NULL };
+
+#define ALIAS_PROGRESS "p"
+#define OPTION_PROGRESS "show_progress"
+static const char *progress_usage[] = { "show the percentage of completion"
+                                                          , NULL };
+
+#define ALIAS_SPT_D    "d"
+#define OPTION_SPT_D   "spot-desc"
+static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
+
+#define ALIAS_START    "b"
+#define OPTION_START   "start"
+static const char * start_usage[] = { "starting spot id, default is 1", NULL };
+
+#define ALIAS_STATS    "s"
+#define OPTION_STATS   "statistics"
+static const char * stats_usage[] = {
+       "calculate READ_LEN average and standard deviation", NULL };
+
+#define ALIAS_STOP     "e"
+#define OPTION_STOP    "stop"
+static const char * stop_usage[] = { "ending spot id, default is max", NULL };
+
+#define ALIAS_TEST     "t"
+#define OPTION_TEST    "test"
 static const char * test_usage[] = {
    "test READ_LEN average and standard deviation calculation", NULL };
+
+#define ALIAS_XML      "x"
+#define OPTION_XML     "xml"
 static const char * xml_usage[] = { "output as XML, default is text", NULL };
-static const char * arcinfo_usage[] = { "output archive info, default is off"
-                                                                    , NULL };
-static const char * ngc_usage[] = { "path to ngc file", NULL };
 
 OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }

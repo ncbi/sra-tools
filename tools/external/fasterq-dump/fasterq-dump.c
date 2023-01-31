@@ -366,7 +366,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         ErrMsg( "invalid check-mode -> %R", rc );
     }
 
-    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_requested_seq_tabl_name );
+    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, NULL );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
@@ -778,6 +778,11 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     /* returns rc != 0 if inspection failed, because of check-mode */
                 }
 
+                /* for safety: */
+                if ( NULL == tool_ctx . insp_output . seq . tbl_name ) {
+                    tool_ctx . insp_output . seq . tbl_name = dflt_requested_seq_tabl_name;
+                }
+                
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */

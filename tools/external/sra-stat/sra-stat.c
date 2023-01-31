@@ -3043,92 +3043,166 @@ rc_t print_results(const Ctx* ctx)
 
     if (mismatchCMP_BASE_COUNT != 0) 
         /* ignore it */;
+
+    assert(ctx->pb);
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
 
         assert(mDfl);
 
-        if (mismatch & eBASE_COUNT)
+        if (mismatch & eBASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "sum{READ_LEN}($(C)) != STATS/TABLE/BASE_COUNT($(R))",
                 "C=%lu,R=%lu", ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eBASE_COUNT"));
+        }
 
-        if (mismatch & eBIO_BASE_COUNT)
+        if (mismatch & eBIO_BASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]($(C)) != "
                 "STATS/TABLE/BIO_BASE_COUNT($(R))",
                 "C=%lu,R=%lu",
                 ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
-
-        if (mismatch & eCMP_BASE_COUNT) {
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "sum{READ_LEN}[CMP]($(C)) != "
-                "STATS/TABLE/CMP_BASE_COUNT($(R))",
-                "C=%lu,R=%lu",
-                ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eBIO_BASE_COUNT"));
         }
 
-        if (mismatch & eSPOT_COUNT)
+        if (mismatch & (eCMP_BASE_COUNT | eTOTAL_CMP_BASE_COUNT)) {
+            bool printed = false;
+
+            if (mismatch & eCMP_BASE_COUNT && mismatch & eTOTAL_CMP_BASE_COUNT)
+            {
+                if (ctx->total->total_cmp_len != ctx->pb->total.total_cmp_len ||
+                   mDfl->CMP_BASE_COUNT != ctx->meta_stats->table.CMP_BASE_COUNT
+                    )
+                {
+                    LOGMSG(klogErr, "CMP_BASE_COUNT != TOTAL_CMP_BASE_COUNT");
+                    printed = true;
+                }
+            }
+
+            if (mismatch & eCMP_BASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                    "sum{READ_LEN}[CMP]($(C)) != "
+                    "STATS/TABLE/CMP_BASE_COUNT($(R))",
+                    "C=%lu,R=%lu",
+                    ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+                if (ctx->pb->repair && !printed) {
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                        ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+                    printed = true;
+                }
+            }
+
+            if (mismatch & eTOTAL_CMP_BASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                    "foreach SPOT_GROUP sum{READ_LEN}[CMP]($(C))"
+                                   " != STATS/TABLE/CMP_BASE_COUNT($(R))",
+                    "C=%lu,R=%lu", ctx->pb->total.total_cmp_len,
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
+                if (ctx->pb->repair && !printed)
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                        ctx->pb->total.total_cmp_len,
+                        ctx->meta_stats->table.CMP_BASE_COUNT));
+            }
+        }
+
+        if (mismatch & eSPOT_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "number-of-spots($(C)) != "
                 "STATS/TABLE/SPOT_COUNT($(R))",
                 "C=%lu,R=%lu",
                 ctx->total->spot_count, mDfl->spot_count));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSPOT_COUNT"));
+        }
 
-        if (mismatch & eNO_SPOT_GROUP)
+        if (mismatch & eNO_SPOT_GROUP) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: spot_group not found");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eNO_SPOT_GROUP"));
+        }
 
         if (mismatch & eSG_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_BASE_COUNT"));
         }
 
-        if (mismatch & eSG_BIO_BASE_COUNT)
+        if (mismatch & eSG_BIO_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: BIO_BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_BIO_BASE_COUNT"));
+        }
 
-        if (mismatch & eSG_CMP_BASE_COUNT)
+        if (mismatch & eSG_CMP_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: CMP_BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_CMP_BASE_COUNT"));
+        }
 
-        if (mismatch & eSG_SPOT_COUNT)
+        if (mismatch & eSG_SPOT_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: SPOT_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_SPOT_COUNT"));
+        }
 
-        if (mismatch & eTOTAL_BASE_COUNT)
+        if (mismatch & eTOTAL_BASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "foreach SPOT_GROUP sum{READ_LEN}($(C))"
                               " != STATS/TABLE/BASE_COUNT($(R))", "C=%lu,R=%lu",
                 ctx->pb->total.BASE_COUNT, ctx->meta_stats->table.BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eTOTAL_BASE_COUNT"));
+        }
 
-        if (mismatch & eTOTAL_BIO_BASE_COUNT)
+        if (mismatch & eTOTAL_BIO_BASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "foreach SPOT_GROUP sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]"
                 "($(C)) != STATS/TABLE/BIO_BASE_COUNT($(R))",
                 "C=%lu,R=%lu", ctx->pb->total.BIO_BASE_COUNT,
                 ctx->meta_stats->table.BIO_BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eTOTAL_BIO_BASE_COUNT"));
+        }
 
-        if (mismatch & eTOTAL_CMP_BASE_COUNT)
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "foreach SPOT_GROUP sum{READ_LEN}[CMP]($(C))"
-                               " != STATS/TABLE/CMP_BASE_COUNT($(R))",
-                "C=%lu,R=%lu", ctx->pb->total.total_cmp_len,
-                ctx->meta_stats->table.CMP_BASE_COUNT));
-
-        if (mismatch & eTOTAL_SPOT_COUNT)
+        if (mismatch & eTOTAL_SPOT_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "foreach SPOT_GROUP number-of-spots($(C))"
                               " != STATS/TABLE/SPOT_COUNT($(R))", "C=%lu,R=%lu",
                 ctx->pb->total.spot_count, ctx->meta_stats->table.spot_count));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eTOTAL_SPOT_COUNT"));
+        }
 
         if (rc == 0)
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);

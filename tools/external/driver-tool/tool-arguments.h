@@ -58,6 +58,8 @@
 
 #define TOOL_NAME_FASTERQ_DUMP "fasterq-dump" /* from argv[0] */
 #define TOOL_ARGS_FASTERQ_DUMP TOOL_ARGS ( \
+    TOOL_ARG("row-limit", "l", true, TOOL_HELP("limit rowcount per thread", 0)), \
+    TOOL_ARG("force-pacbio", "", false, TOOL_HELP(0)), \
     TOOL_ARG("format", "F", true, TOOL_HELP("format (special, fastq, default=fastq)", 0)), \
     TOOL_ARG("outfile", "o", true, TOOL_HELP("output-file", 0)), \
     TOOL_ARG("outdir", "O", true, TOOL_HELP("output-dir", 0)), \
@@ -86,7 +88,6 @@
     TOOL_ARG("qual-defline", "", true, TOOL_HELP("custom defline for qualities: ", "same as seq-defline", 0)), \
     TOOL_ARG("only-unaligned", "U", false, TOOL_HELP("process only unaligned reads", 0)), \
     TOOL_ARG("only-aligned", "a", false, TOOL_HELP("process only aligned reads", 0)), \
-    TOOL_ARG("row-limit", "l", true, TOOL_HELP("limit rowcount per thread", 0)), \
     TOOL_ARG("disk-limit", "", true, TOOL_HELP("explicitly set disk-limit", 0)), \
     TOOL_ARG("disk-limit-tmp", "", true, TOOL_HELP("explicitly set disk-limit for temp. files", 0)), \
     TOOL_ARG("size-check", "", true, TOOL_HELP("switch to control:", "on=perform size-check (default), ", "off=do not perform size-check, ", "only=perform size-check only", 0)), \

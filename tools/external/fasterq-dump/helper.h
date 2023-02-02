@@ -74,7 +74,7 @@ extern "C" {
 #ifndef _h_sbuffer_
 #include "sbuffer.h"
 #endif
-    
+
 typedef struct join_stats
 {
     uint64_t spots_read;

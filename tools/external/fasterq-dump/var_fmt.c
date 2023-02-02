@@ -165,7 +165,7 @@ static void var_desc_test_find( var_desc_list_t * self, char * to_find ) {
 
 void var_desc_list_test( void ) {
     var_desc_list_t * lst = NULL;
-    
+
     KOutMsg( "var-desc-list-test\n" );
     lst = create_var_desc_list();
     if ( NULL != lst ) {
@@ -307,7 +307,7 @@ static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self, SBuffer_t
         var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
     }
 }
-    
+
 /* releases an element, data-pointer to match VectorWhack-callback */
 static void destroy_var_fmt_entry( void * self, void * data ) {
     if ( NULL != self ) {
@@ -416,7 +416,7 @@ struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_lis
     if ( NULL != self ) {
         var_fmt_append( self, fmt, vars );
     }
-    return self;    
+    return self;
 }
 
 struct var_fmt_t * create_var_fmt_str( const char * fmt, const struct var_desc_list_t * vars ) {
@@ -424,7 +424,7 @@ struct var_fmt_t * create_var_fmt_str( const char * fmt, const struct var_desc_l
     if ( NULL != self ) {
         var_fmt_append_str( self, fmt, vars );
     }
-    return self;    
+    return self;
 }
 
 struct var_fmt_t * var_fmt_clone( const struct var_fmt_t * src ) {
@@ -515,7 +515,7 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                 SBuffer_t * dst = &( self -> buffer );
                 self -> buffer . S . len = 0;
                 self -> buffer . S . size = 0;
-                
+
                 const Vector * v = &( self -> elements );
                 uint32_t i, l = VectorLength( v );
                 for ( i = VectorStart( v ); i < l; ++i ) {
@@ -559,7 +559,6 @@ rc_t var_fmt_to_buffer_2( struct var_fmt_t * self,
         if ( needed > 0 ) {
             needed += dst -> S . size;
             rc = increase_SBuffer_to( dst, needed ); /* does nothing if not neccessary */
-            
         }
     }
     return rc;
@@ -606,7 +605,7 @@ rc_t var_fmt_to_file( struct var_fmt_t * self,
 void var_fmt_test( void ) {
     var_fmt_t * fmt = NULL;
     var_desc_list_t * desc_lst = NULL;
-    
+
     KOutMsg( "var-fmt-test\n" );
 
     desc_lst = create_var_desc_list();

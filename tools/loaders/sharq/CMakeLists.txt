@@ -48,7 +48,21 @@ find_package(ZLIB)
 find_package(BZip2)
 find_package (Threads)
 
-if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
+# check whether RE2 is accessible
+set(RE2_URL https://github.com/google/re2)
+execute_process(COMMAND curl -Is ${RE2_URL}
+                COMMAND head -n 1
+                COMMAND grep -q 200
+                RESULTS_VARIABLE RE2_RC)
+if ("${RE2_RC}" EQUAL 0)
+  set( RE2_FOUND TRUE CACHE INTERNAL "" )
+else()
+  set( RE2_FOUND FALSE CACHE INTERNAL "" )
+endif()
+message(RE2_FOUND = ${RE2_FOUND} )
+# RE2_FOUND will be used by sharQ tests
+
+if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -67,7 +81,7 @@ set(RE2_TAG 2021-09-01)
 include (ExternalProject)
 ExternalProject_Add(RE2
   PREFIX RE2
-  GIT_REPOSITORY https://github.com/google/re2.git
+  GIT_REPOSITORY ${RE2_URL}
   GIT_TAG ${RE2_TAG}
   BUILD_IN_SOURCE 1
   UPDATE_COMMAND "" # No update as we use specific tag
@@ -80,7 +94,6 @@ ExternalProject_Add(RE2
     -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
     -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
     -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
-
 )
 set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
@@ -120,6 +133,12 @@ if( RUN_SANITIZER_TESTS )
 	target_link_options( sharq-tsan PRIVATE ${tsan_defs} )
 endif()
 
+else()
+  message( "SharQ is not built:" )
+  message( ZLIB_FOUND=${ZLIB_FOUND} )
+  message( BZip2_FOUND=${BZip2_FOUND} )
+  message( Threads_FOUND=${Threads_FOUND} )
+  message( RE2_FOUND=${RE2_FOUND} )
 endif()
 
 endif()

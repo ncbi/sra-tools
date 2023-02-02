@@ -251,6 +251,10 @@ class vdbconf_model
         bool get_full_quality( void ) const;
         void set_full_quality( bool b );
 
+        /* telemetry related functions */
+        bool get_telemetry( void ) const;
+        void set_telemetry( bool b );
+
         // ----------------------------------------------------------------
         bool commit( void );
         void reload( void ); // throws on error

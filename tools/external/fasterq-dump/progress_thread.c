@@ -25,7 +25,7 @@
 */
 #include "progress_thread.h"
 
-/* 
+/*
     this is in interfaces/cc/XXX/YYY/atomic.h
     XXX ... the compiler ( cc, gcc, icc, vc++ )
     YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
@@ -179,11 +179,11 @@ void bg_progress_release( bg_progress_t * self ) {
 typedef struct bg_update_t {
     KThread * thread;
     atomic_t done;
-    atomic_t active;    
+    atomic_t active;
     atomic64_t value;
     uint64_t prev_value;
     size_t digits_printed;
-    uint32_t sleep_time;    
+    uint32_t sleep_time;
 } bg_update_t;
 
 static rc_t CC bg_update_thread_func( const KThread *self, void *data ) {
@@ -200,7 +200,7 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data ) {
             if ( value > 0 && value != bga -> prev_value ) {
                 char buffer[ 80 ];
                 size_t num_writ;
-                uint32_t i;                
+                uint32_t i;
                 for ( i = 0; i < ( bga -> digits_printed ); i++ ) {
                     buffer[ i ] = '\b';
                 }

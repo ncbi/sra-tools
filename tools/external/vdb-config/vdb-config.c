@@ -1,4 +1,4 @@
-/*==============================================================================
+/*=============================================================================$
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -200,6 +200,12 @@ static const char* USAGE_P_CW[] = { "Prefetch downloads to "
 static const char* USAGE_P_UR[] = { "Prefetch downloads to "
     "public user repository when it is set (default).", NULL };
 
+#define ALIAS_TEL "T"
+#define OPTION_TEL "enable-telemetry"
+static const char* USAGE_TEL[] = {
+    "Report limited tools usage information back to SRA (default: tes).",
+    NULL };
+
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
     uint32_t imp_count = 0;
@@ -245,6 +251,7 @@ OptDef Options[] =
     , { OPTION_S3_C,ALIAS_S3_C,NULL, USAGE_S3_C,1, true , false, NULL }
     , { OPTION_S3_F,ALIAS_S3_F,NULL, USAGE_S3_F,1, true , false, NULL }
     , { OPTION_S3_P,ALIAS_S3_P,NULL, USAGE_S3_P,1, true , false, NULL }
+    , { OPTION_TEL, ALIAS_TEL, NULL, USAGE_TEL, 1, true , false, NULL }
 };
 
 ParamDef Parameters[] =
@@ -307,6 +314,8 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
     HelpOptionLine(ALIAS_P_CW, OPTION_P_CW, NULL, USAGE_P_CW);
     HelpOptionLine(ALIAS_P_UR, OPTION_P_UR, NULL, USAGE_P_UR);
+    KOutMsg("\n");
+    HelpOptionLine(ALIAS_TEL , OPTION_TEL , "yes | no", USAGE_TEL);
     KOutMsg("\n");
     HelpOptionLine (ALIAS_PRX, OPTION_PRX, "uri[:port]", USAGE_PRX);
     HelpOptionLine (ALIAS_PRD, OPTION_PRD, "yes | no", USAGE_PRD);
@@ -540,6 +549,8 @@ typedef struct Params {
 
     EState prefetchToCwd;
     EState preferNoQuality;
+
+    EState disableTelemetry;
 } Params;
 
 static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
@@ -991,6 +1002,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
+/********************************* cloud end **********************************/
 /* OPTION_P_UR */
         {
             rc = ArgsOptionCount(args, OPTION_P_UR, &pcount);
@@ -1017,7 +1029,28 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-/********************************* cloud end **********************************/
+/* OPTION_TEL */
+        {
+            rc = ArgsOptionCount(args, OPTION_TEL, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_TEL "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_TEL, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_TEL "' argument");
+                    break;
+                }
+                if (strcasecmp(dummy, "no") == 0)
+                    prm->disableTelemetry = eTrue;
+                else
+                    prm->disableTelemetry = eFalse;
+            }
+        }
    /* OPTION_ALL */
         {
             rc = ArgsOptionCount(args, OPTION_ALL, &pcount);
@@ -1037,6 +1070,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                     && !prm->modeShowModules
                     && !prm->modeSetNode
                     && !prm->preferNoQuality
+                    && !prm->disableTelemetry
                     && prm->ngc == NULL
                     && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
                 /* show all by default */
@@ -2300,6 +2334,18 @@ rc_t CC KMain(int argc, char* argv[]) {
             rc_t r = KConfig_SetPreferNoQuality(cfg, prm.preferNoQuality);
             if (rc == 0 && r != 0)
                 rc = r;
+        }
+        
+        if (prm.disableTelemetry) {
+            rc_t r = KConfig_Set_SendTelemetry
+                (cfg, prm.disableTelemetry == eFalse);
+            if (rc == 0 && r != 0)
+                rc = r;
+            if (rc == 0) {
+                rc_t r2 = KConfigCommit(cfg);
+                if (r2 != 0)
+                    rc = r2;
+            }
         }
     }
 

@@ -165,7 +165,7 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
     uint32_t read_id_0 = 0;
     uint32_t offset = 0;
     uint32_t read_len_sum = 0;
-    
+
     if ( rec -> read . len != rec -> quality . len ) {
         ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (B)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
@@ -265,7 +265,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
     uint32_t write_id_1 = 1;
     uint32_t offset = 0;
     uint32_t read_len_sum = 0;
-    
+
     if ( rec -> read . len != rec -> quality . len ) {
         ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (D)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
@@ -372,7 +372,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
     uint32_t valid_bio_reads = 0;
     uint32_t offset = 0;
     uint32_t read_len_sum = 0;
-    
+
     if ( rec -> read . len != rec -> quality . len ) {
         ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (F)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
@@ -533,7 +533,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
 
             rc = get_quitting(); /* helper.c */
             if ( 0 == rc ) {
-                rc = print_fastq_1_read( stats, 
+                rc = print_fastq_1_read( stats,
                                          printer,
                                          filter,
                                          &rec,
@@ -977,7 +977,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     struct filter_2na_t * filter = make_2na_filter( jtd -> join_options -> filter_bases ); /* helper.c */
     cmn_iter_params_t cp = {
         jtd -> dir,
-        jtd -> vdb_mgr, 
+        jtd -> vdb_mgr,
         jtd -> accession_short,
         jtd -> accession_path,
         jtd -> first_row,
@@ -1178,7 +1178,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     /* we open an interator on the selected table, and iterate over it */
     cmn_iter_params_t cp = {
         jtd -> dir,
-        jtd -> vdb_mgr, 
+        jtd -> vdb_mgr,
         jtd -> accession_short,
         jtd -> accession_path,
         jtd -> first_row,
@@ -1266,7 +1266,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
         if ( 0 == rc && 0 != rc_iter ) { rc = rc_iter; }
         if ( 0 != rc ) { set_quitting(); /* helper.c */ }
         destroy_fastq_sra_iter( iter );
-    } else { 
+    } else {
         ErrMsg( "make_fastq_iter() -> %R", rc );
     }
     release_flex_printer( flex_printer );

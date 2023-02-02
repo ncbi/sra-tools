@@ -183,7 +183,7 @@ static rc_t CC merge_thread_func( const KThread *self, void *data ) {
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             md -> cmn -> output_filename, md -> idx ); /* helper.c */
     if ( 0 == rc ) {
-        VNamelistReorder ( md -> files, false );        
+        VNamelistReorder ( md -> files, false );
         rc = execute_concat( md -> cmn -> dir,
             s_filename . S . addr,
             md -> files,
@@ -211,11 +211,11 @@ static void CC on_merge( void *item, void *data ) {
         if ( NULL != md ) {
             rc_t rc;
             KThread * thread;
-            
+
             md -> cmn = omc -> cmn;
             md -> files = item;
             md -> idx = omc -> idx;
-            
+
             rc = helper_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "temp_registry.c helper_make_thread( on_merge #%d ) -> %R", omc -> idx, rc );
@@ -273,11 +273,11 @@ rc_t temp_registry_merge( temp_registry_t * self,
 /* -------------------------------------------------------------------------------- */
 
 static rc_t print_file_to_stdout( struct KFile const * f, size_t buffer_size ) {
-    rc_t rc = 0;    
+    rc_t rc = 0;
     char * buffer = malloc( buffer_size );
     if ( NULL == buffer ) {
         rc = RC( rcApp, rcBuffer, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );        
+        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );
     } else {
         uint64_t pos = 0;
         bool done = false;
@@ -355,7 +355,7 @@ rc_t temp_registry_to_stdout( temp_registry_t * self,
         print_to_stdout_ctx_t c;
         c . dir = dir;
         c . buf_size = buf_size;
-        
+
         VectorForEach ( &( self -> lists ), false, on_print_to_stdout, &c );
     }
     return rc;

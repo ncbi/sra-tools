@@ -46,7 +46,7 @@ extern "C" {
 #include "helper.h"
 #endif
 
-/* 
+/*
     This object describes at which position in the str-args/int-args a variable can be found.
     Its purpose is the be created as a lookup: name->idx,
     to be used by the the var_fmt_.... functions
@@ -60,7 +60,7 @@ void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, ui
 
 void var_desc_list_test( void );
 
-/* 
+/*
     This object describes a format,
     to be used by the the var_fmt_.... functions
    */

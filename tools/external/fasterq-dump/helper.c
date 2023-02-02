@@ -494,14 +494,14 @@ bool match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
                 i -= 4;
             }
             switch( i ) {
-                case 3 : self -> buffer[ dst ] = 
+                case 3 : self -> buffer[ dst ] =
                             self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
                             self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
                             self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2; break;
-                case 2 : self -> buffer[ dst ] = 
+                case 2 : self -> buffer[ dst ] =
                             self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
                             self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4; break;
-                case 1 : self -> buffer[ dst ] = 
+                case 1 : self -> buffer[ dst ] =
                             self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6; break;
             }
             res = ( 0 != NucStrstrSearch ( self -> nss, self -> buffer, 0, ascii -> len, & selflen ) );
@@ -636,7 +636,7 @@ bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * ba
         /* do nothing for WINDOWS... */
 #else
 #include <sys/types.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #endif
 
 uint32_t device_id_of_path( const char * path ) {

@@ -210,7 +210,7 @@ static rc_t cmn_iter_open_tbl( const VDBManager * mgr, const cmn_iter_params_t *
 
 rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter_t ** iter ) {
     rc_t rc = 0;
-    if ( NULL == cp || NULL == cp -> dir || NULL == cp -> accession_short || 
+    if ( NULL == cp || NULL == cp -> dir || NULL == cp -> accession_short ||
          NULL == cp -> accession_path || NULL == iter ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "cmn_iter.c make_cmn_iter() -> %R", rc );
@@ -293,7 +293,7 @@ bool cmn_iter_next( struct cmn_iter_t * self, rc_t * rc ) {
     return num_gen_iterator_next( self -> row_iter, &self -> row_id, rc );
 }
 
-static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
+static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
                     const struct num_gen_iter ** iter ) {
     rc_t rc;
     if ( num_gen_empty( ranges ) ) {

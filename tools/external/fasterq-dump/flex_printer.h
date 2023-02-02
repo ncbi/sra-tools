@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#include <stdbool.h> 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifndef _h_klib_rc_

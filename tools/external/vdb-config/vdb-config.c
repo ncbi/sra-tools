@@ -1,4 +1,4 @@
-/*==============================================================================
+/*=============================================================================$
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -201,9 +201,9 @@ static const char* USAGE_P_UR[] = { "Prefetch downloads to "
     "public user repository when it is set (default).", NULL };
 
 #define ALIAS_TEL "T"
-#define OPTION_TEL "disable-telemetry"
+#define OPTION_TEL "enable-telemetry"
 static const char* USAGE_TEL[] = {
-    "Disable reporting the command line options back to SRA (default: false).",
+    "Report limited tools usage information back to SRA (default: tes).",
     NULL };
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
@@ -1045,7 +1045,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                         "Failure to get '" OPTION_TEL "' argument");
                     break;
                 }
-                if (strcasecmp(dummy, "yes") == 0)
+                if (strcasecmp(dummy, "no") == 0)
                     prm->disableTelemetry = eTrue;
                 else
                     prm->disableTelemetry = eFalse;

@@ -22,23 +22,30 @@
 #
 # ===========================================================================
 
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-pileup )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( ngs-pileup )
-add_subdirectory( rcexplain )
-add_subdirectory( kdbmeta )
-add_subdirectory( align-info )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( test-sra )
-add_subdirectory( cache-mgr ) # obsolete
-add_subdirectory( driver-tool )
-add_subdirectory( sra-info )
+add_compile_definitions( __mod__="test/external/sra-info" )
+
+# unit tests
+
+AddExecutableTest( Test_SraInfo "test-sra-info" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${PROJECT_SOURCE_DIR}/tools/external/sra-info" )
+
+if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
+
+    # make sure 'sra-info -h' does not crash
+    add_test( NAME Test_Sra_Info_Help
+        COMMAND ${DIRTOTEST}/sra-info -h
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # fails without parameters
+    add_test( NAME Test_Sra_Info_NoParam
+        COMMAND ${DIRTOTEST}/sra-info
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_Sra_Info_NoParam PROPERTIES WILL_FAIL TRUE)
+    # fails with more than 1 parameter
+    add_test( NAME Test_Sra_Info_MultipleParams
+        COMMAND ${DIRTOTEST}/sra-info SRR000123 SRR0001234
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
+
+else()
+    message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )
+endif()

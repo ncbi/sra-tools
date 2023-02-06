@@ -59,7 +59,6 @@
 #define TOOL_NAME_FASTERQ_DUMP "fasterq-dump" /* from argv[0] */
 #define TOOL_ARGS_FASTERQ_DUMP TOOL_ARGS ( \
     TOOL_ARG("row-limit", "l", true, TOOL_HELP("limit rowcount per thread", 0)), \
-    TOOL_ARG("force-pacbio", "", false, TOOL_HELP(0)), \
     TOOL_ARG("format", "F", true, TOOL_HELP("format (special, fastq, default=fastq)", 0)), \
     TOOL_ARG("outfile", "o", true, TOOL_HELP("output-file", 0)), \
     TOOL_ARG("outdir", "O", true, TOOL_HELP("output-dir", 0)), \

@@ -528,6 +528,16 @@ rc_t CCFileNodeDumpCmn ( const CCFileNode *self, const char *tag,
                              "md5=\"%M\" "         /* md5 digest */
                              , self -> _md5 );
 
+    if ( rc == 0 && self->defline_name[0] != '\0')
+    {
+        rc = CCDumperPrint ( d,
+                             "defline_name=\"%s\" "         /* defline name */
+                             , self -> defline_name );
+        if( rc == 0)
+            rc = CCDumperPrint ( d,
+                                "defline_pair=\"%d\" "         /* defline pair */
+                                , self -> defline_pair );
+    }
     return rc;
 }
 
@@ -561,7 +571,7 @@ rc_t CCFileNodeDump ( const CCFileNode *cself, const char *tag,
 
     rc = CCFileNodeDumpCmn ( self, tag, name, cached, d );
     if ( rc == 0 && self -> crc32 != 0 )
-        rc = CCDumperPrint ( d, " crc32=\"%C\"", self -> crc32 );
+        rc = CCDumperPrint ( d, "crc32=\"%C\"", self -> crc32 );
     if ( rc == 0 )
     {
         if (self->err || trunc || (self->logs.head != NULL))

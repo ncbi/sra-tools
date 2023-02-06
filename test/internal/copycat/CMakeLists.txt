@@ -64,6 +64,17 @@ if(EXISTS "${DIRTOTEST}/copycat${EXE}")
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
+        add_test( NAME Test_Copycat_FastqParser
+            COMMAND ./test-fastq.sh ${DIRTOTEST} copycat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( RUN_SANITIZER_TESTS )
+            add_test( NAME Test_Copycat_FastqParser-asan
+                COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            add_test( NAME Test_Copycat_FastqParser-tsan
+                COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
 else()
     message(WARNING "${DIRTOTEST}/copycat${EXE} is not found. The corresponding tests are skipped." )
 endif()

@@ -91,6 +91,8 @@ typedef struct globals
     uint32_t searchBatchSize;   ///< Max search batch size
     uint32_t numThreads;        ///< Max number of threads for batch search
     bool hasExtraLogging;       ///< Additional logging enabled
+
+    size_t minBatchSize; ///< Minimum batch size for spot assembly
 } Globals;
 
 extern Globals G;

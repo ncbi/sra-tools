@@ -38,6 +38,28 @@ if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    #####################
+    # min-batch-size option
+    add_test( NAME Test_BamLoader_MinBatchSize
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${BINDIR}/bam-load -o out.sra --min-batch-size 999999 test.sam"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_MinBatchSize PROPERTIES FIXTURES_REQUIRED BamTest )
+    #
+    # expected to fail:
+    add_test( NAME Test_BamLoader_MinBatchSize_Bad
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${BINDIR}/bam-load -o out.sra --min-batch-size notanumber test.sam"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_MinBatchSize_Bad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
+    #####################
+
     if( RUN_SANITIZER_TESTS )
         add_test( NAME Test_BamLoader_1_asan
                 COMMAND

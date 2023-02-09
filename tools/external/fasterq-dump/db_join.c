@@ -1657,6 +1657,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
 
                 case ft_unknown : break;                /* this should never happen */
                 case ft_fasta_us_split_spot : break;    /* neither should this */
+                case ft_fasta_ref_tbl : break;          /* or this */
             }
             release_join_ctx( &j );
         }

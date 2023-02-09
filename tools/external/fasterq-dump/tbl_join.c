@@ -1065,6 +1065,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
 
             case ft_unknown : break;                /* this should not happen */
             case ft_fasta_us_split_spot : break;    /* and neither should this */
+            case ft_fasta_ref_tbl : break;          /* or this */
         }
         release_flex_printer( flex_printer );
     }

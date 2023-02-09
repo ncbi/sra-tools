@@ -51,6 +51,10 @@ extern "C" {
 #include "inspector.h"
 #endif
 
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
+#endif
+    
 #define DFLT_PATH_LEN 4096
 
 typedef struct tool_ctx_t {
@@ -98,7 +102,10 @@ typedef struct tool_ctx_t {
     inspector_output_t insp_output;     /* inspector.h */
 } tool_ctx_t;
 
-rc_t populate_tool_ctx( tool_ctx_t * tool_ctx );
+bool tool_ctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
+                                        cmn_iter_params_t * params );
+    
+rc_t populate_tool_ctx_and_call_inspector( tool_ctx_t * tool_ctx );
 
 rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in );
 

@@ -70,6 +70,7 @@ bool is_format_fasta( format_t fmt ){
         case ft_fasta_split_file : res = true; break;
         case ft_fasta_split_3    : res = true; break;
         case ft_fasta_us_split_spot : res = true; break;
+        case ft_fasta_ref_tbl : res = true; break;        
         default : res = false; break;
     }
     return res;
@@ -86,7 +87,7 @@ static format_t format_cmp( const String * Format, const char * test, format_t t
 
 format_t get_format_t( const char * format,
             bool split_spot, bool split_file, bool split_3, bool whole_spot,
-            bool fasta, bool fasta_us ) {
+            bool fasta, bool fasta_us, bool fasta_ref_tbl ) {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] ) {
         /* the format option has been used, try to recognize one of the options,
@@ -120,27 +121,35 @@ format_t get_format_t( const char * format,
         if ( ft_unknown == res ) {
             res = format_cmp( &Format, "fasta-us-split-spot", ft_fasta_us_split_spot );
         }
+        if ( ft_unknown == res ) {
+            res = format_cmp( &Format, "fasta-ref-tbl", ft_fasta_ref_tbl );
+        }
+        
     } else {
         /* the format option has not been used, let us see if some of the legacy-options
             have been used */
-        if ( split_3 ) {
-            res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
-            /* split-file, split-spot and whole-spot are ignored! */
-        } else if ( split_file ) {
-            res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
-            /* split-3, split-spot and whole-spot are ignored! */
-        } else if ( split_spot ) {
-            /* split-3, split-file and whole-spot are ignored! */
-            if ( fasta_us ) {
-                res = ft_fasta_us_split_spot;
-            } else if ( fasta ) {
-                res = ft_fasta_split_spot;
-            } else {
-                res = ft_fastq_split_spot;
+        if ( fasta_ref_tbl ) {
+            res = ft_fasta_ref_tbl; // this one takes precedence over all others...
+        } else {
+            if ( split_3 ) {
+                res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
+                /* split-file, split-spot and whole-spot are ignored! */
+            } else if ( split_file ) {
+                res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
+                /* split-3, split-spot and whole-spot are ignored! */
+            } else if ( split_spot ) {
+                /* split-3, split-file and whole-spot are ignored! */
+                if ( fasta_us ) {
+                    res = ft_fasta_us_split_spot;
+                } else if ( fasta ) {
+                    res = ft_fasta_split_spot;
+                } else {
+                    res = ft_fastq_split_spot;
+                }
+            } else if ( whole_spot ) {
+                /* split-3, split-file and split-spot are ignored! */
+                res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
             }
-        } else if ( whole_spot ) {
-            /* split-3, split-file and split-spot are ignored! */
-            res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
         }
     }
     /* default to split_3 if no format has been given at all */
@@ -164,6 +173,7 @@ static const char * FMT_FASTQ_SPLIT_3       = "FASTQ split 3";
 static const char * FMT_FASTA_WHOLE_SPOT    = "FASTA whole spot";
 static const char * FMT_FASTA_SPLIT_SPOT    = "FASTA split spot";
 static const char * FMT_FASTA_UNSORTED      = "FASTA-unsorted split spot";
+static const char * FMT_FASTA_REF_TBL       = "FASTA-ref-table";
 static const char * FMT_FASTA_SPLIT_FILE    = "FASTA split file";
 static const char * FMT_FASTA_SPLIT_3       = "FASTA split 3";
 
@@ -179,6 +189,7 @@ const char * fmt_2_string( format_t fmt ) {
         case ft_fasta_whole_spot    : res = FMT_FASTA_WHOLE_SPOT; break;
         case ft_fasta_split_spot    : res = FMT_FASTA_SPLIT_SPOT; break;
         case ft_fasta_us_split_spot : res = FMT_FASTA_UNSORTED; break;
+        case ft_fasta_ref_tbl       : res = FMT_FASTA_REF_TBL; break;
         case ft_fasta_split_file    : res = FMT_FASTA_SPLIT_FILE; break;
         case ft_fasta_split_3       : res = FMT_FASTA_SPLIT_3; break;
     }

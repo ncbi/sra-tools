@@ -112,13 +112,15 @@ def compareStats(snode, cnode, path = []):
             if len(snode) == len(cnode):
                 sameOrder = True
                 for i,s in enumerate(snode):
-                    if getID(s) != getID(cnode[i]):
+                    sid = getID(s)
+                    cid = getID(cnode[i])
+                    if sid != cid:
                         sameOrder = False
                         break
                 if sameOrder:
                     for i,s in enumerate(snode):
-                        compareStats(s, cnode[i], path + [i])
-                    return
+                        compareStats(s, cnode[i], path + [getID(s)])
+                    return True
             # generate indices
             sidx = {getID(v):i for i,v in enumerate(snode)}
             cidx = {getID(v):i for i,v in enumerate(cnode)}
@@ -130,16 +132,16 @@ def compareStats(snode, cnode, path = []):
         # Check for nodes in the original which are not in the compare.
         for k,i in sidx.items():
             if k not in cidx:
-                recordMissing('comparee', snode[i], path + [i])
+                recordMissing('comparee', snode[i], path + [k])
 
         for k,i in cidx.items():
             try:
                 j = sidx[k]
             except KeyError:
-                recordMissing('original', cnode[i], path + [i])
+                recordMissing('original', cnode[i], path + [k])
                 continue
 
-            compareStats(snode[j], cnode[i], path + [i])
+            compareStats(snode[j], cnode[i], path + [k])
 
         return True
 
@@ -177,10 +179,11 @@ def compareStats(snode, cnode, path = []):
         return
 
     try:
+        # print(path, snode, cnode)
         # try to compare as values
         if snode == cnode:
-            # print("equal", path)
             return
+        recordDiffers(snode, cnode, path)
     except:
         # Give up! With JSON data, this should not be reachable.
         diffs.append({'path': path, 'type': 'not comparable'})

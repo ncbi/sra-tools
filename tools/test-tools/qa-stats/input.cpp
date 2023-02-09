@@ -29,7 +29,7 @@
  *  Parse inputs.
  */
 
-#define RECORD_LIMIT 0
+#define RECORD_LIMIT 1000
 
 #include <iostream>
 #include <string>

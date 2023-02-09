@@ -42,6 +42,11 @@
 #include "hashing.hpp"
 #include "output.hpp"
 
+JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
+    char buffer[32];
+    return s.insert(HashResult64::to_hex(v.value, buffer));
+}
+
 struct Event {
     unsigned
         spot: 1,

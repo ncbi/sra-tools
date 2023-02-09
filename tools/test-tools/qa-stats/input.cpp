@@ -438,7 +438,7 @@ struct BasicSource: public Input::Source {
             buffer = (uint8_t *)malloc(size);
             if (buffer == nullptr)
                 throw std::bad_alloc();
-            memcpy(buffer, str.c_str(), size);
+            std::copy(str.begin(), str.end(), buffer);
             return;
         }
         if (std::holds_alternative<StdInType>(src)) {

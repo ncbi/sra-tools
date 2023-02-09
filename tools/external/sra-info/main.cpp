@@ -34,14 +34,12 @@
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
 
+using namespace std;
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
-#define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
-    PLOGERR(klogInt, (klogInt,rc, "$(msg): $(name)","msg=%s,name=%s",msg,name)))
 #define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
-
-#define OPTION_PLATFORM "row_id_on"
+#define OPTION_PLATFORM "platform"
 #define ALIAS_PLATFORM  "P"
 
 static const char * platform_usage[] = { "print platform(s)", NULL };
@@ -119,16 +117,30 @@ rc_t CC KMain ( int argc, char *argv [] )
             const char * accession = nullptr;
             rc = ArgsParamValue( args, 0, ( const void ** )&( accession ) );
             DISP_RC( rc, "ArgsParamValue() failed" );
-            info.SetAccession( accession );
+
+            try
+            {
+                info.SetAccession( accession );
+
+                uint32_t opt_count;
+                rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    SraInfo::Platforms platforms = info.GetPlatforms();
+                    for( auto p : platforms )
+                    {
+                        KOutMsg ( (p+"\n").c_str() );
+                    }
+                }
+            }
+            catch( const exception& ex )
+            {
+                KOutMsg( (string(ex.what()) + "\n").c_str() );
+            }
         }
 
-
-
-        {
-            rc_t rc2 = ArgsWhack( args );
-            DISP_RC( rc2, "ArgsWhack() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        DESTRUCT(Args, args);
     }
 
     return rc;

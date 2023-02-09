@@ -26,7 +26,9 @@ add_compile_definitions( __mod__="test/external/sra-info" )
 
 # unit tests
 
-AddExecutableTest( Test_SraInfo "test-sra-info" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${PROJECT_SOURCE_DIR}/tools/external/sra-info" )
+AddExecutableTest( Test_SraInfo_Unit "test-sra-info"
+                                "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+                                "${PROJECT_SOURCE_DIR}/tools/external/sra-info" )
 
 if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
 
@@ -45,6 +47,17 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND ${DIRTOTEST}/sra-info SRR000123 SRR0001234
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
+
+    #TODO: verify outputs
+    add_test( NAME Test_Sra_Info_Table
+        COMMAND ${DIRTOTEST}/sra-info -P SRR000123
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_CSRA
+        COMMAND ${DIRTOTEST}/sra-info -P ERR334733
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Multiple
+        COMMAND ${DIRTOTEST}/sra-info -P ./input/MultiPlatform
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

@@ -103,8 +103,19 @@ openSequenceTable( const char * accession )
             switch ( pt )
             {
                 case kptDatabase      :
-    throw SraInfo::Error( rc, accession, "TBD");
+                {
+                    rc = VDBManagerOpenDBRead( manager, &database, NULL, "%s", accession );
+                    if ( rc != 0 )
+                    {
+                        throw SraInfo::Error( rc, accession, "VDBManagerOpenDBRead() failed");
+                    }
+                    rc = VDatabaseOpenTableRead( database, & ret, "%s", "SEQUENCE" );
+                    if ( rc != 0 )
+                    {
+                        throw SraInfo::Error( rc, accession, "VDatabaseOpenTableRead() failed");
+                    }
                     break;
+                }
 
                 case kptTable         :
                 case kptPrereleaseTbl :
@@ -121,7 +132,6 @@ openSequenceTable( const char * accession )
                     throw SraInfo::Error( rc, accession, "VDBManagerPathType() failed");
             }
         }
-        return ret;
     }
     catch(const std::exception& e)
     {
@@ -210,20 +220,51 @@ SraInfo::GetPlatforms() const
                     throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
                 }
 
-                uint32_t p;
+                uint32_t p = 0;
                 uint32_t row_len;
                 rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
-                if ( rc != 0 )
+                if ( rc != 0 || row_len != 1 )
                 {
                     throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
                 }
 
-                // do we need VCursorCloseRow() ?
+                // we do not seem to need VCursorCloseRow()
                 ret.insert( vdcd_get_platform_txt(p) );
             }
             else
             {
-    throw SraInfo::Error( rc, m_accession.c_str(), "TBD");
+                while( true )
+                {
+                    rc = VCursorOpenRow( cursor );
+                    if ( rc != 0 )
+                    {
+                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
+                    }
+
+                    uint32_t p = 0;
+                    uint32_t row_len;
+                    rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
+                    if ( rc != 0 )
+                    {
+                        if ( GetRCObject( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
+                        {   // end of data
+                            break;
+                        }
+                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
+                    }
+                    if ( row_len != 1 )
+                    {
+                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() returned invalid value for PLATFORM");
+                    }
+
+                    ret.insert( vdcd_get_platform_txt(p) );
+
+                    rc = VCursorCloseRow( cursor );
+                    if ( rc != 0 )
+                    {
+                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorCloseRow() failed");
+                    }
+                }
             }
         }
     }
@@ -238,4 +279,3 @@ SraInfo::GetPlatforms() const
     VTableRelease( table );
     return ret;
 }
-

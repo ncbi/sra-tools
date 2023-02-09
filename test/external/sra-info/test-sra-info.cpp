@@ -94,11 +94,25 @@ TEST_CASE(SinglePlatformInTable)
     REQUIRE_EQ( string("SRA_PLATFORM_454"), *p.begin() );
 }
 TEST_CASE(SinglePlatformInDatabase)
-{//TODO
+{
+    SraInfo info;
+    const string Accession = "ERR334733";
+    info.SetAccession(Accession);
+    SraInfo::Platforms p = info.GetPlatforms();
+    REQUIRE_EQ( size_t(1), p.size() );
+    REQUIRE_EQ( string("SRA_PLATFORM_ILLUMINA"), *p.begin() );
 }
 
 TEST_CASE(MultiplePlatforms)
-{//TODO
+{
+    SraInfo info;
+    const string Accession = "./input/MultiPlatform";
+    info.SetAccession(Accession);
+    SraInfo::Platforms p = info.GetPlatforms();
+    REQUIRE_EQ( size_t(3), p.size() );
+    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_UNDEFINED") );
+    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_ILLUMINA") );
+    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_454") );
 }
 
 //////////////////////////////////////////// Main

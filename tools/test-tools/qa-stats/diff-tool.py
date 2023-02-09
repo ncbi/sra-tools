@@ -179,7 +179,7 @@ def compareStats(snode, cnode, path = []):
     try:
         # try to compare as values
         if snode == cnode:
-            print("equal", path)
+            # print("equal", path)
             return
     except:
         # Give up! With JSON data, this should not be reachable.

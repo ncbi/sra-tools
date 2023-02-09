@@ -141,7 +141,6 @@ struct FieldHash_impl {
         return offset;
     }
     static void update(State &state, size_t count, uint64_t const *v) {
-        assert(count == sizeof(*v));
         auto const result = (state * (*v)) % prime;
         state = (result != 0) ? result : offset;
     }

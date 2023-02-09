@@ -180,7 +180,6 @@ JSON_ostream &JSON_ostream::insert(char const *v) {
         insert('"');
     for (auto cp = v; *cp; ++cp)
         insert_instr(*cp);
-    assert(!esc);
     if (need_quotes)
         insert('"');
     return *this;

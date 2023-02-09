@@ -32,6 +32,8 @@
 #include <iosfwd>
 #include <string>
 #include <vector>
+#include <memory>
+#include <variant>
 
 struct CIGAR {
     struct OP {
@@ -66,6 +68,7 @@ struct CIGAR {
     };
     std::vector<OP> operations;
 
+    operator bool() const { return operations.size() > 0; }
     unsigned sequenceLength() const {
         unsigned result = 0;
 
@@ -98,17 +101,55 @@ struct Input {
     };
     struct Read {
         int start, length, position = -1, reference = -1;
-        ReadType type;
-        ReadOrientation orientation;
+        ReadType type = ReadType::biological;
+        ReadOrientation orientation = ReadOrientation::forward;
         CIGAR cigar;
     };
     std::string sequence;
     std::vector<Read> reads;
-    int group;
-
+    int group = -1;
+    
     static std::vector<std::string> references;
     static std::vector<std::string> groups;
 
-    static Input readFrom(std::istream &, bool isfirst = false);
+    static int getGroup(std::string const &named);
+    static int getReference(std::string const &named);
+
+    static void SAM_HeaderLine(std::string const &line) {}
     static void runTests();
+
+    struct Source {
+        uint64_t records = 0;
+
+        virtual operator bool() const = 0;
+        virtual bool eof() const = 0;
+        virtual Input get() = 0;
+        virtual ~Source() {}
+
+        struct StdInType {};
+        struct FilePathType {
+            char const *path;
+            bool use_mmap;
+        };
+        struct StringLiteralType {
+            std::string const &data;
+        };
+        using Type = std::variant<StdInType, FilePathType, StringLiteralType>;
+    protected:
+        Source() {}
+    };
+    static std::unique_ptr<Source> newSource(Source::Type const &source = Source::StdInType{}, bool multithreaded = true);
+
+    struct Reset {
+        ~Reset() {
+            Input::references.clear();
+            Input::groups.clear();
+        }
+        friend Input;
+    private:
+        Reset() {}
+    };
+    static Reset getReset() { return Reset(); }
+private:
+    static std::string readLine(std::istream &);
 };

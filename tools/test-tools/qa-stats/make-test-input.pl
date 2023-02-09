@@ -52,9 +52,7 @@ while (defined($_ = <>)) {
     }
     if ($shuffle && @output) {
         my $i = int(rand(scalar(@output) + 1));
-        if ($i < scalar(@output)) {
-            ($_, $output[$i]) = ($output[$i], $_)
-        }
+        ($_, $output[$i]) = ($output[$i], $_) if $i < scalar(@output);
     }
     push @output, $_;
 }

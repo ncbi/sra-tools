@@ -32,6 +32,7 @@
 
 #include <cctype>
 #include "output.hpp"
+#include "hashing.hpp"
 
 void JSON_ostream::insert_raw(char v) {
     strm << v;
@@ -41,7 +42,7 @@ void JSON_ostream::insert_raw(char v) {
 void JSON_ostream::indentIfNeeded() {
     if (newline) {
         insert_raw('\n');
-        for (auto _ : stack)
+        for (auto _ : listStack)
             insert_raw('\t');
         newline = false;
     }
@@ -62,22 +63,22 @@ void JSON_ostream::newList(char type) {
         insert_raw(' ');
     insert_raw(type);
     newline = true;
-    stack.push_back(false);
+    listStack.push_back(false);
 }
 
 void JSON_ostream::listItem() {
-    if (stack.back()) {
+    if (listStack.back()) {
         insert_raw(',');
         newline = true;
     }
     else
-        stack.back() = true;
+        listStack.back() = true;
     indentIfNeeded();
 }
 
 void JSON_ostream::endList(char type) {
-    newline = stack.back();
-    stack.pop_back();
+    newline = listStack.back();
+    listStack.pop_back();
     indentIfNeeded();
     insert_raw(type);
     newline = true;
@@ -179,7 +180,15 @@ JSON_ostream &JSON_ostream::insert(char const *v) {
         insert('"');
     for (auto cp = v; *cp; ++cp)
         insert_instr(*cp);
+    assert(!esc);
     if (need_quotes)
         insert('"');
+    return *this;
+}
+
+JSON_ostream &JSON_ostream::insert(JSON_Member const &v) {
+    comma = true; // doesn't matter how many times you set it.
+    insert(v.name);
+    insert_raw(':');
     return *this;
 }

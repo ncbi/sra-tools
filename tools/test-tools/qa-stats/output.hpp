@@ -39,6 +39,7 @@
 #include <sstream>
 #include <vector>
 #include <cctype>
+#include <set>
 
 struct JSON_Member {
     std::string name;
@@ -46,17 +47,28 @@ struct JSON_Member {
 
 class JSON_ostream {
     std::ostream &strm;
-    bool ws = true;
-    bool newline = true;
-    bool comma = false;
-    bool instr = false;
-    bool esc = false;
-    std::vector<bool> stack;
+    bool ws = true;         ///< was the last character inserted a whitespace character.
+    bool newline = true;    ///< Is newline needed before the next item.
+    bool comma = false;     ///< Was the character a ','? More importanly, will the next character belong to a new list item (or be the end of list).
+    bool instr = false;     ///< In a string, therefore apply string escaping rules to the inserted characters.
+    bool esc = false;       ///< In a string and the next character is escaped.
+    
+    /// A list is anything with components that are separated by ',', i.e. JSON Objects and Arrays
+    std::vector<bool> listStack; ///< Records if list is empty. false mean empty. back() is the current list.
 
+    /// Send the character to the output stream. Checks for whitespace.
     void insert_raw(char v);
+    
+    /// If needed, start a newline and indent it.
     void indentIfNeeded();
+    
+    /// Insert a character using string escaping rules.
     void insert_instr(char v);
+    
+    /// Insert a string using string escaping rules.
     void insert_instr(char const *const str);
+
+    /// Insert a string without using any escaping rules.
     void insert_raw(char const *const str);
 
     // start a new list (array or object)
@@ -72,6 +84,7 @@ public:
     JSON_ostream(std::ostream &os) : strm(os) {}
 
     template <typename T>
+    /// Insert some value (NB, use for number types)
     JSON_ostream &insert(T v) {
         std::ostringstream oss;
 
@@ -81,23 +94,47 @@ public:
         insert_raw(oss.str().c_str());
         return *this;
     }
+    
+    /// Insert a Boolean value
     JSON_ostream &insert(bool const &v) {
         insert_raw(v ? "true" : "false");
         return *this;
     }
+
+    /// Insert a character.
+    ///
+    /// When not in string mode, the stream reacts to the character.
+    /// * '"' will toggle string mode.
+    /// * '{' will add a list level and indent.
+    /// * '}' will remove a list level and indent.
+    /// * '[' will add a list level and indent.
+    /// * ']' will remove a list level and indent.
+    /// * ',' will end the current list item.
+    ///
+    /// There is no validation of syntax. But inserting sequences
+    /// of the above characters should still produce valid (if weird) JSON.
+    ///
+    /// When in string mode, the stream reacts to the character inserted.
+    /// * certain characters will be escaped as needed.
+    /// * '"' will end string mode unless the previous character was the escape character.
     JSON_ostream &insert(char v);
+
+    /// Insert a whole string of characters.
+    /// In string mode, it will append to the current string.
+    /// Otherwise, it will insert '"' (thus entering string mode),
+    /// append the string, and insert '"' (hopefully exiting string mode)
     JSON_ostream &insert(char const *v);
+
+    /// Insert a whole string of characters
     JSON_ostream &insert(std::string const &v) {
         return insert(v.c_str());
     }
-    JSON_ostream &insert(JSON_Member const &v) {
-        comma = true; // doesn't matter how many times you set it.
-        insert(v.name);
-        insert_raw(':');
-        return *this;
-    }
+
+    /// Insert an object member name, i.e. a string followed by a ':'
+    JSON_ostream &insert(JSON_Member const &v);
 };
 
+/// Insert some value (NB, use for number types)
 template <typename T>
 JSON_ostream &operator <<(JSON_ostream &s, T const &v) {
     return s.insert(v);

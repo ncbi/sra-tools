@@ -12,6 +12,7 @@ set(HEADERS
     input.hpp
     hashing.hpp
     output.hpp
+    parameters.hpp
 )
 
 add_executable(qa-stats ${SOURCES} ${HEADERS})

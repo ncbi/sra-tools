@@ -34,6 +34,10 @@
 #include <map>
 #include <functional>
 #include <sstream>
+#include <chrono>
+#include <tuple>
+#include <cmath>
+#include "parameters.hpp"
 #include "input.hpp"
 #include "hashing.hpp"
 #include "output.hpp"
@@ -59,6 +63,31 @@ struct Event {
     char baseValue() const {
         return A != 0 ? 'A' : C != 0 ? 'C' : G != 0 ? 'G' : T != 0 ? 'T' : base ? 'N' : 0;
     }
+    int base4na() const {
+        return (A ? 1 : 0) | (C ? 2 : 0) | (G ? 4 : 0) | (T ? 8 : 0) | (base ? 0x0F : 0);
+    }
+    int base2na() const {
+        switch (base4na()) {
+        case 0:
+            return -1;
+        case 1:
+            return 0;
+        case 2:
+            return 1;
+        case 4:
+            return 2;
+        case 8:
+            return 3;
+        default:
+            return 4;
+        }
+    }
+    int index() const {
+        auto result = base2na();
+        if (result >= 0 && (bio || tech))
+            result = (result << 1) | tech;
+        return result;
+    }
     char const *type() const {
         if (bio) return "biological";
         if (tech) return "technical";
@@ -70,12 +99,12 @@ struct Event {
     friend std::ostream &operator <<(std::ostream &os, Event const &that) {
         return os << reinterpret_cast<unsigned const &>(that);
     }
-    static Event startSpot() {
-        auto e = Event{1};
-        // std::cout << "startSpot: " << e << std::endl;
+    static constexpr Event startSpot() {
+        Event e = {};
+        e.spot = 1;
         return e;
     }
-    static Event make(bool isBio, bool isTech) {
+    static constexpr Event make(bool isBio, bool isTech) {
         Event e = {};
         if (isBio)
             e.bio = 1;
@@ -83,13 +112,13 @@ struct Event {
             e.tech = 1;
         return e;
     }
-    static Event startRead(bool isBio = false, bool isTech = false) {
+    static constexpr Event startRead(bool isBio = false, bool isTech = false) {
         Event e = make(isBio, isTech);
         e.read = 1;
         // std::cout << "startRead: " << e << std::endl;
         return e;
     }
-    static Event makeBase(char base, bool isBio = false, bool isTech = false) {
+    static constexpr Event makeBase(char base, bool isBio = false, bool isTech = false) {
         Event e = make(isBio, isTech);
         switch (base) {
         case 'A': e.A = 1; break;
@@ -131,91 +160,120 @@ struct SpotStats : public std::map<unsigned, Count> {
     }
 };
 
-struct BaseStats : public std::map<Event, uint64_t> {
-    friend JSON_ostream &operator <<(JSON_ostream &out, BaseStats const &event) {
-        for (auto &[k, v] : event) {
-            out << '{'
-                << JSON_Member{"type"} << k.type();
-            if (k.isACGT())
-                out << JSON_Member{"base"} << std::string(1, k.baseValue());
-                out << JSON_Member{"count"} << v;
+struct BaseStats {
+    std::vector<uint64_t> counts{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    uint64_t junk = 0;
+    uint64_t &operator [](Event const &evt) {
+        auto const i = evt.index();
+        return (0 > i || i > 9) ? junk : counts[i];
+    }
+    uint64_t operator [](Event const &evt) const {
+        auto const i = evt.index();
+        return (0 > i || i > 9) ? junk : counts[i];
+    }
+    static void print(JSON_ostream &out, char const *base, uint64_t bio, uint64_t tech) {
+        if (bio || tech) {
+            out << '{' << JSON_Member{"base"} << base;
+            if (bio)
+                out << JSON_Member{"biological"} << bio;
+            else
+                out << JSON_Member{"technical"} << tech;
             out << '}';
         }
+    }
+    friend JSON_ostream &operator <<(JSON_ostream &out, BaseStats const &event) {
+        auto const bioAT = event[Event::makeBase('A', true, false)] + event[Event::makeBase('T', true, false)];
+        auto const bioCG = event[Event::makeBase('C', true, false)] + event[Event::makeBase('G', true, false)];
+        auto const bioN = event[Event::makeBase('N', true, false)];
+        auto const techAT = event[Event::makeBase('A', false, true)] + event[Event::makeBase('T', false, true)];
+        auto const techCG = event[Event::makeBase('C', false, true)] + event[Event::makeBase('G', false, true)];
+        auto const techN = event[Event::makeBase('N', false, true)];
+
+        BaseStats::print(out, "!ACGT", bioN, techN);
+        BaseStats::print(out, "A|T", bioAT, techAT);
+        BaseStats::print(out, "C|G", bioCG, techCG);
+
         return out;
     }
 };
 
 struct DistanceStats : public std::map<std::pair<char, unsigned>, unsigned> {
-    int lastA = -1;
-    int lastC = -1;
-    int lastG = -1;
-    int lastT = -1;
+    struct DistanceStat {
+        unsigned last = 0;
+        std::vector<unsigned> counts;
 
-    void reset() {
-        lastA = -1;
-        lastC = -1;
-        lastG = -1;
-        lastT = -1;
-    }
-    void accumulate(char base, int pos) {
-        int *last = nullptr;
-        if (pos >= 0) {
-            switch (base) {
-            case 'A':
-                last = &lastA;
-                break;
-            case 'C':
-                last = &lastC;
-                break;
-            case 'G':
-                last = &lastG;
-                break;
-            case 'T':
-                last = &lastT;
-                break;
+        operator bool() const { return !counts.empty(); }
+        void reset() {
+            last = 0;
+        }
+        void accumulate(unsigned position) {
+            if (position > last) {
+                auto index = (position - last) - 1;
+                if (counts.size() <= index)
+                    counts.resize(index + 1, 0);
+                counts[index] += 1;
+            }
+            last = position;
+        }
+        unsigned operator[](decltype(counts)::size_type index) const {
+            return index < counts.size() ? counts[index] : 0;
+        }
+        static void print(JSON_ostream &out, DistanceStat const &self, DistanceStat const &complement) {
+            auto const n = std::max(self.counts.size(), complement.counts.size());
+            for (auto i = decltype(counts)::size_type(0); i < n; ++i) {
+                auto const sum = self[i] + complement[i];
+                if (sum == 0) continue;
+
+                out << '{'
+                    << JSON_Member{"distance"} << i + 1
+                    << JSON_Member{"count"} << sum
+                << '}';
             }
         }
-        if (last) {
-            if (*last >= 0)
-                (*this)[{base, pos - *last}] += 1;
-            *last = pos;
-        }
-        else
-            reset();
-    }
+    };
+    DistanceStat A, C, G, T;
 
-    static char const *combinedBase(char base) {
+    operator bool() const {
+        return A || C || G || T;
+    }
+    void reset() {
+        A.reset();
+        C.reset();
+        G.reset();
+        T.reset();
+    }
+    void accumulate(char base, int pos) {
+        if (pos < 0) {
+            reset();
+            return;
+        }
         switch (base) {
         case 'A':
-            return "AT";
+            A.accumulate(pos);
+            break;
         case 'C':
-            return "CG";
+            C.accumulate(pos);
+            break;
+        case 'G':
+            G.accumulate(pos);
+            break;
+        case 'T':
+            T.accumulate(pos);
+            break;
         default:
-            return nullptr;
+            reset();
+            break;
         }
     }
-    std::pair<char const *, unsigned> combined(key_type const &key, mapped_type count) const {
-        auto &[base, distance] = key;
-        auto const both = combinedBase(base);
-        unsigned combined = count;
 
-        if (both) {
-            auto const fnd = find({both[1], distance});
-            if (fnd != end())
-                combined += fnd->second;
-        }
-        return {both, combined};
-    }
     friend JSON_ostream &operator <<(JSON_ostream &out, DistanceStats const &distance) {
-        for (auto &[key, count] : distance) {
-            auto const &[both, counts] = distance.combined(key, count);
-            if (both == nullptr) continue;
-
-            out << '{'
-                << JSON_Member{"base"} << both
-                << JSON_Member{"distance"} << key.second
-                << JSON_Member{"count"} << counts
-            << '}';
+        if (distance) {
+            out << JSON_Member{"A|T"} << '[';
+                DistanceStat::print(out, distance.A, distance.T);
+            out << ']'
+            << JSON_Member{"C|G"} << '[';
+                DistanceStat::print(out, distance.C, distance.G);
+            out << ']';
         }
         return out;
     }
@@ -225,17 +283,16 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
     static constexpr int chunkSize = (1 << 14);
 
     void accumulate(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
-        auto hPSa = FNV1a();
-        hPSa.update(position);
-        hPSa.update(strand);
-
-        auto const hPS = hPSa.finish();
+        uint64_t const ps = (position << 1) + strand;
         auto const hSeq = FNV1a::hash(sequence.size(), sequence.data());
         auto const hCig = FNV1a::hash(cigar.operations.size(), cigar.operations.data());
 
         while (refId >= size()) {
             auto value = std::vector<Count>();
             auto hach = Count();
+
+            static_assert(sizeof(hach.total) == sizeof(FieldHash), "this isn't going to work!");
+            *reinterpret_cast<FieldHash *>(&hach.total) = FieldHash();
             value.push_back(hach);
             push_back(value);
         }
@@ -254,14 +311,12 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
             if (strand == 1)
                 counter.technical += 1;
 
-            reference[0].total ^= hPS;
+            reinterpret_cast<FieldHash *>(&reference[0].total)->update(ps);
             reference[0].biological ^= hSeq;
             reference[0].technical ^= hCig;
         }
     }
     friend JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &self) {
-        char buffer[32];
-
         for (auto &reference : self) {
             auto const refId = &reference - &self[0];
             auto const refName = Input::references[refId];
@@ -296,9 +351,9 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                 << JSON_Member{"5'"} << total.biological
                 << JSON_Member{"3'"} << total.technical
             << '}'
-            << JSON_Member{"position-hash"} << SeqHash_impl::Result::to_hex(posHash, buffer)
-            << JSON_Member{"sequence-hash"} << SeqHash_impl::Result::to_hex(seqHash, buffer)
-            << JSON_Member{"cigar-hash"} << SeqHash_impl::Result::to_hex(cigHash, buffer)
+            << JSON_Member{"position"} << HashResult64{posHash}
+            << JSON_Member{"sequence"} << HashResult64{seqHash}
+            << JSON_Member{"cigar"} << HashResult64{cigHash}
             << '}';
         }
         return out;
@@ -378,28 +433,29 @@ struct Stats {
         event[e] += 1;
         distance.accumulate(e.baseValue(), readpos);
     }
-    void accumulateOneRead(std::string_view const &seq, bool bio, bool tech) {
+    void accumulateOneRead(std::string_view const &seq, Input::ReadType type) {
+        auto const bio = type == Input::ReadType::biological || type == Input::ReadType::aligned;
+        auto const tech = type == Input::ReadType::technical;
         unsigned pos = 0;
         auto const hash = SeqHash::hash(seq.size(), seq.data());
 
         for (auto && ch : seq) {
             accumulate(Event::makeBase(ch, bio, tech), pos++);
         }
-        accumulate(Event::startRead(bio, tech));
+        if (type != Input::ReadType::aligned)
+            accumulate(Event::startRead(bio, tech));
         readHash.update(hash, bio, tech);
     }
     void accumulateOneAlignment(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
         reference.accumulate(refId, position, strand, sequence, cigar);
     }
     static JSON_ostream &print(JSON_ostream &out, ReadHash const &hash) {
-        auto temp = hash;
-        auto const value = temp.finish();
-        char buffer[32];
+        auto const value = hash.finished();
 
         return out << '{'
-            << JSON_Member{"bases"} << ReadHash::Value::to_hex(value.base, buffer)
-            << JSON_Member{"unstranded"} << ReadHash::Value::to_hex(value.unstranded, buffer)
-            << JSON_Member{"sequence"} << ReadHash::Value::to_hex(value.fnv1a, buffer)
+            << JSON_Member{"bases"} << HashResult64{value.base}
+            << JSON_Member{"unstranded"} << HashResult64{value.unstranded}
+            << JSON_Member{"sequence"} << HashResult64{value.fnv1a}
         << '}';
     }
     struct ReadsInfo {
@@ -442,82 +498,218 @@ struct Stats {
         out << JSON_Member{"reads"}      << '{' << self.readsInfo() << '}';
         out << JSON_Member{"bases"}      << '[' << self.event << ']';
         out << JSON_Member{"spots"}      << '[' << self.spots << ']';
-        out << JSON_Member{"distances"}  << '[' << self.distance << ']';
+        out << JSON_Member{"distances"}  << '{' << self.distance << '}';
         out << JSON_Member{"references"} << '[' << self.reference << ']';
 
         return out;
     }
 };
 
-static void gather(std::istream &in, Stats &stats, std::vector<Stats> &spotGroup) {
-    bool isfirst = true;
-
-    in.exceptions(std::ios::badbit | std::ios::failbit);
-    while (in) {
-        auto const spot = Input::readFrom(in, isfirst);
-        int naligned = 0;
-
-        isfirst = false;
-        if (spotGroup.size() < Input::groups.size())
-            spotGroup.resize(Input::groups.size(), Stats{});
-
-        for (auto const &read : spot.reads) {
-            auto const bio = read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned;
-            auto const tech = read.type == Input::ReadType::technical;
-            auto const &seq = spot.sequence.substr(read.start, read.length);
-
-            stats.accumulateOneRead(seq, bio, tech);
-            if (spot.group >= 0)
-                spotGroup[spot.group].accumulateOneRead(seq, bio, tech);
-            if (read.type == Input::ReadType::aligned) {
-                stats.accumulateOneAlignment(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
-                ++naligned;
+struct Reporter {
+private:
+    using Clock = decltype(std::chrono::steady_clock::now());
+    using Duration = Clock::duration;
+    Clock start;
+    Duration freq;
+    Clock nextReport;
+    uint64_t threshold;
+    static Clock now() {
+        return std::chrono::steady_clock::now();
+    }
+public:
+    Reporter(int seconds = 0)
+    : start(now())
+    , freq(seconds ? Duration(std::chrono::seconds(seconds)) : Duration::zero())
+    , nextReport(start + freq)
+    , threshold(2)
+    {}
+    void setFrequency(int seconds) {
+        nextReport = now() + (freq = Duration(std::chrono::seconds(seconds)));
+    }
+    template <typename T>
+    double report(T const &progress, Clock const &now = Reporter::now()) const {
+        std::chrono::duration<double> const elapsed = now - start;
+        if (progress == 0 || elapsed.count() < 1)
+            return 0;
+        auto const rps = progress / elapsed.count();
+        std::cerr << "progress: records per second: " << rps << std::endl;
+        return rps;
+    }
+    template <typename T>
+    void update(T const &progress) {
+        if (freq == Duration::zero()) return;
+        if (progress < threshold) return;
+        auto const rps = report(progress);
+        if (rps > 1) {
+            threshold = progress + rps * std::chrono::duration_cast<std::chrono::seconds>(freq).count();
+        }
+        return;
+        auto n = now();
+        if (n >= nextReport) {
+            nextReport = n + freq;
+            auto const rps = report(progress, n);
+            if (rps > 1) {
+                threshold = progress + (1 << int(log2(rps)));
             }
         }
-        if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-            stats.accumulate(Event::startSpot());
-            if (spot.group >= 0)
-                spotGroup[spot.group].accumulate(Event::startSpot());
+    }
+};
+
+struct App {
+    App(int argc, char *argv[])
+    : arguments(argc, argv, {
+        { "progress", "p", "60" },
+        { "multithreaded", "t", "1" },
+        { "mmap", "m", "1" },
+        { "output", "o", nullptr, true }
+    })
+    , nextInput(arguments.begin())
+    , currentInput(arguments.end())
+    {
+        for (auto const &[param, value] : arguments.parameters) {
+            if (param == "progress" && value.has_value()) {
+                reporter.setFrequency(std::stoi(value.value()));
+                continue;
+            }
+            if (param == "multithreaded" && value.has_value()) {
+                multithreaded = std::stoi(value.value());
+                continue;
+            }
+            if (param == "mmap" && value.has_value()) {
+                use_mmap = std::stoi(value.value()) != 0;
+                continue;
+            }
+            if (param == "output") {
+                if (value) {
+                    output = value;
+                    continue;
+                }
+                std::cerr << "error: output parameter needs a path" << std::endl;
+                exit(1);
+            }
+            if (param == "help") {
+                std::cout << "usage: " << arguments.program << " [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                exit(0);
+            }
+            std::cerr << "error: Unrecognized parameter " << param << std::endl;
+            exit(1);
         }
     }
-}
+    int run() {
+        while (processNextInput())
+            ;
+        if (output) {
+            auto const &path = output.value();
+            auto strm = std::ofstream(path.c_str());
+            if (strm)
+                print(strm);
+            else
+                std::cerr << "couldn't open " << path << std::endl;
+        }
+        else {
+            print(std::cout);
+        }
+        return 0;
+    }
+private:
+    bool processNextInput() {
+        gather();
+        return !(arguments.empty() || nextInput == arguments.end());
+    }
+    void print(std::ostream &strm) {
+        auto out = JSON_ostream(strm);
 
-int main(int argc, const char * argv[]) {
-    // Input::runTests();
+        out << '{'
+            << JSON_Member{"total"} << '{' << stats << '}';
 
-#if 1
-    auto &in = std::cin;
-#elif 1
-    auto in = std::ifstream(argv[1]);
-#else
-    auto in = std::istringstream("GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL\n"
-                                 "GTGGACATCCCTCTGTGTGNGTCAN\tCM_000001\t10001\t0\t24M1S\n");
-#endif
-    Stats stats{};
+        if (!spotGroup.empty()) {
+            out << JSON_Member{"groups"} << '[';
+            for (auto const &stats : spotGroup) {
+                auto const &group = Input::groups[&stats - &spotGroup[0]];
+
+                out << '{'
+                    << JSON_Member{"group"} << group
+                    << stats
+                << '}';
+            }
+            out << ']';
+        }
+        out << '}';
+        std::cout << std::endl;
+        reporter.report(processed);
+    }
+    void gather() {
+        auto source = Input::newSource(inputStream(), multithreaded);
+        while (*source) {
+            try {
+                auto const spot = source->get();
+                int naligned = 0;
+
+                if (spotGroup.size() < Input::groups.size())
+                    spotGroup.resize(Input::groups.size(), Stats{});
+
+                auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
+
+                for (auto const &read : spot.reads) {
+                    if (read.type == Input::ReadType::aligned && !read.cigar) {
+                        // This is the sequence record for an aligned read.
+                        auto const &evt = Event::startRead(true, false);
+                        stats.accumulate(evt);
+                        if (group)
+                            group->accumulate(evt);
+                        continue;
+                    }
+                    auto const seq = spot.sequence.substr(read.start, read.length);
+
+                    stats.accumulateOneRead(seq, read.type);
+                    if (group)
+                        group->accumulateOneRead(seq, read.type);
+                    if (read.type == Input::ReadType::aligned) {
+                        stats.accumulateOneAlignment(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
+                        ++naligned;
+                    }
+                }
+                if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
+                    stats.accumulate(Event::startSpot());
+                    if (group)
+                        group->accumulate(Event::startSpot());
+                }
+                reporter.update(++processed);
+            }
+            catch (std::ios_base::failure const &e) {
+                if (!source->eof())
+                    throw e;
+                return;
+            }
+        }
+    }
+    Input::Source::Type inputStream() {
+        if (arguments.empty())
+            return Input::Source::StdInType();
+
+        currentInput = nextInput++;
+        return Input::Source::FilePathType{currentInput->c_str(), use_mmap};
+    }
+    uint64_t processed = 0;
+    int multithreaded = 0;
+    bool use_mmap = false;
+    std::optional<std::string> output;
+
+    Stats stats;
     std::vector<Stats> spotGroup;
 
-    try { gather(in, stats, spotGroup); }
-    catch (...) {}
+    Reporter reporter;
 
-    auto out = JSON_ostream(std::cout);
+    Arguments arguments;
+    Arguments::const_iterator nextInput;
+    Arguments::const_iterator currentInput;
+};
 
-    out << '{'
-        << JSON_Member{"total"} << '{' << stats << '}';
+int main(int argc, char * argv[]) {
+    Input::runTests();
+    
+    auto app = App(argc, argv);
 
-    if (!spotGroup.empty()) {
-        out << JSON_Member{"groups"} << '[';
-        for (auto const &stats : spotGroup) {
-            auto const &group = Input::groups[&stats - &spotGroup[0]];
-
-            out << '{'
-                << JSON_Member{"group"} << group
-                << stats
-            << '}';
-        }
-        out << ']';
-    }
-    out << '}';
-    std::cout << std::endl;
-
-    return 0;
+    return app.run();
 }
+

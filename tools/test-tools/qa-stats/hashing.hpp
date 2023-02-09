@@ -37,6 +37,29 @@
 #include <stdexcept>
 #include <iostream>
 
+struct HashResult64 {
+    uint64_t value;
+
+    HashResult64 &operator ^=(HashResult64 const &other) {
+        value ^= other.value;
+        return *this;
+    }
+    static char const *to_hex(uint64_t x, char *buffer) {
+        char *cp = buffer + 32;
+
+        *--cp = '\0';
+        do {
+            *--cp = "0123456789ABCDEF"[x & 0xF];
+            x >>= 4;
+        } while (x != 0);
+        return cp;
+    }
+    friend std::ostream &operator <<(std::ostream &strm, HashResult64 const &self) {
+        char buffer[32];
+        return strm << to_hex(self.value, buffer);
+    }
+};
+
 template < typename IMPL, typename VALUE = typename IMPL::Value, typename STATE = typename IMPL::State >
 struct HashFunction {
     using State = STATE;
@@ -47,7 +70,7 @@ struct HashFunction {
         state = IMPL::init();
     }
     template <typename T>
-    void update(T const &v) {
+    void update(T v) {
         IMPL::update(state, sizeof(T), &v);
     }
     template <typename T>
@@ -61,6 +84,10 @@ struct HashFunction {
         Value value;
         finish(value);
         return value;
+    }
+    Value finished() const {
+        State copy = this->state;
+        return IMPL::finalize(copy);
     }
     template <typename T>
     static Value hash(size_t count, T const v[]) {
@@ -103,9 +130,31 @@ struct FNV1a_impl {
 };
 using FNV1a64 = FNV1a_impl<uint64_t, 0x100000001b3ull, 0xcbf29ce484222325ull>;
 
+struct FieldHash_impl {
+    using State = uint64_t;
+    using Value = uint64_t;
+
+    static Value const prime = 0x100000001b3ull;
+    static State const offset = 0xcbf29ce484222325ull;
+
+    static State init() {
+        return offset;
+    }
+    static void update(State &state, size_t count, uint64_t const *v) {
+        assert(count == sizeof(*v));
+        auto const result = (state * (*v)) % prime;
+        state = (result != 0) ? result : offset;
+    }
+    static Value finalize(State &state) {
+        return state & 0xFFFFFFFFFFull;
+    }
+};
+using FieldHash = HashFunction<FieldHash_impl>;
+
 struct SeqHash_impl {
     struct State {
-        uint64_t base = 1, unstrand = 1,
+        FieldHash base, unstrand;
+        uint64_t
             fnv1a_fwd = FNV1a64::OFFSET,
             fnv1a_rev = FNV1a64::OFFSET;
 
@@ -148,8 +197,8 @@ struct SeqHash_impl {
 
             while (cur < end) {
                 auto baseValue = toupper(*cur++);
-                auto basePrime = pN;
-                auto unstranded = pN;
+                uint64_t basePrime = pN;
+                uint64_t unstranded = pN;
 
                 switch (baseValue) {
                 case 'A':
@@ -172,8 +221,8 @@ struct SeqHash_impl {
                     baseValue = 'N';
                     break;
                 }
-                base = (base * basePrime) % FNV1a64::PRIME;
-                unstrand = (unstrand * unstranded) % FNV1a64::PRIME;
+                base.update(basePrime);
+                unstrand.update(unstranded);
                 fnv1a_fwd = (fnv1a_fwd ^ baseValue) * FNV1a64::PRIME;
             }
         }
@@ -206,16 +255,15 @@ struct SeqHash_impl {
         }
     };
     struct Result {
-        uint64_t base, unstranded, fnv1a;
+        HashResult64 base, unstranded, fnv1a;
 
         Result()
-        : base(1), unstranded(1), fnv1a(0)
         {}
 
         explicit Result(State const &state)
-        : base(state.base & 0xFFFFFFFFFFull)
-        , unstranded(state.unstrand & 0xFFFFFFFFFFull)
-        , fnv1a(state.fwd_rev_hash())
+        : base{state.base.finished()}
+        , unstranded{state.unstrand.finished()}
+        , fnv1a{state.fwd_rev_hash()}
         {}
 
         void accumulate(Result const &other) {
@@ -223,23 +271,10 @@ struct SeqHash_impl {
             unstranded ^= other.unstranded;
             fnv1a ^= other.fnv1a;
         }
-
-        static char const *to_hex(uint64_t x, char *buffer) {
-            char *cp = buffer + 32;
-
-            *--cp = '\0';
-            do {
-                *--cp = "0123456789ABCDEF"[x & 0xF];
-                x >>= 4;
-            } while (x != 0);
-            return cp;
-        }
         friend std::ostream &operator <<(std::ostream &os, Result const &self) {
-            char buf[32];
-
-            os << "Bases: " << to_hex(self.base, buf)
-               << ", Unstranded: " << to_hex(self.unstranded, buf)
-               << ", Sequence: " << to_hex(self.fnv1a, buf);
+            os << "Bases: " << self.base
+               << ", Unstranded: " << self.unstranded
+               << ", Sequence: " << self.fnv1a;
 
             return os;
         }

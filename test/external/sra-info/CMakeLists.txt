@@ -30,33 +30,36 @@ AddExecutableTest( Test_SraInfo_Unit "test-sra-info"
                                 "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
                                 "${PROJECT_SOURCE_DIR}/tools/external/sra-info" )
 
+# for the benefit of the command line tests below, make sure to build the tool
+add_dependencies( Test_SraInfo_Unit sra-info )
+
 if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
 
     # make sure 'sra-info -h' does not crash
     add_test( NAME Test_Sra_Info_Help
-        COMMAND ${DIRTOTEST}/sra-info -h
+        COMMAND sh -c "${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # fails without parameters
     add_test( NAME Test_Sra_Info_NoParam
-        COMMAND ${DIRTOTEST}/sra-info
+        COMMAND sh -c "${DIRTOTEST}/sra-info 2>actual/Test_Sra_Info_NoParam.stderr"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_NoParam PROPERTIES WILL_FAIL TRUE)
     # fails with more than 1 parameter
     add_test( NAME Test_Sra_Info_MultipleParams
-        COMMAND ${DIRTOTEST}/sra-info SRR000123 SRR0001234
+        COMMAND sh -c "${DIRTOTEST}/sra-info SRR000123 SRR0001234 2>actual/Test_Sra_Info_MultipleParams.stderr"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
 
     #TODO: verify outputs
-    add_test( NAME Test_Sra_Info_Table
-        COMMAND ${DIRTOTEST}/sra-info -P SRR000123
+    add_test( NAME Test_Sra_Info_Table_1.0
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P SRR000123" "." "1.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_CSRA
-        COMMAND ${DIRTOTEST}/sra-info -P ERR334733
+    add_test( NAME Test_Sra_Info_CSRA_1.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ERR334733" "." "1.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Multiple
-        COMMAND ${DIRTOTEST}/sra-info -P ./input/MultiPlatform
+    add_test( NAME Test_Sra_Info_Multiple_2.0
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

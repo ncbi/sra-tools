@@ -27,6 +27,7 @@
 #include "sra-info.hpp"
 
 #include <sstream>
+#include <memory>
 
 #include <vdb/table.h>
 #include <vdb/database.h>
@@ -35,6 +36,8 @@
 #include <vdb/manager.h>
 
 #include <kdb/manager.h>
+
+#include <klib/printf.h>
 
 #include <insdc/sra.h>
 
@@ -50,7 +53,13 @@ SraInfo::Error::Error( rc_t rc, const char* accession, const char * message )
     out << accession << ": " << message;
     if ( rc != 0 )
     {
-        out << ", rc = " << rc; // TODO: convert to text
+        // obtain the required size
+        size_t num_writ;
+        string_printf ( nullptr, 0, &num_writ, "%R", rc );
+
+        unique_ptr<char> rc_text ( new char[num_writ] );
+        string_printf ( rc_text.get(), num_writ, nullptr, "%R", rc );
+        out << ", rc = " << rc_text.get();
     }
     m_text = out.str();
 }
@@ -102,7 +111,7 @@ openSequenceTable( const char * accession )
             int pt = ( VDBManagerPathType( manager, "%s", accession ) & ~ kptAlias );
             switch ( pt )
             {
-                case kptDatabase      :
+                case kptDatabase :
                 {
                     rc = VDBManagerOpenDBRead( manager, &database, NULL, "%s", accession );
                     if ( rc != 0 )
@@ -117,8 +126,7 @@ openSequenceTable( const char * accession )
                     break;
                 }
 
-                case kptTable         :
-                case kptPrereleaseTbl :
+                case kptTable :
                 {
                     rc = VDBManagerOpenTableRead( manager, & ret, NULL, "%s", accession );
                     if ( rc != 0 )
@@ -128,8 +136,11 @@ openSequenceTable( const char * accession )
                     break;
                 }
 
+                case kptPrereleaseTbl :
+                    throw SraInfo::Error( rc, accession, "VDBManagerPathType(): unsupported path type");
+
                 default :
-                    throw SraInfo::Error( rc, accession, "VDBManagerPathType() failed");
+                    throw SraInfo::Error( rc, accession, "VDBManagerPathType() returned invalid data");
             }
         }
     }

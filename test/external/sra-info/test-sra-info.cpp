@@ -110,9 +110,9 @@ TEST_CASE(MultiplePlatforms)
     info.SetAccession(Accession);
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(3), p.size() );
-    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_UNDEFINED") );
-    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_ILLUMINA") );
-    // REQUIRE_NE( p.end(), p.find("SRA_PLATFORM_454") );
+    REQUIRE( p.end() != p.find("SRA_PLATFORM_UNDEFINED") );
+    REQUIRE( p.end() != p.find("SRA_PLATFORM_ILLUMINA") );
+    REQUIRE( p.end() != p.find("SRA_PLATFORM_454") );
 }
 
 //////////////////////////////////////////// Main

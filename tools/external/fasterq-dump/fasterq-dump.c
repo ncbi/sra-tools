@@ -210,13 +210,10 @@ static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for te
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
-#define OPTION_FORCE_PACBIO     "force-pacbio"
-
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
     { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
-    { OPTION_FORCE_PACBIO,  NULL,               NULL, NULL,                 1, false,  false },
     { OPTION_FORMAT,        ALIAS_FORMAT,       NULL, format_usage,         1, true,   false },
     { OPTION_OUTPUT_F,      ALIAS_OUTPUT_F,     NULL, outputf_usage,        1, true,   false },
     { OPTION_OUTPUT_D,      ALIAS_OUTPUT_D,     NULL, outputd_usage,        1, true,   false },
@@ -286,7 +283,7 @@ rc_t CC Usage ( const Args * args ) {
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
-    for ( idx = 2; idx < count; ++idx ) { /* start with 2, do not advertize row-limit and pacbio-force options */
+    for ( idx = 1; idx < count; ++idx ) { /* start with 1, do not advertize row-limit */
         const OptDef * opt = &ToolOptions[ idx ];
         const char * param = NULL;
 
@@ -338,7 +335,6 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> disk_limit_out_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_OUT, 0 );
     tool_ctx -> disk_limit_tmp_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-    tool_ctx -> force_pabio = get_bool_option( args, OPTION_FORCE_PACBIO );
 
     /* join_options_t is defined in helper.h */
     tool_ctx -> join_options . rowid_as_name = false;
@@ -370,7 +366,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         ErrMsg( "invalid check-mode -> %R", rc );
     }
 
-    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_requested_seq_tabl_name );
+    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, NULL );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
@@ -782,6 +778,11 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     /* returns rc != 0 if inspection failed, because of check-mode */
                 }
 
+                /* for safety: */
+                if ( NULL == tool_ctx . insp_output . seq . tbl_name ) {
+                    tool_ctx . insp_output . seq . tbl_name = dflt_requested_seq_tabl_name;
+                }
+                
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */
@@ -789,12 +790,13 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                                               break; /* above */
 
                         /* a native PACBIO-database */
-                        case acc_pacbio_native : if ( tool_ctx . force_pabio ) {
-                                                  rc = process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name ); /* above */
-                                                } else {
-                                                  ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx . accession_path );
-                                                  rc = 3; /* signal to main() that the accession is not-processed */
-                                                }
+                        case acc_pacbio_native : // formats are in helper.h
+                                                 if ( is_format_fasta( tool_ctx . fmt ) ) {
+                                                   tool_ctx . fmt = ft_fasta_whole_spot;
+                                                 } else {
+                                                   tool_ctx . fmt = ft_fastq_whole_spot;
+                                                 }
+                                                 rc = process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name ); /* above */
                                                 break;
 
                         /* a PACBIO-database in bam-format */

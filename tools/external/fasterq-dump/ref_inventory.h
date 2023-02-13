@@ -85,9 +85,8 @@ const struct ref_inventory_entry_t * ref_inventory_iter_next( struct ref_invento
 
 struct ref_bases_t;
 
-struct ref_bases_t * make_ref_bases( const struct ref_inventory_t * inventory, 
-                                     const struct ref_inventory_filter_t * filter,
-                                     const tool_ctx_t * tool_ctx );
+struct ref_bases_t * make_ref_bases( const tool_ctx_t * tool_ctx,
+                                     const struct ref_inventory_filter_t * filter );
 void destroy_ref_bases( struct ref_bases_t * self );
 const struct ref_inventory_entry_t * ref_bases_next_ref( struct ref_bases_t * self );
 bool ref_bases_next_chunk( struct ref_bases_t * self, String * dst );
@@ -96,7 +95,7 @@ bool ref_bases_next_chunk( struct ref_bases_t * self, String * dst );
 
 struct ref_printer_t;
 
-struct ref_printer_t * make_ref_printer( uint32_t limit );
+struct ref_printer_t * make_ref_printer( const tool_ctx_t * tool_ctx );
 void destroy_ref_printer( struct ref_printer_t * self );
 bool ref_printer_add( struct ref_printer_t * self, const String * S );
 bool ref_printer_flush( struct ref_printer_t * self, bool all );
@@ -105,7 +104,10 @@ bool ref_printer_flush( struct ref_printer_t * self, bool all );
 
 bool test_ref_inventory( const tool_ctx_t * tool_ctx );
 bool test_ref_inventory_bases( const tool_ctx_t * tool_ctx );
-bool test_ref_inventory_print( const tool_ctx_t * tool_ctx );
+
+/* ------------------------------------------------------------------------------------------------------------- */
+
+bool ref_inventory_print( const tool_ctx_t * tool_ctx );
     
 /* ------------------------------------------------------------------------------------------------------------- */
 

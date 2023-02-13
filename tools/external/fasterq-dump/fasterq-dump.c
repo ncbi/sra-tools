@@ -177,6 +177,12 @@ static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL 
 static const char * fasta_ref_tbl_usage[] = { "produce FASTA output from REFERENCE tbl", NULL };
 #define OPTION_FASTA_REF        "fasta-ref-tbl"
 
+static const char * ref_int_usage[] = { "extract only internal REFERENCEs", NULL };
+#define OPTION_REF_INT          "internal-ref"
+
+static const char * ref_ext_usage[] = { "extract only external REFERENCEs", NULL };
+#define OPTION_REF_EXT          "external-ref"
+
 static const char * seq_defline_usage[] = { "custom defline for sequence: ",
                                             "$ac=accession, $sn=spot-name, ",
                                             "$sg=spot-group, $si=spot-id, ",
@@ -245,7 +251,9 @@ OptDef ToolOptions[] = {
     { OPTION_APPEND,        ALIAS_APPEND,       NULL, append_usage,         1, false,  false },
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
     { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
-    { OPTION_FASTA_REF,     NULL,               NULL, fasta_ref_tbl_usage,  1, false,  false },    
+    { OPTION_FASTA_REF,     NULL,               NULL, fasta_ref_tbl_usage,  1, false,  false },
+    { OPTION_REF_INT,       NULL,               NULL, ref_int_usage,        1, false,  false },
+    { OPTION_REF_EXT,       NULL,               NULL, ref_ext_usage,        1, false,  false },    
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,   false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
@@ -357,6 +365,9 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     fasta         = get_bool_option( args, OPTION_FASTA );
     fasta_us      = get_bool_option( args, OPTION_FASTA_US );
     fasta_ref_tbl = get_bool_option( args, OPTION_FASTA_REF );
+    
+    tool_ctx -> only_internal_refs = get_bool_option( args, OPTION_REF_INT );
+    tool_ctx -> only_external_refs = get_bool_option( args, OPTION_REF_EXT );    
     
     if ( 0 == rc ) {
         if ( split_spot && split_file ) {
@@ -638,13 +649,7 @@ static rc_t process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
 }
 
 static rc_t process_csra_fasta_ref_tbl( const tool_ctx_t * tool_ctx ) {
-    /*
-    bool b = test_ref_inventory( tool_ctx );
-    KOutMsg( "test_ref_inventory : %s\n", b ? "Y" : "N" );
-    b = test_ref_inventory_bases( tool_ctx );
-    KOutMsg( "test_ref_inventory_bases : %s\n", b ? "Y" : "N" ); 
-    */
-    test_ref_inventory_print( tool_ctx );
+    ref_inventory_print( tool_ctx );
     return 0;
 }
 

@@ -50,6 +50,10 @@
 #include <klib/namelist.h>
 #endif
 
+#ifndef _h_file_printer_
+#include "file_printer.h"
+#endif
+
 /* ------------------------------------------------------------------------------------------------------------- */
 
 /* describes one reference */
@@ -503,6 +507,7 @@ const ref_inventory_entry_t * ref_inventory_iter_next( ref_inventory_iter_t * se
 /* ------------------------------------------------------------------------------------------------------------- */
 
 typedef struct ref_bases_t {
+    ref_inventory_t * inventory;
     ref_inventory_iter_t * inventory_iter;
     const ref_inventory_entry_t * entry;
     struct cmn_iter_t * cmn;
@@ -515,6 +520,9 @@ void destroy_ref_bases( ref_bases_t * self ) {
         if ( NULL != self -> inventory_iter ) { 
             destroy_ref_inventory_iter( self -> inventory_iter );
         }
+        if ( NULL != self -> inventory ) {
+            destroy_ref_inventory( self -> inventory );
+        }
         if ( NULL != self -> cmn ) {
             destroy_cmn_iter( self -> cmn );
         }
@@ -523,35 +531,35 @@ void destroy_ref_bases( ref_bases_t * self ) {
 }
 
 /* it consumes the filter! */
-ref_bases_t * make_ref_bases( const ref_inventory_t * inventory, 
-                              const ref_inventory_filter_t * filter,
-                              const tool_ctx_t * tool_ctx ) {
+ref_bases_t * make_ref_bases( const tool_ctx_t * tool_ctx, 
+                              const ref_inventory_filter_t * filter ) {
     ref_bases_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
-        res -> inventory_iter = make_ref_inventory_iter( inventory, filter );
-        if ( NULL == res -> inventory_iter ) {
-            destroy_ref_bases( res );
-            res = NULL;
-        } else {
-            bool populated = tool_ctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) ); 
-            if ( populated ) {
-                rc_t rc = make_cmn_iter( &( res -> iter_params ), "REFERENCE", &( res -> cmn ) );
-                if ( 0 == rc ) {
-                    rc = cmn_iter_add_column( res -> cmn, "READ", &( res -> cur_idx_bases ) );
-                }
-                if ( 0 == rc ) {
-                    rc = cmn_iter_range( res -> cmn, res -> cur_idx_bases );
-                }
-                if ( 0 != rc ) {
-                    destroy_ref_bases( res );                
-                    res = NULL;
-                } else {
-                    res -> entry = NULL;                
-                }
-            } else {
+        bool success = false;
+        res -> entry = NULL;
+        res -> inventory = make_ref_inventory( tool_ctx );
+        if ( NULL != res -> inventory ) {
+            res -> inventory_iter = make_ref_inventory_iter( res -> inventory, filter );
+            if ( NULL == res -> inventory_iter ) {
                 destroy_ref_bases( res );
                 res = NULL;
+            } else {
+                bool populated = tool_ctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) ); 
+                if ( populated ) {
+                    rc_t rc = make_cmn_iter( &( res -> iter_params ), "REFERENCE", &( res -> cmn ) );
+                    if ( 0 == rc ) {
+                        rc = cmn_iter_add_column( res -> cmn, "READ", &( res -> cur_idx_bases ) );
+                    }
+                    if ( 0 == rc ) {
+                        rc = cmn_iter_range( res -> cmn, res -> cur_idx_bases );
+                    }
+                    success = ( 0 == rc );
+                }
             }
+        }
+        if ( !success ) {
+            destroy_ref_bases( res );
+            res = NULL;
         }
     }
     return res;
@@ -589,6 +597,8 @@ bool ref_bases_next_chunk( ref_bases_t * self, String * dst ) {
 
 typedef struct ref_printer_t {
     const String * data;
+    KFile * stdout_file;
+    struct file_printer_t * file_printer;
     uint32_t limit;
 } ref_printer_t;
 
@@ -597,15 +607,43 @@ void destroy_ref_printer( ref_printer_t * self ) {
         if ( NULL != self -> data ) {
             StringWhack ( self -> data );
         }
+        if ( NULL != self -> file_printer ) {
+            destroy_file_printer( self -> file_printer );
+        }
+        if ( NULL != self -> stdout_file ) {
+            KFileRelease( self -> stdout_file );
+        }
         free( ( void * )self );
     }
 }
 
-ref_printer_t * make_ref_printer( uint32_t limit ) {
+ref_printer_t * make_ref_printer( const tool_ctx_t * tool_ctx ) {
     ref_printer_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
-        res -> data = NULL;
-        res -> limit = limit;
+        rc_t rc;
+        res -> data = NULL;     /* we have no data -- yet -- */
+        res -> limit = 70;      /* hardcoded for now - maybe will be in tool_ctx- */
+        res -> stdout_file = NULL;
+        
+        if ( tool_ctx -> use_stdout ) {
+            rc = KFileMakeStdOut( &( res -> stdout_file ) );
+            if ( 0 == rc ) {
+                rc = make_file_printer_from_file( res -> stdout_file,
+                                                &( res -> file_printer ),
+                                                tool_ctx -> buf_size );
+            }
+        } else {
+            rc = make_file_printer_from_filename( tool_ctx -> dir, 
+                                                &( res -> file_printer ),
+                                                tool_ctx -> buf_size,
+                                                1024,
+                                                "%s.ref.fasta",
+                                                tool_ctx -> accession_short );
+        }
+        if ( 0 != rc ) {
+            destroy_ref_printer( res );
+            res = NULL;
+        }
     }
     return res;
 }
@@ -636,13 +674,19 @@ static bool ref_printer_has_data( const ref_printer_t * self ) {
     return res && ( self -> data -> len > 0 );
 }
 
+static void ref_printer_write( ref_printer_t * self, const String * to_write, const String * tmp ) {
+    file_print( self -> file_printer, "%S\n", to_write );
+    StringWhack( self -> data );
+    self -> data = tmp;
+}
+                               
 bool ref_printer_flush( ref_printer_t * self, bool all ) {
     bool res = ( NULL != self );
     if ( res ) {
         while ( ref_printer_has_data( self ) && ( self -> data -> len >= self -> limit ) ) {
             String to_flush;
-            String * to_flush_ptr = StringSubstr( self -> data, &to_flush, 0, self -> limit );
-            if ( NULL == to_flush_ptr ) {
+            String * to_write = StringSubstr( self -> data, &to_flush, 0, self -> limit );
+            if ( NULL == to_write ) {
                 res = false;
                 break;
             } else {
@@ -662,15 +706,11 @@ bool ref_printer_flush( ref_printer_t * self, bool all ) {
                         }
                     }
                 }
-                KOutMsg( "%S\n", to_flush_ptr );
-                StringWhack( self -> data );
-                self -> data = tmp;
+                ref_printer_write( self, to_write, tmp );
             }
         }
         if ( ref_printer_has_data( self ) && all ) {
-            KOutMsg( "%S\n", self -> data );
-            StringWhack( self -> data );
-            self -> data = NULL;
+            ref_printer_write( self, self -> data, NULL );
         }
     }
     return res;
@@ -693,31 +733,29 @@ bool test_ref_inventory( const tool_ctx_t * tool_ctx ) {
 }
 
 bool test_ref_inventory_bases( const tool_ctx_t * tool_ctx ) {
-    struct ref_inventory_t * inventory = make_ref_inventory( tool_ctx );
-    bool res = ( NULL != inventory );
+    ref_bases_t * bases = make_ref_bases( tool_ctx, NULL );
+    bool res = ( NULL != bases );
     if ( res ) {
-        ref_bases_t * bases = make_ref_bases( inventory, NULL, tool_ctx );
-        if ( NULL != bases ) {
-            const ref_inventory_entry_t * entry = ref_bases_next_ref( bases );
-            while ( NULL != entry ) {
-                String s_bases;
-                uint64_t base_cnt = 0;
-                uint32_t chunks = 0;
-                bool has_next = ref_bases_next_chunk( bases, &s_bases );
-                while ( has_next ) {
-                    base_cnt += s_bases . len;
-                    chunks++;
-                    has_next = ref_bases_next_chunk( bases, &s_bases );                        
-                }
-                KOutMsg( "[%S] has %lu bases in %u chunks\n",
-                            ref_inventory_entry_name( entry ), base_cnt, chunks );
-                /* here it goes */
-                entry = ref_bases_next_ref( bases );
+        uint32_t cnt = 0;
+        const ref_inventory_entry_t * entry = ref_bases_next_ref( bases );
+        while ( NULL != entry ) {
+            String s_bases;
+            uint64_t base_cnt = 0;
+            uint32_t chunks = 0;
+            bool has_next = ref_bases_next_chunk( bases, &s_bases );
+            while ( has_next ) {
+                base_cnt += s_bases . len;
+                chunks++;
+                cnt++;
+                has_next = ref_bases_next_chunk( bases, &s_bases );                        
             }
-            destroy_ref_bases( bases );
-            res = true;
+            KOutMsg( "[%S] has %lu bases in %u chunks\n",
+                        ref_inventory_entry_name( entry ), base_cnt, chunks );
+            /* here it goes */
+            entry = ref_bases_next_ref( bases );
         }
-        destroy_ref_inventory( inventory );
+        destroy_ref_bases( bases );
+        res = ( cnt > 0 );
     }
     return res;
 }
@@ -740,19 +778,40 @@ rc_t test_ref_print_defline( ref_printer_t * printer, const ref_inventory_entry_
     return rc;
 }
 
-bool test_ref_print_chunk( ref_printer_t * printer, const String * S ) {
+static bool ref_inventory_print_chunk( ref_printer_t * printer, const String * S ) {
     bool res = ref_printer_add( printer, S );
     if ( res ) { res = ref_printer_flush( printer, false ); }
     return res;
 }
-    
-bool test_ref_inventory_print( const tool_ctx_t * tool_ctx ) {
-    struct ref_inventory_t * inventory = make_ref_inventory( tool_ctx );
-    bool res = ( NULL != inventory );
+
+ref_inventory_location_t location_from_tool_ctx( const tool_ctx_t * tool_ctx ) {
+    ref_inventory_location_t res = ri_all;
+    if ( tool_ctx -> only_external_refs ) {
+        if ( tool_ctx -> only_internal_refs ) {
+            res = ri_all;
+        } else {
+            res = ri_extern;
+        }
+        
+    } else {
+        if ( tool_ctx -> only_internal_refs ) {
+            res = ri_intern;
+        } else {
+            res = ri_all;
+        }
+    }
+    return res;
+}
+
+bool ref_inventory_print( const tool_ctx_t * tool_ctx ) {
+    ref_inventory_location_t location = location_from_tool_ctx( tool_ctx );
+    ref_inventory_filter_t * filter = make_ref_inventory_filter( location );
+    bool res = ( NULL != filter );
     if ( res ) {
-        ref_bases_t * bases = make_ref_bases( inventory, NULL, tool_ctx );
-        if ( NULL != bases ) {
-            ref_printer_t * printer = make_ref_printer( 70 );
+        ref_bases_t * bases = make_ref_bases( tool_ctx, filter );
+        res = ( NULL != bases );
+        if ( res ) {
+            ref_printer_t * printer = make_ref_printer( tool_ctx );
             res = ( NULL != printer );
             if ( res ) {
                 const ref_inventory_entry_t * entry = ref_bases_next_ref( bases );
@@ -766,7 +825,7 @@ bool test_ref_inventory_print( const tool_ctx_t * tool_ctx ) {
                     while ( has_next ) {
                         base_cnt += s_bases . len;
                         chunks++;
-                        /* ===> */ test_ref_print_chunk( printer, &s_bases );
+                        /* ===> */ ref_inventory_print_chunk( printer, &s_bases );
                         has_next = ref_bases_next_chunk( bases, &s_bases );                        
                     }
                     entry = ref_bases_next_ref( bases );
@@ -775,9 +834,8 @@ bool test_ref_inventory_print( const tool_ctx_t * tool_ctx ) {
                 destroy_ref_printer( printer );
             }
             destroy_ref_bases( bases );
-            res = true;
         }
-        destroy_ref_inventory( inventory );
     }
     return res;
 }
+

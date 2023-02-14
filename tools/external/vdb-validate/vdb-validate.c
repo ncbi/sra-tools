@@ -1039,7 +1039,19 @@ static rc_t sra_dbcc_fastq(const vdb_validate_params *pb,
 static rc_t VTable_get_platform(VTable const *tbl,
     INSDC_SRA_platform_id *rslt)
 {
-    rc_t rc;
+    /* VDB-5230 first, make sure the column PLATFORM exists to avoid a scary log message "failed to resolve" from VCursorOpen */
+    KNamelist *names = NULL;
+    rc_t rc = VTableListCol( tbl, & names);
+    if ( rc != 0 )
+    {
+        return rc;
+    }
+    if ( ! KNamelistContains( names, "PLATFORM" ) )
+    {
+        *rslt = SRA_PLATFORM_UNDEFINED;
+        return 0;
+    }
+
     VCursor const *curs;
     INSDC_SRA_platform_id platform = -1;
 

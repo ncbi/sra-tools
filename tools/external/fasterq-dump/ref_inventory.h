@@ -68,9 +68,9 @@ struct ref_inventory_filter_t;
 typedef enum ref_inventory_location_t {
     ri_all, ri_intern, ri_extern } ref_inventory_location_t;
 
-struct ref_inventory_filter_t * make_ref_inventory_filter( ref_inventory_location_t location );
+struct ref_inventory_filter_t * make_ref_inventory_filter( ref_inventory_location_t location,
+                                                           const VNamelist * names );   
 void destroy_ref_inventory_filter( struct ref_inventory_filter_t * self );
-bool add_ref_inventory_filter_name( struct ref_inventory_filter_t * self, const char * name );
 
 /* ------------------------------------------------------------------------------------------------------------- */
 
@@ -90,7 +90,7 @@ struct ref_bases_t * make_ref_bases( const tool_ctx_t * tool_ctx,
 void destroy_ref_bases( struct ref_bases_t * self );
 const struct ref_inventory_entry_t * ref_bases_next_ref( struct ref_bases_t * self );
 bool ref_bases_next_chunk( struct ref_bases_t * self, String * dst );
-    
+
 /* ------------------------------------------------------------------------------------------------------------- */
 
 struct ref_printer_t;
@@ -107,8 +107,9 @@ bool test_ref_inventory_bases( const tool_ctx_t * tool_ctx );
 
 /* ------------------------------------------------------------------------------------------------------------- */
 
-bool ref_inventory_print( const tool_ctx_t * tool_ctx );
-    
+rc_t ref_inventory_print( const tool_ctx_t * tool_ctx );
+rc_t ref_inventory_print_report( const tool_ctx_t * tool_ctx );
+
 /* ------------------------------------------------------------------------------------------------------------- */
 
 #endif

@@ -35,12 +35,17 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_namelist_
+#include <klib/namelist.h>
+#endif
+    
 #include <stdint.h>     /* uint32_t etc. */
 #include <stddef.h>     /* size_t */
 #include <stdbool.h>    /* bool */
     
 struct Args;
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
+rc_t get_list_option( const struct Args *args, const char * name, VNamelist * dst );
 bool get_bool_option( const struct Args *args, const char *name );
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
 uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );

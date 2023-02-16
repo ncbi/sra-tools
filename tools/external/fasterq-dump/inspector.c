@@ -1214,7 +1214,13 @@ static size_t insp_est_out_size_split_spot( const inspector_estimate_input_t * i
 }
 
 static size_t insp_est_out_size_ref_tbl( const inspector_estimate_input_t * input, bool fasta ) {
-    /* size_t res = insp_est_ref_base_count( input );  /* TBD */
+    /* size_t res = insp_est_ref_base_count( input );  TBD */
+    size_t res = 1000000;
+    return res;
+}
+
+static size_t insp_est_out_size_ref_report( const inspector_estimate_input_t * input, bool fasta ) {
+    /* size_t res = insp_est_ref_base_count( input );  TBD */
     size_t res = 1000000;
     return res;
 }
@@ -1232,7 +1238,8 @@ size_t inspector_estimate_output_size( const inspector_estimate_input_t * input 
         case ft_fasta_split_file        : res = insp_est_out_size_split_spot( input, true ); break;
         case ft_fasta_split_3           : res = insp_est_out_size_split_spot( input, true ); break;
         case ft_fasta_us_split_spot     : res = insp_est_out_size_split_spot( input, false ); break;
-        case ft_fasta_ref_tbl           : res = insp_est_out_size_ref_tbl( input, false ); break;        
+        case ft_fasta_ref_tbl           : res = insp_est_out_size_ref_tbl( input, true ); break;
+        case ft_ref_report              : res = insp_est_out_size_ref_report( input, true ); break;
     }
     return res;
 }

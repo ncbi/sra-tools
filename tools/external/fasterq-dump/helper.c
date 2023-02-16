@@ -70,7 +70,7 @@ bool is_format_fasta( format_t fmt ){
         case ft_fasta_split_file : res = true; break;
         case ft_fasta_split_3    : res = true; break;
         case ft_fasta_us_split_spot : res = true; break;
-        case ft_fasta_ref_tbl : res = true; break;        
+        case ft_fasta_ref_tbl : res = true; break;
         default : res = false; break;
     }
     return res;
@@ -87,7 +87,7 @@ static format_t format_cmp( const String * Format, const char * test, format_t t
 
 format_t get_format_t( const char * format,
             bool split_spot, bool split_file, bool split_3, bool whole_spot,
-            bool fasta, bool fasta_us, bool fasta_ref_tbl ) {
+            bool fasta, bool fasta_us, bool fasta_ref_tbl, bool ref_report ) {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] ) {
         /* the format option has been used, try to recognize one of the options,
@@ -130,6 +130,8 @@ format_t get_format_t( const char * format,
             have been used */
         if ( fasta_ref_tbl ) {
             res = ft_fasta_ref_tbl; // this one takes precedence over all others...
+        } else if ( ref_report ) {
+            res = ft_ref_report; // this one too..
         } else {
             if ( split_3 ) {
                 res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
@@ -176,7 +178,7 @@ static const char * FMT_FASTA_UNSORTED      = "FASTA-unsorted split spot";
 static const char * FMT_FASTA_REF_TBL       = "FASTA-ref-table";
 static const char * FMT_FASTA_SPLIT_FILE    = "FASTA split file";
 static const char * FMT_FASTA_SPLIT_3       = "FASTA split 3";
-
+static const char * FMT_REF_REPORT          = "ref-report";
 
 const char * fmt_2_string( format_t fmt ) {
     const char * res = FMT_UNKNOWN;
@@ -192,6 +194,7 @@ const char * fmt_2_string( format_t fmt ) {
         case ft_fasta_ref_tbl       : res = FMT_FASTA_REF_TBL; break;
         case ft_fasta_split_file    : res = FMT_FASTA_SPLIT_FILE; break;
         case ft_fasta_split_3       : res = FMT_FASTA_SPLIT_3; break;
+        case ft_ref_report          : res = FMT_REF_REPORT; break;        
     }
     return res;
 }

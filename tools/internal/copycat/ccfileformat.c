@@ -617,6 +617,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                                 strcpy (mclassbuf, eclassbuf);
                                 strcpy (mtypebuf, etypebuf);
                             }
+/*
                             else
                             {
                                 PLOGMSG (klogErr,
@@ -625,6 +626,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                                 strcpy (mclassbuf, "Unknown");
                                 strcpy (mtypebuf, "Unknown");
                             }
+*/
                         }
 
                         /* now that we've fixed a few cases use the magic derived

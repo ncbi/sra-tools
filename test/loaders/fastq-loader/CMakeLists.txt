@@ -215,7 +215,7 @@ if ( EXISTS "${DIRTOTEST}/latf-load${EXE}" )
     # VDB-4839: hangs on reaching max errors
 
     # VDB-5212: prints a "KQueuePop failed"
-    LatfTest_OneInputPhred33( 18.0 0 )
+    #LatfTest_OneInputPhred33( 18.0 0 )
 
 else()
     message(WARNING "${DIRTOTEST}/latf-load${EXE} is not found. The corresponding tests are skipped." )

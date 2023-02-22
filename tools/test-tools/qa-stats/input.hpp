@@ -64,6 +64,10 @@ struct CIGAR {
             }
         }
 
+        uint32_t hashValue() const {
+            return (uint32_t(length) << 4) | opcode;
+        }
+
         friend std::istream &operator >>(std::istream &is, OP &out);
     };
     std::vector<OP> operations;
@@ -84,6 +88,14 @@ struct CIGAR {
             result += op.referenceLength();
 
         return result;
+    }
+    uint32_t hashValue() const {
+        uint64_t value = 0xcbf29ce484222325ull;
+
+        for (auto op : operations)
+            value = (value ^ op.hashValue()) * 0x100000001b3ull;
+
+        return uint32_t(value) | uint32_t(value >> 32);
     }
 
     friend std::istream &operator >>(std::istream &is, CIGAR &out);

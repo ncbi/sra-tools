@@ -339,7 +339,11 @@ int Input::getReference(std::string const &named) {
     });
 }
 
+#if NDEBUG
+#define REPORT(MSG) do { ((void)(MSG)); } while (0)
+#else
 #define REPORT(MSG) if (!shouldReport(__LINE__)) {} else std::cerr << "info: " << lines << ": " << MSG << std::endl;
+#endif
 
 struct BasicSource: public Input::Source {
     using Read = Input::Read;
@@ -498,9 +502,11 @@ struct BasicSource: public Input::Source {
         notReadType,
         notNumeric_AlignmentID,
         inconsistent,
+        notNumeric_Position,
         notBoolean_RefOrientation,
         invalid_CIGAR,
-        not_Alignment
+        not_Alignment,
+        not_Unaligned
     };
     Input readUnaligned(Delimited const &flds) {
         std::string_view const *group = nullptr;
@@ -511,109 +517,126 @@ struct BasicSource: public Input::Source {
                                  , *aligned;
         } read{};
         auto result = Input{std::string(flds.part[0])};
+        std::vector<int> lengths;
+        std::vector<int> starts;
+        std::vector<RawReadType> types;
+        std::vector<uint64_t> aligned; // some integer values
 
         switch (flds.part.size()) {
         case 6:
             group = &flds.part[5];
+            if (group->empty())
+                group = nullptr;
         case 5:
             read.aligned = &flds.part[4];
+            if (read.aligned->empty())
+                read.aligned = nullptr;
         case 4:
             read.types = &flds.part[3];
+            if (read.types->empty())
+                read.types = nullptr;
         case 3:
             read.starts = &flds.part[2];
+            if (read.starts->empty())
+                read.starts = nullptr;
         case 2:
-            read.lengths = &flds.part[1];
-        case 1:
-            break;
-        }
-
-        if (read.lengths) {
-            int decoded = 0;
-            std::vector<int> lengths;
-            std::vector<int> starts;
-            std::vector<RawReadType> types;
-            std::vector<uint64_t> aligned; // some integer values
+            if (flds.part[1].empty())
+                throw ParseError::not_Unaligned;
 
             try {
-                Delimited(*read.lengths, ',') >> lengths;
-                decoded += 1;
+                Delimited(flds.part[1], ',') >> lengths;
             }
             catch (std::ios_base::failure const &e) {
                 // read lengths are not numeric, so it must be an aligned record
                 (void)(e);
-                throw ParseError::notNumeric_ReadLength;
+                throw ParseError::not_Unaligned;
             }
-            if (decoded > 0 && read.starts) {
+            if (flds.part.size() == 2) {
+                auto total = (int)result.sequence.length();
+
+                for (auto len : lengths)
+                    total -= len;
+
+                if (total != 0)
+                    throw ParseError::not_Unaligned;
+            }
+            if (read.starts) {
+                bool parsed = false;
                 try {
                     Delimited(*read.starts, ',') >> starts;
-                    decoded += 2;
+                    parsed = true;
                 }
                 catch (std::ios_base::failure const &e) {
-                    // the field might contain read types
-                    if (group)
-                        throw ParseError::notNumeric_ReadStart;
+                    ((void)e);
+                }
+                if (parsed && starts.size() != lengths.size())
+                    parsed = false;
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
                     group = read.aligned;
                     read.aligned = read.types;
                     read.types = read.starts;
                     read.starts = nullptr;
-                    (void)(e);
                 }
             }
-            if (decoded > 0 && read.types) {
+            if (read.starts == nullptr) {
+                starts.resize(lengths.size(), 0);
+                for (auto i = 1; i < starts.size(); ++i) {
+                    starts[i] = starts[i - 1] + lengths[i - 1];
+                }
+            }
+            if (read.types) {
+                bool parsed = false;
                 try {
                     Delimited(*read.types, ',') >> types;
-                    decoded += 4;
+                    parsed = true;
                 }
                 catch (std::ios_base::failure const &e) {
-                    if (group)
-                        throw ParseError::notReadType;
+                    ((void)e);
+                }
+                if (parsed && types.size() != lengths.size())
+                    parsed = false;
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
                     group = read.aligned;
                     read.aligned = read.types;
                     read.types = nullptr;
-                    (void)(e);
                 }
             }
-            if (decoded > 0 && read.aligned) {
-                try {
-                    Delimited(*read.aligned, ',') >> aligned;
-                    decoded += 8;
-                }
-                catch (std::ios_base::failure const &e) {
-                    if (group)
-                        throw ParseError::notNumeric_AlignmentID;
-                    group = read.aligned;
-                    read.aligned = nullptr;
-                    (void)(e);
-                }
-            }
-            if (decoded == 0) {
-                // sequence is one biological forward read
-                lengths.push_back((int)result.sequence.size());
-                starts.push_back(0);
-                types.push_back(RawReadType());
-            }
-            if ((decoded & 2) == 0) {
-                // synthesize the values
-                starts.reserve(lengths.size());
-                starts.push_back(0);
-                for (auto len : lengths) {
-                    if (starts.size() == lengths.size())
-                        break;
-                    starts.push_back(starts.back() + len);
-                }
-            }
-            if ((decoded & 4) == 0) {
-                // synthesize the values
+            if (read.types == nullptr) {
                 types.resize(lengths.size(), RawReadType());
             }
-            if ((decoded & 8) == 0) {
-                // synthesize the values
+            if (read.aligned) {
+                bool parsed = false;
+                try {
+                    Delimited(*read.aligned, ',') >> aligned;
+                    parsed = true;
+                }
+                catch (std::ios_base::failure const &e) {
+                    ((void)e);
+                }
+                if (parsed && aligned.size() != lengths.size())
+                    parsed = false;
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
+                    group = read.aligned;
+                    read.aligned = nullptr;
+                }
+            }
+            if (read.aligned == nullptr) {
                 aligned.resize(lengths.size(), 0);
             }
-            if (lengths.size() != starts.size() || lengths.size() != types.size() || lengths.size() != aligned.size())
-                throw ParseError::inconsistent;
-
-            cleanUpSegments(result.sequence, lengths, starts, aligned);
+            else {
+                // assume sequence is from CMP_READ and add missing reads
+                cleanUpSegments(result.sequence, lengths, starts, aligned);
+            }
+            // All read fields have the same count and have been initialized
+            // with either their parsed values or their default values.
+            // All raw fields point to the strings that initialized
+            // the corresponding read fields or are null.
 
             for (auto x : lengths) {
                 if (x < 0 || x > result.sequence.size())
@@ -635,6 +658,10 @@ struct BasicSource: public Input::Source {
                 auto const i = &len - &lengths[0];
                 result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
             }
+        case 1:
+            break;
+        default:
+            throw ParseError::not_Unaligned;
         }
         if (read.aligned) {
             REPORT("Aligned from SEQUENCE");
@@ -645,62 +672,59 @@ struct BasicSource: public Input::Source {
         return result;
     }
     Input readAligned(Delimited const &flds) {
-        struct RawAligned {
-            std::string_view const *reference
-                                 , *position
-                                 , *orientation
-                                 , *cigar;
-        } aligned{};
         Read read{};
         std::string_view const *group = nullptr;
 
+        assert(!flds.part.empty());
         read.start = 0;
         read.length = (int)flds.part[0].length();
         read.type = ReadType::aligned;
 
         switch (flds.part.size()) {
         case 6:
-            group = &flds.part[5];
+            if (!flds.part[5].empty())
+                group = &flds.part[5];
         case 5:
-            aligned.cigar = &flds.part[4];
-        case 4:
-            aligned.orientation = &flds.part[3];
-            aligned.position = &flds.part[2];
-            aligned.reference = &flds.part[1];
-            extract(*aligned.position, read.position);
+            // Parse CIGAR
+            try {
+                extract(flds.part[4], read.cigar);
+            }
+            catch (std::ios_base::failure const &e) {
+                throw ParseError::invalid_CIGAR;
+                ((void)e);
+            }
+            if (read.length != read.cigar.sequenceLength())
+                throw ParseError::invalid_CIGAR;
 
-            read.reference = Input::getReference(std::string(*aligned.reference));
-
-            if (*aligned.orientation == "0" || *aligned.orientation == "false")
+            // Parse REF_ORIENTATION
+            if (flds.part[3] == "0" || flds.part[3] == "false" || flds.part[3] == "False")
                 read.orientation = ReadOrientation::forward;
-            else if (*aligned.orientation == "1" || *aligned.orientation == "true")
+            else if (flds.part[3] == "1" || flds.part[3] == "true" || flds.part[3] == "True")
                 read.orientation = ReadOrientation::reverse;
             else
-                throw std::ios_base::failure("Invalid input");
+                throw ParseError::notBoolean_RefOrientation;
 
-            if (aligned.cigar) {
-                try {
-                    extract(*aligned.cigar, read.cigar);
-                    if (read.length != read.cigar.sequenceLength())
-                        throw std::ios_base::failure("Invalid CIGAR");
-                }
-                catch (std::ios_base::failure const &e) {
-                    if (group)
-                        throw std::ios_base::failure("Invalid input");
-                    group = aligned.cigar;
-                    aligned.cigar = nullptr;
-                }
+            // Parse REF_POS
+            try {
+                extract(flds.part[2], read.position);
+            }
+            catch (std::ios_base::failure const &e) {
+                throw ParseError::notNumeric_Position;
+                ((void)e);
+            }
+
+            read.reference = Input::getReference(std::string(flds.part[1]));
+            {
+                Input result{std::string(flds.part[0]), {read}};
+                if (group)
+                    result.group = Input::getGroup(std::string(*group));
+
+                REPORT("Alignment");
+                return result;
             }
         default:
-            break;
+            throw ParseError::not_Alignment;
         }
-
-        Input result{std::string(flds.part[0]), {read}};
-        if (group)
-            result.group = Input::getGroup(std::string(*group));
-
-        REPORT("Alignment");
-        return result;
     }
     Input readSAM(Delimited const &flds) {
         Input result{};
@@ -840,6 +864,23 @@ struct BasicSource: public Input::Source {
                 result = readSAM(flds);
                 goto DONE;
             }
+            if (flds.part.size() == 5 || flds.part.size() == 6) {
+                // standard records from make-input.sh
+                try {
+                    result = readAligned(flds);
+                    goto DONE;
+                }
+                catch (ParseError const &e) {
+                    ((void)e);
+                }
+                try {
+                    result = readUnaligned(flds);
+                    goto DONE;
+                }
+                catch (ParseError const &e) {
+                    ((void)e);
+                }
+            }
             if (flds.part.size() == 1) {
                 result = Input{std::string(flds.part[0]), {{0, int(flds.part[0].size())}}};
                 goto DONE;
@@ -857,6 +898,11 @@ struct BasicSource: public Input::Source {
             }
             catch (ParseError const &e) {
                 ((void)e);
+            }
+            if (flds.part.size() == 2) {
+                result = Input{std::string(flds.part[0]), {{0, int(flds.part[0].size())}}};
+                result.group = result.getGroup(std::string(flds.part.back()));
+                goto DONE;
             }
             std::cerr << lines << ": warning: unparsable input\n" << line << std::endl;
         }

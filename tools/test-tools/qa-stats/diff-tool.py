@@ -3,6 +3,11 @@ import sys
 import json
 from argparse import ArgumentParser
 
+assumeMissingIsEqual = False
+''' Require given values to be equal, and missing nodes are assumed to be equal.
+    This allows a reduced set of statistics to be compared to a complete set.
+'''
+
 diffs = []
 ''' Accumulates any observed differences. Gets printed at the end. '''
 
@@ -14,7 +19,22 @@ def recordDiffers(orig, cmpr, path):
             return
     except IndexError:
         pass
-    diffs.append({'path': path, 'type': 'differ'})
+    diffs.append({'path': path, 'expected': orig, 'found': cmpr})
+
+
+def compareFloat(a, b):
+    """ Do two floats differ by more than ~1 part per 10^5 """
+    if a > b:
+        return compareFloat(b, a)
+    if a < 0.0:
+        return compareFloat(-b, -a) if b < 0.0 else False
+    while a > 1.0 and b > 1.0:
+        a /= 2.0;
+        b /= 2.0;
+    while a < 0.5 and b < 0.5:
+        a *= 2.0;
+        b *= 2.0;
+    return (b - a) * 131072.0 < 1.0
 
 
 def ignoreMissing(node, path):
@@ -81,7 +101,7 @@ def ignoreMissing(node, path):
 
 def recordMissing(source, node, path):
     ''' Record a difference in structure. '''
-    if ignoreMissing(node, path):
+    if (source == 'original' and assumeMissingIsEqual) or ignoreMissing(node, path):
         return
     diffs.append({'path': path, 'type': f'missing from {source}'})
 
@@ -89,13 +109,23 @@ def recordMissing(source, node, path):
 id_getter = {
     'bases': lambda x: x['base'],
     'spots': lambda x: x['nreads'],
-    'A|T': lambda x: x['distance'],
-    'C|G': lambda x: x['distance'],
+    'spectra': lambda x: x['wavelength'],
+    'spot-layouts': lambda x: x['descriptor'],
     'references': lambda x: x['name'],
     'chunks': lambda x: x['start'],
     'groups': lambda x: x['group'],
 }
 ''' Lambdas to get the identifying fields from a record in an array; keyed by the name of the array. '''
+
+
+def idGetter(path):
+    ''' Returns a lambda that extracts the primary key from the objects in a list. '''
+    for key in reversed(path):
+        try:
+            return id_getter[key]
+        except KeyError:
+            pass
+    raise KeyError
 
 
 def compareStats(snode, cnode, path = []):
@@ -108,7 +138,7 @@ def compareStats(snode, cnode, path = []):
         '''
 
         try:
-            getID = id_getter[path[-1]]
+            getID = idGetter(path)
             if len(snode) == len(cnode):
                 sameOrder = True
                 for i,s in enumerate(snode):
@@ -170,6 +200,7 @@ def compareStats(snode, cnode, path = []):
 
         return True
 
+
     # try to compare as keyed
     if compareKeyed():
         return
@@ -183,6 +214,8 @@ def compareStats(snode, cnode, path = []):
         # try to compare as values
         if snode == cnode:
             return
+        if path[-1] == "power" and compareFloat(snode, cnode):
+            return
         recordDiffers(snode, cnode, path)
     except:
         # Give up! With JSON data, this should not be reachable.
@@ -191,10 +224,14 @@ def compareStats(snode, cnode, path = []):
 
 def main():
     parser = ArgumentParser()
+    parser.add_argument("--ignoreMissing", action='store_true', default=False, help="If set, assumes values not in source are equal.")
     parser.add_argument("source", help="The file containing the stats for the original.")
     parser.add_argument("compare", help="The file containing the stats to be compared against the original.")
 
     args = parser.parse_args()
+    if args.ignoreMissing:
+        global assumeMissingIsEqual
+        assumeMissingIsEqual = True
 
     with open(args.source) as f:
         source = json.load(f)

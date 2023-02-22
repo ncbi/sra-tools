@@ -22,10 +22,8 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="test/test-tools/qa-stat" )
-
 if( NOT WIN32 )
     add_test( NAME Test_qa-stat
-            COMMAND runtests.sh "${DIRTOTEST}"
+            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stat"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

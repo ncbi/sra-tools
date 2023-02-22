@@ -29,7 +29,7 @@
 #include <klib/printf.h> /* string_printf */
 
 #include <assert.h>
-#include <limits.h> /* PATH_MAX */
+#include <linux/limits.h> /* PATH_MAX */
 #include <stdlib.h> /* getenv */
 
 static int size_of(const char **array) {

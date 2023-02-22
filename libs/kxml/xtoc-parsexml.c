@@ -42,6 +42,8 @@
 #include <string.h> /* memset */
 #include <time.h>      /* timegm */
 #include <os-native.h> /* timegm */
+extern time_t timegm(struct tm *tm);
+extern struct tm *gmtime_r(const time_t *timep, struct tm *result);
 
 typedef struct KFile KFile;
 
@@ -199,7 +201,7 @@ rc_t CC StrToKTime(const char* str, KTime_t* t)
                 , gmt . tm_min
                 , gmt . tm_sec
             );
-            
+
             OUTMSG((">> %s\n", str));
             OUTMSG(("<< %s\n", buffer));
         }
@@ -269,7 +271,7 @@ static rc_t CC NodeDataReadAttribs(NodeData* data, const KXMLNode* node,
                     "while calling KXMLNodeReadAttrAsU64($(name)/@$(attr))",
                     "name=%s,attr=%s", data->nodeName, attr));
             }*/
-        if (DEBUG_PRINT) 
+        if (DEBUG_PRINT)
         {
             OUTMSG(("%s=\"%lu\" ", attr, data->iSize));
             OUTMSG(("%s=\"%lu\" ", attr, data->iOffset));
@@ -379,13 +381,13 @@ rc_t CC NodeDataAddToXToc(NodeData* data,
         case eArchive:
             *isContainer = true;
             rc = XTocTreeAddArchive(xSelf, xEntry, xContainer,
-                data->name, data->tMtime, data->id, 
+                data->name, data->tMtime, data->id,
                 data->filetype, data->iSize, data->iOffset, data->digest);
             break;
         case eContainer:
             *isContainer = true;
             rc = XTocTreeAddContainer(xSelf, xEntry, xContainer,
-                data->name, data->tMtime, data->id, 
+                data->name, data->tMtime, data->id,
                 data->filetype, data->iSize, data->iOffset, data->digest);
             break;
         case eDirectory:
@@ -394,7 +396,7 @@ rc_t CC NodeDataAddToXToc(NodeData* data,
             break;
         case eFile:
             rc = XTocTreeAddFile(xSelf, xEntry, xContainer,
-                data->name, data->tMtime,  data->id, 
+                data->name, data->tMtime,  data->id,
                 data->filetype, data->iSize, data->iOffset, data->digest);
             break;
         case eSymlink:

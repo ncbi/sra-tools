@@ -90,7 +90,7 @@ that have alignments, but it is not necessary to include the aligned bases in
 their sequence records (they are ignored).
 (And thus you can use `CMP_READ` for a big performance gain.)
 
-Additionally, `qa-stats` accepts SAM inputs. FASTQ is partially supported.
+Additionally, `qa-stats` accepts FASTQ and SAM inputs, but still a work-in-progress.
 
 ## Format of the statistics file.
 

@@ -90,6 +90,10 @@ def ignoreMissing(node, path):
         if path[-3] == 'distances': # missing element of a distances/* array
             if node['count'] == 0:
                 return True
+
+        if path[-3] == 'spots':
+            if node == 0:
+                return True
     except KeyError:
         pass
     except IndexError:

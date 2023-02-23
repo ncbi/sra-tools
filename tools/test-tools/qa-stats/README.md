@@ -109,8 +109,10 @@ member is highlighted. The top level is an object containing:
   - `spots`, an array of objects containing:
     - **`nreads`**: the number of reads in the spot.
     - `total`: the number of spots.
-    - `biological`: the number of spots with a biological read.
-    - `technical`: the number of spots with a technical read.
+    - `biological`: the number of spots with some biological reads.
+    - `no-biological`: the number of spots with no biological reads.
+    - `technical`: the number of spots with some technical reads.
+    - `no-technical`: the number of spots with no technical reads.
   - `spot-layouts`, array of objects containing:
     - **`descriptor`**: a string describing the spot layout (`<length><B|T><F|R>...`).
     - `count`: the number of spots with this layout.

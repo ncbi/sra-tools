@@ -424,7 +424,7 @@ struct CountBTN {
     }
     friend JSON_ostream &operator <<(JSON_ostream &out, CountBTN const &value) {
         return out
-            << JSON_Member{"count"} << value.total
+            << JSON_Member{"total"} << value.total
             << JSON_Member{"biological"} << value.biological
             << JSON_Member{"no-biological"} << value.nobiological
             << JSON_Member{"technical"} << value.technical
@@ -452,7 +452,7 @@ struct Stats {
     DistanceStats spectra;
     ReferenceStats references;
 
-    void record(SpotLayout const &desc) {
+    void record(SpotLayout const &desc, Stats *group = nullptr) {
         reads.biological += desc.biological;
         reads.technical += desc.technical;
         reads.total += desc.nreads;
@@ -460,8 +460,11 @@ struct Stats {
         spots[desc.nreads] += desc;
 
         layouts[desc] += 1;
+
+        if (group)
+            group->record(desc);
     }
-    void record(std::string_view const &seq, Input::ReadType type) {
+    void record(std::string_view const &seq, Input::ReadType type, Stats *group = nullptr) {
         auto const bio = type == Input::ReadType::biological || type == Input::ReadType::aligned;
         unsigned pos = 0;
 
@@ -470,17 +473,22 @@ struct Stats {
             spectra.record(ch, pos++);
         }
         spectra.reset();
+
+        if (group)
+            group->record(seq, type);
     }
-    void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
+    void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar, Stats *group = nullptr) {
         references.record(refId, position, strand, sequence, cigar);
+        if (group)
+            group->record(refId, position, strand, sequence, cigar);
     }
 
     friend JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-        out << JSON_Member{"reads"}        << '{' << self.reads << '}';
-        out << JSON_Member{"bases"}        << '[' << self.bases << ']';
-        out << JSON_Member{"spots"}        << '[' << self.spots << ']';
-        out << JSON_Member{"spot-layouts"} << '[' << self.layouts << ']';
-        out << JSON_Member{"spectra"}      << '{' << self.spectra << '}';
+        out << JSON_Member{"reads"}        << '{' << self.reads      << '}';
+        out << JSON_Member{"bases"}        << '[' << self.bases      << ']';
+        out << JSON_Member{"spots"}        << '[' << self.spots      << ']';
+        out << JSON_Member{"spot-layouts"} << '[' << self.layouts    << ']';
+        out << JSON_Member{"spectra"}      << '{' << self.spectra    << '}';
         out << JSON_Member{"references"}   << '[' << self.references << ']';
 
         return out;
@@ -641,21 +649,16 @@ private:
                     }
                     auto const seq = spot.sequence.substr(read.start, read.length);
 
-                    stats.record(seq, read.type);
-                    if (group)
-                        group->record(seq, read.type);
+                    stats.record(seq, read.type, group);
                     if (read.type == Input::ReadType::aligned) {
-                        stats.record(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
-                        if (group)
-                            group->record(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
+                        int const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                        stats.record(read.reference, read.position, strand, seq, read.cigar, group);
                         ++naligned;
                     }
                 }
                 if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
                     auto const &layout = SpotLayout(spot);
-                    stats.record(layout);
-                    if (group)
-                        group->record(layout);
+                    stats.record(layout, group);
                 }
                 reporter.update(++processed);
             }
@@ -689,9 +692,10 @@ private:
 };
 
 int main(int argc, char * argv[]) {
+/*
     Input::runTests();
     SeqHash::test();
-    
+ */
     auto app = App(argc, argv);
 
     return app.run();

@@ -22,8 +22,9 @@
 #
 # ===========================================================================
 
-if( NOT WIN32 )
-    add_test( NAME Test_qa-stat
-            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endif()
+TOP ?= $(abspath ../../..)
+MODULE = tools/test-tools/qa-stats
+
+BUILD_TOOLS_TEST_TOOLS = ON
+
+include $(TOP)/build/Makefile.env

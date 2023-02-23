@@ -22,8 +22,4 @@
 #
 # ===========================================================================
 
-if( NOT WIN32 )
-    add_test( NAME Test_qa-stat
-            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endif()
+add_subdirectory( qa-stats )

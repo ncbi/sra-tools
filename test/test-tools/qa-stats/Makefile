@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -22,8 +22,9 @@
 #
 # ===========================================================================
 
-if( NOT WIN32 )
-    add_test( NAME Test_qa-stat
-            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endif()
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/qa-stats
+
+include $(TOP)/build/Makefile.env

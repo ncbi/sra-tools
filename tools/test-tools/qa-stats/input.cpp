@@ -339,7 +339,7 @@ int Input::getReference(std::string const &named) {
     });
 }
 
-#if NDEBUG
+#if NDEBUG || 1
 #define REPORT(MSG) do { ((void)(MSG)); } while (0)
 #else
 #define REPORT(MSG) if (!shouldReport(__LINE__)) {} else std::cerr << "info: " << lines << ": " << MSG << std::endl;

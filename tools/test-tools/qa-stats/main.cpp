@@ -47,145 +47,37 @@ JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
     return s.insert(HashResult64::to_hex(v.value, buffer));
 }
 
-struct Event {
-    unsigned
-        spot: 1,
-        bio: 1,
-        tech: 1,
-        read: 1,
-        base: 1, /// not one of ACGT
-        A: 1, C: 1, G: 1, T: 1;
-
-    /// is a **w**eakly bound base, i.e. A or T
-    bool isaW() const {
-        return (A != 0 || T != 0);
-    }
-    /// is a a**m**ino base, i.e. A or C
-    bool isaM() const {
-        return (A != 0 || C != 0);
-    }
-    /// is a **s**trongly bound base, i.e. C or G
-    bool isaS() const {
-        return (C != 0 || G != 0);
-    }
-    /// is a **k**etone base, i.e. G or T
-    bool isaK() const {
-        return (G != 0 || T != 0);
-    }
-    /// Is one of `self` or `other` a **s**trongly bound base and the other a **w**eakly bound base.
-    bool isSW(Event const &other) const {
-        return (isaS() && other.isaW()) || (isaW() && other.isaS());
-    }
-    /// Is one of `self` or `other` a **k**ketone base and the other an a**m**ine base.
-    bool isKM(Event const &other) const {
-        return (isaK() && other.isaM()) || (isaM() && other.isaK());
-    }
-    bool isaACGT() const {
-        return (A != 0 || C != 0 || G != 0 || T != 0);
-    }
-    char baseValue() const {
-        return A != 0 ? 'A' : C != 0 ? 'C' : G != 0 ? 'G' : T != 0 ? 'T' : base ? 'N' : 0;
-    }
-    int base4na() const {
-        return (A ? 1 : 0) | (C ? 2 : 0) | (G ? 4 : 0) | (T ? 8 : 0) | (base ? 0x0F : 0);
-    }
-    int base2na() const {
-        switch (base4na()) {
-        case 0:
-            return -1;
-        case 1:
-            return 0;
-        case 2:
-            return 1;
-        case 4:
-            return 2;
-        case 8:
-            return 3;
-        default:
-            return 4;
-        }
-    }
-    int index() const {
-        auto result = base2na();
-        if (result >= 0 && (bio || tech))
-            result = (result << 1) | tech;
-        return result;
-    }
-    char const *type() const {
-        if (bio) return "biological";
-        if (tech) return "technical";
-        return "unknown";
-    }
-    bool operator <(Event const &other) const {
-        return *reinterpret_cast<unsigned const *>(this) < reinterpret_cast<unsigned const &>(other);
-    }
-    friend std::ostream &operator <<(std::ostream &os, Event const &that) {
-        return os << reinterpret_cast<unsigned const &>(that);
-    }
-    static constexpr Event startSpot() {
-        Event e = {};
-        e.spot = 1;
-        return e;
-    }
-    static constexpr Event make(bool isBio, bool isTech) {
-        Event e = {};
-        if (isBio)
-            e.bio = 1;
-        if (isTech)
-            e.tech = 1;
-        return e;
-    }
-    static constexpr Event startRead(bool isBio = false, bool isTech = false) {
-        Event e = make(isBio, isTech);
-        e.read = 1;
-        // std::cout << "startRead: " << e << std::endl;
-        return e;
-    }
-    static constexpr Event makeBase(char base, bool isBio = false, bool isTech = false) {
-        Event e = make(isBio, isTech);
-        switch (base) {
-        case 'A': e.A = 1; break;
-        case 'C': e.C = 1; break;
-        case 'G': e.G = 1; break;
-        case 'T': e.T = 1; break;
-        default:
-            e.base = 1; break;
-        }
-        // std::cout << "makeBase: " << e << std::endl;
-        return e;
-    }
-    operator bool() const { return *reinterpret_cast<unsigned const *>(this) != 0; }
-};
-
-struct Count {
+struct CountBT {
     uint64_t total, biological, technical;
-    Count() : total(0), biological(0), technical(0) {}
+    CountBT() : total(0), biological(0), technical(0) {}
 
-    Count &operator +=(Count const &addend) {
+    CountBT &operator +=(CountBT const &addend) {
         total += addend.total;
         biological += addend.biological;
         technical += addend.technical;
         return *this;
     }
+    friend JSON_ostream &operator <<(JSON_ostream &out, CountBT const &value) {
+        return out
+            << JSON_Member{"count"} << value.total
+            << JSON_Member{"biological"} << value.biological
+            << JSON_Member{"technical"} << value.technical;
+    }
 };
 
-struct SpotStats : public std::map<unsigned, Count> {
-    char const *label;
-
-    SpotStats(char const *lbl)
-    : label(lbl)
-    {}
-
-    friend JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &stats) {
-        for (auto &[k, v] : stats) {
-            out << '{'
-                << JSON_Member{stats.label} << k
-                << JSON_Member{"total"} << v.total
-                << JSON_Member{"biological"} << v.biological
-                << JSON_Member{"technical"} << v.technical
-            << '}';
-        }
-        return out;
+struct CountFR : public CountBT {
+    void addStrand(bool rev) {
+        total += 1;
+        if (rev)
+            technical += 1;
+        else
+            biological += 1;
+    }
+    friend JSON_ostream &operator <<(JSON_ostream &out, CountFR const &value) {
+        return out
+            << JSON_Member{"total"} << value.total
+            << JSON_Member{"5'"} << value.biological
+            << JSON_Member{"3'"} << value.technical;
     }
 };
 
@@ -254,12 +146,13 @@ struct DistanceStats {
     struct DistanceStat {
         unsigned last = 0, n = 0;
         std::vector<unsigned> counts;
+        using Index = decltype(counts)::size_type;
 
         operator bool() const { return !counts.empty(); }
         void reset() {
             n = 0;
         }
-        void accumulate(unsigned position) {
+        void record(unsigned position) {
             if (n > 0 && position > last) {
                 auto index = (position - last) - 1;
                 if (counts.size() <= index)
@@ -269,16 +162,17 @@ struct DistanceStats {
             last = position;
             ++n;
         }
-        unsigned operator[](decltype(counts)::size_type index) const {
+        unsigned operator[](Index index) const {
             return index < counts.size() ? counts[index] : 0;
         }
+        /// Used for already binned stats, like K-M and S-W.
         static void print(JSON_ostream &out, DistanceStat const &self) {
             auto const n = self.counts.size();
             uint64_t total = 0;
-            for (auto i = decltype(counts)::size_type(0); i < n; ++i) {
+            for (auto i = Index(0); i < n; ++i) {
                 total += self[i];
             }
-            for (auto i = decltype(counts)::size_type(0); i < n; ++i) {
+            for (auto i = Index(0); i < n; ++i) {
                 auto const sum = self[i];
                 if (sum == 0) continue;
 
@@ -288,13 +182,14 @@ struct DistanceStats {
                 << '}';
             }
         }
+        /// Used for base-to-base stats, bins complementary pairs.
         static void print(JSON_ostream &out, DistanceStat const &self, DistanceStat const &complement) {
             auto const n = std::max(self.counts.size(), complement.counts.size());
             uint64_t total = 0;
-            for (auto i = decltype(counts)::size_type(0); i < n; ++i) {
+            for (auto i = Index(0); i < n; ++i) {
                 total += self[i] + complement[i];
             }
-            for (auto i = decltype(counts)::size_type(0); i < n; ++i) {
+            for (auto i = Index(0); i < n; ++i) {
                 auto const sum = self[i] + complement[i];
                 if (sum == 0) continue;
 
@@ -306,9 +201,27 @@ struct DistanceStats {
         }
     };
     DistanceStat A, C, G, T, SW, KM;
-    Event last = {};
+    char last = 0;
     int maxpos = -1;
 
+    bool isS2W(char base) {
+        return (last == 'C' || last == 'G') && (base == 'A' || base == 'T');
+    }
+    bool isW2S(char base) {
+        return (last == 'A' || last == 'T') && (base == 'C' || base == 'G');
+    }
+    bool isSW(char base) {
+        return isS2W(base) || isW2S(base);
+    }
+    bool isK2M(char base) {
+        return (last == 'G' || last == 'T') && (base == 'A' || base == 'C');
+    }
+    bool isM2K(char base) {
+        return (last == 'A' || last == 'C') && (base == 'G' || base == 'T');
+    }
+    bool isKM(char base) {
+        return isK2M(base) || isM2K(base);
+    }
     operator bool() const {
         return A || C || G || T || SW || KM;
     }
@@ -319,10 +232,10 @@ struct DistanceStats {
         T.reset();
         SW.reset();
         KM.reset();
-        last = {};
+        last = 0;
         maxpos = -1;
     }
-    void accumulate(char base, int pos) {
+    void record(char base, int pos) {
         if (pos < 0) {
             reset();
             return;
@@ -333,27 +246,26 @@ struct DistanceStats {
 
         switch (base) {
         case 'A':
-            A.accumulate(pos);
+            A.record(pos);
             break;
         case 'C':
-            C.accumulate(pos);
+            C.record(pos);
             break;
         case 'G':
-            G.accumulate(pos);
+            G.record(pos);
             break;
         case 'T':
-            T.accumulate(pos);
+            T.record(pos);
             break;
         default:
             reset();
             return;
         }
-        auto const next = Event::makeBase(base);
-        if (last.isSW(next))
-            SW.accumulate(pos);
-        if (last.isKM(next))
-            KM.accumulate(pos);
-        last = next;
+        if (isSW(base))
+            SW.record(pos);
+        if (isKM(base))
+            KM.record(pos);
+        last = base;
     }
 
     friend JSON_ostream &operator <<(JSON_ostream &out, DistanceStats const &distance) {
@@ -375,15 +287,15 @@ struct DistanceStats {
     }
 };
 
-struct ReferenceStats : public std::vector<std::vector<Count>> {
+struct ReferenceStats : public std::vector<std::vector<CountFR>> {
     static constexpr int chunkSize = (1 << 14);
 
-    void accumulate(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
+    void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
         auto const ps = (uint64_t(position) << 1) | (strand & 1);
 
         while (refId >= size()) {
-            auto value = std::vector<Count>();
-            value.push_back(Count());
+            auto value = std::vector<CountFR>();
+            value.push_back(CountFR());
             push_back(value);
         }
         auto &reference = (*this)[refId];
@@ -391,15 +303,9 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
             auto const chunk = 1 + position / chunkSize;
 
             while (chunk >= reference.size())
-                reference.push_back(Count{});
+                reference.push_back(CountFR{});
 
-            auto &counter = reference[chunk];
-
-            counter.total += 1;
-            if (strand == 0)
-                counter.biological += 1;
-            if (strand == 1)
-                counter.technical += 1;
+            reference[chunk].addStrand(strand != 0);
 
             if (reference[0].total == 0)
                 reference[0].total = 0xcbf29ce484222325ull % 0x1000001b3ull;
@@ -412,7 +318,7 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
         for (auto &reference : self) {
             auto const refId = &reference - &self[0];
             auto const refName = Input::references[refId];
-            Count total;
+            CountFR total;
             auto const &posHash = reference[0].total;
             auto const &seqHash = reference[0].biological;
             auto const &cigHash = reference[0].technical;
@@ -430,19 +336,11 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
                 << '{'
                     << JSON_Member{"start"} << chunk * chunkSize + 1
                     << JSON_Member{"last"} << (chunk + 1) * chunkSize
-                    << JSON_Member{"alignments"} << '{'
-                        << JSON_Member{"total"} << counter.total
-                        << JSON_Member{"5'"} << counter.biological
-                        << JSON_Member{"3'"} << counter.technical
-                    << '}'
+                    << JSON_Member{"alignments"} << '{' << counter << '}'
                 << '}';
             }
             out << ']'
-            << JSON_Member{"alignments"} << '{'
-                << JSON_Member{"total"} << total.total
-                << JSON_Member{"5'"} << total.biological
-                << JSON_Member{"3'"} << total.technical
-            << '}'
+            << JSON_Member{"alignments"} << '{' << total << '}'
             << JSON_Member{"position"} << HashResult64{posHash}
             << JSON_Member{"sequence"} << HashResult64{seqHash}
             << JSON_Member{"cigar"} << HashResult64{cigHash}
@@ -453,13 +351,16 @@ struct ReferenceStats : public std::vector<std::vector<Count>> {
 };
 
 struct SpotLayout : public std::string {
-    Count numreads;
-    SpotLayout(Input const &spot) {
+    unsigned nreads, biological, technical;
+
+    SpotLayout(Input const &spot)
+    : nreads(0), biological(0), technical(0)
+    {
         for (auto & read : spot.reads) {
             std::string desc = std::to_string(read.length);
             char bt = '.', fr = '.';
             if (read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned) {
-                numreads.biological += 1;
+                biological += 1;
                 bt = 'B';
 
                 if (read.orientation == Input::ReadOrientation::forward)
@@ -468,37 +369,38 @@ struct SpotLayout : public std::string {
                     fr = 'R';
             }
             else if (read.type == Input::ReadType::technical) {
-                numreads.technical += 1;
+                technical += 1;
                 bt = 'T';
             }
 
             desc += char(bt);
             desc += char(fr);
 
-            numreads.total += 1;
+            nreads += 1;
             append(desc);
         }
     }
 };
 
 struct SpotLayouts {
+    using Key = std::string;
     std::vector<uint64_t> count;
-    std::map<std::string, unsigned> index;
+    std::map<Key, unsigned> index;
 
-    uint64_t &operator [](SpotLayout const &layout) {
-        auto const at = index.find(layout);
+    uint64_t &operator [](Key const &key) {
+        auto const at = index.find(key);
         if (at != index.end())
             return count[at->second];
 
         auto const i = (unsigned)count.size();
         count.push_back(0);
-        index[layout] = i;
+        index[key] = i;
         return count[i];
     }
     friend JSON_ostream &operator <<(JSON_ostream &out, SpotLayouts const &value) {
         for (auto i = value.index.begin(); i != value.index.end(); ++i) {
-            auto desc = i->first;
-            auto count = value.count[i->second];
+            auto const &desc = i->first;
+            auto const &count = value.count[i->second];
             out << '{'
                 << JSON_Member{"descriptor"} << desc
                 << JSON_Member{"count"} << count
@@ -508,79 +410,78 @@ struct SpotLayouts {
     }
 };
 
-struct Stats {
-    Count reads; // read counts
-    SpotStats spots; // spot counts by number of reads
-    BaseStats event;
-    SpotLayouts layouts;
+struct CountBTN {
+    uint64_t total = 0, biological = 0, technical = 0, nobiological = 0, notechnical = 0;
 
-    DistanceStats distance;
-    ReferenceStats reference;
+    CountBTN &operator +=(SpotLayout const &layout) {
+        auto &bio = layout.biological == 0 ? nobiological : biological;
+        auto &tech = layout.technical == 0 ? notechnical : technical;
 
-    Stats()
-    : spots("nreads")
-    {}
-
-    void accumulate(char base, bool tech, int32_t readpos) {
-        event[BaseStats::Index(base, tech)] += 1;
-        distance.accumulate(base, readpos);
+        total += 1;
+        bio += 1;
+        tech += 1;
+        return *this;
     }
-    void accumulateOneSpot(SpotLayout const &desc) {
-        auto const nreads_bio = desc.numreads.biological;
-        auto const nreads_tech = desc.numreads.technical;
-        auto const nreads = desc.numreads.total;
+    friend JSON_ostream &operator <<(JSON_ostream &out, CountBTN const &value) {
+        return out
+            << JSON_Member{"count"} << value.total
+            << JSON_Member{"biological"} << value.biological
+            << JSON_Member{"no-biological"} << value.nobiological
+            << JSON_Member{"technical"} << value.technical
+            << JSON_Member{"no-technical"} << value.notechnical;
+    }
+};
 
-        if (nreads_bio) {
-            spots[(unsigned)nreads_bio].biological += 1;
-            reads.biological += nreads_bio;
+struct SpotStats : public std::map<unsigned, CountBTN> {
+    friend JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &stats) {
+        for (auto &[k, v] : stats) {
+            out << '{'
+                << JSON_Member{"nreads"} << k
+                << v
+            << '}';
         }
-        if (nreads_tech) {
-            spots[(unsigned)nreads_tech].technical += 1;
-            reads.technical += nreads_tech;
-        }
-        if (nreads) {
-            spots[(unsigned)nreads].total += 1;
-            reads.total += nreads;
-        }
+        return out;
+    }
+};
+
+struct Stats {
+    CountBT reads; // read counts
+    SpotStats spots; // spot counts by number of reads
+    BaseStats bases;
+    SpotLayouts layouts;
+    DistanceStats spectra;
+    ReferenceStats references;
+
+    void record(SpotLayout const &desc) {
+        reads.biological += desc.biological;
+        reads.technical += desc.technical;
+        reads.total += desc.nreads;
+
+        spots[desc.nreads] += desc;
+
         layouts[desc] += 1;
     }
-    void accumulateOneRead(std::string_view const &seq, Input::ReadType type) {
+    void record(std::string_view const &seq, Input::ReadType type) {
         auto const bio = type == Input::ReadType::biological || type == Input::ReadType::aligned;
-        auto const tech = type == Input::ReadType::technical;
         unsigned pos = 0;
-        auto const hash = SeqHash::hash(seq.size(), seq.data());
 
-        distance.reset();
         for (auto && ch : seq) {
-            accumulate(ch, !bio, pos++);
+            bases[BaseStats::Index(ch, !bio)] += 1;
+            spectra.record(ch, pos++);
         }
+        spectra.reset();
     }
-    void accumulateOneAlignment(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
-        reference.accumulate(refId, position, strand, sequence, cigar);
+    void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
+        references.record(refId, position, strand, sequence, cigar);
     }
-    struct ReadsInfo {
-        decltype(Stats::reads) const &reads;
-
-        ReadsInfo(Stats const &stats)
-        : reads(stats.reads)
-        {}
-
-        friend JSON_ostream &operator <<(JSON_ostream &out, ReadsInfo const &self) {
-            out << JSON_Member{"count"} << self.reads.total
-                << JSON_Member{"biological"} << self.reads.biological
-                << JSON_Member{"technical"} << self.reads.technical;
-            return out;
-        }
-    };
-    ReadsInfo readsInfo() const { return ReadsInfo(*this); }
 
     friend JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-        out << JSON_Member{"reads"}        << '{' << self.readsInfo() << '}';
-        out << JSON_Member{"bases"}        << '[' << self.event << ']';
+        out << JSON_Member{"reads"}        << '{' << self.reads << '}';
+        out << JSON_Member{"bases"}        << '[' << self.bases << ']';
         out << JSON_Member{"spots"}        << '[' << self.spots << ']';
         out << JSON_Member{"spot-layouts"} << '[' << self.layouts << ']';
-        out << JSON_Member{"spectra"}      << '{' << self.distance << '}';
-        out << JSON_Member{"references"}   << '[' << self.reference << ']';
+        out << JSON_Member{"spectra"}      << '{' << self.spectra << '}';
+        out << JSON_Member{"references"}   << '[' << self.references << ']';
 
         return out;
     }
@@ -740,21 +641,21 @@ private:
                     }
                     auto const seq = spot.sequence.substr(read.start, read.length);
 
-                    stats.accumulateOneRead(seq, read.type);
+                    stats.record(seq, read.type);
                     if (group)
-                        group->accumulateOneRead(seq, read.type);
+                        group->record(seq, read.type);
                     if (read.type == Input::ReadType::aligned) {
-                        stats.accumulateOneAlignment(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
+                        stats.record(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
                         if (group)
-                            group->accumulateOneAlignment(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
+                            group->record(read.reference, read.position, read.orientation == Input::ReadOrientation::reverse ? 1 : 0, seq, read.cigar);
                         ++naligned;
                     }
                 }
                 if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-                    SpotLayout const &layout(spot);
-                    stats.accumulateOneSpot(layout);
+                    auto const &layout = SpotLayout(spot);
+                    stats.record(layout);
                     if (group)
-                        group->accumulateOneSpot(layout);
+                        group->record(layout);
                 }
                 reporter.update(++processed);
             }

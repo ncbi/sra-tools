@@ -171,8 +171,7 @@ struct SeqHash_impl {
     static Value finalize(State &state) {
         return state.state;
     }
-    static void update(State &state, size_t size, void const *v) {
-        auto const seq = reinterpret_cast<char const *>(v);
+    static void update(State &state, size_t size, char const *seq) {
         auto const end = seq + size;
 
         for (auto i = seq; i != end; ++i) {
@@ -196,63 +195,5 @@ struct SeqHash_impl {
     }
 };
 using SeqHash = struct HashFunction<SeqHash_impl>;
-
-struct RevSeqHash_impl {
-    using State = FNV1a;
-    using Value = FNV1a::Value;
-    static State init() { return State{}; }
-    static Value finalize(State &state) {
-        return state.state;
-    }
-    static void update(State &state, size_t size, void const *v) {
-        auto const seq = reinterpret_cast<char const *>(v);
-        auto const end = seq + size;
-
-        for (auto i = end; i != seq; ) {
-            state.update<char>(complement_base(*--i));
-        }
-    }
-    static void test() {
-#ifndef NDEBUG
-#endif
-    }
-};
-using RevSeqHash = struct HashFunction<SeqHash_impl>;
-
-struct ReadHash_impl {
-    using State = uint64_t;
-    using Value = uint64_t;
-    static State init() { return State{}; }
-    static Value finalize(State &state) {
-        return state;
-    }
-    static void update(State &state, size_t size, void const *v) {
-        state ^= SeqHash::hash(size, (char const *)v);
-        state ^= RevSeqHash::hash(size, (char const *)v);
-    }
-    static void combine(State &state, FNV1a::Value const &other) {
-        state ^= other;
-    }
-    static void test() {
-#ifndef NDEBUG
-        std::string const fwd{"GTGGACATCCCTCTGTGTGGGTCAT"};
-        std::string const rev(fwd.rbegin(), fwd.rend());
-        std::string const r_c(complement_string(rev));
-        std::string const f_n{"GTGGACATCCCTCTGTGTGNGTCAN"};
-        auto const hfwd = HashFunction<ReadHash_impl>::hash(fwd.size(), fwd.data());
-        auto const hrev = HashFunction<ReadHash_impl>::hash(rev.size(), rev.data());
-        auto const hr_c = HashFunction<ReadHash_impl>::hash(r_c.size(), r_c.data());
-        auto const hf_n = HashFunction<ReadHash_impl>::hash(f_n.size(), f_n.data());
-
-        if (hfwd == hf_n)
-            throw std::logic_error("different sequences hashed to the same value!");
-        if (hfwd == hrev)
-            throw std::logic_error("reversed sequences hashed to same value!");
-        if (hfwd != hr_c)
-            throw std::logic_error("reverse-complemented sequences hashed to different value!");
-#endif
-    }
-};
-using ReadHash = struct HashFunction<ReadHash_impl>;
 
 #endif /* hashing_hpp */

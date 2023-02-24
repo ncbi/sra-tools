@@ -41,6 +41,7 @@
 #include "input.hpp"
 #include "hashing.hpp"
 #include "output.hpp"
+#include <assert.h>
 
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
     char buffer[32];

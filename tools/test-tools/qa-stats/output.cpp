@@ -42,8 +42,10 @@ void JSON_ostream::insert_raw(char v) {
 void JSON_ostream::indentIfNeeded() {
     if (newline) {
         insert_raw('\n');
-        for (auto _ : listStack)
+        for (auto x : listStack) {
             insert_raw('\t');
+            ((void)x);
+        }
         newline = false;
     }
 }

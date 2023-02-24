@@ -288,9 +288,9 @@ struct DistanceStats {
 };
 
 struct ReferenceStats : public std::vector<std::vector<CountFR>> {
-    static constexpr int chunkSize = (1 << 14);
+    static constexpr unsigned chunkSize = (1u << 14);
 
-    void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar) {
+    void record(unsigned refId, unsigned position, unsigned strand, std::string const &sequence, CIGAR const &cigar) {
         auto const ps = (uint64_t(position) << 1) | (strand & 1);
 
         while (refId >= size()) {
@@ -633,7 +633,7 @@ private:
         while (*source) {
             try {
                 auto const spot = source->get();
-                int naligned = 0;
+                unsigned naligned = 0;
 
                 if (spotGroup.size() < Input::groups.size())
                     spotGroup.resize(Input::groups.size(), Stats{});
@@ -651,7 +651,9 @@ private:
 
                     stats.record(seq, read.type, group);
                     if (read.type == Input::ReadType::aligned) {
-                        int const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                        assert(read.reference >= 0);
+                        assert(read.position >= 0);
+                        unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
                         stats.record(read.reference, read.position, strand, seq, read.cigar, group);
                         ++naligned;
                     }

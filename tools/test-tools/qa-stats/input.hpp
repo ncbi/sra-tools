@@ -39,26 +39,26 @@ struct CIGAR {
     struct OP {
         unsigned length: 28, opcode: 4;
 
-        unsigned sequenceLength() const {
+        int sequenceLength() const {
             switch (opcode) {
             case 0:
             case 1:
             case 4:
             case 7:
             case 8:
-                return length;
+                return (int)length;
             default:
                 return 0;
             }
         }
-        unsigned referenceLength() const {
+        int referenceLength() const {
             switch (opcode) {
             case 0:
             case 2:
             case 3:
             case 7:
             case 8:
-                return length;
+                return (int)length;
             default:
                 return 0;
             }
@@ -73,16 +73,16 @@ struct CIGAR {
     std::vector<OP> operations;
 
     operator bool() const { return operations.size() > 0; }
-    unsigned sequenceLength() const {
-        unsigned result = 0;
+    int sequenceLength() const {
+        int result = 0;
 
         for (auto op : operations)
             result += op.sequenceLength();
 
         return result;
     }
-    unsigned referenceLength() const {
-        unsigned result = 0;
+    int referenceLength() const {
+        int result = 0;
 
         for (auto op : operations)
             result += op.referenceLength();

@@ -155,7 +155,7 @@ struct Delimited {
             while (end > 0 && isspace(cur[end - 1]))
                 --end;
 
-            auto start = 0;
+            unsigned start = 0;
             while (start < end && isspace(cur[start]))
                 ++start;
 
@@ -306,16 +306,16 @@ struct RWLock {
 int Input::getGroup(std::string const &named) {
     static RWLock lock;
     auto const found = lock.reader([&]{
-        for (int i = 0; i < groups.size(); ++i) {
+        for (unsigned i = 0; i < groups.size(); ++i) {
             if (groups[i] == named)
-                return i;
+                return (int)i;
         }
         return -1;
     });
     if (found >= 0)
         return found;
     return lock.writer([&]{
-        int i = (int)groups.size();
+        auto i = (int)groups.size();
         groups.push_back(named);
         return i;
     });
@@ -324,16 +324,16 @@ int Input::getGroup(std::string const &named) {
 int Input::getReference(std::string const &named) {
     static RWLock lock;
     auto const found = lock.reader([&]{
-        for (int i = 0; i < references.size(); ++i) {
+        for (unsigned i = 0; i < references.size(); ++i) {
             if (references[i] == named)
-                return i;
+                return (int)i;
         }
         return -1;
     });
     if (found >= 0)
         return found;
     return lock.writer([&]{
-        int i = (int)references.size();
+        auto i = (int)references.size();
         references.push_back(named);
         return i;
     });
@@ -582,7 +582,7 @@ struct BasicSource: public Input::Source {
             }
             if (read.starts == nullptr) {
                 starts.resize(lengths.size(), 0);
-                for (auto i = 1; i < starts.size(); ++i) {
+                for (unsigned i = 1; i < starts.size(); ++i) {
                     starts[i] = starts[i - 1] + lengths[i - 1];
                 }
             }
@@ -639,17 +639,17 @@ struct BasicSource: public Input::Source {
             // the corresponding read fields or are null.
 
             for (auto x : lengths) {
-                if (x < 0 || x > result.sequence.size())
+                if (x < 0 || x > (int)result.sequence.size())
                     throw ParseError::inconsistent;
             }
             for (auto x : starts) {
-                if (x < 0 || x > result.sequence.size())
+                if (x < 0 || x > (int)result.sequence.size())
                     throw ParseError::inconsistent;
             }
             for (auto const &len : lengths) {
                 auto const i = &len - &lengths[0];
                 auto const end = len + starts[i];
-                if (end < 0 || end > result.sequence.size())
+                if (end < 0 || end > (int)result.sequence.size())
                     throw ParseError::inconsistent;
             }
 
@@ -751,7 +751,7 @@ struct BasicSource: public Input::Source {
         if (POS)
             extract(*POS, position);
 
-        for (auto i = 11; i < flds.part.size(); ++i) {
+        for (unsigned i = 11; i < flds.part.size(); ++i) {
             if (flds.part[i].substr(0, 5) == "RG:Z:") {
                 RG = flds.part[i].substr(5);
                 group = &RG;
@@ -917,7 +917,7 @@ struct ThreadedSource : public Input::Source {
     std::mutex mut;
     std::condition_variable condEmpty, condFull;
     bool volatile done = false;
-    int quemax = 16;
+    unsigned quemax = 16;
     std::thread th;
 
     ThreadedSource(Input::Source::Type const &src)
@@ -973,12 +973,11 @@ struct ThreadedSource : public Input::Source {
         std::cerr << "Reader thread is running ..." << std::endl;
         for ( ; ; ) {
             try {
-                auto p = new Input(std::move(self->source.get()));
+                auto p = new Input(self->source.get());
                 {
                     std::unique_lock guard(self->mut);
                     if (self->quemax < self->que.size()) {
-                        if (self->quemax > 0x10)
-                            self->quemax *= 0.9;
+                        self->quemax -= self->quemax >> 4;
                         do { self->condFull.wait(guard); } while (self->quemax < self->que.size());
                     }
                     else if (self->quemax < 0x10000)
@@ -1040,7 +1039,6 @@ void Input::runTests() {
 }
 #else
 static void Input_test1() {
-    auto const &reset = Input::getReset();
     auto src = StringSource("GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL\n");
     auto const &reads = src.get().reads;
     assert(reads.size() == 2);
@@ -1051,7 +1049,6 @@ static void Input_test1() {
 }
 
 static void Input_test1a() {
-    auto const &reset = Input::getReset();
     auto src = StringSource("NTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL\t1, 0\n");
     auto const &spot = src.get();
     auto const &reads = spot.reads;
@@ -1062,7 +1059,6 @@ static void Input_test1a() {
 }
 
 static void Input_test2() {
-    auto const &reset = Input::getReset();
     auto src = StringSource(R"(
 # the previous line was empty and this line is a comment
 GTGGACATCCCTCTGTGTGNGTCAN	CM_000001	10001	0	24M1S
@@ -1073,7 +1069,6 @@ GTGGACATCCCTCTGTGTGNGTCAN	CM_000001	10001	0	24M1S
 }
 
 static void Input_test3() {
-    auto const &reset = Input::getReset();
     auto src = StringSource(R"(@HD	VN:1	SO:none
 SPOT_1	0	CM_000001	10001	100	24M1S	*	0	0	GTGGACATCCCTCTGTGTGNGTCAN	*	RG:Z:FOO
 )");
@@ -1086,7 +1081,7 @@ SPOT_1	0	CM_000001	10001	100	24M1S	*	0	0	GTGGACATCCCTCTGTGTGNGTCAN	*	RG:Z:FOO
 }
 
 void Input::runTests() {
-    auto const &reset = Input::getReset();
+    auto reset{Input::getReset()};
 
     Delimited_test();
     Input_test2();

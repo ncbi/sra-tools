@@ -61,6 +61,9 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
     add_test( NAME Test_Sra_Info_Multiple_2.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Reference_2.0
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P NC_000001.11" "." "3.0"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

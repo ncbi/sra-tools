@@ -193,58 +193,56 @@ SraInfo::GetPlatforms() const
     try
     {
         table = openSequenceTable( m_accession.c_str() );
-        rc_t rc = VTableCreateCursorRead( table, &cursor );
-        if ( rc != 0 )
-        {
-            throw SraInfo::Error( rc, m_accession.c_str(), "VTableCreateCursorRead() failed");
-        }
 
-        uint32_t col_idx;
-        rc = VCursorAddColumn ( cursor, &col_idx, "PLATFORM" );
-        if ( rc != 0 )
-        {
-            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorAddColumn() failed");
-        }
-
-        rc = VCursorOpen(cursor);
-        if ( rc != 0 )
-        {   // if the column is not found, return empty set
-            if ( ! ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined ) )
-            {
-                throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpen() failed");
-            }
-        }
-        else
-        {
-            bool is_static;
-            rc = VCursorIsStaticColumn ( cursor, col_idx, & is_static );
+        bool col_exists = false;
+        { /* check if the column PLATFORM exists to avoid a scary log message "failed to resolve" from VCursorOpen */
+            KNamelist *names = NULL;
+            rc_t rc = VTableListCol( table, & names);
             if ( rc != 0 )
             {
-                throw SraInfo::Error( rc, m_accession.c_str(), "VCursorIsStaticColumn() failed");
+                throw SraInfo::Error( rc, m_accession.c_str(), "VTableListCol() failed");
+            }
+            col_exists = KNamelistContains( names, "PLATFORM" );
+            rc = KNamelistRelease( names );
+            if ( rc != 0 )
+            {
+                throw SraInfo::Error( rc, m_accession.c_str(), "KNamelistRelease() failed");
+            }
+        }
+
+        if (col_exists )
+        {
+            rc_t rc = VTableCreateCursorRead( table, &cursor );
+            if ( rc != 0 )
+            {
+                throw SraInfo::Error( rc, m_accession.c_str(), "VTableCreateCursorRead() failed");
             }
 
-            if ( is_static )
+            uint32_t col_idx;
+            rc = VCursorAddColumn ( cursor, &col_idx, "PLATFORM" );
+            if ( rc != 0 )
             {
-                rc = VCursorOpenRow( cursor );
-                if ( rc != 0 )
-                {
-                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
-                }
+                throw SraInfo::Error( rc, m_accession.c_str(), "VCursorAddColumn() failed");
+            }
 
-                uint32_t p = 0;
-                uint32_t row_len;
-                rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
-                if ( rc != 0 || row_len != 1 )
+            rc = VCursorOpen(cursor);
+            if ( rc != 0 )
+            {   // if the column is not found, return empty set
+                if ( ! ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined ) )
                 {
-                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
+                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpen() failed");
                 }
-
-                // we do not seem to need VCursorCloseRow()
-                ret.insert( vdcd_get_platform_txt(p) );
             }
             else
             {
-                while( true )
+                bool is_static;
+                rc = VCursorIsStaticColumn ( cursor, col_idx, & is_static );
+                if ( rc != 0 )
+                {
+                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorIsStaticColumn() failed");
+                }
+
+                if ( is_static )
                 {
                     rc = VCursorOpenRow( cursor );
                     if ( rc != 0 )
@@ -255,25 +253,47 @@ SraInfo::GetPlatforms() const
                     uint32_t p = 0;
                     uint32_t row_len;
                     rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
-                    if ( rc != 0 )
+                    if ( rc != 0 || row_len != 1 )
                     {
-                        if ( GetRCObject( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
-                        {   // end of data
-                            break;
-                        }
                         throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
                     }
-                    if ( row_len != 1 )
-                    {
-                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() returned invalid value for PLATFORM");
-                    }
 
+                    // we do not seem to need VCursorCloseRow()
                     ret.insert( vdcd_get_platform_txt(p) );
-
-                    rc = VCursorCloseRow( cursor );
-                    if ( rc != 0 )
+                }
+                else
+                {
+                    while( true )
                     {
-                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorCloseRow() failed");
+                        rc = VCursorOpenRow( cursor );
+                        if ( rc != 0 )
+                        {
+                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
+                        }
+
+                        uint32_t p = 0;
+                        uint32_t row_len;
+                        rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
+                        if ( rc != 0 )
+                        {
+                            if ( GetRCObject( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
+                            {   // end of data
+                                break;
+                            }
+                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
+                        }
+                        if ( row_len != 1 )
+                        {
+                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() returned invalid value for PLATFORM");
+                        }
+
+                        ret.insert( vdcd_get_platform_txt(p) );
+
+                        rc = VCursorCloseRow( cursor );
+                        if ( rc != 0 )
+                        {
+                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorCloseRow() failed");
+                        }
                     }
                 }
             }

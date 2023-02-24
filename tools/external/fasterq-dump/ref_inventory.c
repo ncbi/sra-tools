@@ -927,7 +927,7 @@ static rc_t ref_inventory_print_split_file( const tool_ctx_t * tool_ctx,
                 base_cnt += s_bases . len;
                 chunks++;
                 /* ===> */ ref_inventory_print_chunk( printer, &s_bases );
-                has_next = ref_bases_next_chunk( bases, &s_bases );                        
+                has_next = ref_bases_next_chunk( bases, &s_bases );  
             }
             ref_printer_flush( printer, true );
             destroy_ref_printer( printer );

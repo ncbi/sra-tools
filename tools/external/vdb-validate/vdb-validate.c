@@ -1040,7 +1040,7 @@ static rc_t VTable_get_platform(VTable const *tbl,
     INSDC_SRA_platform_id *rslt)
 {
     rc_t rc;
-    
+
     /* VDB-5230 first, make sure the column PLATFORM exists to avoid a scary log message "failed to resolve" from VCursorOpen */
     KNamelist *names = NULL;
     rc = VTableListCol( tbl, & names);
@@ -1048,7 +1048,13 @@ static rc_t VTable_get_platform(VTable const *tbl,
     {
         return rc;
     }
-    if ( ! KNamelistContains( names, "PLATFORM" ) )
+    bool col_exists = KNamelistContains( names, "PLATFORM" );
+    rc = KNamelistRelease( names );
+    if ( rc != 0 )
+    {
+        return rc;
+    }
+    if ( ! col_exists )
     {
         *rslt = SRA_PLATFORM_UNDEFINED;
         return 0;

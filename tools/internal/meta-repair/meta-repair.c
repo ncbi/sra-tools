@@ -43,7 +43,7 @@ static const char *DR_USAGE[] = {
 
 #define IN_OPTION "input"
 #define IN_ALIAS "i"
-static const char *IN_USAGE[] =  { "Input.", NULL };
+static const char *IN_USAGE[] =  { "Input: required.", NULL };
 
 #define FX_OPTION "fix-file"
 #define FX_ALIAS "F"
@@ -60,11 +60,11 @@ static const char *LG_USAGE[] =  { "Print output of executed commands.", NULL };
 
 #define MD_OPTION "mode"
 #define MD_ALIAS "m"
-static const char *MD_USAGE[] =  { "Run mode.", NULL };
+static const char *MD_USAGE[] =  { "Run mode: required.", NULL };
 
 #define OU_OPTION "output"
 #define OU_ALIAS  "o"
-static const char *OU_USAGE[] = { "Output file.", NULL };
+static const char *OU_USAGE[] = { "Output file: required for fix mode.", NULL };
 
 #define PR_OPTION "show_progress"
 #define PR_ALIAS  "p"
@@ -741,7 +741,7 @@ static rc_t RepairUnkar(Repair *self) {
 
 static rc_t RepairCheckTable(Repair *self) {
     rc_t rc = 0;
-    char command[4123] = "";
+    char command[4132] = "";
 
     STSMSG(1, ("Running " KDBMETA " for -TSEQUENCE...\n"));
 
@@ -1089,13 +1089,23 @@ rc_t CC Usage (const Args *args){
                                              "-o SSRR1215779RR1215779.sra\n\n");
     KOutMsg( "\n" );
 
-    KOutMsg( "  You can pipe an input file as"
+    KOutMsg( "  You can pipe an input file as:"
              "\n\n"
              "  $ cat fix.file | meta-repair --mode fix -i SRR1215779 -F  - "
-                                                     "-o SRR1215779.sra\n\n\n");
+                                                     "-o SRR1215779.sra\n\n");
 
-    KOutMsg( "  Use --info to report (field, old value, correct value) "
-    "for all fields examined even if the old value is correct.\n");
+    KOutMsg( "Use --info to report (field, old value, correct value) "
+    "for all fields examined even if the old value is correct.\n\n");
+
+    KOutMsg( "Binaries needed:\n"
+    "- for check mode:\n"
+    "  -  sra-stat\n"
+    "- for fix mode:\n"
+    "  -  kar\n"
+    "  -  kdbmeta\n"
+    "  -  prefetch\n"
+    "  -  vdb-lock\n"
+    "  -  vdb-unlock\n");
 
     HelpVersion(fullpath, KAppVersion());
 

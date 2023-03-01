@@ -164,6 +164,16 @@ typedef struct {
     KDirectory *dir;
 } Repair;
 
+static void RepairSetAcc(Repair *self) {
+    char *last = NULL;
+    assert(self);
+    last = strrchr(self->in, '/');
+    if (last == NULL)
+        self->acc = self->in;
+    else
+        self->acc = last + 1;
+}
+
 static void RepairCheckAD
 (Repair *self, const char *dir, const char *path, bool prefetched)
 {
@@ -371,6 +381,7 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
         switch (type & ~kptAlias) {
             case kptFile:
                 self->inType = eFile;
+                RepairSetAcc(self);
                 STSMSG(1, ("Input is a file.\n"));
                 break;
             case kptDir:
@@ -378,8 +389,17 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
                 RepairCheckAD(self, NULL, self->in, false);
                 break;
             default:
-                self->inType = eAcc;
-                break;
+                if (strchr(self->in, '/') == NULL) {
+                    self->inType = eAcc;
+                    RepairSetAcc(self);
+                    break;
+                }
+                else {
+                    rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+                    PLOGERR(klogErr,
+                        (klogErr, rc, "Failed to find $(F)", "F=%s", self->in));
+                    return rc;
+                }
         }
 
 /* VERIFY */
@@ -622,6 +642,7 @@ static rc_t RepairGetFix(Repair *self) {
 
 static rc_t RepairCheck(Repair *self) {
     rc_t rc = 0;
+    int i = 0;
     FILE *fp = NULL;
     char cmd[999] = "";
     const char *key = "";
@@ -675,7 +696,14 @@ static rc_t RepairCheck(Repair *self) {
         }
     }
 
-    pclose(fp);
+    i = pclose(fp);
+    if (i / 256 != 0 && ! (self->mode & eFix)) {
+        rc = RC(rcExe, rcProcess, rcExecuting, rcCmd, rcFailed);
+        if (1)
+            PLOGERR(klogErr, (
+                klogErr, rc, "Failure of executing $(C): $(L)", "C=%s,L=%s",
+                cmd, cmd));
+    }
 
     return rc;
 }

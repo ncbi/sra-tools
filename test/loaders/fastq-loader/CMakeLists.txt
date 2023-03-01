@@ -32,7 +32,7 @@ if ( EXISTS "${DIRTOTEST}/latf-load${EXE}" )
     set( LIBS )
     macro(LatfExeTest TestName Sources Libraries)
         AddExecutableTest( ${TestName} "${Sources}" "${Libraries}" "" )
-        add_dependencies( ${TestName} loader fastqloader )
+        add_dependencies( ${TestName} latf-load )
     endmacro()
 
     LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
@@ -214,6 +214,8 @@ if ( EXISTS "${DIRTOTEST}/latf-load${EXE}" )
 
     # VDB-4839: hangs on reaching max errors
 
+    # VDB-5212: prints a "KQueuePop failed"
+    LatfTest_OneInputPhred33( 18.0 3 )
 
 else()
     message(WARNING "${DIRTOTEST}/latf-load${EXE} is not found. The corresponding tests are skipped." )

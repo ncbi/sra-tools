@@ -744,7 +744,9 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
         else {
             if ( Quitting() == 0 )
             {
-                (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+                if ( (int)GetRCObject(rslt.u.error.rc) != rcData ||
+                     (int)GetRCState(rslt.u.error.rc) != rcDone  ) // normal exit from a canceled wait on a queue
+                    (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
             }
             rslt.type = rr_done;
             goto DONE;

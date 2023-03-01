@@ -859,7 +859,7 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
     rc_t rc = ds_allocate( &line, 4096 );
     if ( rc == 0 ) {
         struct dyn_string * events;
-        rc_t rc = ds_allocate( &events, 4096 );
+        /*rc_t*/ rc = ds_allocate( &events, 4096 );
         if ( rc == 0 ) {
             struct dyn_string * qualities;
             rc = ds_allocate( &qualities, 4096 );
@@ -1202,6 +1202,7 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
     foreach_arg_ctx * ctx = ( foreach_arg_ctx * )data;
 
     int path_type = ( VDBManagerPathType ( ctx -> vdb_mgr, "%s", path ) & ~ kptAlias );
+    ReportResetObject ( path );
     if ( path_type != kptDatabase ) {
         rc = RC ( rcApp, rcNoTarg, rcOpening, rcItem, rcUnsupported );
         PLOGERR( klogErr, ( klogErr, rc, "failed to open '$(path)', it is not a vdb-database", "path=%s", path ) );

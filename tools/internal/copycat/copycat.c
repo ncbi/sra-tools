@@ -154,8 +154,14 @@ rc_t CC copycat_log_lib_writer  (void * self, const char * buffer, size_t buffer
             SLListPushTail (self, bf);
         }
     }
-    return (log_lib_writer != NULL)
-        ? log_lib_writer (log_lib_data, buffer, buffer_size, num_writ) : 0;
+    if(log_lib_writer == copycat_log_lib_writer)
+    {
+        DEBUG_STATUS(("%s: Recursion detected in copycat_log_lib_writer!\n",__func__));
+        *num_writ=buffer_size;
+        return 0;
+    }
+
+    return (log_writer != NULL) ? log_writer (log_data, buffer, buffer_size, num_writ) : 0;
 }
 
 static

@@ -75,6 +75,7 @@ Global Options:
 * options effecting performance optimisation
   tmpfs <directory>                 where to store temparary files, default: '/tmp'
   cache-size <mbytes>               the limit in MB for temparary files
+  min-batch-size <number>           minimum batch size for spot assembly (default 10e6)
 
 * options effecting error limits
   max-err-count <number>            the maximum number of errors to ignore
@@ -161,6 +162,7 @@ static char const option_defer_secondary[] = "defer-secondary";
 static char const option_spot_batch_size[] = "batch-size";
 static char const option_threads[] = "threads";
 static char const option_extra_logging[] = "extra-logging";
+static char const option_min_batch_size[] = "min-batch-size";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -189,6 +191,7 @@ static char const option_extra_logging[] = "extra-logging";
 #define OPTION_SPOT_BATCH_SIZE option_spot_batch_size
 #define OPTION_THREADS option_threads
 #define OPTION_EXTRA_LOGGING option_extra_logging
+#define OPTION_MIN_BATCH_SIZE option_min_batch_size
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -459,6 +462,13 @@ char const * is_extra_logging[] =
     NULL
 };
 
+static
+char const * min_batch_size_usage[] =
+{
+    "Set the minimum batch size for spot assembly (default: 10,000,000 spots)",
+    NULL
+};
+
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */
@@ -497,7 +507,8 @@ OptDef Options[] =
     { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false },
     { OPTION_SPOT_BATCH_SIZE, NULL, NULL, spot_batch_size, 1, true, false },
     { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
-    { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false }
+    { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false },
+    { OPTION_MIN_BATCH_SIZE, NULL, NULL, min_batch_size_usage, 1, true,  false },
 };
 
 const char* OptHelpParam[] =
@@ -538,7 +549,8 @@ const char* OptHelpParam[] =
     NULL,				/* defer secondary */
     NULL,				/* search batch size */
     NULL,				/* threads */
-    NULL				/* extra logging */
+    NULL,				/* extra logging */
+    "count"			    /* min cache size */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -558,6 +570,7 @@ rc_t UsageSummary (char const * progname)
 
 char const UsageDefaultName[] = "bam-load";
 static const unsigned DEFAULT_BATCH_SIZE = 240e6;
+static const unsigned DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE = 10e6;
 
 rc_t CC Usage (const Args * args)
 {
@@ -1169,6 +1182,22 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             break;
         G.hasExtraLogging |= (pcount > 0);
 
+        rc = ArgsOptionCount (args, OPTION_MIN_BATCH_SIZE, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = ArgsOptionValue (args, OPTION_MIN_BATCH_SIZE, 0, (const void **)&value);
+            if (rc)
+                break;
+            G.minBatchSize = strtoul(value, &dummy, 0);
+            if (G.minBatchSize == 0) {
+                rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcIncorrect);
+                OUTMSG (("min-batch-size: bad value\n"));
+                MiniUsage (args);
+                break;
+            }
+        }
 
         rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);
         break;
@@ -1326,6 +1355,7 @@ rc_t CC KMain(int argc, char *argv[])
     G.minMatchCount = 10;
     G.searchBatchSize = DEFAULT_BATCH_SIZE;
     G.numThreads = 8;
+    G.minBatchSize = DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE;
     set_pid();
 
     for (arglast = 1; arglast < argc; ++arglast) {

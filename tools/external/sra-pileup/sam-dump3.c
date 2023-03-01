@@ -452,7 +452,7 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
                                 /* ------------------------------------------------------ */
                             }
 
-                            if ( sam_ctx . mc != NULL ) {
+                            if ( rc == 0 && sam_ctx . mc != NULL ) {
                                 if ( opts -> report_cache ) {
                                     rc = matecache_report( sam_ctx . mc ); /* matecache.c */
                                 }

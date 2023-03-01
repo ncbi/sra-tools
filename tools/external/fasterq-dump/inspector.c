@@ -574,7 +574,11 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
 
                             if ( has_cons_tbl || has_zmw_tbl || has_pass_tbl ) {
                                 if ( has_cons_tbl ) {
-                                    output -> seq . tbl_name = CONS_TBL_NAME;
+                                    if ( NULL == input -> requested_seq_tbl_name ) {
+                                        output -> seq . tbl_name = CONS_TBL_NAME;
+                                    } else {
+                                        output -> seq . tbl_name = input -> requested_seq_tbl_name;                                        
+                                    }
                                 }
                                 res = acc_pacbio_native;
                             } else {

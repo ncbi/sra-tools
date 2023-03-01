@@ -100,6 +100,8 @@ struct CCFileNode
     char ftype [ 252 ];
     uint8_t _md5 [ 32 ];
     SLList logs;
+    char defline_name [ 256 ];
+    uint8_t defline_pair;
 };
 
 

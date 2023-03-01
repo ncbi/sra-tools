@@ -697,7 +697,7 @@ static rc_t RepairCheck(Repair *self) {
     }
 
     i = pclose(fp);
-    if (i / 256 != 0 && ! (self->mode & eFix)) {
+    if ((i / 256 != 0) && ! (self->mode & eFix)) {
         rc = RC(rcExe, rcProcess, rcExecuting, rcCmd, rcFailed);
         if (1)
             PLOGERR(klogErr, (
@@ -919,7 +919,7 @@ static rc_t RepairKar(const Repair *self) {
 
     rc = string_printf(command, sizeof command, NULL,
                     KAR " %s --create %s -d %s",
-        self->force ? "-f" : "", self->out, self->tmp);
+        self->force ? "-f" : "", self->out, self->inDir);
 
     if (rc == 0)
         rc = RepairExecute(self, command);

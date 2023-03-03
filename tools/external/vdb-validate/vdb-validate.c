@@ -350,8 +350,7 @@ static rc_t CC report(CCReportInfoBlock const *what, void *Ctx)
 
 static
 rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
-    KPathType *pathType, bool is_file, node_t nodes[], char names[],
-    INSDC_SRA_platform_id platform )
+    KPathType *pathType, bool is_file, node_t nodes[], char names[] )
 {
     rc_t rc = 0;
     cc_context_t ctx;
@@ -407,7 +406,7 @@ rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
         rc = KDBManagerOpenTableRead ( mgr, & tbl, "%s", name );
         if ( rc == 0 )
         {
-            rc = KTableConsistencyCheck ( tbl, 0, level, report, & ctx, platform );
+            rc = KTableConsistencyCheck ( tbl, 0, level, report, & ctx );
             if ( rc == 0 )
                 rc = ctx.rc;
 
@@ -1039,54 +1038,36 @@ static rc_t sra_dbcc_fastq(const vdb_validate_params *pb,
 static rc_t VTable_get_platform(VTable const *tbl,
     INSDC_SRA_platform_id *rslt)
 {
-    rc_t rc;
+    rc_t rc = 0;
+    VCursor const *curs = NULL;
+    uint32_t cid = 0;
+    uint32_t ebits = 0;
+    uint32_t boff = 0;
+    uint32_t ecnt = 0;
     
-    /* VDB-5230 first, make sure the column PLATFORM exists to avoid a scary log message "failed to resolve" from VCursorOpen */
-    KNamelist *names = NULL;
-    rc = VTableListCol( tbl, & names);
-    if ( rc != 0 )
-    {
-        return rc;
-    }
-    if ( ! KNamelistContains( names, "PLATFORM" ) )
-    {
-        *rslt = SRA_PLATFORM_UNDEFINED;
+    *rslt = SRA_PLATFORM_UNDEFINED;
+    if (!VTableHasStaticColumn(tbl, "PLATFORM")) {
         return 0;
     }
-
-    VCursor const *curs;
-    INSDC_SRA_platform_id platform = -1;
-
     rc = VTableCreateCursorRead(tbl, &curs);
-    if (rc == 0) {
-        uint32_t cid;
-
-        rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
-        if (rc == 0) {
-            rc = VCursorOpen(curs);
-            if (rc == 0) {
-                uint32_t ebits;
-                void const *data;
-                uint32_t boff;
-                uint32_t ecnt;
-
-                rc = VCursorCellDataDirect(curs, 1, cid,
-                    &ebits, &data, &boff, &ecnt);
-                if (rc == 0) {
-                    if (ebits == sizeof(platform) * 8 && boff == 0 && ecnt == 1)
-                        platform = ((INSDC_SRA_platform_id *)data)[0];
-                    else
-                        rc =
-                            RC(rcExe, rcTable, rcReading, rcType, rcUnexpected);
-                }
-            }
-        }
-        else
-            rc = 0;
-        VCursorRelease(curs);
+    if (rc) {
+        /* probable fatal */
+        return rc;
     }
-    rslt[0] = platform;
-    return rc;
+    rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
+    if (rc == 0) {
+        rc = VCursorOpen(curs);
+        if (rc == 0) {
+            void const *data = NULL;
+
+            rc = VCursorCellDataDirect(curs, 1, cid,
+                &ebits, &data, &boff, &ecnt);
+            if (rc == 0 && ebits == sizeof(*rslt) * 8 && ecnt == 1 && boff == 0)
+                *rslt = *((INSDC_SRA_platform_id const *)data);
+        }
+    }
+    VCursorRelease(curs);
+    return 0;
 }
 
 static rc_t verify_table(const vdb_validate_params *pb,
@@ -1100,11 +1081,12 @@ static rc_t verify_table(const vdb_validate_params *pb,
 
     if (schemaName[0] == '\0' || strncmp(schemaName, "NCBI:SRA:", 9) == 0) {
         /* SRA or legacy SRA */
-        INSDC_SRA_platform_id platform;
+        INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
 
         rc = VTable_get_platform(tbl, &platform);
         if (rc == 0) {
-            if (platform == (INSDC_SRA_platform_id)-1) {
+            if (platform == SRA_PLATFORM_UNDEFINED)
+            {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Couldn't determine "
                     "SRA Platform; type of table '$(name)' is indeterminate.",
                     "name=%s", name));
@@ -1259,6 +1241,7 @@ static size_t work_chunk(uint64_t const count)
     return chunk;
 }
 
+/* use the KSORT macro so the compiler can optimize everything */
 static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 {
     id_pair_t a;
@@ -1278,6 +1261,7 @@ static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 #undef GET
 }
 
+/* use the KSORT macro so the compiler can optimize everything */
 static void sort_keys(size_t const N, int64_t array[/* N */])
 {
 #define INDEXOF(A) (((int64_t const *)(A)) - ((int64_t const *)(&array[0])))
@@ -2431,38 +2415,6 @@ static rc_t sra_dbcc(const vdb_validate_params *pb,
 }
 
 static
-rc_t get_platform(const VDBManager *mgr,
-    const VTable *aTbl, char const name[],
-    INSDC_SRA_platform_id *platform)
-{
-    rc_t rc = 0;
-    const VTable *tbl = aTbl;
-
-    assert(name && platform);
-
-    /* PLATFORM is UNDEFINED by default */
-    *platform = SRA_PLATFORM_UNDEFINED;
-
-    rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
-
-    if (rc == 0)
-        rc = VTable_get_platform(tbl, platform);
-
-    if (aTbl == NULL)
-        VTableRelease(tbl);
-
-    /* ignore all errors except Schema NotFound */
-    if (rc != 0 &&
-        (GetRCState(rc) != rcNotFound ||
-            GetRCObject(rc) != (enum RCObject)rcSchema))
-    {
-        rc = 0;
-    }
-
-    return rc;
-}
-
-static
 rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
 {
     char *names;
@@ -2478,13 +2430,9 @@ rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
                       | ( pb -> blob_crc ? 2 : 0 )
                       | ( pb -> index_chk ? 4 : 0 )
                       ;
-
-        INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
-        rc = get_platform ( pb -> vmgr, NULL, path, & platform );
-
         /* check as kdb object */
         if ( rc == 0 )
-            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
+            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names );
         if ( rc == 0 )
             rc = vdbcc ( pb -> vmgr, path, mode, & pathType, is_file );
         if ( rc == 0 )

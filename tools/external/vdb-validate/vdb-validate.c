@@ -2373,6 +2373,27 @@ static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
         /* TODO: verify NCBI:SRA:PacBio:smrt:db */
     }
+    else if (strcmp(schemaName, "NCBI:SRA:Illumina:db") == 0) {
+        /* TODO: verify NCBI:SRA:Illumina:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:Nanopore:db") == 0) {
+        /* TODO: verify NCBI:SRA:Nanopore:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastq:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastq:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqAbsolid:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqAbsolid:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqLogOdds:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqLogOdds:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNanopore:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqNanopore:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNoNames:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqNoNames:db */
+    }
     else {
         (void)PLOGERR(klogWarn, (klogWarn,
             RC(rcExe, rcDatabase, rcValidating, rcType, rcUnrecognized),

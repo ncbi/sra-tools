@@ -64,7 +64,9 @@ bool populate_cmn_iter_params( cmn_iter_params_t * params,
                                const VDBManager * vdb_mgr,
                                const char * accession_short,
                                const char * accession_path,
-                               size_t cursor_cache ) {
+                               size_t cursor_cache,
+                               int64_t first_row,
+                               uint64_t row_count ) {
     bool res = false;
     if ( NULL != params && NULL != dir && NULL != vdb_mgr &&
          NULL != accession_short && NULL != accession_path ) {
@@ -73,8 +75,8 @@ bool populate_cmn_iter_params( cmn_iter_params_t * params,
         params -> accession_short = accession_short;
         params -> accession_path = accession_path;
         params -> cursor_cache = cursor_cache;
-        params -> first_row = 0;
-        params -> row_count = 0;
+        params -> first_row = first_row;
+        params -> row_count = row_count;
         res = true;
     }
     return res;

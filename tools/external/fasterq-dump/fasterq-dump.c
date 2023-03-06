@@ -385,19 +385,19 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     fasta_us      = get_bool_option( args, OPTION_FASTA_US );
     fasta_ref_tbl = get_bool_option( args, OPTION_FASTA_REF );
     ref_report    = get_bool_option( args, OPTION_REF_REPORT );
-    
+
     tool_ctx -> only_internal_refs = get_bool_option( args, OPTION_REF_INT );
     tool_ctx -> only_external_refs = get_bool_option( args, OPTION_REF_EXT );
     tool_ctx -> split_file = split_file; /* passing it though for fasta-ref-tbl */
     tool_ctx -> use_name = get_bool_option( args, OPTION_USE_NAME );
-    
+
     if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
         rc = get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
         if ( 0 != rc ) {
-            ErrMsg( "get_user_input . get_list_option() -> %R", rc );            
+            ErrMsg( "get_user_input . get_list_option() -> %R", rc );
         }
     }
-    
+
     if ( 0 == rc ) {
         if ( split_spot && split_file ) {
             rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
@@ -415,7 +415,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
             ErrMsg( "fasta-unsorted and fasta-ref-tbl exclude each other -> %R", rc );
         }
     }
-    
+
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
                     split_spot, split_file, split_3, whole_spot, fasta,
                     fasta_us, fasta_ref_tbl, ref_report ); /* helper.c */

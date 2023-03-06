@@ -59,7 +59,9 @@ bool populate_cmn_iter_params( cmn_iter_params_t * params,
         const VDBManager * vdb_mgr,
         const char * accession_short,
         const char * accession_path,
-        size_t cursor_cache );
+        size_t cursor_cache,
+        int64_t first_row,
+        uint64_t row_count );
 
 struct cmn_iter_t;
 

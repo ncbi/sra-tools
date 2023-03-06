@@ -74,7 +74,9 @@ bool tool_ctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
                 tool_ctx -> vdb_mgr,
                 tool_ctx -> accession_short,
                 tool_ctx -> accession_path,
-                tool_ctx -> cursor_cache ); /* in cmn_iter.c */
+                tool_ctx -> cursor_cache,
+                0,
+                0 ); /* in cmn_iter.c */
     }
     return res;
 }

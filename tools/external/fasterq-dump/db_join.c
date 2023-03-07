@@ -1299,7 +1299,6 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
     opt . with_quality = true;
     opt . with_spotgroup = jo -> print_spotgroup;
 
-    KOutMsg( "db_join.c:perform_fastq_split_3_join() 1st:%lu, cnt:%lu\n", cp->first_row, cp->row_count );
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_3_join().make_fastq_csra_iter() -> %R", rc );
@@ -1313,10 +1312,6 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
-            
-        uint64_t row_count = get_row_count_of_fastq_csra_iter( iter );
-        KOutMsg( "row_count = %lu\n", row_count );
-        
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) { /* fastq-iter.c */
             rc = get_quitting(); /* helper.c */
             if ( 0 == rc ) {
@@ -1763,7 +1758,6 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
                 if ( NULL == jtd ) {
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
                 } else {
-                    KOutMsg( "db_join.c:execute_db_join() 1st: %lu, cnt: %lu\n", row, rows_per_thread );
                     jtd -> dir              = args -> dir;
                     jtd -> vdb_mgr          = args -> vdb_mgr;
                     jtd -> accession_path   = args -> accession_path;

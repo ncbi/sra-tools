@@ -1615,7 +1615,6 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                                   jtd -> cur_cache,
                                   jtd -> first_row,
                                   jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
-        KOutMsg( "db_join.c:cmn_thread_func() first_row=%lu, row_count=%lu\n", cp.first_row, cp.row_count );
         rc = init_join( &cp,
                         flex_printer,
                         filter,

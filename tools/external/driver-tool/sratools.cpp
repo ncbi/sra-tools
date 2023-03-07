@@ -101,7 +101,7 @@ static void handleFileArgument(Argument const &arg, FilePath const &filePath, st
         arg.reason = Argument::duplicate;
 };
 
-static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args)
+static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args, int *out)
 {
     unsigned problems = 0;
 
@@ -127,6 +127,8 @@ static unsigned handleFileArgumentErrors(char const *const argName, Arguments co
                 return;
             }
         }
+        else
+            *out = arg.argind;
     });
     return problems;
 }
@@ -202,11 +204,13 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
     }
 
     if (havePerm) {
+        int argind = 0;
+
         if (haveNGC) {
             ++problems;
             std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
         }
-        problems += handleFileArgumentErrors("perm", args);
+        problems += handleFileArgumentErrors("perm", args, &argind);
         if (!vdb::Service::haveCloudProvider()) {
             ++problems;
             std::cerr
@@ -220,24 +224,22 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
             std::cerr << "--perm requires a cloud instance identity, please run vdb-config and" \
                          " enable the option to report cloud instance identity." << std::endl;
         }
-        else {
-            args.each("perm", [&](Argument const &arg) {
-                *sPerm = argv.pathForArgument(arg);
-            });
-        }
+        else if (argind)
+            *sPerm = argv.pathForArgument(argind);
     }
     if (haveNGC) {
-        unsigned const moreProblems = handleFileArgumentErrors("ngc", args);
-        if (moreProblems)
-            problems += moreProblems;
-        else {
-            args.each("ngc", [&](Argument const &arg) {
-                *sNGC = argv.pathForArgument(arg);
-            });
-        }
+        int argind = 0;
+
+        problems += handleFileArgumentErrors("ngc", args, &argind);
+        if (argind)
+            *sNGC = argv.pathForArgument(argind);
     }
     if (haveCart) {
-        problems += handleFileArgumentErrors("cart", args);
+        int argind = 0;
+
+        problems += handleFileArgumentErrors("cart", args, &argind);
+        if (argind)
+            (void)0; // do nothing
     }
     auto const containers = checkForContainers(argv, args);
     if (containers > 0) {

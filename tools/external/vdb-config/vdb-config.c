@@ -203,7 +203,7 @@ static const char* USAGE_P_UR[] = { "Prefetch downloads to "
 #define ALIAS_TEL "T"
 #define OPTION_TEL "enable-telemetry"
 static const char* USAGE_TEL[] = {
-    "Report limited tools usage information back to SRA (default: tes).",
+    "Report limited tools usage information back to SRA (default: yes).",
     NULL };
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)

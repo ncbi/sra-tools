@@ -33,6 +33,9 @@
 #include <klib/printf.h> /* RC */
 #include <klib/rc.h> /* RC */
 #include <klib/status.h> /* STSMSG */
+#include <vdb/database.h> /* VDatabaseRelease */
+#include <vdb/manager.h> /* VDBManagerRelease */
+#include <vdb/table.h> /* VTableRelease */
 #include <stdio.h> /* sprintf */
 #include <time.h> /* time */
 
@@ -55,7 +58,7 @@ static const char *FS_USAGE[]
     =  { "Forces an existing target to be overwritten.", NULL };
 
 #define LG_OPTION "print-output"
-#define LG_ALIAS "p"
+#define LG_ALIAS "P"
 static const char *LG_USAGE[] =  { "Print output of executed commands.", NULL };
 
 #define MD_OPTION "mode"
@@ -436,9 +439,11 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
     return rc;
 }
 
-static rc_t Find(const char *command, const char *error) {
+static rc_t Find(const char *cmd, const char *error) {
     rc_t rc = 0;
-    int i = system(command);
+    int i = 0;
+    STSMSG(3, ("%s\n", cmd));
+    i = system(cmd);
     if (i != 0) {
         rc = RC(rcExe, rcProcess, rcExecuting, rcProcess, rcFailed);
         LOGERR(klogErr, rc, error);
@@ -697,7 +702,7 @@ static rc_t RepairCheck(Repair *self) {
     }
 
     i = pclose(fp);
-    if ((i / 256 != 0) && ! (self->mode & eFix)) {
+    if ((i / 256 != 0) && (self->fix == NULL)) {
         rc = RC(rcExe, rcProcess, rcExecuting, rcCmd, rcFailed);
         if (1)
             PLOGERR(klogErr, (
@@ -768,31 +773,46 @@ static rc_t RepairUnkar(Repair *self) {
 }
 
 static rc_t RepairCheckTable(Repair *self) {
-    rc_t rc = 0;
-    char command[4132] = "";
-
-    STSMSG(1, ("Running " KDBMETA " for -TSEQUENCE...\n"));
+    rc_t rc = 0, r2 = 0;
+    const struct VDBManager *m = NULL;
+    const VTable *t = NULL;
+    
+    STSMSG(1, ("Checking for -TSEQUENCE...\n"));
 
     assert(self);
 
     self->tblOpt = "";
 
-    sprintf(command, KDBMETA " %s %s %s >/dev/null", //  2>&1
-          self->inDir, self->tblOpt, self->name);
-
-    rc = RepairExecuteSilent(self, command);
-    if (rc == 0)
-        STSMSG(2, ("...will update the run table directly\n"));
-    else {
-        self->tblOpt = "-TSEQUENCE";
-        sprintf(command, KDBMETA " %s %s %s >/dev/null 2>&1",
-              self->inDir, self->tblOpt, self->name);
-        rc = RepairExecuteSilent(self, command);
+    rc = VDBManagerMakeRead(&m, NULL);
+    
+    if (rc == 0) {
+        rc = VDBManagerOpenTableRead(m, &t, NULL, "%s", self->inDir);
         if (rc == 0)
-            STSMSG(2, ("...will update SEQUENCE table of the run\n"));
-        else
-            LOGERR(klogErr, rc, "Cannot find metadata in run");
+            STSMSG(2, ("...will update the run table directly\n"));
+        else if (GetRCObject(rc) == (enum RCObject)rcTable
+                    && GetRCState(rc) == rcIncorrect)
+        {
+            const VDatabase *d = NULL;
+            rc = VDBManagerOpenDBRead(m, &d, NULL, self->inDir);
+            if (rc == 0) {
+                self->tblOpt = "-TSEQUENCE";
+                STSMSG(2, ("...will update SEQUENCE table of the run\n"));
+            }
+            else
+                LOGERR(klogErr, rc, "Cannot find metadata in run");
+            r2 = VDatabaseRelease(d);
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
     }
+    
+    r2 = VTableRelease(t);
+    if (r2 != 0 && rc == 0)
+        rc = r2;
+
+    r2 = VDBManagerRelease(m);
+    if (r2 != 0 && rc == 0)
+        rc = r2;
 
     return rc;
 }

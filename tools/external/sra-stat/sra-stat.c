@@ -2728,6 +2728,18 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
     return rc;
 }
 
+static void CC _Increment(BSTNode* n, void* data) {
+    uint32_t* i = (uint32_t*) data;
+    assert(i);
+    ++*i;
+}
+
+static uint32_t _NumberOfObservedSpotGroups(const BSTree* t) {
+    uint32_t n = 0;
+    BSTreeForEach(t, false, _Increment, &n);
+    return n;
+}
+
 static
 rc_t print_results(const Ctx* ctx)
 {
@@ -2738,17 +2750,19 @@ rc_t print_results(const Ctx* ctx)
     enum {
         eBASE_COUNT           =      1,
         eBIO_BASE_COUNT       =      2,
-        eCMP_BASE_COUNT       =      4 ,
-        eNO_SPOT_GROUP        =      8,
-        eSG_BASE_COUNT        =   0x10,
-        eSG_BIO_BASE_COUNT    =   0x20,
-        eSG_CMP_BASE_COUNT    =   0x40,
-        eSG_SPOT_COUNT        =   0x80,
-        eSPOT_COUNT           =  0x100,
-        eTOTAL_BASE_COUNT     =  0x200,
-        eTOTAL_BIO_BASE_COUNT =  0x400,
-        eTOTAL_CMP_BASE_COUNT =  0x800,
-        eTOTAL_SPOT_COUNT     = 0x1000,
+        eCMP_BASE_COUNT       =      4,
+        eSPOT_GROUP_N_MISMATCH=      8,
+        eNO_SPOT_GROUP        =   0x10,
+        eSG_BASE_COUNT        =   0x20,
+        eSG_BIO_BASE_COUNT    =   0x40,
+        eSG_CMP_BASE_COUNT    =   0x80,
+        eDfltSG_CMP_BASE_COUNT=  0x100,
+        eSG_SPOT_COUNT        =  0x200,
+        eSPOT_COUNT           =  0x400,
+        eTOTAL_BASE_COUNT     =  0x800,
+        eTOTAL_BIO_BASE_COUNT = 0x1000,
+        eTOTAL_CMP_BASE_COUNT = 0x2000,
+        eTOTAL_SPOT_COUNT     = 0x4000,
     };
 
     /*
@@ -2767,6 +2781,7 @@ rc_t print_results(const Ctx* ctx)
     const SraStatsMeta* mDfl = NULL;
     const SraStatsMeta* mNxt = NULL;
     const char* spot_group = "";
+    uint32_t spotGroupN = 0;
 
     assert(ctx && ctx->pb
         && ctx->tr && ctx->sizes && ctx->info && ctx->meta_stats && ctx->total);
@@ -2795,7 +2810,7 @@ rc_t print_results(const Ctx* ctx)
             if (ctx->total->total_cmp_len == 0 &&
                 ctx->total->BASE_COUNT == mDfl->CMP_BASE_COUNT &&
                 ctx->db != NULL)
-            {
+            { /* DB without references. See comment below. */
                 mismatchCMP_BASE_COUNT = true;
             }
             else
@@ -2803,12 +2818,18 @@ rc_t print_results(const Ctx* ctx)
         }
         if (ssDfl != NULL) {
             uint32_t i = 0;
-            for (i = 0; i < ctx->meta_stats->spotGroupN && !mismatch; ++i) {
+            spotGroupN = _NumberOfObservedSpotGroups(ctx->tr);
+            if (spotGroupN != ctx->meta_stats->spotGroupN)
+                mismatch |= eSPOT_GROUP_N_MISMATCH;
+            for (i = 0; i < ctx->meta_stats->spotGroupN; ++i) {
+                bool isDefault = false;
                 spot_group = "";
                 mNxt = &ctx->meta_stats->spotGroup[i];
                 assert(mNxt);
                 if (strcmp("default", mNxt->spot_group) != 0)
                     spot_group = mNxt->spot_group;
+                else
+                    isDefault = true;
                 ssNxt = (SraStats*)
                     BSTreeFind(ctx->tr, spot_group, srastats_cmp);
                 if (ssNxt == NULL) {
@@ -2820,14 +2841,42 @@ rc_t print_results(const Ctx* ctx)
                         ssNxt->total_len == mNxt->CMP_BASE_COUNT &&
                         ctx->db != NULL)
                     {
+                    /* for a database where total basecont == total cmp basecount:
+                      CMP_BASE_COUNT does not make sence.
+                      It is a dababase without references.
+                      So if it is not recorded at all - it's OK.
+                      We ignore this.
+                     */
                         mismatchCMP_BASE_COUNT = true;
                     }
                     else {
+                      if (ctx->pb->repair && spotGroupN == 1 && isDefault) {
+                        PLOGMSG(klogInfo, (klogInfo,
+                          "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                          "N=%s,E=%lu,A=%lu",
+                          "STATS/SPOT_GROUP/default/CMP_BASE_COUNT",
+                          ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+                        if (ctx->pb->report)
+                            PLOGMSG(klogInfo, (klogInfo,
+                              "Examined STATS/SPOT_GROUP/$(N)/CMP_BASE_COUNT - "
+                              "mismatch: Expected:$(E), Actual:$(A).",
+                              "N=%s,E=%lu,A=%lu", mNxt->spot_group,
+                              ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+
+                        mismatch |= eDfltSG_CMP_BASE_COUNT;
+                      }
+                      else
                         mismatch |= eSG_CMP_BASE_COUNT;
-                        break;
+                      break;
                     }
                 }
-                if (ssNxt->total_len != mNxt->BASE_COUNT) {
+                else if (ctx->pb->report)
+                   PLOGMSG(klogInfo, (klogInfo,
+                    "Examined STATS/SPOT_GROUP/$(N)/CMP_BASE_COUNT - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", mNxt->spot_group,
+                    ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+               if (ssNxt->total_len != mNxt->BASE_COUNT) {
                     mismatch |= eSG_BASE_COUNT;
                     break;
                 }
@@ -3085,6 +3134,12 @@ rc_t print_results(const Ctx* ctx)
                     "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
                     ctx->pb->total.spot_count,
                     ctx->meta_stats->table.spot_count));
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - match");
     }
     else if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
@@ -3270,6 +3325,41 @@ rc_t print_results(const Ctx* ctx)
                     "Examined $(N) - match: Expected:$(E), Actual:$(A).",
                     "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
                     ctx->total->spot_count, mDfl->spot_count));
+
+        if (mismatch & eSPOT_GROUP_N_MISMATCH) {
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "number-of-spot-groups($(C) != $(R))",
+                "C=%u,R=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSPOT_GROUP_N_MISMATCH"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - mismatch: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+
+        if (mismatch & eSG_CMP_BASE_COUNT) {
+            LOGMSG(klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "CMP_BASE_COUNT in spot groups");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_CMP_BASE_COUNT"));
+            if (ctx->pb->report)
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - mismatch");
+        }
+        else if (ctx->pb->report)
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - match");
 
         if (mismatch & eNO_SPOT_GROUP) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "

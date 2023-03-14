@@ -30,16 +30,23 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <utility>
-#include <map>
+#include <sstream>
+#include <memory>
+// #include <utility>
+// #include <map>
 #include <vector>
-#include <algorithm>
+// #include <algorithm>
 
+#include <klib/rc.h>
+#include <klib/printf.h>
+
+#include <kdb/manager.h>
 #include <vdb/manager.h>
 #include <vdb/database.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/schema.h>
+#include <vdb/vdb-priv.h>
 
 namespace VDB {
     class Manager;
@@ -50,12 +57,39 @@ namespace VDB {
 
     class Error : std::exception {
         rc_t rc;
+        std::string text;
 
     public:
         Error(rc_t const rc_, char const *file, int line) : rc(rc_) {
             std::cerr << "RC " << rc << " thrown by " << file << ':' << line << std::endl;
+
+            std::stringstream out;
+            out << file << ":" << line << ": ";
+            if ( rc != 0 )
+            {
+                // obtain the required size
+                size_t num_writ;
+                string_printf ( nullptr, 0, &num_writ, "%R", rc );
+
+                std::unique_ptr<char[]> rc_text ( new char[num_writ+1] );
+                string_printf ( rc_text.get(), num_writ+1, nullptr, "%R", rc );
+                out << ", rc = " << rc_text.get();
+            }
+            text = out.str();
         }
-        char const *what() const throw() { return ""; }
+        Error(const char * msg, char const *file, int line) : rc(0) {
+            std::cerr << "'" << msg << "' thrown by " << file << ':' << line << std::endl;
+
+            std::stringstream out;
+            out << file << ":" << line << ": " << msg;
+            text = out.str();
+        }
+
+        char const *what() const throw() 
+        { 
+            return text.c_str(); 
+        }
+        rc_t getRc() const { return rc; }
     };
     class Schema {
         friend class Manager;
@@ -93,8 +127,13 @@ namespace VDB {
         VCursor *const o;
     protected:
         unsigned const N;
+        std::vector<unsigned int> cid;
 
-        Cursor(VCursor *const o_, unsigned columns_) :o(o_), N(columns_) {}
+        Cursor(VCursor *const o_, std::vector<unsigned int> columns) 
+        : o(o_), N(columns.size()), cid(columns)
+        {   
+        }
+
     public:
         using RowID = int64_t;
 
@@ -125,9 +164,18 @@ namespace VDB {
                     throw std::logic_error("bad cast");
             }
         };
-        Cursor(Cursor const &other) :o(other.o), N(other.N) { VCursorAddRef(o); }
+        Cursor(Cursor const &other) :o(other.o), N(other.N), cid(other.cid) { VCursorAddRef(o); }
         ~Cursor() { VCursorRelease(o); }
         unsigned columns() const { return N; }
+
+        VCursor * get() { return o; }
+        bool isStaticColumn( unsigned int col_idx ) const /* 0-based index in the column array used to construct this object */
+        {
+            bool ret;
+            rc_t rc = VCursorIsStaticColumn ( o, cid[col_idx], & ret );
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return ret;
+        }
 
         std::pair<RowID, RowID> rowRange() const
         {
@@ -137,14 +185,13 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return std::make_pair(first, first + count);
         }
-        RawData read(RowID row, unsigned cid) const {
+        RawData read(RowID row, unsigned int col_idx) const {
             RawData out;
             void const *base = 0;
             uint32_t count = 0;
             uint32_t boff = 0;
             uint32_t elem_bits = 0;
-
-            rc_t rc = VCursorCellDataDirect(o, row, cid, &elem_bits, &base, &boff, &count);
+            rc_t rc = VCursorCellDataDirect(o, row, cid[col_idx], &elem_bits, &base, &boff, &count);
             if (rc) throw Error(rc, __FILE__, __LINE__);
 
             out.data = base;
@@ -156,7 +203,7 @@ namespace VDB {
         void read(RowID row, unsigned const N, RawData out[]) const
         {
             for (unsigned i = 0; i < N; ++i) {
-                out[i] = read(row, i + 1);
+                out[i] = read(row, i);
             }
         }
         template <typename F>
@@ -168,7 +215,7 @@ namespace VDB {
             data.resize(N);
             for (auto i = range.first; i < range.second; ++i) {
                 for (unsigned j = 0; j < N; ++j) {
-                    try { data[j] = read(i, j + 1); }
+                    try { data[j] = read(i, j); }
                     catch (...) { return rows; }
                 }
                 f(i, data);
@@ -188,7 +235,7 @@ namespace VDB {
                 data.clear();
                 if (keep) {
                     for (unsigned j = 0; j < N; ++j) {
-                        try { data.push_back( read(i, j + 1) ); }
+                        try { data.push_back( read(i, j) ); }
                         catch (...) { return rows; }
                     }
                 }
@@ -216,6 +263,7 @@ namespace VDB {
             auto rc = VTableCreateCursorRead(o, &curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
 
+            std::vector<unsigned int> columns;
             for (unsigned i = 0; i < N; ++i) {
                 uint32_t cid = 0;
 
@@ -225,6 +273,7 @@ namespace VDB {
                     VCursorRelease( curs );
                     throw Error(rc, __FILE__, __LINE__);
                 }
+                columns.push_back( cid );
                 ++n;
             }
             rc = VCursorOpen(curs);
@@ -233,7 +282,7 @@ namespace VDB {
                 VCursorRelease( curs );
                 throw Error(rc, __FILE__, __LINE__);
             }
-            return Cursor(const_cast<VCursor *>(curs), n);
+            return Cursor(const_cast<VCursor *>(curs), columns);
         }
 
         Cursor read(std::initializer_list<char const *> const &fields) const
@@ -247,6 +296,7 @@ namespace VDB {
                 throw Error(rc, __FILE__, __LINE__);
             }
 
+            std::vector<unsigned int> columns;
             for (auto && field : fields) {
                 uint32_t cid = 0;
 
@@ -256,6 +306,7 @@ namespace VDB {
                     VCursorRelease( curs );
                     throw Error(rc, __FILE__, __LINE__);
                 }
+                columns.push_back( cid );
                 ++n;
             }
             rc = VCursorOpen(curs);
@@ -264,7 +315,7 @@ namespace VDB {
                 VCursorRelease( curs );
                 throw Error(rc, __FILE__, __LINE__);
             }
-            return Cursor(const_cast<VCursor *>(curs), n);
+            return Cursor(const_cast<VCursor *>(curs), columns);
         }
     };
     class Database {
@@ -343,6 +394,23 @@ namespace VDB {
             auto const rc = VDBManagerOpenTableRead(o, (VTable const **)&p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
+        }
+
+        typedef enum {
+            ptDatabase,
+            ptTable,
+            ptPrereleaseTable,
+            ptInvalid
+        } PathType;
+        PathType pathType( const std::string & path ) const
+        {
+            switch ( VDBManagerPathType( o, "%s", path.c_str() ) & ~ kptAlias ) 
+            {
+                case kptDatabase :      return ptDatabase;
+                case kptTable :         return ptTable;
+                case kptPrereleaseTbl : return ptPrereleaseTable;
+                default :               return ptInvalid;
+            }            
         }
 
     };

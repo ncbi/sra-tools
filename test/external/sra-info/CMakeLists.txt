@@ -35,6 +35,8 @@ add_dependencies( Test_SraInfo_Unit sra-info )
 
 if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
 
+    make_directory(${CMAKE_CURRENT_SOURCE_DIR}/actual)
+
     # make sure 'sra-info -h' does not crash
     add_test( NAME Test_Sra_Info_Help
         COMMAND sh -c "${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout"

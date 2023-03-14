@@ -30,20 +30,10 @@
 #include <set>
 #include <exception>
 
-#include <klib/rc.h>
+#include <vdb.hpp>
 
 class SraInfo
 {
-public:
-    class Error : public std::exception
-    {
-    public:
-        Error( rc_t rc, const char* accession, const char * message );
-        virtual const char* what() const noexcept override;
-    private:
-        std::string  m_text;
-    };
-
 public:
     SraInfo();
 
@@ -54,5 +44,9 @@ public:
     Platforms GetPlatforms() const; // may be empty or more than 1 value
 
 private:
+    VDB::Table openSequenceTable( const std::string & accession ) const;
+
+private:
+    VDB::Manager mgr;
     std::string m_accession;
 };

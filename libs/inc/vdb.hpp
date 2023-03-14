@@ -325,17 +325,13 @@ namespace VDB {
             delete [] p;
             return result;
         }
-        Database operator [](std::string const &path) const
+
+        Database openDatabase(std::string const &path) const
         {
             VDatabase *p = 0;
             auto const rc = VDBManagerOpenDBRead(o, (VDatabase const **)&p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
-        }
-
-        Database openDatabase(std::string const &path) const
-        {
-            return (*this)[path];
         }
         Table openTable(std::string const &path) const
         {

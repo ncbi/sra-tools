@@ -85,16 +85,12 @@ TEST_CASE(Manager_SchemaFromFile)
 
 TEST_CASE(Manager_Database_Bad)
 {
-    REQUIRE_THROW( Manager()["./data/database"] );
+    REQUIRE_THROW( Manager().openDatabase("./data/database") );
 }
 
 const string DatabasePath = "./data/SRR6336806";
 const string TablePath = "./data/ERR3487613";
 
-TEST_CASE(Manager_Database_Good)
-{
-    Database d = Manager()[DatabasePath];
-}
 TEST_CASE(Manager_OpenDatabase_Good)
 {
     Database d = Manager().openDatabase(DatabasePath);
@@ -111,52 +107,52 @@ TEST_CASE(Manager_OpenTable_Good)
 
 TEST_CASE(Database_Table_Bad)
 {
-    Database d = Manager()[DatabasePath];
+    Database d = Manager().openDatabase( DatabasePath );
     REQUIRE_THROW( d["NOSUCHTABLE"]);
 }
 
 TEST_CASE(Database_Table_Good)
 {
-    Database d = Manager()[DatabasePath];
+    Database d = Manager().openDatabase( DatabasePath );
     Table t = d["SEQUENCE"];
 }
 
 TEST_CASE(Table_ReadCursor1_BadColumn)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     const char * cols[] = {"a", "b"};
     REQUIRE_THROW( t.read( 2, cols ) );
 }
 
 TEST_CASE(Table_ReadCursor1)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     const char * cols[] = {"READ", "NAME"};
     Cursor c = t.read( 2, cols );
 }
 
 TEST_CASE(Table_ReadCursor2_BadColumn)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     REQUIRE_THROW( t.read( {"a", "b"} ) );
 }
 
 TEST_CASE(Table_ReadCursor2)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
 }
 
 TEST_CASE(Cursor_Columns)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     REQUIRE_EQ( 2u, c.columns() );
 }
 
 TEST_CASE(Cursor_RowRange)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto r = c.rowRange();
     REQUIRE_EQ( Cursor::RowID(1), r.first );
@@ -165,7 +161,7 @@ TEST_CASE(Cursor_RowRange)
 
 TEST_CASE(Cursor_ReadOne)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     Cursor::RawData rd = c.read( 1, 2 );
     REQUIRE_EQ( size_t(1), rd.size() );
@@ -174,7 +170,7 @@ TEST_CASE(Cursor_ReadOne)
 
 TEST_CASE(Cursor_ReadN)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     Cursor::RawData rd[2];
     c.read( 2, 2, rd );
@@ -184,7 +180,7 @@ TEST_CASE(Cursor_ReadN)
 
 TEST_CASE(Cursor_ForEach)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto check = [&](Cursor::RowID row, const vector<Cursor::RawData>& values )
     {
@@ -199,7 +195,7 @@ TEST_CASE(Cursor_ForEach)
 
 TEST_CASE(Cursor_ForEachWithFilter)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto check = [&](Cursor::RowID row, bool keep, const vector<Cursor::RawData>& values )
     {
@@ -221,7 +217,7 @@ TEST_CASE(Cursor_ForEachWithFilter)
 
 TEST_CASE( RawData_asVector_badCast )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ_START", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_THROW( rd.asVector<uint16_t>() );
@@ -229,7 +225,7 @@ TEST_CASE( RawData_asVector_badCast )
 
 TEST_CASE( RawData_asVector )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ_START", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     auto cv = rd.asVector<uint32_t>();
@@ -240,7 +236,7 @@ TEST_CASE( RawData_asVector )
 
 TEST_CASE( RawData_value_badCast )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"SPOT_LEN", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_THROW( rd.value<uint16_t>() );
@@ -248,7 +244,7 @@ TEST_CASE( RawData_value_badCast )
 
 TEST_CASE( RawData_value )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"SPOT_LEN", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     auto v = rd.value<uint32_t>();

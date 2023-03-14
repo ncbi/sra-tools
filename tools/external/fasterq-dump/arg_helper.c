@@ -49,6 +49,22 @@ uint32_t get_env_u32( const char * name, uint32_t dflt ) {
     return str_2_u32( getenv( name ), dflt );
 }
 
+rc_t get_list_option( const struct Args *args, const char * name, VNamelist * dst ) {
+    uint32_t count;
+    rc_t rc = ArgsOptionCount( args, name, &count );
+    if ( 0 == rc && count > 0 ) {
+        uint32_t idx;
+        const char * value = NULL;
+        for ( idx = 0; idx < count && 0 == rc; idx++ ) {
+            rc = ArgsOptionValue( args, name, idx, (const void**)&value );
+            if ( 0 == rc && NULL != value ) {
+                rc = VNamelistAppend( dst, value );
+            }
+        }
+    }
+    return rc;
+}
+
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt ) {
     const char* res = dflt;
     uint32_t count;

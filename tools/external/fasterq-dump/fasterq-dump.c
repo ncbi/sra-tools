@@ -56,6 +56,10 @@
 #include "tbl_join.h"
 #endif
 
+#ifndef _h_ref_inventory_
+#include "ref_inventory.h"
+#endif
+
 #ifndef _h_kapp_main_
 #include <kapp/main.h>
 #endif
@@ -170,6 +174,24 @@ static const char * fasta_usage[] = { "produce FASTA output", NULL };
 static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL };
 #define OPTION_FASTA_US         "fasta-unsorted"
 
+static const char * fasta_ref_tbl_usage[] = { "produce FASTA output from REFERENCE tbl", NULL };
+#define OPTION_FASTA_REF        "fasta-ref-tbl"
+
+static const char * ref_report_usage[] = { "enumerate references", NULL };
+#define OPTION_REF_REPORT       "ref-report"
+
+static const char * ref_int_usage[] = { "extract only internal REFERENCEs", NULL };
+#define OPTION_REF_INT          "internal-ref"
+
+static const char * ref_ext_usage[] = { "extract only external REFERENCEs", NULL };
+#define OPTION_REF_EXT          "external-ref"
+
+static const char * ref_name_usage[] = { "extract only these REFERENCEs", NULL };
+#define OPTION_REF_NAME         "ref-name"
+
+static const char * ref_use_name_usage[] = { "print name instead of seq-id", NULL };
+#define OPTION_USE_NAME         "use-name"
+
 static const char * seq_defline_usage[] = { "custom defline for sequence: ",
                                             "$ac=accession, $sn=spot-name, ",
                                             "$sg=spot-group, $si=spot-id, ",
@@ -238,6 +260,12 @@ OptDef ToolOptions[] = {
     { OPTION_APPEND,        ALIAS_APPEND,       NULL, append_usage,         1, false,  false },
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
     { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
+    { OPTION_FASTA_REF,     NULL,               NULL, fasta_ref_tbl_usage,  1, false,  false },
+    { OPTION_REF_INT,       NULL,               NULL, ref_int_usage,        1, false,  false },
+    { OPTION_REF_EXT,       NULL,               NULL, ref_ext_usage,        1, false,  false },
+    { OPTION_REF_NAME,      NULL,               NULL, ref_name_usage,       0, true,   false },
+    { OPTION_REF_REPORT,    NULL,               NULL, ref_report_usage,     1, false,  false },
+    { OPTION_USE_NAME,      NULL,               NULL, ref_use_name_usage,   1, false,  false },    
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,   false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
@@ -316,12 +344,19 @@ static const char * dflt_requested_seq_tabl_name = "SEQUENCE";
 #define DFLT_NUM_THREADS 6
 static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
+    bool fasta_ref_tbl, ref_report;
 
     rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
     if ( 0 != rc ) {
-        ErrMsg( "ArgsParamValue() -> %R", rc );
+        ErrMsg( "get_user_input . ArgsParamValue() -> %R", rc );
     }
 
+    rc = VNamelistMake( &( tool_ctx -> ref_name_filter ), 5 );
+    if ( 0 != rc ) {
+        ErrMsg( "get_user_input . VNamelistMake() -> %R", rc );
+        tool_ctx -> ref_name_filter = NULL;
+    }
+    
     tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
@@ -342,20 +377,48 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
 
-    split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
-    split_file = get_bool_option( args, OPTION_SPLIT_FILE );
-    split_3    = get_bool_option( args, OPTION_SPLIT_3 );
-    whole_spot = get_bool_option( args, OPTION_WHOLE_SPOT );
-    fasta      = get_bool_option( args, OPTION_FASTA );
-    fasta_us   = get_bool_option( args, OPTION_FASTA_US );
+    split_spot    = get_bool_option( args, OPTION_SPLIT_SPOT );
+    split_file    = get_bool_option( args, OPTION_SPLIT_FILE );
+    split_3       = get_bool_option( args, OPTION_SPLIT_3 );
+    whole_spot    = get_bool_option( args, OPTION_WHOLE_SPOT );
+    fasta         = get_bool_option( args, OPTION_FASTA );
+    fasta_us      = get_bool_option( args, OPTION_FASTA_US );
+    fasta_ref_tbl = get_bool_option( args, OPTION_FASTA_REF );
+    ref_report    = get_bool_option( args, OPTION_REF_REPORT );
 
-    if ( 0 == rc && split_spot && split_file ) {
-        rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
-        ErrMsg( "split-spot and split-file exclude each other -> %R", rc );
+    tool_ctx -> only_internal_refs = get_bool_option( args, OPTION_REF_INT );
+    tool_ctx -> only_external_refs = get_bool_option( args, OPTION_REF_EXT );
+    tool_ctx -> split_file = split_file; /* passing it though for fasta-ref-tbl */
+    tool_ctx -> use_name = get_bool_option( args, OPTION_USE_NAME );
+
+    if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
+        rc = get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
+        if ( 0 != rc ) {
+            ErrMsg( "get_user_input . get_list_option() -> %R", rc );
+        }
+    }
+
+    if ( 0 == rc ) {
+        if ( split_spot && split_file ) {
+            rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
+            ErrMsg( "split-spot and split-file exclude each other -> %R", rc );
+        }
+
+        if ( fasta && fasta_us ) {
+            rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
+            ErrMsg( "fasta and fasta-unsorted exclude each other -> %R", rc );
+        } else if ( fasta && fasta_ref_tbl ) {
+            rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
+            ErrMsg( "fasta and fasta-ref-tbl exclude each other -> %R", rc );
+        } else if ( fasta_us && fasta_ref_tbl ) {
+            rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
+            ErrMsg( "fasta-unsorted and fasta-ref-tbl exclude each other -> %R", rc );
+        }
     }
 
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                    split_spot, split_file, split_3, whole_spot, fasta, fasta_us ); /* helper.c */
+                    split_spot, split_file, split_3, whole_spot, fasta,
+                    fasta_us, fasta_ref_tbl, ref_report ); /* helper.c */
     if ( ft_fastq_split_3 == tool_ctx -> fmt ) {
         tool_ctx -> join_options . skip_tech = true;
     }
@@ -621,15 +684,16 @@ static rc_t process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
 static rc_t process_csra( const tool_ctx_t * tool_ctx ) {
     rc_t rc;
 
-    if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        /* the common case the other cominations of FASTA/FASTQ : */
-        rc = produce_lookup_files( tool_ctx ); /* above */
-        if ( 0 == rc ) {
-            rc = produce_final_db_output( tool_ctx ); /* above */
+    switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
+        case ft_fasta_us_split_spot : rc = process_csra_fasta_unsorted( tool_ctx ); break; /* above */
+        case ft_fasta_ref_tbl : rc = ref_inventory_print( tool_ctx ); break; /* ref_inventory.c */
+        case ft_ref_report : rc = ref_inventory_print_report( tool_ctx ); break; /* ref_inventory.c */
+        default : {
+            rc = produce_lookup_files( tool_ctx ); /* above */
+            if ( 0 == rc ) {
+                rc = produce_final_db_output( tool_ctx ); /* above */
+            }
         }
-    } else {
-        /* the special case of fasta-unsorted and split-spot : */
-        rc = process_csra_fasta_unsorted( tool_ctx ); /* above */
     }
     return rc;
 }
@@ -731,18 +795,27 @@ static rc_t process_table_fasta_unsorted( const tool_ctx_t * tool_ctx, const cha
     >>>>> flat table <<<<< ( tbl_name is NULL for raw-table, otherwise db with a table only ! )
    ============================================================================================ */
 
+static rc_t no_reftbl( void ) {
+    rc_t rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
+    ErrMsg( "no REFEERNCE-table availble -> %R", rc );
+    return rc;
+}
+
 static rc_t process_table( const tool_ctx_t * tool_ctx, const char * tbl_name ) {
     rc_t rc = 0;
 
-    if ( !tool_ctx -> only_aligned ) {
-
-        if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-            rc = process_table_in_seq_order( tool_ctx, tbl_name ); /* above */
-        } else {
-            rc = process_table_fasta_unsorted( tool_ctx, tbl_name ); /* above */
-        }
+    switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
+        case ft_fasta_us_split_spot :
+        case ft_fasta_ref_tbl       :
+        case ft_ref_report          : rc = no_reftbl(); break; /* above */
+        default : if ( !tool_ctx -> only_aligned ) {
+                    if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
+                        rc = process_table_in_seq_order( tool_ctx, tbl_name ); /* above */
+                    } else {
+                        rc = process_table_fasta_unsorted( tool_ctx, tbl_name ); /* above */
+                    }
+                }  
     }
-
     return rc;
 }
 
@@ -774,7 +847,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
 
                 rc = get_user_input( &tool_ctx, args ); /* above: get argument and options from args */
                 if ( 0 == rc ) {
-                    rc = populate_tool_ctx( &tool_ctx ); /* tool_ctx.c !includes inspector! */
+                    rc = populate_tool_ctx_and_call_inspector( &tool_ctx ); /* tool_ctx.c */
                     /* returns rc != 0 if inspection failed, because of check-mode */
                 }
 
@@ -782,7 +855,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                 if ( NULL == tool_ctx . insp_output . seq . tbl_name ) {
                     tool_ctx . insp_output . seq . tbl_name = dflt_requested_seq_tabl_name;
                 }
-                
+
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */

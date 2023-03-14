@@ -43,16 +43,25 @@ extern "C" {
 #include "helper.h"
 #endif
 
-typedef struct cmn_iter_params
+typedef struct cmn_iter_params_t
 {
     const KDirectory * dir;
     const VDBManager * vdb_mgr;
     const char * accession_short;
     const char * accession_path;
+    size_t cursor_cache;
     int64_t first_row;
     uint64_t row_count;
-    size_t cursor_cache;
 } cmn_iter_params_t;
+
+bool populate_cmn_iter_params( cmn_iter_params_t * params,
+        const KDirectory * dir,
+        const VDBManager * vdb_mgr,
+        const char * accession_short,
+        const char * accession_path,
+        size_t cursor_cache,
+        int64_t first_row,
+        uint64_t row_count );
 
 struct cmn_iter_t;
 
@@ -60,6 +69,8 @@ void destroy_cmn_iter( struct cmn_iter_t * self );
 
 rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, struct cmn_iter_t ** iter );
 
+rc_t cmn_iter_set_range( struct cmn_iter_t * self, int64_t start_row, uint64_t row_count );
+    
 rc_t cmn_iter_add_column( struct cmn_iter_t * self, const char * name, uint32_t * id );
 rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id );
 
@@ -71,15 +82,17 @@ uint64_t cmn_iter_row_count( struct cmn_iter_t * self );
 rc_t cmn_read_uint64( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value );
 rc_t cmn_read_uint64_array( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read );
-rc_t cmn_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value );
 
+rc_t cmn_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value );
 rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t ** values,
                            uint32_t * values_read );
 
+rc_t cmn_read_uint8( struct cmn_iter_t * self, uint32_t col_id, uint8_t * value );
 rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
                            uint32_t * values_read );
 
 rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String *value );
+rc_t cmn_read_bool( struct cmn_iter_t * self, uint32_t col_id, bool *value );
 
 rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
                            const char * accession_short, const char * accession_path,

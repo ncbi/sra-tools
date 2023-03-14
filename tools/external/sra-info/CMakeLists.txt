@@ -22,23 +22,10 @@
 #
 # ===========================================================================
 
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-pileup )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( ngs-pileup )
-add_subdirectory( rcexplain )
-add_subdirectory( kdbmeta )
-add_subdirectory( align-info )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( test-sra )
-add_subdirectory( cache-mgr ) # obsolete
-add_subdirectory( driver-tool )
-add_subdirectory( sra-info )
+set( SRC
+	main
+	sra-info
+)
+
+GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+MakeLinksExe( sra-info true )

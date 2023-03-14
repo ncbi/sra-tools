@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -21,24 +22,61 @@
 #  Please cite the author in any work or product based on this material.
 #
 # ===========================================================================
+#echo "$0 $*"
 
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-pileup )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( ngs-pileup )
-add_subdirectory( rcexplain )
-add_subdirectory( kdbmeta )
-add_subdirectory( align-info )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( test-sra )
-add_subdirectory( cache-mgr ) # obsolete
-add_subdirectory( driver-tool )
-add_subdirectory( sra-info )
+# $1 - command line for the tool
+# $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $3 - test case ID
+#
+# return codes:
+# 0 - passed
+# 1 - coud not create temp dir
+# 2 - non-0 return code from the tool
+# 3 - outputs differ
+
+TOOL=$1
+WORKDIR=$2
+CASEID=$3
+RC=0
+
+TEMPDIR=$WORKDIR/actual/$CASEID
+STDOUT=$TEMPDIR/stdout
+STDERR=$TEMPDIR/stderr
+
+if [ "$(uname)" == "Darwin" ]; then
+    DIFF="diff -b"
+else
+    DIFF="diff -b -Z"
+fi
+
+echo "running $CASEID"
+
+mkdir -p $TEMPDIR
+rm -rf $TEMPDIR/*
+if [ "$?" != "0" ] ; then
+    exit 1
+fi
+CMD="$TOOL 1>$STDOUT 2>$STDERR"
+echo $CMD
+eval $CMD
+rc="$?"
+if [ "$rc" != "$RC" ] ; then
+    echo "$TOOL returned $rc, expected $RC"
+    echo "command executed:"
+    echo $CMD
+    cat $STDERR
+    exit 2
+fi
+
+$DIFF $WORKDIR/expected/$CASEID.stdout $STDOUT >$TEMPDIR/diff
+rc="$?"
+if [ "$rc" != "0" ] ; then
+    cat $TEMPDIR/diff
+    echo "command executed:"
+    echo $CMD
+    exit 3
+fi
+
+rm -rf $TEMPDIR
+
+exit 0

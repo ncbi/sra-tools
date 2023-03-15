@@ -140,17 +140,13 @@ if ( Java_FOUND )
             set(SRC_FILES "${SRC_FILES} ${f}")
         endforeach()
 
-        if( ${OS} STREQUAL "windows" )
-            set( NGS_JAVADOC_DIR ${TARGDIR} )
-        else()
-            set( NGS_JAVADOC_DIR ${TARGDIR}/obj )
-        endif()
+        set( NGS_JAVADOC_DIR ${CMAKE_BINARY_DIR}/ngs/ngs-java/javadoc/ngs-doc )
         if ( Java_JAR_EXECUTABLE AND NOT (${OS} STREQUAL "windows") )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND
                 bash -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
                 DEPENDS ngs-doc_javadoc
-                WORKING_DIRECTORY "${NGS_JAVADOC_DIR}/ngs/ngs-java/javadoc/ngs-doc"
+                WORKING_DIRECTORY ${NGS_JAVADOC_DIR}
             )
             install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
 
@@ -166,7 +162,7 @@ if ( Java_FOUND )
                 ngs-doc-jar ALL COMMAND
                 "${Java_JAR_EXECUTABLE}" -cf "${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar" .
                 DEPENDS ngs-doc_javadoc
-                WORKING_DIRECTORY "${NGS_JAVADOC_DIR}/ngs/ngs-java/javadoc/ngs-doc"
+                WORKING_DIRECTORY ${NGS_JAVADOC_DIR}
             )
             install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
 

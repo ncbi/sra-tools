@@ -29,15 +29,21 @@ vdb_validate=$2
 db_acc=$3
 
 local_acc=actual/db_schema_check_${db_acc}
-output=$(${bin_dir}/prefetch -o ${local_acc} ${db_acc})
+output=$(${bin_dir}/prefetch -o ${local_acc} ${db_acc} 2>&1)
 res=$?
 if [ "$res" != "0" ];
 	then echo "prefetch db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
 else
-	output=$(./runtestcase.sh "${bin_dir}/${vdb_validate} ${local_acc}" db_schema_check_${db_acc} 0)
+	output=$(${bin_dir}/${vdb_validate} ${local_acc} 2>&1)
 	res=$?
 	#rm ${local_acc}
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED because of RC: $res, output=$output" && exit 1;
+	fi
+
+	output_grep=$(echo "${output}" | grep "verify_database: type unrecognized while validating database" 2>&1)
+	res_grep=$?
+	if [ "$res_grep" = "0" ];
+		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED because of the line: ${output_grep}" && exit 1;
 	fi
 fi

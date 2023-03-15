@@ -83,42 +83,42 @@ mkdir -p actual/
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	db_acc=SRR11039354
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	db_acc=SRR5238359
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	db_acc=SRR8803095
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	db_acc=SRR15057789
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	db_acc=SRR11664922
 	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
 	res=$?
 	if [ "$res" != "0" ];
-		then echo "${vdb_validate} db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;
+		then echo "$output" && exit 1;
 	fi
 
 	echo "All ${vdb_validate} tests succeed"

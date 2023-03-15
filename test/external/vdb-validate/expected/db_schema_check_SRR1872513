@@ -1,5 +1,0 @@
-info: Database 'db_schema_check_SRR1872513' metadata: md5 ok
-info: Table 'SEQUENCE' metadata: md5 ok
-warn: file="actual/db_schema_check_SRR1872513"
-warn: Nothing to validate; the file 'actual/db_schema_check_SRR1872513' has no checksums or is truncated.
-info: Database 'db_schema_check_SRR1872513' is consistent

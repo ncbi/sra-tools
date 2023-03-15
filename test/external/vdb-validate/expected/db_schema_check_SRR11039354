@@ -1,9 +1,0 @@
-info: Database 'db_schema_check_SRR11039354' metadata: md5 ok
-info: Table 'SEQUENCE' metadata: md5 ok
-info: Column 'CHANNEL': checksums ok
-info: Column 'QUALITY': checksums ok
-info: Column 'READ': checksums ok
-info: Column 'READ_LEN': checksums ok
-info: Column 'READ_NUMBER': checksums ok
-info: Column 'READ_START': checksums ok
-info: Database 'db_schema_check_SRR11039354' is consistent

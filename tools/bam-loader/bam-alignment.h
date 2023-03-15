@@ -146,6 +146,7 @@ struct BAM_Alignment {
     unsigned qual;
     unsigned numExtra;
     unsigned hasColor;
+    unsigned platform;
 #if HAVE_C99_FAM
     struct offset_size_s extra[];
 #else

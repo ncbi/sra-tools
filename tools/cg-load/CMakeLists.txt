@@ -22,8 +22,6 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/cg-load" )
-
 # External
 
 set( CGLOAD_SRC
@@ -49,7 +47,5 @@ set( CGLOAD_SRC
 	writer-seq
 )
 
-add_executable( cg-load ${CGLOAD_SRC} )
-
-target_link_libraries( cg-load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+GenerateExecutableWithDefs( cg-load "${CGLOAD_SRC}" "__mod__=\"tools/cg-load\"" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( cg-load false )

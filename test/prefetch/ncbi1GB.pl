@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-($DIRTOTEST) = @ARGV;
+($DIRTOTEST, $PREFETCH) = @ARGV;
 
 `which ascp 2> /dev/null`;
 unless ($?) {
@@ -43,7 +43,7 @@ unless ($?) {
         `rm -f 1GB`; die if $?;
 
         $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-               "$DIRTOTEST/prefetch fasp://anonftp\@ftp.ncbi.nlm.nih.gov:1GB";
+               "$DIRTOTEST/$PREFETCH fasp://anonftp\@ftp.ncbi.nlm.nih.gov:1GB";
         print "$CMD\n" if $VERBOSE;
         `$CMD 2> /dev/null`; die 'Is there DIRTOTEST?' if $?;
         `rm 1GB`; die if $?;

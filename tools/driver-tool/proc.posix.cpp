@@ -115,7 +115,8 @@ static void exec_debugger [[noreturn]] (  char const *const debugger
 /// @throw system_error if exec fails
 static void exec_really [[noreturn]] (FilePath const &toolPath, std::string const &toolName, char const *const *argv)
 {
-    execve(toolPath.implementation().get(), argv);
+    std::string const exepath = toolPath;
+    execve(exepath.c_str(), argv);
     throw_system_error(std::string("failed to exec ")+toolName);
 }
 

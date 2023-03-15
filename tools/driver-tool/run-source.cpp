@@ -69,6 +69,9 @@ static std::string config_or_default(char const *const config_node, char const *
 
 static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
 {
+    if (runs.empty())
+        throw std::domain_error("No query");
+    
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
 
@@ -256,7 +259,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &parsed)
         
         x["name"] = i;
         x["local"] = i;
-        x[LocalKey::filePath] = cmdline.pathForArgument(arg);
+        x[LocalKey::filePath].assign(cmdline.pathForArgument(arg));
     });
 }
 
@@ -289,7 +292,7 @@ static bool setIfExists(Dictionary &result, std::string const &key, std::string 
 static bool cwdSetIfExists(Dictionary &result, std::string const &key, FilePath const &cwd, std::string const &name)
 {
     if (FilePath::exists(name)) {
-        result[key] = cwd.append(name);
+        result[key].assign(cwd.append(name));
         return true;
     }
     return false;
@@ -349,7 +352,7 @@ static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::strin
     
     LOG(9) << name << " is " << filename << " in directory" << (std::string)cwd << "." << std::endl;
     if (exts.size() == 1) {
-        result[LocalKey::filePath] = result["path"] = cwd.append(filename);
+        result[LocalKey::filePath] = result["path"].assign(cwd.append(filename));
         result[LocalKey::qualityType] = exts.front().first > 0 ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
         lookForCacheFileIn(cwd, result, wantFullQuality, accession);
         return true;
@@ -366,7 +369,7 @@ static void getADInfo(Dictionary &result, FilePath const &cwd, Accession const &
         if (FilePath::exists(withExt)) {
             auto const qualityType = Accession::qualityTypeFor(ext);
 
-            result[LocalKey::filePath] = cwd.append(withExt);
+            result[LocalKey::filePath].assign(cwd.append(withExt));
             result[LocalKey::qualityType] = qualityType;
 
             LOG(9) << result["name"] << " looks like an SRA Accession Directory, found file " << withExt << " with " << qualityType << " quality scores." << std::endl;
@@ -399,20 +402,20 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
         auto const isaRun = accession.type() == run;
 
         try {
-            path.makeCurrentDirectory(cwd);
+            path.makeCurrentDirectory();
 
             i.second["local"] = name;
             LOG(9) << name << " is a directory." << std::endl;
 
             auto const path = FilePath::cwd(); // canonical path
-            i.second["path"] = path;
+            i.second["path"].assign(path);
 
             if (isaRun && accession.extension().empty()) // accession directories don't have extensions
                 getADInfo(i.second, path, accession, wantFullQuality);
             else
                 LOG(3) << name << " is a directory, but doesn't look like an SRA Accession Directory." << std::endl;
 
-            cwd.makeCurrentDirectory(path);
+            cwd.makeCurrentDirectory();
             return;
         }
         catch (std::system_error const &e) {
@@ -431,13 +434,13 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             try {
                 auto const dir = dir_base.first.copy();
                 
-                dir.makeCurrentDirectory(cwd);
+                dir.makeCurrentDirectory();
                 {
                     auto const path = FilePath::cwd(); // canonical path
                     if (getLocalFilePath(i.second, path, filename, wantFullQuality))
                         i.second["local"] = name;
                 }
-                cwd.makeCurrentDirectory(dir);
+                cwd.makeCurrentDirectory();
             }
             catch (std::system_error const &e) {
                 LOG(1) << std::string(dir_base.first) << " is a directory, but can't chdir to it: " << e.what() << std::endl;
@@ -579,8 +582,11 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         catch (Response2::DecodingError const &err) {
             LOG(1) << err << std::endl;
         }
-        catch (std::domain_error const &e) {
-            assert(e.what() == std::string("No query"));
+        catch (std::domain_error const &de) {
+            if (de.what() && strcmp(de.what(), "No query") == 0)
+                ;
+            else
+                throw de;
         }
         catch (vdb::exception const &e) {
             LOG(1) << "Failed to talk to SDL" << std::endl;

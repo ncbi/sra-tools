@@ -192,6 +192,8 @@ rc_t CC Usage ( struct Args const * args )
     return 0;
 }
 
+ const char UsageDefaultName[] = "kdb-index";
+rc_t CC UsageSummary (const char * progname) { return 0; }
 rc_t CC KMain ( int argc, char *argv [] )
 {
     rc_t rc = 0;
@@ -213,6 +215,9 @@ rc_t CC KMain ( int argc, char *argv [] )
         case 'h':
         case '?':
             print_help ();
+            return 0;
+        case 'V':
+            HelpVersion ( UsageDefaultName, KAppVersion () );
             return 0;
         case '-':
             ++ arg;

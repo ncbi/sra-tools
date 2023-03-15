@@ -22,17 +22,15 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/vdb-config" )
-
-
 if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-	set( TUI_LIBS tui_cpp tui)
-elseif( SINGLE_CONFIG)
-	set( TUI_LIBS ${NCBI_VDB_LIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_LIBDIR}/libtui.${STLX})
-else() # XCode
-	set( TUI_LIBS tui_cpp tui)
 endif()
+
+set( TUI_LIBS tui_cpp tui)
+
+add_subdirectory( tui )
+
+add_compile_definitions( __mod__="tools/vdb-config" )
 
 add_executable( vdb-config
 	configure
@@ -42,6 +40,9 @@ add_executable( vdb-config
 	interactive2
 	vdb-config-model
 )
+
+add_dependencies( vdb-config tui )
+target_include_directories( vdb-config PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
 target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-config false )
 

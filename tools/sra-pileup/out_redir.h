@@ -29,36 +29,39 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
-#include <klib/out.h>
-#include <klib/rc.h>
-#include <klib/log.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>   /* KWrtWriter */
+#endif
 
-#include <kfs/file.h>
+#ifndef _h_kfs_file_
+#include <kfs/file.h>   /* KFile */
+#endif
 
-enum out_redir_mode
-{
+enum out_redir_mode {
     orm_uncompressed = 0,
     orm_gzip,
     orm_bzip2
 };
 
-
 /* GLOBAL VARIABLES */
-typedef struct out_redir
-{
+typedef struct out_redir {
     KWrtWriter org_writer;
     void* org_data;
     KFile* kfile;
     uint64_t pos;
 } out_redir;
 
-
 rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * filename, size_t bufsize );
 
 void release_out_redir( out_redir * self );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

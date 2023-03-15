@@ -37,9 +37,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include "file-path.posix.hpp"
-#include "debug.hpp"
 #include <limits.h>
+#include "debug.hpp"
+#if 0
+#include "file-path.posix.hpp"
 
 namespace POSIX {
 
@@ -262,4 +263,131 @@ bool FilePath::removeSuffix(char const *const suffix, size_t const count) {
 }
 
 } // namespace POSIX
+
+#else
+#include "file-path.hpp"
+#include <algorithm>
+#include <vector>
+#include <string>
+
+FilePath::FilePath(NativeString const &in) : path(in) {}
+
+static std::string trimPath(std::string const &path, bool const issecond = false)
+{
+    auto end = path.size();
+    auto start = decltype(end)(0);
+    
+    while (start + 1 < end && path[start] == '/' && path[start + 1] == '/')
+        ++start;
+    
+    if (issecond && path[start] == '/')
+        ++start;
+    
+    while (end - 1 > start && path[end - 1] == '/')
+        --end;
+    
+    return path.substr(start, end - start);
+}
+
+FilePath::operator std::string() const {
+    return path;
+}
+
+unsigned FilePath::size() const {
+    return (unsigned)trimPath(path).size();
+}
+
+std::pair< FilePath, FilePath > FilePath::split() const {
+    auto const good = trimPath(path);
+    auto const sep = good.find_last_of('/');
+    if (sep == std::string::npos)
+        return {FilePath(), FilePath(good)};
+    if (sep == 0)
+        return {FilePath("/"), FilePath(good.substr(1))};
+    else
+        return {FilePath(good.substr(0, sep)), FilePath(good.substr(sep + 1))};
+}
+
+bool FilePath::exists() const {
+    return access(path.c_str(), F_OK);
+}
+
+bool FilePath::exists(std::string const &path) {
+    return access(path.c_str(), F_OK);
+}
+
+bool FilePath::executable() const {
+    return access(path.c_str(), X_OK);
+}
+
+bool FilePath::readable() const {
+    return access(path.c_str(), R_OK);
+}
+
+FilePath FilePath::append(FilePath const &element) const {
+    return FilePath(trimPath(path) + "/" + trimPath(element.path, true));
+}
+
+bool FilePath::removeSuffix(size_t const count) {
+    if (count > 0 && path.size() >= count) {
+        path.resize(path.size() - count);
+        return true;
+    }
+    return count == 0;
+}
+
+FilePath FilePath::cwd()
+{
+    auto const path = getcwd(NULL, 0); // this is documented to work on macOS, Linux, and BSD
+    auto result = FilePath(path);
+    free(path);
+    return result;
+}
+
+void FilePath::changeDirectory() const {
+    if (chdir(path.c_str()) == 0)
+        return;
+    throw std::system_error(errno, std::system_category(), std::string("chdir: ") + path);
+}
+
+FilePath from_realpath(char const *path)
+{
+    auto const real = realpath(path, nullptr);
+    if (real)
+        return FilePath(real);
+    throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
+}
+
+#if MAC
+static char const *find_executable_path(char const *const *const extra, char const *const argv0)
+{
+    for (auto cur = extra; extra && *cur; ++cur) {
+        if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
+            return (*cur) + 16; // Usually, this is the value.
+        }
+    }
+    return (extra && extra[0]) ? extra[0] : argv0;
+}
+#endif
+
+FilePath FilePath::fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra)
+{
+    char const *path;
+#if LINUX
+    path = "/proc/self/exe";
+#elif MAC
+    path = find_executable_path(extra, argv[0]);
+#else
+    path = argv[0];
+#endif
+    try {
+        return from_realpath(path);
+    }
+    catch (std::system_error const &e) {
+        LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
+    }
+    return FilePath(argv[0]);
+}
+
+#endif
 #endif

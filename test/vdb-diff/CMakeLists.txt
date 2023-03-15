@@ -30,14 +30,38 @@ if( Python3_EXECUTABLE )
 	add_test( NAME Test_VDB_Diff_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_VDB_Diff_Check_exit_code-asan
+			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff-asan${EXE}
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_VDB_Diff_Check_exit_code-tsan
+			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff-tsan${EXE}
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endif()
 
 if( NOT WIN32 )
 	add_test( NAME Test_VDB_Diff_Check_success
-		COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION}
+		COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_VDB_Diff_Check_success-asan
+			COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_VDB_Diff_Check_success-tsan
+			COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 
 	add_test( NAME Test_VDB_Diff_Check_failure
-		COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION}
+		COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_VDB_Diff_Check_failure-asan
+			COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_VDB_Diff_Check_failure-tsan
+			COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endif()

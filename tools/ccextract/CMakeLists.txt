@@ -22,31 +22,27 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/ccextract" )
-
 # External
 if( LibXml2_FOUND )
-	add_executable( ccextract ccextract )
 	if( SINGLE_CONFIG )
-		target_link_libraries( ccextract
-		        ${COMMON_LINK_LIBRARIES}
-		        ${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
-		        ${NCBI_VDB_LIBDIR}/libkxml.${STLX}
-		        ${COMMON_LIBS_READ}
-		        ${LIBXML2_LIBRARIES}
-		    )
+		set( LIBS
+			${COMMON_LINK_LIBRARIES}
+			kxml
+			${COMMON_LIBS_READ}
+			${LIBXML2_LIBRARIES}
+		)
 	else()
-		target_link_libraries( ccextract
-		        ${COMMON_LINK_LIBRARIES}
-		        kxfs
-		        kxml
-		        ${COMMON_LIBS_READ}
-		        xml2
-		    )
+		set( LIBS
+			${COMMON_LINK_LIBRARIES}
+			kxml
+			${COMMON_LIBS_READ}
+			xml2
+		)
 	endif()
 
-        if ( "mac" STREQUAL ${OS} )
-            target_link_libraries( ccextract iconv )
-        endif()
+	if ( "mac" STREQUAL ${OS} )
+		list( APPEND LIBS iconv )
+	endif()
+	GenerateExecutableWithDefs( ccextract "ccextract" "__mod__=\"tools/ccextract\"" "" "${LIBS}" )
 	MakeLinksExe( ccextract false )
 endif()

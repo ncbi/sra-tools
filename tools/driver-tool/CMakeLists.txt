@@ -22,45 +22,43 @@
 #
 # ===========================================================================
 
-add_executable(sratools)
-target_compile_definitions( sratools PRIVATE __mod__="tools/driver-tool" )
+set( compile_defs __mod__="tools/driver-tool" )
 
-target_sources(sratools
-    PRIVATE
-        sratools.cpp
-        sratools.hpp
-        config.cpp
-		config.hpp
-        command-line.cpp
-        command-line.hpp
-        run-source.cpp
-        run-source.hpp
-        proc.cpp
-        proc.hpp
-        uuid.cpp
-        uuid.hpp
-        service.cpp
-        service.hpp
-        json-parse.cpp
-        json-parse.hpp
-        SDL-response.cpp
-        SDL-response.hpp
-        tool-args.cpp
-        tool-args.hpp
-        build-version.cpp
-        build-version.hpp
-        globals.hpp
-        constants.hpp
-        debug.hpp
-        utf8-16.hpp
-        util.hpp
-        file-path.hpp
-        opt_string.hpp
-        tool-arguments.h
-        fastq-dump-arguments.h
+set( sources
+    sratools.cpp
+    sratools.hpp
+    config.cpp
+    config.hpp
+    command-line.cpp
+    command-line.hpp
+    run-source.cpp
+    run-source.hpp
+    proc.cpp
+    proc.hpp
+    uuid.cpp
+    uuid.hpp
+    service.cpp
+    service.hpp
+    json-parse.cpp
+    json-parse.hpp
+    SDL-response.cpp
+    SDL-response.hpp
+    tool-args.cpp
+    tool-args.hpp
+    build-version.cpp
+    build-version.hpp
+    globals.hpp
+    constants.hpp
+    debug.hpp
+    utf8-16.hpp
+    util.hpp
+    file-path.hpp
+    opt_string.hpp
+    tool-arguments.h
+    fastq-dump-arguments.h
 )
 if(WIN32)
-	target_sources(sratools PRIVATE
+    list(APPEND sources
         file-path.win32.cpp
         file-path.win32.hpp
         proc.win32.cpp
@@ -68,30 +66,30 @@ if(WIN32)
         util.win32.hpp
         wide-char.hpp
         win32-cmdline.hpp
-        win32-cmdline.cpp		
-	)
+        win32-cmdline.cpp
+    )
 else()
-	target_sources(sratools PRIVATE
+    list(APPEND sources
         file-path.posix.cpp
         file-path.posix.hpp
         proc.posix.cpp
         proc.posix.hpp
         util.posix.hpp
-	)
+    )
 endif()
-target_link_libraries( sratools
-    ncbi-vdb
-)
+
+set(link_libs ncbi-vdb)
 if(WIN32)
-    target_compile_definitions(sratools PRIVATE USE_WIDE_API=1)
-    target_link_libraries(sratools PRIVATE
+    list(APPEND compile_defs USE_WIDE_API=1 )
+    list(APPEND link_libs
         libcmt$<$<CONFIG:Debug>:d>
         libcpmt$<$<CONFIG:Debug>:d>
         libucrt$<$<CONFIG:Debug>:d>
         libvcruntime$<$<CONFIG:Debug>:d>
-		Ws2_32 Crypt32 ShLwApi Pathcch
+        Ws2_32 Crypt32 ShLwApi Pathcch
     )
 elseif(LINUX)
-    target_link_libraries(sratools PRIVATE m)
+    list(APPEND link_libs m)
 endif()
+GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )

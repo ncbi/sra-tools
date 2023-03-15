@@ -85,8 +85,7 @@ struct CommandLine {
 #if USE_WIDE_API
         return FilePath(wargv[index]);
 #else
-        FilePath f(argv[index]);
-        return FilePath(f);
+        return FilePath(argv[index]);
 #endif
     }
     FilePath pathForArgument(Argument const &arg) const {

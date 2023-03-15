@@ -1,6 +1,36 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.0
+**February 10, 2022**
+
+  **blast**: BLAST tools are now distributed by Blast team  
+  **build**: clarified the output of the configure script  
+  **build, ncbi-vdb, sra-tools**: added support for building with XCode  
+  **build, ncbi-vdb, sra-tools**: the build system has been converted to use CMake  
+  **build, ngs, sra-tools**: ngs project has been moved to sra-tools  
+  **fasterq-dump**: fails if stdout requested, but there are multiple output streams  
+  **fasterq-dump, fastq-dump, sratools**: fixed a bug that caused multiple accession to cause the tool to exit with an error  
+  **fasterq-dump**: fixed problem where files could be deleted if output directory was a symlink  
+  **fasterq-dump**: now with pre-flight mode  
+  **fasterq-dump, vfs**: recognize prefetched dbGaP runs  
+  **fastq-dump**: create correct name when processing protected run  
+  **latf-load**: added support for interleaved file I/O  
+  **latf-load**: added support for long barcodes with '+' in them  
+  **latf-load**: updated spot assembly for reads with # style barcodes  
+  **latf-load**: updated spot assembly to pair /1 and /2 reads  
+  **latf-load**: will no longer accept duplicate read names  
+  **ngs**: clients will not download dynamic libraries anymore  
+  **prefetch**: fixed checking of dependencies for absolute path  
+  **prefetch, vdb**: fixed downloading reference sequences into "Accession-Directory" when zero-quality is preferred  
+  **remote-fuser**: was retired  
+  **sratools**: seq-defline and qual-defline options now work  
+  **sratools**: tries harder to find the executable path on macOS  
+  **vdb-decrypt**: remove "_dbGaP" suffix when decrypting protected run  
+  **vdb-dump**: exits with non-zero return code when reference sequences are not found  
+  **kfs, sra-tools**: fixed a bug in handling of long URLs on Windows  
+
+
 ## SRA Toolkit 2.11.3
 **October 25, 2021**
 

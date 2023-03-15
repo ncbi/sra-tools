@@ -22,9 +22,7 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/vdb-dump" )
-
-add_executable( vdb-dump
+set( SRC
 	vdb-dump-context
 	vdb-dump-coldefs
 	vdb-dump-tools
@@ -36,5 +34,6 @@ add_executable( vdb-dump
 	vdb_info
 	vdb-dump
 )
-target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+
+GenerateExecutableWithDefs( vdb-dump "${SRC}" "__mod__=\"tools/vdb-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-dump true )

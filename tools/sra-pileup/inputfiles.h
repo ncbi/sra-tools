@@ -30,24 +30,34 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
-#include <klib/out.h>
-#include <klib/text.h>
-#include <klib/rc.h>
-#include <klib/log.h>
+#endif
+
+#ifndef _h_klib_namelist_
 #include <klib/namelist.h>
+#endif
 
+#ifndef _h_vdb_manager_
 #include <vdb/manager.h>
-#include <vdb/vdb-priv.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
+#endif
 
-#include <align/reference.h>
-#include <align/manager.h>
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_align_reader_reference_
+#include <align/reference.h>  /* ReferenceList */
+#endif
 
 /*
     the VNamelist of input-files/accessions/uri's is tested one at a time
@@ -57,9 +67,7 @@ extern "C" {
     in case of not found  : name is put into the not-found list
 */
 
-
-typedef struct input_database
-{
+typedef struct input_database {
     uint32_t db_idx;
     char * path;
     const VDatabase * db;
@@ -69,17 +77,12 @@ typedef struct input_database
     void * ev_ctx;
 } input_database;
 
-
-typedef struct input_table
-{
+typedef struct input_table {
     char * path;
     const VTable * tab;
 } input_table;
 
-
-
-typedef struct input_files
-{
+typedef struct input_files {
     uint32_t database_count;
     uint32_t table_count;
     uint32_t not_found_count;
@@ -89,11 +92,13 @@ typedef struct input_files
     VNamelist * not_found;
 } input_files;
 
-
-
 rc_t discover_input_files( input_files **self, const VDBManager *mgr,
                            const VNamelist * src, uint32_t reflist_options );
 
 void release_input_files( input_files *self );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

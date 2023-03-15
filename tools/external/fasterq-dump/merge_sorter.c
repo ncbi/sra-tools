@@ -176,7 +176,7 @@ static rc_t run_merge_sorter( merge_sorter_t * self ) {
     merge_src_t * to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
 
     while( 0 == rc && NULL != to_write ) {
-        rc = get_quitting();    /* helper.c */
+        rc = hlp_get_quitting();    /* helper.c */
         if ( 0 == rc ) {
             if ( last_key > to_write -> key ) {
                 rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
@@ -195,7 +195,7 @@ static rc_t run_merge_sorter( merge_sorter_t * self ) {
                 to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
             }
             if ( 0 != rc ) {
-                set_quitting();     /* helper.c */
+                hlp_set_quitting();     /* helper.c */
             }
             bg_update_update( self -> gap, 1 ); /* signal to gap-update */
         }
@@ -224,7 +224,7 @@ typedef struct background_vector_merger_t {
     KQueue * job_q;                 /* the KVector objects arrive here from the lookup-producer */
     KThread * thread;               /* the thread that performs the merge-sort */
     struct background_file_merger_t * file_merger;    /* below */
-    struct KFastDumpCleanupTask_t * cleanup_task;     /* add the produced temp_files here too */
+    struct CleanupTask_t * cleanup_task;     /* add the produced temp_files here too */
     uint32_t product_id;            /* increased by one for each batch-run, used in temp-file-name */
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
     uint32_t q_wait_time;           /* timeout in milliseconds to get something out of in_q */
@@ -399,7 +399,7 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
         ErrMsg( "merge_sorter.c background_vector_merger_process_batch() -> %R", rc );
     } else {
         STATUS ( STAT_USR, "batch output filename is : %s", buffer );
-        rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, buffer );
+        rc = clt_add_file( self -> cleanup_task, buffer );
 
         if ( 0 == rc ) {
             struct lookup_writer_t * writer; /* lookup_writer.h */
@@ -411,7 +411,7 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
             if ( 0 == rc ) {
                 bg_vec_merge_src_t * to_write = get_min_bg_vec_merge_src( batch, count ); /* above */
                 while( 0 == rc && NULL != to_write ) {
-                    rc = get_quitting();    /* helper.c */
+                    rc = hlp_get_quitting();    /* helper.c */
                     if ( 0 == rc ) {
                         rc = write_bg_vec_merge_src( to_write, writer ); /* above */
                         if ( 0 == rc ) {
@@ -422,7 +422,7 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
                         }
                         bg_update_update( self -> gap, 1 );
                         if ( 0 != rc ) {
-                            set_quitting();     /* helper.c */
+                            hlp_set_quitting();     /* helper.c */
                         }
                     }
                 }
@@ -504,10 +504,10 @@ rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
 
         rc = KQueueMake ( &( b -> job_q ), args -> batch_size );
         if ( 0 == rc ) {
-            rc = helper_make_thread( &( b -> thread ),
-                                     background_vector_merger_thread_func,
-                                     b,
-                                     THREAD_DFLT_STACK_SIZE );
+            rc = hlp_make_thread( &( b -> thread ),
+                                  background_vector_merger_thread_func,
+                                  b,
+                                  THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "merge_sorter.c helper_make_thread( vector-merger ) -> %R", rc );
             }
@@ -583,7 +583,7 @@ typedef struct background_file_merger_t {
     const char * index_filename;
     locked_file_list_t files;        /* a locked file-list */
     locked_value_t sealed;           /* flag to signal if the input is sealed */
-    struct KFastDumpCleanupTask_t * cleanup_task;     /* add the produced temp_files here too */
+    struct CleanupTask_t * cleanup_task;     /* add the produced temp_files here too */
     KThread * thread;               /* the thread that performs the merge-sort */
     uint32_t product_id;            /* increased by one for each batch-run, used in temp-file-name */
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
@@ -638,7 +638,7 @@ static rc_t process_background_file_merger( background_file_merger_t * self ) {
     rc_t rc = generate_bg_merge_filename( self -> temp_dir, tmp_filename, sizeof tmp_filename,
                                           self -> product_id );
     if ( 0 == rc ) {
-        rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, tmp_filename );
+        rc = clt_add_file( self -> cleanup_task, tmp_filename );
     }
     if ( 0 == rc ) {
         uint32_t num_src = 0;
@@ -706,10 +706,10 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
         }
 
         if ( 0 == rc ) {
-            rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, self -> lookup_filename );
+            rc = clt_add_file( self -> cleanup_task, self -> lookup_filename );
         }
         if ( 0 == rc ) {
-            rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, self -> index_filename );
+            rc = clt_add_file( self -> cleanup_task, self -> index_filename );
         }
         if ( 0 == rc ) {
             merge_sorter_t sorter;
@@ -803,10 +803,10 @@ rc_t make_background_file_merger( background_file_merger_t ** merger,
             rc = locked_value_init( &( b -> sealed ), 0 );
         }
         if ( 0 == rc ) {
-            rc = helper_make_thread( &( b -> thread ),
-                                     background_file_merger_thread_func,
-                                     b,
-                                     THREAD_DFLT_STACK_SIZE );
+            rc = hlp_make_thread( &( b -> thread ),
+                                  background_file_merger_thread_func,
+                                  b,
+                                  THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "merge_sorter.c helper_make_thread( file-mergerr ) -> %R", rc );
             }

@@ -348,7 +348,7 @@ static void fill_ref_inventory( ref_inventory_t * self ) {
 ref_inventory_t * make_ref_inventory( const tool_ctx_t * tool_ctx ) {
     ref_inventory_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
-        bool populated = tool_ctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) );
+        bool populated = tctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) );
         if ( !populated ) {
             destroy_ref_inventory( res );
             res = NULL;
@@ -578,7 +578,7 @@ ref_bases_t * make_ref_bases( const tool_ctx_t * tool_ctx,
                 destroy_ref_bases( res );
                 res = NULL;
             } else {
-                bool populated = tool_ctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) ); 
+                bool populated = tctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) ); 
                 if ( populated ) {
                     rc_t rc = make_cmn_iter( &( res -> iter_params ), "REFERENCE", &( res -> cmn ) );
                     if ( 0 == rc ) {

@@ -94,7 +94,7 @@ typedef struct cmn_iter_t {
 
 static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDatabase ** db ) {
     VPath * v_path = NULL;
-    rc_t rc = inspector_path_to_vpath( path, &v_path );
+    rc_t rc = insp_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
         rc = VDBManagerOpenDBReadVPath( mgr, db, NULL, v_path );
         if ( 0 != rc ) {
@@ -114,7 +114,7 @@ static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDataba
 
 static rc_t cmn_open_tbl( const VDBManager * mgr, const char *path, const VTable ** tbl ) {
     VPath * v_path = NULL;
-    rc_t rc = inspector_path_to_vpath( path, &v_path );
+    rc_t rc = insp_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
         rc = VDBManagerOpenTableReadVPath( mgr, tbl, NULL, v_path );
         if ( 0 != rc ) {

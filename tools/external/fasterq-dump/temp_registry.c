@@ -42,7 +42,7 @@
 #endif
 
 typedef struct temp_registry_t {
-    struct KFastDumpCleanupTask_t * cleanup_task;
+    struct CleanupTask_t * cleanup_task;
     KLock * lock;
     size_t buf_size;
     Vector lists;
@@ -62,7 +62,7 @@ void destroy_temp_registry( temp_registry_t * self ) {
     }
 }
 
-rc_t make_temp_registry( temp_registry_t ** registry, struct KFastDumpCleanupTask_t * cleanup_task ) {
+rc_t make_temp_registry( temp_registry_t ** registry, struct CleanupTask_t * cleanup_task ) {
     KLock * lock;
     rc_t rc = KLockMake ( &lock );
     if ( 0 == rc ) {
@@ -103,7 +103,7 @@ rc_t register_temp_file( temp_registry_t * self, uint32_t read_id, const char * 
             if ( 0 == rc && NULL != l ) {
                 rc = VNamelistAppend ( l, filename );
                 if ( 0 == rc ) {
-                    rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, filename );
+                    rc = clt_add_file( self -> cleanup_task, filename );
                 }
             }
             KLockUnlock ( self -> lock );
@@ -216,7 +216,7 @@ static void CC on_merge( void *item, void *data ) {
             md -> files = item;
             md -> idx = omc -> idx;
 
-            rc = helper_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
+            rc = hlp_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "temp_registry.c helper_make_thread( on_merge #%d ) -> %R", omc -> idx, rc );
             } else {
@@ -263,7 +263,7 @@ rc_t temp_registry_merge( temp_registry_t * self,
             on_merge_ctx_t omc = { &cmn, 0 };
             VectorInit( &omc . threads, 0, count );
             VectorForEach ( &self -> lists, false, on_merge, &omc );
-            join_and_release_threads( &omc . threads ); /* helper.c */
+            hlp_join_and_release_threads( &omc . threads );
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }

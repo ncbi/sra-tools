@@ -348,8 +348,8 @@ rc_t make_a_copy( KDirectory * dir,
 
         /* create a writer-thread */
         if ( 0 == rc ) {
-            rc = helper_make_thread( &( cm . thread ), copy_machine_writer_thread,
-                                    &cm, THREAD_DFLT_STACK_SIZE );
+            rc = hlp_make_thread( &( cm . thread ), copy_machine_writer_thread,
+                                  &cm, THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "copy_machine.c make_a_copy().helper_make_thread( writer-thread ) -> %R", rc );
             }
@@ -707,7 +707,8 @@ struct multi_writer_t * create_multi_writer( KDirectory * dir,
                     res = NULL;
                 }
                 if ( 0 == rc ) {
-                    rc = helper_make_thread( &( res -> thread ), multi_writer_thread, res, THREAD_DFLT_STACK_SIZE );
+                    rc = hlp_make_thread( &( res -> thread ), multi_writer_thread,
+                                          res, THREAD_DFLT_STACK_SIZE );
                     if ( 0 != rc ) {
                         ErrMsg( "create_multi_writer().helper_make_thread( writer-thread ) -> %R", rc );
                         release_multi_writer( res );

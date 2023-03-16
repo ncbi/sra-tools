@@ -34,6 +34,10 @@
 #include "cmn_iter.h"
 #endif
 
+#ifndef _h_simple_fasta_iter_
+#include "simple_fasta_iter.h"
+#endif
+
 #ifndef _h_klib_out_
 #include <klib/out.h>
 #endif
@@ -830,7 +834,30 @@ bool test_ref_inventory_bases( const tool_ctx_t * tool_ctx ) {
     return res;
 }
 
-rc_t ref_print_defline( ref_printer_t * printer, 
+static void ref_print_data_buffer( ref_printer_t * printer, 
+                                   const KDataBuffer * buffer ) {
+    String S;
+    StringInit( &S, buffer -> base, buffer -> elem_count - 1, buffer -> elem_count -1 );
+    ref_printer_flush( printer, true );
+    if ( ref_printer_add( printer, &S ) ) {
+        ref_printer_flush( printer, true );
+    }
+}
+
+static rc_t ref_print_defline_acc( ref_printer_t * printer, const char * acc ) {
+    KDataBuffer buffer;
+    rc_t rc = KDataBufferMake( &buffer, 8, 0 );
+    if ( 0 == rc ) {
+        rc = KDataBufferPrintf( &buffer, ">%s", acc );
+        if ( 0 == rc ) {
+            ref_print_data_buffer( printer, &buffer );
+        }
+        KDataBufferWhack( &buffer );
+    }
+    return rc;
+}
+    
+static rc_t ref_print_defline_for_entry( ref_printer_t * printer, 
                         const ref_inventory_entry_t * entry,
                         bool use_name ) {
     KDataBuffer buffer;
@@ -839,12 +866,7 @@ rc_t ref_print_defline( ref_printer_t * printer,
         const String * name = use_name ? entry -> name : entry -> seq_id;
         rc = KDataBufferPrintf( &buffer, ">%S", name );
         if ( 0 == rc ) {
-            String S;
-            StringInit( &S, buffer . base, buffer . elem_count - 1, buffer . elem_count -1 );
-            ref_printer_flush( printer, true );
-            if ( ref_printer_add( printer, &S ) ) {
-                ref_printer_flush( printer, true );
-            }
+            ref_print_data_buffer( printer, &buffer );
         }
         KDataBufferWhack( &buffer );
     }
@@ -890,7 +912,7 @@ static rc_t ref_inventory_print_single_file( const tool_ctx_t * tool_ctx,
             uint64_t base_cnt = 0;
             uint32_t chunks = 0;
             
-            /* ===> */ ref_print_defline( printer, entry, tool_ctx -> use_name );
+            /* ===> */ ref_print_defline_for_entry( printer, entry, tool_ctx -> use_name );
             bool has_next = ref_bases_next_chunk( bases, &s_bases );
             while ( has_next ) {
                 base_cnt += s_bases . len;
@@ -921,7 +943,7 @@ static rc_t ref_inventory_print_split_file( const tool_ctx_t * tool_ctx,
             uint64_t base_cnt = 0;
             uint32_t chunks = 0;
             
-            /* ===> */ ref_print_defline( printer, entry, tool_ctx -> use_name );
+            /* ===> */ ref_print_defline_for_entry( printer, entry, tool_ctx -> use_name );
             bool has_next = ref_bases_next_chunk( bases, &s_bases );
             while ( has_next ) {
                 base_cnt += s_bases . len;
@@ -981,6 +1003,42 @@ rc_t ref_inventory_print_report( const tool_ctx_t * tool_ctx ) {
             destroy_ref_bases( bases );
         }
         destroy_ref_inventory_filter( filter );
+    }
+    return rc;
+}
+
+rc_t ref_inventory_print_concatenated( const tool_ctx_t * tool_ctx, const char * tbl_name ) {
+    rc_t rc = 0;
+    ref_printer_t * printer = make_ref_printer( tool_ctx );    
+    if ( NULL == printer ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "ref_inventory_print_concatenated() . make_ref_printer() -> %R", rc );
+    } else {
+        rc = ref_print_defline_acc( printer, tool_ctx -> accession_short );
+        if ( 0 == rc ) {
+            cmn_iter_params_t iter_params;
+            if ( populate_cmn_iter_params( &iter_params,
+                                           tool_ctx -> dir,
+                                           tool_ctx -> vdb_mgr,
+                                           tool_ctx -> accession_short,
+                                           tool_ctx -> accession_path,
+                                           tool_ctx -> cursor_cache,
+                                           0, 0 ) ) {
+                struct simple_fasta_iter_t * iter;
+                rc = sfai_create( &iter_params, tbl_name, &iter );
+                if ( 0 == rc ) {
+                    String read;
+                    KOutMsg( "row-count=%ld\n", sfai_get_row_count( iter ) );
+                    while( sfai_get( iter, &read, &rc ) ) {
+                        ref_printer_add( printer, &read );
+                        ref_printer_flush( printer, false );
+                    }
+                    ref_printer_flush( printer, true );
+                    sfai_destroy( iter );
+                }
+            }
+        }
+        destroy_ref_printer( printer );
     }
     return rc;
 }

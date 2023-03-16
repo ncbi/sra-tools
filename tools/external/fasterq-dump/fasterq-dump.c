@@ -692,9 +692,7 @@ static rc_t main_process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
 }
 
 static rc_t main_process_csra_fasta_concat( const tool_ctx_t * tool_ctx ) {
-    rc_t rc = 0;
-    
-    return rc;
+    return ref_inventory_print_concatenated( tool_ctx, "SEQUENCE" );
 }
 
 /* ============================================================================================
@@ -813,9 +811,7 @@ static rc_t main_process_table_fasta_unsorted( const tool_ctx_t * tool_ctx, cons
 }
 
 static rc_t main_process_table_fasta_concat( const tool_ctx_t * tool_ctx, const char * tbl_name ) {
-    rc_t rc = 0;
-    
-    return rc;
+    return ref_inventory_print_concatenated( tool_ctx, tbl_name );
 }
 
 /* ============================================================================================

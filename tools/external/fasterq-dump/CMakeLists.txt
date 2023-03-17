@@ -53,6 +53,7 @@ set( TOOLS_SRC
 	tbl_join
 	temp_registry
 	copy_machine
+	multi_writer
 	concatenator
 	ref_inventory
 	fasterq-dump

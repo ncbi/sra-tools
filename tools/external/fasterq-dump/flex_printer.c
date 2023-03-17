@@ -145,7 +145,7 @@ void flp_release( struct flp_t * self ) {
     if ( NULL != self ) {
         release_SBuffer( &( self -> transaction_buffer ) );
         if ( NULL != self -> multi_writer && NULL != self -> block ) {
-            if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
+            if ( !mw_submit_block( self -> multi_writer, self -> block ) ) {
                 /* TBD: cannot submit last block to multi-writer */
                 self -> block = NULL;
             }
@@ -352,32 +352,32 @@ static struct vfmt_t * flp_prepare_data( struct flp_t * self, const flp_data_t *
 static rc_t flp_submit_to_buffer( struct flp_t * self, SBuffer_t * t ) {
     rc_t rc = 0;
     if ( NULL == self -> block ) {
-        self -> block = multi_writer_get_empty_block( self -> multi_writer );
+        self -> block = mw_get_empty_block( self -> multi_writer );
     }
     if ( NULL == self -> block ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
     } else {
         if ( t -> S . len > 0 ) {
-            if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+            if ( !mw_append_block( self -> block, t -> S. addr, t -> S . len ) ) {
                 /* block was not big enough to hold the new data : */
-                if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
+                if ( !mw_submit_block( self -> multi_writer, self -> block ) ) {
                     rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
                     ErrMsg( "flex_submit() cannot submit block to multi-writer -> %R", rc );
                 } else {
-                    self -> block = multi_writer_get_empty_block( self -> multi_writer );
+                    self -> block = mw_get_empty_block( self -> multi_writer );
                     if ( NULL == self -> block ) {
                         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
                         ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
                     } else {
-                        if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                        if ( !mw_append_block( self -> block, t -> S. addr, t -> S . len ) ) {
                             /* oops the data does not fit into an new, empty block... */
                             size_t needed = t -> S . len + 1;
-                            if ( ! multi_writer_block_expand( self -> block, needed ) ) /* copy_machine.c */ {
+                            if ( ! mw_expand_block( self -> block, needed ) ) /* copy_machine.c */ {
                                 rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
                                 ErrMsg( "flex_submit() could not expand block from multi-writer to %u -> %R", needed, rc );
                             } else {
-                                if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                                if ( !mw_append_block( self -> block, t -> S. addr, t -> S . len ) ) {
                                     rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
                                     ErrMsg( "flex_submit() still cannot append block to multi-writer -> %R", rc );
                                 }

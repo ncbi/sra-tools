@@ -77,7 +77,7 @@ bool tctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
                                         cmn_iter_params_t * params ) {
     bool res = false;
     if ( NULL != tool_ctx && NULL != params ) {
-        res = populate_cmn_iter_params( params,
+        res = cmn_iter_populate_params( params,
                 tool_ctx -> dir,
                 tool_ctx -> vdb_mgr,
                 tool_ctx -> accession_short,

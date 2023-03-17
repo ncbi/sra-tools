@@ -185,7 +185,7 @@ typedef struct ref_inventory_rec_t {
 
 static void destroy_ref_inventory_reader( ref_inventory_reader_t * self ) {
     if ( NULL != self ) {
-        destroy_cmn_iter( self -> cmn );
+        cmn_iter_release( self -> cmn );
         free( ( void * ) self );
     }
 }
@@ -193,7 +193,7 @@ static void destroy_ref_inventory_reader( ref_inventory_reader_t * self ) {
 static ref_inventory_reader_t * make_ref_inventory_reader( const cmn_iter_params_t * params ) {
     ref_inventory_reader_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
-        rc_t rc = make_cmn_iter( params, "REFERENCE", &( res -> cmn ) );
+        rc_t rc = cmn_iter_make( params, "REFERENCE", &( res -> cmn ) );
         if ( 0 == rc ) {
             rc = cmn_iter_add_column( res -> cmn, "NAME", &( res -> cur_idx_name ) );
         }
@@ -213,7 +213,7 @@ static ref_inventory_reader_t * make_ref_inventory_reader( const cmn_iter_params
             rc = cmn_iter_add_column( res -> cmn, "CIRCULAR", &( res -> cur_idx_circular ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_range( res -> cmn, res -> cur_idx_name );
+            rc = cmn_iter_detect_range( res -> cmn, res -> cur_idx_name );
         }
         if ( 0 != rc ) {
             destroy_ref_inventory_reader( res );
@@ -225,23 +225,23 @@ static ref_inventory_reader_t * make_ref_inventory_reader( const cmn_iter_params
 
 static bool ref_inventory_reader_read( ref_inventory_reader_t * self, ref_inventory_rec_t * rec ) {
     rc_t rc2;
-    bool res = cmn_iter_next( self -> cmn, &rc2 );
+    bool res = cmn_iter_get_next( self -> cmn, &rc2 );
     if ( res ) {
-        rc_t rc = cmn_read_String( self -> cmn, self -> cur_idx_name, &( rec -> name ) );
+        rc_t rc = cmn_iter_read_String( self -> cmn, self -> cur_idx_name, &( rec -> name ) );
         if ( 0 == rc ) {
-            rc = cmn_read_String( self -> cmn, self -> cur_idx_seq_id, &( rec -> seq_id ) );            
+            rc = cmn_iter_read_String( self -> cmn, self -> cur_idx_seq_id, &( rec -> seq_id ) );            
         }
         if ( 0 == rc ) {
-            rc = cmn_read_String( self -> cmn, self -> cur_idx_cmp_read, &( rec -> cmp_read ) );
+            rc = cmn_iter_read_String( self -> cmn, self -> cur_idx_cmp_read, &( rec -> cmp_read ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_read_uint32( self -> cmn, self -> cur_idx_spot_id, &( rec -> spot_id ) );
+            rc = cmn_iter_read_uint32( self -> cmn, self -> cur_idx_spot_id, &( rec -> spot_id ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_read_uint32( self -> cmn, self -> cur_idx_spot_len, &( rec -> spot_len ) );
+            rc = cmn_iter_read_uint32( self -> cmn, self -> cur_idx_spot_len, &( rec -> spot_len ) );
         }
         if ( 0 == rc ) {
-            rc = cmn_read_bool( self -> cmn, self -> cur_idx_circular, &( rec -> circular ) );
+            rc = cmn_iter_read_bool( self -> cmn, self -> cur_idx_circular, &( rec -> circular ) );
         }
         res = ( 0 == rc );
     }
@@ -562,7 +562,7 @@ void destroy_ref_bases( ref_bases_t * self ) {
             destroy_ref_inventory( self -> inventory );
         }
         if ( NULL != self -> cmn ) {
-            destroy_cmn_iter( self -> cmn );
+            cmn_iter_release( self -> cmn );
         }
         free( ( void * ) self );
     }
@@ -584,12 +584,12 @@ ref_bases_t * make_ref_bases( const tool_ctx_t * tool_ctx,
             } else {
                 bool populated = tctx_populate_cmn_iter_params( tool_ctx, &( res -> iter_params ) ); 
                 if ( populated ) {
-                    rc_t rc = make_cmn_iter( &( res -> iter_params ), "REFERENCE", &( res -> cmn ) );
+                    rc_t rc = cmn_iter_make( &( res -> iter_params ), "REFERENCE", &( res -> cmn ) );
                     if ( 0 == rc ) {
                         rc = cmn_iter_add_column( res -> cmn, "READ", &( res -> cur_idx_bases ) );
                     }
                     if ( 0 == rc ) {
-                        rc = cmn_iter_range( res -> cmn, res -> cur_idx_bases );
+                        rc = cmn_iter_detect_range( res -> cmn, res -> cur_idx_bases );
                     }
                     success = ( 0 == rc );
                 }
@@ -631,9 +631,9 @@ bool ref_bases_next_chunk( ref_bases_t * self, String * dst ) {
     bool res = false;
     if ( NULL != self && NULL != dst ) {
         rc_t rc;
-        res = cmn_iter_next( self -> cmn, &rc );
+        res = cmn_iter_get_next( self -> cmn, &rc );
         if ( res ) {
-            rc = cmn_read_String( self -> cmn, self -> cur_idx_bases, dst );
+            rc = cmn_iter_read_String( self -> cmn, self -> cur_idx_bases, dst );
         }
         res = ( res && ( 0 == rc ) );
     }
@@ -1017,7 +1017,7 @@ rc_t ref_inventory_print_concatenated( const tool_ctx_t * tool_ctx, const char *
         rc = ref_print_defline_acc( printer, tool_ctx -> accession_short );
         if ( 0 == rc ) {
             cmn_iter_params_t iter_params;
-            if ( populate_cmn_iter_params( &iter_params,
+            if ( cmn_iter_populate_params( &iter_params,
                                            tool_ctx -> dir,
                                            tool_ctx -> vdb_mgr,
                                            tool_ctx -> accession_short,
@@ -1028,7 +1028,6 @@ rc_t ref_inventory_print_concatenated( const tool_ctx_t * tool_ctx, const char *
                 rc = sfai_create( &iter_params, tbl_name, &iter );
                 if ( 0 == rc ) {
                     String read;
-                    KOutMsg( "row-count=%ld\n", sfai_get_row_count( iter ) );
                     while( sfai_get( iter, &read, &rc ) ) {
                         ref_printer_add( printer, &read );
                         ref_printer_flush( printer, false );

@@ -53,6 +53,10 @@ extern "C" {
 #include "copy_machine.h"
 #endif
 
+#ifndef _h_multi_writer_
+#include "multi_writer.h"
+#endif
+    
 struct flp_t;
 
 typedef struct flp_data_t {

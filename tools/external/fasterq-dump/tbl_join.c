@@ -989,7 +989,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     cmn_iter_params_t cp;
     flp_args_t file_args;
     
-    populate_cmn_iter_params( &cp,
+    cmn_iter_populate_params( &cp,
                               jtd -> dir,
                               jtd -> vdb_mgr,
                               jtd -> accession_short,
@@ -1209,7 +1209,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     bool skip_tech = jtd -> join_options -> skip_tech;
     struct flp_t * flex_printer = NULL;
 
-    populate_cmn_iter_params( &cp,
+    cmn_iter_populate_params( &cp,
                               jtd -> dir,
                               jtd -> vdb_mgr,
                               jtd -> accession_short,
@@ -1314,7 +1314,7 @@ rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args
         uint64_t row_count = args -> insp_output -> seq . row_count;
         if ( row_count > 0 ) {
             bool name_column_present = args -> insp_output -> seq . has_name_column;
-            struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
+            struct multi_writer_t * multi_writer = mw_create( args -> dir,
                     args -> output_filename,
                     args -> buf_size,
                     0,                          /* q_wait_time, if 0 --> use default = 5 ms */
@@ -1376,7 +1376,7 @@ rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args
                 rc = join_the_threads_and_collect_status( &threads, args -> stats ); /* releases jtd! */
                 bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
                 hlp_release_2na_filter( filter );
-                release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 
+                mw_release( multi_writer ); /* ( ignores NULL ) */ 
             } /* if ( NULL != multi_writer )*/
         } /* if ( extract_sra_row_count() && row_count > 0 )*/
     } /* if ( KOutMsg(...) ) */

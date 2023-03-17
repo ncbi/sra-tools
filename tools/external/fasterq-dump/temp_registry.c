@@ -184,7 +184,7 @@ static rc_t CC merge_thread_func( const KThread *self, void *data ) {
                             md -> cmn -> output_filename, md -> idx ); /* helper.c */
     if ( 0 == rc ) {
         VNamelistReorder ( md -> files, false );
-        rc = execute_concat( md -> cmn -> dir,
+        rc = concat_execute( md -> cmn -> dir,
             s_filename . S . addr,
             md -> files,
             md -> cmn -> buf_size,

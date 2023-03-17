@@ -59,7 +59,7 @@
 #endif
 
 
-bool populate_cmn_iter_params( cmn_iter_params_t * params,
+bool cmn_iter_populate_params( cmn_iter_params_t * params,
                                const KDirectory * dir,
                                const VDBManager * vdb_mgr,
                                const char * accession_short,
@@ -92,7 +92,7 @@ typedef struct cmn_iter_t {
 
 /* ------------------------------------------------------------------------------------------------------- */
 
-static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDatabase ** db ) {
+static rc_t cmn_iter_open_db_by_path( const VDBManager * mgr, const char *path, const VDatabase ** db ) {
     VPath * v_path = NULL;
     rc_t rc = insp_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
@@ -112,7 +112,7 @@ static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDataba
     return rc;
 }
 
-static rc_t cmn_open_tbl( const VDBManager * mgr, const char *path, const VTable ** tbl ) {
+static rc_t cmn_iter_open_tbl_by_path( const VDBManager * mgr, const char *path, const VTable ** tbl ) {
     VPath * v_path = NULL;
     rc_t rc = insp_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
@@ -134,37 +134,37 @@ static rc_t cmn_open_tbl( const VDBManager * mgr, const char *path, const VTable
 
 /* ------------------------------------------------------------------------------------------------------- */
 
-static rc_t cmn_release_mgr( const VDBManager * mgr, rc_t rc, const char * function, const char * accession_short ) {
+static rc_t cmn_iter_release_mgr( const VDBManager * mgr, rc_t rc, const char * function, const char * accession_short ) {
     rc_t rc2 = VDBManagerRelease( mgr );
     if ( 0 != rc2 ) {
-        ErrMsg( "cmn_iter.c %s( '%s' ).VDBManagerRelease() -> %R", function, accession_short, rc2 );
+        ErrMsg( "%s( '%s' ).VDBManagerRelease() -> %R", function, accession_short, rc2 );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
 }
 
-static rc_t cmn_release_db( const VDatabase * db, rc_t rc, const char * function, const char * accession_short ) {
+static rc_t cmn_iter_release_db( const VDatabase * db, rc_t rc, const char * function, const char * accession_short ) {
     rc_t rc2 = VDatabaseRelease( db );
     if ( 0 != rc2 ) {
-        ErrMsg( "cmn_iter.c %s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc2 );
+        ErrMsg( "%s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc2 );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
 }
 
-static rc_t cmn_release_tbl( const VTable * tbl, rc_t rc, const char * function, const char * accession_short ) {
+static rc_t cmn_iter_release_tbl( const VTable * tbl, rc_t rc, const char * function, const char * accession_short ) {
     rc_t rc2 = VTableRelease( tbl );
     if ( 0 != rc2 ) {
-        ErrMsg( "cmn_iter.c %s( '%s' ).VTableRelease() -> %R", function, accession_short, rc2 );
+        ErrMsg( "%s( '%s' ).VTableRelease() -> %R", function, accession_short, rc2 );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
 }
 
-static rc_t cmn_release_curs( const VCursor * curs, rc_t rc, const char * function, const char * accession_short ) {
+static rc_t cmn_iter_release_curs( const VCursor * curs, rc_t rc, const char * function, const char * accession_short ) {
     rc_t rc2 = VCursorRelease( curs );
     if ( 0 != rc2 ) {
-        ErrMsg( "cmn_iter.c %s( '%s' ).VCursorRelease() -> %R", function, accession_short, rc2 );
+        ErrMsg( "%s( '%s' ).VCursorRelease() -> %R", function, accession_short, rc2 );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
@@ -172,7 +172,7 @@ static rc_t cmn_release_curs( const VCursor * curs, rc_t rc, const char * functi
 
 /* ------------------------------------------------------------------------------------------------------- */
 
-void destroy_cmn_iter( cmn_iter_t * self ) {
+void cmn_iter_release( cmn_iter_t * self ) {
     if ( NULL != self ) {
         if ( NULL != self -> row_iter ) {
             num_gen_iterator_destroy( self -> row_iter );
@@ -181,7 +181,7 @@ void destroy_cmn_iter( cmn_iter_t * self ) {
             num_gen_destroy( self -> ranges );
         }
         if ( NULL != self -> cursor ) {
-            cmn_release_curs( self -> cursor, 0, "destroy_cmn_iter", "-" );
+            cmn_iter_release_curs( self -> cursor, 0, "destroy_cmn_iter", "-" );
         }
         free( ( void * ) self );
     }
@@ -201,13 +201,13 @@ static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache,
             ErrMsg( "cmn_iter.c cmn_iter_open_cursor().VTableCreateCursorRead() -> %R\n", rc );
         }
     }
-    return cmn_release_tbl( tbl, rc, "cmn_iter_open_cursor", accession_short );
+    return cmn_iter_release_tbl( tbl, rc, "cmn_iter_open_cursor", accession_short );
 }
 
 static rc_t cmn_iter_open_db( const VDBManager * mgr, const cmn_iter_params_t * cp,
                               const char * tblname, const VCursor ** cur ) {
     const VDatabase * db = NULL;
-    rc_t rc = cmn_open_db( mgr, cp -> accession_path, &db );
+    rc_t rc = cmn_iter_open_db_by_path( mgr, cp -> accession_path, &db );
     if ( 0 == rc ) {
         const VTable * tbl = NULL;
         rc = VDatabaseOpenTableRead( db, &tbl, "%s", tblname );
@@ -217,7 +217,7 @@ static rc_t cmn_iter_open_db( const VDBManager * mgr, const cmn_iter_params_t * 
         } else {
             rc = cmn_iter_open_cursor( tbl, cp -> cursor_cache, cur, cp -> accession_short ); /* releases tbl... */
         }
-        rc = cmn_release_db( db, rc, "cmn_iter_open_db", cp -> accession_short );
+        rc = cmn_iter_release_db( db, rc, "cmn_iter_open_db", cp -> accession_short );
     }
     return rc;
 }
@@ -225,26 +225,26 @@ static rc_t cmn_iter_open_db( const VDBManager * mgr, const cmn_iter_params_t * 
 static rc_t cmn_iter_open_tbl( const VDBManager * mgr, const cmn_iter_params_t * cp,
                                const VCursor ** cur ) {
     const VTable * tbl = NULL;
-    rc_t rc = cmn_open_tbl( mgr, cp -> accession_path, &tbl );
+    rc_t rc = cmn_iter_open_tbl_by_path( mgr, cp -> accession_path, &tbl );
     if ( 0 == rc ) {
         rc = cmn_iter_open_cursor( tbl, cp -> cursor_cache, cur, cp -> accession_short );
     }
     return rc;
 }
 
-rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter_t ** iter ) {
+rc_t cmn_iter_make( const cmn_iter_params_t * cp, const char * tblname, cmn_iter_t ** iter ) {
     rc_t rc = 0;
     if ( NULL == cp || NULL == cp -> dir || NULL == cp -> accession_short ||
          NULL == cp -> accession_path || NULL == iter ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "cmn_iter.c make_cmn_iter() -> %R", rc );
+        ErrMsg( "cmn_iter_make() -> %R", rc );
     } else {
         bool release_mgr = false;
         const VDBManager * mgr = cp -> vdb_mgr != NULL ? cp -> vdb_mgr : NULL;
         if ( NULL == mgr ) {
             rc = VDBManagerMakeRead( &mgr, cp -> dir );
             if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c make_cmn_iter().VDBManagerMakeRead() -> %R\n", rc );
+                ErrMsg( "cmn_iter_make().VDBManagerMakeRead() -> %R\n", rc );
             } else {
                 release_mgr = true;
             }
@@ -260,7 +260,7 @@ rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter
                 cmn_iter_t * i = calloc( 1, sizeof * i );
                 if ( NULL == i ) {
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                    ErrMsg( "cmn_iter.c make_cmn_iter().calloc( %d ) -> %R", ( sizeof * i ), rc );
+                    ErrMsg( "cmn_iter_make().calloc( %d ) -> %R", ( sizeof * i ), rc );
                 } else {
                     i -> cursor = cur;
                     i -> first_row = cp -> first_row;
@@ -268,18 +268,18 @@ rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter
                     *iter = i;
                 }
             } else {
-                rc = cmn_release_curs( cur, rc, "make_cmn_iter", cp -> accession_short );
+                rc = cmn_iter_release_curs( cur, rc, "cmn_iter_make", cp -> accession_short );
             }
 
         }
         if ( release_mgr ) {
-            rc = cmn_release_mgr( mgr, rc, "make_cmn_iter", cp -> accession_short );
+            rc = cmn_iter_release_mgr( mgr, rc, "cmn_iter_make", cp -> accession_short );
         }
     }
     return rc;
 }
 
-static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
+static rc_t cmn_iter_make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
                            const struct num_gen_iter ** iter ) {
     rc_t rc;
     if ( num_gen_empty( ranges ) ) {
@@ -323,7 +323,7 @@ rc_t cmn_iter_set_range( struct cmn_iter_t * self, int64_t start_row, uint64_t r
                 ErrMsg( "cmn_iter.c cmn_iter_set_range().num_gen_add( %ld.%lu ) -> %R\n",
                         self -> first_row, self -> row_count, rc );
             } else {
-                rc = make_row_iter( self -> ranges, start_row, row_count, &self -> row_iter );
+                rc = cmn_iter_make_row_iter( self -> ranges, start_row, row_count, &self -> row_iter );
                 if ( 0 != rc ) {
                     ErrMsg( "cmn_iter.c cmn_iter_set_range().make_row_iter( %ld.%lu ) -> %R\n", start_row, row_count, rc );
                 } else {
@@ -359,11 +359,16 @@ rc_t cmn_iter_add_column( struct cmn_iter_t * self, const char * name, uint32_t 
     return rc;
 }
 
-int64_t cmn_iter_row_id( const struct cmn_iter_t * self ) {
+bool cmn_iter_get_next( struct cmn_iter_t * self, rc_t * rc ) {
+    if ( NULL == self ) { return false; }
+    return num_gen_iterator_next( self -> row_iter, &self -> row_id, rc );
+}
+
+int64_t cmn_iter_get_row_id( const struct cmn_iter_t * self ) {
     return ( NULL == self ) ? 0 : self -> row_id;
 }
 
-uint64_t cmn_iter_row_count( struct cmn_iter_t * self ) {
+uint64_t cmn_iter_get_row_count( struct cmn_iter_t * self ) {
     uint64_t res = 0;
     rc_t rc;
     if ( NULL == self ) {
@@ -378,29 +383,24 @@ uint64_t cmn_iter_row_count( struct cmn_iter_t * self ) {
     return res;
 }
 
-bool cmn_iter_next( struct cmn_iter_t * self, rc_t * rc ) {
-    if ( NULL == self ) { return false; }
-    return num_gen_iterator_next( self -> row_iter, &self -> row_id, rc );
-}
-
-rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id ) {
+rc_t cmn_iter_detect_range( struct cmn_iter_t * self, uint32_t col_id ) {
     rc_t rc;
     if ( NULL == self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "cmn_iter.c cmn_iter_range() -> %R", rc );
+        ErrMsg( "cmn_iter_range() -> %R", rc );
     } else {
         rc = VCursorOpen( self -> cursor );
         if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c cmn_iter_range().VCursorOpen() -> %R", rc );
+            ErrMsg( "cmn_iter_range().VCursorOpen() -> %R", rc );
         } else {
             rc = num_gen_make_sorted( &self -> ranges, true );
             if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c cmn_iter_range().num_gen_make_sorted() -> %R\n", rc );
+                ErrMsg( "cmn_iter_range().num_gen_make_sorted() -> %R\n", rc );
             }
             else if ( self -> row_count > 0 ) {
                 rc = num_gen_add( self -> ranges, self -> first_row, self -> row_count );
                 if ( 0 != rc ) {
-                    ErrMsg( "cmn_iter.c cmn_iter_range().num_gen_add( %ld.%lu ) -> %R\n",
+                    ErrMsg( "cmn_iter_range().num_gen_add( %ld.%lu ) -> %R\n",
                             self -> first_row, self -> row_count, rc );
                 }
             }
@@ -408,11 +408,11 @@ rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id ) {
         if ( 0 == rc ) {
             rc = VCursorIdRange( self -> cursor, col_id, &self -> first_row, &self -> row_count );
             if ( rc != 0 ) {
-                ErrMsg( "cmn_iter.c cmn_iter_range().VCursorIdRange() -> %R", rc );
+                ErrMsg( "cmn_iter_range().VCursorIdRange() -> %R", rc );
             } else {
-                rc = make_row_iter( self -> ranges, self -> first_row, self -> row_count, &self -> row_iter );
+                rc = cmn_iter_make_row_iter( self -> ranges, self -> first_row, self -> row_count, &self -> row_iter );
                 if ( 0 != rc ) {
-                    ErrMsg( "cmn_iter.c cmn_iter_range().make_row_iter( %ld.%lu ) -> %R\n", self -> first_row, self -> row_count, rc );
+                    ErrMsg( "cmn_iter_range().make_row_iter( %ld.%lu ) -> %R\n", self -> first_row, self -> row_count, rc );
                 }
             }
         }
@@ -420,7 +420,7 @@ rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id ) {
     return rc;
 }
 
-rc_t cmn_read_uint64( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value ) {
+rc_t cmn_iter_read_uint64( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value ) {
     uint32_t elem_bits, boff, row_len;
     const uint64_t * value_ptr;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -440,7 +440,7 @@ rc_t cmn_read_uint64( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value
     return rc;
 }
 
-rc_t cmn_read_uint64_array( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value,
+rc_t cmn_iter_read_uint64_array( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read ) {
     uint32_t elem_bits, boff, row_len;
     const uint64_t * value_ptr;
@@ -463,7 +463,7 @@ rc_t cmn_read_uint64_array( struct cmn_iter_t * self, uint32_t col_id, uint64_t 
     return rc;
 }
 
-rc_t cmn_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value ) {
+rc_t cmn_iter_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value ) {
     uint32_t elem_bits, boff, row_len;
     const uint32_t * value_ptr;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -484,7 +484,7 @@ rc_t cmn_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value
     return rc;
 }
 
-rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t ** values,
+rc_t cmn_iter_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t ** values,
                             uint32_t * values_read ) {
     uint32_t elem_bits, boff, row_len;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -502,7 +502,7 @@ rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t 
     return rc;
 }
 
-rc_t cmn_read_uint8( struct cmn_iter_t * self, uint32_t col_id, uint8_t *value ) {
+rc_t cmn_iter_read_uint8( struct cmn_iter_t * self, uint32_t col_id, uint8_t *value ) {
     uint32_t elem_bits, boff, row_len;
     const uint8_t * value_ptr;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -523,7 +523,7 @@ rc_t cmn_read_uint8( struct cmn_iter_t * self, uint32_t col_id, uint8_t *value )
     return rc;
 }
 
-rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
+rc_t cmn_iter_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
                             uint32_t * values_read ) {
     uint32_t elem_bits, boff, row_len;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -539,7 +539,7 @@ rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t **
     return rc;
 }
 
-rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value ) {
+rc_t cmn_iter_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value ) {
     uint32_t elem_bits, boff;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
                                  (const void **)&value->addr, &boff, &value -> len );
@@ -554,9 +554,9 @@ rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value 
     return rc;
 }
 
-rc_t cmn_read_bool( struct cmn_iter_t * self, uint32_t col_id, bool * value ) {
+rc_t cmn_iter_read_bool( struct cmn_iter_t * self, uint32_t col_id, bool * value ) {
     uint8_t v8;
-    rc_t rc = cmn_read_uint8( self, col_id, &v8 );
+    rc_t rc = cmn_iter_read_uint8( self, col_id, &v8 );
     if ( 0 == rc ) {
         *value = ( v8 != 0 );
     } else {
@@ -565,7 +565,7 @@ rc_t cmn_read_bool( struct cmn_iter_t * self, uint32_t col_id, bool * value ) {
     return rc;
 }
 
-static rc_t cmn_check_tbl_for_column( const VTable * tbl, const char * col_name, bool * present ) {
+static rc_t cmn_iter_check_tbl_for_column( const VTable * tbl, const char * col_name, bool * present ) {
     struct KNamelist * columns;
     rc_t rc = VTableListReadableColumns ( tbl, &columns );
     if ( 0 != rc ) {
@@ -602,7 +602,7 @@ static rc_t cmn_check_tbl_for_column( const VTable * tbl, const char * col_name,
     return rc;
 }
 
-rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
+rc_t cmn_iter_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
                            const char * accession_short, const char * accession_path,
                            const char * col_name, bool * present ) {
     rc_t rc = 0;
@@ -624,11 +624,11 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( 0 == rc ) {
             const VTable * tbl = NULL;
-            rc = cmn_open_tbl( mgr, accession_path, &tbl );
+            rc = cmn_iter_open_tbl_by_path( mgr, accession_path, &tbl );
             if ( 0 == rc ) {
-                rc = cmn_check_tbl_for_column( tbl, col_name, present );
+                rc = cmn_iter_check_tbl_for_column( tbl, col_name, present );
                 {
-                    rc_t rc2 = cmn_release_tbl( tbl, rc, "cmn_check_tbl_column", accession_short );
+                    rc_t rc2 = cmn_iter_release_tbl( tbl, rc, "cmn_check_tbl_column", accession_short );
                     if ( 0 != rc2 ) {
                         ErrMsg( "cmn_iter.c cmn_check_tbl_column( '%s' ).cmn_relese_tbl() -> %R\n", col_name, rc2 );
                         rc = ( 0 == rc ) ? rc2 : rc;
@@ -636,7 +636,7 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
                 }
             }
             if ( release_mgr ) {
-                rc_t rc2 = cmn_release_mgr( mgr, rc, "cmn_check_column", accession_short );
+                rc_t rc2 = cmn_iter_release_mgr( mgr, rc, "cmn_check_column", accession_short );
                 if ( 0 != rc2 ) {
                     ErrMsg( "cmn_iter.c cmn_check_tbl_column( '%s' ).cmn_relese_mgr() -> %R\n", col_name, rc2 );
                     rc = ( 0 == rc ) ? rc2 : rc;
@@ -647,7 +647,7 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
     return rc;
 }
 
-rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
+rc_t cmn_iter_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
                           const char * accession_short, const char * accession_path,
                           const char * tbl_name, const char * col_name,  bool * present ) {
     rc_t rc = 0;
@@ -670,7 +670,7 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( 0 == rc ) {
             const VDatabase * db = NULL;
-            rc = cmn_open_db( mgr, accession_path, &db );
+            rc = cmn_iter_open_db_by_path( mgr, accession_path, &db );
             if ( 0 == rc ) {
                 const VTable * tbl = NULL;
                 rc = VDatabaseOpenTableRead ( db, &tbl, "%s", tbl_name );
@@ -678,9 +678,9 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
                     ErrMsg( "cmn_iter.c cmn_check_db_column( '%s', '%s', '%s' ).VDatabaseOpenTableRead() -> %R",
                             accession_short, tbl_name, col_name, rc );
                 }  else {
-                    rc = cmn_check_tbl_for_column( tbl, col_name, present );
+                    rc = cmn_iter_check_tbl_for_column( tbl, col_name, present );
                     {
-                        rc_t rc2 = cmn_release_tbl( tbl, rc, "cmn_check_db_column", accession_short );
+                        rc_t rc2 = cmn_iter_release_tbl( tbl, rc, "cmn_check_db_column", accession_short );
                         if ( 0 != rc2 ) {
                             ErrMsg( "cmn_iter.c cmn_check_db_column( '%s' ).cmn_relese_tbl() -> %R\n", col_name, rc2 );
                             rc = ( 0 == rc ) ? rc2 : rc;
@@ -688,7 +688,7 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
                     }
                 }
                 {
-                    rc_t rc2 = cmn_release_db( db, rc, "cmn_check_db_column", accession_short );
+                    rc_t rc2 = cmn_iter_release_db( db, rc, "cmn_check_db_column", accession_short );
                     if ( 0 != rc2 ) {
                         ErrMsg( "cmn_iter.c cmn_check_db_column( '%s' ).cmn_relese_db() -> %R\n", col_name, rc2 );
                         rc = ( 0 == rc ) ? rc2 : rc;
@@ -696,7 +696,7 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
                 }
             }
             if ( release_mgr ) {
-                rc_t rc2 = cmn_release_mgr( mgr, rc, "cmn_check_db_column", accession_short );
+                rc_t rc2 = cmn_iter_release_mgr( mgr, rc, "cmn_check_db_column", accession_short );
                 if ( 0 != rc2 ) {
                     ErrMsg( "cmn_iter.c cmn_check_db_column( '%s' ).cmn_relese_mgr() -> %R\n", col_name, rc2 );
                     rc = ( 0 == rc ) ? rc2 : rc;
@@ -707,7 +707,7 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
     return rc;
 }
 
-VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
+VNamelist * cmn_iter_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
                                  const char * accession_short, const char * accession_path ) {
     VNamelist * res = NULL;
     if ( NULL == dir || NULL == accession_short|| NULL == accession_path ) {
@@ -727,7 +727,7 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( rc == 0 ) {
             const VDatabase * db;
-            rc = cmn_open_db( mgr, accession_path, &db );
+            rc = cmn_iter_open_db_by_path( mgr, accession_path, &db );
             if ( 0 == rc ) {
                 KNamelist * tables;
                 rc = VDatabaseListTbl ( db, &tables );
@@ -742,7 +742,7 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
                     }
                 }
                 {
-                    rc_t rc2 = cmn_release_db( db, rc, "cmn_get_table_names", accession_short );
+                    rc_t rc2 = cmn_iter_release_db( db, rc, "cmn_get_table_names", accession_short );
                     if ( 0 != rc2 ) {
                         ErrMsg( "cmn_iter.c cmn_get_table_names( '%s' ).cmn_relese_db() -> %R\n", accession_short, rc2 );
                         rc = ( 0 == rc ) ? rc2 : rc;
@@ -751,7 +751,7 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
             }
             if ( release_mgr )
             {
-                rc_t rc2 = cmn_release_mgr( mgr, rc, "cmn_get_table_names", accession_short );
+                rc_t rc2 = cmn_iter_release_mgr( mgr, rc, "cmn_get_table_names", accession_short );
                 if ( 0 != rc2 ) {
                     ErrMsg( "cmn_iter.c cmn_get_table_names( '%s' ).cmn_relese_mgr() -> %R\n", accession_short, rc2 );
                     rc = ( 0 == rc ) ? rc2 : rc;
@@ -762,7 +762,7 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
     return res;
 }
 
-rc_t is_column_name_present( KDirectory * dir,
+rc_t cmn_iter_is_column_name_present( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
@@ -770,10 +770,10 @@ rc_t is_column_name_present( KDirectory * dir,
                     bool * presence ) {
     rc_t rc;
     if ( NULL == tbl_name ) {
-        rc = cmn_check_tbl_column( dir, vdb_mgr, accession_short, accession_path,
+        rc = cmn_iter_check_tbl_column( dir, vdb_mgr, accession_short, accession_path,
                                     "NAME", presence ); /* cmn_iter.c */
     } else {
-        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name,
+        rc = cmn_iter_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name,
                                     "NAME", presence ); /* cmn_iter.c */
     }
     return rc;

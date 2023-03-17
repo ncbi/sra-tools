@@ -582,7 +582,7 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
 static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     struct temp_registry_t * registry = NULL; /* temp_registry.h */
     join_stats_t stats; /* helper.h */
-    execute_db_join_args_t args; /* join.h */
+    dbj_sorted_fastq_fasta_args_t args; /* join.h */
 
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
 
@@ -619,7 +619,7 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     args . fmt = tool_ctx -> fmt;
 
     if ( rc == 0 ) {
-        rc = execute_db_join( &args ); /* db_join.c */
+        rc = dbj_create_sorted_fastq_fasta( &args );
     }
 
     /* from now on we do not need the lookup-file and it's index any more... */
@@ -662,7 +662,7 @@ static rc_t main_process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
     rc_t rc;
 
     join_stats_t stats; /* helper.h */
-    execute_unsorted_fasta_db_join_args_t args; /* join.h */
+    dbj_unsorted_fasta_args_t args; /* join.h */
 
     hlp_clear_join_stats( &stats );
 
@@ -684,7 +684,7 @@ static rc_t main_process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
     args . only_unaligned = tool_ctx -> only_unaligned;
     args . only_aligned = tool_ctx -> only_aligned;
 
-    rc = execute_unsorted_fasta_db_join( &args ); /* db_join.c */
+    rc = dbj_create_unsorted_fasta( &args );
 
     hlp_print_stats( &stats );
 

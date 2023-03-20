@@ -28,4 +28,4 @@ set( SRC
 )
 
 GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info true )
+MakeLinksExe( sra-info false )

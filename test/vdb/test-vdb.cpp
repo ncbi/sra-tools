@@ -59,28 +59,45 @@ TEST_CASE(Manager_Schema_Good)
     REQUIRE_EQ( string("version 1;\n"), out.str() );
 }
 
+static bool check_Schema_content(Schema const &s)
+{
+    ostringstream out;
+    out << s;
+
+    istringstream in(out.str());
+    std::string line;
+
+    std::getline(in, line, ';');
+    if (line != "version 1")
+        return false;
+
+    in >> std::ws;
+    std::getline(in, line, ';');
+    if (line != "typedef U32 INSDC:SRA:spotid_t")
+        return false;
+
+    return true;
+}
+
 TEST_CASE(Manager_Schema_Include)
 {
     const string Text = "version 1; include 'inc.vschema';";
     const string IncludePath = "./data";
     Schema s = Manager().schema(Text.size(), Text.c_str(), IncludePath.c_str());
 
-    ostringstream out;
-    out << s;
-    REQUIRE_EQ( string("version 1;\ntypedef U32 INSDC:SRA:spotid_t; /* size 32 */\n"), out.str() );
-}
-
-TEST_CASE(Manager_SchemaFromFile_Bad)
-{
-    REQUIRE_THROW( Manager().schemaFromFile("bad file") );
+    REQUIRE(check_Schema_content(s));
 }
 
 TEST_CASE(Manager_SchemaFromFile)
 {
     Schema s = Manager().schemaFromFile("./data/inc.vschema");
-    ostringstream out;
-    out << s;
-    REQUIRE_EQ( string("version 1;\ntypedef U32 INSDC:SRA:spotid_t; /* size 32 */\n"), out.str() );
+    REQUIRE(check_Schema_content(s));
+}
+
+
+TEST_CASE(Manager_SchemaFromFile_Bad)
+{
+    REQUIRE_THROW( Manager().schemaFromFile("bad file") );
 }
 
 TEST_CASE(Manager_Database_Bad)

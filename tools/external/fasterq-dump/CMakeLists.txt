@@ -48,6 +48,7 @@ set( TOOLS_SRC
 	raw_read_iter
 	special_iter
 	fastq_iter
+	align_iter
 	simple_fasta_iter
 	db_join
 	tbl_join

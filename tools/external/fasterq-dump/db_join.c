@@ -54,6 +54,10 @@
 #include "fastq_iter.h"
 #endif
 
+#ifndef _h_align_iter_
+#include "align_iter.h"
+#endif
+
 #ifndef _h_flex_printer_
 #include "flex_printer.h"
 #endif
@@ -1064,31 +1068,6 @@ static rc_t dbj_extract_seq_row_count( KDirectory * dir,
     return rc;
 }
 
-static rc_t dbj_extract_align_row_count( KDirectory * dir,
-                                   const VDBManager * vdb_mgr,
-                                   const char * accession_short,
-                                   const char * accession_path,
-                                   size_t cur_cache,
-                                   uint64_t * res ) {
-    rc_t rc;
-    cmn_iter_params_t cp;
-    struct align_iter_t * iter;
-    cmn_iter_populate_params( &cp,
-                              dir,
-                              vdb_mgr,
-                              accession_short,
-                              accession_path,
-                              cur_cache,
-                              0,
-                              0 );
-    rc = make_align_iter( &cp, &iter, false ); /* fastq_iter.c */
-    if ( 0 == rc ) {
-        *res = get_row_count_of_align_iter( iter );
-        destroy_align_iter( iter );
-    }
-    return rc;
-}
-
 static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                                      dbj_cmn_t * j ) {
     rc_t rc;
@@ -1804,7 +1783,7 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
     dbj_thread_data_t * jtd = data;
     join_stats_t * stats = &( jtd -> stats );
     cmn_iter_params_t cp;
-    struct align_iter_t * iter;
+    struct alit_t * align_iter;
     uint64_t loop_nr = 0;
     struct flp_t * flex_printer;
     
@@ -1827,12 +1806,12 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
     }
     else {
         bool uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
-        rc = make_align_iter( &cp, &iter, uses_read_id ); /* fastq-iter.c */
+        rc = alit_create( &cp, &align_iter, uses_read_id ); /* fastq-iter.c */
         if ( 0 != rc ) {
             ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
         } else {
-            align_rec_t rec; /* fastq_iter.h */
-            while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+            alit_rec_t rec;
+            while ( 0 == rc && alit_get_rec( align_iter, &rec, &rc ) ) { /* fastq-iter.c */
                 rc = hlp_get_quitting(); /* helper.c */
 
                 if ( 0 == rc ) {
@@ -1867,7 +1846,7 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
                     }
                 }
             }
-            destroy_align_iter( iter ); /* fastq-iter.c */
+            alit_release( align_iter );
         }
         flp_release( flex_printer );
     }
@@ -2121,8 +2100,8 @@ rc_t dbj_create_unsorted_fasta( const dbj_unsorted_fasta_args_t * args ) {
                                         args -> cur_cache, &seq_row_count ); /* above */
         }
         if ( 0 == rc && !( args -> only_unaligned ) ) {
-            rc = dbj_extract_align_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                          args -> cur_cache, &align_row_count ); /* above */
+            rc = alit_extract_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
+                                        args -> cur_cache, &align_row_count ); /* above */
         }
 
         if ( 0 == rc && ( seq_row_count > 0 || align_row_count > 0 ) ) {

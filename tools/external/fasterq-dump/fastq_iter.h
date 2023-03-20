@@ -70,10 +70,11 @@ typedef struct fastq_rec_t
 
 struct fastq_csra_iter_t;
 
-void destroy_fastq_csra_iter( struct fastq_csra_iter_t * self );
 rc_t make_fastq_csra_iter( const cmn_iter_params_t * params,
                            fastq_iter_opt_t opt,
                            struct fastq_csra_iter_t ** iter );
+
+void destroy_fastq_csra_iter( struct fastq_csra_iter_t * self );
 
 bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * rec, rc_t * rc );
 uint64_t get_row_count_of_fastq_csra_iter( struct fastq_csra_iter_t * self );
@@ -88,27 +89,6 @@ rc_t make_fastq_sra_iter( const cmn_iter_params_t * params,
 
 bool get_from_fastq_sra_iter( struct fastq_sra_iter_t * self, fastq_rec_t * rec, rc_t * rc );
 uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter_t * self );
-
-/* --------------------------------------------------------------------------------- */
-
-typedef struct align_rec_t
-{
-    int64_t row_id;
-    uint64_t spot_id;
-    uint32_t read_id;
-    String read;
-} align_rec_t;
-
-struct align_iter_t;
-
-void destroy_align_iter( struct align_iter_t * self );
-
-rc_t make_align_iter( const cmn_iter_params_t * params,
-                      struct align_iter_t ** iter,
-                      bool uses_read_id );
-
-bool get_from_align_iter( struct align_iter_t * self, align_rec_t * rec, rc_t * rc );
-uint64_t get_row_count_of_align_iter( struct align_iter_t * self );
 
 #ifdef __cplusplus
 }

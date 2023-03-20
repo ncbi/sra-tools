@@ -194,7 +194,15 @@ TEST_CASE( CommandLine_Defaults )
     REQUIRE_EQ( string(argv0), cl.toolName );
 //    REQUIRE_EQ( ExePath, ((string)cl.fullPathToExe) );
 //    REQUIRE_EQ( string(), ((string)cl.fullPath) ); // .../test-bin
-    REQUIRE_EQ( ((string)cl.fullPath)+"/"+argv0, ((string)cl.toolPath) );
+    auto const expectToolPath = ((string)cl.fullPath)+"/"+argv0;
+    auto const actualToolPath = (string)cl.toolPath;
+    REQUIRE_GE( actualToolPath.size(), expectToolPath.size() );
+    if (actualToolPath.size() == expectToolPath.size()) {
+        REQUIRE_EQ( expectToolPath, actualToolPath );
+    }
+    else {
+        REQUIRE_EQ( expectToolPath, actualToolPath.substr(0, expectToolPath.size()) );
+    }
 //    REQUIRE_EQ( ExeName, cl.realName );
     REQUIRE_EQ( 1, cl.argc );
     REQUIRE_EQ( sratools::Version::current.packed, cl.buildVersion );

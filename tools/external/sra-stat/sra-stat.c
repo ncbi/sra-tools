@@ -87,9 +87,6 @@
     PLOGERR(klogInt, (klogInt, rc, "column $(name), spot $(spot): $(msg)", \
         "name=%s,spot=%lu,msg=%s", name, spot, msg)))
 
-#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
-
 static size_t MAX_NREADS = 2500;
 
 #define DEFAULT_CURSOR_CAPACITY (1024*1024*1024UL)
@@ -2702,7 +2699,7 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
 
             if ( rc == 0 ) {
                 uint32_t i = 0;
-                for ( i = 0; i < count && rc == 0; ++i ) {
+                for ( i = 0; i < count || rc != 0; ++i ) {
                     const char * child = NULL;
                     rc = KNamelistGet ( names, i, & child );
                     if ( rc != 0 )
@@ -2728,16 +2725,41 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
     return rc;
 }
 
-static void CC _Increment(BSTNode* n, void* data) {
-    uint32_t* i = (uint32_t*) data;
-    assert(i);
-    ++*i;
+typedef struct {
+    uint32_t spotGroupN;
+    const SraStats* sg;
+} SSGMatcher;
+
+static bool SSGMatcherMismatch(const SSGMatcher* self, const SraStatsTotal* t) {
+    const SraStats* sg = NULL;
+    assert(self && t);
+    if (self->spotGroupN != 1)
+        return true;
+    sg = self->sg;
+    assert(sg);
+    return sg->spot_group[0] != '\0' || sg->spot_count != t->spot_count
+        || sg->spot_count_mates != t->spot_count_mates
+        || sg->bio_len != t->BIO_BASE_COUNT
+        || sg->bio_len_mates != t->bio_len_mates
+        || sg->total_len != t->BASE_COUNT
+        || sg->bad_spot_count != t->bad_spot_count
+        || sg->bad_bio_len != t->bad_bio_len
+        || sg->filtered_spot_count != t->filtered_spot_count
+        || sg->filtered_bio_len != t->filtered_bio_len
+        || sg->total_cmp_len != t->total_cmp_len;
 }
 
-static uint32_t _NumberOfObservedSpotGroups(const BSTree* t) {
-    uint32_t n = 0;
-    BSTreeForEach(t, false, _Increment, &n);
-    return n;
+static void CC SSGMatcherIncrement(BSTNode* n, void* data) {
+    SSGMatcher* i = (SSGMatcher*) data;
+    assert(i);
+    if (++(i->spotGroupN) == 1)
+        i->sg = (SraStats*)n;
+}
+
+static uint32_t _NumberOfObservedSpotGroups(const BSTree* t, SSGMatcher* sg) {
+    BSTreeForEach(t, false, SSGMatcherIncrement, sg);
+    assert(sg);
+    return sg->spotGroupN;
 }
 
 static
@@ -2818,9 +2840,15 @@ rc_t print_results(const Ctx* ctx)
         }
         if (ssDfl != NULL) {
             uint32_t i = 0;
-            spotGroupN = _NumberOfObservedSpotGroups(ctx->tr);
-            if (spotGroupN != ctx->meta_stats->spotGroupN)
+            SSGMatcher sg;
+            memset(&sg, 0, sizeof sg);
+            spotGroupN = _NumberOfObservedSpotGroups(ctx->tr, &sg);
+            if (ctx->meta_stats->spotGroupN != spotGroupN &&
+                ctx->meta_stats->spotGroupN == 0 &&
+                SSGMatcherMismatch(&sg, ctx->total))
+            {
                 mismatch |= eSPOT_GROUP_N_MISMATCH;
+            }
             for (i = 0; i < ctx->meta_stats->spotGroupN; ++i) {
                 bool isDefault = false;
                 spot_group = "";

@@ -365,12 +365,13 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
             if ((KDirectoryPathType(self->dir, self->tmp) & ~kptAlias)
                 == kptNotFound)
             {
-                rc = KDirectoryCreateDir(self->dir, 0700, kcmParents, self->tmp);
+                rc = KDirectoryCreateDir(
+                    self->dir, 0700, kcmParents, self->tmp);
+                if (rc == 0)
+                    self->tmpCreated = true;
+                else
+                    return rc;
             }
-            if (rc == 0)
-                self->tmpCreated = true;
-            else
-                return rc;
         }
         else self->tmp = ".";
         STSMSG(1, ("Work directory is '%s'.\n", self->tmp));
@@ -1068,8 +1069,6 @@ static rc_t RepairKar(const Repair *self) {
 }
 
 static rc_t RepaitFinish(Repair *self) {
-    bool succeed = false;
-
     rc_t rc = RepaitUpdateHistory(self);
 
     assert(self);
@@ -1082,10 +1081,13 @@ static rc_t RepaitFinish(Repair *self) {
     }
 
     if (rc == 0 && self->verify) {
+        bool succeed = false;
         if (self->outDir != NULL)
             rc = RepairCheck(self, self->outDir, &succeed);
         else if (self->outFile == NULL)
             rc = RepairCheck(self, self->in, &succeed);
+        else
+            succeed = true;
         if (!succeed)
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
     }
@@ -1093,6 +1095,7 @@ static rc_t RepaitFinish(Repair *self) {
     if (rc == 0 && self->outFile != NULL) {
         rc = RepairKar(self);
         if (rc == 0 && self->verify) {
+            bool succeed = false;
             rc = RepairCheck(self, self->outFile, &succeed);
             if (!succeed)
                 rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
@@ -1189,7 +1192,7 @@ rc_t KMain(int argc, char *argv[]){
         if (rc == 0 && r2 != 0)
             rc = r2;
     }
-    if (pars.unkared != NULL && pars.outDir == NULL) {
+    if (rc == 0 && pars.unkared != NULL && pars.outDir == NULL) {
         char command[4123] = "";
         STSMSG(2, ("Unlocking...\n"));
         sprintf(command, UNLOCK " %s", pars.unkared);

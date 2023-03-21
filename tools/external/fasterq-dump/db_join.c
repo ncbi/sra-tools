@@ -50,8 +50,8 @@
 #include "raw_read_iter.h"
 #endif
 
-#ifndef _h_fastq_iter_
-#include "fastq_iter.h"
+#ifndef _h_fq_seq_csra_iter_
+#include "fq_seq_csra_iter.h"
 #endif
 
 #ifndef _h_align_iter_
@@ -156,7 +156,7 @@ static rc_t dbj_init_cmn_data( dbj_cmn_t * j,
 /* ------------------------------------------------------------------------------------------ */
 
 /* read_id_0 means read-id zero based */
-static bool dbj_is_reverse( const fastq_rec_t * rec, uint32_t read_id_0 ) {
+static bool dbj_is_reverse( const fq_seq_csra_rec_t * rec, uint32_t read_id_0 ) {
     bool res = false;
     if ( rec -> num_read_type > read_id_0 ) {
         res = ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
@@ -166,9 +166,9 @@ static bool dbj_is_reverse( const fastq_rec_t * rec, uint32_t read_id_0 ) {
 
 /* read_id_0 means read-id zero based */
 static bool dbj_filter( join_stats_t * stats,
-                    const fastq_rec_t * rec,
-                    const join_options_t * jo,
-                    uint32_t read_id_0 ) {
+                        const fq_seq_csra_rec_t * rec,
+                        const join_options_t * jo,
+                        uint32_t read_id_0 ) {
     bool process = true;
     if ( jo -> skip_tech && rec -> num_read_type > read_id_0 ) {
         process = READ_TYPE_BIOLOGICAL == ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL );
@@ -194,7 +194,7 @@ static void dbj_slice_rec( const String * src, String * S1, String * S2, uint32_
     }
 }
 
-static uint32_t dbj_calc_spot_len( const fastq_rec_t * rec ) {
+static uint32_t dbj_calc_spot_len( const fq_seq_csra_rec_t * rec ) {
     uint32_t res = 0;
     uint32_t i;
     for ( i = 0; i < rec -> num_read_len; i++ ) {
@@ -203,16 +203,16 @@ static uint32_t dbj_calc_spot_len( const fastq_rec_t * rec ) {
     return res;
 }
 
-static void dbj_slice_read( const fastq_rec_t * rec, String * S1, String * S2 ) {
+static void dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
     dbj_slice_rec( &( rec -> read ), S1, S2, rec -> read_len );
 }
 
-static void dbj_slice_qual( const fastq_rec_t * rec, String * S1, String * S2 ) {
+static void dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
     dbj_slice_rec( &( rec -> quality ), S1, S2, rec -> read_len );
 }
 
 static rc_t dbj_print_data( struct flp_t * printer,
-                        const fastq_rec_t * rec,
+                        const fq_seq_csra_rec_t * rec,
                         const join_options_t * jo,
                         uint32_t read_id,
                         uint32_t dst_id,
@@ -231,7 +231,7 @@ static rc_t dbj_print_data( struct flp_t * printer,
     return flp_print( printer, &data ); /* flex_printer.c */
 }
 
-static rc_t dbj_lookup1( dbj_cmn_t * j, const fastq_rec_t * rec, const String ** res ) {
+static rc_t dbj_lookup1( dbj_cmn_t * j, const fq_seq_csra_rec_t * rec, const String ** res ) {
     bool reverse = dbj_is_reverse( rec, 0 );
     rc_t rc = lookup_bases( j -> lookup, rec -> row_id, 1, &j -> looked_up_bases_1, reverse ); /* lookup_reader.c */
     if ( 0 == rc ) {
@@ -240,7 +240,7 @@ static rc_t dbj_lookup1( dbj_cmn_t * j, const fastq_rec_t * rec, const String **
     return rc;
 }
 
-static rc_t dbj_lookup2( dbj_cmn_t * j, const fastq_rec_t * rec, const String ** res ) {
+static rc_t dbj_lookup2( dbj_cmn_t * j, const fq_seq_csra_rec_t * rec, const String ** res ) {
     bool reverse = dbj_is_reverse( rec, 1 );
     rc_t rc = lookup_bases( j -> lookup, rec -> row_id, 2, &j -> looked_up_bases_2, reverse ); /* lookup_reader.c */
     if ( 0 == rc ) {
@@ -253,7 +253,7 @@ typedef enum dbj_split_mode_t { sm_none, sm_file, sm_3 } dbj_split_mode_t;
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t dbj_print_fastq_1_read_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
@@ -280,7 +280,7 @@ static rc_t dbj_print_fastq_1_read_unaligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_1_read_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
@@ -309,7 +309,7 @@ static rc_t dbj_print_fastq_1_read_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_1_read( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     rc_t rc = 0;
@@ -324,7 +324,7 @@ static rc_t dbj_print_fastq_1_read( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_1_read_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
@@ -344,7 +344,7 @@ static rc_t dbj_print_fasta_1_read_unaligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_1_read_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
@@ -366,7 +366,7 @@ static rc_t dbj_print_fasta_1_read_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_1_read( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     rc_t rc = 0;
@@ -383,7 +383,7 @@ static rc_t dbj_print_fasta_1_read( const fastq_rec_t * rec,
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t dbj_print_fastq_whole_spot_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* >>>>> FULLY UNALIGNED <<<<<
         print what is in rec -> read ( no lookups! ) */
@@ -408,7 +408,7 @@ static rc_t dbj_print_fastq_whole_spot_unaligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* >>>>> HALF ALIGNED <<<<<
         A0 is unaligned ( read and quality from rec )
@@ -444,7 +444,7 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* >>>>> HALF ALIGNED <<<<<
         A0 is aligned ( read and quality from rec )
@@ -480,7 +480,7 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_whole_spot_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* >>>>> FULLY ALIGNED <<<<<  2 lookups! */
     const String * LOOKED_UP1 = NULL;
@@ -511,7 +511,7 @@ static rc_t dbj_print_fastq_whole_spot_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_whole_spot( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
@@ -530,7 +530,7 @@ static rc_t dbj_print_fastq_whole_spot( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_whole_spot_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* both unaligned, print what is in row->read ( no lookup )
         also no check for READ.len == QUAL.len, because FASTA, aka no QUALITY */
@@ -548,7 +548,7 @@ static rc_t dbj_print_fasta_whole_spot_unaligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* A0 is unaligned / A1 is aligned (lookup) */
     const String * LOOKED_UP = NULL;
@@ -574,7 +574,7 @@ static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* A0 is aligned (lookup) / A1 is unaligned */
     const String * LOOKED_UP = NULL;
@@ -601,7 +601,7 @@ static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_whole_spot_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     /* A0 and A1 are aligned ( 2 lookups ) */
     const String * LOOKED_UP1 = NULL;
@@ -624,7 +624,7 @@ static rc_t dbj_print_fasta_whole_spot_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_whole_spot( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
@@ -663,7 +663,7 @@ static uint32_t dbj_calc_dst_id_2( dbj_split_mode_t sm, bool process_0, bool pro
     return 0;
 }
 
-static rc_t dbj_print_fastq_splitted_cmn( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted_cmn( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -699,7 +699,7 @@ static rc_t dbj_print_fastq_splitted_cmn( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_splitted_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -727,7 +727,7 @@ static rc_t dbj_print_fastq_splitted_unaligned( const fastq_rec_t * rec,
                                    &CMP_READ1, &CMP_READ2, Q1, Q2 );
 }
 
-static rc_t dbj_print_fastq_splitted_half_aligned_1( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -771,7 +771,7 @@ static rc_t dbj_print_fastq_splitted_half_aligned_1( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_splitted_half_aligned_2( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -815,7 +815,7 @@ static rc_t dbj_print_fastq_splitted_half_aligned_2( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_splitted_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -853,7 +853,7 @@ static rc_t dbj_print_fastq_splitted_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fastq_splitted( const fastq_rec_t * rec,
+static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
     rc_t rc = 0;
@@ -897,7 +897,7 @@ static rc_t dbj_print_fastq_splitted( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_splitted_cmn( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted_cmn( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -929,7 +929,7 @@ static rc_t dbj_print_fasta_splitted_cmn( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_splitted_unaligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -942,7 +942,7 @@ static rc_t dbj_print_fasta_splitted_unaligned( const fastq_rec_t * rec,
                                      &CMP_READ1, &CMP_READ2 );
 }
 
-static rc_t dbj_print_fasta_splitted_half_aligned_1( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -965,7 +965,7 @@ static rc_t dbj_print_fasta_splitted_half_aligned_1( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_splitted_half_aligned_2( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -988,7 +988,7 @@ static rc_t dbj_print_fasta_splitted_half_aligned_2( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_splitted_aligned( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
@@ -1010,7 +1010,7 @@ static rc_t dbj_print_fasta_splitted_aligned( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_print_fasta_splitted( const fastq_rec_t * rec,
+static rc_t dbj_print_fasta_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
     rc_t rc = 0;
@@ -1042,37 +1042,11 @@ static rc_t dbj_print_fasta_splitted( const fastq_rec_t * rec,
     return rc;
 }
 
-static rc_t dbj_extract_seq_row_count( KDirectory * dir,
-                                   const VDBManager * vdb_mgr,
-                                   const char * accession_short,
-                                   const char * accession_path,
-                                   size_t cur_cache,
-                                   uint64_t * res ) {
-    rc_t rc;
-    cmn_iter_params_t cp;
-    struct fastq_csra_iter_t * iter;    
-    fastq_iter_opt_t opt = { false, false, false, false, false, false }; /* fastq_iter.h */    
-    cmn_iter_populate_params( &cp,
-                              dir,
-                              vdb_mgr,
-                              accession_short,
-                              accession_path,
-                              cur_cache,
-                              0,
-                              0 );
-    rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
-    if ( 0 == rc ) {
-        *res = get_row_count_of_fastq_csra_iter( iter );
-        destroy_fastq_csra_iter( iter );
-    }
-    return rc;
-}
-
 static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                                      dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = false;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1080,18 +1054,18 @@ static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
     opt . with_quality = true;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         join_options_t local_opt = { j -> join_options -> rowid_as_name,
                                    false,
                                    j -> join_options -> print_spotgroup,
                                    j -> join_options -> min_read_len,
                                    j -> join_options -> filter_bases };
         j -> join_options = &local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
@@ -1107,12 +1081,12 @@ static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                     j -> loop_nr ++;
                 } else {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting(); /* helper.c */
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1120,8 +1094,8 @@ static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fastq_split_spot_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1129,12 +1103,12 @@ static rc_t dbj_perform_fastq_split_spot_join( cmn_iter_params_t * cp,
     opt . with_quality = true;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_spot_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+        fq_seq_csra_rec_t rec;
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
@@ -1150,12 +1124,12 @@ static rc_t dbj_perform_fastq_split_spot_join( cmn_iter_params_t * cp,
                     j -> loop_nr ++;
                 } else {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting(); /* helper.c */
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1163,19 +1137,19 @@ static rc_t dbj_perform_fastq_split_spot_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fastq_split_file_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
     opt . with_quality = true;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         join_options_t local_opt = {
                 j -> join_options -> rowid_as_name,
                 false,
@@ -1184,8 +1158,8 @@ static rc_t dbj_perform_fastq_split_file_join( cmn_iter_params_t * cp,
                 j -> join_options -> filter_bases
             };
         j -> join_options = & local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
-            rc = hlp_get_quitting(); /* helper.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
+            rc = hlp_get_quitting();
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
                 j -> stats -> reads_read += rec . num_alig_id;
@@ -1199,13 +1173,14 @@ static rc_t dbj_perform_fastq_split_file_join( cmn_iter_params_t * cp,
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting();     /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter );
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1213,8 +1188,8 @@ static rc_t dbj_perform_fastq_split_file_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fastq_split_3_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1222,11 +1197,11 @@ static rc_t dbj_perform_fastq_split_3_join( cmn_iter_params_t * cp,
     opt . with_quality = true;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_3_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         rc_t rc_iter = 0;
         join_options_t local_opt = {
             j -> join_options -> rowid_as_name,
@@ -1236,7 +1211,7 @@ static rc_t dbj_perform_fastq_split_3_join( cmn_iter_params_t * cp,
                 j -> join_options -> filter_bases
             };
         j -> join_options = &local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) { /* fastq-iter.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc_iter ) && 0 == rc_iter ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
@@ -1251,13 +1226,14 @@ static rc_t dbj_perform_fastq_split_3_join( cmn_iter_params_t * cp,
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting();     /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter );
+        fq_seq_csra_iter_release( iter );
         if ( 0 == rc && 0 != rc_iter ) { rc = rc_iter; }
     }
     return rc;
@@ -1266,8 +1242,8 @@ static rc_t dbj_perform_fastq_split_3_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
                                 dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1275,39 +1251,40 @@ static rc_t dbj_perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
     opt . with_quality = false;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         join_options_t local_opt = { j -> join_options -> rowid_as_name,
                                    false,
                                    j -> join_options -> print_spotgroup,
                                    j -> join_options -> min_read_len,
                                    j -> join_options -> filter_bases };
         j -> join_options = & local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
                 j -> stats -> reads_read += rec . num_alig_id;
 
                 if ( 1 == rec . num_alig_id ) {
-                    rc = dbj_print_fasta_1_read( &rec, j, sm_none ); /* above */
+                    rc = dbj_print_fasta_1_read( &rec, j, sm_none );
                 } else {
-                    rc = dbj_print_fasta_whole_spot( &rec, j ); /* above */
+                    rc = dbj_print_fasta_whole_spot( &rec, j );
                 }
 
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting(); /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1315,8 +1292,8 @@ static rc_t dbj_perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fasta_split_spot_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1324,32 +1301,33 @@ static rc_t dbj_perform_fasta_split_spot_join( cmn_iter_params_t * cp,
     opt . with_quality = false;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_spot_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+        fq_seq_csra_rec_t rec;
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
                 j -> stats -> reads_read += rec . num_alig_id;
 
                 if ( 1 == rec . num_alig_id ) {
-                    rc = dbj_print_fasta_1_read( &rec, j, sm_none ); /* above */
+                    rc = dbj_print_fasta_1_read( &rec, j, sm_none );
                 } else {
-                    rc = dbj_print_fasta_splitted( &rec, j, sm_none ); /* above */
+                    rc = dbj_print_fasta_splitted( &rec, j, sm_none );
                 }
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting(); /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1357,8 +1335,9 @@ static rc_t dbj_perform_fasta_split_spot_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fasta_split_file_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
+
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1366,11 +1345,11 @@ static rc_t dbj_perform_fasta_split_file_join( cmn_iter_params_t * cp,
     opt . with_quality = false;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         join_options_t local_opt = { j -> join_options -> rowid_as_name,
                                     false,
                                     j -> join_options -> print_spotgroup,
@@ -1378,8 +1357,8 @@ static rc_t dbj_perform_fasta_split_file_join( cmn_iter_params_t * cp,
                                     j -> join_options -> filter_bases
                                 };
         j -> join_options = &local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
-            rc = hlp_get_quitting(); /* helper.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
+            rc = hlp_get_quitting();
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
                 j -> stats -> reads_read += rec . num_alig_id;
@@ -1393,13 +1372,14 @@ static rc_t dbj_perform_fasta_split_file_join( cmn_iter_params_t * cp,
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting();     /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter );
+        fq_seq_csra_iter_release( iter );
     }
     return rc;
 }
@@ -1407,10 +1387,9 @@ static rc_t dbj_perform_fasta_split_file_join( cmn_iter_params_t * cp,
 static rc_t dbj_perform_fasta_split_3_join( cmn_iter_params_t * cp,
                                       dbj_cmn_t * j ) {
     rc_t rc;
-    struct fastq_csra_iter_t * iter;
-
-    /* these are the options for the seq-table-iterator */
-    fastq_iter_opt_t opt;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
+    
     opt . with_read_len = true;
     opt . with_name = !( j -> join_options -> rowid_as_name );
     opt . with_read_type = true;
@@ -1418,11 +1397,11 @@ static rc_t dbj_perform_fasta_split_3_join( cmn_iter_params_t * cp,
     opt . with_quality = false;
     opt . with_spotgroup = j -> join_options -> print_spotgroup;
 
-    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    rc = fq_seq_csra_iter_make( cp, opt, &iter );
     if ( 0 != rc ) {
         ErrMsg( "perform_fasta_split_3_join().make_fastq_csra_iter() -> %R", rc );
     } else {
-        fastq_rec_t rec; /* fastq_iter.h */
+        fq_seq_csra_rec_t rec;
         rc_t rc_iter = 0;
 
         join_options_t local_opt = { j -> join_options -> rowid_as_name,
@@ -1432,8 +1411,8 @@ static rc_t dbj_perform_fasta_split_3_join( cmn_iter_params_t * cp,
                                     j -> join_options -> filter_bases
                                 };
         j -> join_options = &local_opt;
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) { /* fastq-iter.c */
-            rc = hlp_get_quitting(); /* helper.c */
+        while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc_iter ) && 0 == rc_iter ) {
+            rc = hlp_get_quitting();
             if ( 0 == rc ) {
                 j -> stats -> spots_read++;
                 j -> stats -> reads_read += rec . num_alig_id;
@@ -1447,13 +1426,14 @@ static rc_t dbj_perform_fasta_split_3_join( cmn_iter_params_t * cp,
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
                 } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    hlp_set_quitting();     /* helper.c */
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld",
+                            j -> thread_id, j -> loop_nr, rec . row_id );
+                    hlp_set_quitting();
                 }
                 bg_progress_inc( j -> progress ); /* progress_thread.c (ignores NULL) */
             }
         }
-        destroy_fastq_csra_iter( iter );
+        fq_seq_csra_iter_release( iter );
 
         if ( 0 == rc && 0 != rc_iter ) { rc = rc_iter; }
     }
@@ -1593,7 +1573,7 @@ rc_t dbj_create_sorted_fastq_fasta( const dbj_sorted_fastq_fasta_args_t * args )
     }
 
     if ( rc == 0 ) {
-        uint64_t seq_row_count = 0;
+        uint64_t seq_row_count = args -> insp_output -> seq . row_count;
         bool name_column_present, cmp_read_column_present;
         const char * seq_tbl_name = args -> insp_output -> seq . tbl_name;
 
@@ -1606,12 +1586,6 @@ rc_t dbj_create_sorted_fastq_fasta( const dbj_sorted_fastq_fasta_args_t * args )
                                       "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
         }
 
-        rc = dbj_extract_seq_row_count( args -> dir,
-                                    args -> vdb_mgr,
-                                    args -> accession_short,
-                                    args -> accession_path,
-                                    args -> cursor_cache,
-                                    &seq_row_count );
         if ( 0 == rc && seq_row_count > 0 ) {
             Vector threads;
             int64_t row = 1;
@@ -1922,9 +1896,9 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
     cmn_iter_params_t cp;
-    struct fastq_csra_iter_t * iter;
+    struct fq_seq_csra_iter_t * iter;
+    fq_seq_csra_opt_t opt;
     uint64_t loop_nr = 0;
-    fastq_iter_opt_t opt;
     struct flp_t * flex_printer = NULL;
 
     cmn_iter_populate_params( &cp,
@@ -1944,7 +1918,7 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
     opt . with_spotgroup = jo -> print_spotgroup;
 
     /* make_flex_printer() is in flex_printer.c */
-    flex_printer = flp_create_2( jtd -> multi_writer,          /* passed in multi-writer */
+    flex_printer = flp_create_2( jtd -> multi_writer, /* passed in multi-writer */
                     jtd -> accession_short,       /* the accession to be printed */
                     jtd -> seq_defline,           /* if seq-defline is NULL, use default */
                     NULL,                         /* qual-defline not used ( FASTA! ) */
@@ -1953,12 +1927,12 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq-iter.c */
+        rc = fq_seq_csra_iter_make( &cp, opt, &iter );
         if ( 0 != rc ) {
             ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
         } else {
-            fastq_rec_t rec; /* fastq_iter.h */
-            while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+            fq_seq_csra_rec_t rec;
+            while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
                 rc = hlp_get_quitting(); /* helper.c */
                 if ( 0 == rc ) {
                     uint32_t read_id_0 = 0;
@@ -2007,7 +1981,7 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
                     }
                 }
             }
-            destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+            fq_seq_csra_iter_release( iter );
         }
         flp_release( flex_printer );
     }
@@ -2087,22 +2061,13 @@ rc_t dbj_create_unsorted_fasta( const dbj_unsorted_fasta_args_t * args ) {
 
     if ( 0 == rc ) {
         /* for the SEQUENCE-table */
-        uint64_t seq_row_count = 0;
-        uint64_t align_row_count = 0;
+        uint64_t seq_row_count = args -> insp_output -> seq . row_count;
+        uint64_t align_row_count = args -> insp_output -> align . row_count;
         bool cmp_read_column_present;
         const char * seq_tbl_name = args -> insp_output -> seq . tbl_name;
 
         rc = cmn_iter_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
                                   seq_tbl_name, "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
-
-        if ( 0 == rc && !( args -> only_aligned ) ) {
-            rc = dbj_extract_seq_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                        args -> cur_cache, &seq_row_count ); /* above */
-        }
-        if ( 0 == rc && !( args -> only_unaligned ) ) {
-            rc = alit_extract_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                        args -> cur_cache, &align_row_count ); /* above */
-        }
 
         if ( 0 == rc && ( seq_row_count > 0 || align_row_count > 0 ) ) {
             struct multi_writer_t * multi_writer = mw_create( args -> dir,

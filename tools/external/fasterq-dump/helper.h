@@ -202,7 +202,11 @@ uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_cou
 void hlp_unread_rc_info( bool show );
 
 /* -------------------------------------------------------------------------------- */
-    
+
+void hlp_init_qual_to_ascii_lut( char * lut, size_t size );
+
+/* -------------------------------------------------------------------------------- */
+
 /* returns 0 if the id cannot be found ( for instance on none-posix systems ) */
 bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 );
 

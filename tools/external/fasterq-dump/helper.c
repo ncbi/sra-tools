@@ -666,6 +666,19 @@ void hlp_unread_rc_info( bool show ) {
 
 /* -------------------------------------------------------------------------------- */
 
+void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
+    uint32_t idx;
+    memset( lut, '~', size );
+    for ( idx = 0; idx < 256; idx++ ) {
+        lut[ idx ] = idx + 33;
+        if ( '~' == lut[ idx ] ) {
+            break;
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------------- */
+
 #ifdef WINDOWS
         /* do nothing for WINDOWS... */
 #else

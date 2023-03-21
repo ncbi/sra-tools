@@ -21,7 +21,6 @@
 *  Please cite the author in any work or product based on this material.
 *
 * =============================================================================$
-*
 */
 
 #include <kapp/args.h> /* ArgsWhack */
@@ -46,7 +45,8 @@ static const char *DR_USAGE[] = {
 
 #define IN_OPTION "input"
 #define IN_ALIAS "i"
-static const char *IN_USAGE[] =  { "Input: required.", NULL };
+static const char *IN_USAGE[]
+=  { "Input: required. Directory will be updated.", NULL };
 
 #define FX_OPTION "fix-file"
 #define FX_ALIAS "F"
@@ -65,9 +65,13 @@ static const char *LG_USAGE[] =  { "Print output of executed commands.", NULL };
 #define MD_ALIAS "m"
 static const char *MD_USAGE[] =  { "Run mode: required.", NULL };
 
-#define OU_OPTION "output"
+#define OD_OPTION "output-directory"
+#define OD_ALIAS  "O"
+static const char* OD_USAGE[] = { "Create output as unkared directory.", NULL };
+
+#define OU_OPTION "output-file"
 #define OU_ALIAS  "o"
-static const char *OU_USAGE[] = { "Output file: required for fix mode.", NULL };
+static const char *OU_USAGE[] = { "Create output as kar arhive.", NULL };
 
 #define PR_OPTION "show_progress"
 #define PR_ALIAS  "p"
@@ -81,7 +85,15 @@ static const char *RP_USAGE[] = { "Print report for all fields "
 #define TM_OPTION "temp"
 #define TM_ALIAS  "t"
 static const char *TM_USAGE[]
-= { "Where to put temp. files. Dflt=curr dir.", NULL };
+= { "Where to put temporary files. Default is current directory.", NULL };
+
+#define UP_OPTION "update"
+#define UP_ALIAS  "u"
+static const char* UP_USAGE[] = { "Confirm update of input directory.", NULL };
+
+#define VF_OPTION "verify"
+#define VF_ALIAS  "C"
+static const char* VF_USAGE[] = { "Run sra-stat on output targets.", NULL };
 
 #define XM_OPTION "xml-log"
 #define XM_ALIAS  "z"
@@ -94,8 +106,11 @@ static OptDef OPTIONS[] = {
     { IN_OPTION, IN_ALIAS, NULL, IN_USAGE, 1,   true ,    true  },
     { FX_OPTION, FX_ALIAS, NULL, FX_USAGE, 1,   true ,    false },
     { OU_OPTION, OU_ALIAS, NULL, OU_USAGE, 1,   true ,    false },
+    { OD_OPTION, OD_ALIAS, NULL, OD_USAGE, 1,   true ,    false },
     { FS_OPTION, FS_ALIAS, NULL, FS_USAGE, 1,   false,    false },
+    { UP_OPTION, UP_ALIAS, NULL, UP_USAGE, 1,   false,    false },
     { TM_OPTION, TM_ALIAS, NULL, TM_USAGE, 1,   true ,    false },
+    { VF_OPTION, VF_ALIAS, NULL, VF_USAGE, 1,   false,    false },
     { RP_OPTION, RP_ALIAS, NULL, RP_USAGE, 1,   false,    false },
     { LG_OPTION, LG_ALIAS, NULL, LG_USAGE, 1,   false,    false },
     { DR_OPTION, DR_ALIAS, NULL, DR_USAGE, 1,   false,    false },
@@ -106,9 +121,12 @@ char const *USAGE_PARAMS[] = {
    /* MD_OPTION */ "check|fix|check-and-fix",
    /* IN_OPTION */ "acc|dir|file"           ,
    /* FX_OPTION */ "path"                   ,
-   /* OU_OPTION */ "path"                   ,
+   /* OU_OPTION */ "file"                   ,
+   /* OD_OPTION */ "directory"              ,
    /* FS_OPTION */ NULL                     ,
+   /* UP_OPTION */ NULL                     ,
    /* TM_OPTION */ "path"                   ,
+   /* VF_OPTION */ NULL                     ,
    /* RP_OPTION */ NULL                     ,
    /* LG_OPTION */ NULL                     ,
    /* DR_OPTION */ NULL                     ,
@@ -131,11 +149,14 @@ typedef enum {
 typedef struct {
     bool dry;
     bool force;
+    bool update;
+    bool verify;
     bool logKids;
     bool progress;
     bool report;
     unsigned mode;
-    const char *out;
+    const char* outDir;
+    const char *outFile;
 
     const char *tmp;
     bool tmpCreated;
@@ -278,6 +299,20 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
         if (pcount > 0)
             self->force = true;
 
+/* UP_OPTION */
+        rc = ArgsOptionCount(*args, UP_OPTION, &pcount);
+        if (rc != 0)
+            return rc;
+        if (pcount > 0)
+            self->update = true;
+
+/* VF_OPTION */
+        rc = ArgsOptionCount(*args, VF_OPTION, &pcount);
+        if (rc != 0)
+            return rc;
+        if (pcount > 0)
+            self->verify = true;
+
 /* LG_OPTION */
         rc = ArgsOptionCount(*args, LG_OPTION, &pcount);
         if (rc != 0)
@@ -299,12 +334,23 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
         if (pcount > 0)
             self->report = true;
 
+/* OD_OPTION */
+        rc = ArgsOptionCount(*args, OD_OPTION, &pcount);
+        if (rc != 0)
+            return rc;
+        if (pcount > 0)
+            rc = ArgsOptionValue
+                (*args, OD_OPTION, 0, (const void**)&self->outDir);
+        if (rc != 0)
+            return rc;
+
 /* OU_OPTION */
         rc = ArgsOptionCount(*args, OU_OPTION, &pcount);
         if (rc != 0)
             return rc;
         if (pcount > 0)
-            rc = ArgsOptionValue(*args, OU_OPTION, 0, (const void**)&self->out);
+            rc = ArgsOptionValue
+                (*args, OU_OPTION, 0, (const void**)&self->outFile);
         if (rc != 0)
             return rc;
 
@@ -407,17 +453,54 @@ static rc_t RepairInit(Repair *self, int argc, char *argv[], Args **args) {
 
 /* VERIFY */
         if (self->mode & eFix) {
-            if (self->out == NULL) {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
-                LOGERR(klogErr, rc,
-                    "--" OU_OPTION " is required when --" MD_OPTION
-                    " is fix or check-and-fix");
+            if (self->outFile == NULL && self->outDir == NULL) {
+                if (self->inType == eDir) {
+                    if (!self->update) {
+                        rc = RC
+                            (rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+                        LOGERR(klogErr, rc,
+                            "Confirm updating of existing directory by using --"
+                            UP_OPTION);
+                    }
+                }
+                else {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+                    LOGERR(klogErr, rc,
+                        "--" OU_OPTION " or --" OD_OPTION " is required when "
+                        "--" MD_OPTION " is fix or check-and-fix");
+                }
             }
-            else if (KDirectoryPathType(self->dir, self->out) != kptNotFound
-                  && !self->force)
+            else if (self->outDir != NULL && self->inType == eDir) {
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
+                LOGERR(klogErr, rc, "--" OD_OPTION
+                    " cannot be used when input is a directory. "
+                    "It will be updated in place.");
+            }
+            else if
+                (self->outFile != NULL && strcmp(self->in, self->outFile) == 0)
             {
-                rc =RC(rcExe, rcFile, rcCreating, rcFile, rcExists);
+                rc = RC(rcExe, rcArgv, rcParsing, rcName, rcDuplicate);
+                LOGERR(klogErr, rc, "input and output have to be different");
+            }
+            else if
+                (self->outDir != NULL && strcmp(self->in, self->outDir) == 0)
+            {
+                rc = RC(rcExe, rcArgv, rcParsing, rcName, rcDuplicate);
+                LOGERR(klogErr, rc, "input and output have to be different");
+            }
+            else if (self->outFile != NULL
+                && KDirectoryPathType(self->dir, self->outFile) != kptNotFound
+                && !self->force)
+            {
+                rc = RC(rcExe, rcFile, rcCreating, rcFile, rcExists);
                 LOGERR(klogErr, rc, "output file exists") ;
+            }
+            else if (self->outDir != NULL
+                && KDirectoryPathType(self->dir, self->outDir) != kptNotFound
+                && !self->force)
+            {
+                rc = RC(rcExe, rcFile, rcCreating, rcFile, rcExists);
+                LOGERR(klogErr, rc, "output directory exists");
             }
         }
 
@@ -645,20 +728,23 @@ static rc_t RepairGetFix(Repair *self) {
     return rc;
 }
 
-static rc_t RepairCheck(Repair *self) {
+static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
     rc_t rc = 0;
     int i = 0;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
     char cmd[999] = "";
-    const char *key = "";
-    const char *val = "";
-    const char *info = "";
-    const char *progress = "";
+    const char* key = "";
+    const char* val = "";
+    const char* info = "";
+    const char* progress = "";
 
-    if (! (self->mode & eCheck))
+    if (succeed != NULL)
+        *succeed = true;
+
+    if (!(self->mode & eCheck))
         return rc;
 
-    STSMSG(1, ("Running " SRA_STAT " for metadata mismatch...\n"));
+    STSMSG(1, ("Running " SRA_STAT " of %s for metadata mismatch...\n", what));
 
     if (self->report)
         info = "--info";
@@ -672,10 +758,11 @@ static rc_t RepairCheck(Repair *self) {
 #endif
 
     sprintf(cmd, SRA_STAT " " REPAIR " %s %s %s%s -L5 %s 2>&1",
-                            info, progress, key, val, self->in);
+        info, progress, key, val, what);
     STSMSG(2, ("%s\n", cmd));
 
-    self->fix[0] = '\0';
+    if (succeed == NULL)
+        self->fix[0] = '\0';
 
     if (self->dry)
         return rc;
@@ -683,31 +770,45 @@ static rc_t RepairCheck(Repair *self) {
     fp = popen(cmd, "r");
     if (fp == NULL) {
         rc = RC(rcExe, rcProcess, rcOpening, rcCmd, rcFailed);
-        LOGERR(klogErr, rc, "Failed to run " SRA_STAT " " REPAIR );
+        LOGERR(klogErr, rc, "Failed to run " SRA_STAT " " REPAIR);
         return rc;
     }
 
     while (fgets(cmd, sizeof cmd, fp) != NULL) {
-        const char *e = strstr(cmd, "Examined ");
-        const char *m = strstr(cmd, "{MISMATCH} ");
+        const char* e = strstr(cmd, "Examined ");
+        const char* m = strstr(cmd, "{MISMATCH} ");
         if (self->logKids)
             LOGMSG(klogInfo, cmd);
         else if (e != NULL && self->report)
             LOGMSG(klogInfo, cmd);
         if (m != NULL) {
-            strcat(self->fix, m);
-            if (! self->logKids)
+            if (succeed != NULL)
+                *succeed = false;
+            else
+                strcat(self->fix, m);
+            if (!self->logKids)
                 LOGMSG(klogInfo, m);
         }
     }
 
     i = pclose(fp);
-    if ((i / 256 != 0) && (self->fix == NULL)) {
-        rc = RC(rcExe, rcProcess, rcExecuting, rcCmd, rcFailed);
-        if (1)
-            PLOGERR(klogErr, (
-                klogErr, rc, "Failure of executing $(C): $(L)", "C=%s,L=%s",
-                cmd, cmd));
+
+    if (i / 256 != 0) {
+        bool failed = false;
+        if (succeed == NULL) {
+            if (self->fix == NULL)
+                failed = true;
+        }
+        else {
+            if (*succeed)
+                failed = true;
+            *succeed = false;
+        }
+        if (failed) {
+            rc = RC(rcExe, rcProcess, rcExecuting, rcCmd, rcFailed);
+            PLOGERR(klogErr, (klogErr, rc,
+                "Failure of executing $(C): $(L)", "C=%s,L=%s", cmd, cmd));
+        }
     }
 
     return rc;
@@ -753,7 +854,28 @@ static rc_t RepairUnkar(Repair *self) {
 
     assert(self);
 
-    sprintf(self->inDirBuffer, "%s/%s.tmp", self->tmp, self->acc);
+    if (self->outDir == NULL)
+        sprintf(self->inDirBuffer, "%s/%s.tmp", self->tmp, self->acc);
+    else {
+        KPathType type = KDirectoryPathType(self->dir, self->outDir);
+        if (type != kptNotFound) {
+            char command[4123] = "";
+            STSMSG(1, ("Unlocking %s...\n", self->outDir));
+            sprintf(command, UNLOCK " %s", self->outDir);
+            rc = RepairExecute(self, command);
+
+            if (rc == 0) {
+                STSMSG(2, ("Removing %s...\n", self->outDir));
+                rc = KDirectoryRemove(self->dir, true, self->outDir);
+                if (rc != 0) {
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "...failed to remove $(F)", "F=%s", self->outDir));
+                    return rc;
+                }
+            }
+        }
+        sprintf(self->inDirBuffer, "%s", self->outDir);
+    }
 
     if (KDirectoryPathType(self->dir, self->inDirBuffer) == kptDir)
         RepairUnlock(self, self->inDirBuffer);
@@ -818,7 +940,6 @@ static rc_t RepairCheckTable(Repair *self) {
 }
 
 static rc_t RepairFindNextFix(Repair *self) {
-
     rc_t rc = 0;
 
     assert(self);
@@ -826,7 +947,6 @@ static rc_t RepairFindNextFix(Repair *self) {
     self->name[0] = '\0';
     self->actual = self->expected = 0;
     if (self->nextFix != NULL) {
-
         int n = sscanf(self->nextFix,
                        "{MISMATCH} Name:%s Expected:%lu, Actual:%lu.",
                        self->name, &self->expected, &self->actual);
@@ -939,7 +1059,7 @@ static rc_t RepairKar(const Repair *self) {
 
     rc = string_printf(command, sizeof command, NULL,
                     KAR " %s --create %s -d %s",
-        self->force ? "-f" : "", self->out, self->inDir);
+        self->force ? "-f" : "", self->outFile, self->inDir);
 
     if (rc == 0)
         rc = RepairExecute(self, command);
@@ -947,11 +1067,37 @@ static rc_t RepairKar(const Repair *self) {
     return rc;
 }
 
-static rc_t RepaitFinish(const Repair *self) {
+static rc_t RepaitFinish(Repair *self) {
+    bool succeed = false;
+
     rc_t rc = RepaitUpdateHistory(self);
 
-    if (rc == 0)
+    assert(self);
+
+    if (rc == 0) {
+        char command[4123] = "";
+        STSMSG(1, ("Locking...\n"));
+        sprintf(command, LOCK " %s", self->inDir);
+        rc = RepairExecute(self, command);
+    }
+
+    if (rc == 0 && self->verify) {
+        if (self->outDir != NULL)
+            rc = RepairCheck(self, self->outDir, &succeed);
+        else if (self->outFile == NULL)
+            rc = RepairCheck(self, self->in, &succeed);
+        if (!succeed)
+            rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
+    }
+
+    if (rc == 0 && self->outFile != NULL) {
         rc = RepairKar(self);
+        if (rc == 0 && self->verify) {
+            rc = RepairCheck(self, self->outFile, &succeed);
+            if (!succeed)
+                rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
+        }
+    }
 
     return rc;
 }
@@ -1033,7 +1179,7 @@ rc_t KMain(int argc, char *argv[]){
     if (rc == 0 && pars.mode & eFix)
         rc = RepairGetFix(&pars);
     if (rc == 0 && pars.mode & eCheck)
-        rc = RepairCheck(&pars);
+        rc = RepairCheck(&pars, pars.in, NULL);
     if (rc == 0 && pars.mode & eFix)
         rc = RepairFix(&pars);
     STSMSG(1, ("Finishing...\n"));
@@ -1043,11 +1189,18 @@ rc_t KMain(int argc, char *argv[]){
         if (rc == 0 && r2 != 0)
             rc = r2;
     }
-    if (pars.unkared != NULL) {
-        STSMSG(2, ("Removing %s...\n", pars.unkared));
-        r2 = KDirectoryRemove(pars.dir, true, pars.unkared);
-        if (rc == 0 && r2 != 0)
-            rc = r2;
+    if (pars.unkared != NULL && pars.outDir == NULL) {
+        char command[4123] = "";
+        STSMSG(2, ("Unlocking...\n"));
+        sprintf(command, UNLOCK " %s", pars.unkared);
+        rc = RepairExecute(&pars, command);
+
+        if (rc == 0) {
+            STSMSG(2, ("Removing %s...\n", pars.unkared));
+            r2 = KDirectoryRemove(pars.dir, true, pars.unkared);
+            if (rc == 0 && r2 != 0)
+                rc = r2;
+        }
     }
     if (pars.tmpCreated) {
         STSMSG(2, ("Removing %s...\n", pars.tmp));
@@ -1117,31 +1270,34 @@ rc_t CC Usage (const Args *args){
     HelpOptionsStandard();
 
 
-    KOutMsg( "\n" );
+    KOutMsg( "\n\n" );
     KOutMsg( "Use examples:\n" );
 
+    KOutMsg("\n");
     KOutMsg( "  To generate a fix file named 'fix.file' for an input archive "
-             "'SRR1215779'\n"
-             "  If exit code is 0 - fix is not needed;\n"
-             "  If exit code is not 0 - fix is needed or failure.\n"
-             "  If fix is needed "
-                    "- returned rc is data unequal while validating data.\n"
+             "'SRR1215779':\n"
+             "     if exit code is 0 - fix is not needed;\n"
+             "     if exit code is not 0 - fix is needed or failure.\n"
+             "    If fix is needed "
+                    "- returned rc is 'data unequal while validating data'.\n"
              "\n"
              "  $ meta-repair --mode check -i SRR1215779 > fix.file 2>&1\n\n");
     KOutMsg( "\n" );
 
     KOutMsg( "  To replace an archive named 'SRR1215779'"
-             " with fix file  file named 'fix.file' as file 'SRR1215779.sra'"
+             " with fix file named 'fix.file' as file 'SRR1215779.sra'"
              "\n\n"
              "  $ meta-repair --mode fix -i SRR1215779 -F fix.file "
-                                             "-o SSRR1215779RR1215779.sra\n\n");
+                                             "-o SRR1215779.sra\n\n");
     KOutMsg( "\n" );
 
-    KOutMsg( "  You can pipe an input file as:"
+    KOutMsg( "  You can pipe input file as:"
              "\n\n"
-             "  $ cat fix.file | meta-repair --mode fix -i SRR1215779 -F  - "
+             "  $ cat fix.file | meta-repair --mode fix -i SRR1215779 -F - "
                                                      "-o SRR1215779.sra\n\n");
 
+    KOutMsg("\n");
+ 
     KOutMsg( "Use --info to report (field, old value, correct value) "
     "for all fields examined even if the old value is correct.\n\n");
 

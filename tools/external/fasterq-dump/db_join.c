@@ -1089,10 +1089,19 @@ static rc_t extract_seq_row_count( KDirectory * dir,
                                    const char * accession_path,
                                    size_t cur_cache,
                                    uint64_t * res ) {
-    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
-    struct fastq_csra_iter_t * iter;
-    fastq_iter_opt_t opt = { false, false, false, false, false, false }; /* fastq_iter.h */
-    rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
+    rc_t rc;
+    cmn_iter_params_t cp;
+    struct fastq_csra_iter_t * iter;    
+    fastq_iter_opt_t opt = { false, false, false, false, false, false }; /* fastq_iter.h */    
+    populate_cmn_iter_params( &cp,
+                              dir,
+                              vdb_mgr,
+                              accession_short,
+                              accession_path,
+                              cur_cache,
+                              0,
+                              0 );
+    rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
     if ( 0 == rc ) {
         *res = get_row_count_of_fastq_csra_iter( iter );
         destroy_fastq_csra_iter( iter );
@@ -1106,9 +1115,18 @@ static rc_t extract_align_row_count( KDirectory * dir,
                                    const char * accession_path,
                                    size_t cur_cache,
                                    uint64_t * res ) {
-    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
+    rc_t rc;
+    cmn_iter_params_t cp;
     struct align_iter_t * iter;
-    rc_t rc = make_align_iter( &cp, &iter, false ); /* fastq_iter.c */
+    populate_cmn_iter_params( &cp,
+                              dir,
+                              vdb_mgr,
+                              accession_short,
+                              accession_path,
+                              cur_cache,
+                              0,
+                              0 );
+    rc = make_align_iter( &cp, &iter, false ); /* fastq_iter.c */
     if ( 0 == rc ) {
         *res = get_row_count_of_align_iter( iter );
         destroy_align_iter( iter );
@@ -1574,6 +1592,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
     struct filter_2na_t * filter = make_2na_filter( jo -> filter_bases ); /* helper.c */
     struct flex_printer_t * flex_printer = NULL;
     file_printer_args_t file_args;
+    
     set_file_printer_args( &file_args,
                             jtd -> dir,
                             jtd -> registry,
@@ -1587,14 +1606,15 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                 is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
     if ( 0 == rc && NULL != flex_printer ) {
         join_t j;
-        cmn_iter_params_t cp = {
-            jtd -> dir,
-            jtd -> vdb_mgr,
-            jtd -> accession_short,
-            jtd -> accession_path,
-            jtd -> first_row,
-            jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
-            jtd -> cur_cache };
+        cmn_iter_params_t cp;
+        populate_cmn_iter_params( &cp,
+                                  jtd -> dir,
+                                  jtd -> vdb_mgr,
+                                  jtd -> accession_short,
+                                  jtd -> accession_path,
+                                  jtd -> cur_cache,
+                                  jtd -> first_row,
+                                  jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
         rc = init_join( &cp,
                         flex_printer,
                         filter,
@@ -1657,6 +1677,8 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
 
                 case ft_unknown : break;                /* this should never happen */
                 case ft_fasta_us_split_spot : break;    /* neither should this */
+                case ft_fasta_ref_tbl : break;          /* or this */
+                case ft_ref_report : break;             /* or this */                    
             }
             release_join_ctx( &j );
         }
@@ -1876,20 +1898,22 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = {
-        jtd -> dir,
-        jtd -> vdb_mgr,
-        jtd -> accession_short,
-        jtd -> accession_path,
-        jtd -> first_row,
-        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
-        jtd -> cur_cache };
+    cmn_iter_params_t cp;
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
-
+    struct flex_printer_t * flex_printer;
+    
+    populate_cmn_iter_params( &cp,
+                              jtd -> dir,
+                              jtd -> vdb_mgr,
+                              jtd -> accession_short,
+                              jtd -> accession_path,
+                              jtd -> cur_cache,
+                              jtd -> first_row,
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+   
     /* make_flex_printer() is in flex_printer.c */
-    struct flex_printer_t * flex_printer
-        = make_flex_printer_2( jtd -> multi_writer,          /* passed in multi-writer */
+    flex_printer = make_flex_printer_2( jtd -> multi_writer,          /* passed in multi-writer */
                             jtd -> accession_short,       /* the accession to be printed */
                             jtd -> seq_defline,           /* if seq-defline is NULL, use default */
                             NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
@@ -2013,19 +2037,21 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     join_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = {
-        jtd -> dir,
-        jtd -> vdb_mgr,
-        jtd -> accession_short,
-        jtd -> accession_path,
-        jtd -> first_row,
-        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
-        jtd -> cur_cache };
+    cmn_iter_params_t cp;
     struct fastq_csra_iter_t * iter;
     uint64_t loop_nr = 0;
     fastq_iter_opt_t opt;
     struct flex_printer_t * flex_printer = NULL;
 
+    populate_cmn_iter_params( &cp,
+                              jtd -> dir,
+                              jtd -> vdb_mgr,
+                              jtd -> accession_short,
+                              jtd -> accession_path,
+                              jtd -> cur_cache,
+                              jtd -> first_row,
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+    
     opt . with_read_len = true;
     opt . with_name = false;
     opt . with_read_type = true;

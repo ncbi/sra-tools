@@ -975,20 +975,24 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     struct filter_2na_t * filter = make_2na_filter( jtd -> join_options -> filter_bases ); /* helper.c */
-    cmn_iter_params_t cp = {
-        jtd -> dir,
-        jtd -> vdb_mgr,
-        jtd -> accession_short,
-        jtd -> accession_path,
-        jtd -> first_row,
-        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
-        jtd -> cur_cache }; /* helper.h */
+    cmn_iter_params_t cp;
     file_printer_args_t file_args;
+    
+    populate_cmn_iter_params( &cp,
+                              jtd -> dir,
+                              jtd -> vdb_mgr,
+                              jtd -> accession_short,
+                              jtd -> accession_path,
+                              jtd -> cur_cache,
+                              jtd -> first_row,
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+    
     set_file_printer_args( &file_args,
                             jtd -> dir,
                             jtd -> registry,
                             jtd -> part_file,
                             jtd -> buf_size );
+    
     /* make_flex_printer() is in flex_printer.c */
     struct flex_printer_t * flex_printer = make_flex_printer_1( &file_args,
                         jtd -> accession_short,         /* we need that for the flexible defline! */
@@ -1065,6 +1069,8 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
 
             case ft_unknown : break;                /* this should not happen */
             case ft_fasta_us_split_spot : break;    /* and neither should this */
+            case ft_fasta_ref_tbl : break;          /* or this */
+            case ft_ref_report : break;             /* or this */
         }
         release_flex_printer( flex_printer );
     }
@@ -1176,20 +1182,22 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     join_thread_data_t * jtd = data;
     struct fastq_sra_iter_t * iter;
     /* we open an interator on the selected table, and iterate over it */
-    cmn_iter_params_t cp = {
-        jtd -> dir,
-        jtd -> vdb_mgr,
-        jtd -> accession_short,
-        jtd -> accession_path,
-        jtd -> first_row,
-        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
-        jtd -> cur_cache };
+    cmn_iter_params_t cp;
     fastq_iter_opt_t opt;
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
     bool skip_tech = jtd -> join_options -> skip_tech;
     struct flex_printer_t * flex_printer = NULL;
 
+    populate_cmn_iter_params( &cp,
+                              jtd -> dir,
+                              jtd -> vdb_mgr,
+                              jtd -> accession_short,
+                              jtd -> accession_path,
+                              jtd -> cur_cache,
+                              jtd -> first_row,
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+    
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = skip_tech;

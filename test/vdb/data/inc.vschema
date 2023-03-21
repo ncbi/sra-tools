@@ -1,0 +1,1 @@
+typedef U32 INSDC:SRA:spotid_t;

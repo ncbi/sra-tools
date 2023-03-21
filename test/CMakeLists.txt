@@ -34,6 +34,7 @@ else()
 	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
 endif()
 
+add_subdirectory( vdb )
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )
 	add_subdirectory( loaders )

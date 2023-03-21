@@ -87,7 +87,7 @@ CMP_LINKAGE_GROUP:
         READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
        SIGNAL_LEN: 0
        SPOT_COUNT: 3
-      SPOT_FILTER: 1
+      SPOT_FILTER: 0
        SPOT_GROUP: 
           SPOT_ID: 3
          SPOT_LEN: 168

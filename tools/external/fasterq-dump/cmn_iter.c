@@ -58,6 +58,30 @@
 #include <vfs/path.h>
 #endif
 
+
+bool populate_cmn_iter_params( cmn_iter_params_t * params,
+                               const KDirectory * dir,
+                               const VDBManager * vdb_mgr,
+                               const char * accession_short,
+                               const char * accession_path,
+                               size_t cursor_cache,
+                               int64_t first_row,
+                               uint64_t row_count ) {
+    bool res = false;
+    if ( NULL != params && NULL != dir && NULL != vdb_mgr &&
+         NULL != accession_short && NULL != accession_path ) {
+        params -> dir = dir;
+        params -> vdb_mgr = vdb_mgr;
+        params -> accession_short = accession_short;
+        params -> accession_path = accession_path;
+        params -> cursor_cache = cursor_cache;
+        params -> first_row = first_row;
+        params -> row_count = row_count;
+        res = true;
+    }
+    return res;
+}
+
 typedef struct cmn_iter_t {
     const VCursor * cursor;
     struct num_gen * ranges;
@@ -255,6 +279,72 @@ rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter
     return rc;
 }
 
+static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
+                           const struct num_gen_iter ** iter ) {
+    rc_t rc;
+    if ( num_gen_empty( ranges ) ) {
+        rc = num_gen_add( ranges, first, count );
+        if ( 0 != rc ) {
+            ErrMsg( "cmn_iter.c make_row_iter().num_gen_add( %li, %ld ) -> %R", first, count, rc );
+        }
+    } else {
+        rc = num_gen_trim( ranges, first, count );
+        if ( 0 != rc ) {
+            ErrMsg( "cmn_iter.c make_row_iter().num_gen_trim( %li, %ld ) -> %R", first, count, rc );
+        }
+    }
+    rc = num_gen_iterator_make( ranges, iter );
+    if ( 0 != rc ) {
+        ErrMsg( "cmn_iter.c make_row_iter().num_gen_iterator_make() -> %R", rc );
+    }
+    return rc;
+}
+
+rc_t cmn_iter_set_range( struct cmn_iter_t * self, int64_t start_row, uint64_t row_count ) {
+    rc_t rc;
+    if ( NULL == self ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "cmn_iter.c cmn_iter_set_range() -> %R", rc );
+    } else {
+        if ( NULL != self -> row_iter ) {
+            num_gen_iterator_destroy( self -> row_iter );
+        }
+        if ( NULL != self -> ranges ) {
+            num_gen_destroy( self -> ranges );
+        }
+
+        rc = num_gen_make_sorted( &self -> ranges, true );
+        if ( 0 != rc ) {
+            ErrMsg( "cmn_iter.c cmn_iter_set_range().num_gen_make_sorted() -> %R\n", rc );
+        }
+        else if ( row_count > 0 ) {
+            rc = num_gen_add( self -> ranges, start_row, row_count );
+            if ( 0 != rc ) {
+                ErrMsg( "cmn_iter.c cmn_iter_set_range().num_gen_add( %ld.%lu ) -> %R\n",
+                        self -> first_row, self -> row_count, rc );
+            } else {
+                rc = make_row_iter( self -> ranges, start_row, row_count, &self -> row_iter );
+                if ( 0 != rc ) {
+                    ErrMsg( "cmn_iter.c cmn_iter_set_range().make_row_iter( %ld.%lu ) -> %R\n", start_row, row_count, rc );
+                } else {
+                    /*
+                    bool has_next = cmn_iter_next( self, &rc );
+                    if ( 0 != rc ) {
+                        ErrMsg( "cmn_iter.c cmn_iter_set_range().cmn_iter_next() -> %R\n", rc );                        
+                    } else {
+                        if ( !has_next ) {
+                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                            ErrMsg( "cmn_iter.c cmn_iter_next() returned false!" );
+                        }
+                    }
+                    */
+                }
+            }
+        }
+    }
+    return rc;
+}
+
 rc_t cmn_iter_add_column( struct cmn_iter_t * self, const char * name, uint32_t * id ) {
     rc_t rc;
     if ( NULL == self ) {
@@ -291,27 +381,6 @@ uint64_t cmn_iter_row_count( struct cmn_iter_t * self ) {
 bool cmn_iter_next( struct cmn_iter_t * self, rc_t * rc ) {
     if ( NULL == self ) { return false; }
     return num_gen_iterator_next( self -> row_iter, &self -> row_id, rc );
-}
-
-static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
-                    const struct num_gen_iter ** iter ) {
-    rc_t rc;
-    if ( num_gen_empty( ranges ) ) {
-        rc = num_gen_add( ranges, first, count );
-        if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c make_row_iter().num_gen_add( %li, %ld ) -> %R", first, count, rc );
-        }
-    } else {
-        rc = num_gen_trim( ranges, first, count );
-        if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c make_row_iter().num_gen_trim( %li, %ld ) -> %R", first, count, rc );
-        }
-    }
-    rc = num_gen_iterator_make( ranges, iter );
-    if ( 0 != rc ) {
-        ErrMsg( "cmn_iter.c make_row_iter().num_gen_iterator_make() -> %R", rc );
-    }
-    return rc;
 }
 
 rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id ) {
@@ -433,6 +502,27 @@ rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t 
     return rc;
 }
 
+rc_t cmn_read_uint8( struct cmn_iter_t * self, uint32_t col_id, uint8_t *value ) {
+    uint32_t elem_bits, boff, row_len;
+    const uint8_t * value_ptr;
+    rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
+                                     (const void **)&value_ptr, &boff, &row_len );
+    if ( 0 != rc ) {
+        ErrMsg( "cmn_iter.c cmn_read_uint8( #%ld ).VCursorCellDataDirect() -> %R\n", self -> row_id, rc );
+    }
+    else if ( 8 != elem_bits || 0 != boff ) {
+        ErrMsg( "cmn_iter.c cmn_read_uint8( #%ld ) : bits=%d, boff=%d\n", self -> row_id, elem_bits, boff );
+        rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    } else {
+        if ( row_len < 1 ) {
+            *value = 0;
+        } else {
+            *value = *value_ptr;
+        }
+    }
+    return rc;
+}
+
 rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
                             uint32_t * values_read ) {
     uint32_t elem_bits, boff, row_len;
@@ -460,6 +550,17 @@ rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value 
         rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     } else {
         value -> size = value -> len;
+    }
+    return rc;
+}
+
+rc_t cmn_read_bool( struct cmn_iter_t * self, uint32_t col_id, bool * value ) {
+    uint8_t v8;
+    rc_t rc = cmn_read_uint8( self, col_id, &v8 );
+    if ( 0 == rc ) {
+        *value = ( v8 != 0 );
+    } else {
+        *value = false;
     }
     return rc;
 }

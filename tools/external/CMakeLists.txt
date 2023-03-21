@@ -41,3 +41,4 @@ add_subdirectory( sra-search )
 add_subdirectory( test-sra )
 add_subdirectory( cache-mgr ) # obsolete
 add_subdirectory( driver-tool )
+add_subdirectory( sra-info )

@@ -324,7 +324,40 @@ namespace VDB {
             }
             return Cursor(const_cast<VCursor *>(curs), columns);
         }
+
+        typedef std::vector< std::string > ColumnNames;
+        ColumnNames physicalColumns() const 
+        { 
+            KNamelist *names;
+            rc_t rc = VTableListPhysColumns ( o, & names );
+            if (rc)
+            {
+                throw Error(rc, __FILE__, __LINE__);
+            }
+            uint32_t count;
+            rc = KNamelistCount ( names, &count );
+            if (rc)
+            {
+                KNamelistRelease ( names );
+                throw Error(rc, __FILE__, __LINE__);
+            }
+            ColumnNames ret; 
+            for ( uint32_t i = 0; i < count; ++i )
+            {
+                const char * name;
+                rc = KNamelistGet ( names, i, & name );            
+                if (rc)
+                {
+                    KNamelistRelease ( names );
+                    throw Error(rc, __FILE__, __LINE__);
+                }
+                ret.push_back( name );
+            }
+            KNamelistRelease ( names );
+            return ret;
+        }
     };
+
     class Database {
         friend class Manager;
         VDatabase *const o;
@@ -342,6 +375,7 @@ namespace VDB {
             return Table(p);
         }
     };
+
     class Manager {
         VDBManager const *const o;
 

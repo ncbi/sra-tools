@@ -26,6 +26,8 @@
 
 #include "sra-info.hpp"
 
+#include <algorithm>
+
 #include <insdc/sra.h>
 
 using namespace std;
@@ -141,4 +143,12 @@ SraInfo::IsAligned() const
     {   // assume the alignment table does not exist
     }
     return false;
+}
+
+bool 
+SraInfo::HasPhysicalQualities() const
+{
+    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table::ColumnNames cols = table.physicalColumns();
+    return find( cols.begin(), cols.end(), string( "QUALITY" ) ) != cols.end();
 }

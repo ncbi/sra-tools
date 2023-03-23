@@ -204,6 +204,17 @@ FIXTURE_TEST_CASE(IsAligned_Yes, SraInfoFixture)
     REQUIRE( info.IsAligned() );
 }
 
+// HasPhysicalQualities
+FIXTURE_TEST_CASE(HasPhysicalQualities_No, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform); 
+    REQUIRE( ! info.HasPhysicalQualities() );
+}
+FIXTURE_TEST_CASE(HasPhysicalQualities_Yes, SraInfoFixture)
+{
+    info.SetAccession(Accession_CSRA);
+    REQUIRE( info.HasPhysicalQualities() );
+}
 
 //////////////////////////////////////////// Main
 #include <kapp/args.h>

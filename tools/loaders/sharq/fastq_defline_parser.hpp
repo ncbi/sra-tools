@@ -102,7 +102,15 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldColon);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);

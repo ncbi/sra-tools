@@ -44,15 +44,21 @@ public:
     virtual ~CRegExprMatcher() {}
 
     /**
-     * @brief Check if matcher recrogizes defline
+     * @brief Check if matcher recognizes defline
      *
      * @param[in] defline string_view de fline to check
      * @return true if defline matches
      * @return false if defline does not match
      */
-    bool Matches(const std::string_view& input)
+/*bool Matches(const std::string_view& input)
     {
         mLastInput = input;
+        return re2::RE2::PartialMatchN(input, *re, args.empty() ? nullptr : &args[0], (int)args.size());
+    }
+*/        
+    bool Matches(const re2::StringPiece& input)
+    {
+        mLastInput = input.as_string();
         return re2::RE2::PartialMatchN(input, *re, args.empty() ? nullptr : &args[0], (int)args.size());
     }
 

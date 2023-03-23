@@ -40,11 +40,13 @@
 #include <spdlog/fmt/fmt.h>
 
 #include "version.h"
+#include "fastq_utils.hpp"
 #include "fastq_error.hpp"
 #include "fastq_parser.hpp"
 #include "fastq_writer.hpp"
 
 #include <json.hpp>
+#include <algorithm>
 
 #if __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
@@ -94,6 +96,9 @@ private:
     void xReportTelemetry();
     void xCheckErrorLimits(fastq_error& e);
 
+    void xCreateWriterFromDigest(json& data);
+    bool xIsSingleFileInput() const;
+
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
@@ -108,6 +113,7 @@ private:
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
     string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
     string mOutputFile;                 ///< Outut file name - not currently used
+    string mExperimentFile;             ///< Experiment file, JSON with the description of reads structure
     ostream* mpOutStr{nullptr};         ///< Output stream pointer  = not currently used
     shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
     json  mReport;                      ///< Telemetry report
@@ -132,22 +138,6 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 }
 
-static
-void s_split(const string& str, vector<string>& out, char c = ',')
-{
-    if (str.empty())
-        return;
-    auto begin = str.begin();
-    auto end  = str.end();
-    while (begin != end) {
-        auto it = begin;
-        while (it != end && *it != c) ++it;
-        out.emplace_back(begin, it);
-        if (it == end)
-            break;
-        begin = ++it;
-    }
-}
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
@@ -214,6 +204,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             ->default_val("info")
             ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
 
+        app.add_option("--experiment", mExperimentFile, "Read structure description");
+
         string hash_file;
         opt->add_option("--hash", hash_file, "Check hash file");
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
@@ -250,18 +242,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         if (mDiscardNames)
             mNameColumn = "NONE";
 
-        xSetupOutput();
-        if (mDigest == 0) {
-            if (mDebug) {
-                m_writer = make_shared<fastq_writer>();
-                if (mNoTimeStamp)
-                    spdlog::set_pattern("[%l] %v");
+        if (mNoTimeStamp)
+            spdlog::set_pattern("[%l] %v");
 
-            } else {
-                spdlog::set_pattern("%v");
-                m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
-            }
-        }
+        xSetupOutput();
+
         if (read_types.find_first_not_of("TBA") != string::npos)
             throw fastq_error(150, "Invalid --readTypes values '{}'", read_types);
 
@@ -270,9 +255,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         if (!read_pairs[0].empty()) {
             if (mDigest == 0 && mReadTypes.empty())
                 throw fastq_error(20, "No readTypes provided");
-            for (auto p : read_pairs) {
+            for (const auto& p : read_pairs) {
                 vector<string> b;
-                s_split(p, b);
+                sharq::split(p, b);
                 xCheckInputFiles(b);
                 s_AddReadPairBatch(b, mInputBatches);
             }
@@ -280,6 +265,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             if (input_files.empty()) {
                 mInputBatches.push_back({"-"});
             } else {
+                for (auto& s : input_files) 
+                   s.erase(remove(s.begin(), s.end(), '\''), s.end());
                 stable_sort(input_files.begin(), input_files.end());
                 xCheckInputFiles(input_files);
                 fastq_reader::cluster_files(input_files, mInputBatches);
@@ -388,7 +375,7 @@ void CFastqParseApp::xProcessDigest(json& data)
             // and orphans are present
             // then sharq should fail.
             if (!mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty())
-                throw fastq_error(190); // "Usupported interleaved file with orphans"
+                throw fastq_error(190); // "Unsupported interleaved file with orphans"
         }
 
         // non10x, non interleaved files
@@ -436,6 +423,96 @@ void CFastqParseApp::xProcessDigest(json& data)
         }
     }
 
+}
+
+//  -----------------------------------------------------------------------------
+int CFastqParseApp::xRunDigest()
+{
+    if (mInputBatches.empty())
+        return 1;
+    spdlog::set_level(spdlog::level::from_str("off"));
+    json json_data;
+    string error;
+    try {
+        get_digest(json_data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);}, mDigest);
+        set<string> deflines;
+        for (const auto& gr : json_data["groups"]) {
+            for (const auto& f : gr["files"]) {
+                for (const auto& d : f["defline_type"])
+                    deflines.emplace(d);
+            }
+        }
+        json_data["defline"] = deflines.empty() ? "unknown" : sharq::join(deflines.begin(), deflines.end(), ",");
+    } catch (fastq_error& e) {
+        error = e.Message();
+    } catch(std::exception const& e) {
+        error = fmt::format("[code:0] Runtime error: {}", e.what());
+    }
+    if (!error.empty()) {
+        // remove special character if any
+        error.erase(remove_if(error.begin(), error.end(),[](char c) { return !isprint(c); }), error.end());
+        json_data["error"] = error;
+    }
+
+    cout << json_data.dump(4, ' ', true) << endl;
+    return 0;
+}
+
+/**
+ * @brief Check if the load specification describes multiple reads with defined base coords
+ * 
+ * @return true 
+ * @return false 
+ */
+static 
+bool s_has_split_read_spec(const string& ExperimentFile)
+{
+    if (ExperimentFile.empty()) 
+        return false;
+    std::ifstream f(ExperimentFile);
+    json data = json::parse(f);      
+    auto read_specs = data["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
+    if (read_specs.is_null())
+        throw fastq_error("Experiment does not contains READ_SPEC");
+    return (read_specs.is_array() && read_specs.size() > 1 && read_specs.front().contains("BASE_COORD"));
+    /*
+    if (j.is_array()) {
+        for (auto it = j.begin();it != j.end(); ++it) {     
+            if (it->contains("BASE_COORD"))                      
+                return true;
+        }
+    } 
+    return false;
+    */
+}
+
+bool CFastqParseApp::xIsSingleFileInput() const
+{
+    return all_of(mInputBatches.begin(), mInputBatches.end(), [](const auto& it) { return it.size() == 1; });
+}   
+
+void CFastqParseApp::xCreateWriterFromDigest(json& data)
+{
+    if (mDebug) {
+        m_writer = make_shared<fastq_writer>();
+        return;    
+    } 
+
+    assert(data.contains("groups"));
+    assert(data["groups"].front().contains("files"));
+    const auto& first = data["groups"].front()["files"].front();
+    int platform_code = first["platform_code"].front();
+
+    if (s_has_split_read_spec(mExperimentFile) && xIsSingleFileInput()) {
+        m_writer = make_shared<fastq_writer_exp>(mExperimentFile, *mpOutStr);
+    } else {
+        m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
+    }
+
+    m_writer->set_attr("name_column", mNameColumn);
+    m_writer->set_attr("destination", mDestination);
+    m_writer->set_attr("version", SHARQ_VERSION);
+
     switch ((int)first["quality_encoding"]) {
     case 0:
         m_writer->set_attr("quality_expression", "(INSDC:quality:phred)QUALITY");
@@ -447,55 +524,25 @@ void CFastqParseApp::xProcessDigest(json& data)
         m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_64)QUALITY");
         break;
     default:
-        throw runtime_error("Invaid quality encoding");
+        throw fastq_error(200); // "Invalid quality encoding"
     }
-    m_writer->set_attr("platform", to_string(first["platform_code"].front()));
-
-}
-
-
-//  -----------------------------------------------------------------------------
-int CFastqParseApp::xRunDigest()
-{
-    if (mInputBatches.empty())
-        return 1;
-    spdlog::set_level(spdlog::level::from_str("off"));
-    json j;
-    string error;
-    try {
-        get_digest(j, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);}, mDigest);
-    } catch (fastq_error& e) {
-        error = e.Message();
-    } catch(std::exception const& e) {
-        error = fmt::format("[code:0] Runtime error: {}", e.what());
-    }
-    if (!error.empty()) {
-        // remove special character if any
-        error.erase(remove_if(error.begin(), error.end(),[](char c) { return !isprint(c); }), error.end());
-        j["error"] = error;
-    }
-
-    cout << j.dump(4, ' ', true) << endl;
-    return 0;
+    m_writer->set_attr("platform", to_string(platform_code));
 }
 
 int CFastqParseApp::xRun()
 {
     if (mInputBatches.empty())
         return 1;
+    json data;
+    get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);});
+    xProcessDigest(data);
+    mErrorCount = 0; //Reset error counts after initial digest
+    xCreateWriterFromDigest(data);
+
     fastq_parser<fastq_writer> parser(m_writer);
     if (!mDebug)
         parser.set_spot_file(mSpotFile);
     parser.set_allow_early_end(mAllowEarlyFileEnd);
-    json data;
-    get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);});
-    xProcessDigest(data);
-    mErrorCount = 0; //Reset error counts after initial digets
-
-    m_writer->set_attr("name_column", mNameColumn);
-    m_writer->set_attr("destination", mDestination);
-    m_writer->set_attr("version", SHARQ_VERSION);
-
     m_writer->open();
     auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
     for (auto& group : data["groups"]) {

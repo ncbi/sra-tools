@@ -11,8 +11,8 @@
 
 using namespace std;
 
-class CFastqRead
 /// FASTQ read
+class CFastqRead
 {
 public:
     /// ReadTypes
@@ -57,16 +57,18 @@ public:
     uint8_t Type() const { return mReadType;} ///< return ReadType
 
     void SetLineNumber(size_t line_number) { mLineNumber = line_number;}
-    void SetSpot(const string& spot) { mSpot = spot; }
+    void SetSpot(string spot) { mSpot = move(spot); }
     void SetSpot(const re2::StringPiece& spot) {  spot.CopyToString(&mSpot); }
 
-    void SetReadNum(const string& readNum) { mReadNum = readNum; }
+    void MoveSpot(string&& spot) { mSpot = move(spot); }
+
+    void SetReadNum(string readNum) { mReadNum = move(readNum); }
     void SetReadNum(const re2::StringPiece& readNum) { readNum.CopyToString(&mReadNum); }
 
-    void SetSuffix(const string& suffix) { mSuffix = suffix; }
+    void SetSuffix(string suffix) { mSuffix = move(suffix); }
     void SetSuffix(const re2::StringPiece& suffix) { suffix.CopyToString(&mSuffix); }
 
-    void SetSpotGroup(const string& spotGroup);
+    void SetSpotGroup(string spotGroup);
     void SetSpotGroup(const re2::StringPiece& spotGroup);
 
     void SetReadFilter(uint8_t readFilter) { mReadFilter = readFilter; }
@@ -180,12 +182,12 @@ void CFastqRead::SetType(char readType)
 }
 
 
-void CFastqRead::SetSpotGroup(const string& spotGroup)
+void CFastqRead::SetSpotGroup(string spotGroup)
 {
     if (spotGroup == "0")
         mSpotGroup.clear();
     else
-        mSpotGroup = spotGroup;
+        mSpotGroup = move(spotGroup);
 }
 
 void CFastqRead::SetSpotGroup(const re2::StringPiece& spotGroup)

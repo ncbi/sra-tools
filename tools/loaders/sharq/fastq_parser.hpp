@@ -41,6 +41,7 @@
 */
 
 
+#include "fastq_utils.hpp"
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
 #include "hashing.hpp"
@@ -293,6 +294,13 @@ public:
      * @param spot_file[in[
      */
     void set_spot_file(const string& spot_file) { m_spot_file = spot_file; }
+
+    /**
+     * @brief Set the experiment file object
+     * 
+     * @param experiment_file 
+     */
+    void set_experiment_file(const string& experiment_file);
 
     /**
      * @brief read from a group of readers, assembles the spot and send it to the writer
@@ -961,20 +969,6 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
     }
 }
 
-
-template<typename T>
-static string s_join(const T& b, const T& e, const string& delimiter = ", ")
-{
-    stringstream ss;
-    auto it = b;
-    ss << *it++;
-    while (it != e) {
-        ss << delimiter << *it++;
-    }
-    return ss.str();
-}
-
-
 //  ----------------------------------------------------------------------------
 void fastq_reader::cluster_files(const vector<string>& files, vector<vector<string>>& batches)
 {
@@ -1009,11 +1003,11 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
             }
         }
         if (!batches.empty() && batches.front().size() != batch.size()) {
-            string first_group = s_join(batches.front().begin(), batches.front().end());
-            string second_group = s_join(batch.begin(), batch.end());
+            string first_group = sharq::join(batches.front().begin(), batches.front().end());
+            string second_group = sharq::join(batch.begin(), batch.end());
             throw fastq_error(11, "Inconsistent file sets: first group ({}), second group ({})", first_group, second_group);
         }
-        spdlog::info("File group: {}", s_join(batch.begin(), batch.end()));
+        spdlog::info("File group: {}", sharq::join(batch.begin(), batch.end()));
         batches.push_back(move(batch));
     }
 }
@@ -1322,6 +1316,9 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         g["min_sequence_size"] = gr.min_sequence_size;
     }
 }
+
+template<typename TWriter>
+void set_experiment_file(const string& experiment_file);
 
 
 #endif

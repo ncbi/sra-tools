@@ -34,6 +34,7 @@
 #include <kfs/file.h>
 #include <sstream>
 
+#include "../../tools/loaders/sharq/fastq_utils.hpp"
 #include "../../tools/loaders/sharq/fastq_parser.hpp"
 #include "../../tools/loaders/sharq/fastq_read.hpp"
 #include "../../tools/loaders/sharq/fastq_error.hpp"
@@ -48,6 +49,61 @@ using namespace std;
 
 TEST_SUITE(SharQParserTestSuite);
 
+
+
+TEST_CASE(SplitString)
+{
+    vector<string> out;
+    string in0{"a"};
+    sharq::split(in0, out, ',');
+    REQUIRE_EQ(out.size(), 1lu);
+    REQUIRE_EQ(out[0], string("a"));
+
+    string in1{"a,b,c"};
+    sharq::split(in1, out);
+    REQUIRE_EQ(out.size(), 3lu);
+    REQUIRE_EQ(out[0], string("a"));
+    REQUIRE_EQ(out[1], string("b"));
+    REQUIRE_EQ(out[2], string("c"));
+
+    string in2{"a.b.c"};
+    sharq::split(in2, out, '.');
+    REQUIRE_EQ(out.size(), 3lu);
+    REQUIRE_EQ(out[0], string("a"));
+    REQUIRE_EQ(out[1], string("b"));
+    REQUIRE_EQ(out[2], string("c"));
+
+    string in3;
+    sharq::split(in3, out);
+    REQUIRE_EQ(out.size(), 0lu);
+}
+
+TEST_CASE(SplitStringPiece)
+{
+    vector<string> out;
+    re2::StringPiece in0{"a"};
+    sharq::split(in0, out, ',');
+    REQUIRE_EQ(out.size(), 1lu);
+    REQUIRE_EQ(out[0], string("a"));
+
+    re2::StringPiece in1{"a,b,c"};
+    sharq::split(in1, out);
+    REQUIRE_EQ(out.size(), 3lu);
+    REQUIRE_EQ(out[0], string("a"));
+    REQUIRE_EQ(out[1], string("b"));
+    REQUIRE_EQ(out[2], string("c"));
+
+    re2::StringPiece in2{"a.b.c"};
+    sharq::split(in2, out, '.');
+    REQUIRE_EQ(out.size(), 3lu);
+    REQUIRE_EQ(out[0], string("a"));
+    REQUIRE_EQ(out[1], string("b"));
+    REQUIRE_EQ(out[2], string("c"));
+
+    re2::StringPiece in3;
+    sharq::split(in3, out);
+    REQUIRE_EQ(out.size(), 0lu);
+}
 class LoaderFixture
 {
 public:
@@ -126,7 +182,7 @@ const string cQUAL = "!''*";
 const string cQUAL_MULTILINE = "!'\n'*";
 
 #define _READ(defline, sequence, quality)\
-    string("@" + string(defline)  + "\n" + sequence  + "\n+\n" + quality + "\n")\
+    string(((defline[0] == '@' || defline[0] == '>') ? "" : "@") + string(defline)  + "\n" + sequence  + "\n+\n" + quality + "\n")\
 
 FIXTURE_TEST_CASE(GoodRead, LoaderFixture)
 {   // a good record
@@ -267,6 +323,16 @@ FIXTURE_TEST_CASE(BGIOld1, LoaderFixture)  { TEST_TAGLINE("@CL100050407L1C001R00
 
 FIXTURE_TEST_CASE(BgiOld8, LoaderFixture)  { TEST_TAGLINE("@V350012516L1C001R00100001492/1", "BgiOld"); }
 FIXTURE_TEST_CASE(BgiNewd8, LoaderFixture)  { TEST_TAGLINE("@V300019058_8BL1C001R00112345678 1:N:0:ATGGTAG", "BgiNew") }
+
+FIXTURE_TEST_CASE(IlluminaNoPrefix, LoaderFixture)
+{
+    CFastqRead read;
+    fastq_reader reader("test", create_stream(_READ("@USDA110_48_0219_1 1:N:0:GGTACCTT", cSEQ, cQUAL)));
+    REQUIRE(reader.get_read(read));
+    REQUIRE_EQ(read.Spot(), string("USDA110_48_0219_1"));
+    REQUIRE_EQ(string("GGTACCTT"), read.SpotGroup());
+}
+
 
 
 FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
@@ -858,6 +924,244 @@ FIXTURE_TEST_CASE(Nanopore_Barcode_Edit, NanoporeFixture)
     REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
 }
 
+
+//@GG3IVWD03F5DLB length=97 xy=2404_1917 region=3 run=R_2010_05_11_11_15_22_ (XXX529889)
+//@EV5T11R03G54ZJ (YYY307780)
+//@GKW2OSF01D55D9 (ERR016499)
+//@OS-230b_GLZVSPV04JTNWT (ERR039808)
+//@HUT5UCF07H984F (SRR2035362)
+//@EM7LVYS02FOYNU/1 (WWW000042 or WWW000043)
+
+class LS454Fixture : public LoaderFixture
+{
+public:
+    void LS454(const string & defline)
+    {
+        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(m_read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_454 );
+        m_type = reader.defline_type();
+    }
+
+    string m_type;
+    CFastqRead m_read;
+};
+
+FIXTURE_TEST_CASE(LS454_1, LS454Fixture)
+{
+    LS454("GG3IVWD03F5DLB length=97 xy=2404_1917 region=3 run=R_2010_05_11_11_15_22_ ");
+    REQUIRE_EQ( m_read.Spot(), string( "GG3IVWD03F5DLB") );
+    REQUIRE( m_read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(LS454_2, LS454Fixture)
+{
+    LS454("EV5T11R03G54ZJ");
+    REQUIRE_EQ( m_read.Spot(), string( "EV5T11R03G54ZJ") );
+    REQUIRE( m_read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(LS454_3, LS454Fixture)
+{
+    LS454("GKW2OSF01D55D9");
+    
+    REQUIRE_EQ( m_read.Spot(), string( "GKW2OSF01D55D9") );
+    REQUIRE( m_read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(LS454_4, LS454Fixture)
+{
+    LS454("OS-230b_GLZVSPV04JTNWT");
+    REQUIRE_EQ( m_read.Spot(), string("OS-230b_GLZVSPV04JTNWT") );
+    REQUIRE( m_read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(LS454_5, LS454Fixture)
+{
+    LS454("HUT5UCF07H984F");
+    REQUIRE_EQ( m_read.Spot(), string( "HUT5UCF07H984F") );
+    REQUIRE( m_read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(LS454_6, LS454Fixture)
+{
+    LS454("EM7LVYS02FOYNU/1");
+    REQUIRE_EQ( m_read.Spot(), string( "EM7LVYS02FOYNU") );
+    REQUIRE_EQ( m_read.ReadNum(), string("1") );
+}
+///        # @A313D:7:49 (XXX486160)
+//        # @RD4FE:00027:00172 (XXX2925654)
+//        # @ONBWR:00329:02356/1 (WWW000044)
+//        # >311CX:3560:2667   length=347 (SRR547526)
+
+class IonTorrentFixture : public LoaderFixture
+{
+public:
+    void IonTorrent(const string& defline)
+    {
+        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(m_read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ION_TORRENT );
+        m_type = reader.defline_type();
+    }
+
+    string m_type;
+    CFastqRead m_read;
+};
+
+FIXTURE_TEST_CASE(IonTorrent_1, IonTorrentFixture)
+{
+    IonTorrent("@A313D:7:49");
+    REQUIRE_EQ( m_read.Spot(), string( "A313D:7:49") );
+    REQUIRE( m_read.ReadNum().empty() );
+}
+
+FIXTURE_TEST_CASE(IonTorrent_2, IonTorrentFixture)
+{
+    IonTorrent("@RD4FE:00027:00172");
+    REQUIRE_EQ( m_read.Spot(), string( "RD4FE:00027:00172") );
+    REQUIRE( m_read.ReadNum().empty() );
+}
+
+FIXTURE_TEST_CASE(IonTorrent_3, IonTorrentFixture)
+{
+    IonTorrent("@ONBWR:00329:02356/1");
+    REQUIRE_EQ( m_read.Spot(), string( "ONBWR:00329:02356") );
+    REQUIRE_EQ( m_read.ReadNum(), string("1") );
+}
+
+FIXTURE_TEST_CASE(IonTorrent_4, IonTorrentFixture)
+{
+    IonTorrent(">311CX:3560:2667   length=347");
+    REQUIRE_EQ( m_read.Spot(), string( "311CX:3560:2667") );
+    REQUIRE( m_read.ReadNum().empty() );
+}
+
+struct illumina_old_t {
+    string defline;
+    string spot;
+    string spot_group;
+    string read_num;
+};
+// Old Illumina
+vector<illumina_old_t> cIlluminaOldColon = {
+    { "@HWIEAS210R_0014:3:28:1070:11942#ATCCCG/1", "HWIEAS210R_0014:3:28:1070:11942", "ATCCCG", "1" },
+    { "@FCABM5A:1:1101:15563:1926#CTAGCGCT_CATTGCTT/1", "FCABM5A:1:1101:15563:1926", "CTAGCGCT_CATTGCTT", "1" },
+    { "@HWI-ST1374:1:1101:1161:2060#0/1", "HWI-ST1374:1:1101:1161:2060", "", "1" },
+    { "@ID57_120908_30E4FAAXX:3:1:1772:953/1", "ID57_120908_30E4FAAXX:3:1:1772:953", "", "1" },
+    { "@R1:1:221:197:649/1", "R1:1:221:197:649", "", "1" },
+    { "@R16:8:1:0:1617#0/1\x0d", "R16:8:1:0:1617", "", "1" },
+    { "@rumen9533:0:0:0:5", "rumen9533:0:0:0:5", "", "" },
+    { "@HWUSI-BETA8_3:7:1:-1:14", "HWUSI-BETA8_3:7:1:-1:14", "", "" },
+    { "@IL10_334:1:1:4:606", "IL10_334:1:1:4:606", "", "" },
+    { "@HWUSI-EAS517-74:3:1:1023:8178/1 ~ RGR:Uk6;", "HWUSI-EAS517-74:3:1:1023:8178", "", "1" }, 
+    { "@FCC19K2ACXX:3:1101:1485:2170#/1", "FCC19K2ACXX:3:1101:1485:2170", "", "1" },
+    { "@AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771:0:1#0", "AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771", "", "" },
+    { "@AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769:0:0#0", "AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769", "",  ""},
+    { "@120315_SN711_0193_BC0KW7ACXX:1:1101:1419:2074:1#0/1", "120315_SN711_0193_BC0KW7ACXX:1:1101:1419:2074", "", "1" },
+    { "HWI-ST155_0544:1:1:6804:2058#0/1", "HWI-ST155_0544:1:1:6804:2058", "", "1" },
+    { "@HWI-ST225:626:C2Y82ACXX:3:1208:2931:82861_1", "HWI-ST225:626:C2Y82ACXX:3:1208:2931:82861", "", "" },
+    { "@D3LH75P1:1:1101:1054:2148:0 1:1", "D3LH75P1:1:1101:1054:2148", "", "" },
+    { "@HWI-ST225:626:C2Y82ACXX:3:1208:2222:82880_1", "HWI-ST225:626:C2Y82ACXX:3:1208:2222:82880", "", "" },
+    { "@FCA5PJ4:1:1101:14707:1407#GTAGTCGC_AGCTCGGT/1", "FCA5PJ4:1:1101:14707:1407", "GTAGTCGC_AGCTCGGT", "1" },
+    { "@SOLEXA-GA02_1:1:1:0:106", "SOLEXA-GA02_1:1:1:0:106", "", "" },
+    { "@HWUSI-EAS499:1:3:9:1822#0/1", "HWUSI-EAS499:1:3:9:1822", "", "1" },
+    { "@BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540", "BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540", "", ""},
+    { ">KN-930:1:1:653:356", "KN-930:1:1:653:356", "", ""}, 
+    { "USI-EAS50_1:6:1:392:881", "USI-EAS50_1:6:1:392:881", "", ""},
+    { "@HWI-EAS299_2_30MNAAAXX:5:1:936:1505/1", "HWI-EAS299_2_30MNAAAXX:5:1:936:1505", "", "1" }, 
+    { "@HWI-EAS-249:7:1:1:443/1", "HWI-EAS-249:7:1:1:443", "", "1"}, 
+    { "@HWI-EAS385_0086_FC:1:1:1239:943#0/1", "HWI-EAS385_0086_FC:1:1:1239:943", "", "1" },
+    { "@HWUSI-EAS613-R_0001:8:1:1020:14660#0/1", "HWUSI-EAS613-R_0001:8:1:1020:14660", "", "1" }, 
+    { "@ILLUMINA-D01686_0001:7:1:1028:14175#0/1", "ILLUMINA-D01686_0001:7:1:1028:14175", "", "1" },
+    { "@741:6:1:1204:10747/1", "741:6:1:1204:10747", "", "1" },
+    { "@1920:1:1:1504:1082/1", "1920:1:1:1504:1082", "", "1" }, 
+    { "@HWI-EAS397_0013:1:1:1083:11725#0/1", "HWI-EAS397_0013:1:1:1083:11725", "", "1" },
+    { ">HWI-EAS6_4_FC2010T:1:1:80:366", "HWI-EAS6_4_FC2010T:1:1:80:366", "", "" }, 
+    { "@NUTELLA_42A08AAXX:4:001:0003:0089/1", "NUTELLA_42A08AAXX:4:001:0003:0089", "", "1" }, 
+    { "@R16:8:1:0:875#0/1", "R16:8:1:0:875", "", "1" }, 
+    { "HWI-EAS102_1_30LWPAAXX:5:1:1456:776", "HWI-EAS102_1_30LWPAAXX:5:1:1456:776", "", "" },
+    { "@HWI-EAS390_30VGNAAXX1:1:1:377:1113/1", "HWI-EAS390_30VGNAAXX1:1:1:377:1113", "", "1" }, 
+    { "@ID57_120908_30E4FAAXX:3:1:1772:953/1", "ID57_120908_30E4FAAXX:3:1:1772:953", "", "1" }, 
+    { "HWI-EAS440_102:8:1:168:1332", "HWI-EAS440_102:8:1:168:1332", "", "" }, 
+    { "@SNPSTER4_246_30GCDAAXX_PE:1:1:3:896/1", "SNPSTER4_246_30GCDAAXX_PE:1:1:3:896", "", "1" }, 
+    { "@FC42AUBAAXX:6:1:4:1280#TGACCA/1", "FC42AUBAAXX:6:1:4:1280", "TGACCA", "1" }, 
+    { "@SOLEXA9:1:1:1:2005#0/1", "SOLEXA9:1:1:1:2005", "", "1" }, 
+    { "@SNPSTER3_264_30JGGAAXX_PE:2:1:218:311/1", "SNPSTER3_264_30JGGAAXX_PE:2:1:218:311", "", "1" }, 
+    { "@HWUSI-EAS535_0001:7:1:747:14018#0/1", "HWUSI-EAS535_0001:7:1:747:14018", "", "1" }, 
+    { "@FC42ATTAAXX:5:1:0:20481", "FC42ATTAAXX:5:1:0:20481", "", "" }, 
+    { "@HWUSI-EAS1571_0012:8:1:1017:20197#0/1", "HWUSI-EAS1571_0012:8:1:1017:20197", "", "1" }, 
+    { "@SOLEXA1_0052_FC:8:1:1508:1078#TTAGGC/1", "SOLEXA1_0052_FC:8:1:1508:1078", "TTAGGC", "1" }, 
+    { "@SN971:2:1101:15.80:103.70#0/1", "SN971:2:1101:15.80:103.70", "", "1" }
+};
+
+
+vector<illumina_old_t> cIlluminaOldUnderscore = {
+    { "@HWI-EAS30_2_FC200HWAAXX_4_1_646_399\x0d", "HWI-EAS30_2_FC200HWAAXX_4_1_646_399", "", "" },
+    { "@ATGCT_7_1101_1418_2098_1", "ATGCT_7_1101_1418_2098", "" "" },
+    { "@BILLIEHOLIDAY_1_FC200TYAAXX_3_1_751_675", "BILLIEHOLIDAY_1_FC200TYAAXX_3_1_751_675", "", "" },
+    { "@HWI-EAS30_2_FC20416AAXX_7_1_116_317", "HWI-EAS30_2_FC20416AAXX_7_1_116_317", "", ""},
+    { "@FC12044_91407_8_1_46_673", "FC12044_91407_8_1_46_673", "", "" }
+};
+
+vector<illumina_old_t> cIlluminaOldNoPrefix = {
+    { "@7:1:792:533", "7:1:792:533", "", "" },
+    { "@7:1:164:-0", "7:1:164:-0", "", "" },
+    { "@MB27-02-1:1101:1723:2171 /1", "MB27-02-1:1101:1723:2171", "", "1" },
+};
+
+vector<illumina_old_t> cIlluminaOldWithSuffix = {
+    { "@HWI-IT879:92:5:1101:1170:2026#0/1:0", "HWI-IT879:92:5:1101:1170:2026", "", "1" },
+};
+
+vector<illumina_old_t> cIlluminaOldWithSuffix2 = {
+    { ">M01056:83:000000000-A7GBN:1:1108:17094:2684--W1", "M01056:83:000000000-A7GBN:1:1108:17094:2684", "", "" }
+};
+
+vector<tuple<string, vector<illumina_old_t>>> cIlluminaOldCases = {
+    { "IlluminaOldColon", cIlluminaOldColon },
+    { "IlluminaOldUnderscore", cIlluminaOldUnderscore },
+    { "IlluminaOldNoPrefix", cIlluminaOldNoPrefix },
+    { "IlluminaOldWithSuffix", cIlluminaOldWithSuffix },
+    { "IlluminaOldWithSuffix2", cIlluminaOldWithSuffix2 }
+
+};
+
+
+class IlluminaOldFixture : public LoaderFixture
+{
+public:
+    void IlluminaOld(const string& defline)
+    {
+
+
+        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(m_read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
+        m_type = reader.defline_type();
+    }
+
+    string m_type;
+    CFastqRead m_read;
+};
+FIXTURE_TEST_CASE(IlluminaOldTests, LoaderFixture)
+{
+    CFastqRead read;
+    for (const auto& case_set : cIlluminaOldCases) {
+        for (size_t i = 0; i < get<1>(case_set).size(); ++i) {
+            const auto& base = get<1>(case_set)[i];
+            const auto& defline_type = get<0>(case_set);
+            cout << defline_type << ", case " << i << ": " << base.defline << endl;
+            fastq_reader reader("test", create_stream(_READ(base.defline, "AAGT", "IIII")), {}, 2);
+            THROW_ON_FALSE( reader.get_read(read) );
+            THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
+            REQUIRE_EQ(reader.defline_type(), defline_type);
+            REQUIRE_EQ(read.Spot(), base.spot);
+            REQUIRE_EQ(read.SpotGroup(), base.spot_group);
+            REQUIRE_EQ(read.ReadNum(), base.read_num);
+        }
+    }
+}
 ////////////////////////////////////////////
 
 int main (int argc, char *argv [])

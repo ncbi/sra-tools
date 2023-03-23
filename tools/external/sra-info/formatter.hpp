@@ -46,6 +46,7 @@ public:
     virtual ~Formatter();
 
     std::string format( const SraInfo::Platforms & ) const;
+    std::string format( const std::string & ) const;
 
 private:
     Format fmt;

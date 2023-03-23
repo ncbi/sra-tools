@@ -39,6 +39,8 @@ using namespace VDB;
 
 TEST_SUITE(VdbTestSuite);
 
+// VDB::Manager
+
 TEST_CASE(Manager_Construction)
 {
     Manager m;
@@ -122,6 +124,21 @@ TEST_CASE(Manager_OpenTable_Good)
     Table t = Manager().openTable(TablePath);
 }
 
+TEST_CASE(Manager_PathType_Table)
+{
+    REQUIRE_EQ( Manager::ptTable, Manager().pathType( TablePath ) );
+}
+TEST_CASE(Manager_PathType_Database)
+{
+    REQUIRE_EQ( Manager::ptDatabase, Manager().pathType( DatabasePath ) );
+}
+TEST_CASE(Manager_PathType_Invalid)
+{
+    REQUIRE_EQ( Manager::ptInvalid, Manager().pathType( "si si je suis un garbage" ) );
+}
+
+// VDB::Database
+
 TEST_CASE(Database_Table_Bad)
 {
     Database d = Manager().openDatabase( DatabasePath );
@@ -133,6 +150,8 @@ TEST_CASE(Database_Table_Good)
     Database d = Manager().openDatabase( DatabasePath );
     Table t = d["SEQUENCE"];
 }
+
+// VDB::Table
 
 TEST_CASE(Table_ReadCursor1_BadColumn)
 {
@@ -160,6 +179,8 @@ TEST_CASE(Table_ReadCursor2)
     Cursor c = t.read( {"READ", "NAME"} );
 }
 
+// VDB::Cursor
+
 TEST_CASE(Cursor_Columns)
 {
     Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
@@ -180,7 +201,7 @@ TEST_CASE(Cursor_ReadOne)
 {
     Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
-    Cursor::RawData rd = c.read( 1, 2 );
+    Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_EQ( size_t(1), rd.size() );
     REQUIRE_EQ( string("1"), rd.asString() );
 }
@@ -232,6 +253,21 @@ TEST_CASE(Cursor_ForEachWithFilter)
     REQUIRE_EQ( (uint64_t)2607, n );
 }
 
+TEST_CASE(Cursor_IsStaticColumn_True)
+{
+    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Cursor c = t.read( {"PLATFORM", "NAME"} );
+    REQUIRE( c.isStaticColumn( 0 ) );
+}    
+TEST_CASE(Cursor_IsStaticColumn_False)
+{
+    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Cursor c = t.read( {"PLATFORM", "NAME"} );
+    REQUIRE( ! c.isStaticColumn( 1 ) );
+}    
+
+// VDB::Cursor::RawData
+
 TEST_CASE( RawData_asVector_badCast )
 {
     Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
@@ -244,7 +280,7 @@ TEST_CASE( RawData_asVector )
 {
     Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"READ_START", "NAME"} );
-    Cursor::RawData rd = c.read( 1, 1 );
+    Cursor::RawData rd = c.read( 1, 0 );
     auto cv = rd.asVector<uint32_t>();
     REQUIRE_EQ( size_t(2), cv.size() );
     REQUIRE_EQ( uint32_t(0), cv[0] );
@@ -263,7 +299,7 @@ TEST_CASE( RawData_value )
 {
     Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"SPOT_LEN", "NAME"} );
-    Cursor::RawData rd = c.read( 1, 1 );
+    Cursor::RawData rd = c.read( 1, 0 );
     auto v = rd.value<uint32_t>();
     REQUIRE_EQ( uint32_t(602), v );
 }

@@ -26,6 +26,9 @@
 
 #include "sra-info.hpp"
 
+#include <algorithm>
+#include <map>
+
 #include <insdc/sra.h>
 
 using namespace std;
@@ -121,6 +124,74 @@ SraInfo::GetPlatforms() const
         }
         throw;
     }
-  
+
+    return ret;
+}
+
+bool operator < ( const SraInfo::ReadStructures& a, const SraInfo::ReadStructures& b)
+{
+    if ( a.size() < b.size() ) return true;
+    auto it_a = a.begin();
+    auto it_b = b.begin();
+    while ( it_a != a.end() )
+    {
+        if ( it_b == b.end() ) return false;
+        if ( it_a->type < it_b->type || it_a->length < it_b->length ) return true;
+        if ( it_a->type > it_b->type || it_a->length > it_b->length ) return false;
+        ++it_a;
+        ++it_b;
+    }
+    return it_b != b.end();
+}
+
+SraInfo::SpotLayouts
+SraInfo::GetSpotLayouts() const // sorted by descending count
+{
+    map< ReadStructures, size_t > rs_map;
+    SpotLayouts ret;
+
+    VDB::Table table = openSequenceTable( m_accession );
+
+    VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
+    auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
+    {
+        vector<uint8_t> types = values[0].asVector<uint8_t>();
+        vector<uint32_t> lengths = values[1].asVector<uint32_t>();
+        assert(types.size() == lengths.size());
+        ReadStructures r;
+        r.reserve(types.size());
+        auto i_types = types.begin();
+        auto i_lengths = lengths.begin();
+        while ( i_types != types.end() )
+        {
+            ReadStructure rs= { *i_types, *i_lengths };
+            r.push_back( rs );
+            ++i_types;
+            ++i_lengths;
+        }
+
+        auto elem = rs_map.find( r );
+        if ( elem != rs_map.end() )
+        {
+            (*elem).second++;
+        }
+        else
+        {
+            rs_map[r] = 1;
+        }
+    };
+    cursor.foreach( handle_row );
+
+    for( auto it = rs_map.begin(); it != rs_map.end(); ++it )
+    {
+        SpotLayout sl;
+        sl.count = it->second;
+        sl.reads = it->first;
+        ret.push_back( sl );
+    }
+    sort( ret.begin(),
+          ret.end(),
+          []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // larger counts first
+    );
     return ret;
 }

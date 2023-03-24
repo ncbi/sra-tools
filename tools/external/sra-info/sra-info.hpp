@@ -43,6 +43,20 @@ public:
     typedef std::set<std::string> Platforms;
     Platforms GetPlatforms() const; // may be empty or more than 1 value
 
+    struct ReadStructure
+    {
+        uint8_t type;
+        uint32_t length;
+    };
+    struct ReadStructures : std::vector<ReadStructure> {};
+    struct SpotLayout
+    {
+        uint64_t count;
+        ReadStructures reads;
+    };
+    typedef std::vector<SpotLayout> SpotLayouts;
+    SpotLayouts GetSpotLayouts() const; // sorted by descending count
+
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;
 

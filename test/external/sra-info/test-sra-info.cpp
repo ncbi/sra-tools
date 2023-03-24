@@ -115,6 +115,62 @@ TEST_CASE(MultiplePlatforms)
     REQUIRE( p.end() != p.find("SRA_PLATFORM_454") );
 }
 
+// SpotLayout
+
+TEST_CASE(SpotLayout_SingleRow)
+{
+    SraInfo info;
+    const string Accession = "ERR334733";
+    info.SetAccession(Accession);
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts();
+    REQUIRE_EQ( size_t(1), sl.size() );
+    REQUIRE_EQ( uint64_t(1), sl[0].count );
+    REQUIRE_EQ( size_t(1), sl[0].reads.size() );
+    REQUIRE_EQ( int(SRA_READ_TYPE_BIOLOGICAL | SRA_READ_TYPE_REVERSE), int(sl[0].reads[0].type) );
+    REQUIRE_EQ( uint32_t(50), sl[0].reads[0].length );
+}
+
+TEST_CASE(SpotLayout_MultiRow)
+{
+    SraInfo info;
+    const string Accession = "SRR000123";
+    info.SetAccession(Accession);
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts();
+    REQUIRE_EQ( size_t(267), sl.size() );
+
+    // check the total
+    size_t total = 0;
+    for( auto i : sl )
+    {
+        total += i.count;
+    }
+    REQUIRE_EQ( size_t(4583), total );
+
+    // the most popular layouts are at the start of the vector
+    {
+        class SraInfo::SpotLayout & l = sl[0];
+        REQUIRE_EQ( uint64_t(119), l.count );
+        REQUIRE_EQ( size_t(2), l.reads.size() );
+        REQUIRE_EQ( int(SRA_READ_TYPE_TECHNICAL), int(l.reads[0].type) );
+        REQUIRE_EQ( uint32_t(4), l.reads[0].length );
+        REQUIRE_EQ( int(SRA_READ_TYPE_BIOLOGICAL), int(l.reads[1].type) );
+        REQUIRE_EQ( uint32_t(259), l.reads[1].length );
+    }
+
+    {
+        class SraInfo::SpotLayout & l = sl[1];
+        REQUIRE_EQ( uint64_t(112), l.count );
+        REQUIRE_EQ( size_t(2), l.reads.size() );
+        REQUIRE_EQ( int(SRA_READ_TYPE_TECHNICAL), int(l.reads[0].type) );
+        REQUIRE_EQ( uint32_t(4), l.reads[0].length );
+        REQUIRE_EQ( int(SRA_READ_TYPE_BIOLOGICAL), int(l.reads[1].type) );
+        REQUIRE_EQ( uint32_t(256), l.reads[1].length );
+    }
+    //etc
+
+}
+
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>

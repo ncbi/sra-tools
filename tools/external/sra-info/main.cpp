@@ -41,13 +41,16 @@ using namespace std;
 
 #define OPTION_PLATFORM "platform"
 #define ALIAS_PLATFORM  "P"
-
 static const char * platform_usage[] = { "print platform(s)", NULL };
 
-/* OPTION_XXX and ALIAS_XXX in vdb-dump-contest.h */
+#define OPTION_SPOTLAYOUT "spot-layout"
+#define ALIAS_SPOTLAYOUT "S"
+static const char * spot_layout_usage[] = { "print spot layout(s)", NULL };
+
 OptDef InfoOptions[] =
 {
-    { OPTION_PLATFORM, ALIAS_PLATFORM, NULL, platform_usage, 1, false,  false }
+    { OPTION_PLATFORM, ALIAS_PLATFORM, NULL, platform_usage, 1, false,  false },
+    { OPTION_SPOTLAYOUT, ALIAS_SPOTLAYOUT, NULL, spot_layout_usage, 1, false,  false },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -85,12 +88,35 @@ rc_t CC Usage ( const Args * args )
     KOutMsg ( "Options:\n" );
 
     HelpOptionLine ( ALIAS_PLATFORM, OPTION_PLATFORM, NULL, platform_usage );
+    HelpOptionLine ( ALIAS_SPOTLAYOUT, OPTION_SPOTLAYOUT, NULL, spot_layout_usage );
 
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
 
     return rc;
+}
+
+void
+PrintPlatforms( const SraInfo::Platforms & platforms )
+{
+    for( auto p : platforms )
+    {
+        KOutMsg ( (p+"\n").c_str() );
+    }
+}
+
+void
+PrintSpotLayouts( const SraInfo::SpotLayouts & layouts )
+{
+    for( auto l : layouts )
+    {
+        for ( auto r : l.reads )
+        {
+            KOutMsg ( "%d %d, ", r.type, r.length );
+        }
+        KOutMsg ( ":%d\n", l.count );
+    }
 }
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -123,16 +149,21 @@ rc_t CC KMain ( int argc, char *argv [] )
                 info.SetAccession( accession );
 
                 uint32_t opt_count;
+
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    SraInfo::Platforms platforms = info.GetPlatforms();
-                    for( auto p : platforms )
-                    {
-                        KOutMsg ( (p+"\n").c_str() );
-                    }
+                    PrintPlatforms( info.GetPlatforms() );
                 }
+
+                rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    PrintSpotLayouts( info.GetSpotLayouts() );
+                }
+
             }
             catch( const exception& ex )
             {

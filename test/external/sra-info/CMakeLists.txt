@@ -35,7 +35,7 @@ add_dependencies( Test_SraInfo_Unit sra-info )
 
 if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
 
-    make_directory(${CMAKE_CURRENT_SOURCE_DIR}/actual)
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
     # make sure 'sra-info -h' does not crash
     add_test( NAME Test_Sra_Info_Help
@@ -53,15 +53,56 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
 
-    #TODO: verify outputs
-    add_test( NAME Test_Sra_Info_Table_1.0
+    # platform
+    add_test( NAME Test_Sra_Info_Platform_Table_1.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P SRR000123" "." "1.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_CSRA_1.1
+    add_test( NAME Test_Sra_Info_Platform_CSRA_1.1
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ERR334733" "." "1.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Multiple_2.0
+    add_test( NAME Test_Sra_Info_Platform_Multiple_2.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Reference_3.0
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P NC_000001.11" "." "3.0"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # formatting
+    add_test( NAME Test_Sra_Info_Platform_Format_CSV_4.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f csv" "." "4.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_XML_4.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f xml" "." "4.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Json_4.3
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f json" "." "4.3"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Piped_4.4
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f piped" "." "4.4"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Tab.4.5
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.5"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # is-aligned
+    add_test( NAME Test_Sra_Info_IsAligned_No_5.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -A SRR000123" "." "5.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_IsAligned_Yes_5.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --is-aligned ERR334733" "." "5.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # quality
+    add_test( NAME Test_Sra_Info_Quality_Physical_6.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality SRR000123" "." "6.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Quality_Physical_6.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q ./input/MultiPlatform" "." "6.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # spot layout
+    add_test( NAME Test_Sra_Info_SpoLayout_7.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR000123" "." "7.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

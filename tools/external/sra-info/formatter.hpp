@@ -26,44 +26,29 @@
 
 #pragma once
 
-#include <string>
-#include <set>
-#include <exception>
+#include "sra-info.hpp"
 
-#include <vdb.hpp>
-
-class SraInfo
+class Formatter
 {
 public:
-    SraInfo();
+    typedef enum {
+        Default,
+        CSV,
+        XML,
+        Json,
+        Piped,
+        Tab
+    } Format;
+    static Format StringToFormat( const std::string & value );
 
-    void SetAccession( const std::string& accession );
-    const std::string& GetAccession() const { return m_accession; }
+public:
+    Formatter( Format = Default );
+    virtual ~Formatter();
 
-    typedef std::set<std::string> Platforms;
-    Platforms GetPlatforms() const; // may be empty or more than 1 value
-
-    struct ReadStructure
-    {
-        std::string type;
-        uint32_t length;
-    };
-    struct ReadStructures : std::vector<ReadStructure> {};
-    struct SpotLayout
-    {
-        uint64_t count;
-        ReadStructures reads;
-    };
-    typedef std::vector<SpotLayout> SpotLayouts;
-    SpotLayouts GetSpotLayouts() const; // sorted by descending count
-
-    bool IsAligned() const;
-    bool HasPhysicalQualities() const;
+    std::string format( const SraInfo::Platforms & ) const;
+    std::string format( const std::string & ) const;
+    std::string format( const SraInfo::SpotLayouts & ) const;
 
 private:
-    VDB::Table openSequenceTable( const std::string & accession ) const;
-
-private:
-    VDB::Manager mgr;
-    std::string m_accession;
+    Format fmt;
 };

@@ -84,6 +84,13 @@ namespace VDB {
             out << file << ":" << line << ": " << msg;
             text = out.str();
         }
+        Error(const std::string & msg) : rc(0) {
+            std::cerr << msg << std::endl;
+
+            std::stringstream out;
+            out << msg;
+            text = out.str();
+        }
 
         char const *what() const throw() 
         { 
@@ -317,7 +324,40 @@ namespace VDB {
             }
             return Cursor(const_cast<VCursor *>(curs), columns);
         }
+
+        typedef std::vector< std::string > ColumnNames;
+        ColumnNames physicalColumns() const 
+        { 
+            KNamelist *names;
+            rc_t rc = VTableListPhysColumns ( o, & names );
+            if (rc)
+            {
+                throw Error(rc, __FILE__, __LINE__);
+            }
+            uint32_t count;
+            rc = KNamelistCount ( names, &count );
+            if (rc)
+            {
+                KNamelistRelease ( names );
+                throw Error(rc, __FILE__, __LINE__);
+            }
+            ColumnNames ret; 
+            for ( uint32_t i = 0; i < count; ++i )
+            {
+                const char * name;
+                rc = KNamelistGet ( names, i, & name );            
+                if (rc)
+                {
+                    KNamelistRelease ( names );
+                    throw Error(rc, __FILE__, __LINE__);
+                }
+                ret.push_back( name );
+            }
+            KNamelistRelease ( names );
+            return ret;
+        }
     };
+
     class Database {
         friend class Manager;
         VDatabase *const o;
@@ -335,6 +375,7 @@ namespace VDB {
             return Table(p);
         }
     };
+
     class Manager {
         VDBManager const *const o;
 
@@ -376,17 +417,13 @@ namespace VDB {
             delete [] p;
             return result;
         }
-        Database operator [](std::string const &path) const
+
+        Database openDatabase(std::string const &path) const
         {
             VDatabase *p = 0;
             auto const rc = VDBManagerOpenDBRead(o, (VDatabase const **)&p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
-        }
-
-        Database openDatabase(std::string const &path) const
-        {
-            return (*this)[path];
         }
         Table openTable(std::string const &path) const
         {

@@ -805,7 +805,6 @@ static rc_t process_table( const tool_ctx_t * tool_ctx, const char * tbl_name ) 
     rc_t rc = 0;
 
     switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
-        case ft_fasta_us_split_spot :
         case ft_fasta_ref_tbl       :
         case ft_ref_report          : rc = no_reftbl(); break; /* above */
         default : if ( !tool_ctx -> only_aligned ) {

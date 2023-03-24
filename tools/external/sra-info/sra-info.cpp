@@ -66,7 +66,9 @@ SraInfo::openSequenceTable( const string & accession ) const
     }
 }
 
-const char *vdcd_get_platform_txt( const uint32_t id )
+static
+string
+PlatformToString( const uint32_t id )
 {
 #define CASE( id ) \
     case id : return # id; break
@@ -101,13 +103,13 @@ SraInfo::GetPlatforms() const
         if ( cursor.isStaticColumn( 0 ) )
         {
             VDB::Cursor::RawData rd = cursor.read( 1, 0 );
-            ret.insert( vdcd_get_platform_txt( rd.value<uint8_t>() ) );
+            ret.insert( PlatformToString( rd.value<uint8_t>() ) );
         }
         else
         {
             auto get_platform = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
             {
-                ret.insert( vdcd_get_platform_txt( values[0].value<uint8_t>() ) );
+                ret.insert( PlatformToString( values[0].value<uint8_t>() ) );
             };
             cursor.foreach( get_platform );
         }
@@ -144,6 +146,23 @@ bool operator < ( const SraInfo::ReadStructures& a, const SraInfo::ReadStructure
     return it_b != b.end();
 }
 
+static
+string
+ReadTypeToString( INSDC_read_type value )
+{
+    string ret;
+    switch ( value )
+    {
+    case 0: return "TECHNICAL";
+    case 1: return "BIOLOGICAL";
+    case 2: return "TECHNICAL|FORWARD";
+    case 3: return "BIOLOGICAL|FORWARD";
+    case 4: return "TECHNICAL|REVERSE";
+    case 5: return "BIOLOGICAL|REVERSE";
+    default: return "<invalid read type>";
+    }
+}
+
 SraInfo::SpotLayouts
 SraInfo::GetSpotLayouts() const // sorted by descending count
 {
@@ -155,7 +174,7 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
     VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
     {
-        vector<uint8_t> types = values[0].asVector<uint8_t>();
+        vector<INSDC_read_type> types = values[0].asVector<INSDC_read_type>();
         vector<uint32_t> lengths = values[1].asVector<uint32_t>();
         assert(types.size() == lengths.size());
         ReadStructures r;
@@ -164,7 +183,7 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
         auto i_lengths = lengths.begin();
         while ( i_types != types.end() )
         {
-            ReadStructure rs= { *i_types, *i_lengths };
+            ReadStructure rs= { ReadTypeToString( *i_types ), *i_lengths };
             r.push_back( rs );
             ++i_types;
             ++i_lengths;
@@ -194,4 +213,30 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
           []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // larger counts first
     );
     return ret;
+}
+
+bool
+SraInfo::IsAligned() const
+{
+    try
+    {
+        if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+        {   // aligned if there is a non-empty alignment table
+            VDB::Table alignment = mgr.openDatabase(m_accession)["PRIMARY_ALIGNMENT"];
+            VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
+            return cursor.rowRange().first > 0;
+        }
+    }
+    catch(const VDB::Error &)
+    {   // assume the alignment table does not exist
+    }
+    return false;
+}
+
+bool
+SraInfo::HasPhysicalQualities() const
+{
+    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table::ColumnNames cols = table.physicalColumns();
+    return find( cols.begin(), cols.end(), string( "QUALITY" ) ) != cols.end();
 }

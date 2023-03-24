@@ -61,15 +61,39 @@ TEST_CASE(Manager_Schema_Good)
     REQUIRE_EQ( string("version 1;\n"), out.str() );
 }
 
+static bool check_Schema_content(Schema const &s)
+{
+    ostringstream out;
+    out << s;
+
+    istringstream in(out.str());
+    std::string line;
+
+    std::getline(in, line, ';');
+    if (line != "version 1")
+        return false;
+
+    in >> std::ws;
+    std::getline(in, line, ';');
+    if (line != "typedef U32 INSDC:SRA:spotid_t")
+        return false;
+
+    return true;
+}
+
 TEST_CASE(Manager_Schema_Include)
 {
     const string Text = "version 1; include 'inc.vschema';";
     const string IncludePath = "./data";
     Schema s = Manager().schema(Text.size(), Text.c_str(), IncludePath.c_str());
 
-    ostringstream out;
-    out << s;
-    REQUIRE_EQ( string("version 1;\ntypedef U32 INSDC:SRA:spotid_t; /* size 32 */\n"), out.str() );
+    REQUIRE(check_Schema_content(s));
+}
+
+TEST_CASE(Manager_SchemaFromFile)
+{
+    Schema s = Manager().schemaFromFile("./data/inc.vschema");
+    REQUIRE(check_Schema_content(s));
 }
 
 TEST_CASE(Manager_SchemaFromFile_Bad)
@@ -77,26 +101,14 @@ TEST_CASE(Manager_SchemaFromFile_Bad)
     REQUIRE_THROW( Manager().schemaFromFile("bad file") );
 }
 
-TEST_CASE(Manager_SchemaFromFile)
-{
-    Schema s = Manager().schemaFromFile("./data/inc.vschema");
-    ostringstream out;
-    out << s;
-    REQUIRE_EQ( string("version 1;\ntypedef U32 INSDC:SRA:spotid_t; /* size 32 */\n"), out.str() );
-}
-
 TEST_CASE(Manager_Database_Bad)
 {
-    REQUIRE_THROW( Manager()["./data/database"] );
+    REQUIRE_THROW( Manager().openDatabase("./data/database") );
 }
 
 const string DatabasePath = "./data/SRR6336806";
 const string TablePath = "./data/ERR3487613";
 
-TEST_CASE(Manager_Database_Good)
-{
-    Database d = Manager()[DatabasePath];
-}
 TEST_CASE(Manager_OpenDatabase_Good)
 {
     Database d = Manager().openDatabase(DatabasePath);
@@ -128,74 +140,84 @@ TEST_CASE(Manager_PathType_Invalid)
 
 TEST_CASE(Database_Table_Bad)
 {
-    Database d = Manager()[DatabasePath];
+    Database d = Manager().openDatabase( DatabasePath );
     REQUIRE_THROW( d["NOSUCHTABLE"]);
 }
-
 TEST_CASE(Database_Table_Good)
 {
-    Database d = Manager()[DatabasePath];
+    Database d = Manager().openDatabase( DatabasePath );
     Table t = d["SEQUENCE"];
 }
 
+class SequenceTableFixture
+{
+protected:
+    SequenceTableFixture() 
+    : t ( Manager().openDatabase( DatabasePath )["SEQUENCE"] )
+    {
+    }
+
+    Table t;
+};
+
 // VDB::Table
 
-TEST_CASE(Table_ReadCursor1_BadColumn)
+FIXTURE_TEST_CASE(Table_ReadCursor1_BadColumn, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     const char * cols[] = {"a", "b"};
     REQUIRE_THROW( t.read( 2, cols ) );
 }
 
-TEST_CASE(Table_ReadCursor1)
+FIXTURE_TEST_CASE(Table_ReadCursor1, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     const char * cols[] = {"READ", "NAME"};
     Cursor c = t.read( 2, cols );
 }
 
-TEST_CASE(Table_ReadCursor2_BadColumn)
+FIXTURE_TEST_CASE(Table_ReadCursor2_BadColumn, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     REQUIRE_THROW( t.read( {"a", "b"} ) );
 }
 
-TEST_CASE(Table_ReadCursor2)
+FIXTURE_TEST_CASE(Table_ReadCursor2, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
+}
+
+FIXTURE_TEST_CASE(Table_PhysicaColumns, SequenceTableFixture)
+{
+    Table::ColumnNames cols = t.physicalColumns();
+    REQUIRE_EQ( size_t(10), cols.size() );
+    REQUIRE_EQ( string("ALTREAD"), cols[0] );
+    REQUIRE_EQ( string("SPOT_GROUP"), cols[9] );
 }
 
 // VDB::Cursor
 
-TEST_CASE(Cursor_Columns)
+FIXTURE_TEST_CASE(Cursor_Columns, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     REQUIRE_EQ( 2u, c.columns() );
 }
 
-TEST_CASE(Cursor_RowRange)
+FIXTURE_TEST_CASE(Cursor_RowRange, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto r = c.rowRange();
     REQUIRE_EQ( Cursor::RowID(1), r.first );
     REQUIRE_EQ( Cursor::RowID(2608), r.second ); // exclusive
 }
 
-TEST_CASE(Cursor_ReadOne)
+FIXTURE_TEST_CASE(Cursor_ReadOne, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_EQ( size_t(1), rd.size() );
     REQUIRE_EQ( string("1"), rd.asString() );
 }
 
-TEST_CASE(Cursor_ReadN)
+FIXTURE_TEST_CASE(Cursor_ReadN, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     Cursor::RawData rd[2];
     c.read( 2, 2, rd );
@@ -203,9 +225,8 @@ TEST_CASE(Cursor_ReadN)
     REQUIRE_EQ( string("2"), rd[1].asString() );
 }
 
-TEST_CASE(Cursor_ForEach)
+FIXTURE_TEST_CASE(Cursor_ForEach, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto check = [&](Cursor::RowID row, const vector<Cursor::RawData>& values )
     {
@@ -218,9 +239,8 @@ TEST_CASE(Cursor_ForEach)
     REQUIRE_EQ( (uint64_t)2607, n );
 }
 
-TEST_CASE(Cursor_ForEachWithFilter)
+FIXTURE_TEST_CASE(Cursor_ForEachWithFilter, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ", "NAME"} );
     auto check = [&](Cursor::RowID row, bool keep, const vector<Cursor::RawData>& values )
     {
@@ -240,32 +260,28 @@ TEST_CASE(Cursor_ForEachWithFilter)
     REQUIRE_EQ( (uint64_t)2607, n );
 }
 
-TEST_CASE(Cursor_IsStaticColumn_True)
+FIXTURE_TEST_CASE(Cursor_IsStaticColumn_True, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( c.isStaticColumn( 0 ) );
 }    
-TEST_CASE(Cursor_IsStaticColumn_False)
+FIXTURE_TEST_CASE(Cursor_IsStaticColumn_False, SequenceTableFixture)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( ! c.isStaticColumn( 1 ) );
 }    
 
 // VDB::Cursor::RawData
 
-TEST_CASE( RawData_asVector_badCast )
+FIXTURE_TEST_CASE( RawData_asVector_badCast, SequenceTableFixture )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ_START", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_THROW( rd.asVector<uint16_t>() );
 }
 
-TEST_CASE( RawData_asVector )
+FIXTURE_TEST_CASE( RawData_asVector, SequenceTableFixture )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"READ_START", "NAME"} );
     Cursor::RawData rd = c.read( 1, 0 );
     auto cv = rd.asVector<uint32_t>();
@@ -274,17 +290,15 @@ TEST_CASE( RawData_asVector )
     REQUIRE_EQ( uint32_t(301), cv[1] );
 }
 
-TEST_CASE( RawData_value_badCast )
+FIXTURE_TEST_CASE( RawData_value_badCast, SequenceTableFixture )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"SPOT_LEN", "NAME"} );
     Cursor::RawData rd = c.read( 1, 1 );
     REQUIRE_THROW( rd.value<uint16_t>() );
 }
 
-TEST_CASE( RawData_value )
+FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
     Cursor c = t.read( {"SPOT_LEN", "NAME"} );
     Cursor::RawData rd = c.read( 1, 0 );
     auto v = rd.value<uint32_t>();

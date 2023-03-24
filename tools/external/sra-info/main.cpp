@@ -34,23 +34,39 @@
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
 
+#include "formatter.hpp"
+
+
 using namespace std;
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 #define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
+    if (rc2 && !rc) { rc = rc2; } obj = nullptr; } while (false)
 
-#define OPTION_PLATFORM "platform"
-#define ALIAS_PLATFORM  "P"
-static const char * platform_usage[] = { "print platform(s)", NULL };
+#define OPTION_PLATFORM     "platform"
+#define OPTION_FORMAT       "format"
+#define OPTION_ISALIGNED    "is-aligned"
+#define OPTION_QUALITY      "quality"
+#define OPTION_SPOTLAYOUT   "spot-layout"
 
-#define OPTION_SPOTLAYOUT "spot-layout"
-#define ALIAS_SPOTLAYOUT "S"
+#define ALIAS_PLATFORM      "P"
+#define ALIAS_FORMAT        "f"
+#define ALIAS_ISALIGNED     "A"
+#define ALIAS_QUALITY       "Q"
+#define ALIAS_SPOTLAYOUT    "S"
+
+static const char * platform_usage[]    = { "print platform(s)", nullptr };
+static const char * format_usage[]      = { "output format:", nullptr };
+static const char * isaligned_usage[]   = { "is data aligned", nullptr };
+static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s)", NULL };
 
 OptDef InfoOptions[] =
 {
-    { OPTION_PLATFORM, ALIAS_PLATFORM, NULL, platform_usage, 1, false,  false },
-    { OPTION_SPOTLAYOUT, ALIAS_SPOTLAYOUT, NULL, spot_layout_usage, 1, false,  false },
+    { OPTION_PLATFORM,  ALIAS_PLATFORM,     nullptr, platform_usage,    1, false,   false, nullptr },
+    { OPTION_FORMAT,    ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
+    { OPTION_ISALIGNED, ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
+    { OPTION_QUALITY,   ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
+    { OPTION_SPOTLAYOUT, ALIAS_SPOTLAYOUT,  nullptr, spot_layout_usage, 1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -69,7 +85,7 @@ rc_t CC Usage ( const Args * args )
     const char * fullpath = UsageDefaultName;
     rc_t rc;
 
-    if ( args == NULL )
+    if ( args == nullptr )
     {
         rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
     }
@@ -87,8 +103,17 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg ( "Options:\n" );
 
-    HelpOptionLine ( ALIAS_PLATFORM, OPTION_PLATFORM, NULL, platform_usage );
-    HelpOptionLine ( ALIAS_SPOTLAYOUT, OPTION_SPOTLAYOUT, NULL, spot_layout_usage );
+    HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM, NULL, platform_usage );
+    HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,   nullptr,    platform_usage );
+    HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED, nullptr, isaligned_usage );
+    HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT, NULL, spot_layout_usage );
+
+    HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
+    KOutMsg( "      csv ..... comma separated values on one line\n" );
+    KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+    KOutMsg( "      json .... json-style\n" );
+    KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
+    KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
 
     HelpOptionsStandard ();
 
@@ -97,26 +122,11 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
+static
 void
-PrintPlatforms( const SraInfo::Platforms & platforms )
+Output( const string & text )
 {
-    for( auto p : platforms )
-    {
-        KOutMsg ( (p+"\n").c_str() );
-    }
-}
-
-void
-PrintSpotLayouts( const SraInfo::SpotLayouts & layouts )
-{
-    for( auto l : layouts )
-    {
-        for ( auto r : l.reads )
-        {
-            KOutMsg ( "%d %d, ", r.type, r.length );
-        }
-        KOutMsg ( ":%d\n", l.count );
-    }
+    KOutMsg ( "%s\n", text.c_str() );
 }
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -150,24 +160,50 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 uint32_t opt_count;
 
+                // formatting
+                Formatter::Format fmt = Formatter::Default;
+                rc = ArgsOptionCount( args, OPTION_FORMAT, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    const char* res = nullptr;
+                    rc = ArgsOptionValue( args, OPTION_FORMAT, 0, ( const void** )&res );
+                    fmt = Formatter::StringToFormat( res );
+                }
+                Formatter formatter( fmt );
+
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    PrintPlatforms( info.GetPlatforms() );
+                    Output( formatter.format( info.GetPlatforms() ) );
+                }
+
+                rc = ArgsOptionCount( args, OPTION_ISALIGNED, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    Output( formatter.format( info.IsAligned() ? "ALIGNED" : "UNALIGNED" ) );
+                }
+
+                rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    Output( formatter.format( info.HasPhysicalQualities() ? "STORED" : "GENERATED" ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    PrintSpotLayouts( info.GetSpotLayouts() );
+                    Output ( formatter.format( info.GetSpotLayouts() ) );
                 }
 
             }
             catch( const exception& ex )
             {
-                KOutMsg( (string(ex.what()) + "\n").c_str() );
+                KOutMsg( "%s\n", ex.what() );
             }
         }
 

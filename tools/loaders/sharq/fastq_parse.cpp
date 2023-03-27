@@ -113,7 +113,7 @@ private:
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
     string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
     string mOutputFile;                 ///< Outut file name - not currently used
-    string mExperimentFile;             ///< Experiment file, JSON with the description of reads structure
+    json mExperimentSpecs;              ///< Json from Experiment file
     ostream* mpOutStr{nullptr};         ///< Output stream pointer  = not currently used
     shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
     json  mReport;                      ///< Telemetry report
@@ -204,7 +204,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             ->default_val("info")
             ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
 
-        app.add_option("--experiment", mExperimentFile, "Read structure description");
+        string experiment_file;
+        app.add_option("--experiment", experiment_file, "Read structure description");
 
         string hash_file;
         opt->add_option("--hash", hash_file, "Check hash file");
@@ -246,6 +247,13 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             spdlog::set_pattern("[%l] %v");
 
         xSetupOutput();
+
+        if (!experiment_file.empty()) try {
+            std::ifstream f(experiment_file);
+            mExperimentSpecs = json::parse(f);      
+        } catch (exception& e) {
+            throw fastq_error(220, "Invalid experiment file {}: {}", experiment_file, e.what());
+        }
 
         if (read_types.find_first_not_of("TBA") != string::npos)
             throw fastq_error(150, "Invalid --readTypes values '{}'", read_types);
@@ -465,13 +473,11 @@ int CFastqParseApp::xRunDigest()
  * @return false 
  */
 static 
-bool s_has_split_read_spec(const string& ExperimentFile)
+bool s_has_split_read_spec(const json& ExperimentSpecs)
 {
-    if (ExperimentFile.empty()) 
+    if (ExperimentSpecs.is_null()) 
         return false;
-    std::ifstream f(ExperimentFile);
-    json data = json::parse(f);      
-    auto read_specs = data["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
+    auto read_specs = ExperimentSpecs["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
     if (read_specs.is_null())
         throw fastq_error("Experiment does not contains READ_SPEC");
     return (read_specs.is_array() && read_specs.size() > 1 && read_specs.front().contains("BASE_COORD"));
@@ -503,8 +509,8 @@ void CFastqParseApp::xCreateWriterFromDigest(json& data)
     const auto& first = data["groups"].front()["files"].front();
     int platform_code = first["platform_code"].front();
 
-    if (s_has_split_read_spec(mExperimentFile) && xIsSingleFileInput()) {
-        m_writer = make_shared<fastq_writer_exp>(mExperimentFile, *mpOutStr);
+    if (platform_code == SRA_PLATFORM_454 && s_has_split_read_spec(mExperimentSpecs) && xIsSingleFileInput()) {
+        m_writer = make_shared<fastq_writer_exp>(mExperimentSpecs, *mpOutStr);
     } else {
         m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
     }

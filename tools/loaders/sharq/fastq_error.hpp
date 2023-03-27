@@ -56,7 +56,8 @@ SHARQ_ERR_CODES = {
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
     {190 ,{ "Unsupported interleaved file with orphans", "Unsupported interleaved file with orphans."}},
     {200 ,{ "Invalid quality encoding", "Failure to calculate quality score encoding."}},
-    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}}
+    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
+    {220 ,{ "Invalid experiment file", "Invalid experiment file."}}
 
 };
 

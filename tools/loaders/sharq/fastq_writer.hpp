@@ -477,12 +477,10 @@ using json = nlohmann::json;
 class fastq_writer_exp : public fastq_writer_vdb
 {
 public:    
-    fastq_writer_exp(const string& experiment_file, ostream& stream, shared_ptr<Writer2> writer = shared_ptr<Writer2>())
+    fastq_writer_exp(const json& ExperimentSpecs, ostream& stream, shared_ptr<Writer2> writer = shared_ptr<Writer2>())
         : fastq_writer_vdb(stream, writer)
     {
-            std::ifstream f(experiment_file);
-            json data = json::parse(f);      
-            auto j = data["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
+            auto j = ExperimentSpecs["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
             if (j.is_null())
                 throw fastq_error("Experiment does not contains READ_SPEC");
 

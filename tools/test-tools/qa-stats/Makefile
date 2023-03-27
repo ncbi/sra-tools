@@ -22,10 +22,9 @@
 #
 # ===========================================================================
 
-set( SRC
-	main
-	sra-info
-)
+TOP ?= $(abspath ../../..)
+MODULE = tools/test-tools/qa-stats
 
-GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info false )
+BUILD_TOOLS_TEST_TOOLS = ON
+
+include $(TOP)/build/Makefile.env

@@ -22,10 +22,8 @@
 #
 # ===========================================================================
 
-set( SRC
-	main
-	sra-info
-)
-
-GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info false )
+if( NOT WIN32 )
+    add_test( NAME Test_qa-stat
+            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endif()

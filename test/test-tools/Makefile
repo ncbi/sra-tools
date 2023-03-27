@@ -22,10 +22,9 @@
 #
 # ===========================================================================
 
-set( SRC
-	main
-	sra-info
-)
+default: runtests
 
-GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info false )
+TOP ?= $(abspath ../..)
+MODULE = test/test-tools
+
+include $(TOP)/build/Makefile.env

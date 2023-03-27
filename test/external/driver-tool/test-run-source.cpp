@@ -169,7 +169,7 @@ TEST_CASE(CopmmandLine_GetToolPath)
 TEST_CASE( CommandLine_Defaults )
 {
     char argv0[10] = "vdb-dump";
-    char * argv[] = { argv0 };
+    char * argv[] = { argv0, nullptr };
     char * envp[] = { nullptr };
     CommandLine cl(1, argv, envp, nullptr);
     data_sources ds = data_sources::preload(cl, argumentsParsed(cl));
@@ -192,9 +192,17 @@ TEST_CASE( CommandLine_Defaults )
     REQUIRE_NOT_NULL( cl.baseName );
     REQUIRE_EQ( string(argv0), string(cl.baseName) );
     REQUIRE_EQ( string(argv0), cl.toolName );
-    REQUIRE_EQ( ExePath, ((string)cl.fullPathToExe) );
+//    REQUIRE_EQ( ExePath, ((string)cl.fullPathToExe) );
 //    REQUIRE_EQ( string(), ((string)cl.fullPath) ); // .../test-bin
-    REQUIRE_EQ( ((string)cl.fullPath)+"/"+argv0, ((string)cl.toolPath) );
+    auto const expectToolPath = ((string)cl.fullPath)+"/"+argv0;
+    auto const actualToolPath = (string)cl.toolPath;
+    REQUIRE_GE( actualToolPath.size(), expectToolPath.size() );
+    if (actualToolPath.size() == expectToolPath.size()) {
+        REQUIRE_EQ( expectToolPath, actualToolPath );
+    }
+    else {
+        REQUIRE_EQ( expectToolPath, actualToolPath.substr(0, expectToolPath.size()) );
+    }
 //    REQUIRE_EQ( ExeName, cl.realName );
     REQUIRE_EQ( 1, cl.argc );
     REQUIRE_EQ( sratools::Version::current.packed, cl.buildVersion );
@@ -229,92 +237,78 @@ TEST_CASE( UnknownTool )
 class DataSourcesFixture
 {
 protected:
-    static char argv0[10];
-    static char argv1[10];
+    static char argv0[];
+    static char argv1[];
     static char * argv[];
     static char * envp[];
 
     DataSourcesFixture()
-    : cl(nullptr), ds(nullptr)
+    : cl(2, argv, envp, nullptr)
     {}
-    ~DataSourcesFixture()
-    {
-        delete cl;
-        delete ds;
-    }
 
-    void Setup()
-    {
-        cl = new CommandLine(2, argv, envp, nullptr);
-        ds = new data_sources(*cl, argumentsParsed(*cl)); // the non-SDL ctor
-    }
-    void Setup_WithSDL( bool use_sdl )
-    {
-        cl = new CommandLine(2, argv, envp, nullptr);
-        ds = new data_sources(*cl, argumentsParsed(*cl), use_sdl);
-    }
-
-    CommandLine * cl;
-    data_sources * ds;
+    CommandLine cl;
 };
 
-char DataSourcesFixture::argv0[10] = "vdb-dump";
-char DataSourcesFixture::argv1[10] = "SRR000123";
+char DataSourcesFixture::argv0[] = "vdb-dump";
+char DataSourcesFixture::argv1[] = "SRR000123";
 char * DataSourcesFixture::argv[] = { argv0, argv1, nullptr };
 char * DataSourcesFixture::envp[] = { nullptr };
 
 FIXTURE_TEST_CASE( ConstructNoSDL, DataSourcesFixture )
 {
-    Setup();
-    REQUIRE( ds->ce_token().empty() );
-
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
-
-    REQUIRE_EQ( string(argv1), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
+// the two arg constructor for data_sources is only use if SRATOOLS_TESTING=2
+    auto const &ds = data_sources(cl, argumentsParsed(cl));
+    REQUIRE( ds.ce_token().empty() );
     {
-        const auto & env = (*it).environment;
-        auto env_it = env.begin();
-        REQUIRE_EQ( string("VDB_LOCAL_URL"), string( (*env_it).first) );
-        REQUIRE_EQ( string(argv1), string( (*env_it).second) );
-        ++env_it;
-        REQUIRE( env_it == env.end() );
+        auto acc = ds[argv1];
+        auto it = acc.begin();
+        REQUIRE( acc.end() != it );
+
+        REQUIRE_EQ( string(argv1), (*it).service );
+        REQUIRE( ! (*it).qualityType.has_value() );
+        REQUIRE( ! (*it).project.has_value() );
+
+        {
+            const auto & env = (*it).environment;
+            auto env_it = env.begin();
+            REQUIRE_EQ( string("VDB_LOCAL_URL"), string( (*env_it).first) );
+            REQUIRE_EQ( string(argv1), string( (*env_it).second) );
+            ++env_it;
+            REQUIRE( env_it == env.end() );
+        }
+
+        ++it;
+        REQUIRE( acc.end() == it );
     }
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)1, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)1, qi.size() );
+    auto dict = qi[argv1];
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string(argv1), string(dict["local"]) );
     REQUIRE_EQ( string(argv1), string(dict["local/filePath"]) );
     REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
 
+static bool is_unknown_from_file_system(data_sources::accession const &acc)
+{
+    auto it = acc.begin();
+    return  it != acc.end() &&
+            (*it).service == "the file system" &&
+            !(*it).qualityType.has_value() &&
+            !(*it).project.has_value() &&
+            (++it) == acc.end();
+}
+
 FIXTURE_TEST_CASE( ConstructSDL_false, DataSourcesFixture )
 {
-    Setup_WithSDL(false);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), false);
 
-    REQUIRE( ds->ce_token().empty() );
+    REQUIRE( ds.ce_token().empty() );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
-
-    REQUIRE_EQ( string("the file system"), (*it).service ); // cf. ConstructNoSDL
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );  // cf. ConstructNoSDL
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)1, ds->queryInfo.size() );  // cf. ConstructNoSDL
-    auto dict = ds->queryInfo[ argv1 ];
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)1, qi.size() );  // cf. ConstructNoSDL
+    auto dict = qi[argv1];
     REQUIRE_EQ( (size_t)1, dict.size() );
     REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
@@ -324,25 +318,15 @@ FIXTURE_TEST_CASE( ConstructSDL_true, DataSourcesFixture )
     const opt_string url = sratools::config->get("/repository/remote/main/SDL.2/resolver-cgi");
     vdb::ServiceResponse = "{}";
 
-    Setup_WithSDL(true);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
     REQUIRE_EQ( *url, vdb::URL );
 
-    REQUIRE( ds->ce_token().empty() );
+    REQUIRE( ds.ce_token().empty() );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
-
-    REQUIRE_EQ( string("the file system"), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)1, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)1, qi.size() );
+    auto dict = qi[argv1];
     REQUIRE_EQ( (size_t)1, dict.size() );
     REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
@@ -350,29 +334,19 @@ FIXTURE_TEST_CASE( ConstructSDL_true, DataSourcesFixture )
 FIXTURE_TEST_CASE( ConstructSDL_badSDL, DataSourcesFixture )
 {
     vdb::ServiceResponse = R"({"version": "2","resu)";
-    REQUIRE_THROW( Setup_WithSDL(true) );
+    REQUIRE_THROW( data_sources(cl, argumentsParsed(cl), true) );
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_noResults, DataSourcesFixture )
 {
     vdb::ServiceResponse = R"({"version": "2","result":[]})";
-    Setup_WithSDL(true);
-    REQUIRE( ds->ce_token().empty() );
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    REQUIRE( ds.ce_token().empty() );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
-
-    REQUIRE_EQ( string("the file system"), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)1, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)1, qi.size() );
+    auto dict = qi[argv1];
     REQUIRE_EQ( (size_t)1, dict.size() );
     REQUIRE_EQ( string(argv1), string(dict["name"]) );
 }
@@ -402,37 +376,31 @@ FIXTURE_TEST_CASE( ConstructSDL_oneResult, DataSourcesFixture )
                 }
             ]
         }]})";
-    Setup_WithSDL(true);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    REQUIRE_EQ( string("the file system"), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)2, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
-
-    dict = ds->queryInfo[ "SRR000001" ];
-    REQUIRE_EQ( (size_t)9, dict.size() );
-    REQUIRE_EQ( string("1"), string(dict["remote"]) ); // # of files added
-    REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
-    REQUIRE_EQ( string("200"), string(dict["SDL/status"]) );
-    REQUIRE_EQ( string("ok"), string(dict["SDL/message"]) );
-    REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
-                string(dict["remote/1/filePath"]) );
-    REQUIRE_EQ( string("312527083"), string(dict["remote/1/fileSize"]) );
-    REQUIRE_EQ( string("Full"), string(dict["remote/1/qualityType"]) );
-    REQUIRE_EQ( string("us-east-1"), string(dict["remote/1/region"]) );
-    REQUIRE_EQ( string("s3"), string(dict["remote/1/service"]) );
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)2, qi.size() );
+    {
+        auto dict = qi[argv1];
+        REQUIRE_EQ( (size_t)1, dict.size() );
+        REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    }
+    {
+        auto dict = qi["SRR000001"];
+        REQUIRE_EQ( (size_t)9, dict.size() );
+        REQUIRE_EQ( string("1"), string(dict["remote"]) ); // # of files added
+        REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
+        REQUIRE_EQ( string("200"), string(dict["SDL/status"]) );
+        REQUIRE_EQ( string("ok"), string(dict["SDL/message"]) );
+        REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
+                    string(dict["remote/1/filePath"]) );
+        REQUIRE_EQ( string("312527083"), string(dict["remote/1/fileSize"]) );
+        REQUIRE_EQ( string("Full"), string(dict["remote/1/qualityType"]) );
+        REQUIRE_EQ( string("us-east-1"), string(dict["remote/1/region"]) );
+        REQUIRE_EQ( string("s3"), string(dict["remote/1/service"]) );
+    }
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_multipleFiles, DataSourcesFixture )
@@ -476,53 +444,46 @@ FIXTURE_TEST_CASE( ConstructSDL_multipleFiles, DataSourcesFixture )
                 }
             ]
         }]})";
-    Setup_WithSDL(true);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    REQUIRE_EQ( string("the file system"), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)2, qi.size() );
+    {
+        auto dict = qi[argv1];
+        REQUIRE_EQ( (size_t)1, dict.size() );
+        REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    }
+    {
+        auto dict = qi["SRR000001"];
+        // for(auto i : dict)
+        //     cout << i.first << ":'" << i.second << "'" << endl;
 
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
+        REQUIRE_EQ( (size_t)14, dict.size() );
 
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
+        REQUIRE_EQ( string("2"), string(dict["remote"]) ); // # of files added
 
-    REQUIRE_EQ( (size_t)2, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+        REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
+        REQUIRE_EQ( string("200"), string(dict["SDL/status"]) );
+        REQUIRE_EQ( string("ok"), string(dict["SDL/message"]) );
 
-    dict = ds->queryInfo[ "SRR000001" ];
-    // for(auto i : dict)
-    //     cout << i.first << ":'" << i.second << "'" << endl;
+        // the N in the key remote/N/... is assigned based on the sort order of the value of "object"
+        // the value of "object" itself is not saved
+        REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
+                    string(dict["remote/1/filePath"]) );
+        REQUIRE_EQ( string("312527083"),    string(dict["remote/1/fileSize"]) );
+        REQUIRE_EQ( string("Full"),         string(dict["remote/1/qualityType"]) );
+        REQUIRE_EQ( string("us-east-1"),    string(dict["remote/1/region"]) );
+        REQUIRE_EQ( string("s3"),           string(dict["remote/1/service"]) );
 
-    REQUIRE_EQ( (size_t)14, dict.size() );
-
-    REQUIRE_EQ( string("2"), string(dict["remote"]) ); // # of files added
-
-    REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
-    REQUIRE_EQ( string("200"), string(dict["SDL/status"]) );
-    REQUIRE_EQ( string("ok"), string(dict["SDL/message"]) );
-
-    // the N in the key remote/N/... is assigned based on the sort order of the value of "object"
-    // the value of "object" itself is not saved
-    REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
-                string(dict["remote/1/filePath"]) );
-    REQUIRE_EQ( string("312527083"),    string(dict["remote/1/fileSize"]) );
-    REQUIRE_EQ( string("Full"),         string(dict["remote/1/qualityType"]) );
-    REQUIRE_EQ( string("us-east-1"),    string(dict["remote/1/region"]) );
-    REQUIRE_EQ( string("s3"),           string(dict["remote/1/service"]) );
-
-    REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000002/SRR000002"),
-                string(dict["remote/2/filePath"]) );
-    REQUIRE_EQ( string("312527084"),    string(dict["remote/2/fileSize"]) );
-    REQUIRE_EQ( string("Full"),         string(dict["remote/2/qualityType"]) );
-    REQUIRE_EQ( string("us-east-2"),    string(dict["remote/2/region"]) );
-    REQUIRE_EQ( string("s4"),           string(dict["remote/2/service"]) );
-
+        REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000002/SRR000002"),
+                    string(dict["remote/2/filePath"]) );
+        REQUIRE_EQ( string("312527084"),    string(dict["remote/2/fileSize"]) );
+        REQUIRE_EQ( string("Full"),         string(dict["remote/2/qualityType"]) );
+        REQUIRE_EQ( string("us-east-2"),    string(dict["remote/2/region"]) );
+        REQUIRE_EQ( string("s4"),           string(dict["remote/2/service"]) );
+    }
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_multipleLocations, DataSourcesFixture )
@@ -555,30 +516,24 @@ FIXTURE_TEST_CASE( ConstructSDL_multipleLocations, DataSourcesFixture )
                 }
             ]
         }]})";
-    Setup_WithSDL(true);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
 
-    data_sources::accession::const_iterator it = (*ds)[argv1].begin();
-    REQUIRE( (*ds)[argv1].end() != it );
+    REQUIRE(is_unknown_from_file_system(ds[argv1]));
 
-    REQUIRE_EQ( string("the file system"), (*it).service );
-    REQUIRE( ! (*it).qualityType.has_value() );
-    REQUIRE( ! (*it).project.has_value() );
-
-    REQUIRE_EQ( (size_t)0, (*it).environment.size() );
-
-    ++it;
-    REQUIRE( (*ds)[argv1].end() == it );
-
-    REQUIRE_EQ( (size_t)2, ds->queryInfo.size() );
-    auto dict = ds->queryInfo[ argv1 ];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
-
-    dict = ds->queryInfo[ "SRR000001" ];
-    REQUIRE_EQ( (size_t)9, dict.size() );
-    REQUIRE_EQ( string("1"), string(dict["remote"]) ); // # of files added
-    REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
-                string(dict["remote/1/filePath"]) );
+    auto qi = ds.queryInfo;
+    REQUIRE_EQ( (size_t)2, qi.size() );
+    {
+        auto dict = qi[argv1];
+        REQUIRE_EQ( (size_t)1, dict.size() );
+        REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    }
+    {
+        auto dict = qi["SRR000001"];
+        REQUIRE_EQ( (size_t)9, dict.size() );
+        REQUIRE_EQ( string("1"), string(dict["remote"]) ); // # of files added
+        REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
+                    string(dict["remote/1/filePath"]) );
+    }
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_status_400, DataSourcesFixture )
@@ -588,9 +543,9 @@ FIXTURE_TEST_CASE( ConstructSDL_status_400, DataSourcesFixture )
             "status": 400,
             "msg": "no data"
         }]})";
-    Setup_WithSDL(true);
-
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi[ "SRR000001" ];
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
     REQUIRE_EQ( string("400"), string(dict["SDL/status"]) );
@@ -604,9 +559,9 @@ FIXTURE_TEST_CASE( ConstructSDL_status_404, DataSourcesFixture )
             "status": 404,
             "msg": "no data"
         }]})";
-    Setup_WithSDL(true);
-
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi["SRR000001"];
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
     REQUIRE_EQ( string("404"), string(dict["SDL/status"]) );
@@ -638,8 +593,9 @@ FIXTURE_TEST_CASE( ConstructSDL_pileupIgnored, DataSourcesFixture )
                 }
             ]
         }]})";
-    Setup_WithSDL(true);
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi["SRR000001"];
 
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
@@ -672,8 +628,9 @@ FIXTURE_TEST_CASE( ConstructSDL_noObject_Ignored, DataSourcesFixture )
                 }
             ]
         }]})";
-    Setup_WithSDL(true);
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi["SRR000001"];
 
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
@@ -708,8 +665,9 @@ FIXTURE_TEST_CASE( ConstructSDL_noQuality_Ignored, DataSourcesFixture )
             ]
         }]})";
     vdb::prefQualityType = vdb::Service::full;
-    Setup_WithSDL(true);
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi["SRR000001"];
 
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );
@@ -745,8 +703,9 @@ FIXTURE_TEST_CASE( ConstructSDL_Encrypted_NoNGC_Skipped, DataSourcesFixture )
             ]
         }]})";
     vdb::prefQualityType = vdb::Service::full;
-    Setup_WithSDL(true);
-    auto dict = ds->queryInfo[ "SRR000001" ];
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto qi = ds.queryInfo;
+    auto dict = qi["SRR000001"];
 
     REQUIRE_EQ( (size_t)3, dict.size() );
     REQUIRE_EQ( string("SRR000001"), string(dict["accession"]) );

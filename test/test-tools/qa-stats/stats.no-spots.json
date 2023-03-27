@@ -1,0 +1,19 @@
+{
+	"total": {
+		"reads": {
+			"count": 160,
+			"biological": 80,
+			"technical": 80
+		},
+		"bases": [
+			{
+				"base": "W",
+				"biological": 2208
+			},
+			{
+				"base": "S",
+				"biological": 2151
+			}
+		]
+	}
+}

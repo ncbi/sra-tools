@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -22,10 +22,9 @@
 #
 # ===========================================================================
 
-set( SRC
-	main
-	sra-info
-)
+default: runtests
 
-GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info false )
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/qa-stats
+
+include $(TOP)/build/Makefile.env

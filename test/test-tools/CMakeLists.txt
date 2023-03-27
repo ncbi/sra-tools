@@ -22,10 +22,4 @@
 #
 # ===========================================================================
 
-set( SRC
-	main
-	sra-info
-)
-
-GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( sra-info false )
+add_subdirectory( qa-stats )

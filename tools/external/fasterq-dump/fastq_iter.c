@@ -34,6 +34,8 @@
 #include <klib/data-buffer.h>
 #endif
 
+#include <klib/out.h>
+
 static void init_qual_to_ascii( char * q2a, size_t size ) {
     uint32_t idx;
     memset( q2a, '~', size );
@@ -195,7 +197,7 @@ rc_t make_fastq_csra_iter( const cmn_iter_params_t * params,
             }
 
             if ( 0 == rc ) {
-                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) ); /* above */
             }
         }
 
@@ -209,7 +211,7 @@ rc_t make_fastq_csra_iter( const cmn_iter_params_t * params,
 }
 
 bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * rec, rc_t * rc ) {
-    rc_t rc2;
+    rc_t rc2 = 0;
     bool res = cmn_iter_next( self -> cmn, &rc2 );
     if ( res ) {
         rc_t rc1;

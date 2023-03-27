@@ -819,9 +819,9 @@ class t_alignment_group {
         }
 
         void print_SAM( std::ostream &out ) const {
-            for ( const t_alignment_ptr a : prim_alignments ) { a -> print_SAM( out ); }
-            for ( const t_alignment_ptr a : sec_alignments ) { a -> print_SAM( out ); }
-            for ( const t_alignment_ptr a : unaligned ) { a -> print_SAM( out ); }
+            for ( const t_alignment_ptr &a : prim_alignments ) { a -> print_SAM( out ); }
+            for ( const t_alignment_ptr &a : sec_alignments ) { a -> print_SAM( out ); }
+            for ( const t_alignment_ptr &a : unaligned ) { a -> print_SAM( out ); }
         }
 
         static void finish_alignmnet_vector( t_alignment_vec& v ) {
@@ -877,9 +877,9 @@ class t_alignment_group {
         }
 
         void bin_by_refname( t_alignment_bins &by_ref, t_alignment_vec &without_ref ) {
-            for ( const auto a : prim_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
-            for ( const auto a : sec_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
-            for ( const auto a : unaligned ) { without_ref . push_back( a ); }
+            for ( const auto &a : prim_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
+            for ( const auto &a : sec_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
+            for ( const auto &a : unaligned ) { without_ref . push_back( a ); }
         }
 
         static void insert_alignment( t_alignment_ptr a, t_alignment_group_map& alignment_groups ) {
@@ -919,7 +919,7 @@ class t_settings {
     public :
         t_settings( const t_proglines& proglines, t_errors & errors )
             : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ), sort_alignments( true ) {
-            for ( const t_progline_ptr pl : proglines ) {
+            for ( const t_progline_ptr &pl : proglines ) {
                 if ( pl -> is_ref_out() ) {
                     set_string( pl, "missing ref-file-name in: ", &ref_out, errors );
                 } else if ( pl -> is_sam_out() ) {
@@ -959,7 +959,7 @@ class t_factory {
 
         bool phase1( void ) {
             // populate references...
-            for ( const t_progline_ptr pl : proglines ) {
+            for ( const t_progline_ptr &pl : proglines ) {
                 if ( pl -> is_ref() ) {
                     const std::string& t = pl -> get_string_key( "type" );
                     if ( t == "random" ) {
@@ -1076,7 +1076,7 @@ class t_factory {
 
         bool phase2( void ) {
             // handle the different line-types prim|sec||unaligned
-            for ( const t_progline_ptr pl : proglines ) {
+            for ( const t_progline_ptr &pl : proglines ) {
                 if ( pl -> is_prim() ) {
                     generate_align( pl, FLAG_PROPPER );
                 } else if ( pl -> is_sec() ) {

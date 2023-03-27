@@ -690,8 +690,8 @@ static rc_t init_dbcc(KDirectory const *dir, char const name[], bool is_file,
         *names = NULL;
     }
     else {
-        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz);
-        if (nodes)
+        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz + 1);
+        if (names)
             *names = (char *)&(*nodes)[nobj];
         else
             rc = RC(rcExe, rcSelf, rcConstructing, rcMemory, rcExhausted);
@@ -2575,28 +2575,46 @@ rc_t vdb_validate_file ( const vdb_validate_params *pb, const KDirectory *dir, c
 }
 
 static
-rc_t vdb_validate_database ( const vdb_validate_params *pb, const KDirectory *dir, const char *path )
+rc_t vdb_validate_database ( const vdb_validate_params *pb, const KDirectory *dir, const char *path, bool is_ad )
 {
     char buffer [ 4096 ];
     const char *relpath = generate_relpath ( pb, dir, buffer, sizeof buffer, path );
-    return dbcc ( pb, relpath, false );
+    return dbcc ( pb, relpath, is_ad );
 }
 
 static
-rc_t vdb_validate_table ( const vdb_validate_params *pb, const KDirectory *dir, const char *path )
+rc_t vdb_validate_table ( const vdb_validate_params *pb, const KDirectory *dir, const char *path, bool is_ad )
 {
     char buffer [ 4096 ];
     const char *relpath = generate_relpath ( pb, dir, buffer, sizeof buffer, path );
-    return dbcc ( pb, relpath, false );
+    return dbcc ( pb, relpath, is_ad );
 }
 
 static
-KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir, const char *name )
+KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir, const char *name, bool * is_ad )
 {
     char full [ 4096 ];
     rc_t rc = KDirectoryResolvePath ( dir, true, full, sizeof full, "%s", name );
     if ( rc == 0 )
     {
+        { // is an Accession-as-Directory? 
+            VFSManager * vfs_mgr = NULL;
+            rc_t rc = VFSManagerMake(&vfs_mgr);        
+            if ( rc == 0 )
+            {
+                VPath* inPath = NULL;
+                rc = VFSManagerMakePath (vfs_mgr, &inPath, "%s", full);        
+                if ( rc == 0 )
+                {
+                    const VPath* outPath = NULL;
+                    *is_ad = VFSManagerCheckEnvAndAd(vfs_mgr, inPath, & outPath);
+                    VPathRelease(outPath);
+                    VPathRelease(inPath);
+                }
+                VFSManagerRelease(vfs_mgr);
+            }
+        }
+
         switch ( KDBManagerPathType ( pb -> kmgr, "%s", full ) )
         {
         case kptDatabase:
@@ -2616,14 +2634,17 @@ rc_t CC vdb_validate_dir ( const KDirectory *dir, uint32_t type, const char *nam
     case kptFile:
         return vdb_validate_file ( data, dir, name );
     case kptDir:
-        switch ( vdb_subdir_type ( data, dir, name ) )
         {
-        case kptDatabase:
-            return vdb_validate_database ( data, dir, name );
-        case kptTable:
-            return vdb_validate_table ( data, dir, name );
-        default:
-            return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
+            bool is_ad;
+            switch ( vdb_subdir_type ( data, dir, name, &is_ad ) )
+            {
+            case kptDatabase:
+                return vdb_validate_database ( data, dir, name, is_ad );
+            case kptTable:
+                return vdb_validate_table ( data, dir, name, is_ad );
+            default:
+                return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
+            }
         }
     }
 
@@ -2748,11 +2769,11 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
             case kptDir:
                 switch(KDBManagerPathType (pb->kmgr, "%s", path)) {
                     case kptDatabase:
-                        rc = vdb_validate_database(pb, pb->wd, path);
+                        rc = vdb_validate_database(pb, pb->wd, path, false);
                         break;
                     case kptTable:
                     case kptPrereleaseTbl:
-                        rc = vdb_validate_table(pb, pb->wd, path);
+                        rc = vdb_validate_table(pb, pb->wd, path, false);
                         break;
                     case kptIndex:
                     case kptColumn:

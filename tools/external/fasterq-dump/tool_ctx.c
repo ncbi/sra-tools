@@ -54,12 +54,32 @@
 #include <klib/printf.h>
 #endif
 
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
 #include <klib/report.h> /* ReportResetObject */
 #include <vdb/report.h> /* ReportSetVDBManager */
 
 #ifndef _h_dflt_defline_
 #include "dflt_defline.h"
 #endif
+
+bool tool_ctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
+                                        cmn_iter_params_t * params ) {
+    bool res = false;
+    if ( NULL != tool_ctx && NULL != params ) {
+        res = populate_cmn_iter_params( params,
+                tool_ctx -> dir,
+                tool_ctx -> vdb_mgr,
+                tool_ctx -> accession_short,
+                tool_ctx -> accession_path,
+                tool_ctx -> cursor_cache,
+                0,
+                0 ); /* in cmn_iter.c */
+    }
+    return res;
+}
 
 static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
@@ -141,10 +161,35 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "disk-limit-tmp (OS)  : %,lu bytes\n", tool_ctx -> disk_limit_tmp_os );
     }
-
     if ( 0 == rc ) {
         rc = KOutMsg( "out/tmp on same fs   : '%s'\n", yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
     }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "out/tmp on same fs   : '%s'\n", yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
+    }
+    if ( ft_fasta_ref_tbl == tool_ctx -> fmt ) {
+        if ( 0 == rc ) {        
+            rc = KOutMsg( "only internal ref    : '%s'\n", yes_or_no( tool_ctx -> only_internal_refs ) );
+        }
+        if ( 0 == rc ) {
+            rc = KOutMsg( "only external ref    : '%s'\n", yes_or_no( tool_ctx -> only_external_refs ) );
+        }
+        if ( 0 == rc ) {
+            rc = KOutMsg( "use name             : '%s'\n", yes_or_no( tool_ctx -> use_name ) );
+        }
+        if ( 0 == rc ) {
+            uint32_t idx, count = 0;
+            rc = VNameListCount( tool_ctx -> ref_name_filter, &count );
+            for ( idx = 0; 0 == rc && idx < count; ++idx ) {
+                const char * name = NULL;
+                rc = VNameListGet( tool_ctx -> ref_name_filter, idx, &name );
+                if ( 0 == rc && NULL != name ) {
+                    rc = KOutMsg( "\tref[%u] : '%s'\n", idx, name );
+                }
+            }
+        }
+    }
+
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
     }
@@ -189,7 +234,6 @@ static rc_t check_output_exits( const tool_ctx_t * tool_ctx ) {
     if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) ) {
         bool exists = false;
         switch( tool_ctx -> fmt ) {
-            case ft_unknown             : break;
             case ft_fastq_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_file    : exists = output_exists_split( tool_ctx ); break;
@@ -199,6 +243,7 @@ static rc_t check_output_exits( const tool_ctx_t * tool_ctx ) {
             case ft_fasta_us_split_spot : exists = output_exists_whole( tool_ctx ); break;
             case ft_fasta_split_file    : exists = output_exists_split( tool_ctx ); break;
             case ft_fasta_split_3       : exists = output_exists_split( tool_ctx ); break;
+            default : break;
         }
         if ( exists ) {
             rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
@@ -233,8 +278,6 @@ static rc_t tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx ) {
     }
     if ( tool_ctx -> use_stdout ) {
         switch( tool_ctx -> fmt ) {
-            case ft_unknown             : break;
-
             case ft_fastq_whole_spot    : break;
             case ft_fastq_split_spot    : break;
             case ft_fastq_split_file    : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
@@ -245,6 +288,8 @@ static rc_t tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx ) {
             case ft_fasta_us_split_spot : break;
             case ft_fasta_split_file    : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
             case ft_fasta_split_3       : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
+            
+            default : break;
         }
     }
     if ( tool_ctx -> use_stdout ) {
@@ -268,7 +313,7 @@ rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
     if ( NULL != tool_ctx -> dir ) {
         rc_t rc2 = KDirectoryRelease( tool_ctx -> dir );
         if ( 0 != rc2 ) {
-            ErrMsg( "KDirectoryRelease() -> %R", rc2 );
+            ErrMsg( "release_tool_ctx . KDirectoryRelease() -> %R", rc2 );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -276,12 +321,19 @@ rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
     if ( NULL != tool_ctx -> vdb_mgr ) {
         rc_t rc2 = VDBManagerRelease( tool_ctx -> vdb_mgr );
         if ( 0 != rc2 ) {
-            ErrMsg( "VDBManagerRelease() -> %R", rc2 );
+            ErrMsg( "release_tool_ctx . VDBManagerRelease() -> %R", rc2 );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
     if ( NULL != tool_ctx -> accession_short ) {
         free( ( char * )tool_ctx -> accession_short );
+    }
+    if ( NULL != tool_ctx -> ref_name_filter ) {
+        rc_t rc2 = VNamelistRelease( tool_ctx -> ref_name_filter );
+        if ( 0 != rc2 ) {
+            ErrMsg( "release_tool_ctx . VNamelistRelease() -> %R", rc2 );
+            rc = ( 0 == rc ) ? rc2 : rc;
+        }
     }
     return rc;
 }
@@ -531,16 +583,18 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
 
 static bool format_produces_reads_in_single_file( format_t fmt ) {
     switch ( fmt ) {
-        case ft_unknown          : return false; break;
-        case ft_fastq_whole_spot : return false; break;
-        case ft_fastq_split_spot : return true; break;
-        case ft_fastq_split_file : return false; break;
-        case ft_fastq_split_3    : return false; break;
-        case ft_fasta_whole_spot : return false; break;
-        case ft_fasta_split_spot : return true; break;
-        case ft_fasta_split_file : return false; break;
-        case ft_fasta_split_3    : return false; break;
+        case ft_unknown             : return false; break;
+        case ft_fastq_whole_spot    : return false; break;
+        case ft_fastq_split_spot    : return true; break;
+        case ft_fastq_split_file    : return false; break;
+        case ft_fastq_split_3       : return false; break;
+        case ft_fasta_whole_spot    : return false; break;
+        case ft_fasta_split_spot    : return true; break;
+        case ft_fasta_split_file    : return false; break;
+        case ft_fasta_split_3       : return false; break;
         case ft_fasta_us_split_spot : return true; break;
+        case ft_fasta_ref_tbl       : return true; break;
+        case ft_ref_report          : return true; break;
     }
     return false;
 }
@@ -548,7 +602,7 @@ static bool format_produces_reads_in_single_file( format_t fmt ) {
 /* taken form libs/kapp/main-priv.h */
 rc_t KAppGetTotalRam ( uint64_t * totalRam );
 
-rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
+rc_t populate_tool_ctx_and_call_inspector( tool_ctx_t * tool_ctx ) {
 
     bool fasta = is_format_fasta( tool_ctx -> fmt ); /* helper.c */
 

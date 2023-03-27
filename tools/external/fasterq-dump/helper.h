@@ -99,16 +99,25 @@ typedef struct join_options
 
 typedef enum format_t {
     ft_unknown,
+
+    /* the regular FASTQ-modes */
     ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
+
+    /* the regular FASTA-modes */
     ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
-    ft_fasta_us_split_spot
+    
+    /* special FASTA-modes */    
+    ft_fasta_us_split_spot, ft_fasta_ref_tbl,
+    
+    /* not FASTQ/FASTA but a report of references used */
+    ft_ref_report
     } format_t;
 
 bool is_format_fasta( format_t fmt );
 
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
-        bool fasta, bool fasta_us );
+        bool fasta, bool fasta_us, bool fasta_ref_tbl, bool ref_report );
 
 const char * out_ext( bool fasta );
 

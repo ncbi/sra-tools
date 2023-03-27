@@ -53,6 +53,7 @@ set( TOOLS_SRC
 	temp_registry
 	copy_machine
 	concatenator
+	ref_inventory
 	fasterq-dump
 )
 

@@ -51,6 +51,10 @@ extern "C" {
 #include "inspector.h"
 #endif
 
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
+#endif
+    
 #define DFLT_PATH_LEN 4096
 
 typedef struct tool_ctx_t {
@@ -65,6 +69,8 @@ typedef struct tool_ctx_t {
     const char * requested_seq_tbl_name;
     const char * seq_defline;
     const char * qual_defline;
+
+    VNamelist * ref_name_filter;
 
     struct temp_dir_t * temp_dir; /* temp_dir.h */
 
@@ -88,9 +94,12 @@ typedef struct tool_ctx_t {
     format_t fmt; /* helper.h */
     check_mode_t check_mode; /* helper.h */
 
-    bool force, show_progress, show_details, append, use_stdout;
+    bool force, show_progress, show_details, append, use_stdout, split_file;
     bool only_unaligned, only_aligned;
     bool out_and_tmp_on_same_fs;
+    bool only_internal_refs;
+    bool only_external_refs;
+    bool use_name;
 
     join_options_t join_options; /* helper.h */
 
@@ -98,7 +107,10 @@ typedef struct tool_ctx_t {
     inspector_output_t insp_output;     /* inspector.h */
 } tool_ctx_t;
 
-rc_t populate_tool_ctx( tool_ctx_t * tool_ctx );
+bool tool_ctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
+                                        cmn_iter_params_t * params );
+    
+rc_t populate_tool_ctx_and_call_inspector( tool_ctx_t * tool_ctx );
 
 rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in );
 

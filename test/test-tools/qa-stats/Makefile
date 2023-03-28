@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -22,19 +22,9 @@
 #
 # ===========================================================================
 
-add_subdirectory( crc32sum )
-add_subdirectory( test-download )
-add_subdirectory( kdb-index )
-add_subdirectory( pacbio-correct )
-add_subdirectory( schema-replace )
-add_subdirectory( sortreadtest )
-add_subdirectory( rowwritetest )
-add_subdirectory( samview-util )
-add_subdirectory( testld )
-add_subdirectory( txt2kdb )
-add_subdirectory( sam-factory )
-add_subdirectory( sam-analyze )
-if( NOT WIN32 )
-    add_subdirectory( pileup-stats )
-    add_subdirectory( qa-stats )
-endif()
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/qa-stats
+
+include $(TOP)/build/Makefile.env

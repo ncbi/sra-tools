@@ -1,0 +1,33 @@
+{
+	"total": {
+		"reads": {
+			"count": 160,
+			"biological": 80,
+			"technical": 80
+		},
+		"bases": [
+			{
+				"base": "S",
+				"biological": 2208
+			},
+			{
+				"base": "W",
+				"biological": 2151
+			}
+		],
+		"spots": [
+			{
+				"nreads": 2,
+				"total": 0,
+				"biological": 40,
+				"technical": 40
+			},
+			{
+				"nreads": 4,
+				"total": 40,
+				"biological": 0,
+				"technical": 0
+			}
+		]
+	}
+}

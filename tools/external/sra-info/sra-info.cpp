@@ -123,11 +123,11 @@ SraInfo::GetPlatforms() const
         }
         throw;
     }
-  
+
     return ret;
 }
 
-bool 
+bool
 SraInfo::IsAligned() const
 {
     try
@@ -145,10 +145,16 @@ SraInfo::IsAligned() const
     return false;
 }
 
-bool 
+bool
 SraInfo::HasPhysicalQualities() const
-{
+{   // QUALITY column is both readable and physical
     VDB::Table table = openSequenceTable( m_accession );
-    VDB::Table::ColumnNames cols = table.physicalColumns();
-    return find( cols.begin(), cols.end(), string( "QUALITY" ) ) != cols.end();
+    const string QualityColumn = "QUALITY";
+    VDB::Table::ColumnNames cols = table.readableColumns();
+    if ( find( cols.begin(), cols.end(), QualityColumn ) == cols.end() )
+    {
+        return false;
+    }
+    cols = table.physicalColumns();
+    return find( cols.begin(), cols.end(), QualityColumn ) != cols.end();
 }

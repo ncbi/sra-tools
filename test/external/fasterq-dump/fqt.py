@@ -41,8 +41,8 @@ def md5_of_dir( a_dir ) :
                 for f in files:
                     md5 = md5sum( os.path.join( root, f ) )
                     a . append( f"{f}:{md5}" )
-        except Error as e:
-            print( f"{e}" )
+        except Exception as e:
+            print( f"md5_of_dir() error : {e}" )
     a.sort()
     return '-'.join( a )
 
@@ -68,14 +68,15 @@ def min_sec( t1, t2 ) :
 def run_external( cmd, use_shell = False ) :
     try :
         start_time = time.time()
-        res = subprocess.run( cmd, capture_output=True, shell = use_shell )
+        res = subprocess.run( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell = use_shell )
         std_out = res.stdout.decode('utf-8')
         std_err = res.stderr.decode('utf-8')
         ret = res.returncode
         end_time = time.time()        
         return ( ret, std_out, std_err, min_sec( start_time, end_time ) )
-    except :
-        return ( -1, None, None )
+    except Exception as e :
+        print( f"run_external() error : {e}" )
+        return ( -1, None, None, 0 )
     
 def check_locator( locator_script, acc ) :
     if os.path.isfile( locator_script ) :
@@ -92,8 +93,8 @@ def test_count( args ) :
         if cnt == None :
             return 0
         return int( cnt[0] )
-    except :
-        print( f"error for test_count db='{args.db}'" )
+    except Exception as e :
+        print( f"test_count() db='{args.db}' error:{e}" )
         sys.exit( 3 )
 
 def clear_test_path_and_enter( test_path ) :
@@ -110,8 +111,8 @@ def get_one_test( args, nr ) :
         con = sqlite3.connect( args.db )
         res = con.cursor().execute( f"SELECT * FROM test LIMIT 1 OFFSET {nr}" )
         return res.fetchone()
-    except :
-        print( f"error for get_one_test db='{args.db}', nr={nr}" )
+    except Exception as e :
+        print( f"get_one_test db='{args.db}' eror : {e}" )
         sys.exit( 3 )
 
 def get_test_by_name( args ) :
@@ -119,8 +120,8 @@ def get_test_by_name( args ) :
         con = sqlite3.connect( args.db )
         res = con.cursor().execute( f"SELECT * FROM test WHERE name = '{args.name}'" )
         return res.fetchone()
-    except :
-        print( f"error for get_test_by_name='{args.db}', name={args.name}" )
+    except Exception as e :
+        print( f"get_test_by_name db='{args.db}', name={args.name} error : {e}" )
         return None
 
 def run_one_test( args, nr, count, abs_exe, test_data ) :
@@ -138,10 +139,9 @@ def run_one_test( args, nr, count, abs_exe, test_data ) :
         res = run_external( cmd, True )
         os . chdir( cur_path )
         if res[ 0 ] != 0 :
-            print( f"test #{nr} of {count} ... tool FAILED ( {res[ 3 ]} )\n" )
+            print( f"test #{nr} of {count} ... tool FAILED ( {res[ 0 ]} )\n" )
             if not args.keep :
-                clear_dir( test_path, True )
-            
+                clear_dir( test_path, True )          
             return False
         calculated = md5_of_dir( test_path )
         if not args.keep :
@@ -151,7 +151,8 @@ def run_one_test( args, nr, count, abs_exe, test_data ) :
             return False
         print( f"test #{nr} of {count} ... SUCCESS ( {res[ 3 ]} )\n" )
         return True
-    except :
+    except Exception as e :
+        print( f"run_one_test() error = {e}" )
         if not args.keep :
             clear_dir( test_path, True )
         return False
@@ -217,7 +218,8 @@ def exp_one_test( args, nr, count, abs_exe, test_data ) :
         con.commit()
         print( f"test# {nr} of {count} : expected values stored ( {res[ 3 ]} )\n" )
         return True
-    except :
+    except Exception as e :
+        print( f"exp_one_test() error: {e}" )
         if not args.keep :
             clear_dir( test_path, True )
         return False
@@ -248,8 +250,8 @@ def does_test_exist( args ) :
         con = sqlite3.connect( args.db )
         res = con.cursor().execute( f"SELECT name FROM test WHERE name='{args.name}'" )
         return res.fetchone() != None
-    except :
-        print( f"error for name lookup db '{args.db}' for name 'args.name'" )
+    except Exception as e :
+        print( f"does_test_exist( {args.db}, {args.name} ) error: {e}" )
         sys.exit( 3 )
 
 def perform_add_test( args ) :
@@ -268,8 +270,8 @@ def perform_add_test( args ) :
         cur = con.cursor()
         cur.execute( f"INSERT INTO test VALUES ( '{args.name}', '{args.acc}', '{opt3}', '' )" )
         con.commit()
-    except :
-        print( f"error adding a test" )
+    except Exception as e :
+        print( f"perform_add_test( {args.db} ) error : {e}" )
         sys.exit( 3 )
 
 def remove_test( args ) :
@@ -277,8 +279,8 @@ def remove_test( args ) :
         con = sqlite3.connect( args.db )
         res = con.cursor().execute( f"DELETE FROM test WHERE name='{args.name}'" )
         con.commit()
-    except :
-        print( f"error removing test 'args.name'" )
+    except Exception as e :
+        print( f"remove_test( {args.db} ) error : {e}" )
         sys.exit( 3 )
 
 def add_test( args ) :
@@ -326,8 +328,8 @@ def initialize_db( args ) :
         cur = con.cursor()
         cur.execute( "CREATE TABLE IF NOT EXISTS test( name, acc, options, expected )" )
         con.commit()
-    except :
-        print( f"error initializing db: '{e}'" )        
+    except Exception as e :
+        print( f"initialize_db( {args.db} ) error : {e}" )        
 
 def cmdline_parsing() :
     parser = argparse.ArgumentParser( description='testing fasterq-dump' )

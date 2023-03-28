@@ -53,19 +53,36 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
 
-    #TODO: verify outputs
-    add_test( NAME Test_Sra_Info_Table_1.0
+    add_test( NAME Test_Sra_Info_Platform_Table_1.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P SRR000123" "." "1.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_CSRA_1.1
+    add_test( NAME Test_Sra_Info_Platform_CSRA_1.1
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ERR334733" "." "1.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Multiple_2.0
+    add_test( NAME Test_Sra_Info_Platform_Multiple_2.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Reference_2.0
+    add_test( NAME Test_Sra_Info_Platform_Reference_3.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P NC_000001.11" "." "3.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # formatting
+    add_test( NAME Test_Sra_Info_Platform_Format_CSV_4.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f csv" "." "4.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_XML_4.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f xml" "." "4.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Json_4.3
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f json" "." "4.3"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Piped_4.4
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f piped" "." "4.4"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_Format_Tab.4.5
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.5"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

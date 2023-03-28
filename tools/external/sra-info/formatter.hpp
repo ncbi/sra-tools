@@ -26,35 +26,27 @@
 
 #pragma once
 
-#include <string>
-#include <set>
-#include <exception>
+#include "sra-info.hpp"
 
-#include <klib/rc.h>
-
-class SraInfo
+class Formatter
 {
 public:
-    class Error : public std::exception
-    {
-    public:
-        Error( rc_t rc, const char* accession, const char * message );
-        Error( const char * message );
-        Error( const std::string & message );
-        virtual const char* what() const noexcept override;
-    private:
-        std::string  m_text;
-    };
+    typedef enum {
+        Default,
+        CSV,
+        XML,
+        Json,
+        Piped,
+        Tab
+    } Format;
+    static Format StringToFormat( const std::string & value );
 
 public:
-    SraInfo();
+    Formatter( Format = Default );
+    virtual ~Formatter();
 
-    void SetAccession( const std::string& accession );
-    const std::string& GetAccession() const { return m_accession; }
-
-    typedef std::set<std::string> Platforms;
-    Platforms GetPlatforms() const; // may be empty or more than 1 value
+    std::string format( const SraInfo::Platforms & ) const;
 
 private:
-    std::string m_accession;
+    Format fmt;
 };

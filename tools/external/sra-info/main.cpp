@@ -112,8 +112,7 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "      csv ..... comma separated values on one line\n" );
     KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
     KOutMsg( "      json .... json-style\n" );
-    KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
-    KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
+    KOutMsg( "      tab ..... tab-separated values on one line\n" );
 
     HelpOptionsStandard ();
 
@@ -203,7 +202,8 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
             catch( const exception& ex )
             {
-                KOutMsg( "%s\n", ex.what() );
+                //KOutMsg( "%s\n", ex.what() ); ? - should be in stderr already, at least for VDB::Error
+                rc = 3;
             }
         }
 

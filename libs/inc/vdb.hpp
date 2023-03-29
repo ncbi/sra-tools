@@ -55,7 +55,7 @@ namespace VDB {
     class Cursor;
     class Schema;
 
-    class Error : std::exception {
+    class Error : public std::exception {
         rc_t rc;
         std::string text;
 
@@ -92,9 +92,9 @@ namespace VDB {
             text = out.str();
         }
 
-        char const *what() const throw() 
-        { 
-            return text.c_str(); 
+        char const *what() const throw()
+        {
+            return text.c_str();
         }
         rc_t getRc() const { return rc; }
     };
@@ -136,9 +136,9 @@ namespace VDB {
         unsigned const N;
         std::vector<unsigned int> cid;
 
-        Cursor(VCursor *const o_, std::vector<unsigned int> columns) 
+        Cursor(VCursor *const o_, std::vector<unsigned int> columns)
         : o(o_), N(columns.size()), cid(columns)
-        {   
+        {
         }
 
     public:
@@ -326,8 +326,8 @@ namespace VDB {
         }
 
         typedef std::vector< std::string > ColumnNames;
-        ColumnNames physicalColumns() const 
-        { 
+        ColumnNames physicalColumns() const
+        {
             KNamelist *names;
             rc_t rc = VTableListPhysColumns ( o, & names );
             if (rc)
@@ -341,11 +341,11 @@ namespace VDB {
                 KNamelistRelease ( names );
                 throw Error(rc, __FILE__, __LINE__);
             }
-            ColumnNames ret; 
+            ColumnNames ret;
             for ( uint32_t i = 0; i < count; ++i )
             {
                 const char * name;
-                rc = KNamelistGet ( names, i, & name );            
+                rc = KNamelistGet ( names, i, & name );
                 if (rc)
                 {
                     KNamelistRelease ( names );
@@ -441,13 +441,13 @@ namespace VDB {
         } PathType;
         PathType pathType( const std::string & path ) const
         {
-            switch ( VDBManagerPathType( o, "%s", path.c_str() ) & ~ kptAlias ) 
+            switch ( VDBManagerPathType( o, "%s", path.c_str() ) & ~ kptAlias )
             {
                 case kptDatabase :      return ptDatabase;
                 case kptTable :         return ptTable;
                 case kptPrereleaseTbl : return ptPrereleaseTable;
                 default :               return ptInvalid;
-            }            
+            }
         }
 
     };

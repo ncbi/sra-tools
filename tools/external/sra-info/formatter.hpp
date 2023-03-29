@@ -36,7 +36,6 @@ public:
         CSV,
         XML,
         Json,
-        Piped,
         Tab
     } Format;
     static Format StringToFormat( const std::string & value );

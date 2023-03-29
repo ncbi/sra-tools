@@ -173,7 +173,6 @@ FIXTURE_TEST_CASE(Format_values, SraInfoFixture)
     REQUIRE_EQ( Formatter::CSV,     Formatter::StringToFormat("cSv") );
     REQUIRE_EQ( Formatter::XML,     Formatter::StringToFormat("Xml") );
     REQUIRE_EQ( Formatter::Json,    Formatter::StringToFormat("jSON") );
-    REQUIRE_EQ( Formatter::Piped,   Formatter::StringToFormat("piped") );
     REQUIRE_EQ( Formatter::Tab,     Formatter::StringToFormat("TAB") );
     REQUIRE_THROW( Formatter::StringToFormat("somethingelse") );
 }
@@ -222,15 +221,6 @@ FIXTURE_TEST_CASE(Format_Platforms_Json, SraInfoFixture)
                        "\"SRA_PLATFORM_ILLUMINA\",\n"
                        "\"SRA_PLATFORM_UNDEFINED\"\n"
                        "]"), out );
-}
-
-FIXTURE_TEST_CASE(Format_Platforms_Piped, SraInfoFixture)
-{   // same as default
-    info.SetAccession(Run_Multiplatform);
-    SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::Piped );
-    string out = f.format( p );
-    REQUIRE_EQ( string("SRA_PLATFORM_454\nSRA_PLATFORM_ILLUMINA\nSRA_PLATFORM_UNDEFINED"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_Tab, SraInfoFixture)

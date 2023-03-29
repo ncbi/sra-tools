@@ -210,7 +210,7 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
     }
     sort( ret.begin(),
           ret.end(),
-          []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // larger counts first
+          []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // more popular layouts sort first
     );
     return ret;
 }

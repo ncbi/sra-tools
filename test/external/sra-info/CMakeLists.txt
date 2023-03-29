@@ -77,11 +77,8 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
     add_test( NAME Test_Sra_Info_Platform_Format_Json_4.3
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f json" "." "4.3"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_Piped_4.4
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f piped" "." "4.4"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_Tab.4.5
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.5"
+    add_test( NAME Test_Sra_Info_Platform_Format_Tab.4.4
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.4"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # is-aligned
@@ -101,9 +98,22 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # spot layout
-    add_test( NAME Test_Sra_Info_SpoLayout_7.1
+    add_test( NAME Test_Sra_Info_SpotLayout_7.1
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR000123" "." "7.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_Json_7.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f json SRR000123" "." "7.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_CSV_7.3
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f csv SRR000123" "." "7.3"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_Tab_7.4
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f tab SRR000123" "." "7.4"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_XML_7.5
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f xml SRR000123" "." "7.5"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

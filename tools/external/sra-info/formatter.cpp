@@ -30,14 +30,6 @@
 
 using namespace std;
 
-    typedef enum {
-        Default,
-        CSV,
-        XML,
-        Json,
-        Piped,
-        Tab
-    } Format;
 Formatter::Format
 Formatter::StringToFormat( const string & value )
 {
@@ -51,7 +43,6 @@ Formatter::StringToFormat( const string & value )
     if ( lowercase == "csv" ) return CSV;
     if ( lowercase == "xml" ) return XML;
     if ( lowercase == "json" ) return Json;
-    if ( lowercase == "piped" ) return Piped;
     if ( lowercase == "tab" ) return Tab;
     throw VDB::Error( string("Invalid value for the --format option: ") + value );
 }
@@ -92,7 +83,6 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
     switch ( fmt )
     {
     case Default:
-    case Piped:
         // default format, 1 value per line
         return JoinPlatforms( platforms, "\n" );
     case CSV:
@@ -118,7 +108,6 @@ Formatter::format( const string & value ) const
     switch ( fmt )
     {
     case Default:
-    case Piped:
     case CSV:
     case XML:
     case Tab:
@@ -133,23 +122,115 @@ Formatter::format( const string & value ) const
 string
 Formatter::format( const SraInfo::SpotLayouts & layouts ) const
 {
-    ostringstream ret;
-    for( auto l : layouts )
+    switch ( fmt )
     {
-        bool  first = true;
-        for ( auto r : l.reads )
+    case Default:
         {
-            if ( first )
+            ostringstream ret;
+            for( auto l : layouts )
             {
-                first = false;
+                bool  first = true;
+                ret << l.count << ( l.count == 1 ? " spot: " : " spots: " );
+                for ( auto r : l.reads )
+                {
+                    if ( first )
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        ret << ", ";
+                    }
+                    ret << r.type << "(length=" << r.length << ")";
+                }
+                ret << endl;
             }
-            else
-            {
-                ret << ", ";
-            }
-            ret << r.type << "(" << r.length << ")";
+            return ret.str();
         }
-        ret << ":" << l.count << endl;
+
+    case Json:
+        {
+            ostringstream ret;
+            ret << "[" << endl;
+            bool  first_layout = true;
+            for( auto l : layouts )
+            {
+                if ( first_layout )
+                {
+                    first_layout = false;
+                }
+                else
+                {
+                    ret << ", " << endl;
+                }
+
+                bool  first_read = true;
+                ret << "{ \"count\": " << l.count << ", \"reads\": [";
+                for ( auto r : l.reads )
+                {
+                    if ( first_read )
+                    {
+                        first_read = false;
+                    }
+                    else
+                    {
+                        ret << ", ";
+                    }
+                    ret << "{ \"type\": \"" << r.type << "\", \"length\": " << r.length << " }";
+                }
+                ret << "] }";
+            }
+            ret << endl << "]" << endl;
+            return ret.str();
+        }
+
+    case CSV:
+        {
+            ostringstream ret;
+            for( auto l : layouts )
+            {
+                ret << l.count << ", ";
+                for ( auto r : l.reads )
+                {
+                    ret << r.type << ", " << r.length << ", ";
+                }
+                ret << endl;
+            }
+            return ret.str();
+        }
+
+    case Tab:
+        {
+            ostringstream ret;
+            for( auto l : layouts )
+            {
+                ret << l.count << "\t";
+                for ( auto r : l.reads )
+                {
+                    ret << r.type << "\t" << r.length << "\t";
+                }
+                ret << endl;
+            }
+            return ret.str();
+        }
+
+    case XML:
+        {
+            ostringstream ret;
+            for( auto l : layouts )
+            {
+                ret << "<layout><count>" << l.count << "</count>";
+                for ( auto r : l.reads )
+                {
+                    ret << "<read><type>" << r.type << "</type><length>" << r.length << "</length></read>";
+                }
+                ret << "</layout>" << endl;
+            }
+            return ret.str();
+        }
+
+    default:
+        throw VDB::Error( "unsupported formatting option");
     }
-    return ret.str();
+
 }

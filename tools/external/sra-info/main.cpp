@@ -47,26 +47,30 @@ using namespace std;
 #define OPTION_ISALIGNED    "is-aligned"
 #define OPTION_QUALITY      "quality"
 #define OPTION_SPOTLAYOUT   "spot-layout"
+#define OPTION_LIMIT        "limit"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
 #define ALIAS_QUALITY       "Q"
 #define ALIAS_SPOTLAYOUT    "S"
+#define ALIAS_LIMIT         "l"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
 static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
-static const char * spot_layout_usage[] = { "print spot layout(s)", NULL };
+static const char * spot_layout_usage[] = { "print spot layout(s)", nullptr };
+static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be >0", nullptr };
 
 OptDef InfoOptions[] =
 {
-    { OPTION_PLATFORM,  ALIAS_PLATFORM,     nullptr, platform_usage,    1, false,   false, nullptr },
-    { OPTION_FORMAT,    ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
-    { OPTION_ISALIGNED, ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
-    { OPTION_QUALITY,   ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
-    { OPTION_SPOTLAYOUT, ALIAS_SPOTLAYOUT,  nullptr, spot_layout_usage, 1, false,   false, nullptr },
+    { OPTION_PLATFORM,      ALIAS_PLATFORM,     nullptr, platform_usage,    1, false,   false, nullptr },
+    { OPTION_FORMAT,        ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
+    { OPTION_ISALIGNED,     ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
+    { OPTION_QUALITY,       ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
+    { OPTION_SPOTLAYOUT,    ALIAS_SPOTLAYOUT,   nullptr, spot_layout_usage, 1, false,   false, nullptr },
+    { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -114,6 +118,8 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "      json .... json-style\n" );
     KOutMsg( "      tab ..... tab-separated values on one line\n" );
 
+    HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
+
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -158,6 +164,21 @@ rc_t CC KMain ( int argc, char *argv [] )
                 info.SetAccession( accession );
 
                 uint32_t opt_count;
+                uint32_t limit = 0;
+
+                rc = ArgsOptionCount( args, OPTION_LIMIT, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    const char* res = nullptr;
+                    rc = ArgsOptionValue( args, OPTION_LIMIT, 0, ( const void** )&res );
+                    std::stringstream ss(res);
+                    ss >> limit;
+                    if ( limit == 0 )
+                    {
+                        throw VDB::Error("invalid value for --limit (not a positive number)");
+                    }
+                }
 
                 // formatting
                 Formatter::Format fmt = Formatter::Default;
@@ -169,7 +190,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     rc = ArgsOptionValue( args, OPTION_FORMAT, 0, ( const void** )&res );
                     fmt = Formatter::StringToFormat( res );
                 }
-                Formatter formatter( fmt );
+                Formatter formatter( fmt, limit );
 
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );

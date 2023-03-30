@@ -47,8 +47,8 @@ Formatter::StringToFormat( const string & value )
     throw VDB::Error( string("Invalid value for the --format option: ") + value );
 }
 
-Formatter::Formatter( Format f )
-: fmt( f )
+Formatter::Formatter( Format f, uint32_t l )
+: fmt( f ), limit( l )
 {
 }
 
@@ -122,13 +122,20 @@ Formatter::format( const string & value ) const
 string
 Formatter::format( const SraInfo::SpotLayouts & layouts ) const
 {
+    size_t count = layouts.size();
+    if ( limit != 0 && limit < count )
+    {
+        count = limit;
+    }
+
     switch ( fmt )
     {
     case Default:
         {
             ostringstream ret;
-            for( auto l : layouts )
+            for( size_t i = 0; i < count; ++i )
             {
+                const SraInfo::SpotLayout & l = layouts[i];
                 bool  first = true;
                 ret << l.count << ( l.count == 1 ? " spot: " : " spots: " );
                 for ( auto r : l.reads )
@@ -153,8 +160,9 @@ Formatter::format( const SraInfo::SpotLayouts & layouts ) const
             ostringstream ret;
             ret << "[" << endl;
             bool  first_layout = true;
-            for( auto l : layouts )
+            for( size_t i = 0; i < count; ++i )
             {
+                const SraInfo::SpotLayout & l = layouts[i];
                 if ( first_layout )
                 {
                     first_layout = false;
@@ -187,8 +195,9 @@ Formatter::format( const SraInfo::SpotLayouts & layouts ) const
     case CSV:
         {
             ostringstream ret;
-            for( auto l : layouts )
+            for( size_t i = 0; i < count; ++i )
             {
+                const SraInfo::SpotLayout & l = layouts[i];
                 ret << l.count << ", ";
                 for ( auto r : l.reads )
                 {
@@ -202,8 +211,9 @@ Formatter::format( const SraInfo::SpotLayouts & layouts ) const
     case Tab:
         {
             ostringstream ret;
-            for( auto l : layouts )
+            for( size_t i = 0; i < count; ++i )
             {
+                const SraInfo::SpotLayout & l = layouts[i];
                 ret << l.count << "\t";
                 for ( auto r : l.reads )
                 {
@@ -217,8 +227,9 @@ Formatter::format( const SraInfo::SpotLayouts & layouts ) const
     case XML:
         {
             ostringstream ret;
-            for( auto l : layouts )
+            for( size_t i = 0; i < count; ++i )
             {
+                const SraInfo::SpotLayout & l = layouts[i];
                 ret << "<layout><count>" << l.count << "</count>";
                 for ( auto r : l.reads )
                 {

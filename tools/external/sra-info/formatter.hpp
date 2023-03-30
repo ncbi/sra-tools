@@ -41,7 +41,7 @@ public:
     static Format StringToFormat( const std::string & value );
 
 public:
-    Formatter( Format = Default );
+    Formatter( Format = Default, uint32_t limit = 0 );
     virtual ~Formatter();
 
     std::string format( const SraInfo::Platforms & ) const;
@@ -50,4 +50,5 @@ public:
 
 private:
     Format fmt;
+    uint32_t limit;
 };

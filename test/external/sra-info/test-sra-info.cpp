@@ -233,6 +233,19 @@ FIXTURE_TEST_CASE(Format_Platforms_Tab, SraInfoFixture)
     REQUIRE_EQ( string("SRA_PLATFORM_454\tSRA_PLATFORM_ILLUMINA\tSRA_PLATFORM_UNDEFINED"), out );
 }
 
+FIXTURE_TEST_CASE(Format_MultiRow_Limited, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts();
+    REQUIRE_EQ( size_t(267), sl.size() );
+    Formatter f( Formatter::Json, 2 ); // 2 top elements
+    string out = f.format( sl );
+    REQUIRE_EQ( string("[\n{ \"count\": 119, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
+                       "{ \"type\": \"BIOLOGICAL\", \"length\": 259 }] },\n"
+                       "{ \"count\": 112, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
+                       "{ \"type\": \"BIOLOGICAL\", \"length\": 256 }] }\n]\n"), out );
+}
+
 // IsAligned
 FIXTURE_TEST_CASE(IsAligned_No, SraInfoFixture)
 {

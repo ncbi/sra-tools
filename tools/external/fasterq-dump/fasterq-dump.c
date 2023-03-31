@@ -836,9 +836,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
             /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 ) {
                 Usage ( args );
-                /* will make the caller of this function aka KMane() in man.c return
-                error code of 3 */
-                rc = 3;
+                rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
             } else {
                 tool_ctx_t tool_ctx;    /* tool_ctx.h */
 

@@ -169,7 +169,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts ) const
                 }
                 else
                 {
-                    ret << ", " << endl;
+                    ret << "," << endl;
                 }
 
                 bool  first_read = true;

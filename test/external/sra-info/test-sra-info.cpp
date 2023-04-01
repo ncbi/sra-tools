@@ -236,14 +236,15 @@ FIXTURE_TEST_CASE(Format_Platforms_Tab, SraInfoFixture)
 FIXTURE_TEST_CASE(Format_MultiRow_Limited, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
-    SraInfo::SpotLayouts sl = info.GetSpotLayouts();
+    const SraInfo::SpotLayouts sl = info.GetSpotLayouts();
     REQUIRE_EQ( size_t(267), sl.size() );
-    Formatter f( Formatter::Json, 2 ); // 2 top elements
-    string out = f.format( sl );
-    REQUIRE_EQ( string("[\n{ \"count\": 119, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
+    const Formatter f( Formatter::Json, 2 ); // 2 top elements
+    const string out = f.format( sl );
+    const string expected("[\n{ \"count\": 119, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
                        "{ \"type\": \"BIOLOGICAL\", \"length\": 259 }] },\n"
                        "{ \"count\": 112, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
-                       "{ \"type\": \"BIOLOGICAL\", \"length\": 256 }] }\n]\n"), out );
+                       "{ \"type\": \"BIOLOGICAL\", \"length\": 256 }] }\n]\n");
+    REQUIRE_EQ( expected, out );
 }
 
 // IsAligned

@@ -107,10 +107,10 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg ( "Options:\n" );
 
-    HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM, NULL, platform_usage );
-    HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,   nullptr,    platform_usage );
-    HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED, nullptr, isaligned_usage );
-    HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT, NULL, spot_layout_usage );
+    HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,    nullptr, platform_usage );
+    HelpOptionLine ( ALIAS_QUALITY,     OPTION_QUALITY,     nullptr, quality_usage );
+    HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED,   nullptr, isaligned_usage );
+    HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );

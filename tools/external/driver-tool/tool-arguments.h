@@ -84,6 +84,7 @@
     TOOL_ARG("fasta", "", false, TOOL_HELP("produce FASTA output", 0)), \
     TOOL_ARG("fasta-unsorted", "", false, TOOL_HELP("produce FASTA output, unsorted", 0)), \
     TOOL_ARG("fasta-ref-tbl", "", false, TOOL_HELP("produce FASTA output from REFERENCE tbl", 0)), \
+    TOOL_ARG("fasta-concat-all", "", false, TOOL_HELP("concatenate all rows and produce FASTA", 0)), \
     TOOL_ARG("internal-ref", "", false, TOOL_HELP("extract only internal REFERENCEs", 0)), \
     TOOL_ARG("external-ref", "", false, TOOL_HELP("extract only external REFERENCEs", 0)), \
     TOOL_ARG("ref-name", "", true, TOOL_HELP("extract only these REFERENCEs", 0)), \

@@ -42,6 +42,9 @@ endif()
 if( BUILD_TOOLS_INTERNAL )
 	add_subdirectory( internal )
 endif()
+if( BUILD_TOOLS_TEST_TOOLS )
+	add_subdirectory( test-tools )
+endif()
 
 #add_subdirectory( ngs ) # moved to test/external
 #add_subdirectory( align ) # moved to test/internal

@@ -46,7 +46,7 @@ typedef struct raw_read_iter_t {
 
 void destroy_raw_read_iter( struct raw_read_iter_t * iter ) {
     if ( NULL != iter ) {
-        destroy_cmn_iter( iter -> cmn );
+        cmn_iter_release( iter -> cmn );
         free( ( void * ) iter );
     }
 }
@@ -59,10 +59,7 @@ rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter_t ** i
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_raw_read_iter.calloc( %d ) -> %R", ( sizeof * i ), rc );
     } else {
-        rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &i -> cmn );
-        if ( 0 != rc ) {
-            ErrMsg( "make_raw_read_iter.make_cmn_iter() -> %R", rc );
-        }
+        rc = cmn_iter_make( params, "PRIMARY_ALIGNMENT", &i -> cmn );
         if ( 0 == rc ) {
             rc = cmn_iter_add_column( i -> cmn, "SEQ_SPOT_ID", &i -> seq_spot_id );
         }
@@ -73,7 +70,7 @@ rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter_t ** i
             rc = cmn_iter_add_column( i -> cmn, /*"(INSDC:4na:bin)RAW_READ"*/"READ", &i -> read_id );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_range( i -> cmn, i -> seq_spot_id );
+            rc = cmn_iter_detect_range( i -> cmn, i -> seq_spot_id );
         }
         if ( 0 != rc ) {
             destroy_raw_read_iter( i );
@@ -85,21 +82,21 @@ rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter_t ** i
 }
 
 bool get_from_raw_read_iter( struct raw_read_iter_t * iter, raw_read_rec_t * rec, rc_t * rc ) {
-    bool res = cmn_iter_next( iter -> cmn, rc );
+    bool res = cmn_iter_get_next( iter -> cmn, rc );
     if ( res ) {
-        *rc = cmn_read_uint64( iter -> cmn, iter -> seq_spot_id, &rec -> seq_spot_id );
+        *rc = cmn_iter_read_uint64( iter -> cmn, iter -> seq_spot_id, &rec -> seq_spot_id );
         if ( 0 == *rc ) {
-            *rc = cmn_read_uint32( iter -> cmn, iter -> seq_read_id, &rec -> seq_read_id );
+            *rc = cmn_iter_read_uint32( iter -> cmn, iter -> seq_read_id, &rec -> seq_read_id );
         }
         if ( 0 == *rc ) {
-            *rc = cmn_read_String( iter -> cmn, iter -> read_id, &rec -> read );
+            *rc = cmn_iter_read_String( iter -> cmn, iter -> read_id, &rec -> read );
         }
     }
     return res;
 }
 
 uint64_t get_row_count_of_raw_read( struct raw_read_iter_t * iter ) {
-    return cmn_iter_row_count( iter -> cmn );
+    return cmn_iter_get_row_count( iter -> cmn );
 }
 
 rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache,

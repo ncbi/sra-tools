@@ -39,6 +39,8 @@ public:
     {
     public:
         Error( rc_t rc, const char* accession, const char * message );
+        Error( const char * message );
+        Error( const std::string & message );
         virtual const char* what() const noexcept override;
     private:
         std::string  m_text;

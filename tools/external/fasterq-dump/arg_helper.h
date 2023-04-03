@@ -44,12 +44,15 @@ extern "C" {
 #include <stdbool.h>    /* bool */
     
 struct Args;
-const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
-rc_t get_list_option( const struct Args *args, const char * name, VNamelist * dst );
-bool get_bool_option( const struct Args *args, const char *name );
-size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
-uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
-uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
+
+const char * ahlp_get_str_option( const struct Args *args, const char *name, const char * dflt );
+rc_t ahlp_get_list_option( const struct Args *args, const char * name, VNamelist * dst );
+bool ahlp_get_bool_option( const struct Args *args, const char *name );
+size_t ahlp_get_size_t_option( const struct Args * args, const char *name, size_t dflt );
+uint64_t ahlp_get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
+uint32_t ahlp_get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
+
+uint32_t ahlp_get_env_u32( const char * name, uint32_t dflt );
 
 #ifdef __cplusplus
 }

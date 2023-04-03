@@ -107,21 +107,26 @@ typedef enum format_t {
     ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
     
     /* special FASTA-modes */    
-    ft_fasta_us_split_spot, ft_fasta_ref_tbl,
+    ft_fasta_us_split_spot, ft_fasta_ref_tbl, ft_fasta_concat,
     
     /* not FASTQ/FASTA but a report of references used */
     ft_ref_report
     } format_t;
 
-bool is_format_fasta( format_t fmt );
+bool hlp_is_format_fasta( format_t fmt );
 
-format_t get_format_t( const char * format,
+format_t hlp_get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
-        bool fasta, bool fasta_us, bool fasta_ref_tbl, bool ref_report );
+        bool fasta, bool fasta_us, bool fasta_ref_tbl, bool fasta_concat,
+        bool ref_report );
 
-const char * out_ext( bool fasta );
+const char * hlp_out_ext( bool fasta );
 
-const char * fmt_2_string( format_t fmt );
+const char * hlp_fmt_2_string( format_t fmt );
+
+/* -------------------------------------------------------------------------------- */
+
+const char * hlp_yes_or_no( bool b );
 
 /* -------------------------------------------------------------------------------- */
 
@@ -129,48 +134,53 @@ typedef enum check_mode_t {
     cmt_unknown, cmt_on, cmt_off, cmt_only
     } check_mode_t;
 
-check_mode_t get_check_mode_t( const char * mode );
+check_mode_t hlp_get_check_mode_t( const char * mode );
 
-bool is_perform_check( check_mode_t mode );
+bool hlp_is_perform_check( check_mode_t mode );
 
-const char * check_mode_2_string( check_mode_t cm );
-
-/* -------------------------------------------------------------------------------- */
-
-const char * yes_or_no( bool b );
+const char * hlp_check_mode_2_string( check_mode_t cm );
 
 /* -------------------------------------------------------------------------------- */
 
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
-uint32_t get_env_u32( const char * name, uint32_t dflt );
-uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
-void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
-
-rc_t get_quitting( void );
-void set_quitting( void );
+rc_t hlp_get_quitting( void );
+void hlp_set_quitting( void );
 
 /* -------------------------------------------------------------------------------- */
 
-const String * make_string_copy( const char * src );
-
-rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
-rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
-bool ends_in_slash( const char * s );
-bool ends_in_sra( const char * s );
-bool extract_path( const char * s, String * path );
+void hlp_correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
 
 /* -------------------------------------------------------------------------------- */
 
-void clear_join_stats( join_stats_t * stats );
-void add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
+/* uint32_t get_env_u32( const char * name, uint32_t dflt ); */
+uint64_t hlp_make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 
 /* -------------------------------------------------------------------------------- */
 
-struct Buf2NA_t;
+const String * hlp_make_string_copy( const char * src );
 
-rc_t make_Buf2NA( struct Buf2NA_t ** self, size_t size, const char * pattern );
-void release_Buf2NA( struct Buf2NA_t * self );
-bool match_Buf2NA( struct Buf2NA_t * self, const String * ascii );
+rc_t hlp_split_string( String * in, String * p0, String * p1, uint32_t ch );
+rc_t hlp_split_string_r( String * in, String * p0, String * p1, uint32_t ch );
+bool hlp_ends_in_slash( const char * s );
+bool hlp_ends_in_sra( const char * s );
+bool hlp_extract_path( const char * s, String * path );
+
+/* -------------------------------------------------------------------------------- */
+
+void hlp_clear_join_stats( join_stats_t * stats );
+void hlp_add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
+rc_t hlp_print_stats( const join_stats_t * stats );
+
+/* -------------------------------------------------------------------------------- */
+
+struct filter_2na_t;
+
+struct filter_2na_t * hlp_make_2na_filter( const char * filter_bases );
+void hlp_release_2na_filter( struct filter_2na_t * self );
+
+/* return true if no filter set, or filter matches the bases */
+bool hlp_filter_2na_1( struct filter_2na_t * self, const String * bases );
+bool hlp_filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
 
 /* -------------------------------------------------------------------------------- */
 
@@ -179,34 +189,26 @@ bool match_Buf2NA( struct Buf2NA_t * self, const String * ascii );
 #define THREAD_DFLT_STACK_SIZE ((size_t)(0))
 
 /* common-function to create a thread with a given thread-size */
-rc_t helper_make_thread( KThread ** self,
-                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
-                         void * data,
-                         size_t stacksize );
+rc_t hlp_make_thread( KThread ** self,
+                      rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                      void * data,
+                      size_t stacksize );
 
-rc_t join_and_release_threads( Vector * threads );
-uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
-
-/* -------------------------------------------------------------------------------- */
-
-rc_t print_stats( const join_stats_t * stats );
+rc_t hlp_join_and_release_threads( Vector * threads );
+uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
 
 /* -------------------------------------------------------------------------------- */
 
-struct filter_2na_t;
+void hlp_unread_rc_info( bool show );
 
-struct filter_2na_t * make_2na_filter( const char * filter_bases );
-void release_2na_filter( struct filter_2na_t * self );
+/* -------------------------------------------------------------------------------- */
 
-/* return true if no filter set, or filter matches the bases */
-bool filter_2na_1( struct filter_2na_t * self, const String * bases );
-bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
+void hlp_init_qual_to_ascii_lut( char * lut, size_t size );
 
 /* -------------------------------------------------------------------------------- */
 
 /* returns 0 if the id cannot be found ( for instance on none-posix systems ) */
-uint32_t device_id_of_path( const char * path );
-bool paths_on_same_filesystem( const char * path1, const char * path2 );
+bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 );
 
 #ifdef __cplusplus
 }

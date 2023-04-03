@@ -263,7 +263,7 @@ static rc_t extract_path_part( const char * p, char * dst, size_t dst_size ) {
     String S_in, S_path, S_leaf;
 
     StringInitCString( &S_in, p );
-    rc = split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
+    rc = hlp_split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
     if ( 0 == rc ) {
         size_t l = string_copy( dst, dst_size, S_path . addr, S_path . size );
         if ( l < dst_size - 2 ) {

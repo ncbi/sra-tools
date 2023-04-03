@@ -64,6 +64,16 @@ SraInfo::Error::Error( rc_t rc, const char* accession, const char * message )
     m_text = out.str();
 }
 
+SraInfo::Error::Error( const char * message )
+{
+    m_text = message;
+}
+
+SraInfo::Error::Error( const string & message )
+{
+    m_text = message;
+}
+
 const char*
 SraInfo::Error::what() const noexcept
 {

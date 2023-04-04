@@ -255,16 +255,16 @@ TEST_CASE(Cursor_ForEachWithFilter)
 
 TEST_CASE(Cursor_IsStaticColumn_True)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( c.isStaticColumn( 0 ) );
-}    
+}
 TEST_CASE(Cursor_IsStaticColumn_False)
 {
-    Table t = Manager()[DatabasePath]["SEQUENCE"];
+    Table t = Manager().openDatabase( DatabasePath )["SEQUENCE"];
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( ! c.isStaticColumn( 1 ) );
-}    
+}
 
 // VDB::Cursor::RawData
 

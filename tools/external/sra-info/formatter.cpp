@@ -53,7 +53,7 @@ Formatter::StringToFormat( const string & value )
     if ( lowercase == "json" ) return Json;
     if ( lowercase == "piped" ) return Piped;
     if ( lowercase == "tab" ) return Tab;
-    throw SraInfo::Error( string("Invalid value for the --format option: ") + value );
+    throw VDB::Error( string("Invalid value for the --format option: ") + value );
 }
 
 Formatter::Formatter( Format f )
@@ -108,7 +108,24 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         // Tabbed, all values on 1 line
         return JoinPlatforms( platforms, "\t" );
     default:
-        throw SraInfo::Error( "unsupported formatting option ");
+        throw VDB::Error( "unsupported formatting option");
     }
 }
 
+string 
+Formatter::format( const string & value ) const
+{   
+    switch ( fmt )
+    {
+    case Default:
+    case Piped:
+    case CSV:
+    case XML:
+    case Tab:
+        return value;
+    case Json:
+        return string("\"") + value + "\"";
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+}

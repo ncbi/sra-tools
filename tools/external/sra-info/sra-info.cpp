@@ -26,59 +26,9 @@
 
 #include "sra-info.hpp"
 
-#include <sstream>
-#include <memory>
-
-#include <vdb/table.h>
-#include <vdb/database.h>
-#include <vdb/cursor.h>
-#include <vdb/vdb-priv.h>
-#include <vdb/manager.h>
-
-#include <kdb/manager.h>
-
-#include <klib/printf.h>
-
 #include <insdc/sra.h>
 
 using namespace std;
-
-/*
-* SraInfo::Error
-*/
-
-SraInfo::Error::Error( rc_t rc, const char* accession, const char * message )
-{
-    stringstream out;
-    out << accession << ": " << message;
-    if ( rc != 0 )
-    {
-        // obtain the required size
-        size_t num_writ;
-        string_printf ( nullptr, 0, &num_writ, "%R", rc );
-
-        unique_ptr<char> rc_text ( new char[num_writ] );
-        string_printf ( rc_text.get(), num_writ, nullptr, "%R", rc );
-        out << ", rc = " << rc_text.get();
-    }
-    m_text = out.str();
-}
-
-SraInfo::Error::Error( const char * message )
-{
-    m_text = message;
-}
-
-SraInfo::Error::Error( const string & message )
-{
-    m_text = message;
-}
-
-const char*
-SraInfo::Error::what() const noexcept
-{
-    return m_text.c_str();
-}
 
 /*
 * SraInfo
@@ -94,79 +44,23 @@ SraInfo::SetAccession( const std::string& p_accession )
     m_accession = p_accession;
 }
 
-static
-const VTable *
-openSequenceTable( const char * accession )
+VDB::Table
+SraInfo::openSequenceTable( const string & accession ) const
 {
-    KDirectory * cur_dir = nullptr;
-    const VDBManager * manager = nullptr;
-    const VDatabase * database = nullptr;
-    const VTable * ret = nullptr;
-
-    try
+    switch ( mgr.pathType( accession ) )
     {
-        rc_t rc = KDirectoryNativeDir( &cur_dir );
-        if ( rc != 0 )
-        {
-            throw SraInfo::Error( rc, accession, "KDirectoryNativeDir() failed");
-        }
-        else
-        {
-            rc = VDBManagerMakeRead ( &manager, cur_dir );
-            if ( rc != 0 )
-            {
-                throw SraInfo::Error( rc, accession, "VDBManagerMakeRead() failed");
-            }
+        case VDB::Manager::ptDatabase :
+            return mgr.openDatabase(accession)["SEQUENCE"];
 
-            int pt = ( VDBManagerPathType( manager, "%s", accession ) & ~ kptAlias );
-            switch ( pt )
-            {
-                case kptDatabase :
-                {
-                    rc = VDBManagerOpenDBRead( manager, &database, NULL, "%s", accession );
-                    if ( rc != 0 )
-                    {
-                        throw SraInfo::Error( rc, accession, "VDBManagerOpenDBRead() failed");
-                    }
-                    rc = VDatabaseOpenTableRead( database, & ret, "%s", "SEQUENCE" );
-                    if ( rc != 0 )
-                    {
-                        throw SraInfo::Error( rc, accession, "VDatabaseOpenTableRead() failed");
-                    }
-                    break;
-                }
+        case VDB::Manager::ptTable :
+            return mgr.openTable(accession);
 
-                case kptTable :
-                {
-                    rc = VDBManagerOpenTableRead( manager, & ret, NULL, "%s", accession );
-                    if ( rc != 0 )
-                    {
-                        throw SraInfo::Error( rc, accession, "VDBManagerOpenTableRead() failed");
-                    }
-                    break;
-                }
+        case VDB::Manager::ptPrereleaseTable :
+            throw VDB::Error( (accession + ": VDB::Manager::pathType(): unsupported path type").c_str(), __FILE__, __LINE__);
 
-                case kptPrereleaseTbl :
-                    throw SraInfo::Error( rc, accession, "VDBManagerPathType(): unsupported path type");
-
-                default :
-                    throw SraInfo::Error( rc, accession, "VDBManagerPathType() returned invalid data");
-            }
-        }
+        default :
+            throw VDB::Error( (accession + ": VDB::Manager::pathType(): returned invalid data").c_str(), __FILE__, __LINE__);
     }
-    catch(const std::exception& e)
-    {
-        VTableRelease( ret );
-        VDatabaseRelease( database );
-        VDBManagerRelease( manager );
-        KDirectoryRelease( cur_dir );
-        throw;
-    }
-
-    VDatabaseRelease( database );
-    VDBManagerRelease( manager );
-    KDirectoryRelease( cur_dir );
-    return ret;
 }
 
 const char *vdcd_get_platform_txt( const uint32_t id )
@@ -197,126 +91,54 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    const VTable * table = nullptr;
-    const VCursor * cursor = nullptr;
-
+    VDB::Table table = openSequenceTable( m_accession );
     try
     {
-        table = openSequenceTable( m_accession.c_str() );
-
-        bool col_exists = false;
-        { /* check if the column PLATFORM exists to avoid a scary log message "failed to resolve" from VCursorOpen */
-            KNamelist *names = NULL;
-            rc_t rc = VTableListCol( table, & names);
-            if ( rc != 0 )
-            {
-                throw SraInfo::Error( rc, m_accession.c_str(), "VTableListCol() failed");
-            }
-            col_exists = KNamelistContains( names, "PLATFORM" );
-            rc = KNamelistRelease( names );
-            if ( rc != 0 )
-            {
-                throw SraInfo::Error( rc, m_accession.c_str(), "KNamelistRelease() failed");
-            }
-        }
-
-        if (col_exists )
+        VDB::Cursor cursor = table.read( { "PLATFORM" } );
+        if ( cursor.isStaticColumn( 0 ) )
         {
-            rc_t rc = VTableCreateCursorRead( table, &cursor );
-            if ( rc != 0 )
+            VDB::Cursor::RawData rd = cursor.read( 1, 0 );
+            ret.insert( vdcd_get_platform_txt( rd.value<uint8_t>() ) );
+        }
+        else
+        {
+            auto get_platform = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
             {
-                throw SraInfo::Error( rc, m_accession.c_str(), "VTableCreateCursorRead() failed");
-            }
-
-            uint32_t col_idx;
-            rc = VCursorAddColumn ( cursor, &col_idx, "PLATFORM" );
-            if ( rc != 0 )
-            {
-                throw SraInfo::Error( rc, m_accession.c_str(), "VCursorAddColumn() failed");
-            }
-
-            rc = VCursorOpen(cursor);
-            if ( rc != 0 )
-            {   // if the column is not found, return empty set
-                if ( ! ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined ) )
-                {
-                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpen() failed");
-                }
-            }
-            else
-            {
-                bool is_static;
-                rc = VCursorIsStaticColumn ( cursor, col_idx, & is_static );
-                if ( rc != 0 )
-                {
-                    throw SraInfo::Error( rc, m_accession.c_str(), "VCursorIsStaticColumn() failed");
-                }
-
-                if ( is_static )
-                {
-                    rc = VCursorOpenRow( cursor );
-                    if ( rc != 0 )
-                    {
-                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
-                    }
-
-                    uint32_t p = 0;
-                    uint32_t row_len;
-                    rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
-                    if ( rc != 0 || row_len != 1 )
-                    {
-                        throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
-                    }
-
-                    // we do not seem to need VCursorCloseRow()
-                    ret.insert( vdcd_get_platform_txt(p) );
-                }
-                else
-                {
-                    while( true )
-                    {
-                        rc = VCursorOpenRow( cursor );
-                        if ( rc != 0 )
-                        {
-                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorOpenRow() failed");
-                        }
-
-                        uint32_t p = 0;
-                        uint32_t row_len;
-                        rc = VCursorRead ( cursor, col_idx, 8, &p, sizeof(p), &row_len );
-                        if ( rc != 0 )
-                        {
-                            if ( GetRCObject( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
-                            {   // end of data
-                                break;
-                            }
-                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() failed");
-                        }
-                        if ( row_len != 1 )
-                        {
-                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorRead() returned invalid value for PLATFORM");
-                        }
-
-                        ret.insert( vdcd_get_platform_txt(p) );
-
-                        rc = VCursorCloseRow( cursor );
-                        if ( rc != 0 )
-                        {
-                            throw SraInfo::Error( rc, m_accession.c_str(), "VCursorCloseRow() failed");
-                        }
-                    }
-                }
-            }
+                ret.insert( vdcd_get_platform_txt( values[0].value<uint8_t>() ) );
+            };
+            cursor.foreach( get_platform );
         }
     }
-    catch(const std::exception& e)
+    catch(const VDB::Error & e)
     {
-        VCursorRelease( cursor );
-        VTableRelease( table );
+        rc_t rc = e.getRc();
+        if ( rc != 0 )
+        {   // if the column is not found, return empty set
+            if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
+            {
+                return ret;
+            }
+        }
         throw;
     }
-
-    VCursorRelease( cursor );
-    VTableRelease( table );
+  
     return ret;
+}
+
+bool 
+SraInfo::IsAligned() const
+{
+    try
+    {
+        if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+        {   // aligned if there is a non-empty alignment table
+            VDB::Table alignment = mgr.openDatabase(m_accession)["PRIMARY_ALIGNMENT"];
+            VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
+            return cursor.rowRange().first > 0;
+        }
+    }
+    catch(const VDB::Error &)
+    {   // assume the alignment table does not exist
+    }
+    return false;
 }

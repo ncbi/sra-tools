@@ -78,7 +78,7 @@ typedef struct tool_ctx_t {
     char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
 
-    struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
+    struct CleanupTask_t * cleanup_task; /* cleanup_task.h */
 
     size_t cursor_cache, buf_size, mem_limit;
     size_t estimated_output_size;
@@ -103,16 +103,16 @@ typedef struct tool_ctx_t {
 
     join_options_t join_options; /* helper.h */
 
-    inspector_input_t insp_input;       /* inspector.h */
-    inspector_output_t insp_output;     /* inspector.h */
+    insp_input_t insp_input;       /* inspector.h */
+    insp_output_t insp_output;     /* inspector.h */
 } tool_ctx_t;
 
-bool tool_ctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
-                                        cmn_iter_params_t * params );
+bool tctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
+                                    cmn_iter_params_t * params );
     
-rc_t populate_tool_ctx_and_call_inspector( tool_ctx_t * tool_ctx );
+rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx );
 
-rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in );
+rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in );
 
 #ifdef __cplusplus
 }

@@ -857,6 +857,8 @@ static rc_t Run(const CmdLine* args)
 
     assert(args);
 
+    memset(&it, 0, sizeof it);
+
     if (!SpotIteratorFileExists(args->file)) {
         rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
         PLOGERR(klogErr,

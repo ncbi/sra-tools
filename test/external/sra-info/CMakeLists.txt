@@ -53,6 +53,7 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
 
+    # platform
     add_test( NAME Test_Sra_Info_Platform_Table_1.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P SRR000123" "." "1.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -83,6 +84,13 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.5"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    # is-aligned
+    add_test( NAME Test_Sra_Info_IsAligned_No_5.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -A SRR000123" "." "5.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_IsAligned_Yes_5.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --is-aligned ERR334733" "." "5.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

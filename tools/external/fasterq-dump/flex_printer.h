@@ -53,9 +53,13 @@ extern "C" {
 #include "copy_machine.h"
 #endif
 
-struct flex_printer_t;
+#ifndef _h_multi_writer_
+#include "multi_writer.h"
+#endif
+    
+struct flp_t;
 
-typedef struct flex_printer_data_t {
+typedef struct flp_data_t {
     int64_t row_id;
     uint32_t read_id;    /* to be printed */
     uint32_t dst_id;     /* into which file to print */
@@ -64,20 +68,20 @@ typedef struct flex_printer_data_t {
     const String * read1;
     const String * read2;
     const String * quality;
-} flex_printer_data_t;
+} flp_data_t;
 
-typedef struct file_printer_args_t {
+typedef struct flp_args_t {
     KDirectory * dir;
     struct temp_registry_t * registry;
     const char * output_base;
     size_t buffer_size;
-} file_printer_args_t;
+} flp_args_t;
 
-void set_file_printer_args( file_printer_args_t * self,
-                            KDirectory * dir,
-                            struct temp_registry_t * registry,
-                            const char * output_base,
-                            size_t buffer_size );
+void flp_initialize_args( flp_args_t * self,
+                          KDirectory * dir,
+                          struct temp_registry_t * registry,
+                          const char * output_base,
+                          size_t buffer_size );
 
 /* ---------------------------------------------------------------------------------------------------
     accession       ... used in both modes for filling into the flexible defline
@@ -87,26 +91,26 @@ void set_file_printer_args( file_printer_args_t * self,
  --------------------------------------------------------------------------------------------------- */
 
 /* for file-per-read-id-mode */
-struct flex_printer_t * make_flex_printer_1( file_printer_args_t * file_args,
+struct flp_t * flp_create_1( flp_args_t * args,
                         const char * accession,
                         const char * seq_defline,
                         const char * qual_defline,
                         bool fasta );
 
 /* for multi-writer-mode */
-struct flex_printer_t * make_flex_printer_2( struct multi_writer_t * multi_writer,
+struct flp_t * flp_create_2( struct multi_writer_t * multi_writer,
                         const char * accession,
                         const char * seq_defline,
                         const char * qual_defline,
                         bool fasta );
 
-void release_flex_printer( struct flex_printer_t * self );
+void flp_release( struct flp_t * self );
 
 /* depending on the data:
     quality == NULL ... fasta / fastq
     read2 == NULL ... 1 spot / 2 spots
  */
-rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data );
+rc_t flp_print( struct flp_t * self, const flp_data_t * data );
 
 #ifdef __cplusplus
 }

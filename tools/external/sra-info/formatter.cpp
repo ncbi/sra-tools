@@ -38,7 +38,7 @@ Formatter::StringToFormat( const string & value )
         lowercase.begin(),
         lowercase.end(),
         lowercase.begin(),
-        [](unsigned char c){ return std::tolower(c); }
+        [](unsigned char c){ return tolower(c); }
     );
     if ( lowercase == "csv" ) return CSV;
     if ( lowercase == "xml" ) return XML;

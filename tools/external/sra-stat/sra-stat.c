@@ -4800,6 +4800,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
 
                 if (pcount == 0) {
+                    if (pb.repair) /* meta-repair checks that sra-stat
+                                      supports --repair-data by calling
+                                      'sra-stat --repair-data' without argument.
+                                      Just exit with success here. */
+                        exit(0);
+
                     MiniUsage (args);
                     exit(1);
                 }

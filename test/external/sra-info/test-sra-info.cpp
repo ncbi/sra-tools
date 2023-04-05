@@ -42,6 +42,7 @@ TEST_SUITE(SraInfoTestSuite);
 
 const string Accession_Table = "SRR000123";
 const string Accession_CSRA = "ERR334733";
+const string Accession_Refseq = "NC_000001.10";
 const string Run_Multiplatform = "./input/MultiPlatform";
 
 TEST_CASE(Construction)
@@ -80,14 +81,13 @@ FIXTURE_TEST_CASE(PlatformInInvalidAccession, SraInfoFixture)
 
 FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
 {
-    const string Accession = "NC_000001.10";
-    info.SetAccession(Accession);
+    info.SetAccession(Accession_Refseq);
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(0), p.size() );
 }
 
 // do such runs exist?
-// FIXTURE_TEST_CASE(NoPlatformInDatabase, SraInfoFixture) 
+// FIXTURE_TEST_CASE(NoPlatformInDatabase, SraInfoFixture)
 // {
 // }
 
@@ -141,7 +141,7 @@ FIXTURE_TEST_CASE(Format_Platforms_CSV, SraInfoFixture)
 {
     info.SetAccession(Run_Multiplatform);
     SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::CSV ); 
+    Formatter f( Formatter::CSV );
     string out = f.format( p );
     // one value per line, sorted
     REQUIRE_EQ( string("SRA_PLATFORM_454,SRA_PLATFORM_ILLUMINA,SRA_PLATFORM_UNDEFINED"), out );
@@ -151,7 +151,7 @@ FIXTURE_TEST_CASE(Format_Platforms_XML, SraInfoFixture)
 {
     info.SetAccession(Run_Multiplatform);
     SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::XML ); 
+    Formatter f( Formatter::XML );
     string out = f.format( p );
     // one value per line, sorted
     REQUIRE_EQ( string("<platform>SRA_PLATFORM_454</platform>\n"
@@ -163,7 +163,7 @@ FIXTURE_TEST_CASE(Format_Platforms_Json, SraInfoFixture)
 {
     info.SetAccession(Run_Multiplatform);
     SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::Json ); 
+    Formatter f( Formatter::Json );
     string out = f.format( p );
     // one value per line, sorted
     REQUIRE_EQ( string("[\n"
@@ -177,7 +177,7 @@ FIXTURE_TEST_CASE(Format_Platforms_Piped, SraInfoFixture)
 {   // same as default
     info.SetAccession(Run_Multiplatform);
     SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::Piped ); 
+    Formatter f( Formatter::Piped );
     string out = f.format( p );
     REQUIRE_EQ( string("SRA_PLATFORM_454\nSRA_PLATFORM_ILLUMINA\nSRA_PLATFORM_UNDEFINED"), out );
 }
@@ -186,9 +186,9 @@ FIXTURE_TEST_CASE(Format_Platforms_Tab, SraInfoFixture)
 {   // same as default
     info.SetAccession(Run_Multiplatform);
     SraInfo::Platforms p = info.GetPlatforms();
-    Formatter f( Formatter::Tab ); 
+    Formatter f( Formatter::Tab );
     string out = f.format( p );
-    // one line, tab separated 
+    // one line, tab separated
     REQUIRE_EQ( string("SRA_PLATFORM_454\tSRA_PLATFORM_ILLUMINA\tSRA_PLATFORM_UNDEFINED"), out );
 }
 
@@ -207,12 +207,17 @@ FIXTURE_TEST_CASE(IsAligned_Yes, SraInfoFixture)
 // HasPhysicalQualities
 FIXTURE_TEST_CASE(HasPhysicalQualities_No, SraInfoFixture)
 {
-    info.SetAccession(Run_Multiplatform); 
+    info.SetAccession(Accession_Refseq);
     REQUIRE( ! info.HasPhysicalQualities() );
 }
 FIXTURE_TEST_CASE(HasPhysicalQualities_Yes, SraInfoFixture)
 {
     info.SetAccession(Accession_CSRA);
+    REQUIRE( info.HasPhysicalQualities() );
+}
+FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform);
     REQUIRE( info.HasPhysicalQualities() );
 }
 

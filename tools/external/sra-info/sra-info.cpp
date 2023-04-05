@@ -147,7 +147,7 @@ SraInfo::IsAligned() const
 
 bool
 SraInfo::HasPhysicalQualities() const
-{   // QUALITY column is both readable and physical
+{   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
     VDB::Table table = openSequenceTable( m_accession );
     const string QualityColumn = "QUALITY";
     VDB::Table::ColumnNames cols = table.readableColumns();
@@ -155,6 +155,12 @@ SraInfo::HasPhysicalQualities() const
     {
         return false;
     }
+
     cols = table.physicalColumns();
-    return find( cols.begin(), cols.end(), QualityColumn ) != cols.end();
+    if ( find( cols.begin(), cols.end(), QualityColumn ) != cols.end() )
+    {
+        return true;
+    }
+    const string OriginalQualityColumn = "ORIGINAL_QUALITY";
+    return find( cols.begin(), cols.end(), OriginalQualityColumn ) != cols.end();
 }

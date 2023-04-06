@@ -126,6 +126,7 @@ translate( char ch )
         case '-':
         case 'X':
         case '?':
+        case '.':
             return 'N';
         default:
             return ch;

@@ -439,10 +439,10 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     uint32_t channel[read_num];
     uint32_t read_no[read_num];
     m_tmp_sequence.clear();
+    m_qual_scores.clear();
     read_num = 0;
     for (const auto& read : reads) {
         m_tmp_sequence += read.Sequence();
-        m_qual_scores.clear();
         read.GetQualScores(m_qual_scores);
         read_start[read_num] = start;
         auto sz = read.Sequence().size();

@@ -550,7 +550,7 @@ int CFastqParseApp::xRun()
         parser.set_spot_file(mSpotFile);
     parser.set_allow_early_end(mAllowEarlyFileEnd);
     m_writer->open();
-    auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
+    auto err_checker = [this](fastq_error& e) -> void { CFastqParseApp::xCheckErrorLimits(e);};
     for (auto& group : data["groups"]) {
         parser.set_readers(group);
         if (!group["files"].empty()) {
@@ -565,7 +565,7 @@ int CFastqParseApp::xRun()
                     parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
                     break;
                 default:
-                    throw runtime_error("Invaid quality encoding");
+                    throw runtime_error("Invalid quality encoding");
             }
         }
     }

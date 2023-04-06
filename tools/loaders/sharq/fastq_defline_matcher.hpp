@@ -399,7 +399,7 @@ public:
     CDefLineMatcherIlluminaNew() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNew",
-            "^[@>+]([!-~]+?)([:_])(\\d+)([:_])(\\d+)([:_])(-?\\d+\\.?\\d*)([:_])(-?\\d+\\.\\d+|\\d+)(\\s+|[_|-])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
+            R"(^[@>+]([!-~]+?)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)(\s+|[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {}
 };
 
@@ -424,7 +424,7 @@ public:
     CDefLineMatcherIlluminaNewWithSuffix() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNewWithSuffix",
-            "^[@>+]([!-~]+)([:_])(\\d+)([:_])(\\d+)([:_])(-?\\d+\\.?\\d*)([:_])(-?\\d+\\.\\d+|\\d+)([!-~]+?\\s+|[!-~]+?[:_|-])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)"),
+            R"(^[@>+]([!-~]+)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)([!-/:-~]{1}[!-~]*?\s+|[!-/:-~]{1}[!-~]*?[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))"),
         mSuffixPattern("(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)")
     {
     }
@@ -477,15 +477,6 @@ public:
             "^[@>+]([!-~]+?)(_)(\\d+)(_)(\\d+)(_)(\\d+)(_)(\\d+)(\\s+|_)([12345]|)_([NY])_(\\d+|O)_?([!-~]*?)(\\s+|$)")
     {}
 };
-/*
-Done   +self.illuminaOldColon = re.compile(r"[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)([-:])(-?\d+\.\d+|-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$)")
-Done        self.illuminaOldUnderscore = re.compile(r"[@>+]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+\.?\d*)(_)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$)")
-        self.illuminaOldNoPrefix = re.compile(r"[@>+]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$)")
-Done        self.illuminaOldWithSuffix = re.compile(r"[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)(/[12345][!-~]+)(\s+|$)")
-Done        self.illuminaOldWithSuffix2 = re.compile(r"[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.?\d*[!-~]+?)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$)")
-        self.illuminaOldSuffix2 = re.compile(r"(-?\d+\.\d+|-?\d+)([^\d\s.]{1}[!-~]+)")
-        self.illuminaOldSuffix = re.compile(r"(/[12345])([^\d\s]{1}[!-~]+)")
-*/
 
 class CDefLineMatcherIlluminaOldColon : public CDefLineMatcherIlluminaOldBase
 /// illuminaOldColon

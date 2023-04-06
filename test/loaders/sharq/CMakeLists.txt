@@ -191,7 +191,8 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(004.truncated.pass 0 "--allowEarlyFileEnd ${IN}004.truncated_1.fq.gz ${IN}004.truncated_2.fq.gz")
         SharqTest(005.offset0 0 "${IN}005.offset0_1.fq ${IN}005.offset0_2.fq")
         SharqTest(005.offset64 0 "${IN}005.offset64_1.fq ${IN}005.offset64_2.fq")
-        SharqTest(006.duplicate 1 "${IN}006.duplicate.fq")
+        SharqTest(006.duplicate 1 "--max-err-count 0 ${IN}006.duplicate.fq")
+        SharqTest(006.duplicate2 0 "--max-err-count 50 ${IN}006.duplicate.fq")
         SharqTest(007.digest.udenfined 0 "--digest ${IN}001.read.unsupported.fq")
         SharqTest(007.digest.multiple 0 "--digest ${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
         SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq")
@@ -199,13 +200,12 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithTelemetry(008.telemetry_pass  0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
         SharqTest(009.more_than_4_per_spot 1 "--debug ${IN}009.test_I1_001.fastq ${IN}009.test_R1_001.fastq ${IN}009.test_R2_001.fastq ${IN}009.test_R3_001.fastq")
         SharqTest(010.errors.invalid_seq_pass1 0 "${IN}010.errors.invalid_seq.fq")
-        SharqTest(010.errors.invalid_seq_pass2 0 "--max-err-count 5 ${IN}010.errors.invalid_seq.fq")
+        SharqTest(010.errors.invalid_seq_pass2 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
         SharqTest(010.errors.invalid_seq_fail 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
 
         SharqTest(011.nanopore.3 0 "--max-err-count 0 ${IN}011.nanopore.3.fq")
         SharqTest(012.qualities 0 "--max-err-count 0 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq") #VDB-4745
         SharqTest(013.no-reads 0 "--max-err-count 0 ${IN}013.t_I1.fastq ${IN}013.t_I2.fastq ${IN}013.t_R1.fastq ${IN}013.t_R2.fastq") #VDB-4745
-
     endif()
 
 endif()

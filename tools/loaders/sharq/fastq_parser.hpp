@@ -320,7 +320,8 @@ public:
      * Check if more than one name exists in the collected m_spot_names dictionary
      *
      */
-    void check_duplicates();
+    template<typename ErrorChecker>
+    void check_duplicates(ErrorChecker&& err_checker);
 
     /**
      * @brief Reports collected telemetry via json
@@ -724,8 +725,9 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
                     continue;
                 }
             } catch (fastq_error& e) {
+                has_spots = true;
                 error_checker(e);
-                if (spot.empty()) {
+                if (spot_reads[i].empty()) {
                     ++m_telemetry.groups.back().rejected_spots;
                     continue; 
                 }
@@ -835,8 +837,9 @@ void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
  *  @return index of found term or -1
  *
  */
-static
-int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& scanner, const vector<string>& terms)
+
+template<typename ErrorChecker>
+int s_find_duplicates(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& scanner, const vector<string>& terms, ErrorChecker&& error_checker)
 {
     auto sz = terms.size();
     if (sz == 0)
@@ -850,7 +853,8 @@ int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& sca
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            return i;
+            fastq_error e(170, "Collation check. Duplicate spot '{}' at index {}", terms[i], i);
+            error_checker(e);
         }
     }
     return -1;
@@ -859,7 +863,8 @@ int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& sca
 
 //  ----------------------------------------------------------------------------
 template<typename TWriter>
-void fastq_parser<TWriter>::check_duplicates()
+template<typename ErrorChecker>
+void fastq_parser<TWriter>::check_duplicates(ErrorChecker&& error_checker)
 {
     spdlog::stopwatch sw;
     spdlog::info("spot_name check: {} spots", m_spot_names.size());
@@ -888,9 +893,7 @@ void fastq_parser<TWriter>::check_duplicates()
             ++hits;
             search_terms.push_back(value);
             if (search_terms.size() == 10000) {
-                int idx = s_search_terms(m_spot_names, str_scan, search_terms);
-                if (idx >= 0)
-                    throw fastq_error(170, "Collation check. Duplicate spot '{}' at index {}", search_terms[idx], idx);
+                s_find_duplicates(m_spot_names, str_scan, search_terms, error_checker);
                 search_terms.clear();
              }
         }
@@ -901,9 +904,7 @@ void fastq_parser<TWriter>::check_duplicates()
         }
     }
     if (!search_terms.empty()) {
-        int idx = s_search_terms(m_spot_names, str_scan, search_terms);
-        if (idx >= 0)
-            throw fastq_error(170, "Collation check. Duplicate spot '{}' at index {}", search_terms[idx], idx);
+        s_find_duplicates(m_spot_names, str_scan, search_terms, error_checker);
     }
     spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
     spdlog::debug("spot_name check time:{}, num_hits: {:L}", sw, hits);
@@ -1067,6 +1068,7 @@ void check_hash_file(const string& hash_file)
     auto it = vec.begin();
     vector<string> search_terms;
     search_terms.reserve(10000);
+    auto err_checker = [](fastq_error& e) -> void { throw e;};
 
     while (it.valid()) {
         value = it.value();
@@ -1080,9 +1082,7 @@ void check_hash_file(const string& hash_file)
             search_terms.push_back(value);
             if (search_terms.size() == 10000) {
                 bm::chrono_taker<> tt1(std::cout, "scan", search_terms.size(), &timing_map);
-                int idx = s_search_terms(vec, str_scan, search_terms);
-                if (idx >= 0)
-                    throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
+                s_find_duplicates(vec, str_scan, search_terms, err_checker);
                 search_terms.clear();
              }
         }
@@ -1096,9 +1096,7 @@ void check_hash_file(const string& hash_file)
     }
     if (!search_terms.empty()) {
         bm::chrono_taker<> tt1(std::cout, "scan", search_terms.size(), &timing_map);
-        int idx = s_search_terms(vec, str_scan, search_terms);
-        if (idx >= 0)
-            throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
+        s_find_duplicates(vec, str_scan, search_terms, err_checker);
     }
 
     {

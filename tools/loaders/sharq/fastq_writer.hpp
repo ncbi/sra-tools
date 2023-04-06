@@ -170,7 +170,7 @@ public:
 
     /**
      * @brief Get the attr object
-     * value is not chnaged if attr is not found
+     * value is not changed if attr is not found
      * 
      * @param name 
      * @param value 
@@ -200,7 +200,7 @@ void fastq_writer::write_spot(const vector<CFastqRead>& reads)
     for (const auto& read : reads) {
         //auto sz = read.Sequence().size();
         cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
-        cout << "spot_group:" << read.SpotGroup() << "\n";
+        //cout << "spot_group:" << read.SpotGroup() << "\n";
         cout << read.Sequence() << "\n";
         cout << "+\n";
         cout << read.Quality() << endl;

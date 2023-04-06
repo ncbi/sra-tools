@@ -58,6 +58,15 @@ public:
     bool Match(const string_view& defline, bool strict = false);
 
     /**
+     * @brief Check if defline matches last matched pattern
+     * 
+     * @param defline 
+     * @return true 
+     * @return false 
+     */
+    bool MatchLast(const string_view& defline);
+
+    /**
      * @brief Enable MatchAll pattern
      *
      */
@@ -156,6 +165,11 @@ bool CDefLineParser::Match(const string_view& defline, bool strict)
         return true;
     }
     return false;
+}
+
+bool CDefLineParser::MatchLast(const string_view& defline)
+{
+    return mDefLineMatchers[mIndexLastSuccessfulMatch]->Matches(defline);
 }
 
 

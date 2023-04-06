@@ -99,8 +99,8 @@ public:
      * @param[in] file_name File name
      * @param[in] _stream opened input stream to read from
      * @param[in] read_type expected read type ('T', 'B', 'A')
-     * @param[in] platform expected platfrom code
-     * @param[in] match_all if True no failure on unspoorted deflines
+     * @param[in] platform expected platform code
+     * @param[in] match_all if True no failure on unsupported deflines
      */
     fastq_reader(const string& file_name, shared_ptr<istream> _stream, vector<char> read_type = {'B'}, int platform = 0, bool match_all = false)
         : m_file_name(file_name)
@@ -237,6 +237,9 @@ private:
     string              m_tmp_str;                  ///< Temporary string holder
     int                 m_read_type_sz = 0;         ///< Temporary variable yto hold readtype vector size
     int                 m_curr_platform = 0;        ///< current platform
+    CFastqRead          m_read;                     ///< Temporary read holder
+    vector<CFastqRead>  m_next_reads;               ///< Temporary read vector
+    string              m_spot;                     ///< Temporary spot holder   
 };
 
 //  ----------------------------------------------------------------------------
@@ -460,16 +463,17 @@ bool fastq_reader::parse_read(CFastqRead& read)
                 sequence_size *= 4;
             }
             do {
+                // attempt to detect a missing quality score
+                if (m_line_view[0] == '@' && m_line_view.size() != sequence_size && m_defline_parser.MatchLast(m_line_view)) {
+                    m_buffered_defline = m_line;
+                    break;
+                }
                 read.AddQualityLine(m_line_view);
                 if (read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
                 if (m_line_view.empty())
                     break;
-                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
-                    m_buffered_defline = m_line;
-                    break;
-                }
             } while (true);
         }
     }
@@ -496,7 +500,7 @@ void fastq_reader::validate_read(CFastqRead& read)
 {
     if (read.Sequence().empty())
         throw fastq_error(110, "Read {}: no sequence data", read.Spot());
-    if (read.Quality().empty())
+    if (read.Quality().empty() && !eof())
         throw fastq_error(111, "Read {}: no quality scores", read.Spot());
     // check isalpha
     if (std::any_of(read.Sequence().begin(), read.Sequence().end(), [](const char& c) { return !isalpha(c);}))
@@ -519,23 +523,23 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
         spot_name = reads.front().Spot();
         return true;
     }
-    CFastqRead read;
+    m_read.Reset();
     if (m_pending_spot.empty()) {
-        if (!get_read<ScoreValidator>(read))
+        if (!get_read<ScoreValidator>(m_read))
             return false;
-        spot_name = read.Spot();
-        reads.push_back(move(read));
+        spot_name = m_read.Spot();
+        reads.push_back(move(m_read));
     } else {
         reads.swap(m_pending_spot);
         spot_name = reads.front().Spot();
     }
 
-    while (get_read<ScoreValidator>(read)) {
-        if (read.Spot() == spot_name) {
-            reads.push_back(move(read));
+    while (get_read<ScoreValidator>(m_read)) {
+        if (m_read.Spot() == spot_name) {
+            reads.push_back(move(m_read));
             continue;
         }
-        m_pending_spot.push_back(move(read));
+        m_pending_spot.push_back(move(m_read));
         break;
     }
 
@@ -558,17 +562,16 @@ template<typename ScoreValidator>
 bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
 {
 
-    string spot;
-    vector<CFastqRead> next_reads;
-    if (!get_next_spot<ScoreValidator>(spot, next_reads))
+    m_next_reads.clear();
+    if (!get_next_spot<ScoreValidator>(m_spot, m_next_reads))
         return false;
-    if (spot == spot_name) {
-        swap(next_reads, reads);
+    if (m_spot == spot_name) {
+        reads = move(m_next_reads);
         return true;
     }
     if (!m_pending_spot.empty() && m_pending_spot.front().Spot() == spot_name) {
-        get_next_spot<ScoreValidator>(spot, reads);
-        swap(m_buffered_spot, next_reads);
+        get_next_spot<ScoreValidator>(m_spot, reads);
+        m_buffered_spot = move(m_next_reads);
         return true;
     }
     return false;
@@ -658,7 +661,7 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
                     read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
     }
     if (qual_size < sz) {
-        if (qual_size == 0)
+        if (qual_size == 0 && !eof())
             throw fastq_error(111, "Read {}: no quality scores", read.Spot());
         read.mQuality.append(sz - qual_size,  char(ScoreValidator::min_score() + 30));
     }
@@ -714,17 +717,28 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
         early_end = 0;
         for (int i = 0; i < num_readers; ++i)
         try {
-            if (!m_readers[i] . template get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
-                ++early_end;
-                check_readers = num_readers > 1 && m_allow_early_end == false;
-                continue;
+            try {
+                if (!m_readers[i] . template get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
+                    ++early_end;
+                    check_readers = num_readers > 1 && m_allow_early_end == false;
+                    continue;
+                }
+            } catch (fastq_error& e) {
+                error_checker(e);
+                if (spot.empty()) {
+                    ++m_telemetry.groups.back().rejected_spots;
+                    continue; 
+                }
             }
-
             has_spots = true;
 
             for (int j = 0; j < num_readers; ++j) {
                 if (j == i) continue;
-                m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);
+                try {
+                    m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);
+                } catch (fastq_error& e) {
+                    error_checker(e);
+                }
             }
 
             assembled_spot.clear();
@@ -970,6 +984,12 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
 }
 
 //  ----------------------------------------------------------------------------
+/**
+ * @brief Groups files by the first spot into batches
+ * 
+ * @param files 
+ * @param batches 
+ */
 void fastq_reader::cluster_files(const vector<string>& files, vector<vector<string>>& batches)
 {
     batches.clear();
@@ -982,24 +1002,23 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
     }
 
     vector<CFastqRead> reads;
-    vector<fastq_reader> readers;
     vector<char> readTypes;
-    for (const auto& fn : files)
-        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, 0, true);
     vector<uint8_t> placed(files.size(), 0);
 
     for (size_t i = 0; i < files.size(); ++i) {
         if (placed[i]) continue;
         placed[i] = 1;
         string spot;
-        if (!readers[i].get_next_spot<>(spot, reads))
-            throw fastq_error(50 , "File '{}' has no reads", readers[i].file_name());
-        vector<string> batch{readers[i].file_name()};
+        auto reader1 = fastq_reader(files[i], s_OpenStream(files[i], 1024*1024), readTypes, 0, true);
+        if (!reader1.get_next_spot<>(spot, reads)) 
+            throw fastq_error(50 , "File '{}' has no reads", files[i]);
+        vector<string> batch{files[i]};
         for (size_t j = 0; j < files.size(); ++j) {
             if (placed[j]) continue;
-            if (readers[j].get_spot<>(spot, reads)) {
+            auto reader2 = fastq_reader(files[j], s_OpenStream(files[j], 1024*1024), readTypes, 0, true);
+            if (reader2.get_spot<>(spot, reads)) {
                 placed[j] = 1;
-                batch.push_back(readers[j].file_name());
+                batch.push_back(files[j]);
             }
         }
         if (!batches.empty() && batches.front().size() != batch.size()) {

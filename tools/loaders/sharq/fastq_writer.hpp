@@ -246,6 +246,7 @@ protected:
     bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
     string m_tmp_sequence; ///< temp string for sequences 
     string m_tmp_spot; ///< temp string for spots
+    vector<uint8_t> m_qual_scores; ///< temp vector for scores
 };
 
 //  -----------------------------------------------------------------------------
@@ -429,10 +430,9 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     c_NAME.setValue(m_tmp_spot);
     c_SPOT_GROUP.setValue(first_read.SpotGroup());
     c_PLATFORM.setValue(m_platform);
-    vector<uint8_t>  qual_scores;
     auto read_num = reads.size();
-    int32_t read_start[read_num];
     size_t start  = 0;
+    int32_t read_start[read_num];
     int32_t read_len[read_num];
     char read_type[read_num];
     char read_filter[read_num];
@@ -442,7 +442,8 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     read_num = 0;
     for (const auto& read : reads) {
         m_tmp_sequence += read.Sequence();
-        read.GetQualScores(qual_scores);
+        m_qual_scores.clear();
+        read.GetQualScores(m_qual_scores);
         read_start[read_num] = start;
         auto sz = read.Sequence().size();
         start += sz;
@@ -460,8 +461,8 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     }
     std::transform(m_tmp_sequence.begin(), m_tmp_sequence.end(), m_tmp_sequence.begin(), ::toupper);
     c_READ.setValue(m_tmp_sequence);
-    c_QUALITY.setValue(qual_scores.size(), sizeof(uint8_t), &qual_scores[0]);
-    c_READ_START.setValue(read_num, sizeof(int32_t),&read_start);
+    c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
+    c_READ_START.setValue(read_num, sizeof(int32_t), read_start);
     c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len);
     c_READ_TYPE.setValue(read_num, sizeof(char), read_type);
     c_READ_FILTER.setValue(read_num, sizeof(char), read_filter);
@@ -517,8 +518,8 @@ public:
         c_SPOT_GROUP.setValue(first_read.SpotGroup());
         c_PLATFORM.setValue(m_platform);
         m_tmp_sequence = first_read.Sequence();
-        vector<uint8_t> qual_scores;
-        first_read.GetQualScores(qual_scores);
+        m_qual_scores.clear();
+        first_read.GetQualScores(m_qual_scores);
         auto read_num = read_start.size();
         auto sz = m_tmp_sequence.size();
         for (int i = read_num - 1; i >=0; --i) {
@@ -527,7 +528,7 @@ public:
         }
         std::transform(m_tmp_sequence.begin(), m_tmp_sequence.end(), m_tmp_sequence.begin(), ::toupper);
         c_READ.setValue(m_tmp_sequence);
-        c_QUALITY.setValue(qual_scores.size(), sizeof(uint8_t), &qual_scores[0]);
+        c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
         c_READ_START.setValue(read_num, sizeof(int32_t),read_start.data());
         c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len.data());
         c_READ_TYPE.setValue(read_num, sizeof(char), m_read_type.data());

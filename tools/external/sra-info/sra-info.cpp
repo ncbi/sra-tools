@@ -118,15 +118,20 @@ SraInfo::GetPlatforms() const
     {
         rc_t rc = e.getRc();
         if ( rc != 0 )
-        {   // if the column is not found, return empty set
+        {   // if the column is not found, return UNDEFINED
             if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
             {
+                ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
                 return ret;
             }
         }
         throw;
     }
 
+    if ( ret.size() == 0 )
+    {
+        ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
+    }
     return ret;
 }
 
@@ -235,8 +240,20 @@ SraInfo::IsAligned() const
 
 bool
 SraInfo::HasPhysicalQualities() const
-{
+{   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
     VDB::Table table = openSequenceTable( m_accession );
-    VDB::Table::ColumnNames cols = table.physicalColumns();
-    return find( cols.begin(), cols.end(), string( "QUALITY" ) ) != cols.end();
+    const string QualityColumn = "QUALITY";
+    VDB::Table::ColumnNames cols = table.readableColumns();
+    if ( find( cols.begin(), cols.end(), QualityColumn ) == cols.end() )
+    {
+        return false;
+    }
+
+    cols = table.physicalColumns();
+    if ( find( cols.begin(), cols.end(), QualityColumn ) != cols.end() )
+    {
+        return true;
+    }
+    const string OriginalQualityColumn = "ORIGINAL_QUALITY";
+    return find( cols.begin(), cols.end(), OriginalQualityColumn ) != cols.end();
 }

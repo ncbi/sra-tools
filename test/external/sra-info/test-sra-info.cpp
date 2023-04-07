@@ -40,9 +40,11 @@ using namespace ncbi::NK;
 
 TEST_SUITE(SraInfoTestSuite);
 
-const string Accession_Table = "SRR000123";
-const string Accession_CSRA = "ERR334733";
-const string Run_Multiplatform = "./input/MultiPlatform";
+const string Accession_Table    = "SRR000123";
+const string Accession_CSRA     = "ERR334733";
+const string Accession_Refseq   = "NC_000001.10";
+const string Accession_WGS      = "AAAAAA01";
+const string Run_Multiplatform  = "./input/MultiPlatform";
 
 TEST_CASE(Construction)
 {
@@ -80,10 +82,10 @@ FIXTURE_TEST_CASE(PlatformInInvalidAccession, SraInfoFixture)
 
 FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
 {
-    const string Accession = "NC_000001.10";
-    info.SetAccession(Accession);
+    info.SetAccession(Accession_Refseq);
     SraInfo::Platforms p = info.GetPlatforms();
-    REQUIRE_EQ( size_t(0), p.size() );
+    REQUIRE_EQ( size_t(1), p.size() );
+    REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
 }
 
 // do such runs exist?
@@ -104,6 +106,13 @@ FIXTURE_TEST_CASE(SinglePlatformInDatabase, SraInfoFixture)
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(1), p.size() );
     REQUIRE_EQ( string("SRA_PLATFORM_ILLUMINA"), *p.begin() );
+}
+FIXTURE_TEST_CASE(SinglePlatformWGS, SraInfoFixture)
+{
+    info.SetAccession(Accession_WGS);
+    SraInfo::Platforms p = info.GetPlatforms();
+    REQUIRE_EQ( size_t(1), p.size() );
+    REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
 }
 
 FIXTURE_TEST_CASE(MultiplePlatforms, SraInfoFixture)
@@ -262,12 +271,17 @@ FIXTURE_TEST_CASE(IsAligned_Yes, SraInfoFixture)
 // HasPhysicalQualities
 FIXTURE_TEST_CASE(HasPhysicalQualities_No, SraInfoFixture)
 {
-    info.SetAccession(Run_Multiplatform);
+    info.SetAccession(Accession_Refseq);
     REQUIRE( ! info.HasPhysicalQualities() );
 }
 FIXTURE_TEST_CASE(HasPhysicalQualities_Yes, SraInfoFixture)
 {
     info.SetAccession(Accession_CSRA);
+    REQUIRE( info.HasPhysicalQualities() );
+}
+FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform);
     REQUIRE( info.HasPhysicalQualities() );
 }
 

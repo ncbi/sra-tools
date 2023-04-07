@@ -60,6 +60,9 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
     add_test( NAME Test_Sra_Info_Platform_CSRA_1.1
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ERR334733" "." "1.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Platform_WGS_1.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P AAAAAA01" "." "1.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     add_test( NAME Test_Sra_Info_Platform_Multiple_2.0
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -94,7 +97,7 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality SRR000123" "." "6.1"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     add_test( NAME Test_Sra_Info_Quality_Physical_6.2
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q ./input/MultiPlatform" "." "6.2"
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q NC_000001.10" "." "6.2"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # spot layout
@@ -114,6 +117,23 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f xml SRR000123" "." "7.5"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    # TODO: find PACBIO and GC runs with CONSENSUS tables
+    add_test( NAME Test_Sra_Info_SpotLayout_Pacbio_7.6
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout DRR034173" "." "7.6"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME SlowTest_Sra_Info_SpotLayout_CG_7.7
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR546160" "." "7.7"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # # multiple queries
+    # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
+    # COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
+    # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # # the default set of queries
+    # add_test( NAME Test_Sra_Info_Default.8.0
+    #     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
+    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

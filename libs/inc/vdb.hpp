@@ -328,8 +328,18 @@ namespace VDB {
         typedef std::vector< std::string > ColumnNames;
         ColumnNames physicalColumns() const
         {
+            return listColumns( VTableListPhysColumns );
+        }
+        ColumnNames readableColumns() const
+        {
+            return listColumns( VTableListReadableColumns );
+        }
+
+    private:
+        ColumnNames listColumns(  rc_t CC listfn ( struct VTable const *self, struct KNamelist **names ) ) const
+        {
             KNamelist *names;
-            rc_t rc = VTableListPhysColumns ( o, & names );
+            rc_t rc = listfn ( o, & names );
             if (rc)
             {
                 throw Error(rc, __FILE__, __LINE__);
@@ -356,6 +366,8 @@ namespace VDB {
             KNamelistRelease ( names );
             return ret;
         }
+
+
     };
 
     class Database {

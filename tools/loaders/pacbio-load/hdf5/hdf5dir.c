@@ -53,6 +53,10 @@ typedef struct HDF5Dir HDF5Dir;
 #include <dirent.h>
 #endif
 
+#ifndef PATH_MAX
+#include <linux/limits.h>
+#endif
+
 typedef struct HDF5File HDF5File;
 
 /* import of HDF5FileMake from hdf5file.c */

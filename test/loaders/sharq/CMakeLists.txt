@@ -39,7 +39,7 @@ message(RE2_FOUND=${RE2_FOUND})
         set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
         set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
-        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
         endif()
 

@@ -544,7 +544,7 @@ static void updateCache(char const *const cachePath, char const *const inPath, V
     else {
         off_t const fsize = invalidated < 0 ? 0 : lseek(invalidated, 0, SEEK_END);
         if (fsize % sizeof(int64_t) == 0) {
-            void *const map = mmap(NULL, fsize, PROT_READ|PROT_WRITE, MAP_FILE | MAP_PRIVATE, invalidated, 0);
+            void *const map = mmap(NULL, fsize, PROT_READ|PROT_WRITE, MAP_PRIVATE, invalidated, 0);
             close(invalidated);
             if (map) {
                 qsort(map, fsize / sizeof(int64_t), sizeof(int64_t), cmp_int64_t);

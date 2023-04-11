@@ -1171,6 +1171,36 @@ FIXTURE_TEST_CASE(IlluminaOldTests, LoaderFixture)
         }
     }
 }
+vector<tuple<string, string, string>> cPacBioCases = {
+    { "PacBio", "@m120525_202528_42132_c100323432550000001523017609061234_s1_p0/43", "m120525_202528_42132_c100323432550000001523017609061234_s1_p0/43" },
+    { "PacBio", "@m101111_134728_richard_c000027022550000000115022502211150_s1_p0/1", "m101111_134728_richard_c000027022550000000115022502211150_s1_p0/1" },
+    { "PacBio", "@m110115_082846_Uni_c000000000000000000000012706400001_s3_p0/1/0_508", "m110115_082846_Uni_c000000000000000000000012706400001_s3_p0/1/0_508" },
+    { "PacBio", "@m130727_043304_42150_c100538232550000001823086511101337_s1_p0/16/0_5273", "m130727_043304_42150_c100538232550000001823086511101337_s1_p0/16/0_5273" },
+    { "PacBio", "@m120328_022709_00128_c100311312550000001523011808061260_s1_p0/129/0_4701", "m120328_022709_00128_c100311312550000001523011808061260_s1_p0/129/0_4701" },
+    { "PacBio", "@m120204_011539_00128_c100220982555400000315052304111230_s2_p0/8/0_1446", "m120204_011539_00128_c100220982555400000315052304111230_s2_p0/8/0_1446" },
+    { "PacBio2", "@m54261_181223_050738_4194378", "m54261_181223_050738_4194378" },
+    { "PacBio2", "@m64049_200827_171349/2/ccs", "m64049_200827_171349/2/ccs" },
+    { "PacBio2", "@m54336U_191028_160945/1/120989_128438", "m54336U_191028_160945/1/120989_128438" },
+};
+
+FIXTURE_TEST_CASE(PacBioTests, LoaderFixture)
+{
+    CFastqRead read;
+    for (size_t i = 0; i < cPacBioCases.size(); ++i) {
+        const auto& test_case = cPacBioCases[i];
+        const auto& defline_type = get<0>(test_case);
+        const auto& defline = get<1>(test_case);
+        const auto& spot = get<2>(test_case);
+        cout << defline_type << ", case " << i << ": " << defline << endl;
+        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_PACBIO_SMRT);
+        REQUIRE_EQ(reader.defline_type(), defline_type);
+        REQUIRE_EQ(read.Spot(), spot);
+    }
+}
+
+
 ////////////////////////////////////////////
 
 int main (int argc, char *argv [])

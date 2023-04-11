@@ -117,6 +117,10 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
     mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
+    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio4);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);

@@ -1076,4 +1076,73 @@ public:
     }
 };
 
+
+class CDefLineMatcherPacBio : public CDefLineMatcher
+/// PacBio
+{
+public:
+    CDefLineMatcherPacBio() :
+        CDefLineMatcher(
+            "PacBio",
+            R"(^[@>+](m\d{5,6}_\d{6}_[!-~]+?_c\d{33}_s\d+_[pX]\d/\d+/?\d*_?\d*|m\d{6}_\d{6}_[!-~]+?_c\d{33}_s\d+_[pX]\d[|/]\d+[|/]ccs[!-~]*?)(\s+|$))")
+    {
+    }
+    CDefLineMatcherPacBio(const string& defLineName, const string& pattern) :
+        CDefLineMatcher(defLineName, pattern)
+    {
+    }
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_PACBIO_SMRT;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // Name
+        // 0   
+
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
+        read.MoveSpot(move(m_tmp_spot));
+    }
+};
+
+class CDefLineMatcherPacBio2 : public CDefLineMatcherPacBio
+/// PacBio2
+{
+public:
+    CDefLineMatcherPacBio2() :
+        CDefLineMatcherPacBio(
+            "PacBio2",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
+
+class CDefLineMatcherPacBio3 : public CDefLineMatcherPacBio
+/// PacBio3
+{
+public:
+    CDefLineMatcherPacBio3() :
+        CDefLineMatcherPacBio(
+            "PacBio3",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/ccs[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
+class CDefLineMatcherPacBio4 : public CDefLineMatcherPacBio
+/// PacBio4
+{
+public:
+    CDefLineMatcherPacBio4() :
+        CDefLineMatcherPacBio(
+            "PacBio4",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/\d+_\d+[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
 #endif

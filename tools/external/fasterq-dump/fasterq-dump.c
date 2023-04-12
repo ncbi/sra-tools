@@ -566,8 +566,8 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
 
     if ( 0 == rc ) {
         if ( tool_ctx -> show_details ) {
-            uint64_t lookup_size = file_size( tool_ctx -> dir, tool_ctx -> lookup_filename ); /* file_tools.c */
-            uint64_t index_size = file_size( tool_ctx -> dir, tool_ctx -> index_filename ); /* file_tools.c */
+            uint64_t lookup_size = ft_file_size( tool_ctx -> dir, tool_ctx -> lookup_filename );
+            uint64_t index_size = ft_file_size( tool_ctx -> dir, tool_ctx -> index_filename );
             KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size );
         }
     } else {
@@ -653,7 +653,7 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
         destroy_temp_registry( registry ); /* temp_registry.c */
     }
 
-    hlp_print_stats( &stats );
+    hlp_print_stats( &stats, rc );
 
     return rc;
 }
@@ -686,7 +686,7 @@ static rc_t main_process_csra_fasta_unsorted( const tool_ctx_t * tool_ctx ) {
 
     rc = dbj_create_unsorted_fasta( &args );
 
-    hlp_print_stats( &stats );
+    hlp_print_stats( &stats, rc );
 
     return rc;
 }
@@ -774,7 +774,7 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
         destroy_temp_registry( registry ); /* temp_registry.c */
     }
 
-    hlp_print_stats( &stats );
+    hlp_print_stats( &stats, rc );
 
     return rc;
 }
@@ -805,7 +805,7 @@ static rc_t main_process_table_fasta_unsorted( const tool_ctx_t * tool_ctx, cons
 
     rc = execute_unsorted_fasta_tbl_join( &args ); /* tbl_join.c */
 
-    hlp_print_stats( &stats );
+    hlp_print_stats( &stats, rc );
 
     return rc;
 }
@@ -923,6 +923,8 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         if ( r != 0  && rc == 0)
             rc = r;
     }
+
+    hlp_unread_rc_info( false );
 
     return rc;
 }

@@ -202,14 +202,14 @@ static rc_t tctx_print( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "\n" );
     }
     if ( 0 == rc ) {
-        rc = insp_report( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* inspector.c */
+        rc = insp_report( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) );
     }
     KOutHandlerSetStdOut();
     return rc;
 }
 
 static bool tctx_output_exists_whole( const tool_ctx_t * tool_ctx ) {
-    return file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ); /* file_tools.c */
+    return ft_file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
 }
 
 static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
@@ -219,7 +219,7 @@ static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) 
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
-        res = file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) ); /* file_tools.c */
+        res = ft_file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) );
         release_SBuffer( &s_filename ); /* helper.c */
     }
     return res;
@@ -236,7 +236,7 @@ static bool tctx_output_exists_split( const tool_ctx_t * tool_ctx ) {
     return res;
 }
 
-static rc_t tctx_check_output_exits( const tool_ctx_t * tool_ctx ) {
+static rc_t tctx_check_output_exits( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* check if the output-file(s) do already exist, in case we are not overwriting */
     if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) ) {
@@ -254,9 +254,7 @@ static rc_t tctx_check_output_exits( const tool_ctx_t * tool_ctx ) {
             default : break;
         }
         if ( exists ) {
-            rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-            ErrMsg( "fasterq-dump.c fastdump_csra() checking ouput-file '%s' -> %R",
-                     tool_ctx -> output_filename, rc );
+            tool_ctx -> force = true;
         }
     }
     return rc;
@@ -423,9 +421,9 @@ static rc_t tctx_optionally_create_paths_in_output_filename( tool_ctx_t * tool_c
     String path;
     if ( hlp_extract_path( tool_ctx -> output_filename, &path ) ) {
         /* the output-filename contains a path... */
-        if ( !dir_exists( tool_ctx -> dir, "%S", &path ) ) {
+        if ( !ft_dir_exists( tool_ctx -> dir, "%S", &path ) ) {
             /* this path does not ( yet ) exist, create it... */
-            rc = create_this_dir( tool_ctx -> dir, &path, true );
+            rc = ft_create_this_dir( tool_ctx -> dir, &path, true );
         }
     }
     return rc;
@@ -449,7 +447,7 @@ static rc_t tctx_resolve_output_filename( tool_ctx_t * tool_ctx ) {
 static rc_t tctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* we do have a output-filename : use it */
-    if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) { /* helper.c */
+    if ( ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) { /* helper.c */
         /* the given output-filename is an existing directory ! */
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
@@ -479,12 +477,12 @@ static rc_t tctx_adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
 
 static void tctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
     /* we do not stop processing if there is an error while asking for this value */
-    available_space_disk_space( tool_ctx -> dir,
+    ft_available_space_disk_space( tool_ctx -> dir,
                                 tool_ctx -> output_filename,
                                 &( tool_ctx -> disk_limit_out_os ),
                                 true /* is_file */ ); /* file_tools.c */
     if ( NULL != tool_ctx -> temp_dir ) {
-        available_space_disk_space( tool_ctx -> dir,
+        ft_available_space_disk_space( tool_ctx -> dir,
                                     get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
                                     &( tool_ctx -> disk_limit_tmp_os ),
                                     false /* is_file */ ); /* file_tools.c */
@@ -682,8 +680,8 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
 
     /* if an output-directory is explicity given from the commandline: create if not exists */
     if ( 0 == rc && NULL != tool_ctx -> output_dirname && cmt_only != tool_ctx -> check_mode ) {
-        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
-            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
+        if ( !ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
+            rc = ft_create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
         }
     }
 

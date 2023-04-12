@@ -800,7 +800,7 @@ static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
     if (i / 256 != 0) {
         bool failed = false;
         if (succeed == NULL) {
-            if (self->fix == NULL)
+            if (self->fix[0] == '\0')
                 failed = true;
         }
         else {

@@ -67,13 +67,7 @@ namespace VDB {
             out << file << ":" << line << ": ";
             if ( rc != 0 )
             {
-                // obtain the required size
-                size_t num_writ;
-                string_printf ( nullptr, 0, &num_writ, "%R", rc );
-
-                std::unique_ptr<char[]> rc_text ( new char[num_writ+1] );
-                string_printf ( rc_text.get(), num_writ+1, nullptr, "%R", rc );
-                out << ", rc = " << rc_text.get();
+                out << ", rc = " << RcToString( rc );
             }
             text = out.str();
         }
@@ -97,7 +91,20 @@ namespace VDB {
             return text.c_str();
         }
         rc_t getRc() const { return rc; }
+
+        static std::string RcToString( rc_t rc, bool english = false )
+        {
+            // obtain the required size
+            size_t num_writ;
+            const char* FmtRc = english ? "%#R" : "%R";
+            string_printf ( nullptr, 0, &num_writ, FmtRc, rc );
+
+            std::string ret( num_writ, ' ' );
+            string_printf ( &ret[0], num_writ, nullptr, FmtRc, rc );
+            return ret;
+        }
     };
+
     class Schema {
         friend class Manager;
         VSchema *const o;

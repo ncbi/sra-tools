@@ -256,12 +256,24 @@ namespace VDB {
     class Table {
         friend class Database;
         friend class Manager;
-        VTable *const o;
+        VTable * o;
 
         Table(VTable *const o_) :o(o_) {}
     public:
+        Table() : o(nullptr) {}
         Table(Table const &other) :o(other.o) { VTableAddRef(o); }
         ~Table() { VTableRelease(o); }
+
+        Table& operator=( const Table & other )
+        {
+            if ( this != &other )
+            {   // the following calls will not throw
+                VTableRelease(o);
+                o = other.o;
+                VTableAddRef(o);
+            }
+            return *this;
+        }
 
         Cursor read(unsigned const N, char const *const fields[]) const
         {
@@ -385,6 +397,14 @@ namespace VDB {
             auto const rc = VDatabaseOpenTableRead(o, (VTable const **)&p, "%s", name.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
+        }
+
+        bool hasTable( const std::string & table ) const
+        {
+            KNamelist *names;
+            rc_t rc = VDatabaseListTbl ( o, & names );
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return KNamelistContains( names, table.c_str() );
         }
     };
 

@@ -149,6 +149,18 @@ TEST_CASE(Database_Table_Good)
     Table t = d["SEQUENCE"];
 }
 
+TEST_CASE(Database_hasTable_Yes)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    REQUIRE( d.hasTable("SEQUENCE"));
+}
+
+TEST_CASE(Database_hasTable_No)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    REQUIRE( ! d.hasTable("SHMEQUENCE"));
+}
+
 class SequenceTableFixture
 {
 protected:
@@ -161,6 +173,16 @@ protected:
 };
 
 // VDB::Table
+
+TEST_CASE(Table_Default)
+{
+    Table t;
+}
+FIXTURE_TEST_CASE(Table_Assign, SequenceTableFixture)
+{
+    Table tt;
+    tt = t;
+}
 
 FIXTURE_TEST_CASE(Table_ReadCursor1_BadColumn, SequenceTableFixture)
 {

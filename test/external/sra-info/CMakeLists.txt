@@ -119,7 +119,7 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
 
     # TODO: find PACBIO and GC runs with CONSENSUS tables
     add_test( NAME Test_Sra_Info_SpotLayout_Pacbio_7.6
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout DRR034173 --limit 100" "." "7.6"
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout DRR032985 --limit 100" "." "7.6"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     # TODO: find a smaller CG run
     add_test( NAME SlowTest_Sra_Info_SpotLayout_CG_7.7

@@ -174,7 +174,24 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
-    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table table;
+    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+    {
+        const char * CONSENSUS_TABLE = "CONSENSUS";
+        VDB::Database db = mgr.openDatabase( m_accession );
+        if ( db.hasTable( CONSENSUS_TABLE ) )
+        {
+            table = mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
+        }
+        else
+        {
+            table = mgr.openDatabase( m_accession )["SEQUENCE"];
+        }
+    }
+    else
+    {
+        table = openSequenceTable( m_accession );
+    }
 
     VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )

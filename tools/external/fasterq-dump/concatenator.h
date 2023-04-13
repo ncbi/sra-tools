@@ -51,7 +51,7 @@ extern "C" {
 #include "progress_thread.h"
 #endif
 
-rc_t execute_concat( KDirectory * dir,
+rc_t concat_execute( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,
                     size_t buf_size,

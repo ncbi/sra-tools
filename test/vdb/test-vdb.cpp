@@ -152,7 +152,7 @@ TEST_CASE(Database_Table_Good)
 class SequenceTableFixture
 {
 protected:
-    SequenceTableFixture() 
+    SequenceTableFixture()
     : t ( Manager().openDatabase( DatabasePath )["SEQUENCE"] )
     {
     }
@@ -264,12 +264,12 @@ FIXTURE_TEST_CASE(Cursor_IsStaticColumn_True, SequenceTableFixture)
 {
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( c.isStaticColumn( 0 ) );
-}    
+}
 FIXTURE_TEST_CASE(Cursor_IsStaticColumn_False, SequenceTableFixture)
 {
     Cursor c = t.read( {"PLATFORM", "NAME"} );
     REQUIRE( ! c.isStaticColumn( 1 ) );
-}    
+}
 
 // VDB::Cursor::RawData
 

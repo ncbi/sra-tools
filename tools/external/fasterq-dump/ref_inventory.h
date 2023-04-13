@@ -112,4 +112,8 @@ rc_t ref_inventory_print_report( const tool_ctx_t * tool_ctx );
 
 /* ------------------------------------------------------------------------------------------------------------- */
 
+rc_t ref_inventory_print_concatenated( const tool_ctx_t * tool_ctx, const char * tbl_name );
+
+/* ------------------------------------------------------------------------------------------------------------- */
+
 #endif

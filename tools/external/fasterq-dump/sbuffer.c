@@ -151,7 +151,7 @@ rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
            then append '_%u' to the name, then re-append the extension */
         String S_in, S_name, S_ext;
         StringInitCString( &S_in, filename );
-        rc = split_string_r( &S_in, &S_name, &S_ext, '.' ); /* helper.c */
+        rc = hlp_split_string_r( &S_in, &S_name, &S_ext, '.' ); /* helper.c */
         if ( 0 == rc ) {
             /* we found a dot to split the filename! */
             rc = make_and_print_to_SBuffer( dst, dst_size, "%S_%u.%S",

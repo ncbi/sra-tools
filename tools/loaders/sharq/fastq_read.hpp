@@ -129,7 +129,7 @@ translate( char ch )
         case '.':
             return 'N';
         default:
-            return ch;
+            return toupper(ch);
     }
 }
 

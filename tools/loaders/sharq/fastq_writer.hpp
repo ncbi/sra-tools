@@ -459,7 +459,6 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
         }
         ++read_num;
     }
-    std::transform(m_tmp_sequence.begin(), m_tmp_sequence.end(), m_tmp_sequence.begin(), ::toupper);
     c_READ.setValue(m_tmp_sequence);
     c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
     c_READ_START.setValue(read_num, sizeof(int32_t), read_start);
@@ -526,7 +525,6 @@ public:
             read_len[i] = sz - read_start[i];
             sz -= read_len[i];
         }
-        std::transform(m_tmp_sequence.begin(), m_tmp_sequence.end(), m_tmp_sequence.begin(), ::toupper);
         c_READ.setValue(m_tmp_sequence);
         c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
         c_READ_START.setValue(read_num, sizeof(int32_t),read_start.data());

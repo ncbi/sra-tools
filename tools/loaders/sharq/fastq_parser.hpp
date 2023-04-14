@@ -382,6 +382,7 @@ private:
     str_sv_type          m_spot_names;                 ///< Run-time collected spot name dictionary
     bool                 m_allow_early_end{false};     ///< Allow early file end flag
     string               m_spot_file;                  ///< Optional file name for spot_name dictionary
+    bool                 m_sort_reads{false};          ///< sort reads based on number of readers and existence of read numbers
     str_sv_type::back_insert_iterator m_spot_names_bi; ///< Internal back_inserter for spot_names collection
 };
 
@@ -758,6 +759,8 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
                 if (spot_size > 4) {
                     throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
                 } else {
+                    if (m_sort_reads)
+                        stable_sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { return l.ReadNum() < r.ReadNum();});
                     m_writer->write_spot(assembled_spot);
                     spot_names_bi = assembled_spot.front().Spot();
                     update_telemetry(assembled_spot);
@@ -1302,10 +1305,14 @@ void fastq_parser<TWriter>::set_readers(json& group)
     m_readers.clear();
     if (group["files"].empty())
         return;
+    uint8_t files_with_read_numbers = 0;        
     for (auto& data : group["files"]) {
         const string& name = data["file_path"];
         m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"], data["platform_code"].front());
+        if (!data["readNums"].empty())
+            ++files_with_read_numbers;
     }
+    m_sort_reads = m_readers.size() == 2 && files_with_read_numbers == m_readers.size();
     set_telemetry(group);
 }
 

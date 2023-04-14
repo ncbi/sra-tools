@@ -369,6 +369,10 @@ void CFastqParseApp::xProcessDigest(json& data)
 
         auto& files = gr["files"];
         for (auto& f : files) {
+            if (f["defline_type"].empty() || (f["defline_type"].size() == 1 && f["defline_type"].front() == "undefined")) {
+                string fname = fs::path(f["file_path"]).filename();
+                throw fastq_error(100, "Defline not recognized [{}:1]", fname);
+            }
             if (mQuality != -1)
                 f["quality_encoding"] = mQuality; // Override quality
             if (f["platform_code"].size() > 1)
@@ -386,15 +390,6 @@ void CFastqParseApp::xProcessDigest(json& data)
                 throw fastq_error(190); // "Unsupported interleaved file with orphans"
         }
 
-        // non10x, non interleaved files
-        // sort by readNumber
-        if (is10x == false && max_reads == 1) {
-            sort(files.begin(), files.end(), [](const auto& d1, const auto& d2){
-                string v1 = d1["readNums"].empty() ? "" : d1["readNums"].front();
-                string v2 = d2["readNums"].empty() ? "" : d2["readNums"].front();
-                return v1 < v2;
-            });
-        }
         if (!mReadTypes.empty()) {
             if ((int)mReadTypes.size() != group_reads)
                 throw fastq_error(30, "readTypes number should match the number of reads ({})", group_reads);

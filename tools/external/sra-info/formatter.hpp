@@ -46,7 +46,7 @@ public:
 
     std::string format( const SraInfo::Platforms & ) const;
     std::string format( const std::string & ) const;
-    std::string format( const SraInfo::SpotLayouts & ) const;
+    std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
 
 private:
     Format fmt;

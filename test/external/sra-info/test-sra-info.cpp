@@ -138,10 +138,10 @@ FIXTURE_TEST_CASE(SpotLayout_SingleRow, SraInfoFixture)
     REQUIRE_EQ( uint32_t(50), sl[0].reads[0].length );
 }
 
-FIXTURE_TEST_CASE(SpotLayout_MultiRow, SraInfoFixture)
+FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
-    SraInfo::SpotLayouts sl = info.GetSpotLayouts();
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Full );
     REQUIRE_EQ( size_t(267), sl.size() );
 
     // check the total
@@ -175,6 +175,37 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow, SraInfoFixture)
     //etc
 
 }
+
+FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Abbreviated ); // ignore read lengths
+    REQUIRE_EQ( size_t(1), sl.size() );
+
+    class SraInfo::SpotLayout & l = sl[0];
+    REQUIRE_EQ( uint64_t(4583), l.count );
+    REQUIRE_EQ( size_t(2), l.reads.size() );
+    REQUIRE_EQ( string("TECHNICAL"), l.reads[0].type );
+    REQUIRE_EQ( uint32_t(0), l.reads[0].length );
+    REQUIRE_EQ( string("BIOLOGICAL"), l.reads[1].type );
+    REQUIRE_EQ( uint32_t(0), l.reads[1].length );
+}
+
+FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Short ); // ignore read types
+    REQUIRE_EQ( size_t(1), sl.size() );
+
+    class SraInfo::SpotLayout & l = sl[0];
+    REQUIRE_EQ( uint64_t(4583), l.count );
+    REQUIRE_EQ( size_t(2), l.reads.size() ); // only the size is used here
+    REQUIRE_EQ( string(), l.reads[0].type );
+    REQUIRE_EQ( uint32_t(0), l.reads[0].length );
+    REQUIRE_EQ( string(), l.reads[1].type );
+    REQUIRE_EQ( uint32_t(0), l.reads[1].length );
+}
+
 
 // Formatting
 FIXTURE_TEST_CASE(Format_values, SraInfoFixture)
@@ -248,7 +279,7 @@ FIXTURE_TEST_CASE(Format_MultiRow_Limited, SraInfoFixture)
     const SraInfo::SpotLayouts sl = info.GetSpotLayouts();
     REQUIRE_EQ( size_t(267), sl.size() );
     const Formatter f( Formatter::Json, 2 ); // 2 top elements
-    const string out = f.format( sl );
+    const string out = f.format( sl, SraInfo::Verbose );
     const string expected("[\n{ \"count\": 119, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "
                        "{ \"type\": \"BIOLOGICAL\", \"length\": 259 }] },\n"
                        "{ \"count\": 112, \"reads\": [{ \"type\": \"TECHNICAL\", \"length\": 4 }, "

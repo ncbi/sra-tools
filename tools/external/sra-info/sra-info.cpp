@@ -169,7 +169,7 @@ ReadTypeToString( INSDC_read_type value )
 }
 
 SraInfo::SpotLayouts
-SraInfo::GetSpotLayouts() const // sorted by descending count
+SraInfo::GetSpotLayouts( Detail detail ) const // sorted by descending count
 {
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
@@ -205,7 +205,23 @@ SraInfo::GetSpotLayouts() const // sorted by descending count
         auto i_lengths = lengths.begin();
         while ( i_types != types.end() )
         {
-            ReadStructure rs= { ReadTypeToString( *i_types ), *i_lengths };
+            ReadStructure rs;
+            switch (detail)
+            {
+            case Verbose:
+            case Full:
+                rs.type = ReadTypeToString( *i_types );
+                rs.length = *i_lengths;
+                break;
+            case Abbreviated: // ignore read lengths
+                rs.type = ReadTypeToString( *i_types );
+                break;
+            case Short: // ignore read types and lengths
+                break;
+            default:
+                throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
+            }
+
             r.push_back( rs );
             ++i_types;
             ++i_lengths;

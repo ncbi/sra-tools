@@ -48,6 +48,7 @@ using namespace std;
 #define OPTION_QUALITY      "quality"
 #define OPTION_SPOTLAYOUT   "spot-layout"
 #define OPTION_LIMIT        "limit"
+#define OPTION_DETAIL       "detail"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
@@ -55,13 +56,15 @@ using namespace std;
 #define ALIAS_QUALITY       "Q"
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_LIMIT         "l"
+#define ALIAS_DETAIL        "D"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
 static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s)", nullptr };
-static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be >0", nullptr };
+static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
+static const char * detail_usage[]      = { "detail level, 0 the least detailed output; <N> must be positive", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -71,6 +74,7 @@ OptDef InfoOptions[] =
     { OPTION_QUALITY,       ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
     { OPTION_SPOTLAYOUT,    ALIAS_SPOTLAYOUT,   nullptr, spot_layout_usage, 1, false,   false, nullptr },
     { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
+    { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -119,6 +123,7 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "      tab ..... tab-separated values on one line\n" );
 
     HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
+    HelpOptionLine ( ALIAS_DETAIL, OPTION_DETAIL, "N", detail_usage );
 
     HelpOptionsStandard ();
 
@@ -217,7 +222,40 @@ rc_t CC KMain ( int argc, char *argv [] )
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    Output ( formatter.format( info.GetSpotLayouts() ) );
+                    SraInfo::Detail detail = SraInfo::Verbose;
+
+                    // detail level
+                    rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                    {
+                        const char* res = nullptr;
+                        rc = ArgsOptionValue( args, OPTION_DETAIL, 0, ( const void** )&res );
+                        int d = 0;
+                        try
+                        {
+                            d = std::stoi(res);
+                            if ( d < 0 )
+                            {
+                                throw VDB::Error("");
+                            }
+                        }
+                        catch(...)
+                        {
+                            throw VDB::Error("invalid value for --detail (not a positive number)");
+                        }
+
+                        switch( d )
+                        {
+                        case 0: detail = SraInfo::Short; break;
+                        case 1: detail = SraInfo::Abbreviated; break;
+                        case 2: detail = SraInfo::Full; break;
+                        default: break; // anything higher than 2 is Verbose
+                        }
+                    }
+
+
+                    Output ( formatter.format( info.GetSpotLayouts( detail ), detail ) );
                 }
 
             }

@@ -116,14 +116,23 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
     add_test( NAME Test_Sra_Info_SpotLayout_XML_7.5
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout -f xml SRR000123" "." "7.5"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    # TODO: find PACBIO and GC runs with CONSENSUS tables
     add_test( NAME Test_Sra_Info_SpotLayout_Pacbio_7.6
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout DRR032985 --limit 100" "." "7.6"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     # TODO: find a smaller CG run
     add_test( NAME SlowTest_Sra_Info_SpotLayout_CG_7.7
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR546160 --limit 100" "." "7.7"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # spot layout, detail level
+    add_test( NAME Test_Sra_Info_SpotLayout_Detail_Short_7.8
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR000123 --detail 0" "." "7.8"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_Detail_Abbreviated_7.9
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR000123 --detail 1" "." "7.9"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_SpotLayout_Detail_Abbreviated_7.10
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --spot-layout SRR000123 --detail 2" "." "7.10"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # # multiple queries

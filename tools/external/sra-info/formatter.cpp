@@ -120,7 +120,7 @@ Formatter::format( const string & value ) const
 }
 
 string
-Formatter::format( const SraInfo::SpotLayouts & layouts ) const
+Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail ) const
 {
     size_t count = layouts.size();
     if ( limit != 0 && limit < count )

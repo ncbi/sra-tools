@@ -46,16 +46,22 @@ public:
     struct ReadStructure
     {
         std::string type;
-        uint32_t length;
+        uint32_t length = 0;
     };
     struct ReadStructures : std::vector<ReadStructure> {};
     struct SpotLayout
     {
-        uint64_t count;
+        uint64_t count = 0;
         ReadStructures reads;
     };
     typedef std::vector<SpotLayout> SpotLayouts;
-    SpotLayouts GetSpotLayouts() const; // sorted by descending count
+    typedef enum {
+        Short,
+        Abbreviated,
+        Full,
+        Verbose
+    } Detail;
+    SpotLayouts GetSpotLayouts( Detail detail = Full ) const; // sorted by descending count
 
     bool IsAligned() const;
     bool HasPhysicalQualities() const;

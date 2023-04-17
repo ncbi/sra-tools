@@ -222,6 +222,8 @@ public:
     template<typename ScoreValidator>
     void char_qual_validator(CFastqRead& read);  ///< Character (PHRED) quality score validator
 
+    void set_error_handler(std::function<void(fastq_error&)> handler) { m_error_handler = handler; } ///< Sets error handler    
+    function<void(fastq_error&)> m_error_handler; ///< Error handler
 
 private:
     CDefLineParser      m_defline_parser;       ///< Defline parser
@@ -492,8 +494,14 @@ bool fastq_reader::get_read(CFastqRead& read)
         validate_read<ScoreValidator>(read);
     } catch (fastq_error& e) {
         e.set_file(m_file_name, read.LineNumber());
-        throw;
+        if (m_error_handler) {
+            m_error_handler(e);
+        } else {
+            throw;
+        }
+        return false;
     }
+
     return true;
 }
 
@@ -535,7 +543,6 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
         reads.swap(m_pending_spot);
         spot_name = reads.front().Spot();
     }
-
     while (get_read<ScoreValidator>(m_read)) {
         if (m_read.Spot() == spot_name) {
             reads.push_back(move(m_read));
@@ -575,7 +582,8 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
         get_next_spot<ScoreValidator>(m_spot, reads);
         m_buffered_spot = move(m_next_reads);
         return true;
-    }
+    } 
+    m_buffered_spot = move(m_next_reads);
     return false;
 }
 
@@ -709,6 +717,10 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
     auto spot_names_bi = m_spot_names.get_back_inserter();
     vector<vector<CFastqRead>> spot_reads(num_readers);
     vector<CFastqRead> assembled_spot;
+    function<void(fastq_error&)> error_handler = error_checker;
+    for (int i = 0; i < num_readers; ++i) {
+        m_readers[i].set_error_handler(error_checker);
+    }
 
     string spot;
     bool has_spots;
@@ -717,66 +729,61 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
     do {
         has_spots = false;
         early_end = 0;
-        for (int i = 0; i < num_readers; ++i)
-        try {
+        for (int i = 0; i < num_readers; ++i) {
             try {
                 if (!m_readers[i] . template get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
-                    ++early_end;
-                    check_readers = num_readers > 1 && m_allow_early_end == false;
-                    continue;
-                }
-            } catch (fastq_error& e) {
-                has_spots = true;
-                error_checker(e);
-                if (spot_reads[i].empty()) {
-                    ++m_telemetry.groups.back().rejected_spots;
-                    continue; 
-                }
-            }
-            has_spots = true;
-
-            for (int j = 0; j < num_readers; ++j) {
-                if (j == i) continue;
-                try {
-                    m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);
-                } catch (fastq_error& e) {
-                    error_checker(e);
-                }
-            }
-
-            assembled_spot.clear();
-            for (auto& r : spot_reads) {
-                if (!r.empty()) {
-                    move(r.begin(), r.end(), back_inserter(assembled_spot));
-                    readCount += r.size();
-                    currCount += r.size();
-                    r.clear();
-                }
-            }
-            assert(assembled_spot.empty() == false);
-            auto spot_size = assembled_spot.size();
-            if (spot_size > 0) {
-                if (spot_size > 4) {
-                    throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
-                } else {
-                    if (m_sort_reads)
-                        stable_sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { return l.ReadNum() < r.ReadNum();});
-                    m_writer->write_spot(assembled_spot);
-                    spot_names_bi = assembled_spot.front().Spot();
-                    update_telemetry(assembled_spot);
-                    ++spotCount;
-                    if (currCount >= 10e6) {
-                        //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
-                        spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
-                        currCount = 0;
+                    if (m_readers[i].eof()) {
+                        ++early_end;
+                        check_readers = num_readers > 1 && m_allow_early_end == false;
+                        continue;
+                    }
+                    has_spots = true;
+                    if (spot_reads[i].empty()) {
+                        ++m_telemetry.groups.back().rejected_spots;
+                        continue; 
                     }
                 }
+                has_spots = true;
+
+                for (int j = 0; j < num_readers; ++j) {
+                    if (j == i) continue;
+                    m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);
+                }
+
+                assembled_spot.clear();
+                for (auto& r : spot_reads) {
+                    if (!r.empty()) {
+                        move(r.begin(), r.end(), back_inserter(assembled_spot));
+                        readCount += r.size();
+                        currCount += r.size();
+                        r.clear();
+                    }
+                }
+                assert(assembled_spot.empty() == false);
+                auto spot_size = assembled_spot.size();
+                if (spot_size > 0) {
+                    if (spot_size > 4) {
+                        throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
+                    } else {
+                        if (m_sort_reads)
+                            stable_sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { return l.ReadNum() < r.ReadNum();});
+                        m_writer->write_spot(assembled_spot);
+                        spot_names_bi = assembled_spot.front().Spot();
+                        update_telemetry(assembled_spot);
+                        ++spotCount;
+                        if (currCount >= 10e6) {
+                            //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
+                            spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
+                            currCount = 0;
+                        }
+                    }
+                }
+            } catch (fastq_error& e) {
+                error_checker(e);
+                has_spots = true;  /// we don't want interrupt too early in case of an exception
+                ++m_telemetry.groups.back().rejected_spots;
             }
-        } catch (fastq_error& e) {
-            error_checker(e);
-            has_spots = true;  /// we don't want interrupt too early in case of an exception
-            ++m_telemetry.groups.back().rejected_spots;
-       }
+        }
 
         if (has_spots == false)
             break;
@@ -1014,15 +1021,31 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
         placed[i] = 1;
         string spot;
         auto reader1 = fastq_reader(files[i], s_OpenStream(files[i], 1024*1024), readTypes, 0, true);
-        if (!reader1.get_next_spot<>(spot, reads)) 
+        for (auto c = 0; c < 100; ++c) {
+            try {
+                if (reader1.get_next_spot<>(spot, reads)) 
+                    break;     
+            }  catch (fastq_error& e) {
+                // skip errors during file clustering
+            }
+        }
+        if (reads.empty())
             throw fastq_error(50 , "File '{}' has no reads", files[i]);
         vector<string> batch{files[i]};
         for (size_t j = 0; j < files.size(); ++j) {
             if (placed[j]) continue;
             auto reader2 = fastq_reader(files[j], s_OpenStream(files[j], 1024*1024), readTypes, 0, true);
-            if (reader2.get_spot<>(spot, reads)) {
-                placed[j] = 1;
-                batch.push_back(files[j]);
+            for (auto c = 0; c < 100; ++c) {
+                try {
+                    if (reader2.get_spot<>(spot, reads)) {
+                        placed[j] = 1;
+                        batch.push_back(files[j]);
+                        break;
+                    }
+                }  catch (fastq_error& e) {
+                    // skip errors during file clustering 
+                }
+
             }
         }
         if (!batches.empty() && batches.front().size() != batch.size()) {

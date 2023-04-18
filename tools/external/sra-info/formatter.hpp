@@ -24,13 +24,30 @@
 *
 */
 
-package gov.nih.nlm.ncbi.ngs;
+#pragma once
 
-public class LibDependencies {
-    public final static String NGS_SDK  = "ngs-sdk";
-    final static String NGS_SDK_VERSION = "3.0.5";
+#include "sra-info.hpp"
 
- // this is an sra-tools library that includes libncbi-vdb and its JNI wrapper
-    public final static String NCBI_VDB = "ncbi-ngs";
-    final static String NCBI_VDB_VERSION = "3.0.5";
-}
+class Formatter
+{
+public:
+    typedef enum {
+        Default,
+        CSV,
+        XML,
+        Json,
+        Piped,
+        Tab
+    } Format;
+    static Format StringToFormat( const std::string & value );
+
+public:
+    Formatter( Format = Default );
+    virtual ~Formatter();
+
+    std::string format( const SraInfo::Platforms & ) const;
+    std::string format( const std::string & ) const;
+
+private:
+    Format fmt;
+};

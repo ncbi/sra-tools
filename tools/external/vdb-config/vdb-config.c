@@ -315,8 +315,10 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine(ALIAS_P_CW, OPTION_P_CW, NULL, USAGE_P_CW);
     HelpOptionLine(ALIAS_P_UR, OPTION_P_UR, NULL, USAGE_P_UR);
     KOutMsg("\n");
+#ifdef TELEMETRY
     HelpOptionLine(ALIAS_TEL , OPTION_TEL , "yes | no", USAGE_TEL);
     KOutMsg("\n");
+#endif
     HelpOptionLine (ALIAS_PRX, OPTION_PRX, "uri[:port]", USAGE_PRX);
     HelpOptionLine (ALIAS_PRD, OPTION_PRD, "yes | no", USAGE_PRD);
     KOutMsg ("\n");

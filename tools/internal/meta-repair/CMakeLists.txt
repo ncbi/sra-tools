@@ -22,5 +22,12 @@
 #
 # ===========================================================================
 
-# NGS-BAM and library version
-VERSION = 3.0.5
+# External
+if( NOT WIN32 )
+	set( LIBS
+		${COMMON_LINK_LIBRARIES}
+		${COMMON_LIBS_READ}
+	)
+	GenerateExecutableWithDefs( meta-repair "meta-repair" "__mod__=\"tools/meta-repair\"" "" "${LIBS}" )
+	MakeLinksExe( meta-repair false )
+endif()

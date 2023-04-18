@@ -23,8 +23,9 @@
 # ===========================================================================
 
 set( SRC
-	main
-	sra-info
+	main.cpp
+	sra-info.cpp
+	formatter.cpp
 )
 
 GenerateExecutableWithDefs( sra-info "${SRC}" "__mod__=\"tools/sra-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

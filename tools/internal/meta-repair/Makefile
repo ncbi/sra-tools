@@ -1,4 +1,4 @@
-# ===========================================================================
+# ==============================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -22,5 +22,8 @@
 #
 # ===========================================================================
 
-# NGS-BAM and library version
-VERSION = 3.0.5
+TOP ?= $(abspath ../../..)
+MODULE = tools/internal/meta-repair
+
+BUILD_TOOLS_INTERNAL = ON
+include $(TOP)/build/Makefile.env

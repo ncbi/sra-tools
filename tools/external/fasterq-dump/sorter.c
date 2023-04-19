@@ -50,7 +50,7 @@
 #include <klib/out.h>
 #endif
 
-/* 
+/*
     this is in interfaces/cc/XXX/YYY/atomic.h
     XXX ... the compiler ( cc, gcc, icc, vc++ )
     YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
@@ -209,7 +209,7 @@ static rc_t write_to_store( lookup_producer_t * self,
                 self -> bytes_in_store += item_size;
             }
         }
-        
+
         if ( 0 == rc &&
              self -> mem_limit > 0 &&
              self -> bytes_in_store >= self -> mem_limit ) {
@@ -226,14 +226,14 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
     uint64_t row_count = 0;
 
     while ( 0 == rc && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) { /* raw_read_iter.c */
-        rc_t rc2 = get_quitting(); /* helper.c */
+        rc_t rc2 = hlp_get_quitting(); /* helper.c */
         if ( 0 == rc2 ) {
             if ( 0 == rc1 ) {
                 if ( rec . read . len < 1 ) {
                     rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
                     ErrMsg( "sorter.c producer_thread_func: rec.read.len = %d", rec . read . len );
                 } else {
-                    uint64_t key = make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
+                    uint64_t key = hlp_make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
                     /* the keys are allowed to be out of order here */
                     rc = write_to_store( producer, key, &rec . read ); /* above! */
                     if ( 0 == rc ) {
@@ -253,7 +253,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
         /* now we have to push out / write out what is left in the last store */
         rc = push_store_to_merger( producer, true ); /* this might block ! */
     } else {
-        set_quitting(); /* helper.c */
+        hlp_set_quitting(); /* helper.c */
     }
 
     if ( 0 == rc && 0 != producer -> processed_row_count ) {
@@ -284,7 +284,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
         struct bg_progress_t * progress = NULL; /* progress_thread.h */
         atomic64_t processed_row_count;
         uint64_t rows_per_thread = ( args -> align_row_count / args -> num_threads ) + 1;
-    
+
         atomic64_set( &processed_row_count, 0 );
         VectorInit( &threads, 0, args -> num_threads );
         if ( args -> show_progress ) {
@@ -329,7 +329,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
 
                 if ( 0 == rc ) {
                     KThread * thread;
-                    rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
+                    rc = hlp_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
                     if ( 0 != rc ) {
                         ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                     } else {
@@ -350,7 +350,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
         }
 
         /* collect all the sorter-threads */
-        rc = join_and_release_threads( &threads ); /* helper.c */
+        rc = hlp_join_and_release_threads( &threads );
         if ( 0 != rc ) {
             ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
         }
@@ -366,7 +366,7 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
             }
         }
     }
-    
+
     /* signal to the receiver-end of the job-queue that nothing will be put into the
        queue any more... */
     if ( rc == 0 && args -> merger != NULL ) {

@@ -68,7 +68,7 @@ static bool check_expected_path_type( const KDirectory * dir, uint32_t expected,
     bool res = false;
     char buffer[ 4096 ];
     size_t num_writ;
-    
+
     rc_t rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, args );
     if ( 0 == rc ) {
         uint32_t pt = KDirectoryPathType( dir, "%s", buffer );
@@ -224,7 +224,7 @@ rc_t release_file( const struct KFile * f, const char * err_msg, ... ) {
         size_t num_writ;
         va_list list;
         rc_t rc2;
-        
+
         va_start( list, err_msg );
         rc2 = string_vprintf( buffer, sizeof buffer, &num_writ, err_msg, list );
         if ( 0 == rc2 ) {
@@ -261,9 +261,9 @@ static rc_t available_space_dir_space( const KDirectory * dir, size_t * res ) {
 static rc_t extract_path_part( const char * p, char * dst, size_t dst_size ) {
     rc_t rc;
     String S_in, S_path, S_leaf;
-    
+
     StringInitCString( &S_in, p );
-    rc = split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
+    rc = hlp_split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
     if ( 0 == rc ) {
         size_t l = string_copy( dst, dst_size, S_path . addr, S_path . size );
         if ( l < dst_size - 2 ) {
@@ -271,7 +271,7 @@ static rc_t extract_path_part( const char * p, char * dst, size_t dst_size ) {
             dst[ l + 1 ] = 0;
         } else {
             rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
-            ErrMsg( "extract_path_part.KDirectoryOpenDirRead( '%s' ) -> %R", p, rc );            
+            ErrMsg( "extract_path_part.KDirectoryOpenDirRead( '%s' ) -> %R", p, rc );
         }
     }
     return rc;

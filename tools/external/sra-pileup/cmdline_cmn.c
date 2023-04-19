@@ -34,6 +34,8 @@
 #include <klib/log.h>
 #endif
 
+#include <klib/report.h> /* ReportResetObject */
+
 #ifndef _h_vfs_manager_
 #include <vfs/manager.h>
 #endif
@@ -520,6 +522,8 @@ static rc_t prepare_db_table( prepare_ctx *ctx,
     rc_t rc;
     ctx->db = NULL;
     ctx->seq_tab = NULL;
+
+    ReportResetObject ( path );
 
     rc = VDBManagerOpenDBRead ( vdb_mgr, &ctx->db, vdb_schema, "%s", path );
     if ( rc != 0 ) {

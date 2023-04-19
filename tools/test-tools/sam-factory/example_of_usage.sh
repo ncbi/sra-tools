@@ -1,8 +1,8 @@
 
 set -e
 
-SAM_FACTORY_BIN="sam-factory"
 BINDIR="$HOME/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/bin"
+SAM_FACTORY_BIN="${BINDIR}/sam-factory"
 
 function check_if_executable() {
     if [[ ! -x $1 ]]; then
@@ -24,24 +24,28 @@ function check_if_exists() {
 
 #----------------------------------------------------------------------
 
-function build_sam_factory() {
-    echo -e "\nbuilding ${SAM_FACTORY_BIN}:"
+function insert_schema_paths() {
+    local USER_SETTINGS="${HOME}/.ncbi/user-settings.mkfg"
+    local SCHEMA_PATHS_KEY="/vdb/schema/paths"
+    local SCHEMA_PATHS_VALUE="${HOME}/devel/ncbi-vdb/interfaces"
 
-    local SAM_FACTORY_SRC="sam-factory.cpp"
-    rm -f "./${SAM_FACTORY_BIN}"
-    g++ "${SAM_FACTORY_SRC}" -o "${SAM_FACTORY_BIN}"
-
-    check_if_executable "${SAM_FACTORY_BIN}"
+    if [ -z $(grep "${SCHEMA_PATHS_KEY}" "${USER_SETTINGS}") ]; then
+        local LINE="${SCHEMA_PATHS_KEY} = \"${SCHEMA_PATHS_VALUE}\""
+        echo "inserting: $LINE"
+        echo "$LINE" >> "$USER_SETTINGS"
+    fi
 }
 
 function load_with_bam_load() {
     echo -e "\nrunning bam-load:"
     local BAM_LOAD="$BINDIR/bam-load"
+    local SCHEMA_INC="${HOME}/devel/ncbi-vdb/interfaces"
     check_if_executable "${BAM_LOAD}"
 
     AFTER_BAMLOAD="SYN_ACC.DIR"
     rm -rf "${AFTER_BAMLOAD}"
 
+    insert_schema_paths
     CMD="${BAM_LOAD} ${BAM_LOAD_SAM} --ref-file ${BAM_LOAD_REF} --output ${AFTER_BAMLOAD}"
     echo -e "\t${CMD}"
     eval "${CMD}"
@@ -89,7 +93,7 @@ function test_sam_factory() {
 
     rm -rf "${BAM_LOAD_CONFIG}" "${BAM_LOAD_SAM}" "${BAM_LOAD_REF}"
     #=======================================================
-    cat "${SAM_FACTORY_CONFIG}" | "./${SAM_FACTORY_BIN}"
+    cat "${SAM_FACTORY_CONFIG}" | "${SAM_FACTORY_BIN}"
     #=======================================================
 
     check_if_exists "${BAM_LOAD_CONFIG}"
@@ -103,5 +107,4 @@ function test_sam_factory() {
 
 #----------------------------------------------------------------------
 
-build_sam_factory
 test_sam_factory

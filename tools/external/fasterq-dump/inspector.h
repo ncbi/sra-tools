@@ -51,22 +51,32 @@ extern "C" {
 #include "helper.h"
 #endif
 
-typedef struct inspector_input_t
+typedef struct insp_input_t
 {
     KDirectory * dir;
     const VDBManager * vdb_mgr;
     const char * accession_short;
     const char * accession_path;
     const char * requested_seq_tbl_name;
-} inspector_input_t;
+} insp_input_t;
 
-typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
+typedef enum acc_type_t { 
+    acc_csra,               /* proper cSRA ( at least a SEQ, REF, and ALIGN table ) */
+    acc_pacbio_bam,         /* PLATFORM is PacBio, but schema is cSRA, loaded with bam-load */
+    acc_pacbio_native,      /* PLATFORM is PacBio, schema is PacBio, at least a SEQ-table, loaded with pacbio-load */
+    acc_sra_flat,           /* older SRA-format, unaligned, just a table */
+    acc_sra_db,             /* newer SRA-format, unaligned, a database with only 1 table: SEQ */
+    acc_none                /* none of the above */
+ } acc_type_t;
 
-typedef struct inspector_seq_data_t
+typedef struct insp_seq_data_t
 {
     const char * tbl_name;
     bool has_name_column;
     bool has_spot_group_column;
+    bool has_read_type_column;
+    bool has_quality_column;
+    bool has_read_column;
     int64_t  first_row;
     uint64_t row_count;
     uint64_t spot_count;
@@ -77,9 +87,9 @@ typedef struct inspector_seq_data_t
     uint32_t avg_bio_reads;
     uint32_t avg_tech_reads;
     
-} inspector_seq_data_t;
+} insp_seq_data_t;
 
-typedef struct inspector_align_data_t
+typedef struct insp_align_data_t
 {
     int64_t  first_row;
     uint64_t row_count;
@@ -87,31 +97,31 @@ typedef struct inspector_align_data_t
     uint64_t total_base_count;
     uint64_t bio_base_count;
 
-} inspector_align_data_t;
+} insp_align_data_t;
 
-typedef struct inspector_output_t
+typedef struct insp_output_t
 {
     acc_type_t acc_type;
     bool is_remote;
     size_t acc_size;
 
-    inspector_seq_data_t seq;
-    inspector_align_data_t align;
-} inspector_output_t;
+    insp_seq_data_t seq;
+    insp_align_data_t align;
+} insp_output_t;
 
-rc_t inspect( const inspector_input_t * input, inspector_output_t * output );
+rc_t inspect( const insp_input_t * input, insp_output_t * output );
 
-rc_t inspection_report( const inspector_input_t * input, const inspector_output_t * output );
+rc_t insp_report( const insp_input_t * input, const insp_output_t * output );
 
-rc_t inspector_path_to_vpath( const char * path, VPath ** vpath );
-    
-const char * inspector_extract_acc_from_path( const char * s );
+rc_t insp_path_to_vpath( const char * path, VPath ** vpath );
+
+const char * insp_extract_acc_from_path( const char * s );
 
 /* ------------------------------------------------------------------------------------------- */
 
-typedef struct inspector_estimate_input_t
+typedef struct insp_estimate_input_t
 {
-    const inspector_output_t * insp;    /* above */
+    const insp_output_t * insp;    /* above */
     const char * seq_defline;
     const char * qual_defline;
     const char * acc;
@@ -120,13 +130,11 @@ typedef struct inspector_estimate_input_t
     uint32_t avg_bio_reads;
     uint32_t avg_tech_reads;
     bool skip_tech;
-} inspector_estimate_input_t;
+} insp_estimate_input_t;
 
-size_t inspector_estimate_output_size( const inspector_estimate_input_t * input );
+size_t insp_estimate_output_size( const insp_estimate_input_t * input );
 
 /* ------------------------------------------------------------------------------------------- */
-
-void unread_rc_info( bool show );
 
 #ifdef __cplusplus
 }

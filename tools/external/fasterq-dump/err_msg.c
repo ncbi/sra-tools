@@ -47,7 +47,7 @@ rc_t ErrMsg( const char * fmt, ... ) {
     }
     va_end( list );
     return rc;
-} 
+}
 
 rc_t InfoMsg( const char * fmt, ... ) {
     rc_t rc;
@@ -62,4 +62,4 @@ rc_t InfoMsg( const char * fmt, ... ) {
     }
     va_end( list );
     return rc;
-} 
+}

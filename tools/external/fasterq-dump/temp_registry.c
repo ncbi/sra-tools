@@ -42,7 +42,7 @@
 #endif
 
 typedef struct temp_registry_t {
-    struct KFastDumpCleanupTask_t * cleanup_task;
+    struct CleanupTask_t * cleanup_task;
     KLock * lock;
     size_t buf_size;
     Vector lists;
@@ -62,7 +62,7 @@ void destroy_temp_registry( temp_registry_t * self ) {
     }
 }
 
-rc_t make_temp_registry( temp_registry_t ** registry, struct KFastDumpCleanupTask_t * cleanup_task ) {
+rc_t make_temp_registry( temp_registry_t ** registry, struct CleanupTask_t * cleanup_task ) {
     KLock * lock;
     rc_t rc = KLockMake ( &lock );
     if ( 0 == rc ) {
@@ -103,7 +103,7 @@ rc_t register_temp_file( temp_registry_t * self, uint32_t read_id, const char * 
             if ( 0 == rc && NULL != l ) {
                 rc = VNamelistAppend ( l, filename );
                 if ( 0 == rc ) {
-                    rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, filename );
+                    rc = clt_add_file( self -> cleanup_task, filename );
                 }
             }
             KLockUnlock ( self -> lock );
@@ -183,8 +183,8 @@ static rc_t CC merge_thread_func( const KThread *self, void *data ) {
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             md -> cmn -> output_filename, md -> idx ); /* helper.c */
     if ( 0 == rc ) {
-        VNamelistReorder ( md -> files, false );        
-        rc = execute_concat( md -> cmn -> dir,
+        VNamelistReorder ( md -> files, false );
+        rc = concat_execute( md -> cmn -> dir,
             s_filename . S . addr,
             md -> files,
             md -> cmn -> buf_size,
@@ -211,12 +211,12 @@ static void CC on_merge( void *item, void *data ) {
         if ( NULL != md ) {
             rc_t rc;
             KThread * thread;
-            
+
             md -> cmn = omc -> cmn;
             md -> files = item;
             md -> idx = omc -> idx;
-            
-            rc = helper_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
+
+            rc = hlp_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "temp_registry.c helper_make_thread( on_merge #%d ) -> %R", omc -> idx, rc );
             } else {
@@ -263,7 +263,7 @@ rc_t temp_registry_merge( temp_registry_t * self,
             on_merge_ctx_t omc = { &cmn, 0 };
             VectorInit( &omc . threads, 0, count );
             VectorForEach ( &self -> lists, false, on_merge, &omc );
-            join_and_release_threads( &omc . threads ); /* helper.c */
+            hlp_join_and_release_threads( &omc . threads );
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }
@@ -273,11 +273,11 @@ rc_t temp_registry_merge( temp_registry_t * self,
 /* -------------------------------------------------------------------------------- */
 
 static rc_t print_file_to_stdout( struct KFile const * f, size_t buffer_size ) {
-    rc_t rc = 0;    
+    rc_t rc = 0;
     char * buffer = malloc( buffer_size );
     if ( NULL == buffer ) {
         rc = RC( rcApp, rcBuffer, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );        
+        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );
     } else {
         uint64_t pos = 0;
         bool done = false;
@@ -355,7 +355,7 @@ rc_t temp_registry_to_stdout( temp_registry_t * self,
         print_to_stdout_ctx_t c;
         c . dir = dir;
         c . buf_size = buf_size;
-        
+
         VectorForEach ( &( self -> lists ), false, on_print_to_stdout, &c );
     }
     return rc;

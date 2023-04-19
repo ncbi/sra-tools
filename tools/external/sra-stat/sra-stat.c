@@ -20,7 +20,7 @@
 *
 *  Please cite the author in any work or product based on this material.
 *
-* ==============================================================================
+* =============================================================================$
 *
 */
 
@@ -86,9 +86,6 @@
 #define DISP_RC_Read(rc, name, spot, msg) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt, rc, "column $(name), spot $(spot): $(msg)", \
         "name=%s,spot=%lu,msg=%s", name, spot, msg)))
-
-#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
 static size_t MAX_NREADS = 2500;
 
@@ -305,26 +302,26 @@ typedef struct SraStatsTotal {
     Bases bases_count;
 } SraStatsTotal;
 typedef struct srastat_parms {
+    SraStatsTotal total; /* is used in srastat_print */
+
     const char* table_path;
-
-    bool xml; /* output format (txt or xml) */
-    bool printMeta;
-    bool quick; /* quick mode: stats from meta */
-    bool skip_members; /* not to print spot_group statistics */
-    bool progress;     /* show progress */
-    bool skip_alignment; /* not to print alignment info */
-    bool print_arcinfo;
-    bool statistics; /* calculate average and stdev */
-    bool test; /* test stdev */
-
     const XMLLogger *logger;
 
-    int64_t  start, stop;
-
     bool hasSPOT_GROUP;
+    bool print_arcinfo;
+    bool printMeta;
+    bool progress;     /* show progress */
+    bool quick; /* quick mode: stats from meta */
+    bool skip_alignment; /* not to print alignment info */
+    bool repair; /* generate instructions for metadata repair tool */
+    bool report; /* report all fields examined for mismatch */
+    bool skip_members; /* not to print spot_group statistics */
+    bool statistics; /* calculate average and stdev */
+    bool test; /* test stdev */
     bool variableReadLength;
+    bool xml; /* output format (txt or xml) */
 
-    SraStatsTotal total; /* is used in srastat_print */
+    int64_t  start, stop;
 } srastat_parms;
 
 static
@@ -2702,7 +2699,7 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
 
             if ( rc == 0 ) {
                 uint32_t i = 0;
-                for ( i = 0; i < count && rc == 0; ++i ) {
+                for ( i = 0; i < count || rc != 0; ++i ) {
                     const char * child = NULL;
                     rc = KNamelistGet ( names, i, & child );
                     if ( rc != 0 )
@@ -2728,6 +2725,43 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
     return rc;
 }
 
+typedef struct {
+    uint32_t spotGroupN;
+    const SraStats* sg;
+} SSGMatcher;
+
+static bool SSGMatcherMismatch(const SSGMatcher* self, const SraStatsTotal* t) {
+    const SraStats* sg = NULL;
+    assert(self && t);
+    if (self->spotGroupN != 1)
+        return true;
+    sg = self->sg;
+    assert(sg);
+    return sg->spot_group[0] != '\0' || sg->spot_count != t->spot_count
+        || sg->spot_count_mates != t->spot_count_mates
+        || sg->bio_len != t->BIO_BASE_COUNT
+        || sg->bio_len_mates != t->bio_len_mates
+        || sg->total_len != t->BASE_COUNT
+        || sg->bad_spot_count != t->bad_spot_count
+        || sg->bad_bio_len != t->bad_bio_len
+        || sg->filtered_spot_count != t->filtered_spot_count
+        || sg->filtered_bio_len != t->filtered_bio_len
+        || sg->total_cmp_len != t->total_cmp_len;
+}
+
+static void CC SSGMatcherIncrement(BSTNode* n, void* data) {
+    SSGMatcher* i = (SSGMatcher*) data;
+    assert(i);
+    if (++(i->spotGroupN) == 1)
+        i->sg = (SraStats*)n;
+}
+
+static uint32_t _NumberOfObservedSpotGroups(const BSTree* t, SSGMatcher* sg) {
+    BSTreeForEach(t, false, SSGMatcherIncrement, sg);
+    assert(sg);
+    return sg->spotGroupN;
+}
+
 static
 rc_t print_results(const Ctx* ctx)
 {
@@ -2738,17 +2772,19 @@ rc_t print_results(const Ctx* ctx)
     enum {
         eBASE_COUNT           =      1,
         eBIO_BASE_COUNT       =      2,
-        eCMP_BASE_COUNT       =      4 ,
-        eNO_SPOT_GROUP        =      8,
-        eSG_BASE_COUNT        =   0x10,
-        eSG_BIO_BASE_COUNT    =   0x20,
-        eSG_CMP_BASE_COUNT    =   0x40,
-        eSG_SPOT_COUNT        =   0x80,
-        eSPOT_COUNT           =  0x100,
-        eTOTAL_BASE_COUNT     =  0x200,
-        eTOTAL_BIO_BASE_COUNT =  0x400,
-        eTOTAL_CMP_BASE_COUNT =  0x800,
-        eTOTAL_SPOT_COUNT     = 0x1000,
+        eCMP_BASE_COUNT       =      4,
+        eSPOT_GROUP_N_MISMATCH=      8,
+        eNO_SPOT_GROUP        =   0x10,
+        eSG_BASE_COUNT        =   0x20,
+        eSG_BIO_BASE_COUNT    =   0x40,
+        eSG_CMP_BASE_COUNT    =   0x80,
+        eDfltSG_CMP_BASE_COUNT=  0x100,
+        eSG_SPOT_COUNT        =  0x200,
+        eSPOT_COUNT           =  0x400,
+        eTOTAL_BASE_COUNT     =  0x800,
+        eTOTAL_BIO_BASE_COUNT = 0x1000,
+        eTOTAL_CMP_BASE_COUNT = 0x2000,
+        eTOTAL_SPOT_COUNT     = 0x4000,
     };
 
     /*
@@ -2767,6 +2803,7 @@ rc_t print_results(const Ctx* ctx)
     const SraStatsMeta* mDfl = NULL;
     const SraStatsMeta* mNxt = NULL;
     const char* spot_group = "";
+    uint32_t spotGroupN = 0;
 
     assert(ctx && ctx->pb
         && ctx->tr && ctx->sizes && ctx->info && ctx->meta_stats && ctx->total);
@@ -2795,7 +2832,7 @@ rc_t print_results(const Ctx* ctx)
             if (ctx->total->total_cmp_len == 0 &&
                 ctx->total->BASE_COUNT == mDfl->CMP_BASE_COUNT &&
                 ctx->db != NULL)
-            {
+            { /* DB without references. See comment below. */
                 mismatchCMP_BASE_COUNT = true;
             }
             else
@@ -2803,12 +2840,24 @@ rc_t print_results(const Ctx* ctx)
         }
         if (ssDfl != NULL) {
             uint32_t i = 0;
-            for (i = 0; i < ctx->meta_stats->spotGroupN && !mismatch; ++i) {
+            SSGMatcher sg;
+            memset(&sg, 0, sizeof sg);
+            spotGroupN = _NumberOfObservedSpotGroups(ctx->tr, &sg);
+            if (ctx->meta_stats->spotGroupN != spotGroupN &&
+                ctx->meta_stats->spotGroupN == 0 &&
+                SSGMatcherMismatch(&sg, ctx->total))
+            {
+                mismatch |= eSPOT_GROUP_N_MISMATCH;
+            }
+            for (i = 0; i < ctx->meta_stats->spotGroupN; ++i) {
+                bool isDefault = false;
                 spot_group = "";
                 mNxt = &ctx->meta_stats->spotGroup[i];
                 assert(mNxt);
                 if (strcmp("default", mNxt->spot_group) != 0)
                     spot_group = mNxt->spot_group;
+                else
+                    isDefault = true;
                 ssNxt = (SraStats*)
                     BSTreeFind(ctx->tr, spot_group, srastats_cmp);
                 if (ssNxt == NULL) {
@@ -2820,14 +2869,42 @@ rc_t print_results(const Ctx* ctx)
                         ssNxt->total_len == mNxt->CMP_BASE_COUNT &&
                         ctx->db != NULL)
                     {
+                    /* for a database where total basecont == total cmp basecount:
+                      CMP_BASE_COUNT does not make sence.
+                      It is a dababase without references.
+                      So if it is not recorded at all - it's OK.
+                      We ignore this.
+                     */
                         mismatchCMP_BASE_COUNT = true;
                     }
                     else {
+                      if (ctx->pb->repair && spotGroupN == 1 && isDefault) {
+                        PLOGMSG(klogInfo, (klogInfo,
+                          "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                          "N=%s,E=%lu,A=%lu",
+                          "STATS/SPOT_GROUP/default/CMP_BASE_COUNT",
+                          ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+                        if (ctx->pb->report)
+                            PLOGMSG(klogInfo, (klogInfo,
+                              "Examined STATS/SPOT_GROUP/$(N)/CMP_BASE_COUNT - "
+                              "mismatch: Expected:$(E), Actual:$(A).",
+                              "N=%s,E=%lu,A=%lu", mNxt->spot_group,
+                              ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+
+                        mismatch |= eDfltSG_CMP_BASE_COUNT;
+                      }
+                      else
                         mismatch |= eSG_CMP_BASE_COUNT;
-                        break;
+                      break;
                     }
                 }
-                if (ssNxt->total_len != mNxt->BASE_COUNT) {
+                else if (ctx->pb->report)
+                   PLOGMSG(klogInfo, (klogInfo,
+                    "Examined STATS/SPOT_GROUP/$(N)/CMP_BASE_COUNT - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", mNxt->spot_group,
+                    ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
+               if (ssNxt->total_len != mNxt->BASE_COUNT) {
                     mismatch |= eSG_BASE_COUNT;
                     break;
                 }
@@ -3044,91 +3121,360 @@ rc_t print_results(const Ctx* ctx)
 
     if (mismatchCMP_BASE_COUNT != 0) 
         /* ignore it */;
-    if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
+
+    assert(ctx->pb);
+    if (!mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0 &&
+        ctx->pb->report)
+    {
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->pb->total.BASE_COUNT,
+                    ctx->meta_stats->table.BASE_COUNT));
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len,
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->total->spot_count, mDfl->spot_count));
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->pb->total.BIO_BASE_COUNT,
+                    ctx->meta_stats->table.BIO_BASE_COUNT));
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->pb->total.spot_count,
+                    ctx->meta_stats->table.spot_count));
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - match");
+    }
+    else if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
 
         assert(mDfl);
 
-        if (mismatch & eBASE_COUNT)
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "sum{READ_LEN}($(C)) != STATS/TABLE/BASE_COUNT($(R))",
-                "C=%lu,R=%lu", ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
-
-        if (mismatch & eBIO_BASE_COUNT)
+        if (mismatch & eBIO_BASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]($(C)) != "
                 "STATS/TABLE/BIO_BASE_COUNT($(R))",
                 "C=%lu,R=%lu",
                 ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eBIO_BASE_COUNT"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
 
-        if (mismatch & eCMP_BASE_COUNT)
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "sum{READ_LEN}[CMP]($(C)) != "
-                "STATS/TABLE/CMP_BASE_COUNT($(R))",
-                "C=%lu,R=%lu",
-                ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+        if (mismatch & (eBASE_COUNT | eTOTAL_BASE_COUNT)) {
+            bool printed = false;
 
-        if (mismatch & eSPOT_COUNT)
+            if (mismatch & eBASE_COUNT && mismatch & eTOTAL_BASE_COUNT)
+            {
+                if (ctx->total->BASE_COUNT != ctx->pb->total.BASE_COUNT ||
+                          mDfl->BASE_COUNT != ctx->meta_stats->table.BASE_COUNT
+                   )
+                {
+                    LOGMSG(klogErr, "BASE_COUNT != TOTAL_BASE_COUNT");
+                    printed = true;
+                }
+            }
+
+            if (mismatch & eBASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                          "sum{READ_LEN}($(C)) != STATS/TABLE/BASE_COUNT($(R))",
+                    "C=%lu,R=%lu", ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+                if (ctx->pb->repair && !printed) {
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                        ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+                    printed = true;
+                }
+                if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+            }
+            else if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+
+            if (mismatch & eTOTAL_BASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                          "foreach SPOT_GROUP sum{READ_LEN}($(C))"
+                              " != STATS/TABLE/BASE_COUNT($(R))", "C=%lu,R=%lu",
+                    ctx->pb->total.BASE_COUNT,
+                    ctx->meta_stats->table.BASE_COUNT));
+                if (ctx->pb->repair && !printed) {
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                        ctx->pb->total.BASE_COUNT,
+                        ctx->meta_stats->table.BASE_COUNT));
+                    printed = true;
+                }
+                if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->pb->total.BASE_COUNT,
+                    ctx->meta_stats->table.BASE_COUNT));
+            }
+            else if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BASE_COUNT",
+                    ctx->pb->total.BASE_COUNT,
+                    ctx->meta_stats->table.BASE_COUNT));
+        }
+
+        if (mismatch & (eCMP_BASE_COUNT | eTOTAL_CMP_BASE_COUNT)) {
+            bool printed = false;
+
+            if (mismatch & eCMP_BASE_COUNT && mismatch & eTOTAL_CMP_BASE_COUNT)
+            {
+                if (ctx->total->total_cmp_len != ctx->pb->total.total_cmp_len ||
+                   mDfl->CMP_BASE_COUNT != ctx->meta_stats->table.CMP_BASE_COUNT
+                    )
+                {
+                    LOGMSG(klogErr, "CMP_BASE_COUNT != TOTAL_CMP_BASE_COUNT");
+                    printed = true;
+                }
+            }
+
+            if (mismatch & eCMP_BASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                          "sum{READ_LEN}[CMP]($(C)) != "
+                                             "STATS/TABLE/CMP_BASE_COUNT($(R))",
+                    "C=%lu,R=%lu",
+                    ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+                if (ctx->pb->repair && !printed) {
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                        ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+                    printed = true;
+                }
+                if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+            }
+            else if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+
+            if (mismatch & eTOTAL_CMP_BASE_COUNT) {
+                PLOGMSG(klogWarn, (klogWarn,
+                    "Mismatch between calculated and recorded statistics: "
+                    "foreach SPOT_GROUP sum{READ_LEN}[CMP]($(C))"
+                                   " != STATS/TABLE/CMP_BASE_COUNT($(R))",
+                    "C=%lu,R=%lu", ctx->pb->total.total_cmp_len,
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
+                if (ctx->pb->repair && !printed)
+                    PLOGMSG(klogInfo, (klogInfo,
+                        "{MISMATCH} Name:$(N), Expected:$(E), Actual:$(A).",
+                        "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                        ctx->pb->total.total_cmp_len,
+                        ctx->meta_stats->table.CMP_BASE_COUNT));
+                if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len,
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
+            }
+            else if (ctx->pb->report)
+                  PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/CMP_BASE_COUNT",
+                    ctx->total->total_cmp_len,
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
+        }
+
+        if (mismatch & eSPOT_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "number-of-spots($(C)) != "
                 "STATS/TABLE/SPOT_COUNT($(R))",
                 "C=%lu,R=%lu",
                 ctx->total->spot_count, mDfl->spot_count));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSPOT_COUNT"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->total->spot_count, mDfl->spot_count));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->total->spot_count, mDfl->spot_count));
 
-        if (mismatch & eNO_SPOT_GROUP)
+        if (mismatch & eSPOT_GROUP_N_MISMATCH) {
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "number-of-spot-groups($(C) != $(R))",
+                "C=%u,R=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSPOT_GROUP_N_MISMATCH"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - mismatch: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined number of spot groups - match: "
+                    "Expected:$(E), Actual:$(A).",
+                    "E=%u,A=%u", spotGroupN, ctx->meta_stats->spotGroupN));
+
+        if (mismatch & eSG_CMP_BASE_COUNT) {
+            LOGMSG(klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "CMP_BASE_COUNT in spot groups");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_CMP_BASE_COUNT"));
+            if (ctx->pb->report)
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - mismatch");
+        }
+        else if (ctx->pb->report)
+                LOGMSG(klogInfo,
+                    "Examined CMP_BASE_COUNT in spot groups - match");
+
+        if (mismatch & eNO_SPOT_GROUP) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: spot_group not found");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eNO_SPOT_GROUP"));
+        }
 
         if (mismatch & eSG_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_BASE_COUNT"));
         }
 
-        if (mismatch & eSG_BIO_BASE_COUNT)
+        if (mismatch & eSG_BIO_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: BIO_BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_BIO_BASE_COUNT"));
+        }
 
-        if (mismatch & eSG_CMP_BASE_COUNT)
+        if (mismatch & eSG_CMP_BASE_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: CMP_BASE_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_CMP_BASE_COUNT"));
+        }
 
-        if (mismatch & eSG_SPOT_COUNT)
+        if (mismatch & eSG_SPOT_COUNT) {
             LOGMSG(klogWarn, "Mismatch between calculated and recorded "
                 "statistics: SPOT_COUNT in spot_group");
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eSG_SPOT_COUNT"));
+        }
 
-        if (mismatch & eTOTAL_BASE_COUNT)
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "foreach SPOT_GROUP sum{READ_LEN}($(C))"
-                              " != STATS/TABLE/BASE_COUNT($(R))", "C=%lu,R=%lu",
-                ctx->pb->total.BASE_COUNT, ctx->meta_stats->table.BASE_COUNT));
-
-        if (mismatch & eTOTAL_BIO_BASE_COUNT)
+        if (mismatch & eTOTAL_BIO_BASE_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "foreach SPOT_GROUP sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]"
                 "($(C)) != STATS/TABLE/BIO_BASE_COUNT($(R))",
                 "C=%lu,R=%lu", ctx->pb->total.BIO_BASE_COUNT,
                 ctx->meta_stats->table.BIO_BASE_COUNT));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eTOTAL_BIO_BASE_COUNT"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->pb->total.BIO_BASE_COUNT,
+                    ctx->meta_stats->table.BIO_BASE_COUNT));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/BIO_BASE_COUNT",
+                    ctx->pb->total.BIO_BASE_COUNT,
+                    ctx->meta_stats->table.BIO_BASE_COUNT));
 
-        if (mismatch & eTOTAL_CMP_BASE_COUNT)
-            PLOGMSG(klogWarn, (klogWarn,
-                "Mismatch between calculated and recorded statistics: "
-                "foreach SPOT_GROUP sum{READ_LEN}[CMP]($(C))"
-                               " != STATS/TABLE/CMP_BASE_COUNT($(R))",
-                "C=%lu,R=%lu", ctx->pb->total.total_cmp_len,
-                ctx->meta_stats->table.CMP_BASE_COUNT));
-
-        if (mismatch & eTOTAL_SPOT_COUNT)
+        if (mismatch & eTOTAL_SPOT_COUNT) {
             PLOGMSG(klogWarn, (klogWarn,
                 "Mismatch between calculated and recorded statistics: "
                 "foreach SPOT_GROUP number-of-spots($(C))"
                               " != STATS/TABLE/SPOT_COUNT($(R))", "C=%lu,R=%lu",
                 ctx->pb->total.spot_count, ctx->meta_stats->table.spot_count));
+            if (ctx->pb->repair)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "{MISMATCH} Case:$(C).", "C=%s", "eTOTAL_SPOT_COUNT"));
+            if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - mismatch: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->pb->total.spot_count,
+                    ctx->meta_stats->table.spot_count));
+        }
+        else if (ctx->pb->report)
+                PLOGMSG(klogInfo, (klogInfo,
+                    "Examined $(N) - match: Expected:$(E), Actual:$(A).",
+                    "N=%s,E=%lu,A=%lu", "STATS/TABLE/SPOT_COUNT",
+                    ctx->pb->total.spot_count,
+                    ctx->meta_stats->table.spot_count));
 
         if (rc == 0)
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
@@ -4091,81 +4437,93 @@ rc_t run(srastat_parms* pb)
     return rc;
 }
 
+
 /* Usage */
 #define ALIAS_ALIGN    "a"
 #define OPTION_ALIGN   "alignment"
+static const char * align_usage[] = { "Print alignment info, default is on."
+                                                                   , NULL };
 
 #define ALIAS_ARCINFO  NULL
 #define OPTION_ARCINFO "archive-info"
-
-#define ALIAS_START    "b"
-#define OPTION_START   "start"
-
-#define ALIAS_STOP     "e"
-#define OPTION_STOP    "stop"
-
-#define ALIAS_SPT_D    "d"
-#define OPTION_SPT_D   "spot-desc"
-
-#define ALIAS_META     "m"
-#define OPTION_META    "meta"
+static const char * arcinfo_usage[] = { "Output archive info, default is off."
+                                                                    , NULL };
 
 #define ALIAS_MEMBR    NULL
 #define OPTION_MEMBR   "member-stats"
+static const char * membr_usage[] = { "Print member stats, default is on."
+                                                          , NULL };
 
-#define ALIAS_PROGRESS "p"
-#define OPTION_PROGRESS "show_progress"
-
-#define ALIAS_QUICK    "q"
-#define OPTION_QUICK   "quick"
-
-#define ALIAS_STATS    "s"
-#define OPTION_STATS   "statistics"
-
-#define ALIAS_TEST     "t"
-#define OPTION_TEST    "test"
-
-#define ALIAS_XML      "x"
-#define OPTION_XML     "xml"
+#define ALIAS_META     "m"
+#define OPTION_META    "meta"
+static const char * meta_usage[] = { "Print load metadata.", NULL };
 
 #define ALIAS_NGC    NULL
 #define OPTION_NGC     "ngc"
+static const char * ngc_usage[] = { "Path to ngc file.", NULL };
 
-static const char * align_usage[] = { "print alignment info, default is on"
-                                                                   , NULL };
-static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
-static const char * membr_usage[] = { "print member stats, default is on"
-                                                          , NULL };
-static const char *progress_usage[] = { "show the percentage of completion"
-                                                          , NULL };
-static const char * meta_usage[] = { "print load metadata", NULL };
-static const char * start_usage[] = { "starting spot id, default is 1", NULL };
-static const char * stop_usage[] = { "ending spot id, default is max", NULL };
-static const char * stats_usage[] = {
-       "calculate READ_LEN average and standard deviation", NULL };
+#define ALIAS_QUICK    "q"
+#define OPTION_QUICK   "quick"
 static const char * quick_usage[] = {
-   "quick mode: get statistics from metadata;", "do not scan the table", NULL };
+   "Quick mode: get statistics from metadata;", "do not scan the table.",
+   NULL };
+
+#define ALIAS_REPAIR   NULL
+#define OPTION_REPAIR "repair-data"
+static const char *repair_usage[] = { "Generate data for repair tool.", NULL };
+
+#define ALIAS_PROGRESS "p"
+#define OPTION_PROGRESS "show_progress"
+static const char *progress_usage[] = { "Show the percentage of completion."
+                                                          , NULL };
+
+#define ALIAS_INFO NULL
+#define OPTION_INFO "info"
+static const char *info_usage[] = { "Print report "
+"for all fields examined for mismatch even if the old value is correct.", NULL };
+
+#define ALIAS_SPT_D    "d"
+#define OPTION_SPT_D   "spot-desc"
+static const char * spt_d_usage[] = { "Print table spot descriptor.", NULL };
+
+#define ALIAS_START    "b"
+#define OPTION_START   "start"
+static const char * start_usage[] = { "Starting spot id, default is 1.", NULL };
+
+#define ALIAS_STATS    "s"
+#define OPTION_STATS   "statistics"
+static const char * stats_usage[] = {
+       "Calculate READ_LEN average and standard deviation.", NULL };
+
+#define ALIAS_STOP     "e"
+#define OPTION_STOP    "stop"
+static const char * stop_usage[] = { "Ending spot id, default is max.", NULL };
+
+#define ALIAS_TEST     "t"
+#define OPTION_TEST    "test"
 static const char * test_usage[] = {
-   "test READ_LEN average and standard deviation calculation", NULL };
-static const char * xml_usage[] = { "output as XML, default is text", NULL };
-static const char * arcinfo_usage[] = { "output archive info, default is off"
-                                                                    , NULL };
-static const char * ngc_usage[] = { "path to ngc file", NULL };
+   "Test READ_LEN average and standard deviation calculation.", NULL };
+
+#define ALIAS_XML      "x"
+#define OPTION_XML     "xml"
+static const char * xml_usage[] = { "Output as XML, default is text.", NULL };
 
 OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
-    , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
-    , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
-    , { OPTION_PROGRESS, ALIAS_PROGRESS, NULL, progress_usage, 1, false, false }
     , { OPTION_ARCINFO , ALIAS_ARCINFO , NULL, arcinfo_usage , 0, false, false }
+    , { OPTION_INFO    , ALIAS_INFO    , NULL, info_usage    , 1, false, false }
+    , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
     , { OPTION_META    , ALIAS_META    , NULL, meta_usage    , 1, false, false }
+    , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true , false }
+    , { OPTION_PROGRESS, ALIAS_PROGRESS, NULL, progress_usage, 1, false, false }
     , { OPTION_QUICK   , ALIAS_QUICK   , NULL, quick_usage   , 1, false, false }
+    , { OPTION_REPAIR  , ALIAS_REPAIR  , NULL, repair_usage  , 1, false, false }
+    , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
     , { OPTION_START   , ALIAS_START   , NULL, start_usage   , 1, true,  false }
     , { OPTION_STATS   , ALIAS_STATS   , NULL, stats_usage   , 1, false, false }
     , { OPTION_STOP    , ALIAS_STOP    , NULL, stop_usage    , 1, true,  false }
     , { OPTION_TEST    , ALIAS_TEST    , NULL, test_usage    , 1, false, false }
     , { OPTION_XML     , ALIAS_XML     , NULL, xml_usage     , 1, false, false }
-    , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true, false }
 };
 
 rc_t CC UsageSummary (const char * progname)
@@ -4210,6 +4568,8 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
     HelpOptionLine(ALIAS_NGC     , OPTION_NGC     , "path"    , ngc_usage);
     XMLLogger_Usage();
+    HelpOptionLine(ALIAS_REPAIR  , OPTION_REPAIR  , NULL      , repair_usage);
+    HelpOptionLine(ALIAS_INFO    , OPTION_INFO    , NULL      , info_usage);
 
     KOutMsg ("\n");
 
@@ -4332,6 +4692,25 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
             }
 
+/* OPTION_REPAIR */
+            {
+                rc = ArgsOptionCount (args, OPTION_REPAIR, &pcount);
+                if (rc != 0)
+                    break;
+                if (pcount > 0)
+                    pb.repair = true;
+            }
+
+/* OPTION_INFO */
+            {
+                rc = ArgsOptionCount (args, OPTION_INFO, &pcount);
+                if (rc != 0)
+                    break;
+                if (pcount > 0)
+                    pb.report = true;
+            }
+
+/* OPTION_PROGRESS */
             {
                 rc = ArgsOptionCount(args, OPTION_PROGRESS, &pcount);
                 if (rc != 0) {
@@ -4421,6 +4800,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
 
                 if (pcount == 0) {
+                    if (pb.repair) /* meta-repair checks that sra-stat
+                                      supports --repair-data by calling
+                                      'sra-stat --repair-data' without argument.
+                                      Just exit with success here. */
+                        exit(0);
+
                     MiniUsage (args);
                     exit(1);
                 }

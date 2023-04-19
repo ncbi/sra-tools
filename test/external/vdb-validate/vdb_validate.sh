@@ -79,5 +79,19 @@ mkdir -p actual/
 	 then echo ${vdb_validate} no-schema-run should fail; exit 1; fi
 	grep -q ' Run File is obsolete. Please download the latest' actual/noschema
 
+	# no error message (PLATFORM column undefined) issued if run on a reference sequence
+	output=$(./runtestcase.sh "${bin_dir}/${vdb_validate} db/no-platform" no-platform 0)
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	fi
+
+  # VDB-5239: segfault on a directory with a single table archive
+	output=$(./runtestcase.sh "${bin_dir}/${vdb_validate} db/subdir" SUBDIR_TABLE 0)
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	fi
+
 	echo "All ${vdb_validate} tests succeed"
 	rm -rf actual/

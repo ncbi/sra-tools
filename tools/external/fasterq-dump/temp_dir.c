@@ -111,7 +111,7 @@ static rc_t generate_dflt_path( temp_dir_t * self, const KDirectory * dir ) {
 
 static rc_t generate_sub_path( temp_dir_t * self, const char * requested, const KDirectory * dir ) {
     rc_t rc;
-    bool es = ends_in_slash( requested );
+    bool es = hlp_ends_in_slash( requested );
     if ( es ) {
         rc = KDirectoryResolvePath( dir,
                                     true /* absolute */,

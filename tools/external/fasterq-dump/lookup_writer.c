@@ -193,7 +193,7 @@ rc_t write_unpacked_to_lookup_writer( struct lookup_writer_t * writer,
                                       int64_t seq_spot_id,
                                       uint32_t seq_read_id,
                                       const String * bases_as_unpacked_4na ) {
-    uint64_t key = make_key( seq_spot_id, seq_read_id ); /* helper.c */
+    uint64_t key = hlp_make_key( seq_spot_id, seq_read_id ); /* helper.c */
     rc_t rc = pack_4na( bases_as_unpacked_4na, &writer -> buf ); /* helper.c */
     if ( 0 != rc ) {
         ErrMsg( "write_unpacked_to_lookup_writer().pack4na -> %R", rc );

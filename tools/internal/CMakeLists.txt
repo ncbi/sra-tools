@@ -22,14 +22,15 @@
 #
 # ===========================================================================
 
-add_subdirectory( rd-filter-redact )
-add_subdirectory( copycat )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( make-read-filter )
 add_subdirectory( align-cache )
-add_subdirectory( vdb-sql )
 add_subdirectory( ccextract )
+add_subdirectory( copycat )
+add_subdirectory( make-read-filter )
 add_subdirectory( md5cp )
 add_subdirectory( meta-cmp )
 add_subdirectory( meta-copy )
+add_subdirectory( meta-repair )
+add_subdirectory( rd-filter-redact )
+add_subdirectory( vdb-copy )
+add_subdirectory( vdb-diff )
+add_subdirectory( vdb-sql )

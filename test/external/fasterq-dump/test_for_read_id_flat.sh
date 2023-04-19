@@ -28,7 +28,7 @@ if [[ ! -f $FLAT_TABLE_ACC ]]; then
         echo "${VDB_COPY} not found - exiting..."
         exit 3
     fi
-    FLAT_TABLE_SHORT_DIR="${FLAT_TABLE}.dir"
+    FLAT_TABLE_SHORT_DIR="${FLAT_TABLE_ACC}.dir"
     CMD="${VDB_COPY} ${FLAT_TABLE_ACC} ${FLAT_TABLE_SHORT_DIR} -R 1-10"
     eval "${CMD}"
 

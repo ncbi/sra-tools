@@ -234,7 +234,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
                         return false;
                     }
                 }
-                DEBUG_STATUS(("%s: sequence length=%d'\n",__func__,seq_len));
+                DEBUG_STATUS(("%s: sequence length=%d\n",__func__,seq_len));
                 curLineType = ccfqfltPlus;
                 break;
             case ccfqfltPlus:
@@ -296,9 +296,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
         else
             break;
         if(curLineType == ccfqfltIdentifier)
-        {
             for(;len>0 && isspace(*newline); len--,newline++);
-        }
         else
         {
             if(*newline == '\r')
@@ -306,7 +304,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
                 newline++;
                 len--;
             }
-            if(len>1 && *newline=='\n')
+            if(len>0 && *newline=='\n')
                 newline++;
             else
                 break;
@@ -617,6 +615,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                                 strcpy (mclassbuf, eclassbuf);
                                 strcpy (mtypebuf, etypebuf);
                             }
+/*
                             else
                             {
                                 PLOGMSG (klogErr,
@@ -625,6 +624,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                                 strcpy (mclassbuf, "Unknown");
                                 strcpy (mtypebuf, "Unknown");
                             }
+*/
                         }
 
                         /* now that we've fixed a few cases use the magic derived

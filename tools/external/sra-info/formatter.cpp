@@ -120,8 +120,10 @@ Formatter::format( const string & value ) const
 }
 
 string
-Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail ) const
+Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail ) const
 {
+    ostringstream ret;
+
     size_t count = layouts.size();
     if ( limit != 0 && limit < count )
     {
@@ -132,32 +134,50 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail ) const
     {
     case Default:
         {
-            ostringstream ret;
+            bool first_group = true;
             for( size_t i = 0; i < count; ++i )
             {
+                if ( first_group )
+                {
+                    first_group = false;
+                }
+                else
+                {
+                    ret << endl;
+                }
+
                 const SraInfo::SpotLayout & l = layouts[i];
                 bool  first = true;
                 ret << l.count << ( l.count == 1 ? " spot: " : " spots: " );
-                for ( auto r : l.reads )
+                switch( detail )
                 {
-                    if ( first )
+                case SraInfo::Short: ret << l.reads.size() << " reads"; break;
+                case SraInfo::Abbreviated:
+                    for ( auto r : l.reads )
                     {
-                        first = false;
+                        ret << r.Encode( detail );
                     }
-                    else
+                    break;
+                default:
+                    for ( auto r : l.reads )
                     {
-                        ret << ", ";
+                        if ( first )
+                        {
+                            first = false;
+                        }
+                        else
+                        {
+                            ret << ", ";
+                        }
+                        ret << r.Encode( detail );
                     }
-                    ret << r.type << "(length=" << r.length << ")";
                 }
-                ret << endl;
             }
-            return ret.str();
         }
+        break;
 
     case Json:
         {
-            ostringstream ret;
             ret << "[" << endl;
             bool  first_layout = true;
             for( size_t i = 0; i < count; ++i )
@@ -173,75 +193,128 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail ) const
                 }
 
                 bool  first_read = true;
-                ret << "{ \"count\": " << l.count << ", \"reads\": [";
-                for ( auto r : l.reads )
+                ret << "{ \"count\": " << l.count << ", \"reads\": ";
+
+                switch( detail )
                 {
-                    if ( first_read )
+                case SraInfo::Short: ret << l.reads.size(); break;
+                case SraInfo::Abbreviated:
+                    ret << "\"";
+                    for ( auto r : l.reads )
                     {
-                        first_read = false;
+                        ret << r.Encode( detail );
                     }
-                    else
+                    ret << "\"";
+                    break;
+                default:
+                    ret << "[";
+                    for ( auto r : l.reads )
                     {
-                        ret << ", ";
+                        if ( first_read )
+                        {
+                            first_read = false;
+                        }
+                        else
+                        {
+                            ret << ", ";
+                        }
+                        ret << "{ \"type\": \"" << r.TypeAsString(detail) << "\", \"length\": " << r.length << " }";
                     }
-                    ret << "{ \"type\": \"" << r.type << "\", \"length\": " << r.length << " }";
+                    ret << "]";
                 }
-                ret << "] }";
+
+                ret << " }";
             }
             ret << endl << "]" << endl;
-            return ret.str();
         }
+        break;
 
     case CSV:
+        for( size_t i = 0; i < count; ++i )
         {
-            ostringstream ret;
-            for( size_t i = 0; i < count; ++i )
+            const SraInfo::SpotLayout & l = layouts[i];
+            switch( detail )
             {
-                const SraInfo::SpotLayout & l = layouts[i];
+            case SraInfo::Short:
+                ret << l.count << ", " << l.reads.size() << ", ";
+                break;
+            case SraInfo::Abbreviated:
                 ret << l.count << ", ";
                 for ( auto r : l.reads )
                 {
-                    ret << r.type << ", " << r.length << ", ";
+                    ret << r.Encode(detail);
                 }
-                ret << endl;
+                break;
+            default:
+                ret << l.count << ", ";
+                for ( auto r : l.reads )
+                {
+                    ret << r.TypeAsString(detail) << ", " << r.length << ", ";
+                }
             }
-            return ret.str();
+            ret << endl;
         }
+        break;
 
     case Tab:
+        for( size_t i = 0; i < count; ++i )
         {
-            ostringstream ret;
-            for( size_t i = 0; i < count; ++i )
+            const SraInfo::SpotLayout & l = layouts[i];
+            switch( detail )
             {
-                const SraInfo::SpotLayout & l = layouts[i];
+            case SraInfo::Short:
+                ret << l.count << "\t" << l.reads.size() << "\t";
+                break;
+            case SraInfo::Abbreviated:
                 ret << l.count << "\t";
                 for ( auto r : l.reads )
                 {
-                    ret << r.type << "\t" << r.length << "\t";
+                    ret << r.Encode(detail);
                 }
-                ret << endl;
-            }
-            return ret.str();
-        }
-
-    case XML:
-        {
-            ostringstream ret;
-            for( size_t i = 0; i < count; ++i )
-            {
-                const SraInfo::SpotLayout & l = layouts[i];
-                ret << "<layout><count>" << l.count << "</count>";
+                break;
+            default:
+                ret << l.count << "\t";
                 for ( auto r : l.reads )
                 {
-                    ret << "<read><type>" << r.type << "</type><length>" << r.length << "</length></read>";
+                    ret << r.TypeAsString(detail)  << "\t" << r.length << "\t";
                 }
-                ret << "</layout>" << endl;
             }
-            return ret.str();
+            ret << endl;
         }
+        break;
+
+    case XML:
+        for( size_t i = 0; i < count; ++i )
+        {
+            const SraInfo::SpotLayout & l = layouts[i];
+            ret << "<layout><count>" << l.count << "</count>";
+            switch( detail )
+            {
+            case SraInfo::Short:
+                ret << "<reads>" << l.reads.size() << "</reads>";
+                break;
+            case SraInfo::Abbreviated:
+                ret << "<reads>";
+                for ( auto r : l.reads )
+                {
+                    ret << r.Encode(detail);
+                }
+                ret << "</reads>";
+                break;
+            default:
+                for ( auto r : l.reads )
+                {
+                    ret << "<read><type>" << r.TypeAsString(detail) << "</type><length>" << r.length << "</length></read>";
+                }
+            }
+
+            ret << "</layout>" << endl;
+        }
+        break;
 
     default:
         throw VDB::Error( "unsupported formatting option");
     }
 
+    return ret.str();
 }

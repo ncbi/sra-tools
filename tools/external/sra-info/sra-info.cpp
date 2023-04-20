@@ -29,8 +29,6 @@
 #include <algorithm>
 #include <map>
 
-#include <insdc/sra.h>
-
 using namespace std;
 
 /*
@@ -151,31 +149,91 @@ bool operator < ( const SraInfo::ReadStructures& a, const SraInfo::ReadStructure
     return it_b != b.end();
 }
 
-static
+SraInfo::ReadStructure::ReadStructure( INSDC_read_type t, uint32_t l )
+: type( t ), length( l )
+{
+}
+
 string
-ReadTypeToString( INSDC_read_type value )
+SraInfo::ReadStructure::TypeAsString( Detail detail) const
 {
     string ret;
-    switch ( value )
+    switch ( detail )
     {
-    case 0: return "TECHNICAL";
-    case 1: return "BIOLOGICAL";
-    case 2: return "TECHNICAL|FORWARD";
-    case 3: return "BIOLOGICAL|FORWARD";
-    case 4: return "TECHNICAL|REVERSE";
-    case 5: return "BIOLOGICAL|REVERSE";
-    default: return "<invalid read type>";
+    case Short: return string();
+    case Abbreviated:
+        switch ( type )
+        {
+        case 0:
+        case 2:
+        case 4: return "T";
+        case 1:
+        case 3:
+        case 5: return "B";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    case Full:
+        switch ( type )
+        {
+        case 0: return "T";
+        case 1: return "B";
+        case 2: return "TF";
+        case 3: return "BF";
+        case 4: return "TR";
+        case 5: return "BR";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    case Verbose:
+        switch ( type )
+        {
+        case 0: return "TECHNICAL";
+        case 1: return "BIOLOGICAL";
+        case 2: return "TECHNICAL|FORWARD";
+        case 3: return "BIOLOGICAL|FORWARD";
+        case 4: return "TECHNICAL|REVERSE";
+        case 5: return "BIOLOGICAL|REVERSE";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    default:
+        throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
+    }
+}
+
+string
+SraInfo::ReadStructure::Encode( Detail detail ) const
+{
+    switch( detail )
+    {
+    case Short:
+    case Abbreviated: return TypeAsString( detail );
+    case Full:
+    {
+        ostringstream ret;
+        ret << TypeAsString( detail ) << length;
+        return ret.str();
+    }
+    case Verbose:
+    {
+        ostringstream ret;
+        ret << TypeAsString( detail ) << "(length=" << length << ")";
+        return ret.str();
+    }
+    default:
+        throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
     }
 }
 
 SraInfo::SpotLayouts
-SraInfo::GetSpotLayouts( Detail detail ) const // sorted by descending count
+SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by descending count
 {
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
     VDB::Table table;
-    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
     {
         const char * CONSENSUS_TABLE = "CONSENSUS";
         VDB::Database db = mgr.openDatabase( m_accession );
@@ -210,11 +268,11 @@ SraInfo::GetSpotLayouts( Detail detail ) const // sorted by descending count
             {
             case Verbose:
             case Full:
-                rs.type = ReadTypeToString( *i_types );
+                rs.type = *i_types;
                 rs.length = *i_lengths;
                 break;
             case Abbreviated: // ignore read lengths
-                rs.type = ReadTypeToString( *i_types );
+                rs.type = *i_types;
                 break;
             case Short: // ignore read types and lengths
                 break;

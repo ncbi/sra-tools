@@ -26,6 +26,8 @@
 
 #include "sra-info.hpp"
 
+#include <functional>
+
 #include <klib/out.h>
 #include <klib/log.h>
 #include <klib/rc.h>
@@ -49,6 +51,7 @@ using namespace std;
 #define OPTION_SPOTLAYOUT   "spot-layout"
 #define OPTION_LIMIT        "limit"
 #define OPTION_DETAIL       "detail"
+#define OPTION_SEQUENCE     "sequence"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
@@ -57,14 +60,16 @@ using namespace std;
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
+#define ALIAS_SEQUENCE      "s"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
 static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
-static const char * spot_layout_usage[] = { "print spot layout(s)", nullptr };
+static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
-static const char * detail_usage[]      = { "detail level, 0 the least detailed output; <N> must be positive", nullptr };
+static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
+static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -75,6 +80,7 @@ OptDef InfoOptions[] =
     { OPTION_SPOTLAYOUT,    ALIAS_SPOTLAYOUT,   nullptr, spot_layout_usage, 1, false,   false, nullptr },
     { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
+    { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -139,6 +145,53 @@ Output( const string & text )
     KOutMsg ( "%s\n", text.c_str() );
 }
 
+int
+GetNumber( Args * args, const char * option, std::function<bool(int)> condition )
+{
+    const char* res = nullptr;
+    rc_t rc = ArgsOptionValue( args, option, 0, ( const void** )&res );
+    DISP_RC( rc, "ArgsOptionValue() failed" );
+
+    try
+    {
+        int d = std::stoi(res);
+        if ( ! condition( d ) )
+        {
+            throw VDB::Error("");
+        }
+        return d;
+    }
+    catch(...)
+    {
+        throw VDB::Error("");
+    }
+}
+
+unsigned int
+GetPositiveNumber( Args * args, const char * option )
+{
+    try
+    {
+        return GetNumber( args, option, [](int x) -> bool { return x > 0; } );
+    }
+    catch(...)
+    {
+        throw VDB::Error( string("invalid value for --") + option + "(not a positive number)");
+    }
+}
+unsigned int
+GetNonNegativeNumber( Args * args, const char * option )
+{
+    try
+    {
+        return GetNumber( args, option, [](int x) -> bool { return x >= 0; } );
+    }
+    catch(...)
+    {
+        throw VDB::Error( string("invalid value for --") + option + "(not a non-negative number)");
+    }
+}
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
@@ -175,14 +228,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    const char* res = nullptr;
-                    rc = ArgsOptionValue( args, OPTION_LIMIT, 0, ( const void** )&res );
-                    std::stringstream ss(res);
-                    ss >> limit;
-                    if ( limit == 0 )
-                    {
-                        throw VDB::Error("invalid value for --limit (not a positive number)");
-                    }
+                    limit = GetPositiveNumber( args, OPTION_LIMIT );
                 }
 
                 // formatting
@@ -229,23 +275,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     DISP_RC( rc, "ArgsOptionCount() failed" );
                     if ( opt_count > 0 )
                     {
-                        const char* res = nullptr;
-                        rc = ArgsOptionValue( args, OPTION_DETAIL, 0, ( const void** )&res );
-                        int d = 0;
-                        try
-                        {
-                            d = std::stoi(res);
-                            if ( d < 0 )
-                            {
-                                throw VDB::Error("");
-                            }
-                        }
-                        catch(...)
-                        {
-                            throw VDB::Error("invalid value for --detail (not a positive number)");
-                        }
-
-                        switch( d )
+                        switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
                         {
                         case 0: detail = SraInfo::Short; break;
                         case 1: detail = SraInfo::Abbreviated; break;
@@ -254,8 +284,14 @@ rc_t CC KMain ( int argc, char *argv [] )
                         }
                     }
 
-
-                    Output ( formatter.format( info.GetSpotLayouts( detail ), detail ) );
+                    bool useConsensus = true;
+                    rc = ArgsOptionCount( args, OPTION_SEQUENCE, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                    {
+                        useConsensus = false;
+                    }
+                    Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus ), detail ) );
                 }
 
             }

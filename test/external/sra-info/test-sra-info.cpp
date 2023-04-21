@@ -259,7 +259,7 @@ FIXTURE_TEST_CASE(SpotLayout_NotUsingConsensus, SraInfoFixture)
 {
     info.SetAccession(Accession_Pacbio);
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Verbose, false );
-    REQUIRE_EQ( size_t(20201), sl.size() );
+    REQUIRE_EQ( size_t(29146), sl.size() );
     REQUIRE_EQ( uint64_t(47), sl[0].count );
     REQUIRE_EQ( size_t(1), sl[0].reads.size() );
     REQUIRE_EQ( string("BIOLOGICAL"), sl[0].reads[0].TypeAsString() );

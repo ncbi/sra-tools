@@ -133,20 +133,22 @@ SraInfo::GetPlatforms() const
     return ret;
 }
 
-bool operator < ( const SraInfo::ReadStructures& a, const SraInfo::ReadStructures& b)
+bool operator < (const SraInfo::ReadStructures& a, const SraInfo::ReadStructures& b)
 {
-    if ( a.size() < b.size() ) return true;
-    auto it_a = a.begin();
-    auto it_b = b.begin();
-    while ( it_a != a.end() )
-    {
-        if ( it_b == b.end() ) return false;
-        if ( it_a->type < it_b->type || it_a->length < it_b->length ) return true;
-        if ( it_a->type > it_b->type || it_a->length > it_b->length ) return false;
-        ++it_a;
-        ++it_b;
-    }
-    return it_b != b.end();
+	if (a.size() < b.size()) return true;
+	if (a.size() > b.size()) return false;
+	auto it_a = a.begin();
+	auto it_b = b.begin();
+	while (it_a != a.end())
+	{
+		if (it_a->type < it_b->type) return true;
+		if (it_a->type > it_b->type) return false;
+		if (it_a->length < it_b->length) return true;
+		if (it_a->length > it_b->length) return false;
+		++it_a;
+		++it_b;
+	}
+	return false;
 }
 
 SraInfo::ReadStructure::ReadStructure( INSDC_read_type t, uint32_t l )

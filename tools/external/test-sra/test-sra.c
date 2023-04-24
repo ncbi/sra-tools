@@ -2670,9 +2670,15 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             rc = KDataBufferMake( &b, 8, 0 );
             if ( rc == 0 )
             {
-                rc = KClientHttpRequestFormatMsg( req, &b, get ? "GET" : "HEAD" );
-                if ( rc == 0 )
-                    OUTMSG ( ( "%.*s", (int)b.elem_count, (char*)b.base ) );
+                rc = KClientHttpRequestFormatMsg(
+                    req, &b, get ? "GET" : "HEAD" );
+                if ( rc == 0 ) {
+                    const char* c = b.base;
+                    int n = b.elem_count;
+                    while (n > 0 && c[n - 1] == '\0')
+                        --n;
+                    OUTMSG ( ( "%.*s", n, c ) );
+                }
                 else
                     OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
                 KDataBufferWhack( & b );
@@ -2719,7 +2725,8 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 {
                     rc = KClientHttpResultFormatMsg( rslt, &b, "", "\n" );
                     if ( rc != 0 )
-                        OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
+                        OUTMSG ( (
+                            "KClientHttpResultFormatMsg()=%R\n", rc ) );
                 }
             }
             else
@@ -2750,12 +2757,16 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         if ( self -> xml )
             OUTMSG ( ( "%s      </%s>\n", bol, root ) );
         if ( rc == 0 ) {
+            const char* c = b.base;
+            int n = b.elem_count;
+            while (n > 0 && c[n - 1] == '\0')
+                --n;
             const char root [] = "Response";
             if (self->xml)
                 OUTMSG(("%s      <%s>\n", bol, root));
             else
                 OUTMSG(("%s\n", root));
-            OUTMSG ( ( "%.*s", b.elem_count, b.base) );
+            OUTMSG ( ( "%.*s", n, c) );
             if (self->xml)
                 OUTMSG(("%s      </%s>\n", bol, root));
             else

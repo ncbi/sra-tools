@@ -113,16 +113,17 @@ rc_t CC Usage ( const Args * args ) {
     const char * fullpath = UsageDefaultName;
     rc_t rc;
 
-    if (args == NULL)
+    if ( NULL == args ) {
         rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
-    else
-        rc = ArgsProgram (args, &fullpath, &progname);
-    if (rc)
+    } else {
+        rc = ArgsProgram ( args, &fullpath, &progname );
+    }
+    if ( 0 != rc) {
         progname = fullpath = UsageDefaultName;
+    }
+    UsageSummary( progname );
 
-    UsageSummary (progname);
-
-    KOutMsg ("Options:\n");
+    KOutMsg ( "Options:\n" );
 
     HelpOptionLine ( ALIAS_TABLE, OPTION_TABLE, "table", table_usage );
     HelpOptionLine ( ALIAS_ROWS, OPTION_ROWS, "rows", rows_usage );
@@ -148,9 +149,9 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( ALIAS_MD5_MODE, OPTION_MD5_MODE, NULL, md5mode_usage );
     HelpOptionLine ( ALIAS_BLOB_CHECKSUM, OPTION_BLOB_CHECKSUM, NULL, blcmode_usage );
 
-    HelpOptionsStandard ();
+    HelpOptionsStandard();
 
-    HelpVersion ( fullpath, KAppVersion() );
+    HelpVersion( fullpath, KAppVersion() );
 
     return rc;
 }
@@ -663,18 +664,18 @@ static rc_t vdb_copy_match_columns( const p_context ctx,
         rc = helper_make_config_mgr( &(mi.cfg), ctx->kfg_path );
         DISP_RC( rc, "vdb_copy_match_columns:helper_make_config_mgr() failed" );
         if ( 0 == rc ) {
-            mi.manager = vdb_mgr;
-            mi.add_schemas = ctx->src_schema_list;
+            mi . manager = vdb_mgr;
+            mi . add_schemas = ctx -> src_schema_list;
 
             rc = col_defs_as_string( columns, (char**)&mi.columns, true );
             if ( 0 == rc ) {
-                mi.src_path         = ctx->src_path;
-                mi.dst_path         = ctx->dst_path;
-                mi.legacy_schema    = ctx->legacy_schema_file;
-                mi.dst_tabname      = ctx->dst_schema_tabname;
-                mi.excluded_columns = ctx->legacy_dont_copy;
-                mi.force_kcmInit    = ctx->force_kcmInit;
-                mi.force_unlock     = ctx->force_unlock;
+                mi . src_path         = ctx -> src_path;
+                mi . dst_path         = ctx -> dst_path;
+                mi . legacy_schema    = ctx -> legacy_schema_file;
+                mi . dst_tabname      = ctx -> dst_schema_tabname;
+                mi . excluded_columns = ctx -> legacy_dont_copy;
+                mi . force_kcmInit    = ctx -> force_kcmInit;
+                mi . force_unlock     = ctx -> force_unlock;
 
                 rc = matcher_execute( type_matcher, &mi );
                 if ( 0 != rc ) {
@@ -796,7 +797,7 @@ static rc_t vdb_copy_table2( const p_context ctx,
     return rc;
 }
 
-static rc_t vdb_copy_table( const p_context ctx,
+static rc_t perform_vdb_copy_on_table( const p_context ctx,
                             VDBManager * vdb_mgr,
                             const VTable * src_table,
                             const char * tablename ) {
@@ -1133,7 +1134,7 @@ static rc_t vdb_copy_db_2_db( const p_context ctx,
     return rc;
 }
 
-static rc_t vdb_copy_database( const p_context ctx,
+static rc_t perform_vdb_copy_on_database( const p_context ctx,
                                VDBManager * vdb_mgr,
                                const VDatabase * src_db ) {
     char typespec[ TYPESPEC_BUF_LEN ];
@@ -1185,19 +1186,19 @@ static rc_t vdb_copy_database( const p_context ctx,
 ctx        [IN] ... contains path, tablename, columns, row-range etc.
 vdb_mgr    [IN] ... contains the vdb-manger to create src/dst-objects
 ***************************************************************************/
-static rc_t vdb_copy_perform( const p_context ctx, VDBManager * vdb_mgr ) {
+static rc_t perform_vdb_copy_tab_or_db( const p_context ctx, VDBManager * vdb_mgr ) {
     VSchema * dflt_schema;
     rc_t rc = helper_parse_schema( vdb_mgr, &dflt_schema, ctx->src_schema_list );
     DISP_RC( rc, "vdb_copy_main:helper_parse_schema(dflt) failed" );
     if ( 0 == rc ) {
         const VDatabase * src_db;
         /* try to open it as a database */
-        rc = VDBManagerOpenDBRead ( vdb_mgr, &src_db, dflt_schema, "%s", ctx->src_path );
+        rc = VDBManagerOpenDBRead ( vdb_mgr, &src_db, dflt_schema, "%s", ctx -> src_path );
         if ( 0 == rc ) {
             /* if it succeeds it is a database, continue to copy it */
             if ( 1 == DB_COPY_ENABLED ) {
                 /*********************************************/
-                rc = vdb_copy_database( ctx, vdb_mgr, src_db );
+                rc = perform_vdb_copy_on_database( ctx, vdb_mgr, src_db );
                 /*********************************************/
                 DISP_RC( rc, "vdb_copy_perform:vdb_copy_database() failed" );
             } else {
@@ -1211,11 +1212,11 @@ static rc_t vdb_copy_perform( const p_context ctx, VDBManager * vdb_mgr ) {
             const VTable * src_table;
             /* try to open it as a table */
             rc = VDBManagerOpenTableRead( vdb_mgr, &src_table,
-                                          dflt_schema, "%s", ctx->src_path );
+                                          dflt_schema, "%s", ctx -> src_path );
             /* if it succeeds it is a table, continue to copy it */
             if ( 0 == rc ) {
                 /*********************************************/
-                rc = vdb_copy_table( ctx, vdb_mgr, src_table, NULL );
+                rc = perform_vdb_copy_on_table( ctx, vdb_mgr, src_table, NULL );
                 /*********************************************/
                 DISP_RC( rc, "vdb_copy_perform:vdb_copy_table() failed" );
                 {
@@ -1251,7 +1252,7 @@ static rc_t vdb_copy_perform( const p_context ctx, VDBManager * vdb_mgr ) {
 
 ctx        [IN] ... contains path, tablename, columns, row-range etc.
 ***************************************************************************/
-static rc_t vdb_copy_main( const p_context ctx ) {
+static rc_t perform_vdb_copy( const p_context ctx ) {
     KDirectory * directory;
     rc_t rc = KDirectoryNativeDir( &directory );
     DISP_RC( rc, "vdb_copy_main:KDirectoryNativeDir() failed" );
@@ -1259,29 +1260,29 @@ static rc_t vdb_copy_main( const p_context ctx ) {
         KConfig * config_mgr;
 
 #if TOOLS_USE_SRAPATH != 0
-        if ( !ctx->dont_check_accession ) {
-            ctx->dont_check_accession = helper_is_this_a_filesystem_path( ctx->src_path );
+        if ( !( ctx -> dont_check_accession ) ) {
+            ctx->dont_check_accession = helper_is_this_a_filesystem_path( ctx -> src_path );
         }
-        if ( !ctx->dont_check_accession ) {
-            rc_t rc1 = helper_resolve_accession( directory, (char**)&( ctx->src_path ) );
+        if ( !( ctx -> dont_check_accession ) ) {
+            rc_t rc1 = helper_resolve_accession( directory, (char**)&( ctx -> src_path ) );
             DISP_RC( rc1, "vdb_copy_main:helper_check_accession() failed" );
         }
 #endif
 
-        rc = helper_make_config_mgr( &config_mgr, ctx->kfg_path );
+        rc = helper_make_config_mgr( &config_mgr, ctx -> kfg_path );
         DISP_RC( rc, "vdb_copy_main:helper_make_config_mgr() failed" );
         if ( 0 == rc ) {
             VDBManager * vdb_mgr;
 
-            helper_read_config_values( config_mgr, &(ctx->config) );
-            helper_read_redact_values( config_mgr, ctx->rvals );
+            helper_read_config_values( config_mgr, &( ctx -> config ) );
+            helper_read_redact_values( config_mgr, ctx -> rvals );
             KConfigRelease( config_mgr );
 
             rc = VDBManagerMakeUpdate ( &vdb_mgr, directory );
             DISP_RC( rc, "vdb_copy_main:VDBManagerMakeRead() failed" );
             if ( 0 == rc ) {
                 /************************************/
-                rc = vdb_copy_perform( ctx, vdb_mgr );
+                rc = perform_vdb_copy_tab_or_db( ctx, vdb_mgr );
                 /************************************/
                 {
                     rc_t rc1 = VDBManagerRelease( vdb_mgr );
@@ -1331,9 +1332,9 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     MiniUsage( args );
                     rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
                 } else {
-                    /************************/
-                    rc = vdb_copy_main( ctx );
-                    /************************/
+                    /****************************/
+                    rc = perform_vdb_copy( ctx );
+                    /****************************/
                 }
             }
             context_destroy ( ctx );

@@ -622,14 +622,14 @@ static rc_t matcher_match_matrix( matcher* self, const VSchema *schema, const KC
 }
 
 static rc_t matcher_build_column_vector( matcher* self, const char * columns ) {
-    const KNamelist *list;
+    const VNamelist *list;
     uint32_t count, idx;
-    rc_t rc = nlt_make_namelist_from_string( &list, columns );
+    rc_t rc = nlt_make_VNamelist_from_string( &list, columns );
     if ( 0 != rc ) return rc;
-    rc = KNamelistCount( list, &count );
+    rc = VNameListCount( list, &count );
     for ( idx = 0; idx < count && 0 == rc; ++idx ) {
         const char *s;
-        rc = KNamelistGet( list, idx, &s );
+        rc = VNameListGet( list, idx, &s );
         if ( 0 == rc ) {
             p_mcol new_col = matcher_make_col( s );
             if ( NULL == new_col ) {
@@ -640,24 +640,24 @@ static rc_t matcher_build_column_vector( matcher* self, const char * columns ) {
             }
         }
     }
-    KNamelistRelease( list );
+    VNamelistRelease( list );
     return rc;
 }
 
 static rc_t matcher_exclude_columns( matcher* self, const char * columns ) {
     rc_t rc = 0;
     if ( NULL != columns ) {
-        const KNamelist *list;
+        const VNamelist *list;
         uint32_t len, idx;
-        rc = nlt_make_namelist_from_string( &list, columns );
+        rc = nlt_make_VNamelist_from_string( &list, columns );
         len = VectorLength( &( self -> mcols ) );
         for ( idx = 0;  idx < len; ++idx ) {
             p_mcol col = ( p_mcol ) VectorGet ( &( self -> mcols ), idx );
             if ( NULL != col ) {
-                col -> excluded = nlt_is_name_in_namelist( list, col -> name );
+                col -> excluded = nlt_is_name_in_VNamelist( list, col -> name );
             }
         }
-        KNamelistRelease( list );
+        VNamelistRelease( list );
     }
     return rc;    
 }

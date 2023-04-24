@@ -25,20 +25,16 @@
 */
 
 #include "helper.h"
+
 #include "definitions.h"
-#include <os-native.h>
 
 /* this is here to detect the md5-mode of the src-table */
 #include <kdb/kdb-priv.h>
+
 #include <kdb/table.h>
 
-#include <sysalloc.h>
-
-#include <bitstr.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <ctype.h>
+#include <bitstr.h>     /* bitcpy() */
+#include <ctype.h>      /* isspace() tolower() isdigit() isalpath() toupper() */
 
 int64_t strtoi64( const char* str, char** endp, uint32_t base ) {
     int i = 0;
@@ -110,7 +106,7 @@ uint64_t strtou64( const char* str, char** endp, uint32_t base ) {
 */
 rc_t helper_parse_schema( const VDBManager *my_manager,
                           VSchema **new_schema,
-                          const KNamelist *schema_list ) {
+                          const VNamelist *schema_list ) {
     rc_t rc;
     if ( NULL == my_manager ) {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
@@ -122,11 +118,11 @@ rc_t helper_parse_schema( const VDBManager *my_manager,
     DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
     if ( ( 0 == rc ) && ( NULL != schema_list ) ) {
         uint32_t count;
-        if ( KNamelistCount( schema_list, &count ) == 0 ) {
+        if ( VNameListCount( schema_list, &count ) == 0 ) {
             uint32_t idx;
             for ( idx = 0; idx < count && 0 == rc; ++idx ) {
                 const char *s;
-                if ( 0 == KNamelistGet( schema_list, idx, &s ) ) {
+                if ( 0 == VNameListGet( schema_list, idx, &s ) ) {
                     rc = VSchemaParseFile( *new_schema, "%s", s );
                     DISP_RC( rc, "VSchemaParseFile() failed" );
                 }
@@ -694,25 +690,25 @@ static void helper_read_redact_value( KConfig * config_mgr, redact_vals * rvals,
 void helper_read_redact_values( KConfig * config_mgr, redact_vals * rvals ) {
     rc_t rc;
     char * type_list_str;
-    const KNamelist *type_list;
+    const VNamelist *type_list;
 
     /* first we read the list of redactable types */
     helper_read_cfg_str( config_mgr, REDACTABLE_LIST_KEY, &type_list_str );
     if ( NULL == type_list_str ) return;
-    rc = nlt_make_namelist_from_string( &type_list, type_list_str );
+    rc = nlt_make_VNamelist_from_string( &type_list, type_list_str );
     if ( 0 == rc && NULL != type_list ) {
         uint32_t idx, count;
-        rc = KNamelistCount( type_list, &count );
+        rc = VNameListCount( type_list, &count );
         if ( 0 == rc && count > 0 ) {
             for ( idx = 0; idx < count; ++idx ) {
                 const char *type_name;
-                rc = KNamelistGet( type_list, idx, &type_name );
+                rc = VNameListGet( type_list, idx, &type_name );
                 if ( 0 == rc ) {
                     helper_read_redact_value( config_mgr, rvals, type_name );
                 }
             }
         }
-        KNamelistRelease( type_list );
+        VNamelistRelease( type_list );
     }
     free( type_list_str );
 }
@@ -793,4 +789,40 @@ KChecksum helper_assemble_ChecksumMode( uint8_t ctx_blob_checksum ) {
         case BLOB_CHECKSUM_AUTO  : res = kcsCRC32; break;
     }
     return res;
+}
+
+int nlt_strcmp( const char* s1, const char* s2 ) {
+    size_t n1 = string_size ( s1 );
+    size_t n2 = string_size ( s2 );
+    return string_cmp ( s1, n1, s2, n2, ( n1 < n2 ) ? n2 : n1 );
+}
+
+rc_t nlt_make_VNamelist_from_string( const VNamelist **list, const char * src ) {
+    rc_t rc = 0;
+    if ( list == NULL || src == NULL ) {
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    } else {
+        VNamelist *v_name_list;
+        rc = VNamelistMake ( &v_name_list, 5 );
+        if ( 0 == rc ) {
+            rc = VNamelistSplitStr ( v_name_list, src, ',' );
+            if ( 0 == rc ) {
+                *list = v_name_list;
+            }
+            else {
+                VNamelistRelease( v_name_list );
+            }
+        }
+    }
+    return rc;
+}
+
+bool nlt_is_name_in_KNamelist( const KNamelist *list, const char *name_to_find ) {
+    return KNamelistContains( list, name_to_find );
+}
+
+bool nlt_is_name_in_VNamelist( const VNamelist *list, const char *name_to_find ) {
+    int32_t idx;        
+    rc_t rc = VNamelistContainsStr( list, name_to_find, &idx );
+    return ( 0 == rc && idx > -1 );
 }

@@ -27,7 +27,6 @@ set( SRC
 	helper
 	coldefs
 	get_platform
-	namelist_tools
 	copy_meta
 	type_matcher
 	redactval

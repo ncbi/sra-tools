@@ -53,7 +53,7 @@ uint64_t strtou64( const char* str, char** endp, uint32_t base );
 */
 rc_t helper_parse_schema( const VDBManager *my_manager,
                           VSchema **new_schema,
-                          const KNamelist *schema_list );
+                          const VNamelist *schema_list );
 
 /*
  * tries to interpret the given string in path as a accession
@@ -217,6 +217,14 @@ KCreateMode helper_assemble_CreateMode( const VTable * src_tab,
 
 
 KChecksum helper_assemble_ChecksumMode( uint8_t ctx_blob_checksum );
+
+int nlt_strcmp( const char* s1, const char* s2 );
+
+rc_t nlt_make_VNamelist_from_string( const VNamelist **list, const char * src );
+
+bool nlt_is_name_in_KNamelist( const KNamelist *list, const char *name_to_find );
+
+bool nlt_is_name_in_VNamelist( const VNamelist *list, const char *name_to_find );
 
 #ifdef __cplusplus
 }

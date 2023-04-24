@@ -340,7 +340,7 @@ rc_t col_defs_detect_filter_col( col_defs* defs, const char *name ) {
 */
 rc_t col_defs_detect_redactable_cols_by_name( col_defs* defs,
                                 const char * redactable_cols ) {
-    const KNamelist *r_columns;
+    const VNamelist *r_columns;
     rc_t rc;
     
     if ( NULL == defs ) {
@@ -349,18 +349,18 @@ rc_t col_defs_detect_redactable_cols_by_name( col_defs* defs,
     if ( NULL == defs || NULL == redactable_cols ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
     }
-    rc = nlt_make_namelist_from_string( &r_columns, redactable_cols );
+    rc = nlt_make_VNamelist_from_string( &r_columns, redactable_cols );
     if ( 0 == rc ) {
         uint32_t idx, len = VectorLength( &( defs -> cols ) );
         for ( idx = 0;  idx < len && 0 == rc; ++idx ) {
             p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
             if ( NULL != col ) {
                 if ( !( col -> redactable ) ) {
-                    col -> redactable = nlt_is_name_in_namelist( r_columns, col -> name );
+                    col -> redactable = nlt_is_name_in_VNamelist( r_columns, col -> name );
                 }
             }
         }
-        KNamelistRelease( r_columns );
+        VNamelistRelease( r_columns );
     }
     return rc;
 }
@@ -368,19 +368,19 @@ rc_t col_defs_detect_redactable_cols_by_name( col_defs* defs,
 static rc_t redactable_types_2_type_id_vector( const VSchema * s,
                                                const char * redactable_types,
                                                Vector * id_vector ) {
-    const KNamelist *r_types;
+    const VNamelist *r_types;
     rc_t rc;
     if ( NULL == redactable_types || NULL == s || NULL == id_vector ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
     }
-    rc = nlt_make_namelist_from_string( &r_types, redactable_types );
+    rc = nlt_make_VNamelist_from_string( &r_types, redactable_types );
     if ( 0 == rc ) {
         uint32_t count, idx;
 
-        rc = KNamelistCount( r_types, &count );
+        rc = VNameListCount( r_types, &count );
         for ( idx = 0; idx < count && 0 == rc; ++idx ) {
             const char *name;
-            rc = KNamelistGet( r_types, idx, &name );
+            rc = VNameListGet( r_types, idx, &name );
             if ( 0 == rc ) {
                 VTypedecl td;
                 rc = VSchemaResolveTypedecl ( s, &td, "%s", name );
@@ -395,7 +395,7 @@ static rc_t redactable_types_2_type_id_vector( const VSchema * s,
                 }
             }
         }
-        KNamelistRelease( r_types );
+        VNamelistRelease( r_types );
     }
     return rc;
 }
@@ -442,7 +442,7 @@ rc_t col_defs_detect_redactable_cols_by_type( col_defs* defs,
 
 rc_t col_defs_unmark_do_not_redact_columns(  col_defs* defs,
                     const char * do_not_redact_cols ) {
-    const KNamelist *names;
+    const VNamelist *names;
     rc_t rc;
     
     if ( NULL == defs ) {
@@ -451,20 +451,20 @@ rc_t col_defs_unmark_do_not_redact_columns(  col_defs* defs,
     if ( NULL == do_not_redact_cols ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
     }
-    rc = nlt_make_namelist_from_string( &names, do_not_redact_cols );
+    rc = nlt_make_VNamelist_from_string( &names, do_not_redact_cols );
     if ( 0 == rc ) {
         uint32_t idx, len = VectorLength( &( defs -> cols ) );
         for ( idx = 0;  idx < len; ++idx ) {
             p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
             if ( NULL != col ) {
                 if ( col -> redactable ) {
-                    if ( nlt_is_name_in_namelist( names, col -> name ) ) {
+                    if ( nlt_is_name_in_VNamelist( names, col -> name ) ) {
                         col -> redactable = false;
                     }
                 }
             }
         }
-        KNamelistRelease( names );
+        VNamelistRelease( names );
     }
     return rc;
 }
@@ -499,7 +499,7 @@ uint32_t col_defs_count_copy_cols( col_defs* defs ) {
 rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix,
                                      const char * column_names ) {
     rc_t rc = 0;
-    const KNamelist *names;
+    const VNamelist *names;
 
     if ( NULL == defs ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
@@ -509,7 +509,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix,
         return 0;
     }
 
-    rc = nlt_make_namelist_from_string( &names, column_names );
+    rc = nlt_make_VNamelist_from_string( &names, column_names );
     DISP_RC( rc, "col_defs_parse_string:nlt_make_namelist_from_string() failed" );
     if ( 0 == rc ) {
         uint32_t idx, len = VectorLength( &( defs -> cols ) );
@@ -521,7 +521,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix,
             p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols), idx );
             if ( NULL != col ) {
                 if ( col -> requested ) {
-                    if ( nlt_is_name_in_namelist( names, col -> name ) ) {
+                    if ( nlt_is_name_in_VNamelist( names, col -> name ) ) {
                         col -> requested = false;
                     } else {
                         if ( NULL != prefix ) {
@@ -532,7 +532,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix,
                                 rc_t rc1 = string_printf ( s, len1, &num_writ, "%s:%s",
                                                            prefix, col -> name );
                                 if ( 0 == rc1 ) {
-                                    if ( nlt_is_name_in_namelist( names, s ) ) {
+                                    if ( nlt_is_name_in_VNamelist( names, s ) ) {
                                         col->requested = false;
                                     }
                                 }
@@ -543,7 +543,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix,
                 }
             }
         }
-        KNamelistRelease( names );
+        VNamelistRelease( names );
     }
     return rc;
 }
@@ -654,7 +654,7 @@ rc_t col_defs_mark_writable_columns( col_defs* defs, VTable *tab, bool show ) {
             p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
             if ( NULL != col ) {
                 if ( col -> requested ) {
-                    if ( nlt_is_name_in_namelist( writables, col -> name ) ) {
+                    if ( nlt_is_name_in_KNamelist( writables, col -> name ) ) {
                         if ( show ) {
                             KOutMsg( "writable column: >%s<\n", col -> name );
                         }
@@ -687,18 +687,18 @@ rc_t col_defs_mark_requested_columns( col_defs* defs, const char * columns ) {
         rc = 0;
     } else {
         /* specific columns are provided --> mark all of these */
-        const KNamelist *requested;
-        rc = nlt_make_namelist_from_string( &requested, columns );
+        const VNamelist *requested;
+        rc = nlt_make_VNamelist_from_string( &requested, columns );
         DISP_RC( rc, "col_defs_mark_requested_columns:nlt_make_namelist_from_string() failed" );
         if ( 0 == rc ) {
             uint32_t idx, len = VectorLength( &( defs -> cols ) );
             for ( idx = 0;  idx < len; ++idx ) {
                 p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
                 if ( NULL != col ) {
-                    col -> requested = nlt_is_name_in_namelist( requested, col -> name );
+                    col -> requested = nlt_is_name_in_VNamelist( requested, col -> name );
                 }
             }
-            KNamelistRelease( requested );
+            VNamelistRelease( requested );
         }
     }
     return rc;

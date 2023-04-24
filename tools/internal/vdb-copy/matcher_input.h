@@ -34,7 +34,7 @@ extern "C" {
 typedef struct matcher_input
 {
     VDBManager * manager;
-    const KNamelist * add_schemas;
+    const VNamelist * add_schemas;
     KConfig * cfg;
     KDirectory * dir;
     const char * columns;

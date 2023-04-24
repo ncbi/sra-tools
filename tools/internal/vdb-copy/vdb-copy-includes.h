@@ -102,16 +102,6 @@ extern "C" {
 #include <sra/sraschema.h>
 #endif
 
-/*
-#ifndef _h_sra_srapath_
-#include <sra/srapath.h>
-#endif
-*/
-
-#ifndef _h_namelist_tools_
-#include "namelist_tools.h"
-#endif
-
 #include <os-native.h>
 
 #ifdef __cplusplus

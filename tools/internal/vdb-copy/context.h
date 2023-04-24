@@ -107,7 +107,7 @@ typedef struct context
     char *src_path;
     char *dst_path;
     const char *kfg_path;    
-    const KNamelist *src_schema_list;
+    const VNamelist *src_schema_list;
     const char *table;
     const char *columns;
     const char *excluded_columns;

@@ -93,10 +93,9 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # quality
-    # 6.1 is temporarily disabled; the results differ inside and outside of ncbi
-    # add_test( NAME Test_Sra_Info_Quality_Physical_6.1
-    #     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality SRR000123" "." "6.1"
-    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Quality_Physical_6.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality input/MultiPlatform" "." "6.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     add_test( NAME Test_Sra_Info_Quality_Physical_6.2
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q NC_000001.10" "." "6.2"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

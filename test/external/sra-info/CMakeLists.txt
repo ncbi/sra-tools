@@ -92,6 +92,14 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --is-aligned ERR334733" "." "5.2"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    # quality
+    add_test( NAME Test_Sra_Info_Quality_Physical_6.1
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality SRR000123" "." "6.1"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Sra_Info_Quality_Physical_6.2
+        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q NC_000001.10" "." "6.2"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )
 endif()

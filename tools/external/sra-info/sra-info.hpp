@@ -44,6 +44,7 @@ public:
     Platforms GetPlatforms() const; // may be empty or more than 1 value
 
     bool IsAligned() const;
+    bool HasPhysicalQualities() const;
 
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;

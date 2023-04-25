@@ -26,6 +26,8 @@
 
 #include "sra-info.hpp"
 
+#include <algorithm>
+
 #include <insdc/sra.h>
 
 using namespace std;
@@ -121,11 +123,11 @@ SraInfo::GetPlatforms() const
         }
         throw;
     }
-  
+
     return ret;
 }
 
-bool 
+bool
 SraInfo::IsAligned() const
 {
     try
@@ -139,6 +141,28 @@ SraInfo::IsAligned() const
     }
     catch(const VDB::Error &)
     {   // assume the alignment table does not exist
+    }
+    return false;
+}
+
+bool
+SraInfo::HasPhysicalQualities() const
+{   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
+    VDB::Table table = openSequenceTable( m_accession );
+    const string QualityColumn = "QUALITY";
+    VDB::Table::ColumnNames readable = table.readableColumns();
+    if ( find( readable.begin(), readable.end(), QualityColumn ) != readable.end() )
+    {
+        const string OriginalQualityColumn = "ORIGINAL_QUALITY";
+        VDB::Table::ColumnNames physical = table.physicalColumns();
+        if ( find( physical.begin(), physical.end(), OriginalQualityColumn ) != physical.end() )
+        {
+            return true;
+        }
+        if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
+        {
+            return true;
+        }
     }
     return false;
 }

@@ -631,7 +631,7 @@ static rc_t RepairCheckBins(const Repair *self) {
         return rc;
     if (self->mode & eCheck) {
 /* grep is found *
-        rc = FInd("grep --help > /dev/null 2>&1", "Cannot find grep");
+        rc = Find("grep --help > /dev/null 2>&1", "Cannot find grep");
         if (rc != 0)
             return rc; */
 
@@ -642,7 +642,10 @@ static rc_t RepairCheckBins(const Repair *self) {
             return rc;
 
 /* sra-stat supports --repair-data */
-        sprintf(command, SRA_STAT " SRR053325 " REPAIR " > /dev/null 2>&1");
+        if (self->verbose < 4)
+            sprintf(command, SRA_STAT " " REPAIR " > /dev/null 2>&1");
+        else
+            sprintf(command, SRA_STAT " " REPAIR " 2>&1 > /dev/null");
         rc = Find(command, SRA_STAT " does not support " REPAIR);
         if (rc != 0)
             return rc;
@@ -797,7 +800,7 @@ static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
     if (i / 256 != 0) {
         bool failed = false;
         if (succeed == NULL) {
-            if (self->fix == NULL)
+            if (self->fix[0] == '\0')
                 failed = true;
         }
         else {

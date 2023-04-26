@@ -272,9 +272,9 @@ static inline DWORD getFinalPathNameByHandle(HANDLE h, API_STRING buffer, size_t
 }
 
 #if USE_WIDE_API
-static inline PARSEDURLW parseURL(API_STRING url)
+static inline PARSEDURLW parseURL(API_CONST_STRING url)
 #else
-static inline PARSEDURLA parseURL(API_STRING url)
+static inline PARSEDURLA parseURL(API_CONST_STRING url)
 #endif
 {
 #if USE_WIDE_API

@@ -44,8 +44,12 @@ TEST_SUITE(VdbTestSuite);
 TEST_CASE(Error_RcToString)
 {
     rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
-
-    REQUIRE_EQ( string("RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)"), Error::RcToString( rc ) );
+#if DEBUG
+    const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
+#else 
+    const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
+#endif    
+    REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)
 {

@@ -27,8 +27,28 @@
 #ifndef _h_vdb_coldefs_
 #define _h_vdb_coldefs_
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_kfg_config_
+#include <kfg/config.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
 #endif
 
 #ifndef _h_type_matcher_

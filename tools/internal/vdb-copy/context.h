@@ -31,10 +31,22 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
+#ifndef _h_klib_num_gen_
+#include <klib/num-gen.h>
+#endif
+
+#ifndef _h_kapp_args_
+#include <kapp/args.h>
+#endif
+    
 #ifndef _h_config_values_
 #include "config_values.h"
 #endif
@@ -43,10 +55,9 @@ extern "C" {
 #include "redactval.h"
 #endif
 
-#include <klib/num-gen.h>
-
-#include <kapp/args.h>
+#ifndef _h_definitions_
 #include "definitions.h"
+#endif
 
 #define OPTION_TABLE             "table"
 #define OPTION_ROWS              "rows"

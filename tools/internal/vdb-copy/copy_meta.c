@@ -24,20 +24,39 @@
 *
 */
 
-#include "vdb-copy-includes.h"
+#include "copy_meta.h"
+
+#ifndef _h_definitions_
 #include "definitions.h"
+#endif
+
+#ifndef _h_helper_
 #include "helper.h"
-#include <klib/text.h>
+#endif
+
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
+
+#ifndef _h_klib_time_
 #include <klib/time.h>
+#endif
+
+#ifndef _h_kapp_main_
 #include <kapp/main.h>      /* for KAppVersion()*/
+#endif
+
+#ifndef _h_kdb_meta_
 #include <kdb/meta.h>
+#endif
+
+#ifndef _h_kdb_namelist_
 #include <kdb/namelist.h>
-#include <sysalloc.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <assert.h>
+#endif
 
 static rc_t copy_metadata_data ( const KMDataNode *snode, KMDataNode *dnode ) {
     char buffer [ 1024 ];

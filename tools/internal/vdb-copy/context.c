@@ -25,10 +25,10 @@
 */
 
 #include "context.h"
-#include "helper.h"
 
-#include <sysalloc.h>
-#include <stdlib.h>
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
 /*
  * helper-function to set a string inside the context

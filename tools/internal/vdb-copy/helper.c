@@ -26,10 +26,22 @@
 
 #include "helper.h"
 
+#ifndef _h_definitions_
 #include "definitions.h"
+#endif
+
+#ifndef _h_sra_sraschema_
+#include <sra/sraschema.h>
+#endif
+
+#ifndef _h_vdb_vdb_priv_
+#include <vdb/vdb-priv.h>
+#endif
 
 /* this is here to detect the md5-mode of the src-table */
+#ifndef _h_kdb_kdb_priv_
 #include <kdb/kdb-priv.h>
+#endif
 
 #include <kdb/table.h>
 

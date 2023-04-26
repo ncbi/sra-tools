@@ -25,18 +25,23 @@
 */
 
 #include "coldefs.h"
+
+#ifndef _h_helper_
 #include "helper.h"
+#endif
+
+#ifndef _h_definitions_
 #include "definitions.h"
+#endif
 
-#include <klib/text.h>
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
 
-#include <sysalloc.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
 
 /* allocate a column-definition */
 static p_col_def col_defs_init_col( const char * name ) {

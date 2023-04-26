@@ -31,18 +31,38 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
-#ifndef _h_vdb_redactval_
-#include "redactval.h"
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
+#endif
+
+#ifndef _h_kfg_config_
+#include <kfg/config.h>
 #endif
 
 #ifndef _h_config_values_
 #include "config_values.h"
 #endif
 
+#ifndef _h_vdb_redactval_
+#include "redactval.h"
+#endif
+    
 int64_t strtoi64( const char* str, char** endp, uint32_t base );
 uint64_t strtou64( const char* str, char** endp, uint32_t base );
 

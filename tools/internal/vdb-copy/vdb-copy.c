@@ -24,29 +24,45 @@
 *
 */
 
-#include "vdb-copy-includes.h"
-#include "definitions.h"
-#include "context.h"
-#include "helper.h"
-#include "coldefs.h"
-#include "get_platform.h"
-#include "copy_meta.h"
-#include "type_matcher.h"
-#include "redactval.h"
-
-#include <kapp/main.h>
-#include <klib/progressbar.h>
-#include <sysalloc.h>
-
-/*
-#if _DEBUGGING
-#define _CRTDBG_MAP_ALLOC 1
-#include <crtdbg.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>
 #endif
-*/
 
-#include <stdlib.h>
-#include <string.h>
+#ifndef _h_sra_sraschema_
+#include <sra/sraschema.h>
+#endif
+
+#ifndef _h_kapp_main_
+#include <kapp/main.h>
+#endif
+
+#ifndef _h_klib_progressbar_
+#include <klib/progressbar.h>
+#endif
+
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
+#ifndef _h_context_h
+#include "context.h"
+#endif
+
+#ifndef _h_helper_h
+#include "helper.h"
+#endif
+
+#ifndef _h_coldefs_h
+#include "coldefs.h"
+#endif
+
+#ifndef _h_get_platform_h
+#include "get_platform.h"
+#endif
+
+#ifndef _h_copy_meta_h
+#include "copy_meta.h"
+#endif
 
 static const char * table_usage[] = { "table-name", NULL };
 static const char * rows_usage[] = { "set of rows to be copied(default = all)", NULL };

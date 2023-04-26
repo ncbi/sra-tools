@@ -27,15 +27,18 @@
 #ifndef _h_vdb_redactval_
 #define _h_vdb_redactval_
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
 
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+    
 /********************************************************************
     redact_buffer is a pointer and a size...
 ********************************************************************/

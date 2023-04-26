@@ -23,12 +23,15 @@
 * ===========================================================================
 *
 */
-#include "vdb-copy-includes.h"
-#include "matcher_input.h"
-#include "helper.h"
+#include "type_matcher.h"
 
-#include <sysalloc.h>
-#include <stdlib.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
 /* internal definition of a type to be matched */
 typedef struct mtype {

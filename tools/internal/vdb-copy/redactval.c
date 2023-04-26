@@ -26,13 +26,9 @@
 
 #include "redactval.h"
 
+#ifndef _h_helper_
 #include "helper.h"
-#include <sysalloc.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
+#endif
 
 void redact_buf_init( redact_buffer * rbuf ) {
     rbuf -> buffer = NULL;

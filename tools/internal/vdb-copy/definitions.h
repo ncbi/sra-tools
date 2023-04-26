@@ -30,7 +30,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-   
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+    
 #define DISP_RC(rc,err) (void)((rc == 0) ? 0 : LogErr( klogInt, rc, err ))
 
 #define DB_COPY_ENABLED 1

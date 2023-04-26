@@ -24,9 +24,30 @@
 *
 */
 #include "get_platform.h"
-#include <sysalloc.h>
-#include <stdlib.h> /* for malloc */
-#include <string.h> /* for memmove */
+
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_sra_sraschema_
+#include <sra/sraschema.h>
+#endif
 
 #define PLATFORM_COL "(ascii)PLATFORM"
 

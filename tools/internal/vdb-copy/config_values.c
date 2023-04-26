@@ -25,7 +25,6 @@
 */
 #include "config_values.h"
 
-#include <sysalloc.h>
 #include <string.h>
 #include <stdlib.h>
 

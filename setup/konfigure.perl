@@ -20,7 +20,7 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# =============================================================================$
 
 use strict;
 
@@ -193,7 +193,12 @@ if ($OPT{'help'}) {
 foreach (@ARGV) {
     @_ = split('=');
     next if ($#_ != 1);
-    $OPT{$_[0]} = $_[1] if ($_[0] eq 'CXX' || $_[0] eq 'LDFLAGS');
+    if ($_[0] eq 'CC' || $_[0] eq 'CXX' || $_[0] eq 'LDFLAGS')
+    {   $OPT{$_[0]} = $_[1] }
+}
+foreach ( qw ( CC CXX LDFLAGS ) ) {
+    unless ( $OPT{$_} )
+    {   $OPT{$_} = $ENV{$_} if ( $ENV{$_} ) }
 }
 
 println "Configuring $PACKAGE_NAME package";
@@ -336,7 +341,19 @@ if ($OSTYPE =~ /linux/i) {
     $SHLX = 'so';
     $EXEX = '';
     $OSINC = 'unix';
-    $TOOLS = 'gcc' unless ($TOOLS);
+    unless ($TOOLS) {
+        if ($OPT{CC}) {
+            if ($OPT{CC} =~ /clang/) {
+                $TOOLS = 'clang'
+            } elsif ($OPT{CC} =~ /gcc/) {
+                $TOOLS = 'gcc'
+            } else {
+                die "unrecognized CC '$OPT{CC}'; expected: clang, gcc"
+            }
+        } else {
+            $TOOLS = 'gcc'
+        }
+    }
     $PYTHON = 'python';
 } elsif ($OSTYPE =~ /darwin/i) {
     $LPFX = 'lib';
@@ -346,7 +363,19 @@ if ($OSTYPE =~ /linux/i) {
     $SHLX = 'dylib';
     $EXEX = '';
     $OSINC = 'unix';
-    $TOOLS = 'clang' unless ($TOOLS);
+    unless ($TOOLS) {
+        if ($OPT{CC}) {
+            if ($OPT{CC} =~ /clang/) {
+                $TOOLS = 'clang'
+            } elsif ($OPT{CC} =~ /gcc/) {
+                $TOOLS = 'gcc'
+            } else {
+                die "unrecognized CC '$OPT{CC}'; expected: clang, gcc"
+            }
+        } else {
+            $TOOLS = 'clang'
+        }
+    }
     $PYTHON = 'python';
 } elsif ($OSTYPE eq 'win') {
     $TOOLS = 'vc++';
@@ -363,18 +392,21 @@ my ($ARCH_FL, $DBG, $OPT, $PIC, $INC, $MD, $LDFLAGS) = ('');
 
 print "checking for supported tool chain... " unless ($AUTORUN);
 
+$CC      = $OPT{CC     } if ($OPT{CC     });
 $CPP     = $OPT{CXX    } if ($OPT{CXX    });
 $LDFLAGS = $OPT{LDFLAGS} if ($OPT{LDFLAGS});
 
 if ($TOOLS =~ /gcc$/) {
     $CPP  = 'g++' unless ($CPP);
-    $CC   = "$TOOLS -c";
     $CP   = "$CPP -c";
     $AR   = 'ar rc';
     $ARX  = 'ar x';
     $ARLS = 'ar t';
-    $LD   = $TOOLS;
     $LP   = $CPP;
+
+    $CC   = $TOOLS unless ($CC);
+    $LD   = $CC;
+    $CC .= ' -c';
 
     $DBG = '-g -DDEBUG';
     $OPT = '-O3';
@@ -383,24 +415,27 @@ if ($TOOLS =~ /gcc$/) {
     $MD  = '-MD';
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++' unless ($CPP);
-    $CC   = 'clang -c';
-    #my $versionMin = '-mmacosx-version-min=10.10';
+#   my $versionMin = '-mmacosx-version-min=10.10';
     my $versionMin = '';
     $CP   = "$CPP -c $versionMin";
+
+    $CC   = $TOOLS unless ($CC);
     if ($BITS ne '32_64') {
         $ARCH_FL = '-arch i386' if ($BITS == 32);
         $OPT = '-O3';
         $AR      = 'ar rc';
-        $LD      = "clang $ARCH_FL";
+        $LD      = "$CC $ARCH_FL";
         $LP      = "$CPP $versionMin $ARCH_FL";
     } else {
         $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
         $ARCH_FL       = '-arch i386 -arch x86_64';
         $OPT    = '-O3';
         $AR     = 'libtool -static -o';
-        $LD     = "clang -Wl,-arch_multiple $ARCH_FL -Wl,-all_load";
+        $LD     = "$CC -Wl,-arch_multiple $ARCH_FL -Wl,-all_load";
         $LP     = "$CPP $versionMin -Wl,-arch_multiple $ARCH_FL -Wl,-all_load";
     }
+    $CC .= ' -c';
+
     $ARX  = 'ar x';
     $ARLS = 'ar t';
 
@@ -429,7 +464,7 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
 
 if ($CPP) {
     print "checking for $TOOLS... ";
-    my $cmd = "$TOOLS --version | head -1";
+    my $cmd = "$CC --version | head -1";
     print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
     my $out = `$cmd 2>&1`;
     if ($? == 0) {
@@ -1672,7 +1707,7 @@ sub find_lib {
 
 sub check_compiler {
     my ($t, $n, $I, @l) = @_;
-    my $tool = $TOOLS;
+    my $tool = $CC;
 
     if ($t eq 'L') {
         print "checking for $n library... ";
@@ -1840,7 +1875,10 @@ sub help {
     print <<EndText;
 `configure' configures $PACKAGE_NAME to adapt to many kinds of systems.
 
-Usage: ./configure [OPTION]...
+Usage: ./configure [OPTION]... [VAR=VALUE]...
+
+To assign environment variables (e.g., CC, CFLAGS...), specify them as
+VAR=VALUE. See below for descriptions of some of the useful variables.
 
 Defaults for the options are specified in brackets.
 
@@ -1999,6 +2037,15 @@ EndText
     print <<EndText;
   --clean                  remove all configuration results
   --debug                  print lots of debugging information
+
+Some influential environment variables:
+  CC          C compiler command
+  CXX         C++ compiler command
+  LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
+              nonstandard directory <lib dir>
+
+Use these variables to override the choices made by `configure' or to
+help it to find libraries and programs with nonstandard names/locations.
 
 If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.

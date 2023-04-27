@@ -673,10 +673,9 @@ rc_t matcher_execute( matcher* self, const p_matcher_input in ) {
     if ( NULL == self ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
     }
-    if ( NULL == in -> manager  || NULL == in -> add_schemas || 
-         NULL == in -> cfg      || NULL == in -> columns     || 
-         NULL == in -> src_path || NULL == in -> dst_path    ||
-         NULL == in -> dst_tabname ) {
+    if ( NULL == in -> manager  || NULL == in -> cfg      ||
+         NULL == in -> columns  || NULL == in -> src_path ||
+         NULL == in -> dst_path || NULL == in -> dst_tabname ) {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
     }
     rc = matcher_build_column_vector( self, in -> columns );

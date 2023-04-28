@@ -15,6 +15,10 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
+_May 9, 2023_: **SRA Toolkit 3.0.5**
+
+----
+
 _January 3, 2023_ : **SRA Toolkit 3.0.3**
 
 Fixed regression in sra-stat.

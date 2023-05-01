@@ -123,7 +123,7 @@ static rc_t dbj_init_cmn_data( dbj_cmn_t * j,
     j -> cmp_read_present = cmp_read_present;
 
     if ( NULL != index_filename ) {
-        if ( file_exists( cp -> dir, "%s", index_filename ) ) {
+        if ( ft_file_exists( cp -> dir, "%s", index_filename ) ) {
             rc = make_index_reader( cp -> dir, &j -> index, buf_size, "%s", index_filename ); /* index.c */
         }
     } else {

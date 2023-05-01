@@ -436,14 +436,13 @@ void hlp_add_join_stats( join_stats_t * stats, const join_stats_t * to_add ) {
     }
 }
 
-rc_t hlp_print_stats( const join_stats_t * stats )
-{
+rc_t hlp_print_stats( const join_stats_t * stats, rc_t rc_in ) {
     KOutHandlerSetStdErr();
     rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
     if ( 0 == rc ) {
         rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
     }
-    if ( 0 == rc ) {
+    if ( 0 == rc && 0 == rc_in ) {
         rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
     }
     if ( 0 == rc && stats -> reads_zero_length > 0 ) {

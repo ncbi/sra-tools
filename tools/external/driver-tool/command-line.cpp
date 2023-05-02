@@ -43,109 +43,132 @@
 #include <cctype>
 #include <type_traits>
 
+using Version = sratools::Version;
 
 #if WINDOWS
-#else
-#undef USE_WIDE_API
-#endif
 
-#if USE_WIDE_API
+template <typename T>
+static inline int countOfCollection(T *collection[]) {
+	for (int i = 0; ; ++i) {
+		if (collection[i] == nullptr)
+			return i;
+	}
+}
 
 /// Compute the number of UTF-8 bytes needed to store an array of Windows wchar strings.
 /// \Note the count includes null terminators.
-static std::pair<size_t, int> needUTF8s(wchar_t *collection[])
+static inline size_t neededToConvert(int argc, wchar_t *collection[])
 {
     size_t bytes = 0;
-    int argc = 0;
-    for (auto i = 0; collection[i]; ++i) {
+    for (int i = 0; i != argc; ++i) {
         auto const count = Win32Support::unwideSize(collection[i]);
         if (count <= 0)
             throw std::runtime_error("Can not convert command line to UTF-8!?"); ///< Windows shouldn't ever send us strings that it can't convert to UTF8
         bytes += count;
-        argc += 1;
     }
-    return {bytes, argc};
+    return bytes;
+}
+
+/// Compute the number of Windows wchars needed to store an array of UTF-8 strings.
+/// \Note the count includes null terminators.
+static inline size_t neededToConvert(int argc, char *collection[])
+{
+    size_t bytes = 0;
+    for (int i = 0; i != argc; ++i) {
+        auto const count = Win32Support::wideSize(collection[i]);
+        if (count <= 0)
+            throw std::runtime_error("Can not convert command line to wide!?"); ///< Windows shouldn't ever send us strings that it can't convert to UTF8
+        bytes += count;
+    }
+    return bytes;
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static void convert2UTF8(int argc, char *argv[], size_t bufsize, char *buffer, wchar_t *collection[])
+static inline void convert(int argc, char *rslt[], size_t bufsize, char *buffer, wchar_t *in[])
 {
     int i;
     for (i = 0; i < argc; ++i) {
-        auto const count = Win32Support::unwiden(buffer, bufsize, collection[i]);
+        auto const count = Win32Support::unwiden(buffer, bufsize, in[i]);
         assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
-        argv[i] = buffer;
+        rslt[i] = buffer;
         buffer += count;
         bufsize -= count;
     }
-    argv[i] = nullptr;
+    rslt[i] = nullptr;
 }
 
-/// Convert an array of Windows wchar strings into an array of UTF8 strings
-/// \returns a new array that can be `free`d
-/// \Note don't free the individual strings in the array
-static char const *const *convertWStrings(wchar_t *collection[])
+/// Convert an array of Windows wchar strings into an array of UTF-8 strings
+static inline void convert(int argc, wchar_t *rslt[], size_t bufsize, wchar_t *buffer, char *in[])
 {
-    auto const sn = needUTF8s(collection);
-    auto const &chars = sn.first;
-    auto const &argc = sn.second;
-    auto const argv = (char **)malloc((argc + 1) * sizeof(char *) + chars);
-    auto const buffer = (char *)&argv[argc + 1];
-
-    if (argv != NULL)
-        convert2UTF8(argc, argv, chars, buffer, collection);
-
-    return argv;
-}
-
-#endif // WINDOWS && USE_WIDE_API
-
-using Version = sratools::Version;
-
-#if USE_WIDE_API
-/// Used by wmain
-CommandLine::CommandLine(int argc, wchar_t **wargv, wchar_t **wenvp, char **extra)
-: argv(convertWStrings(wargv))
-, envp(convertWStrings(wenvp))
-, extra(nullptr)
-, wargv(wargv)
-, wenvp(wenvp)
-#else
-/// Used by normal main
-CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
-: argv(argv)
-, envp(envp)
-, extra(extra)
-#endif
-#if WINDOWS
-#else
-, fakeName(getFakeName())
-#endif
-, fullPathToExe(FilePath::fullPathToExecutable(argv, envp, extra))
-, argc(argc)
-, buildVersion(Version::current.packed)
-{
-#if WINDOWS
-#endif
-    {
-        auto const p = fullPathToExe.split();
-        fullPath = p.first;
-        realName.assign(p.second);
+    int i;
+    for (i = 0; i < argc; ++i) {
+        auto const count = Win32Support::widen(buffer, bufsize, in[i]);
+        assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
+        rslt[i] = buffer;
+        buffer += count;
+        bufsize -= count;
     }
-    baseName = FilePath::baseName(argv[0]);
-#if WINDOWS
-#else
+    rslt[i] = nullptr;
+}
+
+template <typename S, typename T>
+static inline void convertArgsAndEnv(void **const allocated, T ***const destArgs, T ***const destEnv, int const argc, S **const argv, S **const envp)
+{
+	auto const nEnv = countOfCollection(envp);
+	auto const szEnv = neededToConvert(nEnv, envp);
+	auto const szArgs = neededToConvert(argc, argv);
+	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(T *) + (szArgs + szEnv) * sizeof(T);
+	auto const alloced = (char **)malloc(szAlloc);
+	if (alloced == nullptr)
+		throw std::bad_alloc();
+
+	*allocated = alloced;
+	
+	memset(alloced, 0, szAlloc);
+	convert(argc, argv, szArgs, (*destArgs = alloced));
+	convert(nEnv, envp, szEnv, (*destEnv = alloced + argc + 1));
+}
+
+#else // WINDOWS
+#undef USE_WIDE_API
+
+char const *CommandLine::getFakeName() const
+{
+    auto const name = "SRATOOLS_IMPERSONATE";
+    for (auto cur = envp; *cur; ++cur) {
+        auto entry = *cur;
+        for (auto i = 0; ; ++i) {
+            if (name[i] == '\0' && entry[i] == '=')
+                return entry + i + 1;
+            if (name[i] != entry[i])
+                break;
+        }
+    }
+    return nullptr;
+}
+
+#endif // WINDOWS
+
+void CommandLine::initialize(void)
+{
+	fullPathToExe = FilePath::fullPathToExecutable(argv, envp, extra);
+
+	auto const p = fullPathToExe.split();
+	fullPath = p.first; /// directory containing the executable
+	realName.assign(p.second); /// real name of the executable
+
+    baseName = FilePath::baseName(argv[0]); // from the user
     versionFromName = Version::fromName(realName).packed;
-    runAsVersion = Version::fromName(baseName).packed;
-#endif
-
+    runAsVersion = Version::fromName(baseName).packed; // e.g. 3.0.3 from fasterq-dump.3.0.3
     toolName = baseName;
-    {
-        auto const dot = toolName.find('.');
-        if (dot != toolName.npos)
-            toolName = toolName.substr(0, dot);
-    }
+
+	// remove any trailing version (or extension or whatever).
+	auto const dot = toolName.find('.');
+	if (dot != toolName.npos)
+		toolName = toolName.substr(0, dot);
+
 #if WINDOWS
+	// fake name feature not used
 #else
     if (fakeName)
         toolName = fakeName;
@@ -154,12 +177,52 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
     toolPath = getToolPath();
 }
 
-CommandLine::~CommandLine() {
+#if WINDOWS
+
 #if USE_WIDE_API
-    free((void *)argv);
-    free((void *)envp);
-#endif
+/// Used by wmain
+CommandLine::CommandLine(int in_argc, wchar_t **in_wargv, wchar_t **in_wenvp, char **dummy_extra)
+	: argv(nullptr)
+	, envp(nullptr)
+	, extra(nullptr)
+	, wargv(in_wargv)
+	, wenvp(in_wenvp)
+	, allocated(nullptr)
+	, argc(in_argc)
+	, buildVersion(Version::current.packed)
+{
+	convertArgsAndEnv(&allocated, &argv, &envp, argc, wargv, wenvp);
+	initialize();
+	(void)dummy_extra;
 }
+#endif
+/// Used by test code
+CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **dummy_extra)
+	: argv(in_argv)
+	, envp(in_envp)
+	, extra(nullptr)
+	, wargv(nullptr)
+	, wenvp(nullptr)
+	, allocated(nullptr)
+	, argc(in_argc)
+	, buildVersion(Version::current.packed)
+{
+	convertArgsAndEnv(&allocated, &wargv, &wenvp, argc, wargv, wenvp);
+	initialize();
+	(void)dummy_extra;
+}
+#else
+CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **in_extra)
+	: argv(in_argv)
+	, envp(in_envp)
+	, extra(in_extra)
+	, fakeName(getFakeName())
+	, argc(in_argc)
+	, buildVersion(Version::current.packed)
+{
+	initialize();
+}
+#endif
 
 static uint32_t effectiveVersion(uint32_t fromName, uint32_t runAs, uint32_t fromBuild)
 {
@@ -194,7 +257,7 @@ FilePath CommandLine::getToolPath() const {
     auto const &tries = getToolPaths(fullPath, toolName, buildVersion);
 #else
     auto const &tries = getToolPaths(fullPath, toolName, effectiveVersion(versionFromName, runAsVersion, buildVersion));
-#endif // !WINDOWS
+#endif // WINDOWS
     for (auto && path : tries) {
         if (path.executable())
             return path;
@@ -204,20 +267,6 @@ FilePath CommandLine::getToolPath() const {
 
 #if WINDOWS
 #else
-char const *CommandLine::getFakeName() const
-{
-    auto const name = "SRATOOLS_IMPERSONATE";
-    for (auto cur = envp; *cur; ++cur) {
-        auto entry = *cur;
-        for (auto i = 0; ; ++i) {
-            if (name[i] == '\0' && entry[i] == '=')
-                return entry + i + 1;
-            if (name[i] != entry[i])
-                break;
-        }
-    }
-    return nullptr;
-}
 #endif
 
 std::ostream &operator<< (std::ostream &os, CommandLine const &obj)

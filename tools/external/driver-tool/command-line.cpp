@@ -222,6 +222,7 @@ CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **in_
 	: argv(in_argv)
 	, envp(in_envp)
 	, extra(in_extra)
+	, allocated(nullptr)
 	, fakeName(getFakeName())
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)

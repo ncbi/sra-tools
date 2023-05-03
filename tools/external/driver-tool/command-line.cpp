@@ -112,21 +112,23 @@ static inline void convert(int argc, wchar_t *rslt[], size_t bufsize, wchar_t *b
 }
 
 template <typename S, typename T>
-static inline void convertArgsAndEnv(void **const allocated, T ***const destArgs, T ***const destEnv, int const argc, S **const argv, S **const envp)
+static inline void convertArgsAndEnv(void **const allocated, T *const **const destArgs, T *const **const destEnv, int const argc, S **const argv, S **const envp)
 {
 	auto const nEnv = countOfCollection(envp);
 	auto const szEnv = neededToConvert(nEnv, envp);
 	auto const szArgs = neededToConvert(argc, argv);
 	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(T *) + (szArgs + szEnv) * sizeof(T);
-	auto const alloced = (char **)malloc(szAlloc);
+	auto const alloced = (T **)malloc(szAlloc);
 	if (alloced == nullptr)
 		throw std::bad_alloc();
 
-	*allocated = alloced;
-	
 	memset(alloced, 0, szAlloc);
-	convert(argc, argv, szArgs, (*destArgs = alloced));
-	convert(nEnv, envp, szEnv, (*destEnv = alloced + argc + 1));
+	convert(argc, argv, szArgs, alloced);
+	convert(nEnv, envp, szEnv, alloced + argc + 1);
+
+	*allocated = (void *)alloced;
+	*destArgs = (T *const *)(alloced);
+	*destEnv = (T *const *)(alloced + argc + 1);
 }
 
 #else // WINDOWS
@@ -158,8 +160,12 @@ void CommandLine::initialize(void)
 	realName.assign(p.second); /// real name of the executable
 
     baseName = FilePath::baseName(argv[0]); // from the user
+#if WINDOWS
+	// Adding version to exe name is not used.
+#else
     versionFromName = Version::fromName(realName).packed;
     runAsVersion = Version::fromName(baseName).packed; // e.g. 3.0.3 from fasterq-dump.3.0.3
+#endif
     toolName = baseName;
 
 	// remove any trailing version (or extension or whatever).

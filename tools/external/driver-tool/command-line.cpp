@@ -213,7 +213,7 @@ CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **dum
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)
 {
-	convertArgsAndEnv(&allocated, &wargv, &wenvp, argc, wargv, wenvp);
+	convertArgsAndEnv(&allocated, &wargv, &wenvp, argc, argv, envp);
 	initialize();
 	(void)dummy_extra;
 }

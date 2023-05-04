@@ -48,7 +48,7 @@ using Version = sratools::Version;
 #if WINDOWS
 
 template <typename T>
-static inline int countOfCollection(T *collection[]) {
+static inline int countOfCollection(T *const *collection) {
 	for (int i = 0; ; ++i) {
 		if (collection[i] == nullptr)
 			return i;

@@ -76,7 +76,11 @@ public:
     void SetChannel(const re2::StringPiece& channel) { channel.CopyToString(&mChannel); }
     void SetNanoporeReadNo(const re2::StringPiece& readNo) { readNo.CopyToString(&mNanoporeReadNo); }
 
+    void SetSequence(string sequence) { mSequence = move(sequence); }
+    void SetQualScores(vector<uint8_t> qual_scores) { mQualScores = move(qual_scores); }
 
+    size_t m_SpotId = 0;     ///< Assigned spot_id  
+    uint8_t m_ReaderIdx = 0; /// Reader's index
 private:
     friend class fastq_reader;
     size_t mLineNumber{0};        ///< Line number the read starts with
@@ -93,6 +97,7 @@ private:
     vector<uint8_t> mQualScores;  ///< Numeric quality scores
 };
 
+typedef CFastqRead fastq_read;
 
 CFastqRead::CFastqRead()
 {
@@ -112,6 +117,8 @@ void CFastqRead::Reset()
     mChannel.clear();
     mNanoporeReadNo.clear();
     mLineNumber = 0;
+    m_SpotId = 0;
+    m_ReaderIdx = 0;
 }
 
 static

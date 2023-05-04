@@ -82,6 +82,8 @@ private:
     int Run();
     int xRun();
     int xRunDigest();
+    int xRunSpotAssembly();
+
 
     void xSetupInput();
     void xSetupOutput();
@@ -102,13 +104,15 @@ private:
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
-    vector<char> mReadTypes;            ///< ReadType paramter value
+    vector<char> mReadTypes;            ///< ReadType parameter value
     using TInputFiles = vector<string>;
     vector<TInputFiles> mInputBatches;  ///< List of input batches
     bool mDiscardNames{false};          ///< If set spot names are not written in the db, the same effect as mNameColumn = 'NONE'
     bool mAllowEarlyFileEnd{false};     ///< Flag to continue if one of the streams ends
+    bool mSpotAssembly{false};          ///< spot assembly mode 
     int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
     int mDigest{0};                     ///< Number of digest lines to produce
+    unsigned int mThreads{24};          ///< Number of threads to use
     string mTelemetryFile;              ///< Telemetry report file name
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
     string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
@@ -118,7 +122,7 @@ private:
     shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
     json  mReport;                      ///< Telemetry report
     uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
-    uint32_t mErrorCount{0};            ///< Global error counter
+    atomic<uint32_t> mErrorCount{0};            ///< Global error counter
     set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 170, 190}; ///< Error codes that will be allowed up to mMaxErrCount
 };
 
@@ -163,6 +167,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_flag("--useAndDiscardNames", mDiscardNames, "Discard file names");
 
         app.add_flag("--allowEarlyFileEnd", mAllowEarlyFileEnd, "Complete load at early end of one of the files");
+        app.add_flag("--sa, --spot-assembly", mSpotAssembly);
+        
 
         bool print_errors = false;
         app.add_flag("--help_errors,--help-errors", print_errors, "Print error codes and descriptions");
@@ -179,6 +185,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         mDigest = 0;
         app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
+        mThreads = 24;
+        app.add_option("--threads", mThreads, "Max number of threads to use (set optional value to indicate the number of threads to use")
+            //->check(CLI::Range(1, std::thread::hardware_concurrency()));
+            ->default_val(24)
+            ->check(CLI::Range(1, 256));
 
         mTelemetryFile.clear();
         app.add_option("--telemetry,-t", mTelemetryFile, "Telemetry report file");
@@ -345,7 +356,13 @@ void CFastqParseApp::xCheckInputFiles(vector<string>& files)
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::Run()
 {
-    int retStatus = mDigest != 0 ? xRunDigest() : xRun();
+    int retStatus = 0;
+    if (mDigest != 0)
+        retStatus = xRunDigest();
+    else if (mSpotAssembly)
+        retStatus = xRunSpotAssembly();
+    else
+        retStatus = xRun();
     xBreakdownOutput();
     return retStatus;
 }
@@ -398,34 +415,43 @@ void CFastqParseApp::xProcessDigest(json& data)
         gr["total_reads"] = total_reads;
     }
 
-    if (mReadTypes.empty()) {
-        //auto num_files = data["groups"].front().size();
-        if (is10x)
-            mReadTypes.resize(total_reads, 'A');
-        else if (total_reads < 3) {
-            mReadTypes.resize(total_reads, 'B');
-        } else {
-            throw fastq_error(20); // "No readTypes provided");
+    if (mSpotAssembly == false) {
+        if (mReadTypes.empty()) {
+            //auto num_files = data["groups"].front().size();
+            if (is10x)
+                mReadTypes.resize(total_reads, 'A');
+            else if (total_reads < 3) {
+                mReadTypes.resize(total_reads, 'B');
+            } else {
+                throw fastq_error(20); // "No readTypes provided");
+            }
         }
-    }
-
-    for (auto& gr : data["groups"]) {
-        auto& files = gr["files"];
-        int total_reads = gr["total_reads"];
-        if ((int)mReadTypes.size() < total_reads)
-            throw fastq_error(30, "readTypes number should match the number of reads");
-        int j = 0;
-        // assign read types for each file
-        for (auto& f : files) {
-            int num_reads = f["max_reads"];
-            while (num_reads) {
-                f["readType"].push_back(char(mReadTypes[j]));
-                --num_reads;
-                ++j;
+        for (auto& gr : data["groups"]) {
+            auto& files = gr["files"];
+            int total_reads = gr["total_reads"];
+            if ((int)mReadTypes.size() < total_reads)
+                throw fastq_error(30, "readTypes number should match the number of reads");
+            int j = 0;
+            // assign read types for each file
+            for (auto& f : files) {
+                int num_reads = f["max_reads"];
+                while (num_reads) {
+                    f["readType"].push_back(char(mReadTypes[j]));
+                    --num_reads;
+                    ++j;
+                }
+            }
+        }
+    } 
+/*
+    else {
+        for (auto& gr : data["groups"]) {
+            for (auto& f : gr["files"]) {
+                f["readType"] = mReadTypes.empty() ? json::array({}) : json::array({mReadTypes.begin(), mReadTypes.end()});
             }
         }
     }
-
+*/
 }
 
 //  -----------------------------------------------------------------------------
@@ -513,6 +539,7 @@ void CFastqParseApp::xCreateWriterFromDigest(json& data)
     m_writer->set_attr("name_column", mNameColumn);
     m_writer->set_attr("destination", mDestination);
     m_writer->set_attr("version", SHARQ_VERSION);
+    m_writer->set_attr("readTypes", string(mReadTypes.begin(), mReadTypes.end()));
 
     switch ((int)first["quality_encoding"]) {
     case 0:
@@ -578,6 +605,73 @@ int CFastqParseApp::xRun()
     return 0;
 }
 
+int CFastqParseApp::xRunSpotAssembly()
+{
+    if (mInputBatches.empty())
+        return 1;
+    
+    json data;
+    get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e); });
+    xProcessDigest(data);
+    mErrorCount = 0; //Reset error counts after initial digest
+    xCreateWriterFromDigest(data);
+    tf::Executor executor(min<int>(mThreads, thread::hardware_concurrency()));
+
+    m_writer->open();
+    fastq_parser<fastq_writer> parser(m_writer, mReadTypes);
+    if (!mDebug)
+        parser.set_spot_file(mSpotFile);
+    parser.set_allow_early_end(mAllowEarlyFileEnd);
+
+    auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
+    for (auto& group : data["groups"]) {
+        parser.set_readers(group, false);
+        if (!group["files"].empty()) {
+            int platform = group["files"].front()["platform_code"].front();
+            bool is_nanopore = platform == SRA_PLATFORM_OXFORD_NANOPORE;
+            switch ((int)group["files"].front()["quality_encoding"]) {
+                case 0:
+                    parser.first_pass<validator_options<eNumeric, -5, 40>>(executor, err_checker);
+                    mErrorCount = 0; //Reset error counts 
+                    parser.set_readers(group);
+                    if (is_nanopore)
+                        parser.second_pass2<validator_options<eNumeric, -5, 40>, true>(executor, err_checker);
+                    else
+                        parser.second_pass2<validator_options<eNumeric, -5, 40>, false>(executor, err_checker);
+
+                    break;
+                case 33:
+                    parser.first_pass<validator_options<ePhred, 33, 126>>(executor, err_checker);
+                    mErrorCount = 0; //Reset error counts 
+                    parser.set_readers(group);
+                    if (is_nanopore)
+                        parser.second_pass2<validator_options<ePhred, 33, 126>, true>(executor, err_checker);
+                    else                            
+                        parser.second_pass2<validator_options<ePhred, 33, 126>, false>(executor, err_checker);
+                    break;
+                case 64:
+                    parser.first_pass<validator_options<ePhred, 64, 126>>(executor, err_checker);
+                    mErrorCount = 0; //Reset error counts 
+                    parser.set_readers(group);
+                    if (is_nanopore)
+                        parser.second_pass2<validator_options<ePhred, 64, 126>, true>(executor, err_checker);
+                    else
+                        parser.second_pass2<validator_options<ePhred, 64, 126>, false>(executor, err_checker);
+                    break;
+                default:
+                    throw runtime_error("Invalid quality encoding");
+            }
+        }
+    }
+    spdlog::stopwatch sw;
+    spdlog::info("Parsing complete");
+    m_writer->close();
+    if (!mTelemetryFile.empty()) {
+        parser.report_telemetry(mReport);
+    }
+
+    return 0;
+}
 
 //  -----------------------------------------------------------------------------
 void CFastqParseApp::xSetupOutput()
@@ -608,7 +702,7 @@ void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
         throw e;
     spdlog::warn(e.Message());
     if (++mErrorCount >= mMaxErrCount)
-        throw fastq_error("Exceeded maximum number of errors {} (code:{})", mMaxErrCount, e.error_code());
+        throw fastq_error(e.error_code(), "Exceeded maximum number of errors {}", mMaxErrCount);
 }
 
 //  ----------------------------------------------------------------------------

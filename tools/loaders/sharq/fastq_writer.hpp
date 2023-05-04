@@ -156,7 +156,7 @@ public:
      *
      * @param[in] reads
      */
-    virtual void write_spot(const vector<CFastqRead>& reads);
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads);
 
     /**
      * @brief Set user-defined attributes
@@ -189,14 +189,15 @@ protected:
 };
 
 
-void fastq_writer::write_spot(const vector<CFastqRead>& reads)
+void fastq_writer::write_spot(const string& spot_name, const vector<CFastqRead>& reads)
 {
     if (reads.empty())
         return;
     const auto& first_read = reads.front();
-    string spot_name = first_read.Spot();
-    spot_name += first_read.Suffix();
-    cout << "Spot: " << spot_name << "\nreads " << reads.size() <<":\n";
+    //string spot_name = first_read.Spot();
+    //spot_name += first_read.Suffix();
+    cout << "Spot: " << spot_name << first_read.Suffix() << "\nreads " << reads.size() <<":\n";
+    //vector<uint8_t> qual_scores;
     for (const auto& read : reads) {
         //auto sz = read.Sequence().size();
         cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
@@ -204,6 +205,12 @@ void fastq_writer::write_spot(const vector<CFastqRead>& reads)
         cout << read.Sequence() << "\n";
         cout << "+\n";
         cout << read.Quality() << endl;
+      //  qual_scores.clear();
+      //  read.GetQualScores(qual_scores);
+      //  for (auto q : qual_scores) {
+      //      cout << q;
+      //  }
+      //  cout << endl;
     }
 }
 
@@ -224,12 +231,12 @@ public:
 
     void open() override;
     void close() override;
-    virtual void write_spot(const vector<CFastqRead>& reads) override;
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override;
 
     const Writer2 & get_writer() const { return * m_writer; }
 protected:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
-    std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default loger
+    std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default logger
     Writer2::Table SEQUENCE_TABLE;
     Writer2::Column c_NAME;
     Writer2::Column c_SPOT_GROUP;
@@ -247,6 +254,8 @@ protected:
     string m_tmp_sequence; ///< temp string for sequences 
     string m_tmp_spot; ///< temp string for spots
     vector<uint8_t> m_qual_scores; ///< temp vector for scores
+    vector<char> mReadTypes;
+
 };
 
 //  -----------------------------------------------------------------------------
@@ -387,6 +396,10 @@ void fastq_writer_vdb::open()
         c_READ_NUMBER = move(SEQUENCE_TABLE.column("READ_NUMBER"));
     }
 
+    string read_types;
+    get_attr("readTypes", read_types);
+    mReadTypes = {read_types.begin(), read_types.end()};
+
     m_writer->beginWriting();
     m_is_writing = true;
 
@@ -419,15 +432,20 @@ enum
 };
 */
 //  -----------------------------------------------------------------------------
-void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
+void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRead>& reads)
 {
     if (reads.empty())
         return;
     //auto table = m_writer->table("SEQUENCE");
+
     const auto& first_read = reads.front();
+/*
     m_tmp_spot = first_read.Spot();
+*/
+    m_tmp_spot = spot_name;
     m_tmp_spot += first_read.Suffix();
     c_NAME.setValue(m_tmp_spot);
+
     c_SPOT_GROUP.setValue(first_read.SpotGroup());
     c_PLATFORM.setValue(m_platform);
     auto read_num = reads.size();
@@ -441,6 +459,10 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     m_tmp_sequence.clear();
     m_qual_scores.clear();
     read_num = 0;
+
+    //if (read_num >= mReadTypes.size())
+        //throw fastq_error(30, "readTypes number should match the number of reads {} != {}", mReadTypes.size(), read_num);
+
     for (const auto& read : reads) {
         m_tmp_sequence += read.Sequence();
         read.GetQualScores(m_qual_scores);
@@ -451,6 +473,19 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
         //SRA_READ_TYPE_TECHNICAL = 0;
         //SRA_READ_TYPE_BIOLOGICAL = 1;
         read_type[read_num] = read.Type();
+/*
+        switch (mReadTypes[read_num]) {
+        case 'T':
+            read_type[read_num] = SRA_READ_TYPE_TECHNICAL;
+            break;
+        case 'B':
+            read_type[read_num] = SRA_READ_TYPE_BIOLOGICAL;
+            break;
+        default:
+            read_type[read_num] = sz < 40 ? SRA_READ_TYPE_TECHNICAL: SRA_READ_TYPE_BIOLOGICAL;
+            break;
+        }
+*/
         read_filter[read_num] = (char)read.ReadFilter();
         if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
         {
@@ -505,13 +540,14 @@ public:
     }  
 
 
-    void write_spot(const vector<CFastqRead>& reads) override 
+    void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
     {
         if (reads.empty())
             return;
         //auto table = m_writer->table("SEQUENCE");
         const auto& first_read = reads.front();
-        m_tmp_spot = first_read.Spot();
+        //m_tmp_spot = first_read.Spot();
+        m_tmp_spot = spot_name;
         m_tmp_spot += first_read.Suffix();
         c_NAME.setValue(m_tmp_spot);
         c_SPOT_GROUP.setValue(first_read.SpotGroup());
@@ -529,7 +565,7 @@ public:
         c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
         c_READ_START.setValue(read_num, sizeof(int32_t),read_start.data());
         c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len.data());
-        c_READ_TYPE.setValue(read_num, sizeof(char), m_read_type.data());
+        c_READ_TYPE.setValue(read_num, sizeof(char), mReadTypes.data());//        m_read_type.data());
         c_READ_FILTER.setValue(read_num, sizeof(char), read_filter.data());
         SEQUENCE_TABLE.closeRow();
     }

@@ -112,7 +112,7 @@ static inline void convert(int argc, wchar_t *rslt[], size_t bufsize, wchar_t *b
 }
 
 template <typename S, typename T>
-static inline void convertArgsAndEnv(void **const allocated, T *const **const destArgs, T *const **const destEnv, int const argc, S **const argv, S **const envp)
+static inline void convertArgsAndEnv(void **const allocated, T *const **const destArgs, T *const **const destEnv, int const argc, S *const *const argv, S *const *const envp)
 {
 	auto const nEnv = countOfCollection(envp);
 	auto const szEnv = neededToConvert(nEnv, envp);

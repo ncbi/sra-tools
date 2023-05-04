@@ -36,6 +36,19 @@
 #include "tool-args.hpp"
 #include "file-path.hpp"
 
+/// if `USE_WIDE_API` is defined:
+///   * The wide version of the constructor exists.
+///   * `wargv` and `wenvp` exist.
+///   * `wargv` will be used instead of `argv`, for:
+///     * `pathForArgument`.
+///     * `runAs`.
+///
+/// if `WINDOWS` is not defined:
+///   * `fakeName` exists and will point to the environment variable or be null.
+///   * `runAs` can return `fakeName` instead of `argv[0]`.
+///   * `versionFromName` exists.
+///   * `runAsVersion` exists.
+
 struct CommandLine {
     /// the pointer is saved here; its contents could be modified elsewhere. For Windows wchar_t API, it is derived from wargv.
     char const *const *argv;

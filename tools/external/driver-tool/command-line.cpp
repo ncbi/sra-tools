@@ -84,29 +84,33 @@ static inline size_t neededToConvert(int argc, char const *const *const collecti
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, char *rslt[], size_t bufsize, char *buffer, wchar_t *in[])
+static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, char buffer[/* bufsize */], wchar_t *in[/* argc */])
 {
+    auto buf = &buffer[0];
+    auto rem = bufsize;
     int i;
     for (i = 0; i < argc; ++i) {
-        auto const count = Win32Support::unwiden(buffer, bufsize, in[i]);
-        assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
-        rslt[i] = buffer;
-        buffer += count;
-        bufsize -= count;
+        auto const count = Win32Support::unwiden(buf, rem, in[i]);
+        assert(0 < count && (size_t)count <= rem);
+        rslt[i] = buf;
+        buf += count;
+        rem -= count;
     }
     rslt[i] = nullptr;
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, wchar_t *rslt[], size_t bufsize, wchar_t *buffer, char *in[])
+static inline void convert(int argc, wchar_t *rslt[/* argc */], size_t bufsize, wchar_t buffer[/* bufsize */], char *in[/* argc */])
 {
+    auto buf = &buffer[0];
+    auto rem = bufsize;
     int i;
     for (i = 0; i < argc; ++i) {
-        auto const count = Win32Support::widen(buffer, bufsize, in[i]);
-        assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
-        rslt[i] = buffer;
-        buffer += count;
-        bufsize -= count;
+        auto const count = Win32Support::widen(buf, rem, in[i]);
+        assert(0 < count && (size_t)count <= rem);
+        rslt[i] = buf;
+        buf += count;
+        rem -= count;
     }
     rslt[i] = nullptr;
 }
@@ -119,16 +123,17 @@ static inline void convertArgsAndEnv(void **const allocated, T *const **const de
 	auto const szArgs = neededToConvert(argc, argv);
 	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(T *) + (szArgs + szEnv) * sizeof(T);
 	auto const alloced = (T **)malloc(szAlloc);
+    auto const buffer = reinterpret_cast<T *>(&alloced[argc + 1 + nEnv + 1]);
 	if (alloced == nullptr)
 		throw std::bad_alloc();
-
-	memset(alloced, 0, szAlloc);
-	convert(argc, argv, szArgs, alloced);
-	convert(nEnv, envp, szEnv, alloced + argc + 1);
 
 	*allocated = (void *)alloced;
 	*destArgs = (T *const *)(alloced);
 	*destEnv = (T *const *)(alloced + argc + 1);
+
+	memset(alloced, 0, szAlloc);
+	convert(argc, alloced, szArgs, buffer, argv);
+    convert(nEnv, alloced + argc + 1, szEnv, buffer + szArgs, envp);
 }
 
 #else // WINDOWS

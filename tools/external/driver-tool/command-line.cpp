@@ -84,7 +84,7 @@ static inline size_t neededToConvert(int argc, char const *const *const collecti
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, char buffer[/* bufsize */], wchar_t *in[/* argc */])
+static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, char buffer[/* bufsize */], wchar_t const *in[/* argc */])
 {
     auto buf = &buffer[0];
     auto rem = bufsize;
@@ -100,7 +100,7 @@ static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, cha
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, wchar_t *rslt[/* argc */], size_t bufsize, wchar_t buffer[/* bufsize */], char *in[/* argc */])
+static inline void convert(int argc, wchar_t *rslt[/* argc */], size_t bufsize, wchar_t buffer[/* bufsize */], char const *in[/* argc */])
 {
     auto buf = &buffer[0];
     auto rem = bufsize;

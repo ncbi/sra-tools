@@ -594,10 +594,14 @@ bool FilePath::isSimpleName() const {
         ((void)e);
     }
     // ParseURL did not like it, so it's not a URL.
-    static API_CHAR const notSimple[] = {
-        API_SEP, API_SEP_POSIX, API_SEP_DRIVE, API_NUL
+    static API_CHAR const pathSep[] = {
+        API_SEP, API_SEP_POSIX, API_NUL
     };
-    return path.find_first_of(notSimple) == NativeString::npos;
+    auto const hasPathSep = path.find_first_of(pathSep) != NativeString::npos;
+    if (hasPathSep)
+        return false;
+    auto const driveSepAt = path.find_first_of(API_SEP_DRIVE);
+    return driveSepAt == NativeString::npos || driveSepAt != 1;
 }
 
 FilePath FilePath::append(FilePath const &element) const

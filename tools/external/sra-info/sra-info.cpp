@@ -316,17 +316,16 @@ SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by d
 bool
 SraInfo::IsAligned() const
 {
-    try
-    {
-        if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
-        {   // aligned if there is a non-empty alignment table
-            VDB::Table alignment = mgr.openDatabase(m_accession)["PRIMARY_ALIGNMENT"];
+    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+    {   // aligned if there is a non-empty alignment table
+        VDB::Database db = mgr.openDatabase(m_accession);
+        const string PrimaryAlignmentTable = "PRIMARY_ALIGNMENT";
+        if (db.hasTable(PrimaryAlignmentTable))
+        {
+            VDB::Table alignment = db[PrimaryAlignmentTable];
             VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
             return cursor.rowRange().first > 0;
         }
-    }
-    catch(const VDB::Error &)
-    {   // assume the alignment table does not exist
     }
     return false;
 }

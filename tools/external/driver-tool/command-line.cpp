@@ -48,7 +48,7 @@ using Version = sratools::Version;
 #if WINDOWS
 
 template <typename T>
-static inline int countOfCollection(T *const *collection) {
+static inline int countOfCollection(T *const *const collection) {
 	for (int i = 0; ; ++i) {
 		if (collection[i] == nullptr)
 			return i;
@@ -57,7 +57,7 @@ static inline int countOfCollection(T *const *collection) {
 
 /// Compute the number of UTF-8 bytes needed to store an array of Windows wchar strings.
 /// \Note the count includes null terminators.
-static inline size_t neededToConvert(int argc, wchar_t *collection[])
+static inline size_t neededToConvert(int const argc, wchar_t const *const *const collection)
 {
     size_t bytes = 0;
     for (int i = 0; i != argc; ++i) {
@@ -71,7 +71,7 @@ static inline size_t neededToConvert(int argc, wchar_t *collection[])
 
 /// Compute the number of Windows wchars needed to store an array of UTF-8 strings.
 /// \Note the count includes null terminators.
-static inline size_t neededToConvert(int argc, char *collection[])
+static inline size_t neededToConvert(int argc, char const *const *const collection)
 {
     size_t bytes = 0;
     for (int i = 0; i != argc; ++i) {

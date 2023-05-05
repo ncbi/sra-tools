@@ -72,13 +72,13 @@ typedef struct tool_ctx_t {
 
     VNamelist * ref_name_filter;
 
-    struct temp_dir_t * temp_dir; /* temp_dir.h */
+    struct temp_dir_t * temp_dir;
 
     char lookup_filename[ DFLT_PATH_LEN ];
     char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
 
-    struct CleanupTask_t * cleanup_task; /* cleanup_task.h */
+    struct CleanupTask_t * cleanup_task;
 
     size_t cursor_cache, buf_size, mem_limit;
     size_t estimated_output_size;
@@ -87,7 +87,7 @@ typedef struct tool_ctx_t {
     size_t disk_limit_out_os;
     size_t disk_limit_tmp_os;
 
-    uint32_t num_threads /*, max_fds */;
+    uint32_t num_threads;
     uint64_t total_ram;
     uint64_t row_limit;
 

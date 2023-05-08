@@ -84,7 +84,11 @@ static inline size_t neededToConvert(int argc, char const *const *const collecti
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, char buffer[/* bufsize */], wchar_t const *in[/* argc */])
+static inline void convert(int argc
+                          , char **rslt
+                          , size_t bufsize
+                          , char buffer[/* bufsize */]
+                          , wchar_t const *const *in)
 {
     auto buf = &buffer[0];
     auto rem = bufsize;
@@ -100,7 +104,11 @@ static inline void convert(int argc, char *rslt[/* argc */], size_t bufsize, cha
 }
 
 /// Convert an array of Windows wchar strings into an array of UTF-8 strings
-static inline void convert(int argc, wchar_t *rslt[/* argc */], size_t bufsize, wchar_t buffer[/* bufsize */], char const *in[/* argc */])
+static inline void convert(int argc
+                          , wchar_t **rslt
+                          , size_t bufsize
+                          , wchar_t buffer[/* bufsize */]
+                          , char const *const *in)
 {
     auto buf = &buffer[0];
     auto rem = bufsize;
@@ -115,25 +123,26 @@ static inline void convert(int argc, wchar_t *rslt[/* argc */], size_t bufsize, 
     rslt[i] = nullptr;
 }
 
-template <typename S, typename T>
-static inline void convertArgsAndEnv(void **const allocated, T *const **const destArgs, T *const **const destEnv, int const argc, S *const *const argv, S *const *const envp)
+template <typename S, typename T, typename TT = std::remove_reference<std::remove_cv<T>::type>::type >
+static inline void *convertArgsAndEnv(T const *const *&destArgs, T const *const *&destEnv, int argc, S const *const *argv, S const *const *envp)
 {
 	auto const nEnv = countOfCollection(envp);
 	auto const szEnv = neededToConvert(nEnv, envp);
 	auto const szArgs = neededToConvert(argc, argv);
-	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(T *) + (szArgs + szEnv) * sizeof(T);
-	auto const alloced = (T **)malloc(szAlloc);
-    auto const buffer = reinterpret_cast<T *>(&alloced[argc + 1 + nEnv + 1]);
+	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(TT *) + (szArgs + szEnv) * sizeof(TT);
+	auto const alloced = (TT **)malloc(szAlloc);
+    auto const buffer = reinterpret_cast<TT *>(&alloced[argc + 1 + nEnv + 1]);
 	if (alloced == nullptr)
 		throw std::bad_alloc();
 
-	*allocated = (void *)alloced;
-	*destArgs = (T *const *)(alloced);
-	*destEnv = (T *const *)(alloced + argc + 1);
+	destArgs = (T const *const *)(&alloced[0]);
+	destEnv = (T const *const *)(&alloced[argc + 1]);
 
 	memset(alloced, 0, szAlloc);
-	convert(argc, alloced, szArgs, buffer, argv);
-    convert(nEnv, alloced + argc + 1, szEnv, buffer + szArgs, envp);
+	convert(argc, &alloced[0], szArgs, buffer, &argv[0]);
+    convert(nEnv, &alloced[argc + 1], szEnv, buffer + szArgs, &envp[0]);
+    
+    return (void *)(alloced);
 }
 
 #else // WINDOWS
@@ -202,7 +211,7 @@ CommandLine::CommandLine(int in_argc, wchar_t **in_wargv, wchar_t **in_wenvp, ch
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)
 {
-	convertArgsAndEnv(&allocated, &argv, &envp, argc, wargv, wenvp);
+	allocated = convertArgsAndEnv(argv, envp, argc, wargv, wenvp);
 	initialize();
 	(void)dummy_extra;
 }
@@ -218,7 +227,7 @@ CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **dum
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)
 {
-	convertArgsAndEnv(&allocated, &wargv, &wenvp, argc, argv, envp);
+	allocated = convertArgsAndEnv(wargv, wenvp, argc, argv, envp);
 	initialize();
 	(void)dummy_extra;
 }

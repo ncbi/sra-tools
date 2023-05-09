@@ -17,17 +17,23 @@ using data in the INSDC Sequence Read Archives.
 
 _May 9, 2023_: **SRA Toolkit 3.0.5**
 
+Added support for PacBio to fasterq-dump.
+
+Added features to output reference sequences to fasterq-dump.
+
+Fixed a bug in dbGaP data access when using ngc files.
+
 ----
 
 _January 3, 2023_ : **SRA Toolkit 3.0.3**
 
-Fixed regression in sra-stat.
+Fixed a regression in sra-stat.
 
 ----
 
 _December 12, 2022_ : **SRA Toolkit 3.0.2**
 
-Fixed 'buffer insufficient while converting string within text module' failure of prefetch on Mac.
+Fixed 'buffer insufficient while converting string within text module' failure for prefetch on Mac.
 
 ----
 

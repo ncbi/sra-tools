@@ -36,7 +36,7 @@ public interface Alignment
     extends Fragment
 {
 
-    /** 
+    /**
      * Retrieve an identifying String that can be used for later access.
      * The id will be unique within ReadCollection.
      * @return alignment id
@@ -50,23 +50,23 @@ public interface Alignment
      * Reference
      */
 
-    /** 
+    /**
      * getReferenceSpec
-     * @return the name of the reference	 
+     * @return the name of the reference
      * @throws ErrorMsg if the property cannot be retrieved
      */
     String getReferenceSpec ()
         throws ErrorMsg;
 
     /**
-     * getMappingQuality 
-     * @return mapping quality 
+     * getMappingQuality
+     * @return mapping quality
      * @throws ErrorMsg if the property cannot be retrieved
      */
     int getMappingQuality ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getReferenceBases
      * @return reference bases
      * @throws ErrorMsg if the property cannot be retrieved
@@ -87,7 +87,7 @@ public interface Alignment
     String getReadGroup ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getReadId
      * @return the unique name of the read
      * @throws ErrorMsg if the property cannot be retrieved
@@ -95,7 +95,7 @@ public interface Alignment
     String getReadId ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getClippedFragmentBases
      * @return clipped fragment bases
      * @throws ErrorMsg if the property cannot be retrieved
@@ -103,7 +103,7 @@ public interface Alignment
     String getClippedFragmentBases ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getClippedFragmentQualities
      * @return clipped fragment phred quality values using ASCII offset of 33
      * @throws ErrorMsg if the property cannot be retrieved
@@ -111,7 +111,7 @@ public interface Alignment
     String getClippedFragmentQualities ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getAlignedFragmentBases
      * @return fragment bases in their aligned orientation
      * @throws ErrorMsg if the property cannot be retrieved
@@ -139,7 +139,7 @@ public interface Alignment
     static int secondaryAlignment = 2;
     static int all                = primaryAlignment | secondaryAlignment;
 
-    /** 
+    /**
      * Alignments are categorized as primary or secondary (alternate).
      * @return either Alignment.primaryAlignment or Alignment.secondaryAlignment
      * @throws ErrorMsg if the property cannot be retrieved
@@ -147,7 +147,7 @@ public interface Alignment
     int getAlignmentCategory ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * Retrieve the Alignment's starting position on the Reference
      * @return unsigned 0-based offset from start of Reference
      * @throws ErrorMsg if the property cannot be retrieved
@@ -176,7 +176,7 @@ public interface Alignment
     static int clipLeft  = 0;
     static int clipRight = 1;
 
-    /** 
+    /**
      * getSoftClip
      * @return the position of the clipping
      * @param edge which edge
@@ -185,7 +185,7 @@ public interface Alignment
     int getSoftClip ( int edge )
         throws ErrorMsg;
 
-    /** 
+    /**
      * getTemplateLength
      * @return the lenght of the template
      * @throws ErrorMsg if the property cannot be retrieved
@@ -193,7 +193,7 @@ public interface Alignment
     long getTemplateLength ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getShortCigar
      * @param clipped selects if clipping has to be applied
      * @return a text string describing alignment details
@@ -202,9 +202,9 @@ public interface Alignment
     String getShortCigar ( boolean clipped )
         throws ErrorMsg;
 
-    /** 
+    /**
      * getLongCigar
-     * @param clipped selects if clipping has to be applied	 
+     * @param clipped selects if clipping has to be applied
      * @return a text string describing alignment details
      * @throws ErrorMsg if the property cannot be retrieved
      */
@@ -213,10 +213,10 @@ public interface Alignment
 
     /**
      * getRNAOrientation
-     * @return '+' if positive strand is transcribed
-     * @return '-' if negative strand is transcribed
-     * @return '?' if unknown
-     * @throws ErrorMsg if the property cannot be retrieved	 
+     * @return '+' if positive strand is transcribed;
+     *         '-' if negative strand is transcribed;
+     *         '?' if unknown
+     * @throws ErrorMsg if the property cannot be retrieved
      */
     char getRNAOrientation ()
         throws ErrorMsg;
@@ -226,13 +226,13 @@ public interface Alignment
      * details of mate alignment
      */
 
-    /** 
+    /**
      * hasMate
      * @return if the alignment has a mate
      */
     boolean hasMate ();
-        
-    /** 
+
+    /**
      * getMateAlignmentId
      * @return unique ID of th alignment
      * @throws ErrorMsg if the property cannot be retrieved
@@ -240,7 +240,7 @@ public interface Alignment
     String getMateAlignmentId ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getMateAlignment
      * @return the mate as alignment
      * @throws ErrorMsg if the property cannot be retrieved
@@ -248,7 +248,7 @@ public interface Alignment
     Alignment getMateAlignment ()
         throws ErrorMsg;
 
-    /** 
+    /**
      * getMateReferenceSpec
      * @return the name of the reference the mate is aligned at
      * @throws ErrorMsg if the property cannot be retrieved

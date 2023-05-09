@@ -30,6 +30,8 @@
 
 #include "ngs_c_fixture.hpp"
 
+#include <os-native.h>
+
 #include <limits.h>
 
 #include <klib/printf.h>
@@ -861,7 +863,7 @@ const char UsageDefaultName[] = "test-ngs_sra";
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    putenv("NCBI_VDB_QUALITY=R");
+    setenv("NCBI_VDB_QUALITY", "R", 1);
     rc_t ret=NgsSradbTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;

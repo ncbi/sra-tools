@@ -1,0 +1,53 @@
+#reference: 3 sources possible, [random],[fasta-file],[accession]
+
+# the 3 different ways of pulling references in:
+
+# 1) create artificial, random references
+r:type=random,name=R1,length=5000
+r:type=random,name=R2,length=4000
+r:type=random,name=R3,length=3000
+
+# 2) use an existing FASTA-file
+#r:type=fasta,file=name.fasta
+
+# 3) use a ref-seq accession
+#this one is TBD!
+#r:type=refseq,alias=I,name=
+
+# write all references into one file as FASTA
+ref-out:rand-ref.fasta
+
+# write the final SAM-output into this file
+sam-out:data.sam
+
+# write a config-file for bam-load
+config:config.txt
+
+# the output SAM-output is by default sorted, but can be switched to unsorted
+#sort:false
+
+#full list of p/s - keys:
+#name  ... name of alignment ( can/should be used multiple times )
+#ref   ... alias/name of reference ( see references above )
+#pos   ... position on reference
+#mapq  ... mapping-quality
+#cigar ... can include literal bases for mismatches, will be 'purified' for sam-output
+#tlen  ... template-length
+#qual  ... quality-string ( if shorter then READ, will be repeated to fill length )
+#opts  ... space separated list of sam-options ( will be literally appended )
+#ins   ... bases to be used if cigar-string has insert-op's
+#flags ... additional flags
+#repeat... how may times to repeat ( uses random values if specific keys are omitted )
+#len   ... length for unaligned reads if seq is omitted
+p:name=A1,pos=100,reverse=yes,qual=abcd
+p:name=A1,pos=120,qual=*
+s:name=A1,pos=200
+
+p:name=A2,ref=R1,cigar=3MACGT2I2M,ins=AAA
+u:name=U1,len=44
+
+p:name=B,ref=R2,repeat=5000
+p:name=B,ref=R2,repeat=5000
+
+#now make one stick over the end of it's reference
+#p:name=C,ref=R3,pos=2999

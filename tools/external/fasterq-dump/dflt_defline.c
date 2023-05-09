@@ -65,7 +65,7 @@ const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, b
         if ( fasta ) {
             return use_read_id ? DSD_FASTA_NO_NAME_RDID : DSD_FASTA_NO_NAME;
         } else {
-            return use_read_id ? DSD_FASTQ_NO_NAME_RDID : DSD_FASTQ_NO_NAME;            
+            return use_read_id ? DSD_FASTQ_NO_NAME_RDID : DSD_FASTQ_NO_NAME;
         }
     }
     return NULL;
@@ -122,6 +122,14 @@ bool spot_group_requested( const char * seq_defline, const char * qual_defline )
     return ( var_requested( seq_defline, "$sg" ) || var_requested( qual_defline, "$sg" ) );
 }
 
+bool read_id_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( var_requested( seq_defline, "$ri" ) || var_requested( qual_defline, "$ri" ) );
+}
+
+bool spot_name_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( var_requested( seq_defline, "$sn" ) || var_requested( qual_defline, "$sn" ) );
+}
+
 /* ------------------------------------------------------------------------------------------- */
 
 #include <klib/out.h>
@@ -155,9 +163,9 @@ size_t estimate_defline_length( const defline_estimator_input_t * input ) {
     if ( NULL != input ) {
         if ( NULL != input -> defline ) {
             uint32_t n;
-            
+
             res = string_size( input -> defline );
-            
+
             /* if the accession is in the defline */
             n = var_in_line( input -> defline, "$ac" );
             if ( n > 0 ) {

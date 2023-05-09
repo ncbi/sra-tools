@@ -45,7 +45,7 @@ typedef struct index_writer_t {
 void release_index_writer( struct index_writer_t * writer ) {
     if ( NULL != writer ) {
         if ( NULL != writer -> f ) {
-            release_file( writer -> f, "index.c release_index_writer()" );
+            ft_release_file( writer -> f, "release_index_writer()" );
         }
         free( ( void * ) writer );
     }
@@ -54,7 +54,7 @@ void release_index_writer( struct index_writer_t * writer ) {
 static rc_t write_value( index_writer_t * writer, uint64_t value ) {
     rc_t rc = KFileWriteExactly( writer -> f, writer -> pos, &value, sizeof value );
     if ( 0 != rc ) {
-        ErrMsg( "index.c write_value().KFileWriteExactly( key ) -> %R", rc );
+        ErrMsg( "write_value().KFileWriteExactly( key ) -> %R", rc );
     } else {
         writer -> pos += sizeof value;
     }
@@ -73,7 +73,7 @@ rc_t write_key( struct index_writer_t * writer, uint64_t key, uint64_t offset ) 
     rc_t rc = 0;
     if ( NULL == writer ) {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "index.c write_key() -> %R", rc );
+        ErrMsg( "write_key() -> %R", rc );
     } else {
         if ( key > ( writer -> last_key + writer -> frequency ) ) {
             rc = write_key_and_offset( writer, key, offset );
@@ -92,7 +92,7 @@ static rc_t make_index_writer_obj( struct index_writer_t ** writer,
     index_writer_t * w = calloc( 1, sizeof * w );
     if ( NULL == w ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "index.c make_index_writer_obj().calloc( %d ) -> %R", ( sizeof * w ), rc );
+        ErrMsg( "make_index_writer_obj().calloc( %d ) -> %R", ( sizeof * w ), rc );
     } else {
         w -> f = f;
         w -> frequency = frequency;
@@ -114,7 +114,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
                         size_t buf_size, uint64_t frequency, const char * fmt, ... ) {
     rc_t rc;
     struct KFile * f;
-    
+
     va_list args;
     va_start ( args, fmt );
 
@@ -122,15 +122,15 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
     va_end ( args );
 
     if ( 0 != rc ) {
-        ErrMsg( "index.c make_index_writer().KDirectoryVCreateFile() -> %R", rc );
+        ErrMsg( "make_index_writer().KDirectoryVCreateFile() -> %R", rc );
     } else {
         if ( buf_size > 0 ) {
             struct KFile * temp_file;
             rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
             if ( 0 != rc ) {
-                ErrMsg( "index.c make_index_writer().KBufFileMakeWrite() -> %R", rc );
+                ErrMsg( "make_index_writer().KBufFileMakeWrite() -> %R", rc );
             } else {
-                release_file( f, "index.c make_index_writer().1" );
+                ft_release_file( f, "make_index_writer().1" );
                 f = temp_file;
             }
         }
@@ -138,7 +138,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
         if ( 0 == rc ) {
             rc = make_index_writer_obj( writer, frequency, f );
             if ( 0 != rc ) {
-                release_file( f, "index.c make_index_writer().2" );
+                ft_release_file( f, "make_index_writer().2" );
             }
         }
     }
@@ -155,7 +155,7 @@ typedef struct index_reader_t {
 void release_index_reader( index_reader_t * reader ) {
     if ( NULL != reader ) {
         if ( NULL != reader -> f ) {
-            release_file( reader -> f, "index.c make_index_reader()" );
+            ft_release_file( reader -> f, "make_index_reader()" );
         }
         free( ( void * ) reader );
     }
@@ -164,7 +164,7 @@ void release_index_reader( index_reader_t * reader ) {
 static rc_t read_value( index_reader_t * reader, uint64_t pos, uint64_t * value ) {
     rc_t rc = KFileReadExactly( reader -> f, pos, ( void * )value, sizeof *value );
     if ( 0 != rc ) {
-        ErrMsg( "index.c read_value().KFileReadExactly( at %ld ) -> %R", pos, rc );
+        ErrMsg( "read_value().KFileReadExactly( at %ld ) -> %R", pos, rc );
     }
     return rc;
 }
@@ -215,7 +215,7 @@ rc_t make_index_reader( const KDirectory * dir, index_reader_t ** reader,
             if ( 0 != rc ) {
                 ErrMsg( "index.c make_index_reader() KBufFileMakeRead() -> %R", rc );
             } else {
-                rc = release_file( f, "index.c make_index_reader()" );
+                rc = ft_release_file( f, "make_index_reader()" );
                 f = temp_file;
             }
         }
@@ -339,7 +339,7 @@ rc_t get_max_key( const index_reader_t * self, uint64_t * max_key ) {
                 *max_key = data[ 2 ];
             } else {
                 rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                ErrMsg( "index.c get_max_key() - index file has invalid size of %lu", self -> file_size );    
+                ErrMsg( "index.c get_max_key() - index file has invalid size of %lu", self -> file_size );
             }
         }
     }

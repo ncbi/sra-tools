@@ -41,6 +41,8 @@ const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id )
 /* ------------------------------------------------------------------------------------------- */
 
 bool spot_group_requested( const char * seq_defline, const char * qual_defline );
+bool read_id_requested( const char * seq_defline, const char * qual_defline );
+bool spot_name_requested( const char * seq_defline, const char * qual_defline );
 
 /* ------------------------------------------------------------------------------------------- */
 

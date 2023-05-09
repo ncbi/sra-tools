@@ -1316,6 +1316,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
                                                : & self -> remoteHttps;
     assert(remote);
+    UNUSED(remote);
 */
 
     if (rc == 0 && !mane->dryRun)

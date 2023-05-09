@@ -30,6 +30,10 @@ if( NOT WIN32 )
 	MakeLinksExe( dump-blob-boundaries false )
 endif()
 
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+	set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-const-variable" )
+endif()
+
 # External
 
 set( SRA_SORT_SRC

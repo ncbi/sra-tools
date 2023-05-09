@@ -25,7 +25,7 @@
 */
 #include "progress_thread.h"
 
-/* 
+/*
     this is in interfaces/cc/XXX/YYY/atomic.h
     XXX ... the compiler ( cc, gcc, icc, vc++ )
     YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
@@ -132,7 +132,7 @@ rc_t bg_progress_make( bg_progress_t ** bgp, uint64_t max_value, uint32_t sleep_
         atomic64_set( &p -> max_value, max_value );
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
         p -> digits = digits == 0 ? 2 : digits;
-        rc = helper_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        rc = hlp_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
         if ( 0 != rc ) {
             ErrMsg( "progress_thread.c helper_make_thread( bg-progress-thread ) -> %R", rc );
             free( p );
@@ -179,11 +179,11 @@ void bg_progress_release( bg_progress_t * self ) {
 typedef struct bg_update_t {
     KThread * thread;
     atomic_t done;
-    atomic_t active;    
+    atomic_t active;
     atomic64_t value;
     uint64_t prev_value;
     size_t digits_printed;
-    uint32_t sleep_time;    
+    uint32_t sleep_time;
 } bg_update_t;
 
 static rc_t CC bg_update_thread_func( const KThread *self, void *data ) {
@@ -200,7 +200,7 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data ) {
             if ( value > 0 && value != bga -> prev_value ) {
                 char buffer[ 80 ];
                 size_t num_writ;
-                uint32_t i;                
+                uint32_t i;
                 for ( i = 0; i < ( bga -> digits_printed ); i++ ) {
                     buffer[ i ] = '\b';
                 }
@@ -237,7 +237,7 @@ rc_t bg_update_make( bg_update_t ** bga, uint32_t sleep_time )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
-        rc = helper_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        rc = hlp_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
         if ( 0 != rc ) {
             ErrMsg( "progress_thread.c helper_make_thread( bg-update-thread ) -> %R", rc );
             free( p );

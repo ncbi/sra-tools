@@ -79,5 +79,47 @@ mkdir -p actual/
 	 then echo ${vdb_validate} no-schema-run should fail; exit 1; fi
 	grep -q ' Run File is obsolete. Please download the latest' actual/noschema
 
+	db_acc=SRR1872513
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
+	db_acc=SRR11039354
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
+	db_acc=SRR5238359
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
+	db_acc=SRR8803095
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
+	db_acc=SRR15057789
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
+	db_acc=SRR11664922
+	output=$(./db_schema_check.sh ${bin_dir} ${vdb_validate} ${db_acc})
+	res=$?
+	if [ "$res" != "0" ];
+		then echo "$output" && exit 1;
+	fi
+
 	echo "All ${vdb_validate} tests succeed"
 	rm -rf actual/

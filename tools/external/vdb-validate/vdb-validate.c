@@ -350,8 +350,7 @@ static rc_t CC report(CCReportInfoBlock const *what, void *Ctx)
 
 static
 rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
-    KPathType *pathType, bool is_file, node_t nodes[], char names[],
-    INSDC_SRA_platform_id platform )
+    KPathType *pathType, bool is_file, node_t nodes[], char names[] )
 {
     rc_t rc = 0;
     cc_context_t ctx;
@@ -407,7 +406,7 @@ rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
         rc = KDBManagerOpenTableRead ( mgr, & tbl, "%s", name );
         if ( rc == 0 )
         {
-            rc = KTableConsistencyCheck ( tbl, 0, level, report, & ctx, platform );
+            rc = KTableConsistencyCheck ( tbl, 0, level, report, & ctx );
             if ( rc == 0 )
                 rc = ctx.rc;
 
@@ -691,8 +690,8 @@ static rc_t init_dbcc(KDirectory const *dir, char const name[], bool is_file,
         *names = NULL;
     }
     else {
-        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz);
-        if (nodes)
+        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz + 1);
+        if (names)
             *names = (char *)&(*nodes)[nobj];
         else
             rc = RC(rcExe, rcSelf, rcConstructing, rcMemory, rcExhausted);
@@ -1039,40 +1038,36 @@ static rc_t sra_dbcc_fastq(const vdb_validate_params *pb,
 static rc_t VTable_get_platform(VTable const *tbl,
     INSDC_SRA_platform_id *rslt)
 {
-    rc_t rc;
-    VCursor const *curs;
-    INSDC_SRA_platform_id platform = -1;
-
-    rc = VTableCreateCursorRead(tbl, &curs);
-    if (rc == 0) {
-        uint32_t cid;
-
-        rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
-        if (rc == 0) {
-            rc = VCursorOpen(curs);
-            if (rc == 0) {
-                uint32_t ebits;
-                void const *data;
-                uint32_t boff;
-                uint32_t ecnt;
-
-                rc = VCursorCellDataDirect(curs, 1, cid,
-                    &ebits, &data, &boff, &ecnt);
-                if (rc == 0) {
-                    if (ebits == sizeof(platform) * 8 && boff == 0 && ecnt == 1)
-                        platform = ((INSDC_SRA_platform_id *)data)[0];
-                    else
-                        rc =
-                            RC(rcExe, rcTable, rcReading, rcType, rcUnexpected);
-                }
-            }
-        }
-        else
-            rc = 0;
-        VCursorRelease(curs);
+    rc_t rc = 0;
+    VCursor const *curs = NULL;
+    uint32_t cid = 0;
+    uint32_t ebits = 0;
+    uint32_t boff = 0;
+    uint32_t ecnt = 0;
+    
+    *rslt = SRA_PLATFORM_UNDEFINED;
+    if (!VTableHasStaticColumn(tbl, "PLATFORM")) {
+        return 0;
     }
-    rslt[0] = platform;
-    return rc;
+    rc = VTableCreateCursorRead(tbl, &curs);
+    if (rc) {
+        /* probable fatal */
+        return rc;
+    }
+    rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
+    if (rc == 0) {
+        rc = VCursorOpen(curs);
+        if (rc == 0) {
+            void const *data = NULL;
+
+            rc = VCursorCellDataDirect(curs, 1, cid,
+                &ebits, &data, &boff, &ecnt);
+            if (rc == 0 && ebits == sizeof(*rslt) * 8 && ecnt == 1 && boff == 0)
+                *rslt = *((INSDC_SRA_platform_id const *)data);
+        }
+    }
+    VCursorRelease(curs);
+    return 0;
 }
 
 static rc_t verify_table(const vdb_validate_params *pb,
@@ -1086,11 +1081,12 @@ static rc_t verify_table(const vdb_validate_params *pb,
 
     if (schemaName[0] == '\0' || strncmp(schemaName, "NCBI:SRA:", 9) == 0) {
         /* SRA or legacy SRA */
-        INSDC_SRA_platform_id platform;
+        INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
 
         rc = VTable_get_platform(tbl, &platform);
         if (rc == 0) {
-            if (platform == (INSDC_SRA_platform_id)-1) {
+            if (platform == SRA_PLATFORM_UNDEFINED)
+            {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Couldn't determine "
                     "SRA Platform; type of table '$(name)' is indeterminate.",
                     "name=%s", name));
@@ -1245,6 +1241,7 @@ static size_t work_chunk(uint64_t const count)
     return chunk;
 }
 
+/* use the KSORT macro so the compiler can optimize everything */
 static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 {
     id_pair_t a;
@@ -1264,6 +1261,7 @@ static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 #undef GET
 }
 
+/* use the KSORT macro so the compiler can optimize everything */
 static void sort_keys(size_t const N, int64_t array[/* N */])
 {
 #define INDEXOF(A) (((int64_t const *)(A)) - ((int64_t const *)(&array[0])))
@@ -1381,7 +1379,7 @@ static rc_t ric_align_generic(int64_t const startId,
 
     for (chunk = startId; chunk < endId; ) {
         rc_t rc = 0;
-        int64_t last;
+        int64_t last = 0;
         size_t const n = load_key_pairs(chunk, endId, pairs, pair, acurs, aci, &last, &rc);
         size_t i;
         int64_t cur_fkey = 0;
@@ -2373,6 +2371,27 @@ static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
         /* TODO: verify NCBI:SRA:PacBio:smrt:db */
     }
+    else if (strcmp(schemaName, "NCBI:SRA:Illumina:db") == 0) {
+        /* TODO: verify NCBI:SRA:Illumina:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:Nanopore:db") == 0) {
+        /* TODO: verify NCBI:SRA:Nanopore:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastq:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastq:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqAbsolid:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqAbsolid:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqLogOdds:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqLogOdds:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNanopore:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqNanopore:db */
+    }
+    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNoNames:db") == 0) {
+        /* TODO: verify NCBI:SRA:GenericFastqNoNames:db */
+    }
     else {
         (void)PLOGERR(klogWarn, (klogWarn,
             RC(rcExe, rcDatabase, rcValidating, rcType, rcUnrecognized),
@@ -2417,38 +2436,6 @@ static rc_t sra_dbcc(const vdb_validate_params *pb,
 }
 
 static
-rc_t get_platform(const VDBManager *mgr,
-    const VTable *aTbl, char const name[],
-    INSDC_SRA_platform_id *platform)
-{
-    rc_t rc = 0;
-    const VTable *tbl = aTbl;
-
-    assert(name && platform);
-
-    /* PLATFORM is UNDEFINED by default */
-    *platform = SRA_PLATFORM_UNDEFINED;
-
-    rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
-
-    if (rc == 0)
-        rc = VTable_get_platform(tbl, platform);
-
-    if (aTbl == NULL)
-        VTableRelease(tbl);
-
-    /* ignore all errors except Schema NotFound */
-    if (rc != 0 &&
-        (GetRCState(rc) != rcNotFound ||
-            GetRCObject(rc) != (enum RCObject)rcSchema))
-    {
-        rc = 0;
-    }
-
-    return rc;
-}
-
-static
 rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
 {
     char *names;
@@ -2464,13 +2451,9 @@ rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
                       | ( pb -> blob_crc ? 2 : 0 )
                       | ( pb -> index_chk ? 4 : 0 )
                       ;
-
-        INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
-        rc = get_platform ( pb -> vmgr, NULL, path, & platform );
-
         /* check as kdb object */
         if ( rc == 0 )
-            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
+            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names );
         if ( rc == 0 )
             rc = vdbcc ( pb -> vmgr, path, mode, & pathType, is_file );
         if ( rc == 0 )
@@ -2613,28 +2596,46 @@ rc_t vdb_validate_file ( const vdb_validate_params *pb, const KDirectory *dir, c
 }
 
 static
-rc_t vdb_validate_database ( const vdb_validate_params *pb, const KDirectory *dir, const char *path )
+rc_t vdb_validate_database ( const vdb_validate_params *pb, const KDirectory *dir, const char *path, bool is_ad )
 {
     char buffer [ 4096 ];
     const char *relpath = generate_relpath ( pb, dir, buffer, sizeof buffer, path );
-    return dbcc ( pb, relpath, false );
+    return dbcc ( pb, relpath, is_ad );
 }
 
 static
-rc_t vdb_validate_table ( const vdb_validate_params *pb, const KDirectory *dir, const char *path )
+rc_t vdb_validate_table ( const vdb_validate_params *pb, const KDirectory *dir, const char *path, bool is_ad )
 {
     char buffer [ 4096 ];
     const char *relpath = generate_relpath ( pb, dir, buffer, sizeof buffer, path );
-    return dbcc ( pb, relpath, false );
+    return dbcc ( pb, relpath, is_ad );
 }
 
 static
-KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir, const char *name )
+KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir, const char *name, bool * is_ad )
 {
     char full [ 4096 ];
     rc_t rc = KDirectoryResolvePath ( dir, true, full, sizeof full, "%s", name );
     if ( rc == 0 )
     {
+        { // is an Accession-as-Directory? 
+            VFSManager * vfs_mgr = NULL;
+            rc_t rc = VFSManagerMake(&vfs_mgr);        
+            if ( rc == 0 )
+            {
+                VPath* inPath = NULL;
+                rc = VFSManagerMakePath (vfs_mgr, &inPath, "%s", full);        
+                if ( rc == 0 )
+                {
+                    const VPath* outPath = NULL;
+                    *is_ad = VFSManagerCheckEnvAndAd(vfs_mgr, inPath, & outPath);
+                    VPathRelease(outPath);
+                    VPathRelease(inPath);
+                }
+                VFSManagerRelease(vfs_mgr);
+            }
+        }
+
         switch ( KDBManagerPathType ( pb -> kmgr, "%s", full ) )
         {
         case kptDatabase:
@@ -2654,14 +2655,17 @@ rc_t CC vdb_validate_dir ( const KDirectory *dir, uint32_t type, const char *nam
     case kptFile:
         return vdb_validate_file ( data, dir, name );
     case kptDir:
-        switch ( vdb_subdir_type ( data, dir, name ) )
         {
-        case kptDatabase:
-            return vdb_validate_database ( data, dir, name );
-        case kptTable:
-            return vdb_validate_table ( data, dir, name );
-        default:
-            return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
+            bool is_ad;
+            switch ( vdb_subdir_type ( data, dir, name, &is_ad ) )
+            {
+            case kptDatabase:
+                return vdb_validate_database ( data, dir, name, is_ad );
+            case kptTable:
+                return vdb_validate_table ( data, dir, name, is_ad );
+            default:
+                return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
+            }
         }
     }
 
@@ -2786,11 +2790,11 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
             case kptDir:
                 switch(KDBManagerPathType (pb->kmgr, "%s", path)) {
                     case kptDatabase:
-                        rc = vdb_validate_database(pb, pb->wd, path);
+                        rc = vdb_validate_database(pb, pb->wd, path, false);
                         break;
                     case kptTable:
                     case kptPrereleaseTbl:
-                        rc = vdb_validate_table(pb, pb->wd, path);
+                        rc = vdb_validate_table(pb, pb->wd, path, false);
                         break;
                     case kptIndex:
                     case kptColumn:

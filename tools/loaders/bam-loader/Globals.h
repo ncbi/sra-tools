@@ -36,22 +36,22 @@ typedef struct globals
     char const *outname;
     char const *firstOut;
     char const *tmpfs;
-    
+
     struct KFile *noMatchLog;
-    
+
     char const *schemaPath;
     char const *schemaIncludePath;
-    
+
     char const *refXRefPath;
-    
+
     char const *QualQuantizer;
-    
+
     char const *refFilter;
 
     char const** refFiles; /* NULL-terminated array pointing to argv */
-    
+
     char const *headerText;
-    
+
     uint64_t maxAlignCount;
     size_t cache_size;
 
@@ -61,7 +61,7 @@ typedef struct globals
     unsigned maxWarnCount_DupConflict;
     unsigned pid;
     unsigned minMatchCount; /* minimum number of matches to count as an alignment */
-    int minMapQual;
+    unsigned minMapQual;
     enum LoaderModes mode;
     enum LoaderModes globalMode;
     uint32_t maxSeqLen;
@@ -91,6 +91,8 @@ typedef struct globals
     uint32_t searchBatchSize;   ///< Max search batch size
     uint32_t numThreads;        ///< Max number of threads for batch search
     bool hasExtraLogging;       ///< Additional logging enabled
+
+    size_t minBatchSize; ///< Minimum batch size for spot assembly
 } Globals;
 
 extern Globals G;

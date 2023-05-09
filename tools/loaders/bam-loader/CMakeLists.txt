@@ -26,8 +26,9 @@
 if( NOT WIN32)
 
 	add_compile_definitions( __mod__="tools/bam-loader" )
-
-	include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ./) # zlib.h
+    
+    include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
+	include_directories(./)
 
 	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
 	if (APPLE)

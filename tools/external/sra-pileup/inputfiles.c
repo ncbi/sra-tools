@@ -29,9 +29,13 @@
 #include <klib/log.h>
 #endif
 
+#include <klib/report.h> /* ReportResetObject */
+
 #ifndef _h_kdb_manager_
 #include <kdb/manager.h>  /* kptDatabase, kptPrereleaseTbl, kptTable */
 #endif
+
+#include <vdb/report.h> /* ReportResetTable */
 
 static void free_input_database( input_database * id ) {
     if ( id->path != NULL ) { free( id->path ); }
@@ -162,6 +166,9 @@ static rc_t open_database( input_files *self, const VDBManager *mgr,
         }
     } else {
         bool has_alignments = false;
+
+        ReportResetDatabase( path, db );
+
         rc = contains_ref_and_alignments( db, path, &has_alignments, show_err );
         if ( rc == 0 ) {
             if ( has_alignments ) {
@@ -191,6 +198,7 @@ static rc_t open_table( input_files *self, const VDBManager *mgr, const char * p
         }
     }
     if ( rc == 0 ) {
+        ReportResetTable( path, tab );
         rc = append_table( self, tab, path );
     }
     return rc;
@@ -217,6 +225,7 @@ static rc_t split_input_files( input_files *self, const VDBManager *mgr,
             rc = VNameListGet( src, src_idx, &path );
             if ( rc == 0 && path != NULL ) {
                 int path_type = VDBManagerPathType ( mgr, "%s", path );
+                ReportResetObject ( path );
                 if ( rc == 0 ) {
                     switch( path_type )
                     {

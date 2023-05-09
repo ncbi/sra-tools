@@ -97,13 +97,13 @@ char const *sd_cigarCG_usage[]        = { "Output CG version of CIGAR",
 char const *sd_cigarCGMerge_usage[]   = { "Apply CG fixups to CIGAR/SEQ/QUAL and outputs CG-specific columns",
                                        NULL };
 
-char const *sd_CG_evidence[]          = { "Output CG evidence aligned to reference", 
+char const *sd_CG_evidence[]          = { "Output CG evidence aligned to reference",
                                        NULL };
 
 char const *sd_CG_ev_dnb[]            = { "Output CG evidence DNB's aligned to evidence",
                                        NULL };
 
-char const *sd_CG_SAM[]               = { "Output CG evidence DNB's aligned to reference ", 
+char const *sd_CG_SAM[]               = { "Output CG evidence DNB's aligned to reference ",
                                        NULL };
 
 char const *sd_CG_mappings[]          = { "Output CG sequences aligned to reference ",
@@ -209,7 +209,7 @@ char const *no_mt_usage[]             = { "disable multithreading", NULL };
 char const *no_qual_usage[]           = { "omit qualities", NULL };
 
 char const *with_md_flag_usage[]      = { "print MD-flag", NULL };
-                            
+
 char const *ngc_usage[]               = { "PATH to ngc file", NULL };
 
 OptDef SamDumpArgs[] = {
@@ -254,7 +254,7 @@ OptDef SamDumpArgs[] = {
     { OPT_RNA_SPLICE_LOG,  NULL, NULL, rna_splice_log_usage, 0, true,  false },  /* filename to log rna-splice events into */
     { OPT_NO_MT,        NULL, NULL, no_mt_usage,             0, false, false },  /* force new code-path */
     { OPT_NOQUAL,       "o",  NULL, no_qual_usage,           0, false, false },  /* ommit qualities */
-    { OPT_MD_FLAG,      NULL, NULL, with_md_flag_usage,      0, false, false },  /* print the MD-flag */	
+    { OPT_MD_FLAG,      NULL, NULL, with_md_flag_usage,      0, false, false },  /* print the MD-flag */
     { OPT_DUMP_MODE,    NULL, NULL, NULL,                    0, true,  false },  /* how to produce aligned reads if no regions given */
     { OPT_CIGAR_TEST,   NULL, NULL, NULL,                    0, true,  false },  /* test cg-treatment of cigar string */
     { OPT_LEGACY,       NULL, NULL, NULL,                    0, false, false },  /* force legacy code-path */
@@ -403,7 +403,7 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
             }
 
             if ( rc == 0 ) {
-                rc = discover_input_files( ( input_files ** )&( sam_ctx . ifs ), 
+                rc = discover_input_files( ( input_files ** )&( sam_ctx . ifs ),
                                            mgr,
                                            opts -> input_files,
                                            reflist_opt ); /* inputfiles.c */
@@ -437,8 +437,8 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
                             }
 
                             /* print output of aligned reads */
-                            if ( rc == 0 && 
-                                 sam_ctx . ifs -> database_count > 0 && 
+                            if ( rc == 0 &&
+                                 sam_ctx . ifs -> database_count > 0 &&
                                  !( opts -> dump_unaligned_only ) ) {
                                 /* ------------------------------------------------------ */
                                 rc = print_aligned_spots( &sam_ctx ); /* sam-aligned.c */
@@ -452,13 +452,13 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
                                 /* ------------------------------------------------------ */
                             }
 
-                            if ( sam_ctx . mc != NULL ) {
+                            if ( rc == 0 && sam_ctx . mc != NULL ) {
                                 if ( opts -> report_cache ) {
                                     rc = matecache_report( sam_ctx . mc ); /* matecache.c */
                                 }
                                 release_matecache( sam_ctx . mc ); /* matecache.c */
                             }
-                            
+
                             ds_free( sam_ctx . ds );    /* tolerates NULL-ptr */
                         }
                     }
@@ -487,7 +487,7 @@ static rc_t perform_cigar_test( const samdump_opts * const opts ) {
     if ( rc == 0 ) {
         KOutMsg( "%s\n", output.cigar );
     } else {
-        (void)PLOGERR( klogErr, ( klogErr, rc, "error testing cg-cigar treatment '$(t)'", 
+        (void)PLOGERR( klogErr, ( klogErr, rc, "error testing cg-cigar treatment '$(t)'",
                                   "t=%s", opts->cigar_test ) );
     }
     return rc;
@@ -499,7 +499,7 @@ static rc_t samdump_main( Args * args, const samdump_opts * const opts )
 {
     rc_t rc = 0;
     out_redir redir; /* from out_redir.h */
-    enum out_redir_mode mode;
+    enum out_redir_mode mode = orm_uncompressed;
 
     switch( opts -> output_compression ) {
         case oc_none  : mode = orm_uncompressed; break;
@@ -544,7 +544,7 @@ rc_t CC KMain( int argc, char *argv [] ) {
         Args * args;
 
         KLogHandlerSetStdErr();
-        rc = ArgsMakeAndHandle( &args, argc, argv, 1, 
+        rc = ArgsMakeAndHandle( &args, argc, argv, 1,
                                 SamDumpArgs, sizeof SamDumpArgs / sizeof SamDumpArgs [ 0 ] );
         if ( rc == 0 ) {
             samdump_opts opts; /* from sam-dump-opts.h */

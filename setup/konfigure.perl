@@ -384,7 +384,8 @@ if ($TOOLS =~ /gcc$/) {
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++' unless ($CPP);
     $CC   = 'clang -c';
-    my $versionMin = '-mmacosx-version-min=10.10';
+    #my $versionMin = '-mmacosx-version-min=10.10';
+    my $versionMin = '';
     $CP   = "$CPP -c $versionMin";
     if ($BITS ne '32_64') {
         $ARCH_FL = '-arch i386' if ($BITS == 32);
@@ -1928,14 +1929,20 @@ EndText
         foreach my $href (@REQ) {
             next unless (optional($href->{type}));
             my %a = %$href;
-            if ($a{option} && $a{option} =~ /-sources$/) {
+            my $need_source = $a{type} =~ /S/;
+            my $need_bin    = $a{type} =~ /E/;
+            if ($need_source) {
                 println "  --$a{option}=DIR    search for $a{name} package";
-                println "                                source files in DIR";
-            } elsif ($a{boption} && $a{boption} =~ /-build$/) {
-                println "  --$a{boption}=DIR     search for $a{name} package";
-                println "                                 build output in DIR";
+                println "                                 source files in DIR";
             } else {
-                println "  --$a{option}=DIR    search for $a{name} files in DIR"
+                unless ($need_bin) {
+                  println
+                    "  --$a{option}=DIR      search for $a{name} package in DIR"
+                }
+            }
+            if ($a{boption}) {
+                println "  --$a{boption}=DIR      search for $a{name} package";
+                println "                                 build output in DIR";
             }
         }
         println;

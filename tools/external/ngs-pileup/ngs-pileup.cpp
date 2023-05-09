@@ -40,20 +40,20 @@ struct NGS_Pileup::TargetReference
     typedef vector < Slice >                Slices;
     typedef vector < ngs :: Reference >     Targets;
     typedef vector < ngs :: PileupIterator> Pileups;
-    
+
     string  m_canonicalName;
     Slices  m_slices;
     Targets m_targets;
     Pileups m_pileups;
     bool    m_complete;
-    
+
     TargetReference ( ngs :: Reference p_ref )
     : m_canonicalName ( p_ref . getCanonicalName() ), m_complete ( true )
     {
         AddReference ( p_ref );
     }
-    TargetReference ( ngs :: Reference p_ref, 
-                      int64_t p_first, 
+    TargetReference ( ngs :: Reference p_ref,
+                      int64_t p_first,
                       int64_t p_last )
     : m_canonicalName ( p_ref . getCanonicalName() ), m_complete ( false )
     {
@@ -62,7 +62,7 @@ struct NGS_Pileup::TargetReference
     ~TargetReference ()
     {
     }
-    
+
     void AddSlice ( int64_t p_first, int64_t p_last )
     {
     }
@@ -71,34 +71,35 @@ struct NGS_Pileup::TargetReference
         m_complete = true;
         m_slices . clear();
     }
-    
+
     void AddReference ( ngs :: Reference p_ref )
     {
         m_targets. push_back ( p_ref );
     }
-    
+
     void Process ( ostream& out )
     {
         int64_t firstPos = 0;
         int64_t lastPos = m_targets . front () . getLength () - 1;
 
-        // create pileup iterators 
-        for ( Targets::iterator i = m_targets.begin(); i != m_targets.end(); ++i ) 
+        // create pileup iterators
+        for ( Targets::iterator i = m_targets.begin(); i != m_targets.end(); ++i )
         {
             m_pileups . push_back ( i -> getPileups ( ngs::Alignment::all ) );
         }
-        
+
         int64_t curPos = firstPos;
-        while ( curPos <= lastPos ) 
+        while ( curPos <= lastPos )
         {
             uint32_t total_depth = 0;
             for ( Pileups :: iterator i = m_pileups . begin (); i != m_pileups. end (); ++i )
             {
                 bool next = i -> nextPileup ();
                 assert ( next );
+                UNUSED(next);
                 total_depth += i -> getPileupDepth ();
             }
-        
+
             if ( total_depth > 0 )
             {
                 out << m_canonicalName
@@ -106,7 +107,7 @@ struct NGS_Pileup::TargetReference
                     << '\t' << total_depth
                     << endl;
             }
-            
+
             ++ curPos;
         }
     }
@@ -119,7 +120,7 @@ public :
     {
         string name = ref . getCanonicalName ();
         for ( iterator i = begin(); i != end (); ++ i )
-        {   
+        {
             if ( i -> m_canonicalName == name )
             {
                 i -> AddReference ( ref );
@@ -130,7 +131,7 @@ public :
         push_back ( TargetReference ( ref ) );
     }
 };
- 
+
 NGS_Pileup::NGS_Pileup ( const Settings& p_settings )
 : m_settings( p_settings )
 {
@@ -139,10 +140,10 @@ NGS_Pileup::NGS_Pileup ( const Settings& p_settings )
 static
 bool FindReference ( const NGS_Pileup :: Settings :: References & requested, const ngs :: Reference & ref )
 {
-    for ( NGS_Pileup :: Settings :: References :: const_iterator i = requested . begin(); 
-          i != requested . end (); 
+    for ( NGS_Pileup :: Settings :: References :: const_iterator i = requested . begin();
+          i != requested . end ();
           ++i )
-    {   
+    {
         if ( i->m_name == ref . getCanonicalName () || i->m_name == ref . getCommonName () )
         {
             return true;
@@ -150,17 +151,17 @@ bool FindReference ( const NGS_Pileup :: Settings :: References & requested, con
     }
     return false;
 }
-    
-void 
+
+void
 NGS_Pileup::Run () const
 {
     TargetReferences references;
-    
+
     // build the set of target references
-    for ( Settings :: Inputs :: const_iterator i = m_settings . inputs . begin(); 
-          i != m_settings . inputs . end (); 
+    for ( Settings :: Inputs :: const_iterator i = m_settings . inputs . begin();
+          i != m_settings . inputs . end ();
           ++i )
-    {   
+    {
         ngs :: ReadCollection col = ncbi :: NGS :: openReadCollection ( *i );
         ngs :: ReferenceIterator refIt = col . getReferences ();
         while ( refIt . nextReference () )
@@ -178,29 +179,29 @@ NGS_Pileup::Run () const
             }
         }
     }
-    
+
     ostream & out ( m_settings . output != (ostream*)0 ? * m_settings . output : cout );
-    
+
     // walk the references and output pileups
     for ( TargetReferences :: iterator i = references . begin(); i != references . end (); ++i )
-    {   
+    {
         i -> Process ( out );
     }
 }
 
 //// NGS_Pileup::Settings
 
-void 
-NGS_Pileup::Settings::AddReference ( const string& commonOrCanonicalName ) 
+void
+NGS_Pileup::Settings::AddReference ( const string& commonOrCanonicalName )
 {
-    references . push_back ( ReferenceSlice ( commonOrCanonicalName ) ); 
+    references . push_back ( ReferenceSlice ( commonOrCanonicalName ) );
 }
 
-void 
-NGS_Pileup::Settings::AddReferenceSlice ( const string& commonOrCanonicalName, 
-                                        int64_t firstPos, 
+void
+NGS_Pileup::Settings::AddReferenceSlice ( const string& commonOrCanonicalName,
+                                        int64_t firstPos,
                                         int64_t lastPos )
-{ 
-    references . push_back ( ReferenceSlice ( commonOrCanonicalName, firstPos, lastPos ) ); 
+{
+    references . push_back ( ReferenceSlice ( commonOrCanonicalName, firstPos, lastPos ) );
 }
 

@@ -140,7 +140,11 @@ FilePath from_realpath(char const *path)
 {
     auto const real = realpath(path, nullptr);
     if (real)
-        return FilePath(real);
+    {
+        FilePath ret(real);
+        free(real);
+        return ret;
+    }
     throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
 }
 

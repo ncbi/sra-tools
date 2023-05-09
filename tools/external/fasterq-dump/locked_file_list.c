@@ -63,7 +63,7 @@ rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir, bool
         } else {
             /* tolerates to be called with dir == NULL */
             if ( NULL != dir ) {
-                rc = delete_files( dir, self -> files, details );
+                rc = ft_delete_files( dir, self -> files, details );
             }
         }
         {
@@ -115,7 +115,7 @@ rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self,
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_files().KLockAcquire() -> %R", rc );
         } else {
-            rc = delete_files( dir, self -> files, details );
+            rc = ft_delete_files( dir, self -> files, details );
             if ( 0 != rc ) {
                 ErrMsg( "locked_file_list_delete_files().delete_files() -> %R", rc );
             }
@@ -135,7 +135,7 @@ rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self, 
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_dirs().KLockAcquire() -> %R", rc );
         } else {
-            rc = delete_dirs( dir, self -> files, details );
+            rc = ft_delete_dirs( dir, self -> files, details );
             if ( 0 != rc ) {
                 ErrMsg( "locked_file_list_delete_dirs().delete_dirs() -> %R", rc );
             }

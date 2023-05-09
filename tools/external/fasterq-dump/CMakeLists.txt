@@ -47,12 +47,17 @@ set( TOOLS_SRC
 	cmn_iter
 	raw_read_iter
 	special_iter
-	fastq_iter
+	fq_seq_ua_iter
+	fq_seq_csra_iter
+	align_iter
+	simple_fasta_iter
 	db_join
 	tbl_join
 	temp_registry
 	copy_machine
+	multi_writer
 	concatenator
+	ref_inventory
 	fasterq-dump
 )
 

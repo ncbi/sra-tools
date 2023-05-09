@@ -62,7 +62,7 @@
 
 /* -------------------------------------------------------------------------------- */
 
-bool is_format_fasta( format_t fmt ){
+bool hlp_is_format_fasta( format_t fmt ){
     bool res;
     switch( fmt ) {
         case ft_fasta_whole_spot : res = true; break;
@@ -70,6 +70,8 @@ bool is_format_fasta( format_t fmt ){
         case ft_fasta_split_file : res = true; break;
         case ft_fasta_split_3    : res = true; break;
         case ft_fasta_us_split_spot : res = true; break;
+        case ft_fasta_ref_tbl : res = true; break;
+        case ft_fasta_concat : res = true; break;
         default : res = false; break;
     }
     return res;
@@ -84,9 +86,10 @@ static format_t format_cmp( const String * Format, const char * test, format_t t
     return ft_unknown;
 }
 
-format_t get_format_t( const char * format,
+format_t hlp_get_format_t( const char * format,
             bool split_spot, bool split_file, bool split_3, bool whole_spot,
-            bool fasta, bool fasta_us ) {
+            bool fasta, bool fasta_us, bool fasta_ref_tbl, bool fasta_concat, 
+            bool ref_report ) {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] ) {
         /* the format option has been used, try to recognize one of the options,
@@ -120,27 +123,42 @@ format_t get_format_t( const char * format,
         if ( ft_unknown == res ) {
             res = format_cmp( &Format, "fasta-us-split-spot", ft_fasta_us_split_spot );
         }
+        if ( ft_unknown == res ) {
+            res = format_cmp( &Format, "fasta-ref-tbl", ft_fasta_ref_tbl );
+        }
+        if ( ft_unknown == res ) {
+            res = format_cmp( &Format, "fasta-concat_all", ft_fasta_concat );
+        }
+        
     } else {
         /* the format option has not been used, let us see if some of the legacy-options
             have been used */
-        if ( split_3 ) {
-            res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
-            /* split-file, split-spot and whole-spot are ignored! */
-        } else if ( split_file ) {
-            res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
-            /* split-3, split-spot and whole-spot are ignored! */
-        } else if ( split_spot ) {
-            /* split-3, split-file and whole-spot are ignored! */
-            if ( fasta_us ) {
-                res = ft_fasta_us_split_spot;
-            } else if ( fasta ) {
-                res = ft_fasta_split_spot;
-            } else {
-                res = ft_fastq_split_spot;
+        if ( fasta_concat ) {
+            res = ft_fasta_concat;
+        } else if ( fasta_ref_tbl ) {
+            res = ft_fasta_ref_tbl;
+        } else if ( ref_report ) {
+            res = ft_ref_report;
+        } else {
+            if ( split_3 ) {
+                res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
+                /* split-file, split-spot and whole-spot are ignored! */
+            } else if ( split_file ) {
+                res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
+                /* split-3, split-spot and whole-spot are ignored! */
+            } else if ( split_spot ) {
+                /* split-3, split-file and whole-spot are ignored! */
+                if ( fasta_us ) {
+                    res = ft_fasta_us_split_spot;
+                } else if ( fasta ) {
+                    res = ft_fasta_split_spot;
+                } else {
+                    res = ft_fastq_split_spot;
+                }
+            } else if ( whole_spot ) {
+                /* split-3, split-file and split-spot are ignored! */
+                res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
             }
-        } else if ( whole_spot ) {
-            /* split-3, split-file and split-spot are ignored! */
-            res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
         }
     }
     /* default to split_3 if no format has been given at all */
@@ -164,11 +182,13 @@ static const char * FMT_FASTQ_SPLIT_3       = "FASTQ split 3";
 static const char * FMT_FASTA_WHOLE_SPOT    = "FASTA whole spot";
 static const char * FMT_FASTA_SPLIT_SPOT    = "FASTA split spot";
 static const char * FMT_FASTA_UNSORTED      = "FASTA-unsorted split spot";
+static const char * FMT_FASTA_REF_TBL       = "FASTA-ref-table";
+static const char * FMT_FASTA_CONCAT        = "FASTA-concat";
 static const char * FMT_FASTA_SPLIT_FILE    = "FASTA split file";
 static const char * FMT_FASTA_SPLIT_3       = "FASTA split 3";
+static const char * FMT_REF_REPORT          = "ref-report";
 
-
-const char * fmt_2_string( format_t fmt ) {
+const char * hlp_fmt_2_string( format_t fmt ) {
     const char * res = FMT_UNKNOWN;
     switch ( fmt ) {
         case ft_unknown             : res = FMT_UNKNOWN; break;
@@ -179,8 +199,11 @@ const char * fmt_2_string( format_t fmt ) {
         case ft_fasta_whole_spot    : res = FMT_FASTA_WHOLE_SPOT; break;
         case ft_fasta_split_spot    : res = FMT_FASTA_SPLIT_SPOT; break;
         case ft_fasta_us_split_spot : res = FMT_FASTA_UNSORTED; break;
+        case ft_fasta_ref_tbl       : res = FMT_FASTA_REF_TBL; break;
+        case ft_fasta_concat        : res = FMT_FASTA_CONCAT; break;
         case ft_fasta_split_file    : res = FMT_FASTA_SPLIT_FILE; break;
         case ft_fasta_split_3       : res = FMT_FASTA_SPLIT_3; break;
+        case ft_ref_report          : res = FMT_REF_REPORT; break;        
     }
     return res;
 }
@@ -190,7 +213,7 @@ const char * fmt_2_string( format_t fmt ) {
 static const char * FASTA_EXT = ".fasta";
 static const char * FASTQ_EXT = ".fastq";
 
-const char * out_ext( bool fasta ) {
+const char * hlp_out_ext( bool fasta ) {
     if ( fasta ) return FASTA_EXT;
     return FASTQ_EXT;
 }
@@ -200,7 +223,7 @@ const char * out_ext( bool fasta ) {
 static const char * B_YES = "YES";
 static const char * B_NO  = "NO";
 
-const char * yes_or_no( bool b ) {
+const char * hlp_yes_or_no( bool b ) {
     if ( b ) return B_YES;
     return B_NO;
 }
@@ -216,7 +239,7 @@ static check_mode_t check_mode_cmp( const String * Mode, const char * test, chec
     return cmt_unknown;
 }
 
-check_mode_t get_check_mode_t( const char * mode ) {
+check_mode_t hlp_get_check_mode_t( const char * mode ) {
     check_mode_t res = cmt_on;
     if ( NULL != mode ) {
         String Mode;
@@ -233,7 +256,7 @@ check_mode_t get_check_mode_t( const char * mode ) {
     return res;
 }
 
-bool is_perform_check( check_mode_t mode ) {
+bool hlp_is_perform_check( check_mode_t mode ) {
     switch ( mode ) {
         case cmt_unknown : return true; break;
         case cmt_on      : return true; break;
@@ -248,7 +271,7 @@ static const char * CM_ON         = "on";
 static const char * CM_OFF        = "off";
 static const char * CM_ONLY       = "only";
 
-const char * check_mode_2_string( check_mode_t cm ) {
+const char * hlp_check_mode_2_string( check_mode_t cm ) {
     const char * res = CM_UNKNOWN;
     switch ( cm ) {
         case cmt_unknown    : res = CM_UNKNOWN; break;
@@ -261,7 +284,43 @@ const char * check_mode_2_string( check_mode_t cm ) {
 
 /* -------------------------------------------------------------------------------- */
 
-const String * make_string_copy( const char * src )
+static atomic32_t quit_flag;
+
+rc_t hlp_get_quitting( void ) {
+    rc_t rc = Quitting();
+    if ( 0 == rc ) {
+        if ( 0 != atomic32_read ( & quit_flag ) )
+            rc = RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
+    }
+    return rc;
+}
+
+void hlp_set_quitting( void ) {
+    atomic32_inc ( & quit_flag );
+}
+
+/* -------------------------------------------------------------------------------- */
+
+void hlp_correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present ) {
+    dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
+    dst -> skip_tech = src -> skip_tech;
+    dst -> print_spotgroup = src -> print_spotgroup;
+    dst -> min_read_len = src -> min_read_len;
+    dst -> filter_bases = src -> filter_bases;
+}
+
+/* -------------------------------------------------------------------------------- */
+
+uint64_t hlp_make_key( int64_t seq_spot_id, uint32_t seq_read_id ) {
+    uint64_t key = seq_spot_id;
+    key <<= 1;
+    key |= ( 2 == seq_read_id ) ? 1 : 0;
+    return key;
+}
+
+/* -------------------------------------------------------------------------------- */
+
+const String * hlp_make_string_copy( const char * src )
 {
     const String * res = NULL;
     if ( NULL != src ) {
@@ -272,7 +331,7 @@ const String * make_string_copy( const char * src )
     return res;
 }
 
-rc_t split_string( String * in, String * p0, String * p1, uint32_t ch ) {
+rc_t hlp_split_string( String * in, String * p0, String * p1, uint32_t ch ) {
     rc_t rc = 0;
     char * ch_ptr = string_chr( in -> addr, in -> size, ch );
     if ( NULL == ch_ptr ) {
@@ -288,7 +347,7 @@ rc_t split_string( String * in, String * p0, String * p1, uint32_t ch ) {
     return rc;
 }
 
-rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch ) {
+rc_t hlp_split_string_r( String * in, String * p0, String * p1, uint32_t ch ) {
     rc_t rc = 0;
     char * ch_ptr = string_rchr( in -> addr, in -> size, ch );
     if ( NULL == ch_ptr ) {
@@ -304,64 +363,7 @@ rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch ) {
     return rc;
 }
 
-uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id ) {
-    uint64_t key = seq_spot_id;
-    key <<= 1;
-    key |= ( 2 == seq_read_id ) ? 1 : 0;
-    return key;
-}
-
-/* -------------------------------------------------------------------------------- */
-
-rc_t join_and_release_threads( Vector * threads ) {
-    rc_t rc = 0;
-    uint32_t i, n = VectorLength( threads );
-    for ( i = VectorStart( threads ); i < n; ++i ) {
-        KThread * thread = VectorGet( threads, i );
-        if ( NULL != thread ) {
-            rc_t rc1;
-            KThreadWait( thread, &rc1 );
-            if ( 0 == rc && rc1 != 0 ) {
-                rc = rc1;
-            }
-            KThreadRelease( thread );
-        }
-    }
-    VectorWhack ( threads, NULL, NULL );
-    return rc;
-}
-
-/* -------------------------------------------------------------------------------- */
-
-void clear_join_stats( join_stats_t * stats ) {
-    if ( stats != NULL )
-    {
-        stats -> spots_read = 0;
-        stats -> reads_read = 0;
-        stats -> reads_written = 0;
-        stats -> reads_zero_length = 0;
-        stats -> reads_technical = 0;
-        stats -> reads_too_short = 0;
-        stats -> reads_invalid = 0;
-    }
-}
-
-void add_join_stats( join_stats_t * stats, const join_stats_t * to_add ) {
-    if ( NULL != stats && NULL != to_add )
-    {
-        stats -> spots_read += to_add -> spots_read;
-        stats -> reads_read += to_add -> reads_read;
-        stats -> reads_written += to_add -> reads_written;
-        stats -> reads_zero_length += to_add -> reads_zero_length;
-        stats -> reads_technical += to_add -> reads_technical;
-        stats -> reads_too_short += to_add -> reads_too_short;
-        stats -> reads_invalid += to_add -> reads_invalid;
-    }
-}
-
-/* ===================================================================================== */
-
-bool ends_in_slash( const char * s ) {
+bool hlp_ends_in_slash( const char * s ) {
     bool res = false;
     if ( NULL != s ) {
         uint32_t len = string_measure( s, NULL );
@@ -372,25 +374,25 @@ bool ends_in_slash( const char * s ) {
     return res;
 }
 
-bool ends_in_sra( const char * s ) {
+bool hlp_ends_in_sra( const char * s ) {
     bool res = false;
     if ( NULL != s ) {
         uint32_t len = string_measure( s, NULL );
         if ( len > 4 ) {
             res = ( ( 'a' == s[ len - 1 ] ) &&
-                    ( 'r' == s[ len - 2 ] ) &&
-                    ( 's' == s[ len - 3 ] ) &&
-                    ( '.' == s[ len - 4 ] ) );
+            ( 'r' == s[ len - 2 ] ) &&
+            ( 's' == s[ len - 3 ] ) &&
+            ( '.' == s[ len - 4 ] ) );
         }
     }
     return res;
 }
 
-bool extract_path( const char * s, String * path ) {
+bool hlp_extract_path( const char * s, String * path ) {
     bool res = false;
     if ( NULL != s && NULL != path ) {
         path -> addr = s;
-        res = ends_in_slash( s );
+        res = hlp_ends_in_slash( s );
         if ( res ) {
             path -> len = string_measure( s, & path -> size );
         } else {
@@ -406,7 +408,60 @@ bool extract_path( const char * s, String * path ) {
     return res;
 }
 
-/* ===================================================================================== */
+/* -------------------------------------------------------------------------------- */
+
+void hlp_clear_join_stats( join_stats_t * stats ) {
+    if ( stats != NULL )
+    {
+        stats -> spots_read = 0;
+        stats -> reads_read = 0;
+        stats -> reads_written = 0;
+        stats -> reads_zero_length = 0;
+        stats -> reads_technical = 0;
+        stats -> reads_too_short = 0;
+        stats -> reads_invalid = 0;
+    }
+}
+
+void hlp_add_join_stats( join_stats_t * stats, const join_stats_t * to_add ) {
+    if ( NULL != stats && NULL != to_add )
+    {
+        stats -> spots_read += to_add -> spots_read;
+        stats -> reads_read += to_add -> reads_read;
+        stats -> reads_written += to_add -> reads_written;
+        stats -> reads_zero_length += to_add -> reads_zero_length;
+        stats -> reads_technical += to_add -> reads_technical;
+        stats -> reads_too_short += to_add -> reads_too_short;
+        stats -> reads_invalid += to_add -> reads_invalid;
+    }
+}
+
+rc_t hlp_print_stats( const join_stats_t * stats, rc_t rc_in ) {
+    KOutHandlerSetStdErr();
+    rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
+    if ( 0 == rc ) {
+        rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
+    }
+    if ( 0 == rc && 0 == rc_in ) {
+        rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
+    }
+    if ( 0 == rc && stats -> reads_zero_length > 0 ) {
+        rc = KOutMsg( "reads 0-length  : %,lu\n", stats -> reads_zero_length );
+    }
+    if ( 0 == rc && stats -> reads_technical > 0 ) {
+        rc = KOutMsg( "technical reads : %,lu\n", stats -> reads_technical );
+    }
+    if ( 0 == rc && stats -> reads_too_short > 0 ) {
+        rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
+    }
+    if ( 0 == rc && stats -> reads_invalid > 0 ) {
+        rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
+    }
+    KOutHandlerSetStdOut();
+    return rc;
+}
+
+/* -------------------------------------------------------------------------------- */
 
 typedef struct Buf2NA_t {
     unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
@@ -416,7 +471,7 @@ typedef struct Buf2NA_t {
     size_t allocated;
 } Buf2NA_t;
 
-rc_t make_Buf2NA( Buf2NA_t ** self, size_t size, const char * pattern ) {
+static rc_t hlp_make_Buf2NA( Buf2NA_t ** self, size_t size, const char * pattern ) {
     rc_t rc = 0;
     NucStrstr * nss;
     int res = NucStrstrMake ( &nss, 0, pattern, string_size ( pattern ) );
@@ -455,7 +510,7 @@ rc_t make_Buf2NA( Buf2NA_t ** self, size_t size, const char * pattern ) {
     return rc;
 }
 
-void release_Buf2NA( Buf2NA_t * self ) {
+static void hlp_release_Buf2NA( Buf2NA_t * self ) {
     if ( self != NULL ) {
         if ( self -> buffer != NULL ) {
             free( ( void * ) self -> buffer );
@@ -467,7 +522,7 @@ void release_Buf2NA( Buf2NA_t * self ) {
     }
 }
 
-bool match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
+static bool hlp_match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
     bool res = false;
     if ( self != NULL && ascii != NULL ) {
         int i;
@@ -486,23 +541,23 @@ bool match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
             i = ascii -> len;
             while ( i >= 4 ) {
                 self -> buffer[ dst++ ] =
-                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
-                    self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
-                    self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2 |
-                    self -> map[ ( unsigned char )ascii -> addr[ src + 3 ] ];
+                self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2 |
+                self -> map[ ( unsigned char )ascii -> addr[ src + 3 ] ];
                 src += 4;
                 i -= 4;
             }
             switch( i ) {
-                case 3 : self -> buffer[ dst ] = 
-                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
-                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
-                            self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2; break;
-                case 2 : self -> buffer[ dst ] = 
-                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
-                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4; break;
-                case 1 : self -> buffer[ dst ] = 
-                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6; break;
+                case 3 : self -> buffer[ dst ] =
+                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2; break;
+                case 2 : self -> buffer[ dst ] =
+                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4; break;
+                case 1 : self -> buffer[ dst ] =
+                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6; break;
             }
             res = ( 0 != NucStrstrSearch ( self -> nss, self -> buffer, 0, ascii -> len, & selflen ) );
         }
@@ -510,92 +565,16 @@ bool match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
     return res;
 }
 
-rc_t helper_make_thread( KThread ** self,
-                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
-                         void * data,
-                         size_t stacksize ) {
-    rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
-    return rc;
-}
-
-/* ===================================================================================== */
-
-static atomic32_t quit_flag;
-
-rc_t get_quitting( void ) {
-    rc_t rc = Quitting();
-    if ( 0 == rc ) {
-        if ( 0 != atomic32_read ( & quit_flag ) )
-        rc = RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
-    }
-    return rc;
-}
-
-void set_quitting( void ) {
-    atomic32_inc ( & quit_flag );
-}
-
-/* ===================================================================================== */
-
-uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count ) {
-    uint64_t res = row_count;
-    uint64_t limit = 100 * ( *num_threads );
-    if ( row_count < limit ) {
-        *num_threads = 1;
-    } else {
-        res = ( row_count / ( *num_threads ) ) + 1;
-    }
-    return res;
-}
-
-void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present ) {
-    dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
-    dst -> skip_tech = src -> skip_tech;
-    dst -> print_spotgroup = src -> print_spotgroup;
-    dst -> min_read_len = src -> min_read_len;
-    dst -> filter_bases = src -> filter_bases;
-}
-
-/* ===================================================================================== */
-
-rc_t print_stats( const join_stats_t * stats )
-{
-    KOutHandlerSetStdErr();
-    rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
-    if ( 0 == rc ) {
-         rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
-    }
-    if ( 0 == rc ) {
-         rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
-    }
-    if ( 0 == rc && stats -> reads_zero_length > 0 ) {
-         rc = KOutMsg( "reads 0-length  : %,lu\n", stats -> reads_zero_length );
-    }
-    if ( 0 == rc && stats -> reads_technical > 0 ) {
-         rc = KOutMsg( "technical reads : %,lu\n", stats -> reads_technical );
-    }
-    if ( 0 == rc && stats -> reads_too_short > 0 ) {
-         rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
-    }
-    if ( 0 == rc && stats -> reads_invalid > 0 ) {
-         rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
-    }
-    KOutHandlerSetStdOut();
-    return rc;
-}
-
-/* ===================================================================================== */
-
 typedef struct filter_2na_t {
     struct Buf2NA_t * filter_buf2na;        /* the 2na-filter */
 } filter_2na_t;
 
-filter_2na_t * make_2na_filter( const char * filter_bases ) {
+filter_2na_t * hlp_make_2na_filter( const char * filter_bases ) {
     filter_2na_t * res = NULL;
     if ( NULL != filter_bases ) {
         res = calloc( 1, sizeof * res );
         if ( NULL != res ) {
-            rc_t rc = make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases ); /* helper.c */
+            rc_t rc = hlp_make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases ); /* helper.c */
             if ( 0 != rc ) {
                 ErrMsg( "make_2na_filter().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
                 free( ( void * )res );
@@ -606,40 +585,107 @@ filter_2na_t * make_2na_filter( const char * filter_bases ) {
     return res;
 }
 
-void release_2na_filter( filter_2na_t * self ) {
+void hlp_release_2na_filter( filter_2na_t * self ) {
     if ( NULL != self ) {
         if ( NULL != self -> filter_buf2na ) {
-            release_Buf2NA( self -> filter_buf2na );
+            hlp_release_Buf2NA( self -> filter_buf2na );
         }
     }
 }
 
-bool filter_2na_1( filter_2na_t * self, const String * bases ) {
+bool hlp_filter_2na_1( filter_2na_t * self, const String * bases ) {
     bool res = true;
     if ( NULL != self && NULL != bases ) {
-        res = match_Buf2NA( self -> filter_buf2na, bases ); /* helper.c */
+        res = hlp_match_Buf2NA( self -> filter_buf2na, bases ); /* helper.c */
     }
     return res;
 }
 
-bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * bases2 ) {
+bool hlp_filter_2na_2( filter_2na_t * self, const String * bases1, const String * bases2 ) {
     bool res = true;
     if ( NULL != self && NULL != bases1 && NULL != bases2 ) {
-        res = ( match_Buf2NA( self -> filter_buf2na, bases1 ) || match_Buf2NA( self -> filter_buf2na, bases2 ) ); /* helper.c */
+        res = ( hlp_match_Buf2NA( self -> filter_buf2na, bases1 ) || 
+        hlp_match_Buf2NA( self -> filter_buf2na, bases2 ) ); /* helper.c */
     }
     return res;
 }
 
-/* ===================================================================================== */
+/* -------------------------------------------------------------------------------- */
+
+rc_t hlp_make_thread( KThread ** self,
+                      rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                      void * data,
+                      size_t stacksize ) {
+    rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
+    return rc;
+                      }
+                      
+rc_t hlp_join_and_release_threads( Vector * threads ) {
+    rc_t rc = 0;
+    uint32_t i, n = VectorLength( threads );
+    for ( i = VectorStart( threads ); i < n; ++i ) {
+        KThread * thread = VectorGet( threads, i );
+        if ( NULL != thread ) {
+            rc_t rc1;
+            KThreadWait( thread, &rc1 );
+            if ( 0 == rc && rc1 != 0 ) {
+                rc = rc1;
+            }
+            KThreadRelease( thread );
+        }
+    }
+    VectorWhack ( threads, NULL, NULL );
+    return rc;
+}
+
+uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count ) {
+    uint64_t res = row_count;
+    uint64_t limit = 100 * ( *num_threads );
+    if ( row_count < limit ) {
+        *num_threads = 1;
+    } else {
+        res = ( row_count / ( *num_threads ) ) + 1;
+    }
+    return res;
+}
+
+/* -------------------------------------------------------------------------------- */
+
+void hlp_unread_rc_info( bool show ) {
+    rc_t rc;
+    const char *filename;
+    const char * funcname;
+    uint32_t lineno;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &lineno ) ) {
+        if ( show ) {
+            KOutMsg( "unread: %R %s %s %u\n", rc, filename, funcname, lineno );
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------------- */
+
+void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
+    uint32_t idx;
+    memset( lut, '~', size );
+    for ( idx = 0; idx < 256; idx++ ) {
+        lut[ idx ] = idx + 33;
+        if ( '~' == lut[ idx ] ) {
+            break;
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------------- */
 
 #ifdef WINDOWS
         /* do nothing for WINDOWS... */
 #else
 #include <sys/types.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #endif
 
-uint32_t device_id_of_path( const char * path ) {
+static uint32_t hlp_device_id_of_path( const char * path ) {
     uint32_t res = 0;
     if ( NULL != path ) {
 #ifdef WINDOWS
@@ -654,8 +700,9 @@ uint32_t device_id_of_path( const char * path ) {
     return res;
 }
 
-bool paths_on_same_filesystem( const char * path1, const char * path2 ) {
-    uint32_t id1 = device_id_of_path( path1 );
-    uint32_t id2 = device_id_of_path( path2 );
+bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 ) {
+    uint32_t id1 = hlp_device_id_of_path( path1 );
+    uint32_t id2 = hlp_device_id_of_path( path2 );
     return ( id1 == id2 );
 }
+

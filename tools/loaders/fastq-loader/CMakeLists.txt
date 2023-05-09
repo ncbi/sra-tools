@@ -38,6 +38,10 @@ else()
     set( Parser zz_fastq-grammar.c )
 endif()
 
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+	SET_SOURCE_FILES_PROPERTIES(${Scanner} PROPERTIES COMPILE_FLAGS -Wno-misleading-indentation)
+endif()
+
 set( FASTQ_SRC
 	spot-assembler
 	common-writer

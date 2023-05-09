@@ -34,6 +34,7 @@ else()
 	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
 endif()
 
+add_subdirectory( vdb )
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )
 	add_subdirectory( loaders )
@@ -41,12 +42,15 @@ endif()
 if( BUILD_TOOLS_INTERNAL )
 	add_subdirectory( internal )
 endif()
+if( BUILD_TOOLS_TEST_TOOLS )
+	add_subdirectory( test-tools )
+endif()
 
 #add_subdirectory( ngs ) # moved to test/external
 #add_subdirectory( align ) # moved to test/internal
 #add_subdirectory( test_sanitizers ) # move to test/internal
 
-add_subdirectory( scripts ) # mobe to test/internal
+add_subdirectory( scripts ) # move to test/internal
 
 # add_subdirectory(samline) # command line tool; move to tools/internal
 

@@ -101,7 +101,7 @@ static void handleFileArgument(Argument const &arg, FilePath const &filePath, st
         arg.reason = Argument::duplicate;
 };
 
-static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args, int *out)
+static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args)
 {
     unsigned problems = 0;
 
@@ -127,8 +127,6 @@ static unsigned handleFileArgumentErrors(char const *const argName, Arguments co
                 return;
             }
         }
-        else
-            *out = arg.argind;
     });
     return problems;
 }
@@ -204,13 +202,11 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
     }
 
     if (havePerm) {
-        int argind = 0;
-
         if (haveNGC) {
             ++problems;
             std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
         }
-        problems += handleFileArgumentErrors("perm", args, &argind);
+        problems += handleFileArgumentErrors("perm", args);
         if (!vdb::Service::haveCloudProvider()) {
             ++problems;
             std::cerr
@@ -224,22 +220,24 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
             std::cerr << "--perm requires a cloud instance identity, please run vdb-config and" \
                          " enable the option to report cloud instance identity." << std::endl;
         }
-        else if (argind)
-            *sPerm = argv.pathForArgument(argind);
+        else {
+            args.each("perm", [&](Argument const &arg) {
+                *sPerm = argv.pathForArgument(arg);
+            });
+        }
     }
     if (haveNGC) {
-        int argind = 0;
-
-        problems += handleFileArgumentErrors("ngc", args, &argind);
-        if (argind)
-            *sNGC = argv.pathForArgument(argind);
+        unsigned const moreProblems = handleFileArgumentErrors("ngc", args);
+        if (moreProblems)
+            problems += moreProblems;
+        else {
+            args.each("ngc", [&](Argument const &arg) {
+                *sNGC = argv.pathForArgument(arg);
+            });
+        }
     }
     if (haveCart) {
-        int argind = 0;
-
-        problems += handleFileArgumentErrors("cart", args, &argind);
-        if (argind)
-            (void)0; // do nothing
+        problems += handleFileArgumentErrors("cart", args);
     }
     auto const containers = checkForContainers(argv, args);
     if (containers > 0) {
@@ -460,9 +458,11 @@ static int main(CommandLine const &argv)
         });
 
         // MARK: Set debug flags
+#if _DEBUGGING
         parsed.each("debug", [](Argument const &arg) {
             KDbgSetString(arg.argument);
         });
+#endif        
 
         // MARK: Check for special parameters that trigger immediate tool execution.
         if (parsed.any("help"))

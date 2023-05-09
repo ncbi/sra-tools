@@ -335,7 +335,7 @@ static void json_print_named_url(  char const *const name
                                  , bool const comma)
 {
     String const *tmp = NULL;
-    rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+    rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0); UNUSED(rc);
     OUTMSG(("%.*s\"%s\": \"%S\""
             , comma ? 2 : 0, ", "
             , name
@@ -353,7 +353,7 @@ static unsigned json_print_named_urls_and_service(  char const *const name
         bool pay = false;
         String service;
         String const *tmp = NULL;
-        rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+        rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0); UNUSED(rc);
 
         memset(&service, 0, sizeof service);
         VPathGetService(url, &service);
@@ -393,7 +393,7 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, char co
         char const *str = NULL;
         uint64_t sz = 0;
         KSrvRespFileIterator *iter = NULL;
-        
+
         OUTMSG(("%.*s{", count == 0 ? 0 : 2, ",\n"));
         json_print_nvp("accession", acc, false);
         count += 1;
@@ -405,7 +405,7 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, char co
         str = NULL; rc = KSrvRespFileGetClass(file, &str);
         if (rc == 0 && str && str[0])
             json_print_nvp("itemClass", str, true);
-        
+
         rc = KSrvRespFileGetSize(file, &sz);
         if (rc == 0 && sz > 0)
             json_print_nzp("size", (size_t)sz, true);
@@ -415,17 +415,17 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, char co
             json_print_named_url("local", path, true);
             RELEASE(VPath, path);
         }
-        
+
         path = NULL; KSrvRespFileGetCache(file, &path);
         if (path) {
             json_print_named_url("cache", path, true);
             RELEASE(VPath, path);
         }
-        
+
         rc = KSrvRespFileMakeIterator(file, &iter);
         if (rc == 0 && iter) {
             unsigned rcount = 0;
-            
+
             for ( ; ; ) {
                 if ((rc = KSrvRespFileIteratorNextPath(iter, &path)) == 0) {
                     rcount = json_print_named_urls_and_service("remote", path, rcount, true);
@@ -460,7 +460,7 @@ static rc_t names_remote_json ( KService * const service
         unsigned const count = KSrvResponseLength(response);
         unsigned i;
         unsigned output_count = 0;
-        
+
         OUTMSG(("{\n"));
         OUTMSG(("\"count\": %u,\n", count));
         get_compute_environment();
@@ -477,10 +477,10 @@ static rc_t names_remote_json ( KService * const service
             rc = KSrvRespObjGetFileCount(obj, &fileCount);
             if (rc == 0) {
                 INFALLIBLE(KSrvRespObjMakeIterator(obj, &iter));
-                
+
                 for ( ; ; ) { /* iterate files */
                     KSrvRespFile *file = NULL;
-                    
+
                     INFALLIBLE(KSrvRespObjIteratorNextFile(iter, &file));
                     if (file == NULL) /* done iterating */
                         break;
@@ -504,7 +504,7 @@ static rc_t names_remote_json ( KService * const service
         OUTMSG(("]}\n"));
     }
     RELEASE ( KSrvResponse, response );
-    
+
     return rc;
 }
 
@@ -623,27 +623,27 @@ static rc_t names_request_1 (  const request_params * request
                              )
 {
     rc_t rc = 0;
-    
+
     KService * service = NULL;
-    
+
     VRemoteProtocols protocols = 0;
-    
+
     assert ( request && request -> terms );
-    
+
     if ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] != eProtocolMax ) {
         rc = RC ( rcExe, rcTable, rcValidating, rcTable, rcIncomplete );
         LOGERR ( klogFatal, rc, "Incomplete PROTOCOLS array" );
         assert ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] == eProtocolMax );
         return rc;
     }
-    
+
     if ( request -> params != NULL && * request -> params != NULL )
         LOGMSG ( klogWarn, "'--" OPTION_PARAM "' is ignored: "
                 "it used just with '--" OPTION_RAW "' '" FUNCTION_NAMES "' and '"
                 FUNCTION_SEARCH "' funtions") ;
-    
+
     rc = KService_Make ( & service, request );
-    
+
     if ( rc == 0 ) {
         if ( rc == 0 && request -> projects != NULL &&
             request -> projects [ 0 ] != 0 )
@@ -659,7 +659,7 @@ static rc_t names_request_1 (  const request_params * request
             }
         }
     }
-    
+
     if (rc == 0 && request->cart != NULL) {
         rc = KServiceSetJwtKartFile(service, request->cart);
         if (rc != 0)
@@ -683,13 +683,13 @@ static rc_t names_request_1 (  const request_params * request
 
     if ( rc == 0 && request -> proto != NULL )
         protocols = parseProtocol ( request -> proto, & rc );
-    
+
     if ( rc == 0 ) {
         rc = func( service, protocols, request, path );
     }
-    
+
     RELEASE ( KService, service );
-    
+
     return rc;
 }
 

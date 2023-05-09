@@ -3,13 +3,13 @@
 ### NGS SDK 3.0.5
 **May 9, 2023**
 
-  SRA tolkit release 3.0.5.
+  SRA toolkit release 3.0.5.
 
 
 ### NGS SDK 3.0.1
 **November 15, 2022**
 
-  SRA tolkit release 3.0.1.
+  SRA toolkit release 3.0.1.
 
 
 ### NGS SDK 3.0.0

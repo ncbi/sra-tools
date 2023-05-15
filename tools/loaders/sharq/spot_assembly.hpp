@@ -14,9 +14,13 @@
 #include <spdlog/fmt/fmt.h>
 #include <bm/bm64.h>
 #include <bm/bmsparsevec_compr.h>
+#include "taskflow/taskflow.hpp"
+#include "taskflow/algorithm/sort.hpp"
 
 
 using namespace std;
+
+static constexpr int MAX_ROW_TO_CLEAR = 5000000;
 
 typedef bm::bvector<> bvector_type;
 typedef bm::sparse_vector<unsigned, bvector_type> svector_u32;
@@ -24,6 +28,8 @@ typedef bm::sparse_vector<uint8_t, bvector_type> svector_u8;
 typedef signed short qual_type_t;
 typedef bm::sparse_vector<qual_type_t , bvector_type> svector_int;
 typedef bm::rsc_sparse_vector<qual_type_t , svector_int> rsc_svector_int;
+typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
+
 
 BM_DECLARE_TEMP_BLOCK(TB1) // BitMagic Temporary block
 inline unsigned DNA2int(char DNA_bp)
@@ -125,10 +131,10 @@ struct spot_assembly_t {
     };
     void init(size_t num_rows) {
 
-        spot_index.resize(num_rows);
+        m_read_index.resize(num_rows);
 
-        last_index = bvector_type();
-        last_index.init();
+        m_last_index = bvector_type();
+        m_last_index.init();
 
         rows_to_clear = bvector_type();
         rows_to_clear.init();
@@ -140,18 +146,23 @@ struct spot_assembly_t {
         m_reads_metadata.clear();
         m_reads_metadata.resize(MAX_READS);
         m_reads_counts.fill(0);
+
+        m_total_spots = 0;
     } 
+
+    void build(tf::Executor& executor, str_sv_type& read_names);
+    
     ~spot_assembly_t() {}
 
-    vector<uint32_t> spot_index;
-    bvector_type last_index;
+    vector<uint32_t> m_read_index;
+    bvector_type m_last_index;
 
     bvector_type rows_to_clear;
     uint32_t num_rows_to_clear = 0;
 
     bvector_type m_hot_spot_ids;
     map<size_t, vector<fastq_read>> m_hot_spots;
-
+    size_t m_total_spots = 0;
     array<size_t, MAX_READS> m_reads_counts;
 
 #if not defined(_SPOT_ASSEMBLY_MT)
@@ -315,10 +326,11 @@ struct spot_assembly_t {
 
     void add_spot_bits(size_t spot_id, array<uint32_t, MAX_READS>& sort_vector, size_t sz) {
         sort(sort_vector.begin(), sort_vector.begin() + sz); 
-        last_index.set_bit_no_check(sort_vector[sz - 1]);
+        m_last_index.set_bit_no_check(sort_vector[sz - 1]);
         if (sort_vector[sz - 1] - sort_vector[0] < 10000000)
             m_hot_spot_ids.set_bit_no_check(spot_id);
         ++m_reads_counts[sz - 1];
+        ++m_total_spots;
     }
 
     template<bool is_nanopore = false>
@@ -326,17 +338,15 @@ struct spot_assembly_t {
     {
         if (m_hot_spot_ids.test(row_id)) {
             m_hot_spots.erase(row_id);
-            m_hot_spot_ids.clear_bit_no_check(row_id);
             return;
         }
         rows_to_clear.set_bit_no_check(row_id);
         ++num_rows_to_clear;
-        static const int max_rows_to_clear = 1000000;
 
-        if (num_rows_to_clear >= max_rows_to_clear) {
+        if (num_rows_to_clear >= MAX_ROW_TO_CLEAR) {
 
             spdlog::stopwatch sw;
-            vector<size_t> row_ids(max_rows_to_clear);
+            vector<size_t> row_ids(MAX_ROW_TO_CLEAR);
             size_t c = 0;
             for (auto en = rows_to_clear.first(); en.valid(); ++en) {
                 row_ids[c] = *en;
@@ -409,23 +419,7 @@ struct spot_assembly_t {
 
     }
     bool is_last_spot(size_t row_id) {
-        return last_index.test(row_id);
-    }
-    void print(ostream& out) {
-        auto num_rows = spot_index.size();
-        for (size_t i = 1; i < num_rows; ++i) {
-            out << spot_index[i] << '\t';
-            if (m_hot_spot_ids[i] != 0) {
-                out << "hot";
-            }
-            out << '\t';
-            if (last_index[i] != 0) {
-                out << "last";
-            }        
-            out << '\t';
-            out << endl;        
-        }
-
+        return m_last_index.test(row_id);
     }
 
     template<typename ScoreValidator, bool is_nanopore>
@@ -487,6 +481,7 @@ struct spot_assembly_t {
             qual_offset |= qual_sz << 48;
             metadata.get<u64_t>(metadata_t::e_QualOffsetId).set(row_id, qual_offset);
             m_spot_index.inc(row_id);
+            ++m_optimize_count;
         }
 
     }
@@ -577,15 +572,12 @@ struct spot_assembly_t {
         if (m_hot_spot_ids.test(row_id)) {
             lock_guard<mutex> lock(m_mutex);
             m_hot_spots.erase(row_id);
-            //m_hot_spot_ids.clear_bit_no_check(row_id);
             return;
         }
 
         rows_to_clear.set_bit_no_check(row_id);
         ++num_rows_to_clear;
-        static const int max_rows_to_clear = 5000000;
-
-        if (num_rows_to_clear >= max_rows_to_clear) {
+        if (num_rows_to_clear >= MAX_ROW_TO_CLEAR) {
 
             spdlog::stopwatch sw;
             vector<svector_u64::size_type> row_ids(num_rows_to_clear);
@@ -603,6 +595,7 @@ struct spot_assembly_t {
                 uint8_t num_reads = m_spot_index.get_no_check(row_id);
                 for (int read_idx = 0; read_idx < num_reads; ++read_idx) {
                     auto& metadata = m_reads_metadata[read_idx];
+
                     {
                         //metadata.get<str_t>(metadata_t::e_ReadNumId).clear(rows_to_clear);
                         auto& v = metadata.get<str_t>(metadata_t::e_ReadNumId);
@@ -650,6 +643,9 @@ struct spot_assembly_t {
                     m_qualities[read_idx].clear(clear_bv);
                     metadata.get<u64_t>(metadata_t::e_QualOffsetId).clear(rows_to_clear);
 
+                    metadata.get<u16_t>(metadata_t::e_ReaderId).clear(rows_to_clear);
+
+
 /*
 
                     for (size_t row : row_ids) {
@@ -681,6 +677,74 @@ struct spot_assembly_t {
     }
 
 };
+
+void spot_assembly_t::build(tf::Executor& executor, str_sv_type& read_names) 
+{
+    size_t num_rows = read_names.size();
+    spdlog::stopwatch sw;
+    // build and sort the index by read names
+    vector<uint32_t> sort_index(num_rows);
+    iota(sort_index.begin(), sort_index.end(), 0);
+    tf::Taskflow taskflow;
+    taskflow.sort(sort_index.begin(), sort_index.end(), [&](uint32_t  l, uint32_t  r) {
+        static thread_local string last_right_str;
+        static thread_local uint32_t last_right = -1;
+
+        if (last_right != r) {
+            last_right = r; 
+            read_names.get(last_right, last_right_str);
+        }
+        return read_names.compare_remap(l, last_right_str.c_str()) < 0;
+    });
+    executor.run(taskflow).wait();
+    spdlog::info("Sorting took {:.3}", sw);       
+
+    sw.reset();
+    init(num_rows);
+
+    size_t spot_id = 1;
+    m_read_index[sort_index[0]] = spot_id;
+    size_t prev_row = sort_index[0];
+
+    array<uint32_t, 4> sort_vector;
+    int sort_vector_size = 1;
+    sort_vector[0] = prev_row;
+    string spot_name;
+    read_names.get(prev_row, spot_name);
+
+    for (size_t i = 1; i < num_rows; ++i) {
+        auto row = sort_index[i];
+        if (read_names.compare_remap(row, spot_name.c_str()) == 0)  {
+        //if (m_spot_names.compare(row, prev_row) == 0) {
+            m_read_index[row] = spot_id;
+            sort_vector[sort_vector_size] = row;
+            ++sort_vector_size;
+            if (sort_vector_size > 4) {
+                string spot_name;
+                read_names.get(row, spot_name);
+                throw fastq_error(210, "Spot {} has more than 4 reads", spot_name);
+            }
+        } else {
+            add_spot_bits(spot_id, sort_vector, sort_vector_size);
+            m_read_index[row] = ++spot_id;
+            sort_vector_size = 1;
+            sort_vector[0] = row;
+            read_names.get(row, spot_name);
+        }
+        //prev_row = row;
+    }
+    if (sort_vector_size > 0) {
+        add_spot_bits(spot_id, sort_vector, sort_vector_size);
+    }
+
+    assert(m_total_spots == spot_id);
+    m_last_index.optimize(TB1);
+    m_last_index.freeze();
+
+    m_hot_spot_ids.optimize(TB1);
+    m_hot_spot_ids.freeze();
+
+}
 
 #endif
 

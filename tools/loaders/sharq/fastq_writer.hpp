@@ -77,6 +77,9 @@ public:
     }
 };
 
+class fastq_writer;
+
+
 /**
  * @brief Redirects spdlog logging messages to general-loader
  *
@@ -86,23 +89,24 @@ template<typename Mutex>
 class general_writer_sink : public spdlog::sinks::base_sink<Mutex>
 {
 public:
+/*
     general_writer_sink(shared_ptr<Writer2>& writer_)
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         writer(writer_)
     {}
-protected:
-    void sink_it_(const spdlog::details::log_msg& msg) override {
-        spdlog::memory_buf_t formatted;
-        spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
-        if (msg.level >= SPDLOG_LEVEL_ERROR)
-            writer->errorMessage(fmt::to_string(formatted));
-        else
-            writer->logMessage(fmt::to_string(formatted));
-        //writer->progressMessage(fmt::to_string(formatted));
+*/    
+    general_writer_sink(fastq_writer* writer_)
+        : //spdlog::sinks::base_sink<Mutex>(logger_name)
+        m_writer(writer_)
+    {
+        assert(m_writer);
     }
+protected:
+    void sink_it_(const spdlog::details::log_msg& msg) override;
     void flush_() override {}
-    shared_ptr<Writer2> writer;
+    fastq_writer* m_writer = nullptr;
 };
+
 
 using general_writer_sink_mt = general_writer_sink<std::mutex>;
 
@@ -115,8 +119,9 @@ using general_writer_sink_mt = general_writer_sink<std::mutex>;
  * @return std::shared_ptr<spdlog::logger>
  */
 template<typename Factory = spdlog::synchronous_factory>
-inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::string &logger_name, shared_ptr<Writer2>& writer)
+inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::string &logger_name, fastq_writer* writer)
 {
+    assert(writer);
     // use this one to create a logger that sinks to general-loader only
     //auto gw_logger = Factory::template create<general_writer_sink_mt>(logger_name, writer);
 
@@ -182,10 +187,40 @@ public:
         }
     }
 
+    void add_message(int level, const string& msg) {
+        lock_guard<mutex> lock(m_msg_mutex);
+        if (level >= SPDLOG_LEVEL_ERROR)
+            m_err_messages.push_back(msg);
+        else
+            m_log_messages.push_back(msg);
+        m_has_messages = true;            
+    }
+
+    virtual void write_messages()
+    {
+        if (!m_has_messages)
+            return;
+        lock_guard<mutex> lock(m_msg_mutex);
+        for (const auto& msg : m_err_messages) {
+            cerr << msg << endl;
+        }
+        for (const auto& msg : m_log_messages) {
+            cout << msg << endl;
+        }
+        m_err_messages.clear();
+        m_log_messages.clear();
+        m_has_messages = false;
+    }
+
 protected:
     using TAttributeName = string;
     using TAttributeValue = string;
     map<TAttributeName, TAttributeValue> m_attr;  ///< Attributes dictionary
+    mutex m_msg_mutex; ///< Mutex for messages
+    vector<string> m_err_messages; ///< Messages
+    vector<string> m_log_messages; ///< Messages
+    atomic<bool> m_has_messages{false}; ///< Messages
+
 };
 
 
@@ -234,6 +269,23 @@ public:
     virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override;
 
     const Writer2 & get_writer() const { return * m_writer; }
+    virtual void write_messages() override
+    {
+        if (!m_has_messages)
+            return;
+        lock_guard<mutex> lock(m_msg_mutex);
+        m_has_messages = false;
+        for (const auto& msg : m_err_messages) {
+            m_writer->errorMessage(msg);
+        }
+        m_err_messages.clear();
+        for (const auto& msg : m_log_messages) {
+            m_writer->logMessage(msg);
+        }
+        m_log_messages.clear();
+
+    }
+
 protected:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
     std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default logger
@@ -271,7 +323,7 @@ fastq_writer_vdb::fastq_writer_vdb(ostream& stream, shared_ptr<Writer2> writer =
     }
 
     m_default_logger = spdlog::default_logger();
-    auto logger = general_writer_logger_mt("general_writer", m_writer);
+    auto logger = general_writer_logger_mt("general_writer", this);
     spdlog::set_default_logger(logger);
 }
 
@@ -409,6 +461,7 @@ void fastq_writer_vdb::open()
 void fastq_writer_vdb::close()
 {
     if (m_is_writing && m_writer) {
+        write_messages();
         m_writer->endWriting();
         m_is_writing = false;
         m_writer->flush();
@@ -577,6 +630,20 @@ protected:
 
 
 };
+
+template<typename Mutex>
+void general_writer_sink<Mutex>::sink_it_(const spdlog::details::log_msg& msg)
+{
+    spdlog::memory_buf_t formatted;
+    spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
+    m_writer->add_message(msg.level, fmt::to_string(formatted));
+    /*
+    if (msg.level >= SPDLOG_LEVEL_ERROR)
+        writer->errorMessage(fmt::to_string(formatted));
+    else
+        writer->logMessage(fmt::to_string(formatted));
+    */
+}
 
 
 #endif

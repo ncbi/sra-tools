@@ -288,7 +288,12 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
                    s.erase(remove(s.begin(), s.end(), '\''), s.end());
                 stable_sort(input_files.begin(), input_files.end());
                 xCheckInputFiles(input_files);
-                fastq_reader::cluster_files(input_files, mInputBatches);
+                if (mSpotAssembly) {
+                    mAllowEarlyFileEnd = true;                        
+                    mInputBatches.push_back(input_files);
+                } else {
+                    fastq_reader::cluster_files(input_files, mInputBatches);
+                }
             }
         }
         ret_code = Run();
@@ -635,9 +640,9 @@ int CFastqParseApp::xRunSpotAssembly()
                     mErrorCount = 0; //Reset error counts 
                     parser.set_readers(group);
                     if (is_nanopore)
-                        parser.second_pass2<validator_options<eNumeric, -5, 40>, true>(executor, err_checker);
+                        parser.second_pass<validator_options<eNumeric, -5, 40>, true>(executor, err_checker);
                     else
-                        parser.second_pass2<validator_options<eNumeric, -5, 40>, false>(executor, err_checker);
+                        parser.second_pass<validator_options<eNumeric, -5, 40>, false>(executor, err_checker);
 
                     break;
                 case 33:
@@ -645,18 +650,18 @@ int CFastqParseApp::xRunSpotAssembly()
                     mErrorCount = 0; //Reset error counts 
                     parser.set_readers(group);
                     if (is_nanopore)
-                        parser.second_pass2<validator_options<ePhred, 33, 126>, true>(executor, err_checker);
+                        parser.second_pass<validator_options<ePhred, 33, 126>, true>(executor, err_checker);
                     else                            
-                        parser.second_pass2<validator_options<ePhred, 33, 126>, false>(executor, err_checker);
+                        parser.second_pass<validator_options<ePhred, 33, 126>, false>(executor, err_checker);
                     break;
                 case 64:
                     parser.first_pass<validator_options<ePhred, 64, 126>>(executor, err_checker);
                     mErrorCount = 0; //Reset error counts 
                     parser.set_readers(group);
                     if (is_nanopore)
-                        parser.second_pass2<validator_options<ePhred, 64, 126>, true>(executor, err_checker);
+                        parser.second_pass<validator_options<ePhred, 64, 126>, true>(executor, err_checker);
                     else
-                        parser.second_pass2<validator_options<ePhred, 64, 126>, false>(executor, err_checker);
+                        parser.second_pass<validator_options<ePhred, 64, 126>, false>(executor, err_checker);
                     break;
                 default:
                     throw runtime_error("Invalid quality encoding");

@@ -1,4 +1,1 @@
-[info] Parsing from 1 files
-[info] spots: 50, reads: 75
-[info] spot_name check: 50 spots
 [error] [code:170] Collation check. Duplicate spot 'CL100159005L1C001R001_2' at index 0

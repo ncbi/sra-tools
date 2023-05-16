@@ -122,28 +122,43 @@ static inline void convert(int argc
     }
     rslt[i] = nullptr;
 }
-
-template <typename S, typename T, typename TT = std::remove_reference<std::remove_cv<T>::type>::type >
-static inline void *convertArgsAndEnv(T const *const *&destArgs, T const *const *&destEnv, int argc, S const *const *argv, S const *const *envp)
-{
-	auto const nEnv = countOfCollection(envp);
-	auto const szEnv = neededToConvert(nEnv, envp);
-	auto const szArgs = neededToConvert(argc, argv);
-	size_t const szAlloc = (argc + 1 + nEnv + 1) * sizeof(TT *) + (szArgs + szEnv) * sizeof(TT);
-	auto const alloced = (TT **)malloc(szAlloc);
-    auto const buffer = reinterpret_cast<TT *>(&alloced[argc + 1 + nEnv + 1]);
-	if (alloced == nullptr)
-		throw std::bad_alloc();
-
-	destArgs = (T const *const *)(&alloced[0]);
-	destEnv = (T const *const *)(&alloced[argc + 1]);
-
-	memset(alloced, 0, szAlloc);
-	convert(argc, &alloced[0], szArgs, buffer, &argv[0]);
-    convert(nEnv, &alloced[argc + 1], szEnv, buffer + szArgs, &envp[0]);
+template <typename U, typename V>
+struct Converted {
+    using String = typename std::remove_reference<typename std::remove_cv<typename std::remove_reference<U>::type>::type>::type *;
+    using Array = String *;
+    using S = typename std::remove_reference<typename std::remove_cv<typename std::remove_reference<V>::type>::type>::type const *;
+    using SArray = S const *;
     
-    return (void *)(alloced);
-}
+    Array args;
+    Array envp;
+    void *allocation;
+    
+    Converted(int argc, SArray in_args, SArray in_envp)
+    {
+        auto const nEnv = countOfCollection(in_envp);
+        auto const szEnv = neededToConvert(nEnv, in_envp);
+        auto const szArgs = neededToConvert(argc, in_args);
+        auto const strings = argc + 1 + nEnv + 1;
+        auto const chars = szArgs + szEnv;
+        auto const szAlloc = sizeof(args[0]) * strings + sizeof(args[0][0]) * chars;
+        auto const alloced = (void **)malloc(szAlloc);
+        if (alloced == nullptr)
+            throw std::bad_alloc();
+
+        auto const args_ = (Array)alloced;
+        auto const envp_ = &args_[argc + 1];
+        auto const args_buffer = (String)(&envp_[nEnv + 1]);
+        auto const envp_buffer = &args_buffer[szArgs];
+        
+        memset(alloced, 0, szAlloc);
+        convert(argc, args_, szArgs, args_buffer, in_args);
+        convert(nEnv, envp_, szEnv, envp_buffer, in_envp);
+        
+        args = args_;
+        envp = envp_;
+        allocation = alloced;
+    }
+};
 
 #else // WINDOWS
 #undef USE_WIDE_API
@@ -211,7 +226,12 @@ CommandLine::CommandLine(int in_argc, wchar_t **in_wargv, wchar_t **in_wenvp, ch
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)
 {
-	allocated = convertArgsAndEnv(argv, envp, argc, wargv, wenvp);
+    auto const converted = Converted<char, wchar_t>(argc, wargv, wenvp);
+
+	allocated = converted.allocation;
+	argv = converted.args;
+	envp = converted.envp;
+	
 	initialize();
 	(void)dummy_extra;
 }
@@ -227,8 +247,13 @@ CommandLine::CommandLine(int in_argc, char **in_argv, char **in_envp, char **dum
 	, argc(in_argc)
 	, buildVersion(Version::current.packed)
 {
-	allocated = convertArgsAndEnv(wargv, wenvp, argc, argv, envp);
-	initialize();
+    auto const converted = Converted<wchar_t, char>(argc, argv, envp);
+
+	allocated = converted.allocation;
+	wargv = converted.args;
+	wenvp = converted.envp;
+
+    initialize();
 	(void)dummy_extra;
 }
 #else

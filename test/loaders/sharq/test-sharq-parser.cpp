@@ -657,6 +657,17 @@ FIXTURE_TEST_CASE(QualityTooLongTruncated, LoaderFixture)
 }
 
 
+FIXTURE_TEST_CASE(Aviti, LoaderFixture)
+{   // VDB-5143
+    fastq_reader reader("test", create_stream(_READ("PLT-04:KOL-0149:2140948423:1:10102:0003:0040 2:N:0:GCATGTCACG+TTTAGACCAT",
+        "GAAA", "IIII")), {}, 2);
+    CFastqRead read;
+    REQUIRE(reader.get_read(read));
+    REQUIRE_EQ(string("PLT-04:KOL-0149:2140948423:1:10102:0003:0040"), read.Spot());
+    REQUIRE_EQ(string("2"), read.ReadNum());
+    REQUIRE_EQ(string("GCATGTCACG+TTTAGACCAT"), read.SpotGroup());
+}
+
 // ############################################################
 // # Nanopore/MinION fastq
 // #

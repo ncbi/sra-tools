@@ -34,6 +34,10 @@
 #include <klib/log.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 rc_t ErrMsg( const char * fmt, ... ) {
     rc_t rc;
     char buffer[ 4096 ];
@@ -62,4 +66,16 @@ rc_t InfoMsg( const char * fmt, ... ) {
     }
     va_end( list );
     return rc;
+}
+
+void StdErrMsg( const char * fmt, ... ) {
+    KWrtWriter writer = KOutWriterGet();
+    rc_t rc = KOutHandlerSetStdErr();
+    if ( 0 == rc ) {
+        va_list args;        
+        va_start( args, fmt );
+        KOutVMsg( fmt, args );
+        KOutHandlerSet( writer, NULL );
+        va_end( args );
+    }
 }

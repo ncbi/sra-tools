@@ -52,7 +52,7 @@ typedef struct lookup_reader_t {
 void release_lookup_reader( struct lookup_reader_t * self ) {
     if ( NULL != self ) {
         if ( NULL != self -> f ) {
-            release_file( self -> f, "release_lookup_reader()" );
+            ft_release_file( self -> f, "release_lookup_reader()" );
         }
         release_SBuffer( &( self -> buf ) ); /* helper.c */
         free( ( void * ) self );
@@ -109,7 +109,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader_t * in
             if ( 0 != rc ) {
                 ErrMsg( "make_lookup_reader().KBufFileMakeRead() -> %R", rc );
             } else {
-                rc = release_file( f, "make_lookup_reader()" );
+                rc = ft_release_file( f, "make_lookup_reader()" );
                 if ( 0 == rc ) { f = temp_file; }
             }
         }

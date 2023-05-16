@@ -45,20 +45,24 @@ using namespace std;
 #define OPTION_PLATFORM     "platform"
 #define OPTION_FORMAT       "format"
 #define OPTION_ISALIGNED    "is-aligned"
+#define OPTION_QUALITY      "quality"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
+#define ALIAS_QUALITY       "Q"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
+static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
 
 OptDef InfoOptions[] =
 {
-    { OPTION_PLATFORM,  ALIAS_PLATFORM,     nullptr, platform_usage,   1, false,   false, nullptr },
-    { OPTION_FORMAT,    ALIAS_FORMAT,       nullptr, format_usage,     1, true,    false, nullptr },
-    { OPTION_ISALIGNED, ALIAS_ISALIGNED,    nullptr, isaligned_usage,  1, false,   false, nullptr },
+    { OPTION_PLATFORM,  ALIAS_PLATFORM,     nullptr, platform_usage,    1, false,   false, nullptr },
+    { OPTION_FORMAT,    ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
+    { OPTION_ISALIGNED, ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
+    { OPTION_QUALITY,   ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -96,13 +100,14 @@ rc_t CC Usage ( const Args * args )
     KOutMsg ( "Options:\n" );
 
     HelpOptionLine ( ALIAS_PLATFORM, OPTION_PLATFORM,   nullptr,    platform_usage );
+    HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED, nullptr, isaligned_usage );
+
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
     KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
     KOutMsg( "      json .... json-style\n" );
     KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
     KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
-    HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED, nullptr, isaligned_usage );
 
     HelpOptionsStandard ();
 
@@ -147,7 +152,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = ArgsOptionCount( args, OPTION_FORMAT, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
-                {   
+                {
                     const char* res = nullptr;
                     rc = ArgsOptionValue( args, OPTION_FORMAT, 0, ( const void** )&res );
                     fmt = Formatter::StringToFormat( res );
@@ -166,6 +171,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( opt_count > 0 )
                 {
                     KOutMsg ( "%s\n", formatter.format( info.IsAligned() ? "ALIGNED" : "UNALIGNED" ).c_str() );
+                }
+
+                rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    KOutMsg ( "%s\n", formatter.format( info.HasPhysicalQualities() ? "STORED" : "GENERATED" ).c_str() );
                 }
             }
             catch( const exception& ex )

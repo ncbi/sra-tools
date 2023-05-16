@@ -1,6 +1,34 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.5
+**May 9, 2023**
+
+  **bam-load**: added option "--min-batch-size" to control spot assembly  
+  **copycat**: added support for TAR archives in PAX format; added support for FASTQ format: recognition, defline name and pair extraction; minor bug fixes  
+  **fasterq-dump**: added error reports  
+  **fasterq-dump**: can now handle native PacBio HDF5-accessions  
+  **fasterq-dump**: clearer message if the output-file(s) cannot be overwritten or created  
+  **fasterq-dump, fastq-dump, sam-dump**: fixed parameter handling for ngc file  
+  **fasterq-dump**: fixed a crash when modifying defline on flat tables  
+  **fasterq-dump**: new options to output the references of an accession  
+  **fasterq-dump**: new options to produce FASTA for WGS and REFSEQ-objects  
+  **fasterq-dump**: new python3 tests against multiple options and accessions  
+  **fasterq-dump**: now handles PacBio-accession loaded with bam-load  
+  **fasterq-dump**: read-id is now always correctly populated  
+  **fastq-load, SharQ**: added new platform Element Aviti  
+  **kfg, ngs-tools, sra-tools, vfs**: stopped using old names resolver cgi  
+  **latf-load**: will not randomly print "KQueuePop failed" error at the end of processing  
+  **read-filter-redact**: stop building on Windows  
+  **sam-dump, sra-pileup**: added error report  
+  **sra-info**: new tool to report run info  
+  **sra-tools**: added schemas to reduce warnings  
+  **sratools**: mismatching lite/normalized cache files from SDL are not used  
+  **test-sra**: updated to call modern names service; fixed malformed XML  
+  **vdb-validate**: fixed a potential crash due to memory corruption  
+  **vdb-validate**: removed warning message about no platform column  
+
+
 ## SRA Toolkit 3.0.3
 **January 3, 2023**
 

@@ -67,7 +67,7 @@ void flp_initialize_args( flp_args_t * self,
 static void CC flp_release_fwrap( void * item, void * data ) {
     if ( NULL != item ) {
         fwrap_t * p = item;
-        if ( NULL != p -> f ) { release_file( p -> f, "fw_release()" ); }
+        if ( NULL != p -> f ) { ft_release_file( p -> f, "flp_release_fwrap()" ); }
         free( item );
     }
 }
@@ -79,11 +79,11 @@ static fwrap_t * flp_create_fwrap_from_filename( KDirectory * dir,
         struct KFile * f;
         rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, kcmInit, "%s", filename );
         if ( 0 != rc ) {
-            ErrMsg( "fwp_create_from_filename().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+            ErrMsg( "flp_create_fwrap_from_filename().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
         } else {
             if ( buffer_size > 0 ) {
-                rc = wrap_file_in_buffer( &f, buffer_size, "fwp_create_from_filename()" ); /* helper.c */
-                if ( 0 != rc ) { release_file( f, "fw_create_from_filename()()" ); } /* helper.c */
+                rc = ft_wrap_file_in_buffer( &f, buffer_size, "flp_create_fwrap_from_filename()" );
+                if ( 0 != rc ) { ft_release_file( f, "flp_create_fwrap_from_filename()()" ); }
             }
             res -> f = f;
         }

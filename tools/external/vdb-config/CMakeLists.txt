@@ -36,7 +36,6 @@ add_executable( vdb-config
 	configure
 	util
 	vdb-config
-	interactive
 	interactive2
 	vdb-config-model
 )

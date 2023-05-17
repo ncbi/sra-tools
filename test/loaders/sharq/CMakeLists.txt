@@ -230,6 +230,7 @@ message(RE2_FOUND=${RE2_FOUND})
 
         SharqTest(011.nanopore.3 0 "--max-err-count 0 ${IN}011.nanopore.3.fq")
         SharqTest(012.qualities 0 "--max-err-count 0 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq") #VDB-4745
+        SharqTest(012.qualities_with_types 0 "--readTypes=TTB ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq" "only-sa") #VDB-4745
         SharqTest(013.no-reads 0 "--max-err-count 0 ${IN}013.t_I1.fastq ${IN}013.t_I2.fastq ${IN}013.t_R1.fastq ${IN}013.t_R2.fastq") #VDB-4745
         SharqTest(014.2files_bad_sequence 0 "${IN}014.R1.fastq ${IN}014.R2.fastq") 
     endif()

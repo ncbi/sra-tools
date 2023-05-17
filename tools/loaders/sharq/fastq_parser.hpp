@@ -1790,7 +1790,7 @@ void fastq_parser<TWriter>::first_pass(tf::Executor& executor, ErrorChecker&& er
         }
     } else {
         if (m_read_types.size() != max_reads) {
-            throw fastq_error(21); // "Number of readTypes does not match number of reads");
+            throw fastq_error(30, "readTypes number should match the number of reads ({})", max_reads); 
         }
     }
     m_read_type_sz = m_read_types.size();

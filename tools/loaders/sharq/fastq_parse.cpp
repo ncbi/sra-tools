@@ -112,6 +112,7 @@ private:
     bool mSpotAssembly{false};          ///< spot assembly mode 
     int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
     int mDigest{0};                     ///< Number of digest lines to produce
+    bool mHasReadPairs{false};          ///< Flag to indicate that read pairs are defined in the command line 
     unsigned int mThreads{24};          ///< Number of threads to use
     string mTelemetryFile;              ///< Telemetry report file name
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
@@ -272,6 +273,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         copy(read_types.begin(), read_types.end(), back_inserter(mReadTypes));
 
         if (!read_pairs[0].empty()) {
+            mHasReadPairs = true;
             if (mDigest == 0 && mReadTypes.empty())
                 throw fastq_error(20, "No readTypes provided");
             for (const auto& p : read_pairs) {
@@ -412,9 +414,11 @@ void CFastqParseApp::xProcessDigest(json& data)
                 throw fastq_error(190); // "Unsupported interleaved file with orphans"
         }
 
-        if (!mReadTypes.empty()) {
-            if ((int)mReadTypes.size() != group_reads)
-                throw fastq_error(30, "readTypes number should match the number of reads ({})", group_reads);
+        if (mHasReadPairs || mSpotAssembly == false ) {
+            if (!mReadTypes.empty()) {
+                if ((int)mReadTypes.size() != group_reads)
+                    throw fastq_error(30, "readTypes number should match the number of reads ({})", group_reads);
+            }
         }
         total_reads = max<int>(group_reads, total_reads);
         gr["total_reads"] = total_reads;

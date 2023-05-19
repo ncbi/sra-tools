@@ -147,6 +147,7 @@ static void vdco_init_values( p_dump_context ctx )
     ctx -> idx_range_requested = false;
     ctx -> disable_multithreading = false;
     ctx -> table_defined = false;
+    ctx->view_defined = false;    
     ctx -> show_spotgroups = false;
     ctx -> show_spread = false;
     ctx -> len_spread = false;
@@ -196,6 +197,12 @@ rc_t vdco_destroy( p_dump_context ctx )
     {
         free( ( void* )ctx -> table );
         ctx -> table = NULL;
+    }
+
+    if ( ctx->view != NULL )
+    {
+        free( (void*)ctx->view );
+        ctx->view = NULL;
     }
 
     if ( NULL != ctx -> columns )
@@ -301,6 +308,18 @@ rc_t vdco_set_table_String( p_dump_context ctx, const String * src )
     return rc;
 }
 
+rc_t vdco_set_view( p_dump_context ctx, const char * src )
+{
+    rc_t rc;
+    if ( ( ctx == NULL )||( src == NULL ) )
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+    else
+    {
+        rc = vdco_set_str( (char**)&(ctx->view), src );
+        DISP_RC( rc, "vdco_set_str() failed" );
+    }
+    return rc;
+}
 
 static rc_t vdco_set_columns( p_dump_context ctx, const char *src )
 {
@@ -646,7 +665,10 @@ static void vdco_evaluate_options( const Args *args, dump_context *ctx )
 
     vdco_set_table( ctx, vdco_get_str_option( args, OPTION_TABLE ) );
     ctx -> table_defined = ( NULL != ctx -> table );
-    
+
+    vdco_set_view( ctx, vdco_get_str_option( args, OPTION_VIEW ) );
+    ctx->view_defined = ( ctx -> view != NULL );
+
     vdco_set_columns( ctx, vdco_get_str_option( args, OPTION_COLUMNS ) );
     vdco_set_excluded_columns( ctx, vdco_get_str_option( args, OPTION_EXCLUDED_COLUMNS ) );
     vdco_set_row_range( ctx, vdco_get_str_option( args, OPTION_ROWS ) );

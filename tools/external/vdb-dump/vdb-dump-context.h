@@ -84,6 +84,7 @@ extern "C" {
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD            "spread"
 #define OPTION_APPEND            "append"
+#define OPTION_VIEW              "view"
 
 #define OPTION_SLICE             "slice"
 
@@ -152,6 +153,7 @@ typedef struct dump_context
     const char *path;
     Vector schema_list;
     const char *table;
+    const char *view;    
     const char *columns;
     const char *excluded_columns;
     const char *filter;
@@ -199,6 +201,7 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
     bool table_defined;
+    bool view_defined;    
     bool show_spotgroups;
     bool merge_ranges;
     bool show_spread;
@@ -221,6 +224,8 @@ void vdco_show_help( p_dump_context ctx );
 
 rc_t vdco_set_table( p_dump_context ctx, const char *src );
 rc_t vdco_set_table_String( p_dump_context ctx, const String * src );
+
+rc_t vdco_set_view( p_dump_context ctx, const char *src );
 
 rc_t vdco_capture_arguments_and_options( const Args * args, dump_context *ctx );
 

@@ -34,6 +34,7 @@ if( Python3_EXECUTABLE )
 	)
 endif()
 
+file ( MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/db )
 AddExecutableTest( Test_Vdb_dump_view-spec "test-view-spec" 
                     "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" 
                     "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump" )

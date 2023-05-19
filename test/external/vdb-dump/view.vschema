@@ -35,7 +35,7 @@ view V3#1 < NCBI:align:tbl:seq t, NCBI:align:tbl:align_sorted al >
 // join from PRIMARY_ALIGNMENT to SEQUENCE
 view V4#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
 {
-    column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
+    column ascii cs_read = t [ al . SEQ_SPOT_ID ] . CSREAD;
     column I64 mate_id = al . MATE_ALIGN_ID;
     column I64 mate_spot_id = al [ mate_id ] . SEQ_SPOT_ID;
     column ascii mate_cs_read = t [ mate_spot_id ] . CSREAD;
@@ -44,7 +44,7 @@ view V4#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
 // using base table types
 view V5#1 < NCBI:align:tbl:compressed_by_reference al, INSDC:tbl:sequence t >
 {
-    column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
+    column ascii cs_read = t [ al . SPOT_ID ] . CSREAD; // NB. SPOT_ID is 32 bit
     column ascii mate_cs_read = t [ al [ al . MATE_ALIGN_ID ] . SPOT_ID ] . CSREAD;
 }
 

@@ -20,6 +20,8 @@ class CDefLineParser
 /// Parse defline into CFastQRead using list of registered defline matcher
 {
 public:
+
+    typedef std::vector<std::shared_ptr<CDefLineMatcher>> deflinematchers_t;
     /**
      * @brief Construct a new CDefLineParser object
      *
@@ -92,8 +94,9 @@ public:
      * @return const set<string>&
      */
     const set<string>& AllDeflineTypes() const { return mDeflineTypes;}
+    const deflinematchers_t& GetDeflineMatchers() const { return mDefLineMatchers; }
 private:
-    std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers; ///< Vector of all registered Defline matchers
+    deflinematchers_t mDefLineMatchers; ///< Vector of all registered Defline matchers
     size_t mIndexLastSuccessfulMatch = 0; ///< Index of the last sucessfull matcher
     size_t mAllMatchIndex = -1;           ///< Index of Match everything matcher
     std::set<string> mDeflineTypes;       ///< Set of deflines types processed by this reader
@@ -103,6 +106,9 @@ private:
 CDefLineParser::CDefLineParser()
 {
     Reset();
+    // NoMtach mathcher should be the first one so that 
+    // mIndexLastSuccessfulMatch always points to a valid matcher
+     
     mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
@@ -116,12 +122,15 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
     mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio4);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
+    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
+    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
+    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);

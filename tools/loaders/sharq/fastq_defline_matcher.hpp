@@ -72,6 +72,11 @@ public:
     const string& Defline() const { return mDefLineName;}
 
     /**
+     * @brief Return matcher's pattern
+    */
+    const string& GetPattern() const { return re.GetPattern();}
+
+    /**
      * @brief Fill CFastqRead with the data from matched defline
      *
      * @param read
@@ -84,6 +89,7 @@ public:
      * @return uint8_t
      */
     virtual uint8_t GetPlatform() const = 0;
+
 
 protected:
     string mDefLineName;             ///< Defline description
@@ -485,7 +491,7 @@ public:
     CDefLineMatcherIlluminaOldColon() :
         CDefLineMatcherIlluminaOldBase(
             "IlluminaOldColon",
-            R"([@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)([-:])(-?\d+\.\d+|-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)([-:])(-?\d+\.\d+|-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
     {}
 
 };
@@ -497,7 +503,7 @@ public:
     CDefLineMatcherIlluminaOldUnderscore() :
         CDefLineMatcherIlluminaOldBase(
             "IlluminaOldUnderscore",
-            R"([@>+]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+\.?\d*)(_)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+            R"(^[@>+]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+\.?\d*)(_)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
     {}
 
 };
@@ -509,7 +515,7 @@ public:
     CDefLineMatcherIlluminaOldNoPrefix() :
         CDefLineMatcherIlluminaOldBase(
             "IlluminaOldNoPrefix",
-            R"([@>+]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+            R"(^[@>+]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
     {}
 
 };
@@ -522,7 +528,7 @@ public:
     CDefLineMatcherIlluminaOldWithSuffix() :
         CDefLineMatcherIlluminaOldBase(
             "IlluminaOldWithSuffix",
-            R"([@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)(/[12345][!-~]+)(\s+|$))")
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)(/[12345][!-~]+)(\s+|$))")
     {}
 };
 
@@ -533,7 +539,7 @@ public:
     CDefLineMatcherIlluminaOldWithSuffix2() :
         CDefLineMatcherIlluminaOldBase(
             "IlluminaOldWithSuffix2",
-            R"([@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.?\d*[!-~]+?)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.?\d*[!-~]+?)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
     {}
 
 };
@@ -969,7 +975,7 @@ public:
     CDefLineMatcherLS454() :
         CDefLineMatcher(
             "LS454",
-            R"([@>+]([!-~]+_|)([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})(/[12345])?(\s+|$))")
+            R"(^[@>+]([!-~]+_|)([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})(/[12345])?(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1006,7 +1012,7 @@ public:
     CDefLineMatcherIonTorrent() :
         CDefLineMatcher(
             "IonTorrent",
-            R"([@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(/[12345]|\\[12345]|[LR])?(\s+|$))")
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(/[12345]|\\[12345]|[LR])?(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1046,8 +1052,8 @@ class CDefLineMatcherIonTorrent2 : public CDefLineMatcher
 public:
     CDefLineMatcherIonTorrent2() :
         CDefLineMatcher(
-            "IonTorrent",
-            R"([@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+            "IonTorrent2",
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1144,5 +1150,81 @@ public:
     {
     }
 };
+
+
+//self.illuminaOldBcRnOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+?)(/[12345]|\\[12345])(\s+|$)")
+
+class CDefLineIlluminaOldBcRn : public CDefLineMatcher
+/// IlluminaOld BarCode and ReadNum only 
+{
+public:
+    CDefLineIlluminaOldBcRn() :
+        CDefLineMatcher(
+            "illuminaOldBcRnOnly",
+            R"(^[@>+]([!-~]+?)(#[!-~]+?)(/[1234]|\\[1234])(\s+|$))")
+    {
+    }
+    CDefLineIlluminaOldBcRn(const string& defLineName, const string& pattern) :
+        CDefLineMatcher(defLineName, pattern)
+    {
+    }
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_UNDEFINED;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // Name SpotGroup ReadNum endSep
+        // 0    1         2       3
+
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
+        read.MoveSpot(move(m_tmp_spot));
+
+        auto& spot_group = re.GetMatch()[1];
+        if (spot_group.starts_with("#")) {
+            spot_group.remove_prefix(1);
+            read.SetSpotGroup(spot_group);
+            auto& read_num = re.GetMatch()[2];
+            auto sz = read_num.size();
+            if ((sz > 0 && read_num[0] == '/') || (sz > 1 && read_num[0] == '\\')) {
+                read_num.remove_prefix(1);
+                read.SetReadNum(read_num);
+            }
+        } else {
+            spot_group.remove_prefix(1);
+            read.SetReadNum(spot_group);
+        }
+    }
+};
+
+//self.illuminaOldBcOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+)(\s+|$)(.?)")
+class CDefLineIlluminaOldBcOnly : public CDefLineIlluminaOldBcRn
+/// IlluminaOld BarCode only 
+{
+public:
+    CDefLineIlluminaOldBcOnly() :
+        CDefLineIlluminaOldBcRn(
+            "illuminaOldBcOnly",
+            R"(^[@>+]([!-~]+?)(#[!-~]+)(\s+|$)(.?))")
+    {
+    }
+};
+
+//self.illuminaOldRnOnly = re.compile(r"^[@>+]([!-~]+?)(/[12345]|\\[12345])(\s+|$)(.?)")
+class CDefLineIlluminaOldRnOnly : public CDefLineIlluminaOldBcRn
+/// IlluminaOld ReadNum only 
+{
+public:
+    CDefLineIlluminaOldRnOnly() :
+        CDefLineIlluminaOldBcRn(
+            "illuminaOldRnOnly",
+            R"(^[@>+]([!-~]+?)(/[1234]|\\[1234])(\s+|$)(.?))")
+    {
+    }
+};
+
 
 #endif

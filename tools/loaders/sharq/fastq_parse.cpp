@@ -143,6 +143,23 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 }
 
+void s_print_deflines(std::ostream& os)
+{
+        os << fmt::format("{:-^80}", " SharQ defline patterns ") << "\n";
+        os << fmt::format("{:<30}", "Name");
+        os << fmt::format("{:<128}", "RegEx");
+        os << "\n";
+        CDefLineParser defline_parser;
+        //os << fmt::format("{:-^80}", "") << "\n";
+        for (const auto& it : defline_parser.GetDeflineMatchers()) {
+            if (it->Defline() == "NoMatch")
+                continue;
+            os << fmt::format("{:<30}", it->Defline());
+            os << it->GetPattern();
+            os << "\n";
+        }
+}
+
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
@@ -156,6 +173,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mDestination = "sra.out";
 
         app.set_version_flag("--version,-V", SHARQ_VERSION);
+        bool print_deflines = false;
+        app.add_flag("--print-deflines", print_deflines);
+
 
         app.add_option("--output", mDestination, "Output archive path");
 
@@ -232,6 +252,10 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
             fastq_error::print_error_codes(cout);
+            return 0;
+        }
+        if (print_deflines) {
+            s_print_deflines(cout);
             return 0;
         }
         if (mDigest < 0)

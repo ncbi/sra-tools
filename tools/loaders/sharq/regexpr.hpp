@@ -96,6 +96,11 @@ public:
         }
     }
 
+    /**
+     * @brief return the regex pattern
+    */
+    const std::string& GetPattern() const { return re->pattern(); }
+
 protected:
     std::unique_ptr<re2::RE2> re;       ///< RE2 object
     std::vector<re2::RE2::Arg> argv;    ///< internal structure to facilitate capture of matched groups

@@ -96,7 +96,7 @@ view V9#1 < NCBI:align:tbl:seq seq >
     column I64 PRIMARY_ALIGNMENT_ID             = seq.PRIMARY_ALIGNMENT_ID;
     column U8 ALIGNMENT_COUNT                   = seq.ALIGNMENT_COUNT;
     column INSDC:dna:text READ                  = seq.READ;
-    column INSDC:quality:phred QUALITY          = seq.QUALITY;
+    // column INSDC:quality:phred QUALITY          = seq.QUALITY; // depends on location of the run
     column INSDC:2na:packed CMP_READ            = seq.CMP_READ;
     column INSDC:coord:zero READ_START          = seq.READ_START;
     column INSDC:coord:len READ_LEN             = seq.READ_LEN;

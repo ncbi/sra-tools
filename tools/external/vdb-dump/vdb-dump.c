@@ -59,6 +59,8 @@
 #include <klib/time.h>
 #include <klib/num-gen.h>
 
+#include <kfg/properties.h>
+
 #include <os-native.h>
 #include <sysalloc.h>
 
@@ -120,11 +122,13 @@ static const char * spotgroup_usage[]           = { "show spotgroups",          
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
 static const char * append_usage[]              = { "append to output-file, if output-file used",   NULL };
-static const char * ngc_usage[]                 = { "path to ngc file", NULL };
+static const char * ngc_usage[]                 = { "path to ngc file",                             NULL };
 
 /* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
 static const char * slice_usage[]               = { "find a slice of given depth",                  NULL };
+static const char * nat_2_int_usage[]           = { "translate path from native to internal",       NULL };
+static const char * int_2_nat_usage[]           = { "translate path from internal to native",       NULL };
 
 /* OPTION_XXX and ALIAS_XXX in vdb-dump-contest.h */
 OptDef DumpOptions[] =
@@ -174,6 +178,10 @@ OptDef DumpOptions[] =
     { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
     { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
+    
+    { OPTION_NAT2INT,               NULL,                     NULL, nat_2_int_usage,         1, false,  false },
+    { OPTION_INT2NAT,               NULL,                     NULL, int_2_nat_usage,         1, false,  false },
+    
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
     { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
@@ -274,7 +282,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
     HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
     HelpOptionLine ( ALIAS_APPEND,              OPTION_APPEND,          NULL,           append_usage );
-    HelpOptionLine ( NULL,                      OPTION_NGC, "path", ngc_usage);
+
+    HelpOptionLine ( NULL,                      OPTION_NGC,             "path",         ngc_usage);
 
     HelpOptionsStandard ();
 
@@ -2509,6 +2518,17 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 else if ( ctx -> len_spread )
                                 {
                                     rc = vdf_len_spread( ctx, mgr, value ); /* in vdb-dump-fastq.c */
+                                }
+                                else if ( ctx -> nat2int ) {
+                                    char buffer[ 4096 ];
+                                    size_t written;
+                                    rc = native_to_internal( value, buffer, sizeof buffer, &written );
+                                    if ( 0 == rc ) {
+                                        rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", value, buffer );
+                                    }
+                                }
+                                else if ( ctx -> int2nat ) {
+                                    KOutMsg( "INT to NAT : %s\n", value );                                    
                                 }
                                 else switch( ctx -> format )
                                 {

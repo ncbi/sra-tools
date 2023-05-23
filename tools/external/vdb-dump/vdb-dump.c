@@ -2493,7 +2493,17 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
             {
                 rc = vdh_show_manager_version( mgr );
             }
-            else
+            else if ( ctx -> nat2int )
+            {
+                char buffer[ 4096 ];
+                size_t written = 0;
+                rc = native_to_internal( ctx -> table, buffer, sizeof buffer, &written );
+                if ( 0 == rc ) {
+                    buffer[ written ] = 0;
+                    rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", ctx -> table, buffer );
+                }
+            }
+            else 
             {
                 uint32_t count;
                 rc = ArgsParamCount( args, &count );
@@ -2518,17 +2528,6 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 else if ( ctx -> len_spread )
                                 {
                                     rc = vdf_len_spread( ctx, mgr, value ); /* in vdb-dump-fastq.c */
-                                }
-                                else if ( ctx -> nat2int ) {
-                                    char buffer[ 4096 ];
-                                    size_t written;
-                                    rc = native_to_internal( value, buffer, sizeof buffer, &written );
-                                    if ( 0 == rc ) {
-                                        rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", value, buffer );
-                                    }
-                                }
-                                else if ( ctx -> int2nat ) {
-                                    KOutMsg( "INT to NAT : %s\n", value );                                    
                                 }
                                 else switch( ctx -> format )
                                 {

@@ -2495,9 +2495,10 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
             }
             else if ( ctx -> nat2int )
             {
+                const char * example = "C:\\p1\\p2\\p3";
                 char buffer[ 4096 ];
                 size_t written = 0;
-                rc = native_to_internal( ctx -> table, buffer, sizeof buffer, &written );
+                rc = native_to_internal( example, buffer, sizeof buffer, &written );
                 if ( 0 == rc ) {
                     buffer[ written ] = 0;
                     rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", ctx -> table, buffer );

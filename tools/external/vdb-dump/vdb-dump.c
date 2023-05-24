@@ -2501,7 +2501,18 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                 rc = native_to_internal( example, buffer, sizeof buffer, &written );
                 if ( 0 == rc ) {
                     buffer[ written ] = 0;
-                    rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", ctx -> table, buffer );
+                    rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", example, buffer );
+                }
+            }
+            else if ( ctx -> int2nat )
+            {
+                const char * example = "/c/p1/p2/p3";
+                char buffer[ 4096 ];
+                size_t written = 0;
+                rc = internal_to_native( example, buffer, sizeof buffer, &written );
+                if ( 0 == rc ) {
+                    buffer[ written ] = 0;
+                    rc = KOutMsg( "INT to NAT : '%s' -> '%s'\n", example, buffer );
                 }
             }
             else 

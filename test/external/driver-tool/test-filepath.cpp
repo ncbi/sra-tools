@@ -47,6 +47,15 @@ const char* A_B_C_Filename_Ext = "/a/b/c/filename.ext";
 #endif
 const char* Posix_A_B_C_Filename_Ext = "/a/b/c/filename.ext";
 const char* Posix_A_B_C_Filename= "/a/b/c/filename";
+const char *http_url = "https://www.ncbi.nlm.nih.gov/sra";
+const char *file_url = "file:///CMakeLists.txt";
+const char *file_url_c = "file:///c:CMakeLists.txt";
+const char *file_simple = "CMakeLists.txt";
+const char *file_dot = "./CMakeLists.txt";
+const char *file_c = "c:CMakeLists.txt";
+const char *file_c_dot = "c:.\\CMakeLists.txt";
+const char *weird_scheme = "H.T+P-S:foo.bar";
+const char *bad_scheme = "HTTP_S:foo.bar";
 
 TEST_SUITE(FilePathSuite);
 
@@ -175,6 +184,21 @@ TEST_CASE( RemoveSuffix_Oversized )
     FilePath fp1 = fp.copy();
     REQUIRE( ! fp.removeSuffix( 1 + fp.baseName().size() ) );
     REQUIRE_EQ(fp, fp1);
+}
+
+TEST_CASE( SimpleName )
+{
+    REQUIRE( FilePath("SRR123456").isSimpleName() );
+    REQUIRE( FilePath(file_simple).isSimpleName() );
+    REQUIRE( FilePath(bad_scheme).isSimpleName() );
+    REQUIRE( !FilePath(weird_scheme).isSimpleName() );
+    REQUIRE( !FilePath(A_B_C_Filename_Ext).isSimpleName() );
+    REQUIRE( !FilePath(file_dot).isSimpleName() );
+    REQUIRE( !FilePath(file_c).isSimpleName() );
+    REQUIRE( !FilePath(file_c_dot).isSimpleName() );
+    REQUIRE( !FilePath(http_url).isSimpleName() );
+    REQUIRE( !FilePath(file_url).isSimpleName() );
+    REQUIRE( !FilePath(file_url_c).isSimpleName() );
 }
 
 TEST_CASE( CWD )

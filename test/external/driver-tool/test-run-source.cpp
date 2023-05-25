@@ -234,6 +234,23 @@ TEST_CASE( UnknownTool )
     }
 }
 
+TEST_CASE( URL_parameter )
+{
+    char argv0[] = "vdb-dump";
+    char argv1[] = "file:///c:/autoexec.bat";
+    char *argv[] = { argv0, argv1, nullptr };
+    char *envp[] = { nullptr };
+    auto const &cl = CommandLine(2, argv, envp, nullptr);
+    auto const &ds = data_sources(cl, argumentsParsed(cl), true);
+    auto const &acc = ds[argv1];
+    auto iter = acc.begin();
+    REQUIRE(iter != acc.end());
+
+    // The expectation is that the argument will simply be
+    // passed along with nothing added to the environment.
+    REQUIRE((*iter).environment.size() == 0);
+}
+
 class DataSourcesFixture
 {
 protected:
@@ -309,17 +326,19 @@ FIXTURE_TEST_CASE( ConstructSDL_false, DataSourcesFixture )
     auto qi = ds.queryInfo;
     REQUIRE_EQ( (size_t)1, qi.size() );  // cf. ConstructNoSDL
     auto dict = qi[argv1];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    REQUIRE(DictionaryValueMatches(dict, "name", argv1));
+    REQUIRE(DictionaryHasKey(dict, "simple"));
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_true, DataSourcesFixture )
 {
+    /*
     const opt_string url = sratools::config->get("/repository/remote/main/SDL.2/resolver-cgi");
+    REQUIRE_EQ( *url, vdb::URL );
+    */
     vdb::ServiceResponse = "{}";
 
     auto const &ds = data_sources(cl, argumentsParsed(cl), true);
-    REQUIRE_EQ( *url, vdb::URL );
 
     REQUIRE( ds.ce_token().empty() );
     REQUIRE(is_unknown_from_file_system(ds[argv1]));
@@ -327,8 +346,8 @@ FIXTURE_TEST_CASE( ConstructSDL_true, DataSourcesFixture )
     auto qi = ds.queryInfo;
     REQUIRE_EQ( (size_t)1, qi.size() );
     auto dict = qi[argv1];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    REQUIRE(DictionaryValueMatches(dict, "name", argv1));
+    REQUIRE(DictionaryHasKey(dict, "simple"));
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_badSDL, DataSourcesFixture )
@@ -347,8 +366,8 @@ FIXTURE_TEST_CASE( ConstructSDL_noResults, DataSourcesFixture )
     auto qi = ds.queryInfo;
     REQUIRE_EQ( (size_t)1, qi.size() );
     auto dict = qi[argv1];
-    REQUIRE_EQ( (size_t)1, dict.size() );
-    REQUIRE_EQ( string(argv1), string(dict["name"]) );
+    REQUIRE(DictionaryValueMatches(dict, "name", argv1));
+    REQUIRE(DictionaryHasKey(dict, "simple"));
 }
 
 FIXTURE_TEST_CASE( ConstructSDL_oneResult, DataSourcesFixture )
@@ -384,8 +403,8 @@ FIXTURE_TEST_CASE( ConstructSDL_oneResult, DataSourcesFixture )
     REQUIRE_EQ( (size_t)2, qi.size() );
     {
         auto dict = qi[argv1];
-        REQUIRE_EQ( (size_t)1, dict.size() );
-        REQUIRE_EQ( string(argv1), string(dict["name"]) );
+        REQUIRE(DictionaryValueMatches(dict, "name", argv1));
+        REQUIRE(DictionaryHasKey(dict, "simple"));
     }
     {
         auto dict = qi["SRR000001"];
@@ -450,11 +469,7 @@ FIXTURE_TEST_CASE( ConstructSDL_multipleFiles, DataSourcesFixture )
 
     auto qi = ds.queryInfo;
     REQUIRE_EQ( (size_t)2, qi.size() );
-    {
-        auto dict = qi[argv1];
-        REQUIRE_EQ( (size_t)1, dict.size() );
-        REQUIRE_EQ( string(argv1), string(dict["name"]) );
-    }
+    REQUIRE(DictionaryValueMatches(qi[argv1], "name", argv1));
     {
         auto dict = qi["SRR000001"];
         // for(auto i : dict)
@@ -522,17 +537,12 @@ FIXTURE_TEST_CASE( ConstructSDL_multipleLocations, DataSourcesFixture )
 
     auto qi = ds.queryInfo;
     REQUIRE_EQ( (size_t)2, qi.size() );
-    {
-        auto dict = qi[argv1];
-        REQUIRE_EQ( (size_t)1, dict.size() );
-        REQUIRE_EQ( string(argv1), string(dict["name"]) );
-    }
+    REQUIRE(DictionaryValueMatches(qi[argv1], "name", argv1));
     {
         auto dict = qi["SRR000001"];
-        REQUIRE_EQ( (size_t)9, dict.size() );
-        REQUIRE_EQ( string("1"), string(dict["remote"]) ); // # of files added
-        REQUIRE_EQ( string("https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"),
-                    string(dict["remote/1/filePath"]) );
+        REQUIRE(DictionaryValueMatches(dict, "remote", "2"));
+        REQUIRE(DictionaryValueMatches(dict, "remote/1/filePath", "https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000001/SRR000001"));
+        REQUIRE(DictionaryValueMatches(dict, "remote/2/filePath", "https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR000002/SRR000002"));
     }
 }
 

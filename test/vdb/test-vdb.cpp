@@ -46,9 +46,9 @@ TEST_CASE(Error_RcToString)
     rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
 #if DEBUG
     const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#else 
+#else
     const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#endif    
+#endif
     REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)
@@ -324,10 +324,11 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
-#ifdef WINDOWS
-#define main wmain
-#endif
+#if WINDOWS
+int wmain (int argc, char *argv [])
+#else
 int main (int argc, char *argv [])
+#endif
 {
     return VdbTestSuite(argc, argv);
 }

@@ -27,6 +27,9 @@ set( SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../tools/external/driver-tool )
 if (WIN32)
     add_compile_definitions(USE_WIDE_API=1)
     link_libraries(ShLwApi Pathcch)
+    set( FILE_PATH_CPP "file-path.win32.cpp")
+else()
+    set( FILE_PATH_CPP "file-path.posix.cpp")
 endif()
 
 AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "${SOURCEDIR}" )
@@ -36,11 +39,8 @@ AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "${SOURC
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
-
-# disabled temporarily (engineering-merge-VDB-3524)
-#AddExecutableTest( Test_Drivertool_RunSource "test-run-source.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/file-path.posix.cpp;${SOURCEDIR}/json-parse.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/tool-args.cpp;" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
-#AddExecutableTest( Test_Drivertool_ToolArgs "test-tool-args.cpp;${SOURCEDIR}/tool-args.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/file-path.posix.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
-# do not forget to restore
+AddExecutableTest( Test_Drivertool_RunSource "test-run-source.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/${FILE_PATH_CPP};${SOURCEDIR}/json-parse.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/tool-args.cpp;" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
+AddExecutableTest( Test_Drivertool_ToolArgs "test-tool-args.cpp;${SOURCEDIR}/tool-args.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/${FILE_PATH_CPP}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )

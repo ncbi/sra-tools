@@ -42,6 +42,7 @@
 #define DOT_W (L'.')
 #define SEP_W (L'\\')
 #define SEP_POSIX_W (L'/')
+#define SEP_DRIVE_W (L':')
 
 #define CONST_CAST_W(X) (reinterpret_cast<wchar_t const *>(X))
 #define CAST_W(X) (reinterpret_cast<wchar_t *>(X))
@@ -49,7 +50,8 @@
 #define NUL_N ('\0')
 #define DOT_N ('.')
 #define SEP_N ('\\')
-#define SEP_POSIX ('/')
+#define SEP_POSIX_N ('/')
+#define SEP_DRIVE_N (':')
 
 #define CONST_CAST_N(X) (reinterpret_cast<char const *>(X))
 #define CAST_N(X) (reinterpret_cast<char *>(X))
@@ -61,7 +63,8 @@
     #define API_SEP SEP_W
     #define API_DOT DOT_W
     #define SELF_DIR L"."
-    #define API_SEP_POSIX (L'/')
+    #define API_SEP_POSIX SEP_POSIX_W
+    #define API_SEP_DRIVE SEP_DRIVE_W
 #else
     using API_CHAR = char;
     #define API_IS_WIDE (false)
@@ -69,7 +72,8 @@
     #define API_SEP SEP_N
     #define API_DOT DOT_N
     #define SELF_DIR "."
-    #define API_SEP_POSIX ('/')
+    #define API_SEP_POSIX SEP_POSIX_N
+    #define API_SEP_DRIVE SEP_DRIVE_N
 #endif // USE_WIDE_API
 
 using API_CONST_STRING = API_CHAR const *;
@@ -83,10 +87,6 @@ using API_STRING = API_CHAR *;
 #define NARROW_CONST_PATH CONST_CAST_N(this->path)
 #define WIDE_PATH CAST_W(this->path)
 #define NARROW_PATH CAST_N(this->path)
-
-#define WIDE(F) wide().F
-#define NARROW(F) narrow().F
-#define COPY(F) copy().F
 
 static void throw_system_error [[noreturn]] (HRESULT hr, char const *function) {
     throw std::system_error(std::error_code(int(hr & 0xFFFF), std::system_category()), function);
@@ -265,10 +265,32 @@ static inline DWORD getFinalPathNameByHandle(HANDLE h, API_STRING buffer, size_t
  #define FUNC GetFinalPathNameByHandleA
 #endif
     auto const sz = FUNC(h, buffer, size, flags);
+#undef FUNC
     if (sz == 0)
         throw_system_error("GetFinalPathNameByHandle");
     return sz;
+}
+
+#if USE_WIDE_API
+static inline PARSEDURLW parseURL(API_CONST_STRING url)
+#else
+static inline PARSEDURLA parseURL(API_CONST_STRING url)
+#endif
+{
+#if USE_WIDE_API
+ #define FUNC ParseURLW
+    PARSEDURLW result = {};
+#else
+ #define FUNC ParseURLA
+    PARSEDURLA result = {};
+#endif
+    result.cbSize = sizeof(result);
+    auto const hr = FUNC(url, &result);
 #undef FUNC
+    if (SUCCEEDED(hr))
+        return result;
+
+    throw_system_error(hr, "ParseURL");
 }
 
 /// Convert POSIX path seperators to Windows ones.
@@ -305,6 +327,16 @@ struct local_free {
 
 template< typename T >
 using local_free_ptr = std::unique_ptr< T, local_free >;
+
+static inline local_free_ptr< wchar_t > pathCreateFromUrl(wchar_t const *path)
+{
+    wchar_t *result = nullptr;
+    auto const rc = PathCreateFromUrlAlloc(path, &result, 0);
+    if (rc != S_OK)
+        throw_system_error(rc
+                           , "PathCreateFromUrlAlloc");
+    return local_free_ptr< wchar_t >(result);
+}
 
 /// Canonicalized a path. There is no narrow version of this call.
 ///
@@ -551,6 +583,25 @@ bool FilePath::readable() const
         return true;
     }
     return false;
+}
+
+bool FilePath::isSimpleName() const {
+    try {
+        auto const parsed = parseURL(path.c_str());
+        return false;
+    }
+    catch (std::system_error const &e) {
+        ((void)e);
+    }
+    // ParseURL did not like it, so it's not a URL.
+    static API_CHAR const pathSep[] = {
+        API_SEP, API_SEP_POSIX, API_NUL
+    };
+    auto const hasPathSep = path.find_first_of(pathSep) != NativeString::npos;
+    if (hasPathSep)
+        return false;
+    auto const driveSepAt = path.find_first_of(API_SEP_DRIVE);
+    return driveSepAt == NativeString::npos || driveSepAt != 1;
 }
 
 FilePath FilePath::append(FilePath const &element) const

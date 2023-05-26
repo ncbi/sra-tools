@@ -274,7 +274,7 @@ FIXTURE_TEST_CASE(Cursor_ForEachWithFilter, SequenceTableFixture)
             REQUIRE_EQ( size_t(0), values.size() );
         }
     };
-    auto filter = [&]( const Cursor & cur, Cursor::RowID row ) -> bool { return bool(row % 2); };
+	auto filter = [&](const Cursor & cur, Cursor::RowID row) -> bool { UNUSED(cur);  return bool(row % 2); };
     uint64_t n = c.foreach( filter, check );
     REQUIRE_EQ( (uint64_t)2607, n );
 }
@@ -324,6 +324,9 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
+#ifdef WINDOWS
+#define main wmain
+#endif
 int main (int argc, char *argv [])
 {
     return VdbTestSuite(argc, argv);

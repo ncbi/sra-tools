@@ -55,7 +55,7 @@ namespace VDB {
     class Cursor;
     class Schema;
 
-    class Error : std::exception {
+    class Error : public std::exception {
         rc_t rc;
         std::string text;
 
@@ -144,7 +144,7 @@ namespace VDB {
         std::vector<unsigned int> cid;
 
         Cursor(VCursor *const o_, std::vector<unsigned int> columns)
-        : o(o_), N(columns.size()), cid(columns)
+        : o(o_), N((unsigned)columns.size()), cid(columns)
         {
         }
 
@@ -214,9 +214,9 @@ namespace VDB {
 
             return out;
         }
-        void read(RowID row, unsigned const N, RawData out[]) const
+        void read(RowID row, unsigned const n, RawData out[]) const
         {
-            for (unsigned i = 0; i < N; ++i) {
+            for (unsigned i = 0; i < n; ++i) {
                 out[i] = read(row, i);
             }
         }

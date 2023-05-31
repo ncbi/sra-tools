@@ -22,7 +22,7 @@ if [[ -d "$CSRA_DIR" ]]; then
 fi
 
 # >>>>> perform the bam-load... <<<<<
-echo VDB_CONFIG=`pwd` $BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR
+#echo VDB_CONFIG=`pwd` $BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR
 VDB_CONFIG=`pwd` $BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR #-+VDB
 
 #check if the random cSRA-object has been produced
@@ -52,6 +52,6 @@ fi
 
 #we do not need the cSRA-directory object any more
 chmod +wr "$CSRA_DIR"
-#rm -rf $CSRA_DIR
+rm -rf $CSRA_DIR
 
 print_verbose "cSRA-object ( single-file ) produced!"

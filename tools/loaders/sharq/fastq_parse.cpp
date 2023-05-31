@@ -84,6 +84,9 @@ private:
     int xRunDigest();
     int xRunSpotAssembly();
 
+    template <typename ScoreValidator, typename parser_t>
+    void xParseWithAssembly(tf::Executor& executor, json& group, parser_t& parser);
+
 
     void xSetupInput();
     void xSetupOutput();
@@ -246,8 +249,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         mReport["version"] = SHARQ_VERSION;
         // save cmd args
-        for (int i = 1; i < argc; ++i)
-            mReport["args"].push_back(argv[i]);
+        //for (int i = 1; i < argc; ++i)
+        //    mReport["args"].push_back(argv[i]);
 
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
@@ -335,7 +338,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
     }
 
     if (mNoTimeStamp == false)
-        mReport["exec_time"] =  ceil(stop_watch.elapsed().count() * 100.0) / 100.0;
+        mReport["timing"]["exec"] =  ceil(stop_watch.elapsed().count() * 100.0) / 100.0;
 
     xReportTelemetry();
     return ret_code;
@@ -601,42 +604,81 @@ int CFastqParseApp::xRun()
     xCreateWriterFromDigest(data);
 
     fastq_parser<fastq_writer> parser(m_writer);
-    if (!mDebug)
-        parser.set_spot_file(mSpotFile);
-    parser.set_allow_early_end(mAllowEarlyFileEnd);
-    m_writer->open();
-    auto err_checker = [this](fastq_error& e) -> void { CFastqParseApp::xCheckErrorLimits(e);};
-    for (auto& group : data["groups"]) {
-        parser.set_readers(group);
-        if (!group["files"].empty()) {
-            switch ((int)group["files"].front()["quality_encoding"]) {
-                case 0:
-                    parser.parse<validator_options<eNumeric, -5, 40>>(err_checker);
-                    break;
-                case 33:
-                    parser.parse<validator_options<ePhred, 33, 126>>(err_checker);
-                    break;
-                case 64:
-                    parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
-                    break;
-                default:
-                    throw runtime_error("Invalid quality encoding");
+    try {
+        if (!mDebug)
+            parser.set_spot_file(mSpotFile);
+        parser.set_allow_early_end(mAllowEarlyFileEnd);
+        m_writer->open();
+        auto err_checker = [this](fastq_error& e) -> void { CFastqParseApp::xCheckErrorLimits(e);};
+        for (auto& group : data["groups"]) {
+            parser.set_readers(group);
+            if (!group["files"].empty()) {
+                switch ((int)group["files"].front()["quality_encoding"]) {
+                    case 0:
+                        parser.parse<validator_options<eNumeric, -5, 40>>(err_checker);
+                        break;
+                    case 33:
+                        parser.parse<validator_options<ePhred, 33, 126>>(err_checker);
+                        break;
+                    case 64:
+                        parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
+                        break;
+                    default:
+                        throw runtime_error("Invalid quality encoding");
+                }
             }
         }
+        spdlog::stopwatch sw;
+        parser.check_duplicates(err_checker);
+        if (mNoTimeStamp == false)
+            mReport["timing"]["collation_check"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
+        spdlog::info("Parsing complete");
+        m_writer->close();
+    } catch (exception& e) {
+        if (!mTelemetryFile.empty()) 
+            parser.report_telemetry(mReport);
+        throw e;
     }
-    spdlog::stopwatch sw;
-    parser.check_duplicates(err_checker);
-    if (mNoTimeStamp == false)
-        mReport["collation_check_time"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
-    spdlog::info("Parsing complete");
-    m_writer->close();
-
-    if (!mTelemetryFile.empty()) {
+    if (!mTelemetryFile.empty()) 
         parser.report_telemetry(mReport);
-    }
 
     return 0;
 }
+
+template <typename ScoreValidator, typename parser_t>
+void CFastqParseApp::xParseWithAssembly(tf::Executor& executor, json& group, parser_t& parser)
+{
+    assert(group["files"].empty() == false);
+    if (group["files"].empty())
+        return;
+    mReport["is_spot_assembly"] = 1;
+
+    auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
+    int platform = group["files"].front()["platform_code"].front();
+    bool is_nanopore = platform == SRA_PLATFORM_OXFORD_NANOPORE;
+    mErrorCount = 0;
+    parser.set_readers(group, false);
+    spdlog::stopwatch sw;
+    parser.template first_pass<ScoreValidator>(executor, err_checker);
+    if (mNoTimeStamp == false)
+        mReport["timing"]["first_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
+    sw.reset();        
+
+    //Reset readers
+    mErrorCount = 0;
+    parser.set_readers(group);
+    if (is_nanopore)
+        parser.template second_pass<ScoreValidator, true>(executor, err_checker);
+    else
+        parser.template second_pass<ScoreValidator, false>(executor, err_checker);
+
+    if (mNoTimeStamp == false)
+        mReport["timing"]["second_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
+
+    parser.update_readers_telemetry();
+
+}
+
 
 int CFastqParseApp::xRunSpotAssembly()
 {
@@ -652,56 +694,39 @@ int CFastqParseApp::xRunSpotAssembly()
 
     m_writer->open();
     fastq_parser<fastq_writer> parser(m_writer, mReadTypes);
-    if (!mDebug)
-        parser.set_spot_file(mSpotFile);
-    parser.set_allow_early_end(mAllowEarlyFileEnd);
+    try {
+        if (!mDebug)
+            parser.set_spot_file(mSpotFile);
+        parser.set_allow_early_end(mAllowEarlyFileEnd);
 
-    auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
-    for (auto& group : data["groups"]) {
-        parser.set_readers(group, false);
-        if (!group["files"].empty()) {
-            int platform = group["files"].front()["platform_code"].front();
-            bool is_nanopore = platform == SRA_PLATFORM_OXFORD_NANOPORE;
-            switch ((int)group["files"].front()["quality_encoding"]) {
-                case 0:
-                    parser.first_pass<validator_options<eNumeric, -5, 40>>(executor, err_checker);
-                    mErrorCount = 0; //Reset error counts 
-                    parser.set_readers(group);
-                    if (is_nanopore)
-                        parser.second_pass<validator_options<eNumeric, -5, 40>, true>(executor, err_checker);
-                    else
-                        parser.second_pass<validator_options<eNumeric, -5, 40>, false>(executor, err_checker);
-
-                    break;
-                case 33:
-                    parser.first_pass<validator_options<ePhred, 33, 126>>(executor, err_checker);
-                    mErrorCount = 0; //Reset error counts 
-                    parser.set_readers(group);
-                    if (is_nanopore)
-                        parser.second_pass<validator_options<ePhred, 33, 126>, true>(executor, err_checker);
-                    else                            
-                        parser.second_pass<validator_options<ePhred, 33, 126>, false>(executor, err_checker);
-                    break;
-                case 64:
-                    parser.first_pass<validator_options<ePhred, 64, 126>>(executor, err_checker);
-                    mErrorCount = 0; //Reset error counts 
-                    parser.set_readers(group);
-                    if (is_nanopore)
-                        parser.second_pass<validator_options<ePhred, 64, 126>, true>(executor, err_checker);
-                    else
-                        parser.second_pass<validator_options<ePhred, 64, 126>, false>(executor, err_checker);
-                    break;
-                default:
-                    throw runtime_error("Invalid quality encoding");
+        //auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
+        for (auto& group : data["groups"]) {
+            if (!group["files"].empty()) {
+                switch ((int)group["files"].front()["quality_encoding"]) {
+                    case 0:
+                        xParseWithAssembly<validator_options<eNumeric, -5, 40>>(executor, group, parser);
+                        break;
+                    case 33:
+                        xParseWithAssembly<validator_options<ePhred, 33, 126>>(executor, group, parser);
+                        break;
+                    case 64:
+                        xParseWithAssembly<validator_options<ePhred, 64, 126>>(executor, group, parser);
+                        break;
+                    default:
+                        throw runtime_error("Invalid quality encoding");
+                }
             }
         }
+        spdlog::stopwatch sw;
+        spdlog::info("Parsing complete");
+        m_writer->close();
+    } catch (exception& e) {
+        if (!mTelemetryFile.empty()) 
+            parser.report_telemetry(mReport);
+        throw e;        
     }
-    spdlog::stopwatch sw;
-    spdlog::info("Parsing complete");
-    m_writer->close();
-    if (!mTelemetryFile.empty()) {
+    if (!mTelemetryFile.empty()) 
         parser.report_telemetry(mReport);
-    }
 
     return 0;
 }

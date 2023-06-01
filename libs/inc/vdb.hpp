@@ -268,9 +268,9 @@ namespace VDB {
         {
             if ( this != &other )
             {   // the following calls will not throw
+                VTableAddRef(other.o);
                 VTableRelease(o);
                 o = other.o;
-                VTableAddRef(o);
             }
             return *this;
         }

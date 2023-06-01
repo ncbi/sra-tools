@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-TOOL_PATH="$HOME/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/bin"
+TOOL_PATH="$1"
 
 VDB_COPY="vdb-copy"
 if [ ! -x $VDB_COPY ]; then
@@ -13,7 +13,7 @@ if [ ! -x $VDB_COPY ]; then
     exit 3
 fi
 
-ACC="$1"
+ACC="$2"
 ACC_COPY="the_copy"
 
 if [ -d $ACC_COPY ]; then

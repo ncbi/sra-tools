@@ -335,17 +335,19 @@ SraInfo::HasPhysicalQualities() const
 {   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
     VDB::Table table = openSequenceTable( m_accession );
     const string QualityColumn = "QUALITY";
-    VDB::Table::ColumnNames cols = table.readableColumns();
-    if ( find( cols.begin(), cols.end(), QualityColumn ) == cols.end() )
+    VDB::Table::ColumnNames readable = table.readableColumns();
+    if ( find( readable.begin(), readable.end(), QualityColumn ) != readable.end() )
     {
-        return false;
+        const string OriginalQualityColumn = "ORIGINAL_QUALITY";
+        VDB::Table::ColumnNames physical = table.physicalColumns();
+        if ( find( physical.begin(), physical.end(), OriginalQualityColumn ) != physical.end() )
+        {
+            return true;
+        }
+        if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
+        {
+            return true;
+        }
     }
-
-    cols = table.physicalColumns();
-    if ( find( cols.begin(), cols.end(), QualityColumn ) != cols.end() )
-    {
-        return true;
-    }
-    const string OriginalQualityColumn = "ORIGINAL_QUALITY";
-    return find( cols.begin(), cols.end(), OriginalQualityColumn ) != cols.end();
+    return false;
 }

@@ -202,11 +202,11 @@ static rc_t cm_run( copy_machine_t * self ) {
                 ErrMsg( "copy_machine.c run_copy_machine().VNameListGet( %u ) -> %R", idx, rc );
             } else {
                 const struct KFile * src;
-                rc = make_buffered_for_read( self -> dir, &src, filename, self -> buf_size ); /* helper.c */
+                rc = ft_make_buffered_for_read( self -> dir, &src, filename, self -> buf_size );
                 if ( 0 == rc ) {
                     rc_t rc2;
                     rc = cm_copy_this_file( self, src );
-                    rc2 = release_file( src, "copy_machine.c run_copy_machine()[ %u ]", idx );
+                    rc2 = ft_release_file( src, "copy_machine.c run_copy_machine()[ %u ]", idx );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
                 if ( 0 == rc ) {

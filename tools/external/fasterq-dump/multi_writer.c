@@ -262,7 +262,7 @@ void mw_release( struct multi_writer_t * self ) {
             }
         }
 
-        if ( NULL != self -> f ) { release_file( self -> f, "copy_machine.c release_multi_writer()" ); }
+        if ( NULL != self -> f ) { ft_release_file( self -> f, "copy_machine.c release_multi_writer()" ); }
         free( ( void * ) self );
     }
 }
@@ -338,7 +338,7 @@ static rc_t mw_create_file( multi_writer_t * self, KDirectory * dir, const char 
     if ( 0 != rc ) {
         ErrMsg( "create_multi_writer().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
     } else {
-        rc = wrap_file_in_buffer( &( self -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
+        rc = ft_wrap_file_in_buffer( &( self -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
         if ( 0 != rc ) {
             ErrMsg( "create_multi_writer().wrap_file_in_buffer( '%s' ) -> %R", filename, rc );
         }

@@ -39,6 +39,25 @@ using namespace VDB;
 
 TEST_SUITE(VdbTestSuite);
 
+// VDB::Error
+
+TEST_CASE(Error_RcToString)
+{
+    rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
+#if DEBUG
+    const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
+#else 
+    const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
+#endif    
+    REQUIRE_EQ( expected, Error::RcToString( rc ) );
+}
+TEST_CASE(Error_RcToString_English)
+{
+    rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
+
+    REQUIRE_EQ( string("transfer incomplete while reading file within network system module"), Error::RcToString( rc, true ) );
+}
+
 // VDB::Manager
 
 TEST_CASE(Manager_Construction)

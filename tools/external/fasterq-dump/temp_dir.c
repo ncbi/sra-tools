@@ -154,11 +154,12 @@ rc_t make_temp_dir( struct temp_dir_t ** obj, const char * requested, KDirectory
                 }
             }
             if ( 0 == rc ) {
-                if ( !dir_exists( dir, "%s", o -> path ) ) { /* helper.c */
+                if ( !ft_dir_exists( dir, "%s", o -> path ) ) {
                     KCreateMode create_mode = kcmCreate | kcmParents;
                     rc = KDirectoryCreateDir ( dir, 0775, create_mode, "%s", o -> path );
                     if ( 0 != rc ) {
-                        ErrMsg( "temp_dir.c make_temp_dir().KDirectoryCreateDir( '%s' ) -> %R", o -> path, rc );
+                        StdErrMsg( "\tError: fasterq-dump cannot create this temporary directory: '%s'\n",
+                                   o -> path );
                     }
                 }
             }
@@ -259,13 +260,13 @@ rc_t remove_temp_dir( const struct temp_dir_t * self, KDirectory * dir ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "temp_dir.c remove_temp_dir() -> %R", rc );
     } else {
-        bool tmp_exists = dir_exists( dir, "%s", self -> path ); /* helper.c */
+        bool tmp_exists = ft_dir_exists( dir, "%s", self -> path );
         if ( tmp_exists ) {
             rc = KDirectoryClearDir ( dir, true, "%s", self -> path );
             if ( 0 != rc ) {
                 ErrMsg( "temp_dir.c remove_temp_dir.KDirectoryClearDir( '%s' ) -> %R", self -> path, rc );
             } else {
-                tmp_exists = dir_exists( dir, "%s", self -> path ); /* helper.c */
+                tmp_exists = ft_dir_exists( dir, "%s", self -> path );
                 if ( tmp_exists ) {
                     rc = KDirectoryRemove ( dir, true, "%s", self -> path );
                     if ( 0 != rc ) {

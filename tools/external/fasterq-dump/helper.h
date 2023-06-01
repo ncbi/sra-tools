@@ -169,7 +169,7 @@ bool hlp_extract_path( const char * s, String * path );
 
 void hlp_clear_join_stats( join_stats_t * stats );
 void hlp_add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
-rc_t hlp_print_stats( const join_stats_t * stats );
+rc_t hlp_print_stats( const join_stats_t * stats, rc_t rc_in );
 
 /* -------------------------------------------------------------------------------- */
 

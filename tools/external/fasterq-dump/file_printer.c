@@ -50,7 +50,7 @@ typedef struct file_printer_t
 
 void destroy_file_printer( struct file_printer_t * printer ) {
     if ( NULL != printer ) {
-        if ( NULL != printer -> f ) { release_file( printer -> f, "destroy_file_printer" ); }
+        if ( NULL != printer -> f ) { ft_release_file( printer -> f, "destroy_file_printer" ); }
         release_SBuffer( &( printer -> print_buffer ) );
         free( ( void * ) printer );
     }
@@ -63,13 +63,13 @@ rc_t make_file_printer_from_file( KFile * f, struct file_printer_t ** printer, s
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_file_printer_from_file().calloc( %d ) -> %R", ( sizeof * p ), rc );
         {
-            rc_t rc2 = release_file( f, "make_file_printer_from_file().1" );
+            rc_t rc2 = ft_release_file( f, "make_file_printer_from_file().1" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     } else {
         rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size );
         if ( 0 != rc ) {
-            rc_t rc2 = release_file( f, "make_file_printer_from_file().2" );
+            rc_t rc2 = ft_release_file( f, "make_file_printer_from_file().2" );
             rc = ( 0 == rc ) ? rc2 : rc;
         } else {
             p -> f = f;
@@ -99,7 +99,7 @@ rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printe
                 ErrMsg( "make_file_printer_from_filename().KBufFileMakeWrite() -> %R", rc );
             }
             {
-                rc_t rc2 = release_file( f, "make_file_printer_from_filename()" );
+                rc_t rc2 = ft_release_file( f, "make_file_printer_from_filename()" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }

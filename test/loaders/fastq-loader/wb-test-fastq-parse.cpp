@@ -360,6 +360,17 @@ FIXTURE_TEST_CASE(BarcodesReadNumbersJunkOhMy, ParserFixture)
     REQUIRE(Parse());
 }
 
+FIXTURE_TEST_CASE(Aviti, ParserFixture)
+{   // VDB-5143
+    char buf[] = "@PLT-04:KOL-0149:2140948423:1:10102:0003:0040 2:N:0:GCATGTCACG+TTTAGACCAT\nC\n+\nF\n";
+    AddBuffer ( buf );
+    REQUIRE( Parse() );
+    REQUIRE_EQ( 2, (int)pb.record->seq.readnumber );
+    REQUIRE_EQ( string( "PLT-04:KOL-0149:2140948423:1:10102:0003:0040 2:N:0" ) , string( buf + pb.spotNameOffset, pb.spotNameLength ) );
+    REQUIRE_EQ( string("GCATGTCACG+TTTAGACCAT"), string( buf + pb.spotGroupOffset, pb.spotGroupLength ) );
+}
+
+
 
 //////////////////////////////////////////// Main
 extern "C"

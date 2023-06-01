@@ -27,8 +27,7 @@
 #include "sra-info.hpp"
 
 #include <algorithm>
-
-#include <insdc/sra.h>
+#include <map>
 
 using namespace std;
 
@@ -65,7 +64,9 @@ SraInfo::openSequenceTable( const string & accession ) const
     }
 }
 
-const char *vdcd_get_platform_txt( const uint32_t id )
+static
+string
+PlatformToString( const uint32_t id )
 {
 #define CASE( id ) \
     case id : return # id; break
@@ -100,13 +101,13 @@ SraInfo::GetPlatforms() const
         if ( cursor.isStaticColumn( 0 ) )
         {
             VDB::Cursor::RawData rd = cursor.read( 1, 0 );
-            ret.insert( vdcd_get_platform_txt( rd.value<uint8_t>() ) );
+            ret.insert( PlatformToString( rd.value<uint8_t>() ) );
         }
         else
         {
             auto get_platform = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
             {
-                ret.insert( vdcd_get_platform_txt( values[0].value<uint8_t>() ) );
+                ret.insert( PlatformToString( values[0].value<uint8_t>() ) );
             };
             cursor.foreach( get_platform );
         }
@@ -115,32 +116,216 @@ SraInfo::GetPlatforms() const
     {
         rc_t rc = e.getRc();
         if ( rc != 0 )
-        {   // if the column is not found, return empty set
+        {   // if the column is not found, return UNDEFINED
             if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
             {
+                ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
                 return ret;
             }
         }
         throw;
     }
 
+    if ( ret.size() == 0 )
+    {
+        ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
+    }
+    return ret;
+}
+
+bool operator < (const SraInfo::ReadStructures& a, const SraInfo::ReadStructures& b)
+{
+	if (a.size() < b.size()) return true;
+	if (a.size() > b.size()) return false;
+	auto it_a = a.begin();
+	auto it_b = b.begin();
+	while (it_a != a.end())
+	{
+		if (it_a->type < it_b->type) return true;
+		if (it_a->type > it_b->type) return false;
+		if (it_a->length < it_b->length) return true;
+		if (it_a->length > it_b->length) return false;
+		++it_a;
+		++it_b;
+	}
+	return false;
+}
+
+SraInfo::ReadStructure::ReadStructure( INSDC_read_type t, uint32_t l )
+: type( t ), length( l )
+{
+}
+
+string
+SraInfo::ReadStructure::TypeAsString( Detail detail) const
+{
+    string ret;
+    switch ( detail )
+    {
+    case Short: return string();
+    case Abbreviated:
+        switch ( type )
+        {
+        case 0:
+        case 2:
+        case 4: return "T";
+        case 1:
+        case 3:
+        case 5: return "B";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    case Full:
+        switch ( type )
+        {
+        case 0: return "T";
+        case 1: return "B";
+        case 2: return "TF";
+        case 3: return "BF";
+        case 4: return "TR";
+        case 5: return "BR";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    case Verbose:
+        switch ( type )
+        {
+        case 0: return "TECHNICAL";
+        case 1: return "BIOLOGICAL";
+        case 2: return "TECHNICAL|FORWARD";
+        case 3: return "BIOLOGICAL|FORWARD";
+        case 4: return "TECHNICAL|REVERSE";
+        case 5: return "BIOLOGICAL|REVERSE";
+        default:
+            throw VDB::Error( "SraInfo::ReadStructure::TypeAsString(): invalid read type", __FILE__, __LINE__);
+        }
+    default:
+        throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
+    }
+}
+
+string
+SraInfo::ReadStructure::Encode( Detail detail ) const
+{
+    switch( detail )
+    {
+    case Short:
+    case Abbreviated: return TypeAsString( detail );
+    case Full:
+    {
+        ostringstream ret;
+        ret << TypeAsString( detail ) << length;
+        return ret.str();
+    }
+    case Verbose:
+    {
+        ostringstream ret;
+        ret << TypeAsString( detail ) << "(length=" << length << ")";
+        return ret.str();
+    }
+    default:
+        throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
+    }
+}
+
+SraInfo::SpotLayouts
+SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by descending count
+{
+    map< ReadStructures, size_t > rs_map;
+    SpotLayouts ret;
+
+    VDB::Table table;
+    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
+    {
+        const char * CONSENSUS_TABLE = "CONSENSUS";
+        VDB::Database db = mgr.openDatabase( m_accession );
+        if ( db.hasTable( CONSENSUS_TABLE ) )
+        {
+            table = mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
+        }
+        else
+        {
+            table = mgr.openDatabase( m_accession )["SEQUENCE"];
+        }
+    }
+    else
+    {
+        table = openSequenceTable( m_accession );
+    }
+
+    VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
+    auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
+    {
+        vector<INSDC_read_type> types = values[0].asVector<INSDC_read_type>();
+        vector<uint32_t> lengths = values[1].asVector<uint32_t>();
+        assert(types.size() == lengths.size());
+        ReadStructures r;
+        r.reserve(types.size());
+        auto i_types = types.begin();
+        auto i_lengths = lengths.begin();
+        while ( i_types != types.end() )
+        {
+            ReadStructure rs;
+            switch (detail)
+            {
+            case Verbose:
+            case Full:
+                rs.type = *i_types;
+                rs.length = *i_lengths;
+                break;
+            case Abbreviated: // ignore read lengths
+                rs.type = *i_types;
+                break;
+            case Short: // ignore read types and lengths
+                break;
+            default:
+                throw VDB::Error( "SraInfo::GetSpotLayouts(): unexpected detail level", __FILE__, __LINE__);
+            }
+
+            r.push_back( rs );
+            ++i_types;
+            ++i_lengths;
+        }
+
+        auto elem = rs_map.find( r );
+        if ( elem != rs_map.end() )
+        {
+            (*elem).second++;
+        }
+        else
+        {
+            rs_map[r] = 1;
+        }
+    };
+    cursor.foreach( handle_row );
+
+    for( auto it = rs_map.begin(); it != rs_map.end(); ++it )
+    {
+        SpotLayout sl;
+        sl.count = it->second;
+        sl.reads = it->first;
+        ret.push_back( sl );
+    }
+    sort( ret.begin(),
+          ret.end(),
+          []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // more popular layouts sort first
+    );
     return ret;
 }
 
 bool
 SraInfo::IsAligned() const
 {
-    try
-    {
-        if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
-        {   // aligned if there is a non-empty alignment table
-            VDB::Table alignment = mgr.openDatabase(m_accession)["PRIMARY_ALIGNMENT"];
+    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+    {   // aligned if there is a non-empty alignment table
+        VDB::Database db = mgr.openDatabase(m_accession);
+        const string PrimaryAlignmentTable = "PRIMARY_ALIGNMENT";
+        if (db.hasTable(PrimaryAlignmentTable))
+        {
+            VDB::Table alignment = db[PrimaryAlignmentTable];
             VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
             return cursor.rowRange().first > 0;
         }
-    }
-    catch(const VDB::Error &)
-    {   // assume the alignment table does not exist
     }
     return false;
 }

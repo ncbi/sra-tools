@@ -31,6 +31,7 @@
 #include <exception>
 
 #include <vdb.hpp>
+#include <insdc/sra.h>
 
 class SraInfo
 {
@@ -40,10 +41,41 @@ public:
     void SetAccession( const std::string& accession );
     const std::string& GetAccession() const { return m_accession; }
 
+    // Platform
     typedef std::set<std::string> Platforms;
     Platforms GetPlatforms() const; // may be empty or more than 1 value
 
+    // Spot structure
+    typedef enum {
+        Short,
+        Abbreviated,
+        Full,
+        Verbose
+    } Detail;
+    struct ReadStructure
+    {
+        INSDC_read_type type = 0;
+        uint32_t length = 0;
+
+        ReadStructure() {}
+        ReadStructure( INSDC_read_type t, uint32_t l );
+
+        std::string Encode( Detail ) const;
+        std::string TypeAsString( Detail = Verbose ) const;
+    };
+    struct ReadStructures : std::vector<ReadStructure> {};
+    struct SpotLayout
+    {
+        uint64_t count = 0;
+        ReadStructures reads;
+    };
+    typedef std::vector<SpotLayout> SpotLayouts;
+    SpotLayouts GetSpotLayouts( Detail detail, bool useConsensus = true ) const; // sorted by descending count
+
+    // Alignment
     bool IsAligned() const;
+
+    // Qualities
     bool HasPhysicalQualities() const;
 
 private:

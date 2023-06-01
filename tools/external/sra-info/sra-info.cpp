@@ -133,6 +133,15 @@ SraInfo::GetPlatforms() const
     return ret;
 }
 
+bool operator < (const SraInfo::ReadStructure& a, const SraInfo::ReadStructure& b)
+{
+    if (a.type < b.type) return true;
+    if (a.type > b.type) return false;
+    if (a.length < b.length) return true;
+    if (a.length > b.length) return false;
+	return false;
+}
+
 bool operator < (const SraInfo::ReadStructures& a, const SraInfo::ReadStructures& b)
 {
 	if (a.size() < b.size()) return true;
@@ -141,10 +150,8 @@ bool operator < (const SraInfo::ReadStructures& a, const SraInfo::ReadStructures
 	auto it_b = b.begin();
 	while (it_a != a.end())
 	{
-		if (it_a->type < it_b->type) return true;
-		if (it_a->type > it_b->type) return false;
-		if (it_a->length < it_b->length) return true;
-		if (it_a->length > it_b->length) return false;
+		if (*it_a < *it_b) return true;
+		if (*it_b < *it_a) return false;
 		++it_a;
 		++it_b;
 	}
@@ -308,7 +315,10 @@ SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by d
     }
     sort( ret.begin(),
           ret.end(),
-          []( const SpotLayout & a, const SpotLayout & b ) { return a.count > b.count; } // more popular layouts sort first
+          []( const SpotLayout & a, const SpotLayout & b )
+          { // more popular layouts sort first
+            return a.count > b.count || (a.count == b.count && b.reads < a.reads);
+          }
     );
     return ret;
 }

@@ -24,22 +24,22 @@
 
 add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
-ToolsRequired( read-filter-redact vdb-unlock  )
-
-if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
-
-	add_test( NAME Test_Read_filter_redact_Check_exit_code
-        COMMAND
-            ${Python3_EXECUTABLE}
-                ${CMAKE_SOURCE_DIR}/build/check-exit-code.py
-                ${DIRTOTEST}/vdb-unlock${EXE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMAND_EXPAND_LISTS
-    )
-
-endif()
 
 if ( NOT WIN32 )
+    ToolsRequired( read-filter-redact )
+
+    if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
+
+        add_test( NAME Test_Read_filter_redact_Check_exit_code
+            COMMAND
+                ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/build/check-exit-code.py
+                    ${DIRTOTEST}/read-filter-redact${EXE}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND_EXPAND_LISTS
+        )
+
+    endif()
 
 	add_test( NAME Test_Read_filter_redact
 		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact

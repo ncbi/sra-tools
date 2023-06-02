@@ -23,7 +23,7 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
+    ToolsRequired(bam-load)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -80,7 +80,4 @@ if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
 
-else()
-    message(WARNING "${DIRTOTEST}/bam-load${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

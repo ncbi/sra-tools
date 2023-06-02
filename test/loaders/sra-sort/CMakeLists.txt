@@ -25,6 +25,8 @@
 add_compile_definitions( __mod__="test/sra-sort" )
 
 if ( NOT WIN32 )
+    ToolsRequired(sra-sort kar bam-load sra-stat sam-factory)
+
     # if directory /export/home/TMP does not exist, the script will not run and exit with 0
     # if it does exist, the script requires env var TEST_DATA to be set, or it will return an error (1)
     # TEST_DATA is supposed to point to a directory with the inputs for this test
@@ -33,17 +35,11 @@ if ( NOT WIN32 )
                   COMMAND test-sra-sort.sh ${DIRTOTEST}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-    
-    if ( "linux" STREQUAL ${OS} )
-        if ( EXISTS "${DIRTOTEST}/sra-sort${EXE}" )
 
+    if ( "linux" STREQUAL ${OS} )
             add_test( NAME Test_sra_sort_meta_copy
                 COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${VDB_INCDIR} ${BINDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-        else()
-            message(WARNING "${DIRTOTEST}/sra-sort${EXE} is not found. The corresponding tests are skipped." )
-        endif()
     endif()
-    
+
 endif()

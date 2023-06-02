@@ -799,3 +799,11 @@ function( AddExecutableTest test_name sources libraries include_dirs )
 		add_test( NAME "${test_name}-tsan" COMMAND "${test_name}-tsan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 endfunction()
+
+# use to make sure a test script has the tool(s) it needs built before it executes
+macro(ToolsRequired tool) # may provide additional tools
+    add_custom_target(Build-${tool} ALL )
+    foreach(loop_var ${ARGV})
+        add_dependencies(Build-${tool} ${loop_var})
+    endforeach()
+endmacro()

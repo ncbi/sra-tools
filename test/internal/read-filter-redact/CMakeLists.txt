@@ -24,8 +24,9 @@
 
 add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
+ToolsRequired( vdb-unlock read-filter-redact )
+
 if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
-if ( EXISTS "${DIRTOTEST}/vdb-unlock${EXE}" )
 
 	add_test( NAME Test_Read_filter_redact_Check_exit_code
         COMMAND
@@ -36,13 +37,9 @@ if ( EXISTS "${DIRTOTEST}/vdb-unlock${EXE}" )
         COMMAND_EXPAND_LISTS
     )
 
-else()
-    message(WARNING "${DIRTOTEST}/vdb-unlock${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/read-filter-redact${EXE}" )
 
 	add_test( NAME Test_Read_filter_redact
 		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact
@@ -56,7 +53,4 @@ if ( EXISTS "${DIRTOTEST}/read-filter-redact${EXE}" )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
-else()
-    message(WARNING "${DIRTOTEST}/read-filter-redact${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

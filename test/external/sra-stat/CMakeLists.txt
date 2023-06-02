@@ -25,7 +25,7 @@
 add_compile_definitions( __mod__="test/external/sra-stat" )
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
+    ToolsRequired(sra-stat)
 
 	#add_executable( testAssemblyStatistics testAssemblyStatistics )
 	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
@@ -55,7 +55,4 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
-else()
-	message(WARNING "${DIRTOTEST}/sra-stat${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

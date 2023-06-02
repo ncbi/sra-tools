@@ -317,6 +317,8 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( BINDIR "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
     set( LIBDIR "$<$<CONFIG:Debug>:${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE}>" )
     set( TESTBINDIR "$<$<CONFIG:Debug>:${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
+    set( TESTBINDIR_DEBUG "${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}" )
+    set( TESTBINDIR_RELEASE "${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}" )
     set( TEMPDIR "$<$<CONFIG:Debug>:${TEMPDIR_DEBUG}>$<$<CONFIG:Release>:${TEMPDIR_RELEASE}>" )
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
@@ -343,6 +345,8 @@ else() # assume a single-config generator
     set( BINDIR "${TARGDIR}/bin" )
     set( LIBDIR "${TARGDIR}/lib" )
     set( TESTBINDIR "${TARGDIR}/test-bin" )
+    set( TESTBINDIR_DEBUG "${TESTBINDIR}" )
+    set( TESTBINDIR_RELEASE "${TESTBINDIR}" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} ) # Must point to the installed ncbi-vdb libs

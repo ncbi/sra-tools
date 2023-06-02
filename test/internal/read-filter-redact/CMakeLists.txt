@@ -24,7 +24,7 @@
 
 add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
-ToolsRequired( vdb-unlock read-filter-redact )
+ToolsRequired( read-filter-redact vdb-unlock  )
 
 if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
 

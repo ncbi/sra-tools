@@ -3122,7 +3122,7 @@ WRITE_SEQUENCE:
 #endif
                 rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
                 if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", ""));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", NULL));
                     goto LOOP_END;
                 }
                 ++ctx->spotId;
@@ -3229,14 +3229,14 @@ WRITE_ALIGNMENT:
 
                 rc = ReferenceAddAlignId(ref, data.alignId, isPrimary);
                 if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "ReferenceAddAlignId failed", ""));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "ReferenceAddAlignId failed", NULL));
                 }
                 else {
                     *had_alignments = true;
                 }
             }
             else {
-                (void)PLOGERR(klogErr, (klogErr, rc, "AlignmentWriteRecord failed", ""));
+                (void)PLOGERR(klogErr, (klogErr, rc, "AlignmentWriteRecord failed", NULL));
             }
         }
         /**************************************************************/

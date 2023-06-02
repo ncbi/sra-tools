@@ -24,47 +24,32 @@
 *
 */
 
-#ifndef _h_vdb_dump_row_context_
-#define _h_vdb_dump_row_context_
-
-#include <vdb/cursor.h>
-#include <klib/vector.h>
-
-#include "vdb-dump-context.h"
-#include "vdb-dump-coldefs.h"
-#include "vdb-dump-str.h"
+#ifndef _h_vdb_dump_view_spec_
+#define _h_vdb_dump_view_spec_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*************************************************************************************
-    binds together everything to dump one row:
-        - a pointer to the cursor to read the data-cells
-        - a pointer to the column-definitions (Vector of column-definition's)
-        - a pointer to the dump-context ( parameters and options for cmd-line )
-        - a dump-string (structure not pointer!) to be reused to assemble output
-        - a Vector containing p_col_data - pointers
-        - a return-type to stop if reading data failed ( neccessary to stop after
-          last row if no row-range is given at command-line )
+#include <klib/text.h>
+#include <klib/vector.h>
 
-    needed as a (one and only) parameter to VectorForEach
-*************************************************************************************/
-typedef struct row_context
+struct VCursor;
+struct VDatabase;
+struct VSchema;
+struct VView;
+
+typedef struct view_spec view_spec;
+struct view_spec
 {
-    const VTable* table;
-    const VView* view;    
-    const VCursor* cursor;
-    p_col_defs col_defs;
-    p_dump_context ctx;     /* vdb-dump-context.h */
-    dump_str s_col;
-    int64_t row_id;
-    uint32_t col_nr;
-    rc_t rc;
-    rc_t last_rc;
-} row_context;
-typedef row_context* p_row_context;
+    char *  name;
+    Vector  args; /* view_spec*; 0 elements if table */
+};
 
+rc_t view_spec_parse ( const char * spec, view_spec ** self, char * error, size_t error_size );
+void view_spec_free ( view_spec * self );
+
+rc_t view_spec_open ( view_spec * self, const struct VDatabase * db, const struct VSchema * schema, const struct VView ** view ) ;
 
 #ifdef __cplusplus
 }

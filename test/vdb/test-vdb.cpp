@@ -46,9 +46,9 @@ TEST_CASE(Error_RcToString)
     rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
 #if DEBUG
     const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#else 
+#else
     const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#endif    
+#endif
     REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)
@@ -296,7 +296,7 @@ FIXTURE_TEST_CASE(Cursor_ForEachWithFilter, SequenceTableFixture)
             REQUIRE_EQ( size_t(0), values.size() );
         }
     };
-    auto filter = [&]( const Cursor & cur, Cursor::RowID row ) -> bool { return bool(row % 2); };
+	auto filter = [&](const Cursor & cur, Cursor::RowID row) -> bool { UNUSED(cur);  return bool(row % 2); };
     uint64_t n = c.foreach( filter, check );
     REQUIRE_EQ( (uint64_t)2607, n );
 }

@@ -433,9 +433,6 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> fmt = hlp_get_format_t( ahlp_get_str_option( args, OPTION_FORMAT, NULL ),
                     split_spot, split_file, split_3, whole_spot, fasta,
                     fasta_us, fasta_ref_tbl, fasta_concat, ref_report );
-    if ( ft_fastq_split_3 == tool_ctx -> fmt ) {
-        tool_ctx -> join_options . skip_tech = true;
-    }
 
     tool_ctx -> check_mode = hlp_get_check_mode_t( ahlp_get_str_option( args, OPTION_CHECK, "on" ) );
     if ( 0 == rc && cmt_unknown == tool_ctx -> check_mode ) {

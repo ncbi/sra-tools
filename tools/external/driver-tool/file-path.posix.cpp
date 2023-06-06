@@ -45,7 +45,37 @@
 #include <vector>
 #include <string>
 
+static NativeString::size_type schemeLength(NativeString const &path)
+{
+    for (auto const &ch : path) {
+        if (ch == ':')
+            return &ch - &path[0];
+        
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+            continue;
+
+        if (&ch == &path[0]) // first character of scheme must be alpha
+            break;
+
+        if ((ch >= '0' && ch <= '9') || ch == '+' || ch == '-' || ch == '.')
+            continue;
+
+        break;
+    }
+    return 0;
+}
+
 FilePath::FilePath(NativeString const &in) : path(in) {}
+
+bool FilePath::isSimpleName() const {
+    if (schemeLength(path) != 0)
+        return false;
+
+    if (path.find_first_of('/') != NativeString::npos)
+        return false;
+
+    return true;
+}
 
 static std::string trimPath(std::string const &path, bool const issecond = false)
 {

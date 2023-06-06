@@ -84,6 +84,7 @@ $SRASTAT -sx ./$ORG_CSRA | grep -vE "(<Size value)" > before.xml
 SORTED_CSRA="sorted_csra"
 
 #run sra-sort on ORGCSRA, produce
+#echo $SRASORT -f ./$ORG_CSRA ./$SORTED_CSRA
 $SRASORT -f ./$ORG_CSRA ./$SORTED_CSRA
 
 #run sra-stat on the sorted copy, store the xml-output in after.txt

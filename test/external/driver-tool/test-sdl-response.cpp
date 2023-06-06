@@ -859,6 +859,11 @@ static void test_matching_vdbcache() {
                             "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2",
                             "service": "ncbi",
                             "region": "be-md"
+                        },
+                        {
+                            "link": "https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR850901/SRR850901",
+                            "service": "s3",
+                            "region": "us-east-1"
                         }
                     ]
                 },
@@ -874,6 +879,11 @@ static void test_matching_vdbcache() {
                             "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache",
                             "service": "sra-ncbi",
                             "region": "public"
+                        },
+                        {
+                            "link": "https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR850901/SRR850901.vdbcache",
+                            "service": "s3",
+                            "region": "us-east-1"
                         }
                     ]
                 }
@@ -886,33 +896,36 @@ static void test_matching_vdbcache() {
         auto const &raw = Response2::makeFrom(testJSON);
 
         ASSERT(raw.results.size() == 1);
-        auto passed = false;
-        auto const files = raw.results[0].files.size();
-        auto sras = 0;
-        auto srrs = 0;
+        auto const &result = raw.results[0];
 
-        for (auto const &fl : raw.results[0].getByType("sra")) {
+        ASSERT(result.files.size() == 4);
+        auto sras = 0;
+        auto locations = 0;
+
+        for (auto const &fl : result.getByType("sra")) {
             auto const &file = fl.first;
 
             ASSERT(file.type == "sra");
             ++sras;
 
-            if (file.hasExtension(".pileup")) continue;
-            ++srrs;
+            if (file.hasExtension(".pileup"))
+                continue;
+            ++locations;
 
-            auto const vcache = raw.results[0].getCacheFor(fl);
+            auto const vcache = result.getCacheFor(fl);
             ASSERT(vcache >= 0);
 
-            auto const &vdbcache = raw.results[0].flat(vcache).second;
-            ASSERT(vdbcache.service == "sra-ncbi");
-            ASSERT(vdbcache.region == "public");
-
-            passed = true;
+            auto const &vdbcache = result.flat(vcache).second;
+            if (fl.second.service == "ncbi" || fl.second.service == "sra-ncbi") {
+                ASSERT(vdbcache.service == fl.second.service || vdbcache.service == "ncbi" || vdbcache.service == "sra-ncbi");
+            }
+            else {
+                ASSERT(vdbcache.service == fl.second.service);
+                ASSERT(vdbcache.region == fl.second.region);
+            }
         }
-        ASSERT(files == 4);
-        ASSERT(sras == 2);
-        ASSERT(srrs == 1);
-        ASSERT(passed);
+        ASSERT(sras == 3); // 2 files and 3 locations
+        ASSERT(locations == 2);
 
         LOG(8) << "vdbcache location matching passed." << std::endl;
     }
@@ -997,6 +1010,71 @@ static void test_nonmatching_vdbcache() {
     }
 }
 
+static void test_multiple_locations() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "SRR850901",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub|SRR850901",
+                    "type": "sra",
+                    "name": "SRR850901",
+                    "size": 323741972,
+                    "md5": "5e213b2319bd1af17c47120ee8b16dbc",
+                    "modificationDate": "2016-11-19T07:35:20Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2",
+                            "service": "ncbi",
+                            "region": "be-md"
+                        },
+                        {
+                            "link": "https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR850901/SRR850901",
+                            "service": "s3",
+                            "region": "us-east-1"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+)###";
+    try {
+        auto const &raw = Response2::makeFrom(testJSON);
+
+        ASSERT(raw.results.size() == 1);
+        auto const &result = raw.results[0];
+
+        auto passed = false;
+        auto const files = result.files.size();
+        auto locations = 0;
+
+        for (auto const &fl : result.getByType("sra")) {
+            auto const &file = fl.first;
+
+            ASSERT(file.type == "sra");
+            ++locations;
+
+            passed = true;
+        }
+        ASSERT(files == 1);
+        ASSERT(locations == 2);
+        ASSERT(passed);
+
+        LOG(8) << "multiple location matching passed." << std::endl;
+    }
+    catch (Response2::DecodingError const &e) {
+        std::cerr << e << std::endl;
+        throw test_failure(__FUNCTION__);
+    }
+}
+
 #if WINDOWS
 int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
 #else
@@ -1005,6 +1083,7 @@ int main ( int argc, char *argv[], char *envp[])
 {
     try {
         if (test_parsing()) {
+            test_multiple_locations();
             test_matching_vdbcache();
             test_nonmatching_vdbcache();
             return 0;

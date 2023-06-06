@@ -54,6 +54,7 @@
     TOOL_ARG("cell-debug", "", false, TOOL_HELP(0)), \
     TOOL_ARG("cell-v1", "", false, TOOL_HELP(0)), \
     TOOL_ARG("ngc", "", true, TOOL_HELP("path to ngc file", 0)), \
+    TOOL_ARG("view", "", true, TOOL_HELP("view-name", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
 
 #define TOOL_NAME_FASTERQ_DUMP "fasterq-dump" /* from argv[0] */

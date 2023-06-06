@@ -23,9 +23,36 @@
 * ===========================================================================
 *
 */
-#include "column_match.h"
 
-#include <sysalloc.h>
+#ifndef _h_vdb_dump_view_spec_
+#define _h_vdb_dump_view_spec_
 
-#include <stdlib.h>
-#include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <klib/text.h>
+#include <klib/vector.h>
+
+struct VCursor;
+struct VDatabase;
+struct VSchema;
+struct VView;
+
+typedef struct view_spec view_spec;
+struct view_spec
+{
+    char *  name;
+    Vector  args; /* view_spec*; 0 elements if table */
+};
+
+rc_t view_spec_parse ( const char * spec, view_spec ** self, char * error, size_t error_size );
+void view_spec_free ( view_spec * self );
+
+rc_t view_spec_open ( view_spec * self, const struct VDatabase * db, const struct VSchema * schema, const struct VView ** view ) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

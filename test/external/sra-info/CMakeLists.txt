@@ -42,63 +42,80 @@ if(EXISTS "${DIRTOTEST}/sra-info${EXE}")
         COMMAND sh -c "${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    ### command line checking:
+    function( AddCmdlineFailureTest test_name args )
+        add_test( NAME ${test_name}
+            COMMAND sh -c "${DIRTOTEST}/sra-info ${args} 2>actual/${test_name}.stderr"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties(${test_name} PROPERTIES WILL_FAIL TRUE)
+    endfunction()
+
     # fails without parameters
-    add_test( NAME Test_Sra_Info_NoParam
-        COMMAND sh -c "${DIRTOTEST}/sra-info 2>actual/Test_Sra_Info_NoParam.stderr"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties(Test_Sra_Info_NoParam PROPERTIES WILL_FAIL TRUE)
+    AddCmdlineFailureTest( Test_Sra_Info_NoParam "" )
+
     # fails with more than 1 parameter
-    add_test( NAME Test_Sra_Info_MultipleParams
-        COMMAND sh -c "${DIRTOTEST}/sra-info SRR000123 SRR0001234 2>actual/Test_Sra_Info_MultipleParams.stderr"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties(Test_Sra_Info_MultipleParams PROPERTIES WILL_FAIL TRUE)
+    AddCmdlineFailureTest( Test_Sra_Info_MultipleParams "SRR000123 SRR0001234" )
+    # --limit has to be positive
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative "--spot-layout DRR032985 --limit -1" )
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero "--spot-layout DRR032985 --limit 0" )
+
+    ## queries:
+    function( AddQueryTest test_name test_id args )
+        add_test( NAME ${test_name}
+            COMMAND "./runtestcase.sh" "${BINDIR}/sra-info ${args}" "." ${test_id}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endfunction()
 
     # platform
-    add_test( NAME Test_Sra_Info_Platform_Table_1.0
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P SRR000123" "." "1.0"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_CSRA_1.1
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ERR334733" "." "1.1"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Multiple_2.0
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform" "." "2.0"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Reference_3.0
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P NC_000001.11" "." "3.0"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    AddQueryTest( Test_Sra_Info_Platform_Table      1.0 "-P SRR000123" )
+    AddQueryTest( Test_Sra_Info_Platform_CSRA       1.1 "-P ERR334733" )
+    AddQueryTest( Test_Sra_Info_Platform_WGS        1.2 "-P AAAAAA01" )
+    AddQueryTest( Test_Sra_Info_Platform_Multiple   2.0 "-P ./input/MultiPlatform"  )
+    AddQueryTest( Test_Sra_Info_Platform_Reference  3.0 "-P NC_000001.11" )
 
     # formatting
-    add_test( NAME Test_Sra_Info_Platform_Format_CSV_4.1
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f csv" "." "4.1"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_XML_4.2
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f xml" "." "4.2"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_Json_4.3
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f json" "." "4.3"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_Piped_4.4
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f piped" "." "4.4"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Platform_Format_Tab.4.5
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -P ./input/MultiPlatform -f tab" "." "4.5"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    AddQueryTest( Test_Sra_Info_Platform_Format_CSV     4.1 "-P ./input/MultiPlatform -f csv" )
+    AddQueryTest( Test_Sra_Info_Platform_Format_XML     4.2 "-P ./input/MultiPlatform -f xml" )
+    AddQueryTest( Test_Sra_Info_Platform_Format_Json    4.3 "-P ./input/MultiPlatform -f json" )
+    AddQueryTest( Test_Sra_Info_Platform_Format_Tab     4.4 "-P ./input/MultiPlatform -f tab" )
 
     # is-aligned
-    add_test( NAME Test_Sra_Info_IsAligned_No_5.1
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -A SRR000123" "." "5.1"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_IsAligned_Yes_5.2
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --is-aligned ERR334733" "." "5.2"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    AddQueryTest( Test_Sra_Info_IsAligned_No    5.1 "-A SRR000123" )
+    AddQueryTest( Test_Sra_Info_IsAligned_Yes   5.2 "--is-aligned ERR334733" )
 
     # quality
-    add_test( NAME Test_Sra_Info_Quality_Physical_6.1
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info --quality input/MultiPlatform" "." "6.1"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    add_test( NAME Test_Sra_Info_Quality_Physical_6.2
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info -Q NC_000001.10" "." "6.2"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    AddQueryTest( Test_Sra_Info_Quality_Physical        6.1 "--quality ./input/MultiPlatform" )
+    AddQueryTest( Test_Sra_Info_Quality_Physical_Refseq 6.2 "-Q NC_000001.10" )
+
+    # spot layout
+    AddQueryTest( Test_Sra_Info_SpotLayout_Default  7.1 "--spot-layout SRR000123" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_Json     7.2 "--spot-layout -f json SRR000123" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_CSV      7.3 "--spot-layout -f csv SRR000123" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_Tab      7.4 "--spot-layout -f tab SRR000123" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_XML      7.5 "--spot-layout -f xml SRR000123" )
+
+    # PACBIO, uses the CONSENSUS table
+    AddQueryTest( Test_Sra_Info_SpotLayout_Pacbio_Consensus 7.6.1 "--spot-layout DRR032985 --limit 100" )
+    # PACBIO, uses the SEQUENCE table
+    AddQueryTest( Test_Sra_Info_SpotLayout_Pacbio_Sequence 7.6.2 "--spot-layout DRR032985 --limit 100 --sequence" )
+
+    # TODO: find a smaller CG run
+    AddQueryTest( SlowTest_Sra_Info_SpotLayout_CG 7.7 "--spot-layout SRR546160 --limit 100" )
+
+    # spot layout, detail level
+    AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Short         7.8.1 "--spot-layout SRR000123 --detail 0" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Abbreviated   7.8.2 "--spot-layout SRR000123 --detail 1" )
+    AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Full          7.8.3 "--spot-layout SRR000123 --detail 2" )
+
+    # # multiple queries
+    # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
+    # COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
+    # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    # # the default set of queries
+    # add_test( NAME Test_Sra_Info_Default.8.0
+    #     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
+    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
     message(WARNING "${DIRTOTEST}/sra-info${EXE} is not found. The corresponding tests are skipped." )

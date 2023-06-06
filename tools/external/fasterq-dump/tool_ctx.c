@@ -172,9 +172,6 @@ static rc_t tctx_print( const tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "out/tmp on same fs   : '%s'\n", hlp_yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
     }
-    if ( 0 == rc ) {
-        rc = KOutMsg( "out/tmp on same fs   : '%s'\n", hlp_yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
-    }
     if ( ft_fasta_ref_tbl == tool_ctx -> fmt ) {
         if ( 0 == rc ) {        
             rc = KOutMsg( "only internal ref    : '%s'\n", hlp_yes_or_no( tool_ctx -> only_internal_refs ) );
@@ -658,30 +655,30 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
 
     /* enforce some constrains: thread-count, mem-limit, buffer-size, stdout, only-aligned/unaligned */
     if ( 0 == rc ) {
-        rc = tctx_encforce_constrains( tool_ctx ); /* above */
+        rc = tctx_encforce_constrains( tool_ctx );
     }
 
     /* extract the accesion-string, for output- and temp-files to use */
     if ( 0 == rc ) {
-        rc = tctx_extract_short_accession( tool_ctx ); /* above */
+        rc = tctx_extract_short_accession( tool_ctx );
     }
 
     /* create the temp. directory ( only if we need it! ) */
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
         rc = make_temp_dir( &tool_ctx -> temp_dir,
                         tool_ctx -> requested_temp_path,
-                        tool_ctx -> dir ); /* temp_dir.c */
+                        tool_ctx -> dir );
     }
 
     /* create the lookup- and index-filenames ( only if we need it! ) */
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = tctx_create_lookup_and_index_path( tool_ctx ); /* above */
+        rc = tctx_create_lookup_and_index_path( tool_ctx );
     }
 
     /* if an output-directory is explicity given from the commandline: create if not exists */
     if ( 0 == rc && NULL != tool_ctx -> output_dirname && cmt_only != tool_ctx -> check_mode ) {
-        if ( !ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
-            rc = ft_create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
+        if ( !ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) {
+            rc = ft_create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true );
         }
     }
 
@@ -690,23 +687,23 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
         if ( NULL == tool_ctx -> output_filename ) {
             /* no output-filename has been given on the commandline */
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = tctx_make_output_filename_from_accession( tool_ctx, fasta ); /* above */
+                rc = tctx_make_output_filename_from_accession( tool_ctx, fasta );
             } else {
-                rc = tctx_make_output_filename_from_dir_and_accession( tool_ctx, fasta ); /* above */
+                rc = tctx_make_output_filename_from_dir_and_accession( tool_ctx, fasta );
             }
         } else {
             /* there is an output-filename on the commandline */
             if ( NULL == tool_ctx -> output_dirname ) {
                 rc = tctx_resolve_output_filename( tool_ctx );
                 if ( 0 == rc ) {
-                    rc = tctx_adjust_output_filename( tool_ctx ); /* above */
+                    rc = tctx_adjust_output_filename( tool_ctx );
                 }
             } else {
-                rc = tctx_adjust_output_filename_by_dir( tool_ctx ); /* above */
+                rc = tctx_adjust_output_filename_by_dir( tool_ctx );
             }
         }
         if ( 0 == rc && cmt_only != tool_ctx -> check_mode ) {
-            rc = tctx_check_output_exits( tool_ctx ); /* above */
+            rc = tctx_check_output_exits( tool_ctx );
         }
     }
 
@@ -742,7 +739,7 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
         bool use_name = true;
 
         /* use_read_id should be true if the output is a single file */
-        bool use_read_id = tctx_does_format_produce_reads_in_a_single_file( tool_ctx -> fmt ); /* above*/
+        bool use_read_id = tctx_does_format_produce_reads_in_a_single_file( tool_ctx -> fmt );
 
         if ( NULL == tool_ctx -> seq_defline ) {
             tool_ctx -> seq_defline  = dflt_seq_defline( has_name, use_name, use_read_id, fasta ); /* dflt_defline.c */
@@ -752,12 +749,27 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
         }
     }
 
+    /* special check if we have a combination of split-3 and include-technical */
+    if ( 0 == rc ) {
+        bool split_3_requested = ( ft_fasta_split_3 == tool_ctx -> fmt || ft_fastq_split_3 == tool_ctx -> fmt );
+        bool include_technical = !( tool_ctx -> join_options . skip_tech );
+        if ( split_3_requested && include_technical ) {
+            /* warn the user, and switch to split-file-mode */
+            StdErrMsg( "split-3-mode cannot be combined with include-technical -> switching to split-file-mode\n" );
+            switch ( tool_ctx -> fmt ) {
+                case ft_fasta_split_3 : tool_ctx -> fmt = ft_fasta_split_file; break;
+                case ft_fastq_split_3 : tool_ctx -> fmt = ft_fastq_split_file; break;
+                default : ;
+            }
+        }
+    }
+        
     /* evaluate the free-disk-space according the os */
-    if ( 0 == rc ) { tctx_get_disk_limits( tool_ctx ); /* above */  }
+    if ( 0 == rc ) { tctx_get_disk_limits( tool_ctx ); }
 
     /* create an estimation of the output-size */
-    if ( 0 == rc && hlp_is_perform_check( tool_ctx -> check_mode ) /* helper.c */ ) {
-        insp_estimate_input_t iei; /* inspector.h */
+    if ( 0 == rc && hlp_is_perform_check( tool_ctx -> check_mode ) ) {
+        insp_estimate_input_t iei;
 
         iei . insp = &( tool_ctx -> insp_output );
         iei . seq_defline  = tool_ctx -> seq_defline;
@@ -772,20 +784,22 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
         tool_ctx -> estimated_output_size = insp_estimate_output_size( &iei );
     }
 
+    /* determine if output and temp. path are on the same file-systme ( work is in helper-function ) */
     if ( 0 == rc ) {
         tool_ctx -> out_and_tmp_on_same_fs = hlp_paths_on_same_filesystem(
-            tool_ctx -> output_filename, get_temp_dir( tool_ctx -> temp_dir ) ); /* helper.c */
+            tool_ctx -> output_filename, get_temp_dir( tool_ctx -> temp_dir ) );
     }
 
     /* print all the values gathered here, if requested */
     if ( 0 == rc && tool_ctx -> show_details ) {
-        rc = tctx_print( tool_ctx ); /* above */
+        rc = tctx_print( tool_ctx );
     }
 
+    /* check if we have enough space, based on the check-mode */
     if ( 0 == rc ) {
         switch( tool_ctx -> check_mode ) { /* check-mode defined in helper.h */
             case cmt_on     :
-            case cmt_only   : rc = tctx_check_available_disk_size( tool_ctx ); break; /* above */
+            case cmt_only   : rc = tctx_check_available_disk_size( tool_ctx ); break;
             default         : break;
         }
     }

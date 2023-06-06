@@ -30,34 +30,25 @@
 
 using namespace std;
 
-    typedef enum {
-        Default,
-        CSV,
-        XML,
-        Json,
-        Piped,
-        Tab
-    } Format;
-Formatter::Format 
+Formatter::Format
 Formatter::StringToFormat( const string & value )
 {
     string lowercase = value;
     std::transform(
-        lowercase.begin(), 
-        lowercase.end(), 
+        lowercase.begin(),
+        lowercase.end(),
         lowercase.begin(),
         [](unsigned char c){ return tolower(c); }
     );
     if ( lowercase == "csv" ) return CSV;
     if ( lowercase == "xml" ) return XML;
     if ( lowercase == "json" ) return Json;
-    if ( lowercase == "piped" ) return Piped;
     if ( lowercase == "tab" ) return Tab;
     throw VDB::Error( string("Invalid value for the --format option: ") + value );
 }
 
-Formatter::Formatter( Format f )
-: fmt( f )
+Formatter::Formatter( Format f, uint32_t l )
+: fmt( f ), limit( l )
 {
 }
 
@@ -66,10 +57,10 @@ Formatter::~Formatter()
 }
 
 string
-JoinPlatforms( const SraInfo::Platforms & platforms, 
-               const string & separator, 
-               const string & prefix = string(), 
-               const string & suffix = string() 
+JoinPlatforms( const SraInfo::Platforms & platforms,
+               const string & separator,
+               const string & prefix = string(),
+               const string & suffix = string()
 )
 {
     string ret;
@@ -86,13 +77,12 @@ JoinPlatforms( const SraInfo::Platforms & platforms,
     return ret;
 }
 
-string 
+string
 Formatter::format( const SraInfo::Platforms & platforms ) const
-{   
+{
     switch ( fmt )
     {
     case Default:
-    case Piped:
         // default format, 1 value per line
         return JoinPlatforms( platforms, "\n" );
     case CSV:
@@ -112,13 +102,12 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
     }
 }
 
-string 
+string
 Formatter::format( const string & value ) const
-{   
+{
     switch ( fmt )
     {
     case Default:
-    case Piped:
     case CSV:
     case XML:
     case Tab:
@@ -128,4 +117,204 @@ Formatter::format( const string & value ) const
     default:
         throw VDB::Error( "unsupported formatting option");
     }
+}
+
+string
+Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail ) const
+{
+    ostringstream ret;
+
+    size_t count = layouts.size();
+    if ( limit != 0 && limit < count )
+    {
+        count = limit;
+    }
+
+    switch ( fmt )
+    {
+    case Default:
+        {
+            bool first_group = true;
+            for( size_t i = 0; i < count; ++i )
+            {
+                if ( first_group )
+                {
+                    first_group = false;
+                }
+                else
+                {
+                    ret << endl;
+                }
+
+                const SraInfo::SpotLayout & l = layouts[i];
+                bool  first = true;
+                ret << l.count << ( l.count == 1 ? " spot: " : " spots: " );
+                switch( detail )
+                {
+                case SraInfo::Short: ret << l.reads.size() << " reads"; break;
+                case SraInfo::Abbreviated:
+                    for ( auto r : l.reads )
+                    {
+                        ret << r.Encode( detail );
+                    }
+                    break;
+                default:
+                    for ( auto r : l.reads )
+                    {
+                        if ( first )
+                        {
+                            first = false;
+                        }
+                        else
+                        {
+                            ret << ", ";
+                        }
+                        ret << r.Encode( detail );
+                    }
+                }
+            }
+        }
+        break;
+
+    case Json:
+        {
+            ret << "[" << endl;
+            bool  first_layout = true;
+            for( size_t i = 0; i < count; ++i )
+            {
+                const SraInfo::SpotLayout & l = layouts[i];
+                if ( first_layout )
+                {
+                    first_layout = false;
+                }
+                else
+                {
+                    ret << "," << endl;
+                }
+
+                bool  first_read = true;
+                ret << "{ \"count\": " << l.count << ", \"reads\": ";
+
+                switch( detail )
+                {
+                case SraInfo::Short: ret << l.reads.size(); break;
+                case SraInfo::Abbreviated:
+                    ret << "\"";
+                    for ( auto r : l.reads )
+                    {
+                        ret << r.Encode( detail );
+                    }
+                    ret << "\"";
+                    break;
+                default:
+                    ret << "[";
+                    for ( auto r : l.reads )
+                    {
+                        if ( first_read )
+                        {
+                            first_read = false;
+                        }
+                        else
+                        {
+                            ret << ", ";
+                        }
+                        ret << "{ \"type\": \"" << r.TypeAsString(detail) << "\", \"length\": " << r.length << " }";
+                    }
+                    ret << "]";
+                }
+
+                ret << " }";
+            }
+            ret << endl << "]" << endl;
+        }
+        break;
+
+    case CSV:
+        for( size_t i = 0; i < count; ++i )
+        {
+            const SraInfo::SpotLayout & l = layouts[i];
+            switch( detail )
+            {
+            case SraInfo::Short:
+                ret << l.count << ", " << l.reads.size() << ", ";
+                break;
+            case SraInfo::Abbreviated:
+                ret << l.count << ", ";
+                for ( auto r : l.reads )
+                {
+                    ret << r.Encode(detail);
+                }
+                break;
+            default:
+                ret << l.count << ", ";
+                for ( auto r : l.reads )
+                {
+                    ret << r.TypeAsString(detail) << ", " << r.length << ", ";
+                }
+            }
+            ret << endl;
+        }
+        break;
+
+    case Tab:
+        for( size_t i = 0; i < count; ++i )
+        {
+            const SraInfo::SpotLayout & l = layouts[i];
+            switch( detail )
+            {
+            case SraInfo::Short:
+                ret << l.count << "\t" << l.reads.size() << "\t";
+                break;
+            case SraInfo::Abbreviated:
+                ret << l.count << "\t";
+                for ( auto r : l.reads )
+                {
+                    ret << r.Encode(detail);
+                }
+                break;
+            default:
+                ret << l.count << "\t";
+                for ( auto r : l.reads )
+                {
+                    ret << r.TypeAsString(detail)  << "\t" << r.length << "\t";
+                }
+            }
+            ret << endl;
+        }
+        break;
+
+    case XML:
+        for( size_t i = 0; i < count; ++i )
+        {
+            const SraInfo::SpotLayout & l = layouts[i];
+            ret << "<layout><count>" << l.count << "</count>";
+            switch( detail )
+            {
+            case SraInfo::Short:
+                ret << "<reads>" << l.reads.size() << "</reads>";
+                break;
+            case SraInfo::Abbreviated:
+                ret << "<reads>";
+                for ( auto r : l.reads )
+                {
+                    ret << r.Encode(detail);
+                }
+                ret << "</reads>";
+                break;
+            default:
+                for ( auto r : l.reads )
+                {
+                    ret << "<read><type>" << r.TypeAsString(detail) << "</type><length>" << r.length << "</length></read>";
+                }
+            }
+
+            ret << "</layout>" << endl;
+        }
+        break;
+
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+
+    return ret.str();
 }

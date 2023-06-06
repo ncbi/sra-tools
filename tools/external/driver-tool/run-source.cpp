@@ -419,6 +419,8 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
         auto const accession = Accession(filename);
         auto const isaRun = accession.type() == run;
 
+        if (path.isSimpleName())
+            i.second["simple"] = "YES";
         if (!path.exists())
             return;
         LOG(9) << "Examining path: " << name << std::endl;
@@ -492,11 +494,14 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         std::vector<std::string> terms;
 
         for (auto const &i : queryInfo) {
-            auto const f = i.second.find("local");
-            if (f == i.second.end())
+            if (DictionaryHasKey(i.second, "local")) {
+                LOG(9) << "already found " << i.first << " locally." << std::endl;
+            }
+            else if (DictionaryHasKey(i.second, "simple")) {
                 terms.emplace_back(i.first);
+            }
             else {
-                LOG(9) << "already found " << i.first << " at path " << f->second << std::endl;
+                LOG(9) << "Not sending " << i.first << " to resolver." << std::endl;
             }
         }
         if (terms.empty()) {

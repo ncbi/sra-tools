@@ -36,12 +36,17 @@ endif()
 # set of build targets
 
 # external tools are always included
-set(BUILD_TOOLS_INTERNAL "OFF" CACHE STRING "If set to ON, build internal tools")
-set(BUILD_TOOLS_LOADERS "OFF" CACHE STRING "If set to ON, build loaders")
-set(BUILD_TOOLS_TEST_TOOLS "OFF" CACHE STRING "If set to ON, build test tools")
-set(TOOLS_ONLY "OFF" CACHE STRING  "If set to ON, generate tools targets only")
+set(BUILD_TOOLS_INTERNAL    "OFF" CACHE STRING "If set to ON, build internal tools")
+set(BUILD_TOOLS_LOADERS     "OFF" CACHE STRING "If set to ON, build loaders")
+set(BUILD_TOOLS_TEST_TOOLS  "OFF" CACHE STRING "If set to ON, build test tools")
+set(TOOLS_ONLY              "OFF" CACHE STRING "If set to ON, generate tools targets only")
 
 option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
+
+message( "BUILD_TOOLS_INTERNAL=${BUILD_TOOLS_INTERNAL}" )
+message( "BUILD_TOOLS_LOADERS=${BUILD_TOOLS_LOADERS}" )
+message( "BUILD_TOOLS_TEST_TOOLS=${BUILD_TOOLS_TEST_TOOLS}" )
+message( "TOOLS_ONLY=${TOOLS_ONLY}" )
 
 # ===========================================================================
 

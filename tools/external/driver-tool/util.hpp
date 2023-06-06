@@ -49,6 +49,15 @@
 #include <vector>
 
 using Dictionary = std::map<std::string, std::string>;
+static inline bool DictionaryHasKey(Dictionary const &dict, std::string const &key)
+{
+    return dict.end() != dict.find(key);
+}
+static inline bool DictionaryValueMatches(Dictionary const &dict, std::string const &key, std::string const &query)
+{
+    auto const fnd = dict.find(key);
+    return fnd != dict.end() && fnd->second == query;
+}
 
 #if __cpp_lib_string_udls && !MS_Visual_C
 #define STD_STRING_LITERAL(STR) STR ## s

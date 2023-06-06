@@ -24,10 +24,6 @@
 
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
 
-message( "BUILD_TOOLS_INTERNAL=${BUILD_TOOLS_INTERNAL}" )
-message( "BUILD_TOOLS_LOADERS=${BUILD_TOOLS_LOADERS}" )
-message( "BUILD_TOOLS_TEST_TOOLS=${BUILD_TOOLS_TEST_TOOLS}" )
-
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )
 	add_subdirectory( loaders )

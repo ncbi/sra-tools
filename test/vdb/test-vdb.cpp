@@ -46,9 +46,9 @@ TEST_CASE(Error_RcToString)
     rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
 #if DEBUG
     const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#else 
+#else
     const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#endif    
+#endif
     REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)
@@ -168,6 +168,18 @@ TEST_CASE(Database_Table_Good)
     Table t = d["SEQUENCE"];
 }
 
+TEST_CASE(Database_hasTable_Yes)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    REQUIRE( d.hasTable("SEQUENCE"));
+}
+
+TEST_CASE(Database_hasTable_No)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    REQUIRE( ! d.hasTable("SHMEQUENCE"));
+}
+
 class SequenceTableFixture
 {
 protected:
@@ -180,6 +192,16 @@ protected:
 };
 
 // VDB::Table
+
+TEST_CASE(Table_Default)
+{
+    Table t;
+}
+FIXTURE_TEST_CASE(Table_Assign, SequenceTableFixture)
+{
+    Table tt;
+    tt = t;
+}
 
 FIXTURE_TEST_CASE(Table_ReadCursor1_BadColumn, SequenceTableFixture)
 {
@@ -274,7 +296,7 @@ FIXTURE_TEST_CASE(Cursor_ForEachWithFilter, SequenceTableFixture)
             REQUIRE_EQ( size_t(0), values.size() );
         }
     };
-    auto filter = [&]( const Cursor & cur, Cursor::RowID row ) -> bool { return bool(row % 2); };
+	auto filter = [&](const Cursor & cur, Cursor::RowID row) -> bool { UNUSED(cur);  return bool(row % 2); };
     uint64_t n = c.foreach( filter, check );
     REQUIRE_EQ( (uint64_t)2607, n );
 }
@@ -324,7 +346,11 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
+#if WINDOWS
+int wmain (int argc, char *argv [])
+#else
 int main (int argc, char *argv [])
+#endif
 {
     return VdbTestSuite(argc, argv);
 }

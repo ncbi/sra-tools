@@ -25,6 +25,8 @@
 add_compile_definitions( __mod__="test/sra-sort" )
 
 if ( NOT WIN32 )
+if (OpenSSL_FOUND)
+
     ToolsRequired(sra-sort kar bam-load sra-stat sam-factory)
 
     # if directory /export/home/TMP does not exist, the script will not run and exit with 0
@@ -42,4 +44,5 @@ if ( NOT WIN32 )
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
+endif()
 endif()

@@ -23,6 +23,8 @@
 # ===========================================================================
 
 if ( "linux" STREQUAL ${OS} )
+if (OpenSSL_FOUND)
+
     ToolsRequired(sam-dump sam-factory bam-load kar)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
@@ -45,4 +47,5 @@ if ( "linux" STREQUAL ${OS} )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties( Test_sam_dump_star_quality PROPERTIES FIXTURES_REQUIRED SamDumpTest )
 
+    endif()
 endif()

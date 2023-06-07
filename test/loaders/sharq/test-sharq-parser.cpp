@@ -1200,6 +1200,29 @@ FIXTURE_TEST_CASE(PacBioTests, LoaderFixture)
     }
 }
 
+FIXTURE_TEST_CASE(illuminaOldBcRnOnly, LoaderFixture)
+{   
+    fastq_reader reader("test", create_stream(_READ("_2_#GATCAGAT/1", "GAAA", "IIII")), {}, 2);
+    CFastqRead read;
+    THROW_ON_FALSE( reader.get_read(read) );
+    THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_UNDEFINED);
+    REQUIRE_EQ(reader.defline_type(), string("illuminaOldBcRnOnly"));
+    REQUIRE_EQ(read.Spot(), string("_2_"));
+    REQUIRE_EQ(read.SpotGroup(), string("GATCAGAT"));
+    REQUIRE_EQ(read.ReadNum(), string("1"));
+}
+
+FIXTURE_TEST_CASE(illuminaOldBcOnly, LoaderFixture)
+{   
+    fastq_reader reader("test", create_stream(_READ("@Read_190546#BC005 length=1419", "GAAA", "IIII")), {}, 2);
+    CFastqRead read;
+    THROW_ON_FALSE( reader.get_read(read) );
+    THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_UNDEFINED);
+    REQUIRE_EQ(reader.defline_type(), string("illuminaOldBcOnly"));
+    REQUIRE_EQ(read.Spot(), string("Read_190546"));
+    REQUIRE_EQ(read.SpotGroup(), string("BC005"));
+    REQUIRE(read.ReadNum().empty());
+}
 
 ////////////////////////////////////////////
 

@@ -247,11 +247,6 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
         opt->add_flag("--debug", mDebug, "Debug mode");
 
-        mReport["version"] = SHARQ_VERSION;
-        // save cmd args
-        //for (int i = 1; i < argc; ++i)
-        //    mReport["args"].push_back(argv[i]);
-
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
             fastq_error::print_error_codes(cout);
@@ -284,6 +279,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         if (mNoTimeStamp)
             spdlog::set_pattern("[%l] %v");
+        else        
+            mReport["version"] = SHARQ_VERSION;
+
 
         xSetupOutput();
 
@@ -637,7 +635,7 @@ int CFastqParseApp::xRun()
     } catch (exception& e) {
         if (!mTelemetryFile.empty()) 
             parser.report_telemetry(mReport);
-        throw e;
+        throw;
     }
     if (!mTelemetryFile.empty()) 
         parser.report_telemetry(mReport);
@@ -723,7 +721,7 @@ int CFastqParseApp::xRunSpotAssembly()
     } catch (exception& e) {
         if (!mTelemetryFile.empty()) 
             parser.report_telemetry(mReport);
-        throw e;        
+        throw;        
     }
     if (!mTelemetryFile.empty()) 
         parser.report_telemetry(mReport);

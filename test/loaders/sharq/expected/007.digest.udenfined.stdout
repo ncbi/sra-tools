@@ -9,13 +9,13 @@
                         "undefined"
                     ],
                     "file_path": "input/001.read.unsupported.fq",
-                    "file_size": 553,
-                    "first_name": "200/1",
+                    "file_size": 562,
+                    "first_name": "SRA56789",
                     "has_orphans": false,
                     "is_compressed": false,
                     "lines_processed": 12,
                     "max_reads": 1,
-                    "name_size_avg": 5,
+                    "name_size_avg": 6,
                     "platform_code": [
                         0
                     ],

@@ -128,11 +128,11 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio4);
-    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
-    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
-    //mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);
+    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
+    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
+    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);

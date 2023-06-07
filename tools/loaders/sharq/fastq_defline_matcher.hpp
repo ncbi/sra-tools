@@ -228,8 +228,8 @@ public:
         sub_re1(R"(([!-~]*?)(:)(\d+)$)"),
         sub_re2(R"(([!-~]*?)(:)(\d+)(:)(\d+)(\s+|$))"),
         sub_re3(R"((\d+)(:)(\d+)(\s+|$))"),
-        illuminaOldSuffix2(R"((-?\d+\.\d+|-?\d+)([^\d\s.]{1}[!-~]+))"),
-        illuminaOldSuffix(R"((/[12345])([^\d\s]{1}[!-~]+))")
+        illuminaOldSuffix2(R"((-?\d+\.\d+|-?\d+)([^\d\s.][!-~]+))"),
+        illuminaOldSuffix(R"((/[12345])([^\d\s][!-~]+))")
     {
         
     }
@@ -430,7 +430,7 @@ public:
     CDefLineMatcherIlluminaNewWithSuffix() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNewWithSuffix",
-            R"(^[@>+]([!-~]+)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)([!-/:-~]{1}[!-~]*?\s+|[!-/:-~]{1}[!-~]*?[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))"),
+            R"(^[@>+]([!-~]+)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)([!-/:-~][!-~]*?\s+|[!-/:-~][!-~]*?[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))"),
         mSuffixPattern("(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)")
     {
     }
@@ -552,7 +552,7 @@ public:
     CDefLineMatcherBgiOld() :
         CDefLineMatcher(
             "BgiOld",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))")
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -589,7 +589,8 @@ public:
     CDefLineMatcherBgiNew() :
         CDefLineMatcher(
             "BgiNew",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$))")
+
     {}
 
     uint8_t GetPlatform() const override {
@@ -1001,10 +1002,9 @@ public:
 };
 
 /*
-        self.ionTorrent = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(/[12345]|\\[12345]|[LR])?(\s+|$)")
-        self.ionTorrent2 = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
+    self.ionTorrent = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([^#/\s]*)(#[!-~]*?|)(/[12345]|\\[12345]|[LR])?(\s+|$)")
+    self.ionTorrent2 = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$)")
 */
-
 class CDefLineMatcherIonTorrent : public CDefLineMatcher
 /// ION_TORRENT
 {
@@ -1012,7 +1012,7 @@ public:
     CDefLineMatcherIonTorrent() :
         CDefLineMatcher(
             "IonTorrent",
-            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(/[12345]|\\[12345]|[LR])?(\s+|$))")
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([^#/\s]*)(#[!-~]*?|)(/[12345]|\\[12345]|[LR])?(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1022,8 +1022,8 @@ public:
     virtual void GetMatch(CFastqRead& read) override
     {
         // runId, sep1, row, sep2, column, readNum, endSep
-        // 0      1     2    3     4       5
-
+        // runId, sep1, row, sep2, column, suffix, spotGroup, readNum, endSep
+        // 0      1     2    3     4       5       6          7        8 
         m_tmp_spot.clear();
 
         re.GetMatch()[0].AppendToString(&m_tmp_spot); //runId
@@ -1032,16 +1032,29 @@ public:
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //sep2
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
         read.MoveSpot(move(m_tmp_spot));
+        auto& suffix = re.GetMatch()[5];
 
-        auto readNum = re.GetMatch()[5];
-        if (readNum.starts_with("/") || readNum.starts_with("\\")) 
-            readNum.remove_prefix(1);
-        else if (readNum == "L")
-            readNum = "1";
-        else if (readNum == "R")
-            readNum = "2";
-        read.SetReadNum(readNum);
+        auto& spotGroup = re.GetMatch()[6];
+        if (!spotGroup.empty()) 
+            read.SetSpotGroup(spotGroup);            
 
+        auto& readNum = re.GetMatch()[7];
+        static const re2::StringPiece readNum1{"1"};
+        static const re2::StringPiece readNum2{"2"};
+
+        if (readNum.empty() && !suffix.empty() && (suffix[0] == 'L' || suffix[0] == 'R')) {
+            assert(suffix.size() == 1 && (suffix[0] == 'L' || suffix[0] == 'R'));
+            read.SetReadNum( suffix == "L" ? readNum1 : readNum2 );
+        } else {
+            read.SetSuffix(suffix);
+            if (readNum.starts_with("/") || readNum.starts_with("\\")) 
+                readNum.remove_prefix(1);
+            else if (readNum == "L")
+                readNum = "1";
+            else if (readNum == "R")
+                readNum = "2";
+            read.SetReadNum(readNum);
+        }
     }
 };
 
@@ -1053,7 +1066,7 @@ public:
     CDefLineMatcherIonTorrent2() :
         CDefLineMatcher(
             "IonTorrent2",
-            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1065,6 +1078,10 @@ public:
         // runId, sep1, row, sep2, column, readNum, filterRead, reserved, spotGroup, endSep
         // 0      1     2    3     4       5        6           7         8          9 
 
+        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, suffix, spotGroup, endSep
+        // 0      1     2    3     4       5       6     7         8          9         10      11         12     
+
+
         m_tmp_spot.clear();
 
         re.GetMatch()[0].AppendToString(&m_tmp_spot); //runId
@@ -1074,11 +1091,13 @@ public:
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
         read.MoveSpot(move(m_tmp_spot));
 
-        read.SetReadNum(re.GetMatch()[5]);
+        read.SetSuffix(re.GetMatch()[5]);
 
-        read.SetSpotGroup(re.GetMatch()[8]);
+        read.SetReadNum(re.GetMatch()[7]);
 
-        read.SetReadFilter(re.GetMatch()[6] == "Y" ? 1 : 0);
+        read.SetReadFilter(re.GetMatch()[8] == "Y" ? 1 : 0);
+
+        read.SetSpotGroup(re.GetMatch()[11]);
     }
 };
 

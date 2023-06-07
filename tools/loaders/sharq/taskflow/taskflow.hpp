@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/executor.hpp"
+#include "core/async.hpp"
 #include "algorithm/critical.hpp"
-#include "algorithm/for_each.hpp"
 
 /**
 @dir taskflow
@@ -33,8 +33,8 @@
 // TF_VERSION / 100 % 1000 is the minor version
 // TF_VERSION / 100000 is the major version
 
-// current version: 3.5.0
-#define TF_VERSION 300500
+// current version: 3.6.0
+#define TF_VERSION 300600
 
 #define TF_MAJOR_VERSION TF_VERSION/100000
 #define TF_MINOR_VERSION TF_VERSION/100%1000
@@ -57,7 +57,7 @@ namespace detail { }
 Release notes are available here: https://taskflow.github.io/taskflow/Releases.html
 */
 constexpr const char* version() {
-  return "3.5.0";
+  return "3.6.0";
 }
 
 

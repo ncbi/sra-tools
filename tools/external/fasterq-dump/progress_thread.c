@@ -132,7 +132,7 @@ rc_t bg_progress_make( bg_progress_t ** bgp, uint64_t max_value, uint32_t sleep_
         atomic64_set( &p -> max_value, max_value );
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
         p -> digits = digits == 0 ? 2 : digits;
-        rc = helper_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        rc = hlp_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
         if ( 0 != rc ) {
             ErrMsg( "progress_thread.c helper_make_thread( bg-progress-thread ) -> %R", rc );
             free( p );
@@ -237,7 +237,7 @@ rc_t bg_update_make( bg_update_t ** bga, uint32_t sleep_time )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
-        rc = helper_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        rc = hlp_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
         if ( 0 != rc ) {
             ErrMsg( "progress_thread.c helper_make_thread( bg-update-thread ) -> %R", rc );
             free( p );

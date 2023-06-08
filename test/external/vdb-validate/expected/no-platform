@@ -1,0 +1,5 @@
+info: Table 'no-platform' metadata: md5 ok
+info: Column 'ORIGINAL_QUALITY': checksums ok
+info: Column 'RAW_NAME': checksums ok
+info: Column 'READ': checksums ok
+info: Table 'no-platform' is consistent

@@ -602,6 +602,7 @@ int CFastqParseApp::xRun()
     xCreateWriterFromDigest(data);
 
     fastq_parser<fastq_writer> parser(m_writer);
+    tf::Executor executor(2);
     try {
         if (!mDebug)
             parser.set_spot_file(mSpotFile);
@@ -613,13 +614,13 @@ int CFastqParseApp::xRun()
             if (!group["files"].empty()) {
                 switch ((int)group["files"].front()["quality_encoding"]) {
                     case 0:
-                        parser.parse<validator_options<eNumeric, -5, 40>>(err_checker);
+                        parser.parse<validator_options<eNumeric, -5, 40>>(executor, err_checker);
                         break;
                     case 33:
-                        parser.parse<validator_options<ePhred, 33, 126>>(err_checker);
+                        parser.parse<validator_options<ePhred, 33, 126>>(executor, err_checker);
                         break;
                     case 64:
-                        parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
+                        parser.parse<validator_options<ePhred, 64, 126>>(executor, err_checker);
                         break;
                     default:
                         throw runtime_error("Invalid quality encoding");

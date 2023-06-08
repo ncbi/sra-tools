@@ -489,7 +489,7 @@ public:
      * @param err_checker - lambda invoked on fastq_error during read parsing
      */
     template<typename ScoreValidator, typename ErrorChecker>
-    void parse(ErrorChecker&& err_checker);
+    void parse(tf::Executor& executor, ErrorChecker&& err_checker);
 
     template<typename ScoreValidator, typename ErrorChecker, typename T>
     void for_each_read(tf::Executor& executor, ErrorChecker&& error_checker, T&& func);
@@ -1082,7 +1082,7 @@ void serialize_vec(const string& file_name, str_sv_type& vec)
  */
 template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker>
-void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
+void fastq_parser<TWriter>::parse(tf::Executor& executor, ErrorChecker&& error_checker)
 {
     size_t spotCount = 0;
     size_t readCount = 0;
@@ -1091,7 +1091,6 @@ void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker)
     spdlog::info("Parsing from {} files", m_readers.size());
     auto spot_names_bi = m_spot_names.get_back_inserter();
 
-    tf::Executor executor(12);
 #ifndef _OLD_TELEMETRY_
     update_telemetry_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
 #if defined(_OLD_TASKFLOW_)

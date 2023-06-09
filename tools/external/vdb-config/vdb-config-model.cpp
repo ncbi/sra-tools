@@ -803,12 +803,14 @@ vdbconf_model::get_temp_cache_location(void) const
 {
     char buf [ PATH_MAX ];
     size_t written;
+    // KConfig_Get_Temp_Cache() returns the path in native form already - on Windows
     MODEL_THROW_ON_RC ( KConfig_Get_Temp_Cache ( _config.Get(), buf, sizeof buf, & written ) );
     return string ( buf, written );
 }
 void
 vdbconf_model::set_temp_cache_location(const std::string & path)
 {
+    // KConfig_Set_Temp_Cache() internally converts the path into internal form - on Windows
     MODEL_THROW_ON_RC ( KConfig_Set_Temp_Cache ( _config.Get(), path . c_str() ) );
     _config.Updated();
 }

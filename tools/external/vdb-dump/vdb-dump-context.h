@@ -84,10 +84,6 @@ extern "C" {
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD            "spread"
 #define OPTION_APPEND            "append"
-
-#define OPTION_NAT2INT           "nat2int"
-#define OPTION_INT2NAT           "int2nat"
-
 #define OPTION_SLICE             "slice"
 
 #define OPTION_CELL_DEBUG        "cell-debug"
@@ -210,8 +206,6 @@ typedef struct dump_context
     bool append;
     bool cell_debug;
     bool cell_v1;
-    bool nat2int;
-    bool int2nat;
     
 } dump_context;
 typedef dump_context* p_dump_context;

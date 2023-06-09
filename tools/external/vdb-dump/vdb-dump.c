@@ -127,8 +127,6 @@ static const char * ngc_usage[]                 = { "path to ngc file",         
 /* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
 static const char * slice_usage[]               = { "find a slice of given depth",                  NULL };
-static const char * nat_2_int_usage[]           = { "translate path from native to internal",       NULL };
-static const char * int_2_nat_usage[]           = { "translate path from internal to native",       NULL };
 
 /* OPTION_XXX and ALIAS_XXX in vdb-dump-contest.h */
 OptDef DumpOptions[] =
@@ -178,10 +176,6 @@ OptDef DumpOptions[] =
     { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
     { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
-    
-    { OPTION_NAT2INT,               NULL,                     NULL, nat_2_int_usage,         1, false,  false },
-    { OPTION_INT2NAT,               NULL,                     NULL, int_2_nat_usage,         1, false,  false },
-    
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
     { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
@@ -2492,28 +2486,6 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
             if ( ctx -> version_requested )
             {
                 rc = vdh_show_manager_version( mgr );
-            }
-            else if ( ctx -> nat2int )
-            {
-                const char * example = "C:\\p1\\p2\\p3";
-                char buffer[ 4096 ];
-                size_t written = 0;
-                rc = native_to_internal( example, buffer, sizeof buffer, &written );
-                if ( 0 == rc ) {
-                    buffer[ written ] = 0;
-                    rc = KOutMsg( "NAT to INT : '%s' -> '%s'\n", example, buffer );
-                }
-            }
-            else if ( ctx -> int2nat )
-            {
-                const char * example = "/c/p1/p2/p3";
-                char buffer[ 4096 ];
-                size_t written = 0;
-                rc = internal_to_native( example, buffer, sizeof buffer, &written );
-                if ( 0 == rc ) {
-                    buffer[ written ] = 0;
-                    rc = KOutMsg( "INT to NAT : '%s' -> '%s'\n", example, buffer );
-                }
             }
             else 
             {

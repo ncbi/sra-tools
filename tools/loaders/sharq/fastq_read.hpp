@@ -81,9 +81,9 @@ public:
 
     size_t m_SpotId = 0;     ///< Assigned spot_id  
     uint8_t m_ReaderIdx = 0; /// Reader's index
+    size_t mLineNumber{0};        ///< Line number the read starts with
 private:
     friend class fastq_reader;
-    size_t mLineNumber{0};        ///< Line number the read starts with
     string mSpot;                 ///< Spot name
     string mReadNum;              ///< optional read number
     string mSpotGroup;            ///< spot group (barcode)

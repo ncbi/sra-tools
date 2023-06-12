@@ -150,7 +150,7 @@ struct spot_assembly_t {
         m_total_spots = 0;
     } 
 
-    void build(tf::Executor& executor, str_sv_type& read_names);
+    void build(str_sv_type& read_names);
     
     ~spot_assembly_t() {}
 
@@ -678,13 +678,14 @@ struct spot_assembly_t {
 
 };
 
-void spot_assembly_t::build(tf::Executor& executor, str_sv_type& read_names) 
+void spot_assembly_t::build(str_sv_type& read_names) 
 {
     size_t num_rows = read_names.size();
     spdlog::stopwatch sw;
     // build and sort the index by read names
     vector<uint32_t> sort_index(num_rows);
     iota(sort_index.begin(), sort_index.end(), 0);
+    tf::Executor executor(24); // TODO set max number of threads baased on the number of rows
     tf::Taskflow taskflow;
     taskflow.sort(sort_index.begin(), sort_index.end(), [&](uint32_t  l, uint32_t  r) {
         static thread_local string last_right_str;

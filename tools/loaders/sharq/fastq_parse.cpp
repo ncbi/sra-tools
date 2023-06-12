@@ -85,7 +85,7 @@ private:
     int xRunSpotAssembly();
 
     template <typename ScoreValidator, typename parser_t>
-    void xParseWithAssembly(tf::Executor& executor, json& group, parser_t& parser);
+    void xParseWithAssembly(json& group, parser_t& parser);
 
 
     void xSetupInput();
@@ -600,9 +600,13 @@ int CFastqParseApp::xRun()
     xProcessDigest(data);
     mErrorCount = 0; //Reset error counts after initial digest
     xCreateWriterFromDigest(data);
+    size_t total_spots = 0;
+    for (auto& group : data["groups"]) 
+        total_spots += group["estimated_spots"].get<size_t>();;
+
+    spot_name_check name_checker(total_spots);
 
     fastq_parser<fastq_writer> parser(m_writer);
-    tf::Executor executor(2);
     try {
         if (!mDebug)
             parser.set_spot_file(mSpotFile);
@@ -614,13 +618,13 @@ int CFastqParseApp::xRun()
             if (!group["files"].empty()) {
                 switch ((int)group["files"].front()["quality_encoding"]) {
                     case 0:
-                        parser.parse<validator_options<eNumeric, -5, 40>>(executor, err_checker);
+                        parser.parse<validator_options<eNumeric, -5, 40>>(name_checker, err_checker);
                         break;
                     case 33:
-                        parser.parse<validator_options<ePhred, 33, 126>>(executor, err_checker);
+                        parser.parse<validator_options<ePhred, 33, 126>>(name_checker, err_checker);
                         break;
                     case 64:
-                        parser.parse<validator_options<ePhred, 64, 126>>(executor, err_checker);
+                        parser.parse<validator_options<ePhred, 64, 126>>(name_checker, err_checker);
                         break;
                     default:
                         throw runtime_error("Invalid quality encoding");
@@ -628,9 +632,9 @@ int CFastqParseApp::xRun()
             }
         }
         spdlog::stopwatch sw;
-        parser.check_duplicates(err_checker);
-        if (mNoTimeStamp == false)
-            mReport["timing"]["collation_check"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
+        //parser.check_duplicates(err_checker);
+        //if (mNoTimeStamp == false)
+        //    mReport["timing"]["collation_check"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
         spdlog::info("Parsing complete");
         m_writer->close();
     } catch (exception& e) {
@@ -645,7 +649,7 @@ int CFastqParseApp::xRun()
 }
 
 template <typename ScoreValidator, typename parser_t>
-void CFastqParseApp::xParseWithAssembly(tf::Executor& executor, json& group, parser_t& parser)
+void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
 {
     assert(group["files"].empty() == false);
     if (group["files"].empty())
@@ -658,7 +662,7 @@ void CFastqParseApp::xParseWithAssembly(tf::Executor& executor, json& group, par
     mErrorCount = 0;
     parser.set_readers(group, false);
     spdlog::stopwatch sw;
-    parser.template first_pass<ScoreValidator>(executor, err_checker);
+    parser.template first_pass<ScoreValidator>(err_checker);
     if (mNoTimeStamp == false)
         mReport["timing"]["first_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
     sw.reset();        
@@ -667,9 +671,9 @@ void CFastqParseApp::xParseWithAssembly(tf::Executor& executor, json& group, par
     mErrorCount = 0;
     parser.set_readers(group);
     if (is_nanopore)
-        parser.template second_pass<ScoreValidator, true>(executor, err_checker);
+        parser.template second_pass<ScoreValidator, true>(err_checker);
     else
-        parser.template second_pass<ScoreValidator, false>(executor, err_checker);
+        parser.template second_pass<ScoreValidator, false>(err_checker);
 
     if (mNoTimeStamp == false)
         mReport["timing"]["second_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
@@ -683,14 +687,12 @@ int CFastqParseApp::xRunSpotAssembly()
 {
     if (mInputBatches.empty())
         return 1;
-    
     json data;
     get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e); });
     xProcessDigest(data);
     mErrorCount = 0; //Reset error counts after initial digest
     xCreateWriterFromDigest(data);
-    tf::Executor executor(min<int>(mThreads, thread::hardware_concurrency()));
-
+    
     m_writer->open();
     fastq_parser<fastq_writer> parser(m_writer, mReadTypes);
     try {
@@ -703,13 +705,13 @@ int CFastqParseApp::xRunSpotAssembly()
             if (!group["files"].empty()) {
                 switch ((int)group["files"].front()["quality_encoding"]) {
                     case 0:
-                        xParseWithAssembly<validator_options<eNumeric, -5, 40>>(executor, group, parser);
+                        xParseWithAssembly<validator_options<eNumeric, -5, 40>>(group, parser);
                         break;
                     case 33:
-                        xParseWithAssembly<validator_options<ePhred, 33, 126>>(executor, group, parser);
+                        xParseWithAssembly<validator_options<ePhred, 33, 126>>(group, parser);
                         break;
                     case 64:
-                        xParseWithAssembly<validator_options<ePhred, 64, 126>>(executor, group, parser);
+                        xParseWithAssembly<validator_options<ePhred, 64, 126>>(group, parser);
                         break;
                     default:
                         throw runtime_error("Invalid quality encoding");

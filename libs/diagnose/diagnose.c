@@ -3653,10 +3653,10 @@ static rc_t STestCheckNodeExists ( STest * self, uint64_t code,
 
         p = NULL;
     }
-
-    if ( value != NULL )
-        * value = p;
     else {
+        if ( value != NULL )
+            * value = p;
+
         STestEnd ( self, eEndOK, "'%S': OK", p );
         RELEASE ( String, p );
     }

@@ -54,6 +54,7 @@
     TOOL_ARG("cell-debug", "", false, TOOL_HELP(0)), \
     TOOL_ARG("cell-v1", "", false, TOOL_HELP(0)), \
     TOOL_ARG("ngc", "", true, TOOL_HELP("path to ngc file", 0)), \
+    TOOL_ARG("view", "", true, TOOL_HELP("view-name", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
 
 #define TOOL_NAME_FASTERQ_DUMP "fasterq-dump" /* from argv[0] */
@@ -83,6 +84,13 @@
     TOOL_ARG("append", "A", false, TOOL_HELP("append to output-file", 0)), \
     TOOL_ARG("fasta", "", false, TOOL_HELP("produce FASTA output", 0)), \
     TOOL_ARG("fasta-unsorted", "", false, TOOL_HELP("produce FASTA output, unsorted", 0)), \
+    TOOL_ARG("fasta-ref-tbl", "", false, TOOL_HELP("produce FASTA output from REFERENCE tbl", 0)), \
+    TOOL_ARG("fasta-concat-all", "", false, TOOL_HELP("concatenate all rows and produce FASTA", 0)), \
+    TOOL_ARG("internal-ref", "", false, TOOL_HELP("extract only internal REFERENCEs", 0)), \
+    TOOL_ARG("external-ref", "", false, TOOL_HELP("extract only external REFERENCEs", 0)), \
+    TOOL_ARG("ref-name", "", true, TOOL_HELP("extract only these REFERENCEs", 0)), \
+    TOOL_ARG("ref-report", "", false, TOOL_HELP("enumerate references", 0)), \
+    TOOL_ARG("use-name", "", false, TOOL_HELP("print name instead of seq-id", 0)), \
     TOOL_ARG("seq-defline", "", true, TOOL_HELP("custom defline for sequence: ", "$ac=accession, $sn=spot-name, ", "$sg=spot-group, $si=spot-id, ", "$ri=read-id, $rl=read-length", 0)), \
     TOOL_ARG("qual-defline", "", true, TOOL_HELP("custom defline for qualities: ", "same as seq-defline", 0)), \
     TOOL_ARG("only-unaligned", "U", false, TOOL_HELP("process only unaligned reads", 0)), \

@@ -30,6 +30,7 @@
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/table.h>
+#include <vdb/view.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
 
@@ -96,6 +97,10 @@ void vdcd_destroy( col_defs* defs );
 
 uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *tbl, uint32_t * invalid_columns );
 uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t * invalid_columns );
+
+uint32_t vdcd_parse_string_view( col_defs* defs, const char* src, const VView *my_view );
+uint32_t vdcd_extract_from_view( col_defs* defs, const VView *my_view, uint32_t *invalid_columns );
+
 bool vdcd_table_has_column( const VTable *tbl, const char * to_find );
 bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *tbl );
 uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *curs );

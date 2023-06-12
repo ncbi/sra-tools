@@ -51,6 +51,10 @@ extern "C" {
 #include "inspector.h"
 #endif
 
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
+#endif
+    
 #define DFLT_PATH_LEN 4096
 
 typedef struct tool_ctx_t {
@@ -66,13 +70,15 @@ typedef struct tool_ctx_t {
     const char * seq_defline;
     const char * qual_defline;
 
-    struct temp_dir_t * temp_dir; /* temp_dir.h */
+    VNamelist * ref_name_filter;
+
+    struct temp_dir_t * temp_dir;
 
     char lookup_filename[ DFLT_PATH_LEN ];
     char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
 
-    struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
+    struct CleanupTask_t * cleanup_task;
 
     size_t cursor_cache, buf_size, mem_limit;
     size_t estimated_output_size;
@@ -81,26 +87,32 @@ typedef struct tool_ctx_t {
     size_t disk_limit_out_os;
     size_t disk_limit_tmp_os;
 
-    uint32_t num_threads /*, max_fds */;
+    uint32_t num_threads;
     uint64_t total_ram;
     uint64_t row_limit;
 
     format_t fmt; /* helper.h */
     check_mode_t check_mode; /* helper.h */
 
-    bool force, show_progress, show_details, append, use_stdout;
+    bool force, show_progress, show_details, append, use_stdout, split_file;
     bool only_unaligned, only_aligned;
     bool out_and_tmp_on_same_fs;
+    bool only_internal_refs;
+    bool only_external_refs;
+    bool use_name;
 
     join_options_t join_options; /* helper.h */
 
-    inspector_input_t insp_input;       /* inspector.h */
-    inspector_output_t insp_output;     /* inspector.h */
+    insp_input_t insp_input;       /* inspector.h */
+    insp_output_t insp_output;     /* inspector.h */
 } tool_ctx_t;
 
-rc_t populate_tool_ctx( tool_ctx_t * tool_ctx );
+bool tctx_populate_cmn_iter_params( const tool_ctx_t * tool_ctx,
+                                    cmn_iter_params_t * params );
+    
+rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx );
 
-rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in );
+rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in );
 
 #ifdef __cplusplus
 }

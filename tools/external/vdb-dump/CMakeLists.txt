@@ -31,6 +31,7 @@ set( SRC
 	vdb-dump-formats
 	vdb-dump-redir
 	vdb-dump-fastq
+	vdb-dump-view-spec
 	vdb_info
 	vdb-dump
 )

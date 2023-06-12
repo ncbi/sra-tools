@@ -804,7 +804,7 @@ class CVisualConfigurator : public CConfigurator
              - the old view : run_interactive() just repositories and caching
              - the new view : run_interactive2() with cloud settings and repositories
          */
-        return run_interactive2( *m_Config );
+        return run_interactive( *m_Config );
     }
 };
 

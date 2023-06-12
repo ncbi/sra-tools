@@ -33,7 +33,7 @@
 rc_t CC ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
 rc_t CC ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );
 
-static uint32_t str_2_u32( const char * s, uint32_t dflt ) {
+static uint32_t ahlp_str_2_u32( const char * s, uint32_t dflt ) {
     uint32_t res = dflt;
     if ( NULL != s ) {
         size_t l = string_size( s );
@@ -45,11 +45,27 @@ static uint32_t str_2_u32( const char * s, uint32_t dflt ) {
     return res;
 }
 
-uint32_t get_env_u32( const char * name, uint32_t dflt ) {
-    return str_2_u32( getenv( name ), dflt );
+uint32_t ahlp_get_env_u32( const char * name, uint32_t dflt ) {
+    return ahlp_str_2_u32( getenv( name ), dflt );
 }
 
-const char * get_str_option( const struct Args *args, const char *name, const char * dflt ) {
+rc_t ahlp_get_list_option( const struct Args *args, const char * name, VNamelist * dst ) {
+    uint32_t count;
+    rc_t rc = ArgsOptionCount( args, name, &count );
+    if ( 0 == rc && count > 0 ) {
+        uint32_t idx;
+        const char * value = NULL;
+        for ( idx = 0; idx < count && 0 == rc; idx++ ) {
+            rc = ArgsOptionValue( args, name, idx, (const void**)&value );
+            if ( 0 == rc && NULL != value ) {
+                rc = VNamelistAppend( dst, value );
+            }
+        }
+    }
+    return rc;
+}
+
+const char * ahlp_get_str_option( const struct Args *args, const char *name, const char * dflt ) {
     const char* res = dflt;
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, name, &count );
@@ -60,15 +76,15 @@ const char * get_str_option( const struct Args *args, const char *name, const ch
     return res;
 }
 
-bool get_bool_option( const struct Args *args, const char *name ) {
+bool ahlp_get_bool_option( const struct Args *args, const char *name ) {
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, name, &count );
     return ( 0 == rc && count > 0 );
 }
 
-uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt ) {
+uint64_t ahlp_get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt ) {
     uint64_t res = dflt;
-    const char * s = get_str_option( args, name, NULL );
+    const char * s = ahlp_get_str_option( args, name, NULL );
     if ( NULL != s ) {
         size_t l = string_size( s );
         if ( l > 0 ) {
@@ -79,13 +95,13 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
     return res;
 }
 
-uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt ) {
-    return str_2_u32( get_str_option( args, name, NULL ), dflt );
+uint32_t ahlp_get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt ) {
+    return ahlp_str_2_u32( ahlp_get_str_option( args, name, NULL ), dflt );
 }
 
-size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt ) {
+size_t ahlp_get_size_t_option( const struct Args * args, const char *name, size_t dflt ) {
     size_t res = dflt;
-    const char * s = get_str_option( args, name, NULL );
+    const char * s = ahlp_get_str_option( args, name, NULL );
     if ( NULL != s ) {
         size_t l = string_size( s );
         if ( l > 0 ) {

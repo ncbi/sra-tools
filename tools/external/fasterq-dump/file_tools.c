@@ -46,25 +46,25 @@
 #include <klib/log.h>
 #endif
 
-rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force ) {
+rc_t ft_create_this_dir( KDirectory * dir, const String * dir_name, bool force ) {
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
     if ( 0 != rc ) {
-        ErrMsg( "create_this_dir().KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+        ErrMsg( "ft_create_this_dir().KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
     }
     return rc;
 }
 
-rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force ) {
+rc_t ft_create_this_dir_2( KDirectory * dir, const char * dir_name, bool force ) {
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%s", dir_name );
     if ( 0 != rc ) {
-        ErrMsg( "create_this_dir_2().KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
+        ErrMsg( "ft_create_this_dir_2().KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
     }
     return rc;
 }
 
-static bool check_expected_path_type( const KDirectory * dir, uint32_t expected, const char * fmt, va_list args ) {
+static bool ft_check_expected_path_type( const KDirectory * dir, uint32_t expected, const char * fmt, va_list args ) {
     bool res = false;
     char buffer[ 4096 ];
     size_t num_writ;
@@ -77,25 +77,25 @@ static bool check_expected_path_type( const KDirectory * dir, uint32_t expected,
     return res;
 }
 
-bool file_exists( const KDirectory * dir, const char * fmt, ... ) {
+bool ft_file_exists( const KDirectory * dir, const char * fmt, ... ) {
     bool res = false;
     va_list args;
     va_start( args, fmt );
-    res = check_expected_path_type( dir, kptFile, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
+    res = ft_check_expected_path_type( dir, kptFile, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
     va_end( args );
     return res;
 }
 
-bool dir_exists( const KDirectory * dir, const char * fmt, ... ) {
+bool ft_dir_exists( const KDirectory * dir, const char * fmt, ... ) {
     bool res = false;
     va_list args;
     va_start( args, fmt );
-    res = check_expected_path_type( dir, kptDir, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
+    res = ft_check_expected_path_type( dir, kptDir, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
     va_end( args );
     return res;
 }
 
-rc_t delete_files( KDirectory * dir, const VNamelist * files, bool details ) {
+rc_t ft_delete_files( KDirectory * dir, const VNamelist * files, bool details ) {
     uint32_t count;
     rc_t rc = VNameListCount( files, &count );
     if ( 0 != rc ) {
@@ -108,7 +108,7 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files, bool details ) {
             if ( 0 != rc ) {
                 ErrMsg( "delete_files.VNameListGet( #%d ) -> %R", idx, rc );
             } else {
-                if ( file_exists( dir, "%s", filename ) ) {
+                if ( ft_file_exists( dir, "%s", filename ) ) {
                     rc = KDirectoryRemove( dir, true, "%s", filename );
                     if ( 0 != rc ) {
                         ErrMsg( "delete_files.KDirectoryRemove( '%s' ) -> %R", filename, rc );
@@ -122,7 +122,7 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files, bool details ) {
     return rc;
 }
 
-rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details ) {
+rc_t ft_delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details ) {
     uint32_t count;
     rc_t rc = VNameListCount( dirs, &count );
     if ( 0 != rc ) {
@@ -134,7 +134,7 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details ) {
             rc = VNameListGet( dirs, idx, &dirname );
             if ( 0 != rc ) {
                 ErrMsg( "delete_dirs().VNameListGet( #%d ) -> %R", idx, rc );
-            } else if ( dir_exists( dir, "%s", dirname ) ) {
+            } else if ( ft_dir_exists( dir, "%s", dirname ) ) {
                 rc = KDirectoryClearDir ( dir, true, "%s", dirname );
                 if ( 0 != rc ) {
                     ErrMsg( "delete_dirs().KDirectoryClearDir( %s ) -> %R", dirname, rc );
@@ -152,7 +152,7 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details ) {
     return rc;
 }
 
-uint64_t file_size( const KDirectory * dir, const char * fmt, ... ) {
+uint64_t ft_file_size( const KDirectory * dir, const char * fmt, ... ) {
     uint64_t res = 0;
     if ( NULL != dir && NULL != fmt ) {
         va_list args;
@@ -163,7 +163,7 @@ uint64_t file_size( const KDirectory * dir, const char * fmt, ... ) {
     return res;
 }
 
-uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files ) {
+uint64_t ft_total_size_of_files_in_list( KDirectory * dir, const VNamelist * files ) {
     uint64_t res = 0;
     if ( NULL != dir && NULL != files ) {
         uint32_t idx, count;
@@ -191,7 +191,7 @@ uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files 
     return res;
 }
 
-rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+rc_t ft_make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
                              const char * filename, size_t buf_size ) {
     const struct KFile * fr;
     rc_t rc = KDirectoryOpenFileRead( dir, &fr, "%s", filename );
@@ -204,20 +204,20 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
             if ( 0 != rc ) {
                 ErrMsg( "make_buffered_for_read( '%s' ).KBufFileMakeRead() -> %R", filename, rc );
             } else {
-                rc = release_file( fr, "make_buffered_for_read( '%s' ).1", filename );
+                rc = ft_release_file( fr, "make_buffered_for_read( '%s' ).1", filename );
                 if ( 0 == rc ) { fr = fb; }
             }
         }
         if ( 0 == rc ) {
             *f = fr;
         } else {
-            release_file( fr, "make_buffered_for_read( '%s' ).2", filename );
+            ft_release_file( fr, "make_buffered_for_read( '%s' ).2", filename );
         }
     }
     return rc;
 }
 
-rc_t release_file( const struct KFile * f, const char * err_msg, ... ) {
+rc_t ft_release_file( const struct KFile * f, const char * err_msg, ... ) {
     rc_t rc = KFileRelease( f );
     if ( 0 != rc ) {
         char buffer[ 4096 ];
@@ -235,19 +235,19 @@ rc_t release_file( const struct KFile * f, const char * err_msg, ... ) {
     return rc;
 }
 
-rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg ) {
+rc_t ft_wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg ) {
     struct KFile * temp_file = *f;
     rc_t rc = KBufFileMakeWrite( &temp_file, *f, false, buffer_size );
     if ( 0 != rc ) {
         ErrMsg( "%s KBufFileMakeWrite() -> %R", err_msg, rc );
     } else {
-        rc = release_file( *f, err_msg );
+        rc = ft_release_file( *f, err_msg );
         if ( 0 == rc ) { *f = temp_file; }
     }
     return rc;
 }
 
-static rc_t available_space_dir_space( const KDirectory * dir, size_t * res ) {
+static rc_t ft_available_space_dir_space( const KDirectory * dir, size_t * res ) {
     uint64_t free_space, total_space;
     rc_t rc = KDirectoryGetDiskFreeSpace( dir, &free_space, &total_space );
     if ( 0 != rc ) {
@@ -258,12 +258,12 @@ static rc_t available_space_dir_space( const KDirectory * dir, size_t * res ) {
     return rc;
 }
 
-static rc_t extract_path_part( const char * p, char * dst, size_t dst_size ) {
+static rc_t ft_extract_path_part( const char * p, char * dst, size_t dst_size ) {
     rc_t rc;
     String S_in, S_path, S_leaf;
 
     StringInitCString( &S_in, p );
-    rc = split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
+    rc = hlp_split_string_r( &S_in, &S_path, &S_leaf, '/' ); /* helper.c */
     if ( 0 == rc ) {
         size_t l = string_copy( dst, dst_size, S_path . addr, S_path . size );
         if ( l < dst_size - 2 ) {
@@ -277,12 +277,12 @@ static rc_t extract_path_part( const char * p, char * dst, size_t dst_size ) {
     return rc;
 }
 
-rc_t available_space_disk_space( const KDirectory * dir, const char * path, size_t * res, bool is_file ) {
+rc_t ft_available_space_disk_space( const KDirectory * dir, const char * path, size_t * res, bool is_file ) {
     rc_t rc;
     const KDirectory * sub = NULL;
     if ( is_file ) {
         char tmp[ 4096 ];
-        rc = extract_path_part( path, tmp, sizeof tmp );
+        rc = ft_extract_path_part( path, tmp, sizeof tmp );
         if ( 0 == rc ) {
             rc = KDirectoryOpenDirRead( dir, &sub, false, "%s", tmp );
             if ( 0 != rc ) {
@@ -296,7 +296,7 @@ rc_t available_space_disk_space( const KDirectory * dir, const char * path, size
         }
     }
     if ( 0 == rc && NULL != sub ) {
-        rc = available_space_dir_space( sub, res );
+        rc = ft_available_space_dir_space( sub, res );
         {
             rc_t rc2 = KDirectoryRelease( sub );
             if ( 0 != rc2 ) {

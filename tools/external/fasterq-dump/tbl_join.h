@@ -68,7 +68,7 @@ typedef struct execute_tbl_join_args_t {
     const char * qual_defline;          /* NULL for default */
     const char * tbl_name;
     join_stats_t * stats;                   /* helper.h */
-    const inspector_output_t * insp_output; /* inspector.h */
+    const insp_output_t * insp_output;      /* inspector.h */
     const join_options_t * join_options;    /* helper.h */
     const struct temp_dir_t * temp_dir;     /* temp_dir.h */
     struct temp_registry_t * registry;      /* temp_registry.h */
@@ -92,7 +92,7 @@ typedef struct execute_fasta_tbl_join_args_t {
     const char * tbl_name;
     join_stats_t * stats;                   /* helper.h */
     const join_options_t * join_options;    /* helper.h */
-    const inspector_output_t * insp_output; /* inspector.h */
+    const insp_output_t * insp_output;      /* inspector.h */
     size_t cursor_cache;
     size_t buf_size;
     uint32_t num_threads;

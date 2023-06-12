@@ -1,0 +1,8 @@
+info: Table 'SRR139146.sra' metadata: md5 ok
+info: Column 'ALTREAD': checksums ok
+info: Column 'QUALITY': checksums ok
+info: Column 'READ': checksums ok
+info: Column 'READ_LEN': checksums ok
+info: Column 'X': checksums ok
+info: Column 'Y': checksums ok
+info: Table 'SRR139146' is consistent

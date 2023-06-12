@@ -804,12 +804,14 @@ vdbconf_model::get_temp_cache_location(void) const
     char buf [ PATH_MAX ];
     size_t written;
     MODEL_THROW_ON_RC ( KConfig_Get_Temp_Cache ( _config.Get(), buf, sizeof buf, & written ) );
-    return string ( buf, written );
+    std::string internal_path( buf, written );
+    return internal_to_native( internal_path );
 }
 void
 vdbconf_model::set_temp_cache_location(const std::string & path)
 {
-    MODEL_THROW_ON_RC ( KConfig_Set_Temp_Cache ( _config.Get(), path . c_str() ) );
+    std::string internal_path = native_to_internal( path );
+    MODEL_THROW_ON_RC ( KConfig_Set_Temp_Cache ( _config.Get(), internal_path . c_str() ) );
     _config.Updated();
 }
 

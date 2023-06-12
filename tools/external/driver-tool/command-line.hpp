@@ -36,6 +36,19 @@
 #include "tool-args.hpp"
 #include "file-path.hpp"
 
+/// if `USE_WIDE_API` is defined:
+///   * The wide version of the constructor exists.
+///   * `wargv` and `wenvp` exist.
+///   * `wargv` will be used instead of `argv`, for:
+///     * `pathForArgument`.
+///     * `runAs`.
+///
+/// if `WINDOWS` is not defined:
+///   * `fakeName` exists and will point to the environment variable or be null.
+///   * `runAs` can return `fakeName` instead of `argv[0]`.
+///   * `versionFromName` exists.
+///   * `runAsVersion` exists.
+
 struct CommandLine {
     /// the pointer is saved here; its contents could be modified elsewhere. For Windows wchar_t API, it is derived from wargv.
     char const *const *argv;
@@ -51,6 +64,11 @@ struct CommandLine {
     wchar_t const* const* wenvp;
 #endif
 
+private:
+	void initialize(void);
+	void *allocated;
+
+public:
 #if WINDOWS
 #else
     ///< from environment variable (usually NULL)
@@ -100,18 +118,20 @@ struct CommandLine {
             return pathForArgument(arg.argind, int(arg.argument - argv[arg.argind]));
     }
 
-    /// Used by normal main
-    CommandLine(int argc, char *argv[], char *envp[], char *extra[]);
-
 #if USE_WIDE_API
     /// Used by wmain
     /// Internally, the program is UTF-8 encoded Unicode.
     /// The original command line is saved though,
     /// and reused for launching the child process.
     CommandLine(int argc, wchar_t *wargv[], wchar_t *wenvp[], char *extra[]);
+#else
+    /// Used by normal main
+    CommandLine(int argc, char *argv[], char *envp[], char *extra[]);
 #endif
 
-    ~CommandLine();
+    ~CommandLine() {
+    	free(allocated);
+    }
 
 #if WINDOWS
     // fakeName not used on Windows
@@ -119,6 +139,9 @@ struct CommandLine {
     wchar_t const *runAs() const {
         return wargv[0];
     }
+
+    /// Used by tests
+    CommandLine(int argc, char *argv[], char *envp[], char *extra[]);
 #else
     char const *runAs() const {
         return argv[0];

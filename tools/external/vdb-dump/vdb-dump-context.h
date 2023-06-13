@@ -85,11 +85,11 @@ extern "C" {
 #define OPTION_SPREAD            "spread"
 #define OPTION_APPEND            "append"
 #define OPTION_VIEW              "view"
-
+#define OPTION_INSPECT           "inspect"
 #define OPTION_SLICE             "slice"
 
 #define OPTION_CELL_DEBUG        "cell-debug"
-#define OPTION_CELL_V1            "cell-v1"
+#define OPTION_CELL_V1           "cell-v1"
 
 #define OPTION_LEN_SPREAD        "len-spread"
 
@@ -210,6 +210,7 @@ typedef struct dump_context
     bool append;
     bool cell_debug;
     bool cell_v1;
+    bool inspect;
 } dump_context;
 typedef dump_context* p_dump_context;
 

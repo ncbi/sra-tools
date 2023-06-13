@@ -25,12 +25,6 @@
 */
 
 #include <vdb/manager.h>
-#include <vdb/schema.h>
-#include <vdb/table.h>
-#include <vdb/view.h>
-#include <vdb/cursor.h>
-#include <vdb/blob.h>
-#include <vdb/database.h>
 #include <vdb/dependencies.h>
 #include <vdb/vdb-priv.h>
 
@@ -38,7 +32,6 @@
 #include <kdb/column.h>
 #include <kdb/manager.h>
 #include <kdb/namelist.h>
-#include <kdb/meta.h>
 
 #include <kfs/directory.h>
 #include <kns/manager.h>
@@ -56,7 +49,6 @@
 #include <klib/text.h>
 #include <klib/printf.h>
 #include <klib/rc.h>
-#include <klib/namelist.h>
 #include <klib/time.h>
 #include <klib/num-gen.h>
 
@@ -619,10 +611,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
                         if ( 0 == rc2 ) {
                             /* translate in special columns to numeric values to strings */
                             vdcd_ins_trans_fkt( r_ctx . col_defs, schema );
-                            {
-                                rc_t rc3 = VSchemaRelease( schema );
-                                DISP_RC( rc3, "VSchemaRelease() failed" );
-                            }
+                            vdh_vschema_release( rc, schema );
                         }
                     }
                     rc = VCursorOpen( r_ctx . cursor );
@@ -664,11 +653,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
             }
             vdcd_destroy( r_ctx . col_defs );
         }
-        {
-            rc_t rc2 = VCursorRelease( r_ctx . cursor );
-            DISP_RC( rc2, "VCursorRelease() failed" );
-            rc = ( rc == 0 ) ? rc2 : rc;
-        }
+        rc = vdh_vcursor_release( rc, r_ctx . cursor );
         if ( 0 == rc && 0 != r_ctx . last_rc ) {
             rc = r_ctx . last_rc;
         }
@@ -692,11 +677,7 @@ static rc_t vdm_dump_opened_database( const p_dump_context ctx,
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_dump_opened_table( ctx, tbl );
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( rc == 0 ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -757,11 +738,7 @@ static rc_t vdm_show_tab_spread( const p_dump_context ctx,
                 rc = RC( rcExe, rcDatabase, rcResolving, rcColumn, rcInvalid );
             }
         }
-        {
-            rc_t rc2 = VCursorRelease( cursor );
-            DISP_RC( rc2, "VCursorRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vcursor_release( rc, cursor );
     }
     return rc;
 }
@@ -771,11 +748,7 @@ static rc_t vdm_show_db_spread( const p_dump_context ctx, const VDatabase *db ) 
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_show_tab_spread( ctx, tbl ); /* above */
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -822,11 +795,7 @@ static rc_t vdm_dump_tab_schema( const p_dump_context ctx,
                               vdm_schema_dump_flush, stdout );
         }
         DISP_RC( rc, "VSchemaDump() failed" );
-        {
-            rc_t rc2 = VSchemaRelease( schema );
-            DISP_RC( rc2, "VSchemaRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vschema_release( rc, schema );
     }
     return rc;
 }
@@ -849,11 +818,7 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx, const VDatabase *db ) 
         rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
         if ( 0 == rc ) {
             rc = vdm_dump_tab_schema( ctx, tbl ); /* above */
-            {
-                rc_t rc2 = VTableRelease( tbl );
-                DISP_RC( rc2, "VTableRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_vtable_release( rc, tbl );
         }
     } else {
         /* the user has given a database as object, but did not ask for a specific table */
@@ -877,11 +842,7 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx, const VDatabase *db ) 
                                   vdm_schema_dump_flush, stdout );
             }
             DISP_RC( rc, "VSchemaDump() failed" );
-            {
-                rc_t rc2 = VSchemaRelease( schema );
-                DISP_RC( rc2, "VSchemaRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_vschema_release( rc, schema );
         }
     }
     return rc;
@@ -917,11 +878,7 @@ static rc_t vdm_report_tab_or_db( const VDatabase * db, const KNamelist * list,
                     DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
                     if ( 0 == rc ) {
                         rc = vdm_enum_sub_dbs_and_tabs( sub_db, indent + 3 ); /* recursion here... */
-                        {
-                            rc_t rc2 = VDatabaseRelease( sub_db );
-                            DISP_RC( rc2, "VDatabaseRelease() failed" );
-                            rc = ( 0 == rc ) ? rc2 : rc;
-                        }
+                        rc = vdh_vdatabase_release( rc, sub_db );
                     }
                 }
             }
@@ -935,11 +892,7 @@ static rc_t vdm_enum_tabs_of_db( const VDatabase * db, uint32_t indent ) {
     rc_t rc = VDatabaseListTbl( db, &tbl_names );
     if ( 0 == rc ) {
         rc = vdm_report_tab_or_db( NULL, tbl_names, "tbl", indent );
-        {
-            rc_t rc2 = KNamelistRelease( tbl_names );
-            DISP_RC( rc2, "KNamelistRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_knamelist_release( rc, tbl_names );
     } else {
         rc = 0;
     }
@@ -951,11 +904,7 @@ static rc_t vdm_enum_sub_dbs_of_db( const VDatabase * db, uint32_t indent ) {
     rc_t rc = VDatabaseListDB( db, &db_names );
     if ( 0 == rc ) {
         rc = vdm_report_tab_or_db( db, db_names, "db ", indent );
-        {
-            rc_t rc2 = KNamelistRelease( db_names );
-            DISP_RC( rc2, "KNamelistRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_knamelist_release( rc, db_names );
     } else {
         rc = 0;
     }
@@ -1012,11 +961,7 @@ static rc_t vdm_print_column_datatypes( const p_col_def col_def,
                 }
             }
         }
-        {
-            rc_t rc2 = KNamelistRelease( names );
-            DISP_RC( rc2, "KNamelistRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_knamelist_release( rc, names );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
@@ -1064,20 +1009,12 @@ static rc_t vdm_show_kdb_blobs( const p_col_def col_def,
                             }
                             id = last_id_in_blob + 1;
                         }
-                        {
-                            rc_t rc2 = KColumnBlobRelease( blob );
-                            DISP_RC( rc2, "KColumnBlobRelease() failed" );
-                            rc = ( 0 == rc ) ? rc2 : rc;
-                        }
+                        rc = vdh_kcolumnblob_release( rc, blob );
                     }
                 }
             }
         }
-        {
-            rc_t rc2 = KColumnRelease( kcol );
-            DISP_RC( rc2, "KColumnRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_kcolumn_release( rc, kcol );
     }
     return rc;
 }
@@ -1143,11 +1080,7 @@ static rc_t vdm_show_vdb_blobs( const p_col_def col_def,
                 }
             }
         }
-        {
-            rc_t rc2 = VCursorRelease( curs );
-            DISP_RC( rc2, "VCursorRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vcursor_release( rc, curs );
     }
     return rc;
 }
@@ -1203,11 +1136,7 @@ static rc_t vdm_enum_phys_columns( const VTable *tbl ) {
                     rc = KOutMsg( "... list is empty!\n" );
                 }
             }
-            {
-                rc_t rc2 = KNamelistRelease( phys );
-                DISP_RC( rc2, "KNamelistRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_knamelist_release( rc, phys );
         }
     }
     return rc;
@@ -1238,11 +1167,7 @@ static rc_t vdm_enum_readable_columns( const VTable *tbl ) {
                     rc = KOutMsg( "... list is empty!\n" );
                 }
             }
-            {
-                rc_t rc2 = KNamelistRelease( readable );
-                DISP_RC( rc2, "KNamelistRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_knamelist_release( rc, readable );
         }
     }
     return rc;
@@ -1303,17 +1228,9 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *tbl ) 
                             rc = vdm_print_column_info( col, &ci_ctx );
                         }
                     }
-                    {
-                        rc_t rc2 = VSchemaRelease( ci_ctx . schema );
-                        DISP_RC( rc2, "VSchemaRelease() failed" );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
+                    rc = vdh_vschema_release( rc, ci_ctx . schema );
                 }
-                if ( ci_ctx . ktbl != NULL ) {
-                    rc_t rc2 = KTableRelease( ci_ctx . ktbl );
-                    DISP_RC( rc2, "KTableRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
+                rc = vdh_ktable_release( rc, ci_ctx . ktbl );
             } else {
                 rc = KOutMsg( "error in col_defs_extract_from_table\n" );
             }
@@ -1341,11 +1258,7 @@ static rc_t vdm_enum_db_columns( const p_dump_context ctx, const VDatabase *db )
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_enum_tab_columns( ctx, tbl );
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -1388,11 +1301,7 @@ static rc_t vdm_print_tab_id_range( const p_dump_context ctx, const VTable *tbl 
                 rc = RC( rcExe, rcDatabase, rcResolving, rcColumn, rcInvalid );
             }
         }
-        {
-            rc_t rc2 = VCursorRelease( curs );
-            DISP_RC( rc2, "VCursorRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vcursor_release( rc, curs );
     }
     return rc;
 }
@@ -1412,11 +1321,7 @@ static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *db
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_print_tab_id_range( ctx, tbl ); /* above */
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -1460,11 +1365,7 @@ static rc_t vdm_enum_index( const KTable * ktbl, uint32_t idx_nr, const char * i
                     rc = KOutMsg( " locked" );
                 }
             }
-            {
-                rc_t rc2 = KIndexRelease( kidx );
-                DISP_RC( rc2, "KIndexRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_kindex_release( rc, kidx );
         }
     }
     if ( 0 == rc ) {
@@ -1493,19 +1394,11 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *tbl ) {
                     }
                 }
             }
-            {
-                rc_t rc2 = KNamelistRelease( idx_names );
-                DISP_RC( rc2, "KNamelistRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_knamelist_release( rc, idx_names );
         } else {
             rc = KOutMsg( "no index available\n" );
         }
-        {
-            rc_t rc2 = KTableRelease( ktbl );
-            DISP_RC( rc2, "KTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_ktable_release( rc, ktbl );
     }
     return rc;
 }
@@ -1515,11 +1408,7 @@ static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *db ) {
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_enum_tab_index( ctx, tbl ); /* above */
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -1548,17 +1437,9 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *tbl ) {
                     rc = KOutMsg( "%.*s : %lu ... %lu\n", ( int )key_size, key, start, start + count - 1 );
                 }
             }
-            {
-                rc_t rc3 = KIndexRelease( kindex );
-                DISP_RC( rc3, "KIndexRelease() failed" );
-                rc = ( 0 == rc ) ? rc3 : rc;
-            }
+            rc = vdh_kindex_release( rc, kindex );
         }
-        {
-            rc_t rc2 = KTableRelease( ktbl );
-            DISP_RC( rc2, "KIndexRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_ktable_release( rc, ktbl );
     }
     return rc;
 }
@@ -1568,11 +1449,7 @@ static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *db ) 
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_range_tab_index( ctx, tbl ); /* above */
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -1623,44 +1500,22 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
                                             DISP_RC( rc, "KMDataNodeReadAttr() failed" );    
                                             if ( 0 == rc ) {
                                                 rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
-                                                {
-                                                    rc_t rc2 = KMDataNodeRelease( spot_group_node );
-                                                    if ( 0 != rc2 ) {
-                                                        DISP_RC( rc2, "KMDataNodeRelease() failed" );
-                                                        rc = ( 0 == rc ) ? rc2 : rc;
-                                                    }
-                                                }
+                                                rc = vdh_datanode_release( rc, spot_group_node );
                                             }
                                         }
 
                                     }
                                 }
-                                {
-                                    rc_t rc2 = KMDataNodeRelease( spot_count_node );
-                                    DISP_RC( rc2, "KMDataNodeRelease() failed" );
-                                    rc = ( 0 == rc ) ? rc2 : rc;
-                                }
+                                rc = vdh_datanode_release( rc, spot_count_node );
                             }
                         }
                     }
                 }
-                {
-                    rc_t rc2 = KNamelistRelease( spot_groups );
-                    DISP_RC( rc2, "KNamelistRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
+                rc = vdh_knamelist_release( rc, spot_groups );
             }
-            {
-                rc_t rc2 = KMDataNodeRelease( spot_groups_node );
-                DISP_RC( rc2, "KMDataNodeRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_datanode_release( rc, spot_groups_node );
         }
-        {
-            rc_t rc2 = KMetadataRelease ( meta );
-            DISP_RC( rc2, "KMetadataRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_kmeta_release( rc, meta );
     }
     return rc;
 }
@@ -1670,11 +1525,7 @@ static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *d
     rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc ) {
         rc = vdm_show_tab_spotgroups( ctx, tbl );
-        {
-            rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc2, "VTableRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vtable_release( rc, tbl );
     }
     return rc;
 }
@@ -1714,22 +1565,10 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
                 if ( 0 == rc ) {
                     rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
                 }
-                {
-                    rc_t rc2 = VTableRelease( tbl );
-                    DISP_RC( rc2, "VTableRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
+                rc = vdh_vtable_release( rc, tbl );                
             }
-            if ( schema != NULL ) {
-                rc_t rc2 = VSchemaRelease( schema );
-                DISP_RC( rc2, "VSchemaRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
-            {
-                rc_t rc2 = VPathRelease( path );
-                DISP_RC( rc2, "VPathRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_vschema_release( rc, schema );
+            rc = vdh_vpath_release( rc, path );
         }
     }
     return rc;
@@ -1851,29 +1690,13 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx, const VDBManager * mgr,
                         LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
                         ctx -> usage_requested = true;
                     }
-                    {
-                        rc_t rc2 = KNamelistRelease( tbl_names );
-                        DISP_RC( rc2, "KNamelistRelease() failed" );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
+                    rc = vdh_knamelist_release( rc, tbl_names );
                 }
-                {
-                    rc_t rc2 = VDatabaseRelease( db );
-                    DISP_RC( rc2, "VDatabaseRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }                
+                rc = vdh_vdatabase_release( rc, db );
             }
-            {
-                rc_t rc2 = VPathRelease( path );
-                DISP_RC( rc2, "VPathRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_vpath_release( rc, path );
         }
-        if ( NULL != schema ) {
-            rc_t rc2 = VSchemaRelease( schema );
-            DISP_RC( rc2, "VSchemaRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_vschema_release( rc, schema );
     }
     return rc;
 }
@@ -1956,9 +1779,9 @@ static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManage
                         }
                     }
                 }
-                VSchemaRelease ( schema );
+                rc = vdh_vschema_release( rc, schema );
             }
-            VDatabaseRelease ( db );
+            rc = vdh_vdatabase_release( rc, db );
         }
         view_spec_free ( spec );
     }
@@ -1983,13 +1806,13 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr ) {
         uint32_t invalid_columns = 0;
         rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx, & invalid_columns );
         if ( rc == 0 ) {
-            const VSchema * my_schema;
-            rc = VViewOpenSchema( r_ctx . view, & my_schema );
+            const VSchema * schema;
+            rc = VViewOpenSchema( r_ctx . view, & schema );
             DISP_RC( rc, "VViewOpenSchema() failed" );
             if ( rc == 0 ) {
                 /* translate in special columns to numeric values to strings */
-                vdcd_ins_trans_fkt( r_ctx . col_defs, my_schema );
-                VSchemaRelease( my_schema );
+                vdcd_ins_trans_fkt( r_ctx . col_defs, schema );
+                rc = vdh_vschema_release( rc, schema );
             }
             rc = VCursorOpen( r_ctx.cursor );
             DISP_RC( rc, "VCursorOpen() failed" );
@@ -2022,9 +1845,9 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr ) {
                         }
                     }
                 }
-                VCursorRelease( r_ctx.cursor );
+                rc = vdh_vcursor_release( rc, r_ctx . cursor );
             }
-            VViewRelease ( r_ctx.view );
+            rc = vdh_view_release( rc, r_ctx . view );
             vdcd_destroy( r_ctx.col_defs );
             if ( 0 == rc && invalid_columns > 0 ) {
                 rc = RC( rcExe, rcDatabase, rcResolving, rcColumn, rcInvalid );

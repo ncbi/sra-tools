@@ -37,6 +37,8 @@
 #include <vdb/database.h>
 #include <vdb/manager.h>
 
+#include "vdb-dump-helper.h"
+
 static
 rc_t Error ( char * p_error, size_t p_error_size, const char * p_message )
 {
@@ -283,7 +285,7 @@ InstantiateView ( const VDatabase * p_db, const view_spec * p_self, const struct
                                 if ( rc == 0 )
                                 {
                                     rc = VViewBindParameterTable ( view, paramName, tbl );
-                                    VTableRelease ( tbl );
+                                    rc = vdh_vtable_release( rc, tbl );
                                 }
                             }
                         }

@@ -565,7 +565,6 @@ static void vdco_evaluate_options( const Args *args, dump_context *ctx ) {
 
 rc_t vdco_capture_arguments_and_options( const Args * args, dump_context *ctx ) {
     rc_t rc;
-
     vdco_evaluate_options( args, ctx );
     rc = ArgsHandleLogLevel( args );
     DISP_RC( rc, "ArgsHandleLogLevel() failed" );

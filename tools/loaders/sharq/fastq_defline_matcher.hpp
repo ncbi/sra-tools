@@ -138,7 +138,7 @@ public:
     CDefLineMatcherIlluminaNewDataGroup() :
         CDefLineMatcher(
             "illuminaNewDataGroup",
-            "^[@>+]([!-~]+?)(\\s+|[_|])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
+            R("^[@>+]([!-~]+?)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
     {
     }
 
@@ -589,7 +589,7 @@ public:
     CDefLineMatcherBgiNew() :
         CDefLineMatcher(
             "BgiNew",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$))")
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
 
     {}
 
@@ -1066,7 +1066,7 @@ public:
     CDefLineMatcherIonTorrent2() :
         CDefLineMatcher(
             "IonTorrent2",
-            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$))")
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -1075,11 +1075,9 @@ public:
 
     virtual void GetMatch(CFastqRead& read) override
     {
-        // runId, sep1, row, sep2, column, readNum, filterRead, reserved, spotGroup, endSep
-        // 0      1     2    3     4       5        6           7         8          9 
 
-        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, suffix, spotGroup, endSep
-        // 0      1     2    3     4       5       6     7         8          9         10      11         12     
+        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, reserved, spotGroup, endSep
+        // 0      1     2    3     4       5       6     7         8          9         10        11         12     
 
 
         m_tmp_spot.clear();

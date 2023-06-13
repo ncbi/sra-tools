@@ -122,7 +122,6 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
     mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
@@ -133,6 +132,7 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
     mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
     mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);

@@ -52,6 +52,7 @@
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/sort.h> /* ksort */
+#include <klib/text.h>
 
 #include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
 
@@ -163,9 +164,9 @@ rc_t BAM_HEADER_RG_copy(BAM_HEADER_RG* dest, const BAM_HEADER_RG* src)
     assert(dest && !dest->ID && !dest->LB && !dest->SM
         && src  &&  src ->ID &&  src ->LB &&  src ->SM);
 
-    dest->ID = strdup(src->ID);
-    dest->LB = strdup(src->LB);
-    dest->SM = strdup(src->SM);
+    dest->ID = string_dup_measure(src->ID, NULL);
+    dest->LB = string_dup_measure(src->LB, NULL);
+    dest->SM = string_dup_measure(src->SM, NULL);
 
     if (!dest->ID || !dest->LB || !dest->SM) {
         return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
@@ -1460,7 +1461,7 @@ rc_t TableCountsRead1(TableCounts* self,
         assert((self->used < self->allocated) && (self->count != NULL));
         c = &self->count[self->used];
         memset(c, 0, sizeof *c);
-        c->tableName = strdup(tableName);
+        c->tableName = string_dup_measure(tableName, NULL);
         if (c->tableName == NULL)
         {   return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
         c->tableState = eMSFound;
@@ -2149,7 +2150,7 @@ rc_t readStatsMetaAttr(const KMDataNode* parent, const char* parentName,
     }
     else if (rc == 0)
     {
-        *result = strdup(temp);
+        *result = string_dup_measure(temp, NULL);
     }
     if (rc == 0 && *result == NULL)
     {
@@ -2189,7 +2190,7 @@ rc_t readStatsMetaNodes(const KMDataNode* parent, const char* name,
             if (tempname)
                 stats->spot_group = tempname;
             else {
-                stats->spot_group = strdup(name);
+                stats->spot_group = string_dup_measure(name, NULL);
                 if (stats->spot_group == NULL)
                 {   rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
             }

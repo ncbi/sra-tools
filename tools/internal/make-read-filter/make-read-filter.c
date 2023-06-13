@@ -858,7 +858,7 @@ static char const *absolutePath(char const *const path, char const *const wd)
                 buffer = temp;
                 bufsize *= 2;
                 if (rc == 0) {
-                    char const *const result = strdup(buffer);
+                    char const *const result = string_dup_measure(buffer, NULL);
                     free(buffer);
                     return result;
                 }
@@ -868,7 +868,7 @@ static char const *absolutePath(char const *const path, char const *const wd)
         }
     }
     else
-        return strdup(path);
+        return string_dup_measure(path, NULL);
 }
 
 static char const *getParameter(Args *const args, char const *const wd)

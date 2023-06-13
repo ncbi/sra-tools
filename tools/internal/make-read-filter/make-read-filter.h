@@ -40,6 +40,7 @@
 #include <klib/rc.h>
 #include <klib/data-buffer.h>
 #include <klib/printf.h>
+#include <klib/text.h>
 #include <sra/sradb.h>
 
 #include <stdarg.h>

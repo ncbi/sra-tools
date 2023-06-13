@@ -27,6 +27,7 @@
 #include <klib/log.h>
 #include <klib/debug.h>
 #include <klib/container.h>
+#include <klib/text.h>
 #include <sra/types.h>
 #include <os-native.h>
 
@@ -218,8 +219,8 @@ rc_t parse_BASECALL_TABLE_add(ReadSpecXML_read_BASECALL_TABLE* table, const Read
         }
     }
     if( rc == 0 ) {
-        table->table[table->count].basecall = bc ? strdup(bc) : NULL;
-        table->table[table->count].read_group_tag = src->read_group_tag ? strdup(src->read_group_tag) : NULL;
+        table->table[table->count].basecall = bc ? string_dup_measure(bc, NULL) : NULL;
+        table->table[table->count].read_group_tag = src->read_group_tag ? string_dup_measure(src->read_group_tag, NULL) : NULL;
         table->table[table->count].min_match = src->min_match;
         table->table[table->count].max_mismatch = src->max_mismatch;
         table->table[table->count].match_edge = src->match_edge;

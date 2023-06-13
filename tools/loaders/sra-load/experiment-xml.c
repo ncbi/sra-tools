@@ -28,6 +28,7 @@
 #include <klib/debug.h>
 #include <klib/container.h>
 #include <klib/trie.h>
+#include <klib/text.h>
 #include <sra/types.h>
 #include <os-native.h>
 
@@ -153,7 +154,7 @@ rc_t PoolMember_Add(ExperimentXML* self, const char* name)
             rc = RC(rcSRA, rcFormatter, rcAllocating, rcId, rcDuplicate);
         }
     } else {
-        member->name = strdup(name);
+        member->name = string_dup_measure(name, NULL);
         if( member->name == NULL ) {
             rc = RC(rcSRA, rcFormatter, rcAllocating, rcMemory, rcExhausted);
         } else {

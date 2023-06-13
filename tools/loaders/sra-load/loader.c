@@ -28,6 +28,7 @@
 #include <klib/log.h>
 #include <klib/out.h>
 #include <klib/status.h>
+#include <klib/text.h>
 #include <kxml/xml.h>
 #include <kfs/md5.h>
 #include <kfs/arc.h>
@@ -708,7 +709,7 @@ rc_t SInputOpen_TarVisit(const KDirectory *dir, uint32_t type, const char *name,
         if( rc == 0 ) {
             char buf[1024];
             if( (rc = KDirectoryResolvePath(dir, true, buf, sizeof(buf), "%s", name)) == 0 ) {
-                d->files[d->count++] = strdup(buf);
+                d->files[d->count++] = string_dup_measure(buf, NULL);
                 if( d->files[d->count - 1] == NULL ) {
                     rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
                 }
@@ -781,7 +782,7 @@ rc_t SInputOpen(const SInput **cself, TArgs *args)
                             fdir = ccdirs[cd].xdir;
                         }
                         if( rc == 0 ) {
-                            char* fn = strdup(b->files[j].cc_path);
+                            char* fn = string_dup_measure(b->files[j].cc_path, NULL);
                             if( fn == NULL ) {
                                 rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
                             } else {
@@ -842,7 +843,7 @@ rc_t SInputOpen(const SInput **cself, TArgs *args)
                             KDirectoryRelease(tar);
                         }
                     } else {
-                        char* fn = strdup(fname);
+                        char* fn = string_dup_measure(fname, NULL);
                         if( fn == NULL ) {
                             rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
                         } else {

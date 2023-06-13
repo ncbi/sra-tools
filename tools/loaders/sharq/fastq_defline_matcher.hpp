@@ -138,7 +138,7 @@ public:
     CDefLineMatcherIlluminaNewDataGroup() :
         CDefLineMatcher(
             "illuminaNewDataGroup",
-            R("^[@>+]([!-~]+?)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
+            R"(^[@>+]([!-~]+?)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {
     }
 

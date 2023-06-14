@@ -473,8 +473,7 @@ static void get_meta_event( const KMetadata * meta, const char * node_path, vdb_
             get_meta_attr( node, "build", event -> tool_date . date, sizeof event -> tool_date . date );
         }
         split_date( &( event -> tool_date ) );
-
-        KMDataNodeRelease ( node );
+        vdh_datanode_release( 0, node );
     }
 }
 
@@ -553,7 +552,7 @@ static void get_meta_bam_hdr( vdb_info_bam_hdr * bam_hdr, const KMetadata * meta
                 free( buffer );
             }
         }
-        KMDataNodeRelease ( node );
+        vdh_datanode_release( rc, node );
     }
 }
 
@@ -566,7 +565,7 @@ static void get_meta_info( vdb_info_data * data, const KMetadata * meta ) {
         if ( 0 == rc ) {
             data -> schema_name[ size ] = 0;
         }
-        KMDataNodeRelease ( node );
+        rc = vdh_datanode_release( rc, node );
     }
 
     rc = KMetadataOpenNodeRead ( meta, &node, "LOAD/timestamp" );
@@ -581,7 +580,7 @@ static void get_meta_info( vdb_info_data * data, const KMetadata * meta ) {
             data -> ts . hour  = time_rec . hour;
             data -> ts . minute= time_rec . minute;
         }
-        KMDataNodeRelease ( node );
+        rc = vdh_datanode_release( rc, node );
     }
 
     get_meta_event( meta, "SOFTWARE/formatter", &( data -> formatter ) );
@@ -623,7 +622,7 @@ static rc_t make_local_file( const KFile ** f, const char * path ) {
     *f = NULL;
     if ( 0 == rc ) {
         rc = KDirectoryOpenFileRead( dir, f, "%s", path );
-        KDirectoryRelease( dir );
+        rc = vdh_kdirectory_release( rc, dir );
     }
     return rc;
 }
@@ -634,7 +633,7 @@ static uint64_t get_file_size( const char * path, bool remotely ) {
     rc_t rc = ( remotely ) ? make_remote_file( &f, path ) : make_local_file( &f, path );
     if ( 0 == rc ) {
         KFileSize ( f, &res );
-        KFileRelease( f );
+        rc = vdh_kfile_release( rc, f );
     }
     return res;
 }
@@ -650,7 +649,7 @@ static rc_t vdb_info_tab( vdb_info_data * data, VSchema * schema, const VDBManag
         rc = VTableOpenMetadataRead ( tab, &meta );
         if ( 0 == rc ) {
             get_meta_info( data, meta );
-            KMetadataRelease ( meta );
+            rc = vdh_kmeta_release( rc, meta );
         }
         rc = vdh_vtable_release( rc, tab );
     }
@@ -717,7 +716,7 @@ static rc_t vdb_info_db( vdb_info_data * data, VSchema * schema, const VDBManage
         rc = VDatabaseOpenMetadataRead ( db, &meta );
         if ( 0 == rc ) {
             get_meta_info( data, meta );
-            KMetadataRelease ( meta );
+            rc = vdh_kmeta_release( rc, meta );
         }
         rc = vdh_vdatabase_release( rc, db );
     }
@@ -1211,50 +1210,49 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
 
 rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr,
                const char * acc_or_path, struct num_gen * rows ) {
-    rc_t rc = 0;
     VSchema * schema = NULL;
-
-    vdh_parse_schema( mgr, &schema, schema_list, false );
-    if ( df_sql == format ) {
-        rc = vdb_info_print_sql_header( acc_or_path );
-    }
-
-    if ( NULL != rows && !num_gen_empty( rows ) ) {
-        const struct num_gen_iter * iter;
-        rc = num_gen_iterator_make( rows, &iter );
-        if ( 0 == rc ) {
-            int64_t max_row;
-            rc = num_gen_iterator_max( iter, &max_row );
+    rc_t rc = vdh_parse_schema( mgr, &schema, schema_list );
+    if ( 0 == rc ) {
+        if ( df_sql == format ) {
+            rc = vdb_info_print_sql_header( acc_or_path );
+        }
+        if ( NULL != rows && !num_gen_empty( rows ) ) {
+            const struct num_gen_iter * iter;
+            rc = num_gen_iterator_make( rows, &iter );
             if ( 0 == rc ) {
-                int64_t id;
-                uint8_t digits = digits_of( max_row );
+                int64_t max_row;
+                rc = num_gen_iterator_max( iter, &max_row );
+                if ( 0 == rc ) {
+                    int64_t id;
+                    uint8_t digits = digits_of( max_row );
 
-                while ( 0 == rc && num_gen_iterator_next( iter, &id, &rc ) ) {
-                    char acc[ 64 ];
-                    size_t num_writ;
-                    rc_t rc1 = -1;
-                    switch ( digits ) {
-                        case 1 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%ld", acc_or_path, id ); break;
-                        case 2 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.02ld", acc_or_path, id ); break;
-                        case 3 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.03ld", acc_or_path, id ); break;
-                        case 4 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.04ld", acc_or_path, id ); break;
-                        case 5 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.05ld", acc_or_path, id ); break;
-                        case 6 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.06ld", acc_or_path, id ); break;
-                        case 7 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.07ld", acc_or_path, id ); break;
-                        case 8 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.08ld", acc_or_path, id ); break;
-                        case 9 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.09ld", acc_or_path, id ); break;
-                        default : break;
-                    }
-                    if ( 0 == rc1 ) {
-                        rc = vdb_info_1( schema, format, mgr, acc, acc_or_path );
+                    while ( 0 == rc && num_gen_iterator_next( iter, &id, &rc ) ) {
+                        char acc[ 64 ];
+                        size_t num_writ;
+                        rc_t rc1 = -1;
+                        switch ( digits ) {
+                            case 1 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%ld", acc_or_path, id ); break;
+                            case 2 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.02ld", acc_or_path, id ); break;
+                            case 3 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.03ld", acc_or_path, id ); break;
+                            case 4 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.04ld", acc_or_path, id ); break;
+                            case 5 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.05ld", acc_or_path, id ); break;
+                            case 6 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.06ld", acc_or_path, id ); break;
+                            case 7 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.07ld", acc_or_path, id ); break;
+                            case 8 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.08ld", acc_or_path, id ); break;
+                            case 9 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.09ld", acc_or_path, id ); break;
+                            default : break;
+                        }
+                        if ( 0 == rc1 ) {
+                            rc = vdb_info_1( schema, format, mgr, acc, acc_or_path );
+                        }
                     }
                 }
+                num_gen_iterator_destroy( iter );
             }
-            num_gen_iterator_destroy( iter );
+        } else {
+            rc = vdb_info_1( schema, format, mgr, acc_or_path, acc_or_path );
         }
-    } else {
-        rc = vdb_info_1( schema, format, mgr, acc_or_path, acc_or_path );
+        rc = vdh_vschema_release( rc, schema );
     }
-    rc = vdh_vschema_release( rc, schema );
     return rc;
 }

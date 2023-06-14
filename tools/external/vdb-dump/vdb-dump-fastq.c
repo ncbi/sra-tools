@@ -821,64 +821,63 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
                              const VDBManager *mgr,
                              fastq_ctx * fctx ) {
     VSchema * schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /* ctx -> force_sra_schema */ );
-    rc = VDBManagerOpenTableRead( mgr, &fctx -> tbl, schema, "%s", ctx -> path );
-    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ) );
     if ( 0 == rc ) {
-        rc = vdb_fastq_tbl( ctx, fctx );
-        rc = vdh_vtable_release( rc, fctx -> tbl );
+        rc = VDBManagerOpenTableRead( mgr, &fctx -> tbl, schema, "%s", ctx -> path );
+        DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
+        if ( 0 == rc ) {
+            rc = vdb_fastq_tbl( ctx, fctx );
+            rc = vdh_vtable_release( rc, fctx -> tbl );
+        }
+        rc = vdh_vschema_release( rc, schema );
     }
-    rc = vdh_vschema_release( rc, schema );
     return rc;
 }
 
 static rc_t vdb_fastq_database( const p_dump_context ctx,
                                 const VDBManager *mgr,
                                 fastq_ctx * fctx ) {
-    const VDatabase * db;
     VSchema *schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /* ctx -> force_sra_schema */ );
-
-    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx -> path );
-    DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ) );
     if ( 0 == rc ) {
-        KNamelist *tbl_names;
-        rc = VDatabaseListTbl( db, &tbl_names );
-        if ( rc != 0 ) {
-            ErrMsg( "VDatabaseListTbl( '%s' )  ->  %R", ctx -> path, rc );
-        } else {
-            if ( NULL == ctx -> table ) {
-                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
-                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
-                /* if there is no SEQUENCE-table, just pick the first table available... */
-                if ( !table_found ) {
-                    vdh_take_1st_table_from_db( ctx, tbl_names );
-                }
-            } else {
-                /* the user DID specify a table: check if the database has a table with this name,
-                   if not try with a sub-string */
-                String value;
-                StringInitCString( &value, ctx -> table );
-                if ( !vdh_list_contains_value( tbl_names, &value ) ) {
-                    vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
-                }
-            }
-            rc = vdh_knamelist_release( rc, tbl_names );
-        }
+        const VDatabase * db;        
+        rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx -> path );
+        DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
         if ( 0 == rc ) {
-            rc = vdh_open_table_by_path( db, ctx -> table, &fctx -> tbl ); /* vdb-dump-helper.c */
-            if ( 0 == rc ) {
-                rc = vdb_fastq_tbl( ctx, fctx );
-                rc = vdh_vtable_release( rc, fctx -> tbl );
+            KNamelist *tbl_names;
+            rc = VDatabaseListTbl( db, &tbl_names );
+            if ( rc != 0 ) {
+                ErrMsg( "VDatabaseListTbl( '%s' )  ->  %R", ctx -> path, rc );
+            } else {
+                if ( NULL == ctx -> table ) {
+                    /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                    bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                    /* if there is no SEQUENCE-table, just pick the first table available... */
+                    if ( !table_found ) {
+                        vdh_take_1st_table_from_db( ctx, tbl_names );
+                    }
+                } else {
+                    /* the user DID specify a table: check if the database has a table with this name,
+                    if not try with a sub-string */
+                    String value;
+                    StringInitCString( &value, ctx -> table );
+                    if ( !vdh_list_contains_value( tbl_names, &value ) ) {
+                        vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
+                    }
+                }
+                rc = vdh_knamelist_release( rc, tbl_names );
             }
+            if ( 0 == rc ) {
+                rc = vdh_open_table_by_path( db, ctx -> table, &fctx -> tbl ); /* vdb-dump-helper.c */
+                if ( 0 == rc ) {
+                    rc = vdb_fastq_tbl( ctx, fctx );
+                    rc = vdh_vtable_release( rc, fctx -> tbl );
+                }
+            }
+            rc = vdh_vdatabase_release( rc, db );
         }
-        rc = vdh_vdatabase_release( rc, db );
+        rc = vdh_vschema_release( rc, schema );
     }
-    rc = vdh_vschema_release( rc, schema );
     return rc;
 }
 
@@ -1084,64 +1083,64 @@ static rc_t vdf_len_spread_vdbtbl( const p_dump_context ctx, const VTable * tbl,
 }
 
 static rc_t vdf_len_spread_db( const p_dump_context ctx, const VDBManager * mgr, const char * path ) {
-    const VDatabase * db;
     VSchema *schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, &(ctx -> schema_list), true /* ctx -> force_sra_schema */ );
-    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
-    DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &(ctx -> schema_list) );
     if ( 0 == rc ) {
-        KNamelist *tbl_names;
-        rc = VDatabaseListTbl( db, &tbl_names );
-        if ( 0 != rc ) {
-            ErrMsg( "VDatabaseListTbl( '%s' )  ->  %R", path, rc );
-        } else {
-            if ( ctx -> table == NULL ) {
-                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
-                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
-                /* if there is no SEQUENCE-table, just pick the first table available... */
-                if ( !table_found ) {
-                    vdh_take_1st_table_from_db( ctx, tbl_names );
-                }
+        const VDatabase * db;
+        rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
+        DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
+        if ( 0 == rc ) {
+            KNamelist *tbl_names;
+            rc = VDatabaseListTbl( db, &tbl_names );
+            if ( 0 != rc ) {
+                ErrMsg( "VDatabaseListTbl( '%s' )  ->  %R", path, rc );
             } else {
-                /* the user DID specify a table: check if the database has a table with this name,
-                   if not try with a sub-string */
-                String value;
-                StringInitCString( &value, ctx -> table );
-                if ( !vdh_list_contains_value( tbl_names, &value ) ) {
-                    vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
+                if ( ctx -> table == NULL ) {
+                    /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                    bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                    /* if there is no SEQUENCE-table, just pick the first table available... */
+                    if ( !table_found ) {
+                        vdh_take_1st_table_from_db( ctx, tbl_names );
+                    }
+                } else {
+                    /* the user DID specify a table: check if the database has a table with this name,
+                    if not try with a sub-string */
+                    String value;
+                    StringInitCString( &value, ctx -> table );
+                    if ( !vdh_list_contains_value( tbl_names, &value ) ) {
+                        vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
+                    }
+                }
+                rc = vdh_knamelist_release( rc, tbl_names );
+            }
+            if ( rc == 0 ) {
+                const VTable * tbl;
+                rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* vdb-dump-helper.c */
+                if ( 0 == rc ) {
+                    rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
+                    rc = vdh_vtable_release( rc, tbl );
                 }
             }
-            rc = vdh_knamelist_release( rc, tbl_names );
+            rc = vdh_vdatabase_release( rc, db );
         }
-        if ( rc == 0 ) {
-            const VTable * tbl;
-            rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* vdb-dump-helper.c */
-            if ( 0 == rc ) {
-                rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
-                rc = vdh_vtable_release( rc, tbl );
-            }
-        }
-        rc = vdh_vdatabase_release( rc, db );
+        rc = vdh_vschema_release( rc, schema );
     }
-    rc = vdh_vschema_release( rc, schema );
     return rc;
 }
 
 static rc_t vdf_len_spread_tbl( const p_dump_context ctx, const VDBManager * mgr, const char * path ) {
     VSchema * schema = NULL;
-    const VTable * tbl;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, &(ctx -> schema_list), true /* ctx -> force_sra_schema */ );
-    rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", path );
-    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ) );
     if ( 0 == rc ) {
-        rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
-        rc = vdh_vtable_release( rc, tbl );
+        const VTable * tbl;
+        rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", path );
+        DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
+        if ( 0 == rc ) {
+            rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
+            rc = vdh_vtable_release( rc, tbl );
+        }
+        rc = vdh_vschema_release( rc, schema );
     }
-    rc = vdh_vschema_release( rc, schema );
     return rc;
 }
 

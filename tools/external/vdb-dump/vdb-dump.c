@@ -33,9 +33,6 @@
 #include <kdb/manager.h>
 #include <kdb/namelist.h>
 
-#include <kfs/directory.h>
-#include <kns/manager.h>
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
@@ -43,12 +40,10 @@
 #include <klib/container.h>
 #include <klib/vector.h>
 #include <klib/log.h>
-#include <klib/out.h>
 #include <klib/debug.h>
 #include <klib/status.h>
 #include <klib/text.h>
 #include <klib/printf.h>
-#include <klib/rc.h>
 #include <klib/time.h>
 #include <klib/num-gen.h>
 
@@ -68,6 +63,7 @@
 #include "vdb-dump-redir.h"
 #include "vdb_info.h"
 #include "vdb-dump-view-spec.h"
+#include "vdb-dump-inspect.h"
 
 static const char * row_id_on_usage[]           = { "print row id",                                 NULL };
 static const char * line_feed_usage[]           = { "line-feed's inbetween rows",                   NULL };
@@ -1551,12 +1547,12 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
                               const VDBManager *mgr,
                               const db_tab_t tab_fkt ) {
     VSchema *schema = NULL;
-    VPath * path = NULL;
-    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /*ctx->force_sra_schema*/ );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ) );
     if ( rc == 0 ) {
-        const VTable *tbl;    
+        VPath * path = NULL;
         rc = vdh_path_to_vpath( ctx -> path, &path );
         if ( 0 == rc ) {
+            const VTable *tbl;            
             rc = VDBManagerOpenTableReadVPath( mgr, &tbl, schema, path );
             if ( 0 != rc ) {
                 ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
@@ -1652,12 +1648,12 @@ db_fkt [IN] ... function to be called if directory, manager and database are ope
 static rc_t vdm_dump_db_fkt( const p_dump_context ctx, const VDBManager * mgr,
                              const db_fkt_t db_fkt ) {
     VSchema *schema = NULL;
-    VPath * path = NULL;
-    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /* ctx->force_sra_schema */ );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ) );
     if ( 0 == rc ) {
-        const VDatabase *db;
+        VPath * path = NULL;
         rc = vdh_path_to_vpath( ctx -> path, &path );
         if ( 0 == rc ) {
+            const VDatabase *db;
             rc = VDBManagerOpenDBReadVPath( mgr, &db, schema, path );
             if ( 0 != rc ) {
                 ErrMsg( "VDBManagerOpenDBReadVPath( '%s' ) -> %R", ctx -> path, rc );
@@ -2021,7 +2017,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args ) {
                                     rc = vdb_info( &( ctx -> schema_list ), ctx -> format, mgr,
                                                    value, ctx -> rows );   /* in vdb_info.c */
                                 } else if ( ctx -> inspect ) {
-                                    KOutMsg( "INSPECT\n" );
+                                    rc = vdb_dump_inspect( dir, value );
                                 } else if ( ctx -> len_spread ) {
                                     rc = vdf_len_spread( ctx, mgr, value ); /* in vdb-dump-fastq.c */
                                 } else {
@@ -2044,17 +2040,9 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args ) {
                     }
                 }
             }
-            {
-                rc_t rc2 = VDBManagerRelease( mgr );
-                DISP_RC( rc2, "VDBManagerRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_vmanager_release( rc, mgr );
         }
-        {
-            rc_t rc2 = KDirectoryRelease( dir );
-            DISP_RC( rc2, "KDirectoryRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc = vdh_kdirectory_release( rc, dir );
     }
     return rc;
 }

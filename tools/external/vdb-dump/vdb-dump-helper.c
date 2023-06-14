@@ -76,11 +76,8 @@ static void CC vdh_parse_1_schema( void *item, void *data ) {
     }
 }
 
-/* TBD: remove with_sra_schema and VDBManagerMakeSRASchema() */
-rc_t vdh_parse_schema( const VDBManager *mgr, VSchema **new_schema,
-                        Vector *schema_list, bool with_sra_schema ) {
+rc_t vdh_parse_schema( const VDBManager *mgr, VSchema **new_schema, Vector *schema_list ) {
     rc_t rc = 0;
-
     if ( NULL == mgr ) {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     }
@@ -88,10 +85,12 @@ rc_t vdh_parse_schema( const VDBManager *mgr, VSchema **new_schema,
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     }
     *new_schema = NULL;
+    /*
     if ( with_sra_schema ) {
         rc = VDBManagerMakeSRASchema( mgr, new_schema );
         DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
     }
+    */
     if ( ( 0 == rc )&&( NULL != schema_list ) ) {
         if ( NULL == *new_schema ) {
             rc = VDBManagerMakeSchema( mgr, new_schema );
@@ -124,18 +123,17 @@ helper function to test if a given path is a vdb-table
 ********************************************************************/
 bool vdh_is_path_table( const VDBManager *mgr, const char *path, Vector *schema_list ) {
     bool res = false;
-    const VTable *tbl;
     VSchema *schema = NULL;
-    rc_t rc;
-    
-    vdh_parse_schema( mgr, &schema, schema_list, false );
-
-    rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", path );
+    rc_t rc = vdh_parse_schema( mgr, &schema, schema_list );
     if ( 0 == rc ) {
-        res = true; /* yes we are able to open the table ---> path is a table */
-        vdh_vtable_release( rc, tbl );
+        const VTable *tbl;
+        rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", path );
+        if ( 0 == rc ) {
+            res = true; /* yes we are able to open the table ---> path is a table */
+            vdh_vtable_release( rc, tbl );
+        }
+        vdh_vschema_release( rc, schema );
     }
-    vdh_vschema_release( rc, schema );
     return res;
 }
 
@@ -176,18 +174,17 @@ helper function to test if a given path is a vdb-database
 ********************************************************************/
 bool vdh_is_path_database( const VDBManager *mgr, const char *path, Vector *schema_list ) {
     bool res = false;
-    const VDatabase *db;
     VSchema *schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, schema_list, false );
-
-    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
+    rc_t rc = vdh_parse_schema( mgr, &schema, schema_list );
     if ( 0 == rc ) {
-        res = true; /* yes we are able to open the database ---> path is a database */
-        rc = vdh_vdatabase_release( rc, db );
+        const VDatabase *db;        
+        rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
+        if ( 0 == rc ) {
+            res = true; /* yes we are able to open the database ---> path is a database */
+            rc = vdh_vdatabase_release( rc, db );
+        }
+        vdh_vschema_release( rc, schema );
     }
-    vdh_vschema_release( rc, schema );
     return res;
 }
 
@@ -556,16 +553,8 @@ rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t *
                     }
                 }
             }
-            if ( NULL != f ) {
-                rc_t rc2 = KFileRelease( f );
-                DISP_RC( rc2, "KFileRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
-            {
-                rc_t rc2 = KDirectoryRelease( dir );
-                DISP_RC( rc2, "KDirectoryRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_kfile_release( rc, f );
+            rc = vdh_kdirectory_release( rc, dir );
         }
     }
     return rc;
@@ -674,6 +663,29 @@ rc_t vdh_open_table_by_path( const VDatabase * db, const char * inner_db_path, c
             }
         }
         rc = vdh_vnamelist_release( rc, sections );
+    }
+    return rc;
+}
+
+rc_t vdh_open_vpath_as_file( const KDirectory * dir, const VPath * vpath, const KFile ** f ) {
+    rc_t rc;
+    if ( NULL == dir || NULL == vpath || NULL ==f ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    } else {
+        char syspath[ 4096 ];
+        size_t syspath_len;
+        rc = VPathReadSysPath( vpath, syspath, sizeof syspath, &syspath_len );
+        if ( 0 == rc ) {
+            KOutMsg( "syspath: >%s<\n", syspath );
+            uint32_t path_type = KDirectoryPathType( dir, "%s", syspath );
+            if ( kptFile == path_type ) {
+                KOutMsg( "...it is a file!\n" );
+                rc = KDirectoryOpenFileRead( dir, f, "%s", syspath );
+            } else {
+                rc = SILENT_RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                vdh_clear_recorded_errors();
+            }
+        }
     }
     return rc;
 }
@@ -808,6 +820,33 @@ rc_t vdh_view_release( rc_t rc, const VView * view ) {
     if ( NULL != view ) {
         rc_t rc2 = VViewRelease( view );
         DISP_RC( rc2, "VViewRelease() failed" );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+rc_t vdh_kdirectory_release( rc_t rc, const KDirectory * dir ) {
+    if ( NULL != dir ) {
+        rc_t rc2 = KDirectoryRelease( dir );
+        DISP_RC( rc2, "KDirectoryRelease() failed" );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+rc_t vdh_kfile_release( rc_t rc, const KFile * f ) {
+    if ( NULL != f ) {
+        rc_t rc2 = KFileRelease( f );
+        DISP_RC( rc2, "KFileRelease() failed" );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+rc_t vdh_vmanager_release( rc_t rc, const VDBManager * mgr ) {
+    if ( NULL != mgr ) {
+        rc_t rc2 = VDBManagerRelease( mgr );
+        DISP_RC( rc2, "VDBManagerRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;

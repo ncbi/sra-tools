@@ -25,7 +25,11 @@
 add_compile_definitions( __mod__="tools/vdb-validate" )
 
 # External
-GenerateExecutableWithDefs( vdb-validate "vdb-validate" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+set(SRC
+	main.c
+	vdb-validate.c
+)
+GenerateExecutableWithDefs( vdb-validate "${SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-validate false )
 
 GenerateExecutableWithDefs( check-corrupt "check-corrupt" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

@@ -29,10 +29,6 @@
 #include <vfs/resolver.h> /* VResolver */
 #include <vfs/path.h> /* VPathMake */
 
-#include <kapp/main.h>
-#include <kapp/args.h>
-#include <kapp/log-xml.h>
-
 #include <kdb/manager.h>
 #include <kdb/database.h>
 #include <kdb/table.h>
@@ -40,8 +36,6 @@
 #include <kdb/namelist.h>
 #include <kdb/consistency-check.h>
 #include <kdb/kdb-priv.h> /* KTableOpenDirectoryRead */
-
-#include <kfg/config.h> /* KConfigSetNgcFile */
 
 #include <vdb/manager.h>
 #include <vdb/schema.h>
@@ -76,6 +70,8 @@
 #include <klib/data-buffer.h>
 #include <klib/sort.h>
 
+#include <kapp/main.h> /* Quitting */
+
 #include <sysalloc.h>
 
 #include <stdio.h>
@@ -106,10 +102,6 @@
 #define DBG_MSG(args)
 #endif
 
-static bool exhaustive;
-static bool md5_required;
-static bool ref_int_check;
-static bool s_IndexOnly;
 static size_t memory_suggestion = (2ull * 1024ull * 1024ull * 1024ull);
 
 typedef struct node_s {
@@ -327,7 +319,7 @@ static rc_t visiting(CCReportInfoBlock const *what, cc_context_t *ctx)
 
 static rc_t CC report(CCReportInfoBlock const *what, void *Ctx)
 {
-    cc_context_t *ctx = Ctx;
+    cc_context_t *ctx = (cc_context_t *)Ctx;
     rc_t rc = Quitting();
 
     if (rc)
@@ -477,13 +469,15 @@ typedef struct ColumnInfo_s {
     uint32_t elem_count;
 } ColumnInfo;
 
+struct CountSize {
+	unsigned count;
+	size_t size;
+};
+
 static rc_t CC get_sizes_cb(const KDirectory *dir,
     uint32_t type, const char *name, void *data)
 {
-    struct {
-        unsigned count;
-        size_t size;
-    } *pb = data;
+    struct CountSize *pb = (struct CountSize *)data;
 
     ++pb->count;
     pb->size += strlen(name) + 1;
@@ -494,10 +488,7 @@ static rc_t CC get_sizes_cb(const KDirectory *dir,
 static rc_t get_sizes(KDirectory const *dir, unsigned *nobj, size_t *namesz)
 {
     rc_t rc;
-    struct {
-        unsigned count;
-        size_t size;
-    } pb;
+    struct CountSize pb;
 
     memset(&pb, 0, sizeof(pb));
     rc = KDirectoryVisit(dir, true, get_sizes_cb, &pb, NULL);
@@ -692,7 +683,7 @@ static rc_t init_dbcc(KDirectory const *dir, char const name[], bool is_file,
         *names = NULL;
     }
     else {
-        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz + 1);
+        *nodes = (node_t *)calloc(1, nobj * sizeof(**nodes) + namesz + 1);
         if (names)
             *names = (char *)&(*nodes)[nobj];
         else
@@ -1018,7 +1009,7 @@ static rc_t VTable_get_platform(VTable const *tbl,
         /* probable fatal */
         return rc;
     }
-    rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
+    rc = VCursorAddColumn(curs, &cid, "(" sra_platform_id_t ")PLATFORM");
     if (rc == 0) {
         rc = VCursorOpen(curs);
         if (rc == 0) {
@@ -1311,17 +1302,19 @@ static size_t load_key_pairs(int64_t const startId,
 
 static bool is_sorted(uint32_t const N, int64_t const key[/* N */])
 {
-    uint32_t i = 0;
-    int64_t last = key[i];
+	if (N > 0) {
+		uint32_t i = 0;
+		int64_t last = key[i];
 
-    for (i = 1; i < N; ++i) {
-        int64_t const cur = key[i];
+		for (i = 1; i < N; ++i) {
+			int64_t const cur = key[i];
 
-        if (cur < last)
-            return false;
+			if (cur < last)
+				return false;
 
-        last = cur;
-    }
+			last = cur;
+		}
+	}
     return true;
 }
 
@@ -1400,8 +1393,8 @@ static rc_t ric_align_generic(int64_t const startId,
                         scratch_size = elem_count;
                     }
                     memmove(scratch[0], id, elem_count * sizeof(id[0]));
-                    sort_keys(elem_count, scratch[0]);
-                    id = scratch[0];
+                    sort_keys(elem_count, (int64_t *)scratch[0]);
+                    id = (int64_t const *)scratch[0];
                 }
                 current = 0;
                 cur_fkey = fkey;
@@ -1519,7 +1512,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     }
     else if (rc == 0) {
         size_t const chunk = work_chunk(count);
-        id_pair_t *const pair = malloc(sizeof(id_pair_t) * chunk);
+        id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
 
         if (pair) {
             void *scratch = NULL;
@@ -1601,7 +1594,7 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     }
     if (rc == 0) {
         size_t const chunk = work_chunk(count);
-        id_pair_t *const pair = malloc((sizeof(id_pair_t)+sizeof(int64_t)) * chunk);
+        id_pair_t *const pair = (id_pair_t *)malloc((sizeof(id_pair_t)+sizeof(int64_t)) * chunk);
 
         if (pair) {
             void *scratch = NULL;
@@ -1776,11 +1769,11 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
     {
         chunk_size = sec_row_count > SDC_ROW_CHUNK_MAX ? SDC_ROW_CHUNK_MAX : sec_row_count;
 
-        pri_id_pairs = malloc(sizeof(*pri_id_pairs) * chunk_size);
-        pri_len_pairs = malloc(sizeof(*pri_len_pairs) * chunk_size);
-        seq_spot_id_pairs = malloc(sizeof(*seq_spot_id_pairs) * chunk_size);
-        seq_spot_read_id_pairs = malloc(sizeof(*seq_spot_read_id_pairs) * chunk_size);
-        seq_read_lens = malloc(sizeof(*seq_read_lens) * chunk_size);
+        pri_id_pairs = (id_pair_t *)malloc(sizeof(*pri_id_pairs) * chunk_size);
+        pri_len_pairs = (id_pair_t *)malloc(sizeof(*pri_len_pairs) * chunk_size);
+        seq_spot_id_pairs = (id_pair_t *)malloc(sizeof(*seq_spot_id_pairs) * chunk_size);
+        seq_spot_read_id_pairs = (id_pair_t *)malloc(sizeof(*seq_spot_read_id_pairs) * chunk_size);
+        seq_read_lens = (uint32_t *)malloc(sizeof(*seq_read_lens) * chunk_size);
 
         if (seq_spot_id_pairs == NULL)
         {
@@ -2657,19 +2650,20 @@ KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir
 static
 rc_t CC vdb_validate_dir ( const KDirectory *dir, uint32_t type, const char *name, void *data )
 {
+	vdb_validate_params const *pb = (vdb_validate_params *)data;
     switch ( type & ~ kptAlias )
     {
     case kptFile:
-        return vdb_validate_file ( data, dir, name );
+        return vdb_validate_file ( pb, dir, name );
     case kptDir:
         {
             bool is_ad;
-            switch ( vdb_subdir_type ( data, dir, name, &is_ad ) )
+            switch ( vdb_subdir_type ( pb, dir, name, &is_ad ) )
             {
             case kptDatabase:
-                return vdb_validate_database ( data, dir, name, is_ad );
+                return vdb_validate_database ( pb, dir, name, is_ad );
             case kptTable:
-                return vdb_validate_table ( data, dir, name, is_ad );
+                return vdb_validate_table ( pb, dir, name, is_ad );
             default:
                 return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
             }

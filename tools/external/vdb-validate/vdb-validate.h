@@ -28,12 +28,17 @@
 #include <vdb/manager.h>
 
 /// startup parameters and top level state
+extern bool exhaustive;
+extern bool md5_required;
+extern bool ref_int_check;
+extern bool s_IndexOnly;
+
 typedef struct vdb_validate_params vdb_validate_params;
 struct vdb_validate_params
 {
-    const KDirectory *wd;
-    const KDBManager *kmgr;
-    const VDBManager *vmgr;
+    struct KDirectory const *wd;
+    struct KDBManager const *kmgr;
+    struct VDBManager const *vmgr;
 
     bool md5_chk;
     bool md5_chk_explicit;

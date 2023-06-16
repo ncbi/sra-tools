@@ -24,7 +24,30 @@
  *
  */
 
+#include <klib/rc.h>
+#include <klib/out.h>
+#include <klib/log.h>
+
+#include <klib/text.h> /* String */
+#include <klib/status.h> /* STSMSG */
+
+#include <kapp/main.h>
+#include <kapp/args.h>
+#include <kapp/log-xml.h>
+
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
+#include <kfs/directory.h>
+
+#include <vdb/manager.h>
+#include <vdb/vdb-priv.h>
+
 #include "vdb-validate.h"
+
+bool exhaustive = false;
+bool md5_required = false;
+bool ref_int_check = false;
+bool s_IndexOnly = false;
 
 /*static char const* const defaultLogLevel =
 #if _DEBUGGING

@@ -1442,75 +1442,31 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     ColumnInfo bci;
     int64_t startId;
     uint64_t count;
-    int64_t oneRefId = 0;
 
     aci.name = "REF_ID";
     bci.name = id_col_name;
-
-    rc = VTableCreateCursorRead(ref, &bcurs);
-    if (rc == 0)
-        rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
-    if (rc == 0)
-        rc = VCursorOpen(bcurs);
-    if (rc == 0)
-        rc = VCursorIdRange(bcurs, bci.idx, &oneRefId, &count);
-    if (rc)
-        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-                                "reference table can not be read", "name=%s", dbname));
-    else {
-        if (count == 1) {
-            /* There's an optimization:
-             * If there is only one row in the reference table,
-             * then don't bother storing the alignment row IDs
-             * (since ALL alignments must point to this one row).
-             * check if *_IDS is empty */ 
-            rc = VCursorCellDataDirect(bcurs, oneRefId, bci.idx,
-                                       &bci.elem_bits, &bci.value.vp,
-                                       NULL, &bci.elem_count);
-            
-            if (rc != 0 || bci.elem_count != 0)
-                oneRefId = 0;
-        }
-        rc = VTableCreateCursorRead(align, &acurs);
-        if (rc == 0) {
-            rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
-            if (rc == 0)
-                rc = VCursorOpen(acurs);
-            if (rc == 0)
-                rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
-            if (rc)
-                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-                                        "alignment table can not be read", "name=%s", dbname));
-        }
-    }
-    if (rc == 0 && oneRefId != 0) {
-        /* verify that all REF_ID == the one reference ID */
-        uint64_t row;
-        for (row = 0; row < count; ++row) {
-            uint32_t i;
-            
-            rc = VCursorCellDataDirect(acurs, (int64_t)row + startId, aci.idx
-                                       , &aci.elem_bits, &aci.value.vp
-                                       , NULL, &aci.elem_count);
-            if (rc) {
-                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-                                        "alignment table can not be read", "name=%s", dbname));
-                break;
-            }
-            for (i = 0; i < aci.elem_count; ++i) {
-                if (aci.value.i64[i] != oneRefId)
-                    break;
-            }
-            if (i < aci.elem_count) {
-                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
-                (void)PLOGERR(klogErr, (klogErr, rc,
-                                        "Database '$(name)': column '$(idcol)' failed referential integrity check",
-                                        "name=%s,idcol=%s", dbname, id_col_name));
-                break;
-            }
-        }
-    }
-    else if (rc == 0) {
+    
+	rc = VTableCreateCursorRead(align, &acurs);
+	if (rc == 0)
+		rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
+	if (rc == 0)
+		rc = VCursorOpen(acurs);
+	if (rc == 0)
+		rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
+	if (rc)
+		(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+								"alignment table can not be read", "name=%s", dbname));
+	else {
+		rc = VTableCreateCursorRead(ref, &bcurs);
+		if (rc == 0)
+			rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
+		if (rc == 0)
+			rc = VCursorOpen(bcurs);
+		if (rc)
+			(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+									"reference table can not be read", "name=%s", dbname));
+	}
+	if (rc == 0) {
         size_t const chunk = work_chunk(count);
         id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
 

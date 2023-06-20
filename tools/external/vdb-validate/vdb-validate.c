@@ -1448,7 +1448,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     
 	rc = VTableCreateCursorRead(align, &acurs);
 	if (rc == 0)
-		rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
+	    rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
 	if (rc == 0)
 		rc = VCursorOpen(acurs);
 	if (rc == 0)

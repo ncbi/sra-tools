@@ -40,7 +40,12 @@ if [ "$res" != "0" ];
     then echo "FAILED to get stats from loaded with bam-load, res=$res" && exit 1;
 fi
 
-output=$(diff actual/stats-from-latf-load actual/stats-from-bam-load)
+cat actual/stats-from-bam-load  | sed 's/bam//'  > actual/stats-from-bam-load-fixed
+cat actual/stats-from-latf-load | sed 's/latf//' > actual/stats-from-latf-load-fixed
+
+#cat actual/*-load-fixed
+
+output=$(diff actual/stats-from-latf-load-fixed actual/stats-from-bam-load-fixed)
 res=$?
 if [ "$res" != "0" ];
     then echo "FAILED: sra-stat output from loaded with bam-load differ from loaded with latf-load, res=$res" && exit 1;

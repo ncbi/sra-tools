@@ -38,6 +38,15 @@ if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    add_test( NAME Test_BamLoader_small_unsorted
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "./test-small-unsorted.sh ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_small_unsorted PROPERTIES FIXTURES_REQUIRED BamTest )
+
     #####################
     # min-batch-size option
     add_test( NAME Test_BamLoader_MinBatchSize

@@ -4,9 +4,9 @@ BINDIR=${1:-BINDIR}
 BAMLOAD=$(readlink -f ${BINDIR}/bam-load)
 VDBDUMP=$(readlink -f ${BINDIR}/vdb-dump)
 
-${BAMLOAD} small-unsorted.sam \
+${BAMLOAD} db/small-unsorted.sam \
     --log-level err \
-    --ref-file small-unsorted.fasta \
+    --ref-file db/small-unsorted.fasta \
     --output small-unsorted.out || exit 1
 
 ${VDBDUMP} small-unsorted.out \

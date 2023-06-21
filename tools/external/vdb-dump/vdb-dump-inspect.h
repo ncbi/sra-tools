@@ -35,7 +35,29 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-rc_t vdb_dump_inspect( const KDirectory * dir, const char * object );
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+    
+/*
+* the object can be:
+*    A: the path of a directory
+*        >   check if the directory is a valid VDB-object
+*            if it is : we have a directory to inspect
+*    B: the path of a file
+*        >   check if the file is a valid VDB-object
+*            if it is : transform it into a directory, which we can inspect
+*    C: URL
+*        >   open the url as a HTTP-file
+*            check if it is a valid VDB-object
+*            if it is : transform it into a directory, which we can inspect
+*    D: accession
+*        >   resolve the accession
+*            if it resolves into a URL : continue with C
+*            if it resolves into a local path : continue with A
+*/
+  
+rc_t vdb_dump_inspect( const KDirectory * dir, const VDBManager *mgr, const char * object );
 
 #ifdef __cplusplus
 }

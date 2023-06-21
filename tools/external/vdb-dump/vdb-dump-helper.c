@@ -678,7 +678,7 @@ rc_t vdh_open_vpath_as_file( const KDirectory * dir, const VPath * vpath, const 
         if ( 0 == rc ) {
             KOutMsg( "syspath: >%s<\n", syspath );
             uint32_t path_type = KDirectoryPathType( dir, "%s", syspath );
-            if ( kptFile == path_type ) {
+            if ( kptFile == path_type || ( kptFile | kptAlias ) == path_type ) {
                 KOutMsg( "...it is a file!\n" );
                 rc = KDirectoryOpenFileRead( dir, f, "%s", syspath );
             } else {
@@ -739,6 +739,15 @@ rc_t vdh_vdatabase_release( rc_t rc, const VDatabase * db ) {
     if ( NULL != db ) {
         rc_t rc2 = VDatabaseRelease( db );
         DISP_RC( rc2, "VDatabaseRelease() failed" );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+rc_t vdh_kdatabase_release( rc_t rc, const KDatabase * db ) {
+    if ( NULL != db ) {
+        rc_t rc2 = KDatabaseRelease( db );
+        DISP_RC( rc2, "KDatabaseRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;

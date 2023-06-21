@@ -2017,7 +2017,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args ) {
                                     rc = vdb_info( &( ctx -> schema_list ), ctx -> format, mgr,
                                                    value, ctx -> rows );   /* in vdb_info.c */
                                 } else if ( ctx -> inspect ) {
-                                    rc = vdb_dump_inspect( dir, value );
+                                    rc = vdb_dump_inspect( dir, mgr, value );
                                 } else if ( ctx -> len_spread ) {
                                     rc = vdf_len_spread( ctx, mgr, value ); /* in vdb-dump-fastq.c */
                                 } else {

@@ -83,6 +83,10 @@ extern "C" {
 #include <kdb/table.h>
 #endif
 
+#ifndef _h_kdb_database_
+#include <kdb/database.h>
+#endif
+    
 #ifndef _h_kdb_meta_
 #include <kdb/meta.h>
 #endif
@@ -149,6 +153,7 @@ rc_t vdh_knamelist_release( rc_t rc, const KNamelist * namelist );
 rc_t vdh_vnamelist_release( rc_t rc, const VNamelist * namelist );
 rc_t vdh_vschema_release( rc_t rc, const VSchema * schema );
 rc_t vdh_vdatabase_release( rc_t rc, const VDatabase * db );
+rc_t vdh_kdatabase_release( rc_t rc, const KDatabase * db );
 rc_t vdh_vtable_release( rc_t rc, const VTable * tbl );
 rc_t vdh_ktable_release( rc_t rc, const KTable * tbl );
 rc_t vdh_vcursor_release( rc_t rc, const VCursor * cursor );

@@ -127,7 +127,7 @@ private:
     json  mReport;                      ///< Telemetry report
     uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
     atomic<uint32_t> mErrorCount{0};            ///< Global error counter
-    set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 170, 190}; ///< Error codes that will be allowed up to mMaxErrCount
+    set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
 };
 
 

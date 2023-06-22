@@ -237,24 +237,21 @@ static rc_t vdb_dump_inspect_tbl( const VDBManager * mgr, const char * object, c
 }
 
 rc_t vdb_dump_inspect( const KDirectory * dir, const VDBManager * mgr, const char * object ) {
-    rc_t rc = KOutMsg( "inspecting: >%s<\n", object );
-    if ( 0 == rc ) {
-        VPath * path = NULL;
-        rc = vdh_path_to_vpath( object, &path );
-        if ( 0 != rc ) {
-            ErrMsg( "vdh_path_to_vpath( '%s' ) -> %R", object, rc );            
-        } else {
-            /* let's check if we can use the object */
-            uint32_t path_type = ( VDBManagerPathType ( mgr, "%s", object ) & ~ kptAlias );
-            /* types defined in <kdb/manager.h> */
-            switch ( path_type ) {
-                case kptDatabase        : rc = vdb_dump_inspect_db( mgr, object, path ); break;
-                case kptPrereleaseTbl   :
-                case kptTable           : rc = vdb_dump_inspect_tbl( mgr, object, path ); break;
-                default                 : rc = KOutMsg( "\tis not a vdb-object\n" ); break;
-            }
-            rc = vdh_vpath_release( rc, path );
+    VPath * path = NULL;
+    rc_t rc = vdh_path_to_vpath( object, &path );
+    if ( 0 != rc ) {
+        ErrMsg( "vdh_path_to_vpath( '%s' ) -> %R", object, rc );            
+    } else {
+        /* let's check if we can use the object */
+        uint32_t path_type = ( VDBManagerPathType ( mgr, "%s", object ) & ~ kptAlias );
+        /* types defined in <kdb/manager.h> */
+        switch ( path_type ) {
+            case kptDatabase        : rc = vdb_dump_inspect_db( mgr, object, path ); break;
+            case kptPrereleaseTbl   :
+            case kptTable           : rc = vdb_dump_inspect_tbl( mgr, object, path ); break;
+            default                 : rc = KOutMsg( "\tis not a vdb-object\n" ); break;
         }
+        rc = vdh_vpath_release( rc, path );
     }
     return rc;
 }

@@ -119,15 +119,15 @@ public:
 #endif
 
 
-static constexpr int MAX_READS = 4;
+//static constexpr int MAX_READS = 4;
 // spot_assembly_t struct with constructor 
 struct spot_assembly_t {
     spot_assembly_t() {
-        m_reads_metadata.resize(MAX_READS);
-        m_sequences.resize(MAX_READS);
-        m_qualities.resize(MAX_READS);
-        m_seq_offset.resize(MAX_READS);
-        m_qual_offset.resize(MAX_READS);
+        //m_reads_metadata.resize(MAX_READS);
+        //m_sequences.resize(MAX_READS);
+        //m_qualities.resize(MAX_READS);
+        //m_seq_offset.resize(MAX_READS);
+        //m_qual_offset.resize(MAX_READS);
     };
     void init(size_t num_rows) {
 
@@ -144,8 +144,8 @@ struct spot_assembly_t {
         m_hot_spots.clear();
 
         m_reads_metadata.clear();
-        m_reads_metadata.resize(MAX_READS);
-        m_reads_counts.fill(0);
+        //m_reads_metadata.resize(MAX_READS);
+        //m_reads_counts.fill(0);
 
         m_total_spots = 0;
     } 
@@ -163,7 +163,8 @@ struct spot_assembly_t {
     bvector_type m_hot_spot_ids;
     map<size_t, vector<fastq_read>> m_hot_spots;
     size_t m_total_spots = 0;
-    array<size_t, MAX_READS> m_reads_counts;
+    //array<size_t, MAX_READS> m_reads_counts;
+    map<int, size_t> m_reads_counts;
 
 #if not defined(_SPOT_ASSEMBLY_MT)
     vector<uint32_t> buffer;
@@ -196,7 +197,8 @@ struct spot_assembly_t {
             return;
         }
         uint8_t read_idx = m_spot_index.get_no_check(row_id);
-        auto& metadata = m_reads_metadata[read_idx];
+        auto& metadata = m_reads_metadata.emplace_back();
+        //auto& metadata = m_reads_metadata[read_idx];
 
         metadata.get<u16_t>(metadata_t::e_ReaderId).set(row_id, read.m_ReaderIdx);
 
@@ -222,8 +224,10 @@ struct spot_assembly_t {
         for (size_t i = 0; i < sz; ++i) 
             buffer[i] = DNA2int(seq[i]);
         size_t offset = m_seq_offset[read_idx];
-        m_sequences[read_idx].import(&buffer[0], sz, offset);
-        m_seq_offset[read_idx] = offset + sz;
+        //m_sequences[read_idx].import(&buffer[0], sz, offset);
+        //m_seq_offset[read_idx] = offset + sz;
+        m_sequences.emplace_back().import(&buffer[0], sz, offset);
+        m_seq_offset.emplace_back() = offset + sz;
         offset |= sz << 48;
         metadata.get<u64_t>(metadata_t::e_SeqOffsetId).set(row_id, offset);
         //metadata.get<u32_t>(metadata_t::e_SeqLenId).set(row_id, sz);
@@ -238,8 +242,10 @@ struct spot_assembly_t {
             qual_buffer[i] = qual_scores[i] - qual_scores[i - 1];
         }
         size_t qual_offset = m_qual_offset[read_idx];
-        m_qualities[read_idx].import(&qual_buffer[0], sz, qual_offset);
-        m_qual_offset[read_idx] = qual_offset + sz;
+        m_qualities.emplace_back().import(&qual_buffer[0], sz, qual_offset);
+        m_qual_offset.emplace_back() = qual_offset + sz;
+//        m_qualities[read_idx].import(&qual_buffer[0], sz, qual_offset);
+//        m_qual_offset[read_idx] = qual_offset + sz;
         qual_offset |= sz << 48;
         metadata.get<u64_t>(metadata_t::e_QualOffsetId).set(row_id, qual_offset);
         m_spot_index.inc(row_id);
@@ -323,7 +329,15 @@ struct spot_assembly_t {
             reads[read_idx] = move(m_tmp_read);
         }
     }
-
+    void add_spot_bits(size_t spot_id, vector<uint32_t>& sort_vector) {
+        sort(sort_vector.begin(), sort_vector.end()); 
+        m_last_index.set_bit_no_check(sort_vector.back());
+        if (sort_vector.back()- sort_vector.front() < 10000000)
+            m_hot_spot_ids.set_bit_no_check(spot_id);
+        ++m_reads_counts[sort_vector.size()];
+        ++m_total_spots;
+    }
+/*
     void add_spot_bits(size_t spot_id, array<uint32_t, MAX_READS>& sort_vector, size_t sz) {
         sort(sort_vector.begin(), sort_vector.begin() + sz); 
         m_last_index.set_bit_no_check(sort_vector[sz - 1]);
@@ -332,7 +346,7 @@ struct spot_assembly_t {
         ++m_reads_counts[sz - 1];
         ++m_total_spots;
     }
-
+*/
     template<bool is_nanopore = false>
     void clear_spot(size_t row_id) 
     {
@@ -707,9 +721,11 @@ void spot_assembly_t::build(str_sv_type& read_names)
     m_read_index[sort_index[0]] = spot_id;
     size_t prev_row = sort_index[0];
 
-    array<uint32_t, 4> sort_vector;
-    int sort_vector_size = 1;
-    sort_vector[0] = prev_row;
+    //array<uint32_t, MAX_READS> sort_vector;
+    //int sort_vector_size = 1;
+    //sort_vector[0] = prev_row;
+    vector<uint32_t> sort_vector;
+    sort_vector.push_back(prev_row);
     string spot_name;
     read_names.get(prev_row, spot_name);
 
@@ -718,25 +734,33 @@ void spot_assembly_t::build(str_sv_type& read_names)
         if (read_names.compare_remap(row, spot_name.c_str()) == 0)  {
         //if (m_spot_names.compare(row, prev_row) == 0) {
             m_read_index[row] = spot_id;
-            sort_vector[sort_vector_size] = row;
-            ++sort_vector_size;
-            if (sort_vector_size > 4) {
-                string spot_name;
-                read_names.get(row, spot_name);
-                throw fastq_error(210, "Spot {} has more than 4 reads", spot_name);
-            }
+            sort_vector.push_back(row);
+            //sort_vector[sort_vector_size] = row;
+            //++sort_vector_size;
+            //if (sort_vector_size > MAX_READS) {
+            //    string spot_name;
+            //    read_names.get(row, spot_name);
+            //    throw fastq_error(210, "Spot {} has more than {} reads", spot_name, MAX_READS);
+            //}
         } else {
-            add_spot_bits(spot_id, sort_vector, sort_vector_size);
+            add_spot_bits(spot_id, sort_vector);
+            //add_spot_bits(spot_id, sort_vector, sort_vector_size);
             m_read_index[row] = ++spot_id;
-            sort_vector_size = 1;
-            sort_vector[0] = row;
+            //sort_vector_size = 1;
+            //sort_vector[0] = row;
+            sort_vector.clear();
+            sort_vector.push_back(row);
             read_names.get(row, spot_name);
         }
         //prev_row = row;
     }
-    if (sort_vector_size > 0) {
-        add_spot_bits(spot_id, sort_vector, sort_vector_size);
+    if (!sort_vector.empty()) {
+        add_spot_bits(spot_id, sort_vector);
     }
+
+    //if (sort_vector_size > 0) {
+    //    add_spot_bits(spot_id, sort_vector, sort_vector_size);
+    //}
 
     assert(m_total_spots == spot_id);
     m_last_index.optimize(TB1);

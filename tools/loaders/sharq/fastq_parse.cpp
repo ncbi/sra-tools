@@ -406,7 +406,7 @@ void CFastqParseApp::xProcessDigest(json& data)
     assert(data["groups"].front().contains("files"));
     const auto& first = data["groups"].front()["files"].front();
     if (first["platform_code"].size() > 1)
-        throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", first["platform_code"][0], first["platform_code"][1]);
+        throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", int(first["platform_code"][0]), int(first["platform_code"][1]));
     bool is10x = data["groups"].front()["is_10x"];
     int platform = first["platform_code"].front();
     int total_reads = 0;
@@ -425,7 +425,7 @@ void CFastqParseApp::xProcessDigest(json& data)
             if (mQuality != -1)
                 f["quality_encoding"] = mQuality; // Override quality
             if (f["platform_code"].size() > 1)
-                throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", f["platform_code"][0], f["platform_code"][1]);
+                throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", int(f["platform_code"][0]), int(f["platform_code"][1]));
            if (platform != f["platform_code"].front())
                 throw fastq_error(70, "Input files have deflines from different platforms ({} != {})", platform, int(f["platform_code"].front()));
             max_reads = max<int>(max_reads, f["max_reads"]);
@@ -435,14 +435,14 @@ void CFastqParseApp::xProcessDigest(json& data)
             // and the reads in an interleaved file don't have read numbers
             // and orphans are present
             // then sharq should fail.
-            if (!mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty())
+            if (mSpotAssembly == false && !mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty())
                 throw fastq_error(190); // "Unsupported interleaved file with orphans"
         }
 
         if (mHasReadPairs || mSpotAssembly == false ) {
             if (!mReadTypes.empty()) {
                 if ((int)mReadTypes.size() != group_reads)
-                    throw fastq_error(30, "readTypes number should match the number of reads ({})", group_reads);
+                    throw fastq_error(30, "readTypes number should match the number of reads {} != {}", mReadTypes.size(), group_reads);
             }
         }
         total_reads = max<int>(group_reads, total_reads);
@@ -457,7 +457,7 @@ void CFastqParseApp::xProcessDigest(json& data)
             else if (total_reads < 3) {
                 mReadTypes.resize(total_reads, 'B');
             } else {
-                throw fastq_error(20); // "No readTypes provided");
+                throw fastq_error(20, "The input data have spots with {} reads. Read types must be provided via parameter.", total_reads); // "No readTypes provided");
             }
         }
         for (auto& gr : data["groups"]) {

@@ -1,1 +1,1 @@
-[error] [code:20] No readTypes provided
+[error] [code:20] The input data have spots with 3 reads. Read types must be provided via parameter.

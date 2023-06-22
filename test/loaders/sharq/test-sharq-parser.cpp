@@ -189,7 +189,6 @@ FIXTURE_TEST_CASE(GoodRead, LoaderFixture)
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ, cQUAL)));
     REQUIRE(reader.parse_read<>(read));
-    REQUIRE(reader.platform()== 2);
     REQUIRE_EQ(read.Spot(), cSPOT1);
     REQUIRE_EQ(read.ReadNum(), string("1"));
     REQUIRE_EQ(read.SpotGroup(), cSPOT_GROUP);

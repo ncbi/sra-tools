@@ -361,3 +361,7 @@ SraInfo::HasPhysicalQualities() const
     }
     return false;
 }
+
+const string SraInfo::GetSchemaVersion(void) const {
+    return "schema";
+}

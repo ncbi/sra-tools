@@ -78,6 +78,8 @@ public:
     // Qualities
     bool HasPhysicalQualities() const;
 
+    const std::string GetSchemaVersion() const;
+
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;
 

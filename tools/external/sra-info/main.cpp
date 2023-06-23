@@ -48,6 +48,7 @@ using namespace std;
 #define OPTION_FORMAT       "format"
 #define OPTION_ISALIGNED    "is-aligned"
 #define OPTION_QUALITY      "quality"
+#define OPTION_SCHEMAVERS   "schema-version"
 #define OPTION_SPOTLAYOUT   "spot-layout"
 #define OPTION_LIMIT        "limit"
 #define OPTION_DETAIL       "detail"
@@ -57,6 +58,7 @@ using namespace std;
 #define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
 #define ALIAS_QUALITY       "Q"
+#define ALIAS_SCHEMAVERS    "a"
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
@@ -65,7 +67,8 @@ using namespace std;
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
-static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
+static const char * quality_usage[] = { "are quality scores stored or generated", nullptr };
+static const char * schema_vers_usage[] = { "print schema version", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
 static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
@@ -77,6 +80,7 @@ OptDef InfoOptions[] =
     { OPTION_FORMAT,        ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
     { OPTION_ISALIGNED,     ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
     { OPTION_QUALITY,       ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
+    { OPTION_SCHEMAVERS,    ALIAS_SCHEMAVERS,   nullptr, schema_vers_usage, 1, false,   false, nullptr },
     { OPTION_SPOTLAYOUT,    ALIAS_SPOTLAYOUT,   nullptr, spot_layout_usage, 1, false,   false, nullptr },
     { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
@@ -120,6 +124,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,    nullptr, platform_usage );
     HelpOptionLine ( ALIAS_QUALITY,     OPTION_QUALITY,     nullptr, quality_usage );
     HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED,   nullptr, isaligned_usage );
+    HelpOptionLine ( ALIAS_SCHEMAVERS,  OPTION_SCHEMAVERS,  nullptr, schema_vers_usage );
     HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
@@ -262,6 +267,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( opt_count > 0 )
                 {
                     Output( formatter.format( info.HasPhysicalQualities() ? "STORED" : "GENERATED" ) );
+                }
+
+                rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    Output( formatter.format( info.GetSchemaVersion() ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );

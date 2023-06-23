@@ -109,7 +109,8 @@ static void print_vdi_item( VDI_ITEM * item, VNamelist * exclude ) {
             if ( 0 == rc ) { print = false; }
         }
         if ( print ) {
-            KOutMsg( "%*s %7.4f%% %S\n", ( item->level * 2 ), " ", item -> percent, item -> name );
+            KOutMsg( "%*s %7.4f%% %,20zu\t%S\n", 
+                     ( item->level * 2 ), " ", item -> percent, item -> size, item -> name );
         }
         VectorForEach( &( item -> items ), false, print_vdi_cb, exclude );
     }

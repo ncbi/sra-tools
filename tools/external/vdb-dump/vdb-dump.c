@@ -372,7 +372,7 @@ static void CC vdm_print_elem_sum( void *item, void *data ) {
     if ( 0 != r_ctx -> rc ) return; /* important to stop if the last read was not successful */
     vds_clear( &( col_def->content ) ); /* clear the destination-dump-string */
 
-    r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%u", col_def -> elementsum ); 
+    r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%,zu", col_def -> elementsum ); 
     if ( 0 == r_ctx -> rc ) {
         vds_append_str( &( col_def -> content ), temp );
     }
@@ -984,6 +984,7 @@ static rc_t vdm_show_kdb_blobs( const p_col_def col_def,
             rc = KOutMsg( "range: %,ld ... %,ld\n", first, last );
             if ( 0 == rc ) {
                 int64_t id = first;
+                uint64_t sum = 0;
                 while ( id < last && 0 == rc ) {
                     const KColumnBlob *blob;
                     rc = KColumnOpenBlobRead( kcol, &blob, id );
@@ -1000,13 +1001,18 @@ static rc_t vdm_show_kdb_blobs( const p_col_def col_def,
                             rc = KColumnBlobRead ( blob, 0, &buffer, 0, &num_read, &remaining );
                             DISP_RC( rc, "KColumnBlobRead() failed" );
                             if ( 0 == rc ) {
+                                size_t blob_size = remaining + num_read;
                                 rc = KOutMsg( "blob[ %,ld ... %,ld] size = %,zu\n",
-                                    first_id_in_blob, last_id_in_blob, remaining + num_read );
+                                    first_id_in_blob, last_id_in_blob, blob_size );
+                                sum += blob_size;
                             }
                             id = last_id_in_blob + 1;
                         }
                         rc = vdh_kcolumnblob_release( rc, blob );
                     }
+                }
+                if ( 0 == rc ) {
+                    rc = KOutMsg( "total bytes = %,zu\n", sum );
                 }
             }
         }

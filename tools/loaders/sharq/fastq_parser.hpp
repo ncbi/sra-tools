@@ -238,6 +238,7 @@ typedef struct {
 
 typedef struct {
     size_t sequence_len = 0;
+    size_t sequence_len_bio = 0;
     size_t quality_len = 0;
     map<char, size_t> base_counts;
     map<uint8_t, size_t> quality_counts;
@@ -1316,8 +1317,11 @@ void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
     for (const auto& r : reads) {
         auto sz = r.Sequence().size();
         m_telemetry.output_metrics.sequence_len += sz;
-        for (auto c : r.Sequence()) {
-            ++m_telemetry.output_metrics.base_counts[c];
+        if (r.mReadType != SRA_READ_TYPE_TECHNICAL) {
+            m_telemetry.output_metrics.sequence_len_bio += sz;
+            for (auto c : r.Sequence()) {
+                ++m_telemetry.output_metrics.base_counts[c];
+            }
         }
         for (auto c : r.Quality()) {
             ++m_telemetry.output_metrics.quality_counts[c];
@@ -1864,6 +1868,7 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
 
         auto& om = j["o"];
         om["sequence_len"] = m_telemetry.output_metrics.sequence_len;
+        om["sequence_len_bio"] = m_telemetry.output_metrics.sequence_len_bio;
         om["quality_len"] = m_telemetry.output_metrics.quality_len;
         auto &bc = om["base_counts"];
         for (auto& it : m_telemetry.output_metrics.base_counts)

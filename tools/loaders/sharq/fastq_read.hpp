@@ -82,13 +82,13 @@ public:
     size_t m_SpotId = 0;     ///< Assigned spot_id  
     uint8_t m_ReaderIdx = 0; /// Reader's index
     size_t mLineNumber{0};        ///< Line number the read starts with
+    uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
 private:
     friend class fastq_reader;
     string mSpot;                 ///< Spot name
     string mReadNum;              ///< optional read number
     string mSpotGroup;            ///< spot group (barcode)
     uint8_t mReadFilter{0};       ///< read filter 0, 1
-    uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
     string mSuffix;               ///< Illumina suffix
     string mSequence;             ///< Sequence string
     string mQuality;              ///< Quality string as it comes from file adjusted to seq length

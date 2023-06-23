@@ -75,10 +75,10 @@
     },
     "o": {
         "base_counts": {
-            "A": 956,
-            "C": 414,
-            "G": 511,
-            "T": 909
+            "A": 916,
+            "C": 386,
+            "G": 471,
+            "T": 855
         },
         "quality_counts": {
             "14": 97,
@@ -90,6 +90,7 @@
         "quality_len": 2790,
         "read_count": 27,
         "sequence_len": 2790,
+        "sequence_len_bio": 2628,
         "spot_count": 9
     },
     "platform_code": 2,

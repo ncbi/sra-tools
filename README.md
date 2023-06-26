@@ -15,6 +15,12 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
+----
+
+_July, 10, 2023_: **SRA Toolkit 3.0.6**
+
+----
+
 _May 9, 2023_: **SRA Toolkit 3.0.5**
 
 Added support for PacBio to fasterq-dump.

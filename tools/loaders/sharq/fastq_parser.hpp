@@ -233,7 +233,8 @@ typedef struct {
     size_t sequence_len = 0;
     size_t quality_len = 0;
     size_t rejected_read_count = 0;
-    size_t duplicate_reads = 0;
+    size_t duplicate_reads_count = 0;
+    size_t duplicate_reads_len = 0;
 } data_input_metrics_t;
 
 typedef struct {
@@ -541,8 +542,8 @@ public:
     template<typename ScoreValidator, typename ErrorChecker>
     void first_pass(ErrorChecker&& error_checker);
     
-    int remove_duplicate_reads(vector<fastq_read>& assembled_spot);
-    int prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids);
+    void remove_duplicate_reads(vector<fastq_read>& assembled_spot);
+    void prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids);
 
     template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
     void second_pass(ErrorChecker&& error_checker);
@@ -1863,8 +1864,13 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
 
         if (m_telemetry.input_metrics.rejected_read_count)
             im["rejected_reads"] = m_telemetry.input_metrics.rejected_read_count;
-        if (m_telemetry.input_metrics.duplicate_reads)
-            im["duplicate_reads"] = m_telemetry.input_metrics.duplicate_reads;
+        if (m_telemetry.input_metrics.duplicate_reads_count) {
+            im["duplicate_reads"] = m_telemetry.input_metrics.duplicate_reads_count;
+            im["duplicate_reads_len"] = m_telemetry.input_metrics.duplicate_reads_len;
+        }
+        if (j.contains("is_spot_assembly")) {
+            im["far_reads"] = m_telemetry.assembly_metrics.number_of_far_reads;
+        }
 
         auto& om = j["o"];
         om["sequence_len"] = m_telemetry.output_metrics.sequence_len;
@@ -1886,11 +1892,6 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         if (m_telemetry.output_metrics.quality_len > 0) {
             qm["quality_loss"] = m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len;
             qm["pct_quality_loss"] = fmt::format("{:.2f}", 100. * float(m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len)/m_telemetry.output_metrics.quality_len);
-        }
-        if (j.contains("is_spot_assembly")) {
-            auto& asm_metrics = j["asm"];
-            asm_metrics["far_reads"] = m_telemetry.assembly_metrics.number_of_far_reads;
-            //asm_metrics["read_stats"] = m_telemetry.assembly_metrics.reads_stats;
         }
     } catch (exception& e) {
         spdlog::error("Error reporting telemetry: {}", e.what());
@@ -2220,7 +2221,7 @@ void fastq_parser<TWriter>::save_spot_thread()
             spot_name = read.Spot();
             spot_id = read.m_SpotId;
             spot.push_back(move(read));
-            m_telemetry.input_metrics.duplicate_reads += prepare_assemble_spot(spot, read_ids);
+            prepare_assemble_spot(spot, read_ids);
             assert(!spot.empty());
             spot.front().SetSpot(move(spot_name));
             spot.front().m_SpotId = spot_id;
@@ -2233,7 +2234,7 @@ void fastq_parser<TWriter>::save_spot_thread()
 }
 
 template<typename TWriter>
-int fastq_parser<TWriter>::remove_duplicate_reads(vector<fastq_read>& assembled_spot)
+void fastq_parser<TWriter>::remove_duplicate_reads(vector<fastq_read>& assembled_spot)
 {
     sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { 
         if (l.ReadNum() == r.ReadNum()) {
@@ -2248,19 +2249,22 @@ int fastq_parser<TWriter>::remove_duplicate_reads(vector<fastq_read>& assembled_
         return l.ReadNum() == r.ReadNum() && l.Sequence().compare(r.Sequence()) == 0 && l.Quality().compare(r.Quality()) == 0;
     });
     int duplicate_reads = distance(new_end, assembled_spot.end());
-    if (duplicate_reads) 
+    if (duplicate_reads) {
+        m_telemetry.input_metrics.duplicate_reads_count += duplicate_reads;
+        for (auto it = new_end; it != assembled_spot.end(); ++it) {
+            m_telemetry.input_metrics.duplicate_reads_len += it->Sequence().size();
+        }
         assembled_spot.erase(new_end, assembled_spot.end());
-    return duplicate_reads;
+    }
 }
 
 template<typename TWriter>
-int fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids)
+void fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids)
 {
     assert(!assembled_spot.empty());
     int sz = assembled_spot.size();
-    int duplicate_reads = 0;
     if (sz > 1) {
-        duplicate_reads = remove_duplicate_reads(assembled_spot);
+        remove_duplicate_reads(assembled_spot);
         sz = assembled_spot.size();
         if (m_sort_by_readnum) {
             // already sorted by read number
@@ -2300,7 +2304,6 @@ int fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_s
             assembled_spot[0].SetType(m_read_types[0]);
         }
     }
-    return duplicate_reads;
 } 
 
 
@@ -2465,7 +2468,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
                 spot = move(read.Spot());
                 assembled_spot.push_back(move(read));
 
-                m_telemetry.input_metrics.duplicate_reads += prepare_assemble_spot(assembled_spot, read_ids);
+                prepare_assemble_spot(assembled_spot, read_ids);
                 m_writer->write_spot(spot, assembled_spot);
                 m_writer->write_messages();
                 m_spot_assembly.clear_spot_mt<is_nanopore>(spot_id); 

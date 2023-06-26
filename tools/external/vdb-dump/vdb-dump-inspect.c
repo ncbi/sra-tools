@@ -46,12 +46,27 @@
 
 typedef struct VDI_ITEM {
     const String * name;
-    uint64_t size;
-    uint32_t type;
-    uint32_t level;
-    double percent;
     Vector items;
+    uint64_t size;      /* the stored ( compressed ) size */
+    uint32_t type;      /* kptDir or kptFile */
+    uint32_t level;     /* nesting level for print */
+    double percent;     /* percentage of size against size of whole archive */
 } VDI_ITEM;
+
+/* -------------------------------------------------------------------------------------------------- */
+static VNamelist * make_vdi_exclude_list( void ) {
+    VNamelist * exclude;
+    rc_t rc = VNamelistMake( &exclude, 5 );
+    if ( 0 == rc ) {
+        VNamelistAppend( exclude, "idx" );
+        VNamelistAppend( exclude, "md" );
+        VNamelistAppend( exclude, "." );
+        VNamelistAppend( exclude, "col" );
+        VNamelistAppend( exclude, "tbl" );
+        return exclude;
+    }
+    return NULL;
+}
 
 /* -------------------------------------------------------------------------------------------------- */
 
@@ -170,16 +185,10 @@ static rc_t vdb_dump_inspect_dir( const KDirectory * dir ) {
     VDI_ITEM * root = make_vdi_Item( dir, kptDir, ".", NULL );
     if ( NULL != root ) {
         uint64_t sum = calc_vdi_item_size( root );
-        VNamelist * exclude;
-        rc = VNamelistMake( &exclude, 5 );
-        if ( 0 == rc ) {
-            calc_vdi_percent( root, &sum );
-            VNamelistAppend( exclude, "idx" );
-            VNamelistAppend( exclude, "md" );
-            VNamelistAppend( exclude, "." );
-            VNamelistAppend( exclude, "col" );
-            VNamelistAppend( exclude, "tbl" );
-            print_vdi_item( root, exclude );
+        VNamelist * exclude = make_vdi_exclude_list();
+        calc_vdi_percent( root, &sum );
+        print_vdi_item( root, exclude );
+        if ( NULL != exclude ) { 
             VNamelistRelease( exclude );
         }
         destroy_vdi_item( root, NULL );
@@ -237,7 +246,8 @@ static rc_t vdb_dump_inspect_tbl( const VDBManager * mgr, const char * object, c
     return rc;
 }
 
-rc_t vdb_dump_inspect( const KDirectory * dir, const VDBManager * mgr, const char * object ) {
+rc_t vdb_dump_inspect( const KDirectory * dir, const VDBManager * mgr,
+                       const char * object ) {
     VPath * path = NULL;
     rc_t rc = vdh_path_to_vpath( object, &path );
     if ( 0 != rc ) {

@@ -370,7 +370,7 @@ static void CC vdm_print_elem_sum( void *item, void *data ) {
     p_row_context r_ctx = ( p_row_context )data;
 
     if ( 0 != r_ctx -> rc ) return; /* important to stop if the last read was not successful */
-    vds_clear( &( col_def->content ) ); /* clear the destination-dump-string */
+    vds_clear( &( col_def -> content ) ); /* clear the destination-dump-string */
 
     r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%,zu", col_def -> elementsum ); 
     if ( 0 == r_ctx -> rc ) {

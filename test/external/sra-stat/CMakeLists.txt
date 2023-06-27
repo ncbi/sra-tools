@@ -20,7 +20,7 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# ==============================================================================$
 
 add_compile_definitions( __mod__="test/external/sra-stat" )
 
@@ -31,7 +31,7 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	#target_link_libraries( testAssemblyStatistics ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
-	add_test( NAME Test_Sra_stat
+	add_test( NAME Test_Sra_stat_dflt
 		COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
@@ -42,6 +42,10 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 			COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
+
+	add_test( NAME Test_Sra_stat_unln
+		COMMAND test-sra-stat-unaligned-bam.sh ${DIRTOTEST} sra-stat
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	add_test( NAME SlowTest_Sra_stat
 		COMMAND test-sra-stat-slow.sh ${DIRTOTEST} sra-stat

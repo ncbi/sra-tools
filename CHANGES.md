@@ -1,6 +1,19 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.6
+**July 10, 2023**
+
+  **bam-load, sra-stat**: fixed false detection of CMP_BASE_COUNT mismatch for unaligned runs  
+  **cloud, sra-tools**: fixed a bug in reading chunked HTTP responses in GCP-related code  
+  **fasterq-dump**: now switches to split-files if asked to include technical reads  
+  **sra-info**: added query --spot-layout  
+  **sratools**: better handling for URL command line arguments  
+  **sra-tools wiki**: new features for fasterq-dump appended  
+  **vdb-config**: handles path on windows for temp. storage correctly  
+  **vdb-copy**: return error code in case of invalid/missing input  
+
+
 ## SRA Toolkit 3.0.5
 **May 9, 2023**
 

@@ -43,9 +43,11 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
-	add_test( NAME Test_Sra_stat_unln
-		COMMAND test-sra-stat-unaligned-bam.sh ${DIRTOTEST} sra-stat
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
+	    add_test( NAME Test_Sra_stat_unln
+		    COMMAND test-sra-stat-unaligned-bam.sh ${DIRTOTEST} sra-stat
+		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 
 	add_test( NAME SlowTest_Sra_stat
 		COMMAND test-sra-stat-slow.sh ${DIRTOTEST} sra-stat

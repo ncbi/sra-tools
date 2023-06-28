@@ -62,6 +62,7 @@ typedef struct Ctx {
 
     const struct VDatabase * db;   /* sra-srat argument is a DB */
     const struct VTable    * tbl;  /* sra-srat argument is a table */
+    bool   singleTblDb; /* sra-srat argument is DB with single SEQUENCE table */
 
     const struct KMetadata* meta; /* from Table (when running on table) */
     QualityStats quality;

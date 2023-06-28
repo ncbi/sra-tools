@@ -31,26 +31,11 @@
 extern "C" {
 #endif
 
-#ifndef _h_klib_defs_
-#include <klib/defs.h>
+#ifndef _h_klib_log_
+#include <klib/log.h>
 #endif
-
-#ifndef _h_klib_out_
-#include <klib/out.h>
-#endif
-
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
-#endif
-
-#ifndef _h_klib_num_gen_
-#include <klib/num-gen.h>
-#endif
-
+    
 #define DISP_RC(rc,err) (void)((rc == 0) ? 0 : LogErr( klogInt, rc, err ))
-
-#define DISP_RC2(rc,err,succ) \
-    (void)((rc != 0)? 0 : (succ) ? LOGMSG( klogInfo, succ ) : LogErr( klogInt, rc, err ))
 
 #define DB_COPY_ENABLED 1
 

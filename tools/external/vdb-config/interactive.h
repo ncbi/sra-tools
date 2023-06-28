@@ -27,8 +27,6 @@
 #ifndef _h_interacive_
 #define _h_interacive_
 
-#include "vdb-config-model.hpp" // vdbconf_model
-
 #ifndef _h_kfc_defs_
 #include <kfc/defs.h>
 #endif
@@ -41,11 +39,8 @@
 extern "C" {
 #endif
 
-/* implemented in interactive.cpp */
-rc_t run_interactive ( vdbconf_model & model );
-
 /* implemented in interactive2.cpp */
-rc_t run_interactive2 ( vdbconf_model & model );
+rc_t run_interactive( vdbconf_model & model );
 
 #ifdef __cplusplus
 }

@@ -87,6 +87,13 @@ print F '/LIBS/GUID = "8badf00d-1111-4444-8888-deaddeadbeef"';
 close F or die "cannot close tmp.mkfg";
 $ENV{NCBI_SETTINGS} = "tmp.mkfg";
 
+if (-f $VERSION) {
+ open(F, $VERSION) or die "Can't read file '$VERSION' [$!]\n";
+ $VERSION = <F>;
+ chomp $VERSION;
+ close (F);
+}
+
 print "Smoke testing $VERSION toolkit tarball ...\n\n";
 
 foreach ( @TOOLS ) {

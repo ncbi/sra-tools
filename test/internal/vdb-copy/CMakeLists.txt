@@ -40,4 +40,17 @@ if( Python3_EXECUTABLE )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
+	if ( NOT WIN32 )
+		add_test( NAME Test_VDB_Copy_On_Short_Accession
+			COMMAND bash -c "./copy_and_compare.sh ${DIRTOTEST} SRR000123"
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+		add_test( NAME Test_VDB_Copy_Should_Fail_On_Invalid_Accession
+			COMMAND bash -c "./return_code_on_error.sh ${DIRTOTEST}"
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+	endif()
+
+else()
+    message(WARNING "${DIRTOTEST}/vdb-copy${EXE} is not found. The corresponding tests are skipped." )
 endif()

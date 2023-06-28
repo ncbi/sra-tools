@@ -23,6 +23,8 @@
 # ===========================================================================
 
 if( NOT WIN32 )
+if (OpenSSL_FOUND)
+
     ToolsRequired(bam-load)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
@@ -80,4 +82,5 @@ if( NOT WIN32 )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
 
+endif()
 endif()

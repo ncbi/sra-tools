@@ -23,6 +23,8 @@
 # ===========================================================================
 
 if ( "linux" STREQUAL ${OS} )
+if (OpenSSL_FOUND)
+
     ToolsRequired(sam-dump sam-factory bam-load kar)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
@@ -33,7 +35,7 @@ if ( "linux" STREQUAL ${OS} )
         COMMAND
             ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            ./verify_omit_qual.sh ${DIRTOTEST}
+            ./verify_omit_qual.sh ${DIRTOTEST} ${BINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties( Test_sam_dump_verify_omit PROPERTIES FIXTURES_REQUIRED SamDumpTest )
 
@@ -41,8 +43,9 @@ if ( "linux" STREQUAL ${OS} )
         COMMAND
             ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            ./print_star_on_missing_qual.sh ${DIRTOTEST}
+            ./print_star_on_missing_qual.sh ${DIRTOTEST} ${BINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties( Test_sam_dump_star_quality PROPERTIES FIXTURES_REQUIRED SamDumpTest )
 
+    endif()
 endif()

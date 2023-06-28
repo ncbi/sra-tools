@@ -98,6 +98,7 @@ static constexpr int CLEAR_SPOT_QUEUE_SIZE = 1 * 1024;
 
 //#define PRINT_QUEUE_T_STATS
 
+// ReaderWriterQueue wrapper
 template<typename T, int QUEUE_SIZE = 1024>
 struct queue_t {
     string m_name;
@@ -228,6 +229,7 @@ struct validator_options
     static constexpr int max_score() { return max_score_; }   ///< Flag for presence of counts
 };
 
+// input telemetry metrics 
 typedef struct {
     size_t defline_len = 0;
     size_t sequence_len = 0;
@@ -237,6 +239,7 @@ typedef struct {
     size_t duplicate_reads_len = 0;
 } data_input_metrics_t;
 
+// output telemetry metrics 
 typedef struct {
     size_t sequence_len = 0;
     size_t sequence_len_bio = 0;
@@ -324,6 +327,9 @@ public:
      */
     template<typename ScoreValidator = validator_options<>>
     bool get_read(CFastqRead& read);
+    // multi-threaded version of get_read
+    template<typename ScoreValidator = validator_options<>>
+    bool get_read_mt(CFastqRead& read);
 
 
     /**
@@ -351,17 +357,16 @@ public:
      */
     template<typename ScoreValidator = validator_options<>>
     bool get_spot(const string& spot_name, vector<CFastqRead>& reads);
-
+    // multi-threaded version of get_spot
     template<typename ScoreValidator = validator_options<>>
     bool get_spot_mt(const string& spot_name, vector<CFastqRead>& reads);
 
     bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true if file has no more reads
+    // multi-threaded version of eof
     bool eof_mt() const { return m_read_queue->is_done && m_read_queue->queue.peek() == nullptr;}  ///< Returns true if file has no more reads
 
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
-
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
-
     const string& defline_type() const { return m_defline_parser.GetDeflineType(); }  ///< Returns current defline name
 
     /**
@@ -402,14 +407,16 @@ public:
     void set_error_handler(std::function<void(fastq_error&)> handler) { m_error_handler = handler; } ///< Sets error handler    
     function<void(fastq_error&)> m_error_handler; ///< Error handler
 
+    // start reading in mt mode
     template<typename ScoreValidator>
     void start_reading();
 
+    // mt mode waiting for the queue to finish
     void wait();
+
+    // process mt errors
     void end_reading();
 
-    template<typename ScoreValidator = validator_options<>>
-    bool get_read_mt(CFastqRead& read);
 
     data_input_metrics_t m_input_metrics;
 
@@ -432,7 +439,7 @@ private:
     string              m_spot;                     ///< Temporary spot holder   
     int                 m_platform = 0;             ///< Last successfull platform
 
-    shared_ptr<queue_t<fastq_read, READ_QUEUE_SIZE>> m_read_queue;
+    shared_ptr<queue_t<fastq_read, READ_QUEUE_SIZE>> m_read_queue; 
     future<exception_ptr> m_read_future;
     exception_ptr m_read_exception{nullptr};
 
@@ -533,50 +540,87 @@ public:
     template<typename ScoreValidator, typename ErrorChecker>
     void parse(spot_name_check& name_checker, ErrorChecker&& err_checker);
 
+    /**
+     * @brief get reads from a group of readers and apply func for each read
+    */
     template<typename ScoreValidator, typename ErrorChecker, typename T>
     void for_each_read(ErrorChecker&& error_checker, T&& func);
 
+    /**
+     * @brief get spots from a group of readers and apply func for each spot
+    */
     template<typename ScoreValidator, typename ErrorChecker, typename T>
     void for_each_spot(ErrorChecker&& error_checker, T&& func);
 
+    /**
+     * @brief first step of spot-assembly mode
+     * collect all reads from all readers and build spot-assembly 
+    */
     template<typename ScoreValidator, typename ErrorChecker>
     void first_pass(ErrorChecker&& error_checker);
-    
-    void remove_duplicate_reads(vector<fastq_read>& assembled_spot);
-    void prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids);
-
+    /**
+     * @brief second step of spot-assembly mode
+     * process spots using spot-assembly
+    */
     template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
     void second_pass(ErrorChecker&& error_checker);
+    
+    /**
+     * @brief sort/uniq spot to remove duplicate reads
+    */
+    void remove_duplicate_reads(vector<fastq_read>& assembled_spot);
 
-    //template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
-    //void second_pass2(tf::Executor& executor, ErrorChecker&& error_checker);
-
-    template<typename ScoreValidator, bool is_nanopore>
-    void save_read_thread(); 
-
-    template<typename ScoreValidator, bool is_nanopore>
-    void save_spot_thread(); 
-
-    template<typename ScoreValidator, bool is_nanopore>
-    void assemble_spot_thread(); 
-
-    template<typename ScoreValidator, bool is_nanopore>
-    void clear_spot_thread(); 
-
-    void update_telemetry_thread();
-
-    void write_spot_thread(); 
+    /**
+     * removes duplicate reads and assigns readType
+    */
+    void prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids);
 
 
     /**
-     * @brief Collation check
-     *
-     * Check if more than one name exists in the collected m_spot_names dictionary
-     *
-     */
-    template<typename ErrorChecker>
-    void check_duplicates(ErrorChecker&& err_checker);
+     * @brief thread worker 
+     * reads from save_spot_queue
+     * if it's the last read in the spot, gets the spot and sends it to assemble_spot_queue
+     * otherwise saves the read to hot/cold storage 
+     * 
+    */
+    template<typename ScoreValidator, bool is_nanopore>
+    void save_spot_thread(); 
 
+    /**
+     * @brief thread worker
+     * reads from assemble_spot_queue
+     * writes spot to general-loader
+     * sends spot_id to clear_spot_queue
+     * sends spot to update_telemetry_queue
+    */
+    template<typename ScoreValidator, bool is_nanopore>
+    void assemble_spot_thread(); 
+
+    /**
+     * @brief thread worker
+     * reads from clear_spot_queue
+     * frees memory associated with the spot
+    */
+    template<typename ScoreValidator, bool is_nanopore>
+    void clear_spot_thread(); 
+
+    /**
+     * @brief thread worker
+     * reads from update_telemetry_queue and updates telemetry
+    */
+    void update_telemetry_thread();
+
+    /**
+     * @brief thread worker
+     * works in non spot-assembly mode
+     * reads from assemble_spot_queue, writes spot to general-loader
+     * and sends spot  to update_telemetry_queue
+     * 
+    */
+    void write_spot_thread(); 
+
+
+    /* structure for collation check*/
     typedef struct {
         string spot_name;
         size_t line_no;
@@ -584,8 +628,12 @@ public:
     } search_term_t;
 
     /**
-     * 
-    */
+     * @brief Collation check
+     *
+     * Check if more than one name exists in the collected m_spot_names dictionary
+     *
+     */
+
     template<typename ErrorChecker>
     void check_duplicate_spot_names(const vector<search_term_t>& terms, ErrorChecker&& error_checker);
 
@@ -1338,54 +1386,6 @@ void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
 }
 
 
-//  ----------------------------------------------------------------------------
-template<typename TWriter>
-template<typename ErrorChecker>
-void fastq_parser<TWriter>::check_duplicates(ErrorChecker&& error_checker)
-{
-    spdlog::stopwatch sw;
-    spdlog::info("spot_name check: {} spots", m_spot_names.size());
-    str_sv_type sv;
-    sv.remap_from(m_spot_names);
-    m_spot_names.swap(sv);
-    spdlog::debug("remapping done...");
-
-    if (!m_spot_file.empty())
-        serialize_vec(m_spot_file, m_spot_names);
-
-    spot_name_check name_check(m_spot_names.size());
-
-    bm::sparse_vector_scanner<str_sv_type> str_scan;
-
-    size_t index = 0, hits = 0, sz = 0, last_hits = 0;
-    const char* value;
-    auto it = m_spot_names.begin();
-    vector<string> search_terms;
-    search_terms.reserve(10000);
-
-    while (it.valid()) {
-        value = it.value();
-        sz = strlen(value);
-        if (name_check.seen_before(value, sz)) {
-            ++hits;
-            search_terms.push_back(value);
-            if (search_terms.size() == 10000) {
-                s_find_duplicates(m_spot_names, str_scan, search_terms, error_checker);
-                search_terms.clear();
-             }
-        }
-        it.advance();
-        if (++index % 100000000 == 0) {
-            spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
-            last_hits = hits;
-        }
-    }
-    if (!search_terms.empty()) {
-        s_find_duplicates(m_spot_names, str_scan, search_terms, error_checker);
-    }
-    spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
-    spdlog::debug("spot_name check time:{}, num_hits: {:L}", sw, hits);
-}
 
 /**
  * @brief Temporary structure to collect quality score stats
@@ -2140,7 +2140,7 @@ void fastq_parser<TWriter>::first_pass(ErrorChecker&& error_checker)
 
     if (num_rows > numeric_limits<uint32_t>::max())
         throw fastq_error("Number of reads {:L} exceeds the limit {:L}", num_rows, numeric_limits<uint32_t>::max());
-    m_spot_assembly.build(read_names);
+    m_spot_assembly.assign_spot_id(read_names);
     m_telemetry.assembly_metrics.number_of_far_reads = m_spot_assembly.m_total_spots - m_spot_assembly.m_hot_spot_ids.count();
     spdlog::info("Building took {:.3}, far reads: {:L}", sw, m_telemetry.assembly_metrics.number_of_far_reads);
 
@@ -2157,50 +2157,9 @@ void fastq_parser<TWriter>::first_pass(ErrorChecker&& error_checker)
             m_read_types.resize(min(max_reads, 2), 'B');
     }
     m_read_type_sz = m_read_types.size();
-
-/*
-    size_t max_reads = 0;
-    for (size_t i = 0; i < m_spot_assembly.m_reads_counts.size(); ++i) {
-        m_telemetry.assembly_metrics.reads_stats[i] = m_spot_assembly.m_reads_counts[i];
-        if (m_spot_assembly.m_reads_counts[i] > 0) {
-            spdlog::info("Spots of length {}: {:L}", i + 1, m_spot_assembly.m_reads_counts[i]);
-            max_reads = i + 1;
-        }
-    }
-
-    if (m_read_types.empty()) {
-        if (m_IsIllumina10x)
-            m_read_types.resize(max_reads, 'A');
-        else if (max_reads < 3) {
-            m_read_types.resize(max_reads, 'B');
-        } else {
-            throw fastq_error(20); // "No readTypes provided");
-        }
-    } else {
-        if (m_read_types.size() != max_reads) {
-            throw fastq_error(30, "readTypes number should match the number of reads ({})", max_reads); 
-        }
-    }
-    m_read_type_sz = m_read_types.size();
-*/    
 }
 
 
-
-
-/*
-template<typename TWriter>
-template<typename ScoreValidator, bool is_nanopore>
-void fastq_parser<TWriter>::save_read_thread() 
-{
-    // get reads from save_read_queue and save them in memory 
-    fastq_read read;
-    while (save_read_queue.dequeue(read)) {
-        assert(read.m_SpotId != 0);
-        m_spot_assembly. template save_read_mt<ScoreValidator, is_nanopore>(read.m_SpotId, read);
-    }
-}
-*/
 template<typename TWriter>
 template<typename ScoreValidator, bool is_nanopore>
 void fastq_parser<TWriter>::save_spot_thread() 

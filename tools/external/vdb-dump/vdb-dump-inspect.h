@@ -57,7 +57,8 @@ extern "C" {
 *            if it resolves into a local path : continue with A
 */
   
-rc_t vdb_dump_inspect( const KDirectory * dir, const VDBManager *mgr, const char * object );
+rc_t vdi_inspect( const KDirectory * dir, const VDBManager *mgr,
+                  const char * object, bool with_compression, dump_format_t format );
 
 #ifdef __cplusplus
 }

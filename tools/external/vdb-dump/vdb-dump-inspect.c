@@ -83,20 +83,6 @@ static uint64_t vdi_count_total_bytes_of_column( const VTable *tbl, const String
 
 /* -------------------------------------------------------------------------------------------------- */
 
-static VNamelist * vdi_make_exclude_list( void ) {
-    VNamelist * exclude;
-    rc_t rc = VNamelistMake( &exclude, 5 );
-    if ( 0 == rc ) {
-        VNamelistAppend( exclude, "idx" );
-        VNamelistAppend( exclude, "md" );
-        VNamelistAppend( exclude, "." );
-        VNamelistAppend( exclude, "col" );
-        VNamelistAppend( exclude, "tbl" );
-        return exclude;
-    }
-    return NULL;
-}
-
 static bool vdi_cmp_name( const String * S, const char * s ) {
     bool res = false;
     if ( NULL != S && NULL != s ) {
@@ -106,9 +92,6 @@ static bool vdi_cmp_name( const String * S, const char * s ) {
     }
     return res;
 }
-
-static bool vdi_is_col( const String * S ) { return vdi_cmp_name( S, "col" ); }
-static bool vdi_is_tbl( const String * S ) { return vdi_cmp_name( S, "tbl" ); }
 
 static double percent_of( uint64_t value, uint64_t total ) {
     if ( value > 0 && total > 0 ) {
@@ -121,14 +104,22 @@ static double percent_of( uint64_t value, uint64_t total ) {
 
 /* -------------------------------------------------------------------------------------------------- */
 
+typedef enum VDI_ITEM_TYPE {
+    VDI_ITEM_TYPE_OTHER,
+    VDI_ITEM_TYPE_COL,
+    VDI_ITEM_TYPE_TBL
+} VDI_ITEM_TYPE;
+
 typedef struct VDI_ITEM {
     const String * name;
     const struct VDI_ITEM * parent;
     Vector items;
     uint64_t compressed_size;   /* the stored, compressed size */
     uint64_t uncompressed_size; /* the reported, uncompressed size */
-    uint32_t type;              /* kptDir or kptFile */
     uint32_t level;             /* nesting level for print */
+    bool first;                 /* is this item the first one in its parents items? */
+    bool last;                  /* is this item the last one in its parents items? */
+    VDI_ITEM_TYPE item_type;    /* other | column | table */
     double percent_of_item;     /* percentage of size against size of whole archive */
     double compression;         /* precentage of compressed vs. un-compressed */
 } VDI_ITEM;
@@ -138,13 +129,17 @@ static rc_t vdi_visit_sub( const KDirectory * dir, uint32_t type, const char *na
     vdi_make_item( dir, type, name, data );
     return 0;
 }
+
+static bool vdi_is_col( const String * S ) { return vdi_cmp_name( S, "col" ); }
+static bool vdi_is_tbl( const String * S ) { return vdi_cmp_name( S, "tbl" ); }
+
 static VDI_ITEM * vdi_make_item( const KDirectory * dir, uint32_t type, const char * name, VDI_ITEM * parent ) {
     VDI_ITEM * self = calloc( 1, sizeof *self );
     if ( NULL != self ) {
         rc_t rc = 0;
         String tmp;
-        self -> type = type;
         self -> parent = parent;
+        self -> item_type = VDI_ITEM_TYPE_OTHER;
         VectorInit( &( self -> items ), 0, 5 );
         StringInitCString( &tmp, name );
         rc = StringCopy( &( self -> name ), &tmp );
@@ -159,11 +154,19 @@ static VDI_ITEM * vdi_make_item( const KDirectory * dir, uint32_t type, const ch
                     rc = KDirectoryVisit( sub, false, vdi_visit_sub, self, "." );
                     rc = vdh_kdirectory_release( rc, sub );
                 }
+                if ( NULL != parent ) {
+                    if ( vdi_is_col( parent -> name ) ) {
+                        self -> item_type = VDI_ITEM_TYPE_COL;
+                    } else if ( vdi_is_tbl( parent -> name ) ) {
+                        self -> item_type = VDI_ITEM_TYPE_TBL;
+                    }
+                }
             } else if ( kptFile == type ) {
                 rc = KDirectoryFileSize( dir, &( self -> compressed_size ), name );
             }
             if ( NULL != parent ) {
                 uint32_t idx;
+                /* append itself as a child into the items of its parent */
                 rc = VectorAppend( &( parent -> items ), &idx, self );
             }
         }
@@ -186,17 +189,17 @@ static void vdi_destroy_item( void * self, void * data ) {
     }
 }
 
-/* -------------------------------------------------------------------------------------------------- */
-
-static bool vdi_use_item( const VDI_ITEM * self, const VNamelist * exclude ) {
-    bool res = true;
-    if ( NULL != exclude ) {
-        uint32_t found;
-        rc_t rc = VNamelistIndexOf( ( VNamelist * )exclude, self -> name -> addr, &found );
-        if ( 0 == rc ) { res = false; }
-    }
-    return res;
+static bool vdi_item_is_col( const VDI_ITEM * self ) {
+    return ( VDI_ITEM_TYPE_COL == self -> item_type );
 }
+static bool vdi_item_is_tbl( const VDI_ITEM * self ) {
+    return ( VDI_ITEM_TYPE_TBL == self -> item_type );
+}
+static bool vdi_item_is_col_or_tbl( const VDI_ITEM * self ) {
+    return vdi_item_is_col( self ) || vdi_item_is_tbl( self );
+}
+
+/* -------------------------------------------------------------------------------------------------- */
 
 typedef enum VDI_FOR_EACH_ORDER {
     VDI_FOR_EACH_ORDER_SELF_FIRST,  /* former true */
@@ -204,45 +207,49 @@ typedef enum VDI_FOR_EACH_ORDER {
 } VDI_FOR_EACH_ORDER;
 
 typedef struct VDI_FOR_EACH_CTX {
-    const VNamelist * exclude;
     VDI_FOR_EACH_ORDER order;
     void ( CC * f ) ( VDI_ITEM *item, void * data );
     void * data;
 } VDI_FOR_EACH_CTX;
 
 static void vdi_for_each_item_2( VDI_ITEM * self, const VDI_FOR_EACH_CTX * ctx );
-static void vdi_for_each_item_cb( void *item, void *data ) { vdi_for_each_item_2( item, data ); }
 static void vdi_for_each_item_handle_self( VDI_ITEM * self, const VDI_FOR_EACH_CTX * ctx ) {
-    if ( vdi_use_item( self, ctx -> exclude ) ) {
-        // the item is not in the exclusion-list:
-        if ( NULL != ctx -> f ) {
-            ctx -> f( self, ctx -> data );
+    if ( NULL != ctx -> f ) {
+        ctx -> f( self, ctx -> data );
+    }
+}
+static void vdi_for_each_item_handle_list( VDI_ITEM * self, const VDI_FOR_EACH_CTX * ctx ) {
+    uint32_t count = VectorLength( &( self -> items ) );
+    if ( count > 0 ) {
+        uint32_t idx = 0;
+        while ( count > 0 ) {
+            VDI_ITEM * child = VectorGet( &( self -> items ), idx );
+            if ( NULL != child ) {
+                vdi_for_each_item_2( child, ctx );
+            }
+            count--;
+            idx++;
         }
     }
 }
 static void vdi_for_each_item_2( VDI_ITEM * self, const VDI_FOR_EACH_CTX * ctx ) {
-    if ( kptDir == self -> type && NULL != ctx ) {
-        // because db/tables/columns are directories, we do not handle single files
-        switch ( ctx -> order ) {
-            case VDI_FOR_EACH_ORDER_SELF_FIRST : {
-                vdi_for_each_item_handle_self( self, ctx );
-                VectorForEach( &( self -> items ), false, vdi_for_each_item_cb, ( void * )ctx );
-            } break;
-            case VDI_FOR_EACH_ORDER_SELF_LAST : {
-                VectorForEach( &( self -> items ), false, vdi_for_each_item_cb, ( void * )ctx );
-                vdi_for_each_item_handle_self( self, ctx );
-            }
-        }
+    switch ( ctx -> order ) {
+        case VDI_FOR_EACH_ORDER_SELF_FIRST : {
+            vdi_for_each_item_handle_self( self, ctx );
+            vdi_for_each_item_handle_list( self, ctx );
+        } break;
+        case VDI_FOR_EACH_ORDER_SELF_LAST : {
+            vdi_for_each_item_handle_list( self, ctx );                
+            vdi_for_each_item_handle_self( self, ctx );
+        } break;
     }
 }
 
 static void vdi_for_each_item( VDI_ITEM * self,
-                               const VNamelist * exclude,
                                VDI_FOR_EACH_ORDER order,
                                void ( CC * f ) ( VDI_ITEM *item, void * data ),
                                void * data ) {
     VDI_FOR_EACH_CTX ctx;
-    ctx . exclude = exclude;
     ctx . order = order;
     ctx . f = f;
     ctx . data = data;
@@ -252,49 +259,152 @@ static void vdi_for_each_item( VDI_ITEM * self,
 /* -------------------------------------------------------------------------------------------------- */
 
 typedef struct VDI_PRINT_CTX {
-    const VNamelist * exclude;
     bool with_compression;
     dump_format_t format;
 } VDI_PRINT_CTX;
 
-static void vdi_print_cb_default( const VDI_ITEM *self, const VDI_PRINT_CTX * ctx ) {
-    if ( ctx -> with_compression ) {
-        KOutMsg( "%*s %7.4f%% %,20zu\t%,20zu\t%7.4f%%\t%S\n", 
-                 ( self -> level * 2 ), " ", self -> percent_of_item,
-                 self -> compressed_size, self -> uncompressed_size,
-                 self -> compression, self -> name );
-    } else {
-        KOutMsg( "%*s %7.4f%% %,20zu\t%S\n", 
-                 ( self -> level * 2 ), " ", self -> percent_of_item,
-                 self -> compressed_size,
-                 self -> name );
-    }    
+static const String * vdi_parent_parent_name( VDI_ITEM *self ) {
+    const String * res = NULL;
+    if ( NULL != self -> parent ) {
+        if ( NULL != self -> parent -> parent ) {
+            res = self -> parent -> parent -> name;
+        }
+    }
+    return res;
 }
 
-static void vdi_print_cb_json( const VDI_ITEM *self, const VDI_PRINT_CTX * ctx ) {
-    if ( ctx -> with_compression ) {
-        KOutMsg( "{ \"%S\":{ \"size\":%lu, \"uncompressed\":%lu, \"percent\":%f, \"compression\":%.4f } },\n", 
-                 self -> name,
-                 self -> compressed_size, self -> uncompressed_size,                 
-                 self -> percent_of_item, self -> compression );
-    } else {
-        KOutMsg( "{ \"%S\":{ \"size\":%lu, \"percent\":%.4f } }\n",
-                 self -> name,
-                 self -> compressed_size,
-                 self -> percent_of_item );
-    }    
+static bool vdi_name_valid( const String * name ) {
+    bool res = false;
+    if ( NULL != name ) { res = !vdi_cmp_name( name, "." ); }
+    return res;
 }
 
-static void vdi_print_cb( VDI_ITEM *self, void * data ) {
-    const VDI_PRINT_CTX * ctx = data;
-    switch( ctx -> format ) {
-        case df_json : vdi_print_cb_json( self, ctx ); break;
-        default : vdi_print_cb_default( self, ctx ); break;
+static void vdi_print_cb_default( VDI_ITEM *self, void * data ) {
+    if ( vdi_item_is_col( self ) ) {
+        const VDI_PRINT_CTX * ctx = data;        
+        if ( ctx -> with_compression ) {
+            KOutMsg( "%*s %7.4f%% %,20zu\t%,20zu\t%7.4f%%\t%S\n", 
+                    ( self -> level * 2 ), " ", self -> percent_of_item,
+                    self -> compressed_size, self -> uncompressed_size,
+                    self -> compression, self -> name );
+        } else {
+            KOutMsg( "%*s %7.4f%% %,20zu\t%S\n", 
+                    ( self -> level * 2 ), " ", self -> percent_of_item,
+                    self -> compressed_size,
+                    self -> name );
+        }
     }
 }
+
+static void vdi_print_cb_json( VDI_ITEM *self, void * data ) {
+    if ( vdi_item_is_col( self ) ) {
+        const VDI_PRINT_CTX * ctx = data;
+        if ( self -> first ) {
+            const String * name = vdi_parent_parent_name( self );
+            if ( vdi_name_valid( name ) ) {
+                KOutMsg( "{ \"%S\": [ \n", name );                
+            } else {
+                KOutMsg( "{ \"columns\": [ \n" );
+            }
+        }
+        if ( ctx -> with_compression ) {
+            KOutMsg( "{ \"%S\":{ \"size\":%lu, \"uncompressed\":%lu, \"percent\":%.4f, \"compression\":%.4f } }", 
+                    self -> name,
+                    self -> compressed_size, self -> uncompressed_size,                 
+                    self -> percent_of_item, self -> compression );
+        } else {
+            KOutMsg( "{ \"%S\":{ \"size\":%lu, \"percent\":%.4f } }",
+                    self -> name,
+                    self -> compressed_size,
+                    self -> percent_of_item );
+        }
+        if ( self -> last ) {
+            KOutMsg( " ] }\n" );
+        } else {
+            KOutMsg( ",\n" );
+        }
+    }
+}
+
+static void vdi_print_cb_xml( VDI_ITEM *self, void * data ) {
+    if ( vdi_item_is_col( self ) ) {
+        const VDI_PRINT_CTX * ctx = data;
+        if ( self -> first ) {
+            KOutMsg( "<table>\n" );            
+            const String * name = vdi_parent_parent_name( self );
+            if ( vdi_name_valid( name ) ) {
+                KOutMsg( "\t<name>%S</name>\n", name );
+            }
+        }
+        KOutMsg( "\t<column>\n" );
+        KOutMsg( "\t\t<name>%S</name>\n", self -> name );
+        KOutMsg( "\t\t<size>%lu</size>\n", self -> compressed_size );
+        KOutMsg( "\t\t<percent>%.4f</percent>\n", self -> percent_of_item );
+        if ( ctx -> with_compression ) {
+            KOutMsg( "\t\t<uncompressed>%lu</uncompressed>\n", self -> uncompressed_size );
+            KOutMsg( "\t\t<compression>%.4f</compression>\n", self -> compression );
+        }
+        KOutMsg( "\t</column>\n" );
+        if ( self -> last ) {
+            KOutMsg( "</table>\n" );
+        }
+    }
+}
+
+static void vdi_print_cb_tab( VDI_ITEM *self, void * data ) {
+    if ( vdi_item_is_col( self ) ) {
+        const VDI_PRINT_CTX * ctx = data;
+        const String * name = vdi_parent_parent_name( self );
+        if ( vdi_name_valid( name ) ) {
+            KOutMsg( "%S\t", name );
+        }
+        KOutMsg( "%S\t%lu\t%.4f", self -> name, self -> compressed_size, self -> percent_of_item );
+        if ( ctx -> with_compression ) {
+            KOutMsg( "\t%lu\t%.4f\n", self -> uncompressed_size, self -> compression );
+        } else {
+            KOutMsg( "\n" );
+        }
+    }
+}
+
+static void vdi_print_cb_csv( VDI_ITEM *self, void * data ) {
+    if ( vdi_item_is_col( self ) ) {
+        const VDI_PRINT_CTX * ctx = data;
+        const String * name = vdi_parent_parent_name( self );
+        if ( vdi_name_valid( name ) ) {
+            KOutMsg( "\"%S\",", name );
+        }
+        KOutMsg( "\"%S\",%lu,%.4f", self -> name, self -> compressed_size, self -> percent_of_item );
+        if ( ctx -> with_compression ) {
+            KOutMsg( ",%lu,%.4f\n", self -> uncompressed_size, self -> compression );
+        } else {
+            KOutMsg( "\n" );
+        }
+    }
+}
+
 static void vdi_print_item( VDI_ITEM * self, const VDI_PRINT_CTX * ctx ) {
-    vdi_for_each_item( self, ctx -> exclude, VDI_FOR_EACH_ORDER_SELF_FIRST,
-                       vdi_print_cb, ( void * )ctx );
+    void ( CC * f ) ( VDI_ITEM *item, void * data );
+    switch( ctx -> format ) {
+        case df_json : f = vdi_print_cb_json; break;
+        case df_xml  : f = vdi_print_cb_xml; break;
+        case df_tab  : f = vdi_print_cb_tab; break;
+        case df_csv  : f = vdi_print_cb_csv; break;
+        default      : f = vdi_print_cb_default; break;
+    }
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_FIRST, f, ( void * )ctx );
+}
+
+/* -------------------------------------------------------------------------------------------------- */
+
+static void vdi_calc_percent_cb( VDI_ITEM * self, void * data ) {
+    uint64_t total = *( (uint64_t *)data );
+    self -> percent_of_item = percent_of( self -> compressed_size, total );
+}
+
+static void vdi_calc_percent( VDI_ITEM * self, uint64_t * total ) {
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_LAST,
+                       vdi_calc_percent_cb, total );
 }
 
 /* -------------------------------------------------------------------------------------------------- */
@@ -305,15 +415,22 @@ static int64_t vdi_cmp_size_cb( const void ** item1, const void ** item2, void *
     return vitem2 -> compressed_size - vitem1 -> compressed_size;
 }
 
-static void vdi_calc_percent_cb( VDI_ITEM * self, void * data ) {
-    uint64_t total = *( (uint64_t *)data );
-    self -> percent_of_item = percent_of( self -> compressed_size, total );
+static void vdi_order_by_compressed_size_cb( VDI_ITEM * self, void * data ) {
+    uint32_t count;
     VectorReorder( &( self -> items ), vdi_cmp_size_cb, NULL );
+    /* mark the last child-item */
+    count = VectorLength( &( self -> items ) );
+    if ( count > 0 ) {
+        VDI_ITEM * item = VectorGet( &( self -> items ), 0 );
+        if ( NULL != item ) { item -> first = true; }
+        item = VectorGet( &( self -> items ), count - 1 );
+        if ( NULL != item ) { item -> last = true; }
+    }    
 }
 
-static void vdi_calc_percent( VDI_ITEM * self, uint64_t * total ) {
-    vdi_for_each_item( self, NULL, VDI_FOR_EACH_ORDER_SELF_LAST,
-                       vdi_calc_percent_cb, total );
+static void vdi_order_by_compressed_size( VDI_ITEM * self ) {
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_LAST,
+                       vdi_order_by_compressed_size_cb, NULL );
 }
 
 /* -------------------------------------------------------------------------------------------------- */
@@ -334,18 +451,14 @@ static uint64_t vdi_calc_item_compressed_size( VDI_ITEM * self ) {
 /* -------------------------------------------------------------------------------------------------- */
 
 static void vdi_calc_item_uncompressed_size_tbl_cb( VDI_ITEM * self, void * data ) {
-    if ( NULL != self && NULL != self -> parent ) {
-        if ( vdi_is_col( self -> parent -> name ) ) {
-            const VTable * tbl = data;
-            self -> uncompressed_size = vdi_count_total_bytes_of_column( tbl, self -> name );
-            self -> compression = percent_of( self -> compressed_size, self -> uncompressed_size );
-        }
+    if ( vdi_item_is_col( self ) ) {
+        const VTable * tbl = data;
+        self -> uncompressed_size = vdi_count_total_bytes_of_column( tbl, self -> name );
+        self -> compression = percent_of( self -> compressed_size, self -> uncompressed_size );
     }
 }
-
-static void vdi_calc_item_uncompressed_size_tbl( VDI_ITEM * self, 
-                                                 const VTable * tbl ) {
-    vdi_for_each_item( self, NULL, VDI_FOR_EACH_ORDER_SELF_FIRST,
+static void vdi_calc_item_uncompressed_size_tbl( VDI_ITEM * self, const VTable * tbl ) {
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_FIRST,
                        vdi_calc_item_uncompressed_size_tbl_cb, ( void * )tbl );
 }
 
@@ -360,9 +473,9 @@ static void vdi_calc_item_uncompressed_size_db_cb( VDI_ITEM * self, void * data 
     VDI_ITEM * parent = ( VDI_ITEM * ) self -> parent;  /* remove const-ness */
     if ( NULL != parent && NULL != data ) {
         VDI_UNCOMPR_SIZE_CTX * ctx = data;
-        if ( vdi_is_col( parent -> name ) && NULL != ctx -> tbl ) {
+        if ( vdi_item_is_col( self ) && NULL != ctx -> tbl ) {
             self -> uncompressed_size = vdi_count_total_bytes_of_column( ctx -> tbl, self -> name );
-        } else if ( vdi_is_tbl( parent -> name ) ) {
+        } else if ( vdi_item_is_tbl( self ) ) {
             rc_t rc;
             if ( NULL != ctx -> tbl ) {
                 rc = VTableRelease( ctx -> tbl );
@@ -378,14 +491,12 @@ static void vdi_calc_item_uncompressed_size_db_cb( VDI_ITEM * self, void * data 
 
 static void vdi_collect_item_uncompressed_size_db_cb( VDI_ITEM * self, void * data ) {
     VDI_ITEM * parent = ( VDI_ITEM * ) self -> parent;  /* remove const-ness */
-    if ( NULL != parent ) {
-        bool add_2_parent = vdi_is_col( parent -> name ) || 
-                            vdi_is_col( self -> name ) ||
-                            vdi_is_tbl( parent -> name ) ||
-                            vdi_is_tbl( self -> name );
-        if ( add_2_parent ) {
-            parent -> uncompressed_size += self -> uncompressed_size;
-        }
+    bool add_2_parent = vdi_item_is_col_or_tbl( self );
+    if ( !add_2_parent && NULL != parent ) {
+        add_2_parent = vdi_item_is_col_or_tbl( self -> parent );
+    }
+    if ( add_2_parent ) {
+        parent -> uncompressed_size += self -> uncompressed_size;
     }
     self -> compression = percent_of( self -> compressed_size, self -> uncompressed_size );
 }
@@ -394,12 +505,12 @@ static void vdi_calc_item_uncompressed_size_db( VDI_ITEM * self, const VDatabase
     VDI_UNCOMPR_SIZE_CTX ctx;
     ctx . db = db;
     ctx . tbl = NULL;
-    vdi_for_each_item( self, NULL, VDI_FOR_EACH_ORDER_SELF_FIRST,
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_FIRST,
                        vdi_calc_item_uncompressed_size_db_cb, &ctx );
     if ( NULL != ctx . tbl ) {
         VTableRelease( ctx . tbl );
     }
-    vdi_for_each_item( self, NULL, VDI_FOR_EACH_ORDER_SELF_LAST,
+    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_LAST,
                        vdi_collect_item_uncompressed_size_db_cb, NULL );
 }
                                                  
@@ -409,16 +520,16 @@ static VDI_ITEM * vdi_build_tree_from_dir( const KDirectory * dir ) {
     VDI_ITEM * root = vdi_make_item( dir, kptDir, ".", NULL );
     if ( NULL != root ) {
         uint64_t compressed_size = vdi_calc_item_compressed_size( root );
+        vdi_order_by_compressed_size( root );
         vdi_calc_percent( root, &compressed_size );
     }
     vdh_kdirectory_release( 0, dir );
     return root;
 }
 
-static void vdi_inspect_print( VDI_ITEM * self, const VNamelist * exclude,
+static void vdi_inspect_print( VDI_ITEM * self,
                                bool with_compression, dump_format_t format ) {
     VDI_PRINT_CTX ctx;
-    ctx . exclude = exclude;
     ctx . with_compression = with_compression;
     ctx . format = format;
     vdi_print_item( self, &ctx );
@@ -426,27 +537,25 @@ static void vdi_inspect_print( VDI_ITEM * self, const VNamelist * exclude,
 }
                                 
 static void vdi_inspect_db_dir( const VDatabase *db, const KDirectory * dir,
-                                const VNamelist * exclude, bool with_compression,
-                                dump_format_t format ) {
+                                bool with_compression, dump_format_t format ) {
     VDI_ITEM * root = vdi_build_tree_from_dir( dir );
     if ( with_compression ) {
         vdi_calc_item_uncompressed_size_db( root, db );        
     }
-    vdi_inspect_print( root, exclude, with_compression, format );
+    vdi_inspect_print( root, with_compression, format );
 }
 
 static void vdi_inspect_tbl_dir( const VTable *tbl, const KDirectory * dir,
-                                 const VNamelist * exclude, bool with_compression,
-                                 dump_format_t format ) {
+                                 bool with_compression, dump_format_t format ) {
     VDI_ITEM * root = vdi_build_tree_from_dir( dir );
     if ( with_compression ) {
         vdi_calc_item_uncompressed_size_tbl( root, tbl );
     }
-    vdi_inspect_print( root, exclude, with_compression, format );    
+    vdi_inspect_print( root, with_compression, format );    
 }
 
 static rc_t vdi_inspect_db( const VDBManager * mgr, const char * object,
-                            const VNamelist * exclude, const VPath * path,
+                            const VPath * path,
                             bool with_compression, dump_format_t format ) {
     const VDatabase *db;
     rc_t rc = VDBManagerOpenDBReadVPath( mgr, &db, NULL, path );
@@ -463,7 +572,7 @@ static rc_t vdi_inspect_db( const VDBManager * mgr, const char * object,
             if ( 0 != rc ) {
                 ErrMsg( "KDatabaseOpenDirectoryRead( '%s' ) -> %R", object, rc );                
             } else {
-                vdi_inspect_db_dir( db, dir, exclude, with_compression, format );
+                vdi_inspect_db_dir( db, dir, with_compression, format );
             }
             rc = vdh_kdatabase_release( rc, k_db );            
         }
@@ -473,7 +582,7 @@ static rc_t vdi_inspect_db( const VDBManager * mgr, const char * object,
 }
 
 static rc_t vdi_inspect_tbl( const VDBManager * mgr, const char * object, 
-                             const VNamelist * exclude, const VPath * path,
+                             const VPath * path,
                              bool with_compression, dump_format_t format ) {
     const VTable *tbl;
     rc_t rc = VDBManagerOpenTableReadVPath( mgr, &tbl, NULL, path );
@@ -490,7 +599,7 @@ static rc_t vdi_inspect_tbl( const VDBManager * mgr, const char * object,
             if ( 0 != rc ) {
                 ErrMsg( "KTableOpenDirectoryRead( '%s' ) -> %R", object, rc );                
             } else {
-                vdi_inspect_tbl_dir( tbl, dir, exclude, with_compression, format );
+                vdi_inspect_tbl_dir( tbl, dir, with_compression, format );
             }
             rc = vdh_ktable_release( rc, k_tbl );
         }
@@ -508,19 +617,15 @@ rc_t vdi_inspect( const KDirectory * dir, const VDBManager * mgr,
         ErrMsg( "vdh_path_to_vpath( '%s' ) -> %R", object, rc );            
     } else {
         /* let's check if we can use the object */
-        VNamelist * exclude = vdi_make_exclude_list();
         uint32_t path_type = ( VDBManagerPathType ( mgr, "%s", object ) & ~ kptAlias );
         /* types defined in <kdb/manager.h> */
         switch ( path_type ) {
-            case kptDatabase        : rc = vdi_inspect_db( mgr, object, exclude,
+            case kptDatabase        : rc = vdi_inspect_db( mgr, object,
                                                 path, with_compression, format ); break;
             case kptPrereleaseTbl   :
-            case kptTable           : rc = vdi_inspect_tbl( mgr, object, exclude,
+            case kptTable           : rc = vdi_inspect_tbl( mgr, object,
                                                 path, with_compression, format ); break;
             default                 : rc = KOutMsg( "\tis not a vdb-object\n" ); break;
-        }
-        if ( NULL != exclude ) { 
-            VNamelistRelease( exclude );
         }
         rc = vdh_vpath_release( rc, path );
     }

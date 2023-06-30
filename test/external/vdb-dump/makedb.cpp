@@ -57,8 +57,11 @@ NestedDatabase()
 {
     const string ScratchDir         = "./data/";
     const string DefaultSchemaText  =
+        "version 2;\n"
         "table table1 #1.0.0 { column ascii col; };\n"
         "table table2 #1.0.0 { column ascii col; };\n"
+
+        "view V #1<table1 t1, table2 t2>{ column ascii c1 = t1.col; column ascii c2 = t2.col; }\n"
 
         "database database1_1 #1 { table table1 #1 TABLE1; };\n"
         "database database1_2 #1 { table table2 #1 TABLE2; };\n"
@@ -83,6 +86,7 @@ NestedDatabase()
         " database database2 #1 SUBDB_2;\n"
         " table table1 #1 TABLE1;\n"
         " table table2 #1 TABLE2;\n"
+        " alias V#1<TABLE1, TABLE2> VIEW1;"
         " };\n"
     ;
     const string DefaultDatabase    = "root_database";

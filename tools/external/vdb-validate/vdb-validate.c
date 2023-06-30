@@ -1769,7 +1769,8 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
         for ( chunk = sec_row_id_start; chunk < sec_row_id_end; chunk += chunk_size )
         {
             int64_t i;
-            int64_t i_count = MIN(chunk_size, sec_row_id_end - chunk);
+            size_t const remaining = sec_row_id_end - chunk;
+            int64_t i_count = MIN(chunk_size, remaining);
             const void * data_ptr = NULL;
             uint32_t data_len;
             int64_t last_seq_spot_id = INT64_MIN;

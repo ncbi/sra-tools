@@ -107,7 +107,8 @@ static double percent_of( uint64_t value, uint64_t total ) {
 typedef enum VDI_ITEM_TYPE {
     VDI_ITEM_TYPE_OTHER,
     VDI_ITEM_TYPE_COL,
-    VDI_ITEM_TYPE_TBL
+    VDI_ITEM_TYPE_TBL,
+    VDI_ITEM_TYPE_DB
 } VDI_ITEM_TYPE;
 
 typedef struct VDI_ITEM {
@@ -383,16 +384,28 @@ static void vdi_print_cb_csv( VDI_ITEM *self, void * data ) {
     }
 }
 
-static void vdi_print_item( VDI_ITEM * self, const VDI_PRINT_CTX * ctx ) {
+static void vdi_print_item( const VDI_ITEM * self, const VDI_PRINT_CTX * ctx ) {
     void ( CC * f ) ( VDI_ITEM *item, void * data );
     switch( ctx -> format ) {
-        case df_json : f = vdi_print_cb_json; break;
-        case df_xml  : f = vdi_print_cb_xml; break;
-        case df_tab  : f = vdi_print_cb_tab; break;
-        case df_csv  : f = vdi_print_cb_csv; break;
-        default      : f = vdi_print_cb_default; break;
+        case df_json :  f = vdi_print_cb_json; break;
+        case df_xml  :  f = vdi_print_cb_xml;
+                        if ( VDI_ITEM_TYPE_DB == self -> item_type ) {
+                            KOutMsg( "<db>\n" );
+                        }
+                        break;
+        case df_tab  :  f = vdi_print_cb_tab; break;
+        case df_csv  :  f = vdi_print_cb_csv; break;
+        default      :  f = vdi_print_cb_default; break;
     }
-    vdi_for_each_item( self, VDI_FOR_EACH_ORDER_SELF_FIRST, f, ( void * )ctx );
+    vdi_for_each_item( ( VDI_ITEM * )self, VDI_FOR_EACH_ORDER_SELF_FIRST, f, ( void * )ctx );
+    switch( ctx -> format ) {
+        case df_xml  :  f = vdi_print_cb_xml;
+                        if ( VDI_ITEM_TYPE_DB == self -> item_type ) {
+                            KOutMsg( "</db>\n" );
+                        }
+                        break;
+        default      :  break;
+    }
 }
 
 /* -------------------------------------------------------------------------------------------------- */
@@ -527,31 +540,38 @@ static VDI_ITEM * vdi_build_tree_from_dir( const KDirectory * dir ) {
     return root;
 }
 
-static void vdi_inspect_print( VDI_ITEM * self,
+static void vdi_inspect_print( const VDI_ITEM * self,
                                bool with_compression, dump_format_t format ) {
     VDI_PRINT_CTX ctx;
     ctx . with_compression = with_compression;
     ctx . format = format;
-    vdi_print_item( self, &ctx );
-    vdi_destroy_item( ( void * )self, NULL );    
+    vdi_print_item( ( void * )self, &ctx );
 }
                                 
 static void vdi_inspect_db_dir( const VDatabase *db, const KDirectory * dir,
                                 bool with_compression, dump_format_t format ) {
     VDI_ITEM * root = vdi_build_tree_from_dir( dir );
-    if ( with_compression ) {
-        vdi_calc_item_uncompressed_size_db( root, db );        
+    if ( NULL != root ) {
+        root -> item_type = VDI_ITEM_TYPE_DB;        
+        if ( with_compression ) {
+            vdi_calc_item_uncompressed_size_db( root, db );        
+        }
+        vdi_inspect_print( root, with_compression, format );
+        vdi_destroy_item( root, NULL );            
     }
-    vdi_inspect_print( root, with_compression, format );
 }
 
 static void vdi_inspect_tbl_dir( const VTable *tbl, const KDirectory * dir,
                                  bool with_compression, dump_format_t format ) {
     VDI_ITEM * root = vdi_build_tree_from_dir( dir );
-    if ( with_compression ) {
-        vdi_calc_item_uncompressed_size_tbl( root, tbl );
+    if ( NULL != root ) {
+        root -> item_type = VDI_ITEM_TYPE_TBL;
+        if ( with_compression ) {
+            vdi_calc_item_uncompressed_size_tbl( root, tbl );
+        }
+        vdi_inspect_print( root, with_compression, format );
+        vdi_destroy_item( root, NULL );
     }
-    vdi_inspect_print( root, with_compression, format );    
 }
 
 static rc_t vdi_inspect_db( const VDBManager * mgr, const char * object,

@@ -32,7 +32,7 @@
  *
  */
 
-#include <bm/bm.h>
+#include <bm/bm64.h>
 #include <bm/bmsparsevec.h>
 #include <bm/bmstrsparsevec.h>
 #include <bm/bmsparsevec_serial.h>

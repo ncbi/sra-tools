@@ -22,7 +22,8 @@ using namespace std;
 
 static constexpr int MAX_ROW_TO_CLEAR = 5000000;
 static constexpr int MAX_ROWS_TO_OPTIMIZE = 1000000; 
-static constexpr int MIN_DISTANCE_FOR_HOT_SPOT = 10000000;
+
+static_assert(bm::id_max == bm::id_max48, "BitMagic should be compiled in 64-bit mode");
 
 typedef bm::bvector<> bvector_type;
 typedef bm::sparse_vector<unsigned, bvector_type> svector_u32;
@@ -177,7 +178,7 @@ struct spot_assembly_t {
     // classes for hot storage
     bvector_type m_hot_spot_ids; ///< bitvector, 1 if spot is hot (i.e. saved in m_hot_spots)
     typedef size_t spot_id_t;
-    map<spot_id_t, vector<fastq_read>> m_hot_spots; ///< hot spots storage
+    unordered_map<spot_id_t, vector<fastq_read>> m_hot_spots; ///< hot spots storage
 
 
     // classes for cold storage 
@@ -189,7 +190,7 @@ struct spot_assembly_t {
     vector<svector_int> m_qualities;     ///< quality data
     vector<size_t> m_qual_offset;        ///< last quality offset per read
 
-
+    size_t m_hot_reads_threshold = 10000000;  ///< threshold for hot reads, if read is far from the last read in the spot, it is saved in cold storage
 };
 
 void spot_assembly_t::init(size_t num_rows) 
@@ -208,6 +209,14 @@ void spot_assembly_t::init(size_t num_rows)
     m_hot_spots.clear();
 
     m_reads_metadata.clear();
+    m_reads_counts.clear();
+
+    m_spot_index.clear();
+    m_sequences.clear();
+    m_seq_offset.clear();
+
+    m_qualities.clear();
+    m_qual_offset.clear();
 
     m_total_spots = 0;
 } 
@@ -220,7 +229,7 @@ void spot_assembly_t::assign_spot_id(str_sv_type& read_names)
     // build and sort the index by read names
     vector<uint32_t> sort_index(num_rows);
     iota(sort_index.begin(), sort_index.end(), 0);
-    tf::Executor executor(24); // TODO set max number of threads baased on the number of rows
+    tf::Executor executor(min<int>(24, std::thread::hardware_concurrency())); // TODO set max number of threads baased on the number of rows
     tf::Taskflow taskflow;
     taskflow.sort(sort_index.begin(), sort_index.end(), [&](uint32_t  l, uint32_t  r) {
         static thread_local string last_right_str;
@@ -264,13 +273,26 @@ void spot_assembly_t::assign_spot_id(str_sv_type& read_names)
     if (!sort_vector.empty()) {
         finalize_spot_data(spot_id, sort_vector);
     }
-
     assert(m_total_spots == spot_id);
     m_last_index.optimize(TB1);
     m_last_index.freeze();
 
     m_hot_spot_ids.optimize(TB1);
     m_hot_spot_ids.freeze();
+
+    int max_reads = 0;
+    for (auto& it : m_reads_counts) 
+        max_reads = max(max_reads, (int)it.first);
+
+    m_reads_metadata.resize(max_reads);
+
+    m_sequences.resize(max_reads);
+    m_seq_offset.resize(max_reads);
+    fill(m_seq_offset.begin(), m_seq_offset.end(), 0);
+
+    m_qualities.resize(max_reads);
+    m_qual_offset.resize(max_reads);
+    fill(m_qual_offset.begin(), m_qual_offset.end(), 0);
 }
 
 
@@ -282,7 +304,7 @@ void spot_assembly_t::finalize_spot_data(size_t spot_id, vector<uint32_t>& sort_
     m_last_index.set_bit_no_check(sort_vector.back());
 
     // decide if spot is hot or cold
-    if (sort_vector.back()- sort_vector.front() < MIN_DISTANCE_FOR_HOT_SPOT)
+    if (sort_vector.back() - sort_vector.front() < m_hot_reads_threshold)
         m_hot_spot_ids.set_bit_no_check(spot_id);
 
     // update counters            
@@ -534,9 +556,14 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
     const auto& seq = read.Sequence();
     size_t seq_sz = seq.size();
     assert(seq_sz > 0);
-    tmp_buffer.resize(seq_sz);
+    tmp_buffer.resize(seq_sz);  
+    //std::srand(std::time(0));  // use current time as seed for random generator
+    //char nucleotides[] = {'A', 'C', 'G', 'T'};
     for (size_t i = 0; i < seq_sz; ++i) 
         tmp_buffer[i] = DNA2int(seq[i]);
+
+    //tmp_buffer[0] = DNA2int(nucleotides[std::rand() % 4]);  // get a random index between 0 and 3    
+
 
     tmp_qual_scores.clear();
     read.GetQualScores(tmp_qual_scores);
@@ -554,6 +581,8 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
         uint8_t read_idx = m_spot_index.get_no_check(row_id);
         auto& metadata = m_reads_metadata[read_idx];
 
+        metadata.get<u16_t>(metadata_t::e_ReaderId).set(row_id, read.m_ReaderIdx);
+
         if (!read.ReadNum().empty())
             metadata.get<str_t>(metadata_t::e_ReadNumId).set(row_id, read.ReadNum().c_str());
         if (!read.SpotGroup().empty())
@@ -570,6 +599,9 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
             metadata.get<bit_t>(metadata_t::e_ReadFilterId).set(row_id);
 
         size_t offset = m_seq_offset[read_idx];
+        if (offset + seq_sz >= bm::id_max) 
+            throw runtime_error("This FASTQ cannot be processed due to far read buffer overflow");
+        
         m_sequences[read_idx].import(&tmp_buffer[0], seq_sz, offset);
         m_seq_offset[read_idx] = offset + seq_sz;
         offset |= seq_sz << 48;
@@ -590,13 +622,12 @@ template<typename ScoreValidator, bool is_nanopore>
 void spot_assembly_t::get_spot_mt(size_t row_id, vector<fastq_read>& reads) 
 {
 
+    reads.clear();
     if (m_hot_spot_ids.test(row_id)) {
         lock_guard<mutex> lock(m_mutex);
         auto it = m_hot_spots.find(row_id);
         if (it != m_hot_spots.end()) {
             reads = move(it->second);
-        } else {
-            reads.clear();
         }
         return;
     } 
@@ -607,6 +638,8 @@ void spot_assembly_t::get_spot_mt(size_t row_id, vector<fastq_read>& reads)
     for (int read_idx = 0; read_idx < num_reads; ++read_idx) {
         tmp_read.Reset();
         auto& metadata = m_reads_metadata[read_idx];
+        tmp_read.m_ReaderIdx = metadata.get<u16_t>(metadata_t::e_ReaderId).get(row_id);
+
         tmp_str.clear();
         metadata.get<str_t>(metadata_t::e_ReadNumId).get(row_id, tmp_str);
         if (!tmp_str.empty()) {
@@ -638,7 +671,6 @@ void spot_assembly_t::get_spot_mt(size_t row_id, vector<fastq_read>& reads)
         if (metadata.get<bit_t>(metadata_t::e_ReadFilterId).test(row_id))        
             tmp_read.SetReadFilter(1);
         size_t offset = metadata.get<u64_t>(metadata_t::e_SeqOffsetId).get(row_id);
-        //size_t len = metadata.get<u32_t>(metadata_t::e_SeqLenId).get(row_id);
         size_t len = offset >> 48;
         offset &= 0x0000FFFFFFFFFFFF;
         tmp_buffer.resize(len);
@@ -695,6 +727,8 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
             uint8_t num_reads = m_spot_index.get_no_check(row_id);
             for (int read_idx = 0; read_idx < num_reads; ++read_idx) {
                 auto& metadata = m_reads_metadata[read_idx];
+    
+                metadata.get<u16_t>(metadata_t::e_ReaderId).clear(m_rows_to_clear);
 
                 {
                     auto& v = metadata.get<str_t>(metadata_t::e_ReadNumId);

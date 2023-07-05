@@ -161,7 +161,7 @@ public:
      *
      * @param[in] reads
      */
-    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads);
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) = 0;
 
     /**
      * @brief Set user-defined attributes
@@ -223,31 +223,54 @@ protected:
 
 };
 
-
-void fastq_writer::write_spot(const string& spot_name, const vector<CFastqRead>& reads)
+class fastq_writer_debug : public fastq_writer
 {
-    if (reads.empty())
-        return;
-    const auto& first_read = reads.front();
-    //string spot_name = first_read.Spot();
-    //spot_name += first_read.Suffix();
-    cout << "Spot: " << spot_name << first_read.Suffix() << "\nreads " << reads.size() <<":\n";
-    //vector<uint8_t> qual_scores;
-    for (const auto& read : reads) {
-        //auto sz = read.Sequence().size();
-        cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
-        //cout << "spot_group:" << read.SpotGroup() << "\n";
-        cout << read.Sequence() << "\n";
-        cout << "+\n";
-        cout << read.Quality() << endl;
-      //  qual_scores.clear();
-      //  read.GetQualScores(qual_scores);
-      //  for (auto q : qual_scores) {
-      //      cout << q;
-      //  }
-      //  cout << endl;
+public:
+    fastq_writer_debug() {};
+
+    virtual void open() override
+    {
+        string quality_expression = "(INSDC:quality:text:phred_33)QUALITY";
+        get_attr("quality_expression", quality_expression);
+        m_quality_as_string = quality_expression == "(INSDC:quality:phred)QUALITY";
+    };
+
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
+    {
+        if (reads.empty())
+            return;
+        const auto& first_read = reads.front();
+        //string spot_name = first_read.Spot();
+        //spot_name += first_read.Suffix();
+        cout << "Spot: " << spot_name << first_read.Suffix() << "\nreads " << reads.size() <<":\n";
+        vector<uint8_t> qual_scores;
+        for (const auto& read : reads) {
+            //auto sz = read.Sequence().size();
+            cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
+            //cout << "spot_group:" << read.SpotGroup() << "\n";
+            cout << read.Sequence() << "\n";
+            cout << "+\n";
+            qual_scores.clear();
+            read.GetQualScores(qual_scores);
+            if (qual_scores.empty())
+                continue;
+            if (m_quality_as_string) {
+                auto it = qual_scores.begin();
+                cout << to_string(*it);
+                ++it;
+                for (;it != qual_scores.end(); ++it) {
+                    cout << " " << to_string(*it);
+                }
+            } else {
+                for (const auto& q : qual_scores) {
+                    cout << q;
+                }
+            }
+            cout << endl;
+        }
     }
-}
+    bool m_quality_as_string{false};
+};
 
 
 /**

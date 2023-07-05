@@ -237,15 +237,21 @@ typedef struct {
     size_t rejected_read_count = 0;
     size_t duplicate_reads_count = 0;
     size_t duplicate_reads_len = 0;
+    array<size_t, 256> base_counts{};
+    array<size_t, 256> quality_counts{};
 } data_input_metrics_t;
 
 // output telemetry metrics 
 typedef struct {
+
     size_t sequence_len = 0;
     size_t sequence_len_bio = 0;
     size_t quality_len = 0;
-    map<char, size_t> base_counts;
-    map<uint8_t, size_t> quality_counts;
+    array<size_t, 256> base_counts{};
+    array<size_t, 256> tech_base_counts{};
+    array<size_t, 256> quality_counts{};
+
+
     size_t read_count = 0;
     size_t spot_count = 0;
 } data_output_metrics_t;
@@ -464,7 +470,7 @@ struct spot_read_t {
     bool is_last;
 };
 
-
+typedef vector<fastq_read> spot_t;
 
 template<typename TWriter>
 class fastq_parser
@@ -474,7 +480,7 @@ class fastq_parser
     unique_ptr<queue_t<spot_read_t, SAVE_SPOT_QUEUE_SIZE>> save_spot_queue;
     unique_ptr<queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>> assemble_spot_queue;
     unique_ptr<queue_t<size_t, CLEAR_SPOT_QUEUE_SIZE>> clear_spot_queue;
-    unique_ptr<queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>> update_telemetry_queue;
+    unique_ptr<queue_t<spot_t, ASSEMBLE_QUEUE_SIZE>> update_telemetry_queue;
 
 
 public:
@@ -649,6 +655,15 @@ public:
      * @param j[out]
      */
     void report_telemetry(json& j);
+
+    /**
+     * @brief Set threshold for hot/cold reads
+     * default: 10000000
+    */
+    void set_hot_reads_threshold(size_t threshold) { 
+        m_spot_assembly.m_hot_reads_threshold = threshold; 
+    }
+
 private:
 
     /**
@@ -705,7 +720,7 @@ private:
      *
      * @param[in] reads assembled spot
      */
-    void update_telemetry(const vector<CFastqRead>& reads);
+    void update_telemetry(const spot_t& spot);
 
 
 
@@ -868,6 +883,10 @@ void fastq_reader::validate_read(CFastqRead& read)
     } else if constexpr (ScoreValidator::type() == ePhred) {
         char_qual_validator<ScoreValidator>(read);
     }
+
+    for (const auto& c : read.Sequence()) 
+        ++m_input_metrics.base_counts[c];
+
 }
 
 //  ----------------------------------------------------------------------------
@@ -1052,6 +1071,9 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
     }
     if (m_curr_platform != m_defline_parser.GetPlatform())
         throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
+
+    for (const auto& it : read.mQualScores)
+        ++m_input_metrics.quality_counts[it];
 }
 
 
@@ -1085,6 +1107,8 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
     if (m_curr_platform != m_defline_parser.GetPlatform())
         throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
 
+    for (auto c : read.mQuality)
+        ++m_input_metrics.quality_counts[c];
 }
 
 
@@ -1270,7 +1294,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
     auto spot_names_bi = m_spot_names.get_back_inserter();
     
     assemble_spot_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("assemble_spot_queue", pipeline_cancelled));
-    update_telemetry_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
+    update_telemetry_queue.reset(new queue_t<spot_t, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
 
     array<future<exception_ptr>, 2> futures;
     futures[1] = std::async(std::launch::async,[this](){ BEGIN_MT_EXCEPTION this->write_spot_thread(); END_MT_EXCEPTION });
@@ -1296,29 +1320,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
             }
         }
 
-/*
-        assert(assembled_spot.empty() == false);
-        auto spot_size = assembled_spot.size();
-        auto& spot = assembled_spot.front().Spot();
-        readCount += spot_size;
-        currCount += spot_size;
-        ++spotCount;
-        if (m_sort_by_readnum)
-            stable_sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { return l.ReadNum() < r.ReadNum();});
-        m_writer->write_spot(spot, assembled_spot);
-        m_writer->write_messages();
-        spot_names_bi = spot; 
-        update_telemetry_queue->enqueue(move(assembled_spot));
-        if (currCount >= 10e6) {
-            //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
-            spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
-            currCount = 0;
-        }
-*/        
     });
-/*
-    update_telemetry_queue->close();
-*/    
     assemble_spot_queue->close();
 
     for (auto& ft : futures) {
@@ -1349,30 +1351,59 @@ void fastq_parser<TWriter>::update_readers_telemetry()
         m_telemetry.input_metrics.quality_len += reader.m_input_metrics.quality_len;
         m_telemetry.input_metrics.rejected_read_count += reader.m_input_metrics.rejected_read_count;
 
+        for (size_t i = 0; i < reader.m_input_metrics.base_counts.size(); ++i) {
+            m_telemetry.input_metrics.base_counts[i] += reader.m_input_metrics.base_counts[i];
+        }
+        for (size_t i = 0; i < reader.m_input_metrics.quality_counts.size(); ++i) {
+            m_telemetry.input_metrics.quality_counts[i] += reader.m_input_metrics.quality_counts[i];
+        }
+
+        m_telemetry.input_metrics.rejected_read_count += reader.m_input_metrics.rejected_read_count;
+
         auto& group = m_telemetry.groups.back();
         group.defline_types.insert(reader.AllDeflineTypes().begin(), reader.AllDeflineTypes().end());
     }
+
+    for (size_t i = 0; i < m_telemetry.input_metrics.base_counts.size(); ++i) {
+        size_t out_counts = m_telemetry.output_metrics.base_counts[i] + m_telemetry.output_metrics.tech_base_counts[i];
+        if (m_telemetry.input_metrics.base_counts[i] != out_counts) 
+            throw fastq_error(230, "Input base counts mismatch for {} : input {} != parsed {}", char(i), m_telemetry.input_metrics.base_counts[i], out_counts);
+    }       
+    for (size_t i = 0; i < m_telemetry.input_metrics.quality_counts.size(); ++i) {
+        size_t out_counts = m_telemetry.output_metrics.quality_counts[i];
+        if (m_telemetry.input_metrics.quality_counts[i] != out_counts) 
+            throw fastq_error(230, "Input quality counts mismatch for {} : input {} != parsed {}", char(i), m_telemetry.input_metrics.quality_counts[i], out_counts);
+    }       
+
 }
 
 template<typename TWriter>
-void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
+void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
 {
+    assert(spot.empty() == false);
     auto& telemetry = m_telemetry.groups.back();
     telemetry.number_of_spots += 1;
     telemetry.number_of_reads += reads.size();
     
     m_telemetry.output_metrics.read_count += reads.size();
     ++m_telemetry.output_metrics.spot_count;
+    vector<uint8_t> qual_scores;
     for (const auto& r : reads) {
         auto sz = r.Sequence().size();
         m_telemetry.output_metrics.sequence_len += sz;
         if (r.mReadType != SRA_READ_TYPE_TECHNICAL) {
             m_telemetry.output_metrics.sequence_len_bio += sz;
-            for (auto c : r.Sequence()) {
+            for (const auto& c : r.Sequence()) {
                 ++m_telemetry.output_metrics.base_counts[c];
             }
+        } else {
+            for (const auto& c : r.Sequence()) {
+                ++m_telemetry.output_metrics.tech_base_counts[c];
+            }
         }
-        for (auto c : r.Quality()) {
+        qual_scores.clear();
+        r.GetQualScores(qual_scores);
+        for (auto c : qual_scores) {
             ++m_telemetry.output_metrics.quality_counts[c];
         }
         telemetry.max_sequence_size = max<int>(sz, telemetry.max_sequence_size);
@@ -1382,7 +1413,6 @@ void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
     
     if ((int)reads.size() < telemetry.reads_per_spot)
         ++telemetry.number_of_spots_with_orphans;
-
 }
 
 
@@ -1876,12 +1906,19 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         om["sequence_len"] = m_telemetry.output_metrics.sequence_len;
         om["sequence_len_bio"] = m_telemetry.output_metrics.sequence_len_bio;
         om["quality_len"] = m_telemetry.output_metrics.quality_len;
+
         auto &bc = om["base_counts"];
-        for (auto& it : m_telemetry.output_metrics.base_counts)
-            bc[string(1, it.first)] = it.second;
+        for (size_t i = 0; i < m_telemetry.output_metrics.base_counts.size(); ++i) 
+            if (m_telemetry.output_metrics.base_counts[i] != 0) {
+                auto s = string(1, char(i));
+                bc[s] = m_telemetry.output_metrics.base_counts[i];
+            }
+
         auto &qc = om["quality_counts"];
-        for (auto& it : m_telemetry.output_metrics.quality_counts)
-            qc[to_string(it.first - 33)] = it.second;
+        for (size_t i = 0; i < m_telemetry.output_metrics.quality_counts.size(); ++i) 
+            if (m_telemetry.output_metrics.quality_counts[i] != 0)
+                qc[to_string(i - 33)] = m_telemetry.output_metrics.quality_counts[i];
+
         om["read_count"] = m_telemetry.output_metrics.read_count;               
         om["spot_count"] = m_telemetry.output_metrics.spot_count;       
         auto& qm = j["qc"];
@@ -2172,6 +2209,7 @@ void fastq_parser<TWriter>::save_spot_thread()
     vector<int> read_ids;
     size_t spot_id = 0;
     string spot_name;
+    //vector<uint8_t> qs1, qs2;
     while (save_spot_queue->dequeue(spot_read)) {
         auto& read = spot_read.read;
         assert(read.m_SpotId != 0);
@@ -2181,6 +2219,7 @@ void fastq_parser<TWriter>::save_spot_thread()
             spot_id = read.m_SpotId;
             spot.push_back(move(read));
             prepare_assemble_spot(spot, read_ids);
+
             assert(!spot.empty());
             spot.front().SetSpot(move(spot_name));
             spot.front().m_SpotId = spot_id;
@@ -2189,7 +2228,7 @@ void fastq_parser<TWriter>::save_spot_thread()
             m_spot_assembly. template save_read_mt<ScoreValidator, is_nanopore>(read.m_SpotId, read);               
         }
     }
-    assemble_spot_queue->close();;
+    assemble_spot_queue->close();
 }
 
 template<typename TWriter>
@@ -2277,6 +2316,7 @@ void fastq_parser<TWriter>::assemble_spot_thread()
     vector<int> read_ids;
     size_t readCount = 0, spotCount = 0, currCount = 0;
     while (assemble_spot_queue->dequeue(assembled_spot)) {
+
         m_writer->write_messages();
         m_writer->write_spot(assembled_spot.front().Spot(), assembled_spot);
         ++spotCount;
@@ -2313,9 +2353,8 @@ void fastq_parser<TWriter>::clear_spot_thread()
 template<typename TWriter>
 void fastq_parser<TWriter>::update_telemetry_thread()
 {
-    vector<fastq_read> spot;
+    spot_t spot;
     while (update_telemetry_queue->dequeue(spot)) {
-        assert(spot.empty() == false);
         update_telemetry(spot); 
     }
 
@@ -2363,7 +2402,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
     save_spot_queue.reset(new queue_t<spot_read_t, SAVE_SPOT_QUEUE_SIZE>("save_spot_queue", pipeline_cancelled));
     assemble_spot_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("assemble_spot_queue", pipeline_cancelled));
     clear_spot_queue.reset(new queue_t<size_t, CLEAR_SPOT_QUEUE_SIZE>("clear_spot_queue", pipeline_cancelled));
-    update_telemetry_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
+    update_telemetry_queue.reset(new queue_t<spot_t, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
 
     array<future<exception_ptr>, 4> futures;
 
@@ -2381,6 +2420,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
             ++readCount;
             if (spot_read.is_last)
                 ++spotCount;
+
             save_spot_queue->enqueue(move(spot_read));
             if (readCount % 10000000 == 0)  
                 m_spot_assembly.optimize();

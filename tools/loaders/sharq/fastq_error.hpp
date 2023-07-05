@@ -57,7 +57,8 @@ SHARQ_ERR_CODES = {
     {190 ,{ "Unsupported interleaved file with orphans", "Unsupported interleaved file with orphans."}},
     {200 ,{ "Invalid quality encoding", "Failure to calculate quality score encoding."}},
     {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
-    {220 ,{ "Invalid experiment file", "Invalid experiment file."}}
+    {220 ,{ "Invalid experiment file", "Invalid experiment file."}},
+    {230 ,{ "Internal QC failure", "Internal QC failure."}}
 
 };
 

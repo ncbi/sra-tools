@@ -127,6 +127,7 @@ private:
     json  mReport;                      ///< Telemetry report
     uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
     atomic<uint32_t> mErrorCount{0};            ///< Global error counter
+    size_t mHotReadsThreshold{10000000};      ///< Threshold for hot reads
     set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
 };
 
@@ -239,6 +240,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             ->default_val("info")
             ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
 
+        app.add_option("--hot-reads-threshold", mHotReadsThreshold, "Hot reads threshold");
+
         string experiment_file;
         app.add_option("--experiment", experiment_file, "Read structure description");
 
@@ -342,10 +345,36 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
     return ret_code;
 }
 
+// max memory usage in bytes
+#ifdef __linux__
+
+static 
+unsigned long getPeakRSS() {
+    unsigned long rss = 0;
+    std::ifstream in("/proc/self/status");
+    if(in.is_open()) {
+        std::string line;
+        while(std::getline(in, line)) {
+            if(line.substr(0, 6) == "VmHWM:") {
+                std::istringstream iss(line.substr(6));
+                iss >> rss;
+                break; // No need to read further
+            }
+        }
+    }
+    return rss; // Size is in kB
+}
+
+#endif
+
 void CFastqParseApp::xReportTelemetry()
 {
     if (mTelemetryFile.empty())
         return;
+#ifdef __linux__
+    if (mNoTimeStamp == false)
+        mReport["max_memory_kb"] = getPeakRSS();
+#endif
     try {
         ofstream f(mTelemetryFile.c_str(), ios::out);
         f << mReport.dump(4, ' ', true) << endl;
@@ -554,20 +583,19 @@ bool CFastqParseApp::xIsSingleFileInput() const
 
 void CFastqParseApp::xCreateWriterFromDigest(json& data)
 {
-    if (mDebug) {
-        m_writer = make_shared<fastq_writer>();
-        return;    
-    } 
-
     assert(data.contains("groups"));
     assert(data["groups"].front().contains("files"));
     const auto& first = data["groups"].front()["files"].front();
     int platform_code = first["platform_code"].front();
 
-    if (platform_code == SRA_PLATFORM_454 && s_has_split_read_spec(mExperimentSpecs) && xIsSingleFileInput()) {
-        m_writer = make_shared<fastq_writer_exp>(mExperimentSpecs, *mpOutStr);
+    if (mDebug) {
+        m_writer = make_shared<fastq_writer_debug>();
     } else {
-        m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
+        if (platform_code == SRA_PLATFORM_454 && s_has_split_read_spec(mExperimentSpecs) && xIsSingleFileInput()) {
+            m_writer = make_shared<fastq_writer_exp>(mExperimentSpecs, *mpOutStr);
+        } else {
+            m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
+        }
     }
 
     m_writer->set_attr("name_column", mNameColumn);
@@ -699,6 +727,7 @@ int CFastqParseApp::xRunSpotAssembly()
         if (!mDebug)
             parser.set_spot_file(mSpotFile);
         parser.set_allow_early_end(mAllowEarlyFileEnd);
+        parser.set_hot_reads_threshold(mHotReadsThreshold);
 
         //auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
         for (auto& group : data["groups"]) {

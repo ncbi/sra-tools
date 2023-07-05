@@ -83,9 +83,13 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 expected=$CASEID
-if [[ $expected == *-sa ]]; then
-    expected="${expected%-sa}"
-fi
+suffixes=('-sa-hot' '-sa-cold')
+
+for suffix in "${suffixes[@]}"; do
+    if [[ $expected == *"$suffix" ]]; then
+        expected=${expected%"$suffix"}
+    fi
+done
 
 if [ "$rc" == "0" ] ; then
     OUT=stdout

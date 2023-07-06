@@ -24,6 +24,14 @@
 *
 */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* memchr */
+#endif
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /* strncasecmp */
+#endif
+
 #include "configure.h"
 
 #include <cloud/manager.h> /* CloudMgrRelease */

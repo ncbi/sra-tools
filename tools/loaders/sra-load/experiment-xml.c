@@ -23,6 +23,11 @@
 * ===========================================================================
 *
 */
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /* strcasecmp */
+#endif
+
 #include <klib/rc.h>
 #include <klib/log.h>
 #include <klib/debug.h>

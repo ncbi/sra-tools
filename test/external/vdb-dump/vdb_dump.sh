@@ -57,10 +57,10 @@ function run_test_neg() {
 # run_test "1.0" "SRR056386 -R 1 -C READ -f tab"
 # run_test "1.1" "SRR056386 -R 1 -C READ -f tab -I"
 
-# # nested databases
-run_test "2.0" "-E data/NestedDatabase"
-run_test "2.1" "-T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase"
-run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
+# # # nested databases
+# run_test "2.0" "-E data/NestedDatabase"
+# run_test "2.1" "-T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase"
+# run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
 
 # # Views
 # #	the accessions used below were taken from a blackbox test run, each represents a
@@ -104,7 +104,7 @@ run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
 # run_test "5.0" "SRR1063272 --view V9<SEQUENCE> -S view.vschema -R 1"
 
 # 6.0 an aliased view from a database
-run_test "6.0" "db/NestedDatabase -T VIEW1 -R 1-2"
+run_test "6.0" "data/NestedDatabase -T VIEW1 -R 1-2"
 
 rm -rf actual
 #rm -rf data

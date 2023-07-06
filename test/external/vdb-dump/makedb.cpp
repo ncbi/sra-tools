@@ -86,7 +86,7 @@ NestedDatabase()
         " database database2 #1 SUBDB_2;\n"
         " table table1 #1 TABLE1;\n"
         " table table2 #1 TABLE2;\n"
-        " alias V#1<TABLE1, TABLE2> VIEW1;"
+        " alias V#1<TABLE1, TABLE2> VIEW1;\n"
         " };\n"
     ;
     const string DefaultDatabase    = "root_database";

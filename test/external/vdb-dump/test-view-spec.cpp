@@ -28,7 +28,7 @@
 * Unit tests for vdb-dump's command line view spec parsing
 */
 
-#include "vdb-dump-view-spec.c"
+#include "vdb-dump-view-spec.h"
 
 #include <ktst/unit_test.hpp>
 
@@ -37,6 +37,9 @@
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/table.h>
+#include <vdb/cursor.h>
+#include <vdb/view.h>
+
 
 using namespace std;
 

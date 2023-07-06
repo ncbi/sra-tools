@@ -26,7 +26,8 @@ add_compile_definitions( __mod__="test/internal/copycat" )
 
 if ( ${OS} STREQUAL "linux"  )
 if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
-if(EXISTS "${DIRTOTEST}/copycat${EXE}")
+
+        ToolsRequired(copycat)
 
         set( SRC_DIR ${CMAKE_SOURCE_DIR}/tools/internal/copycat)
         set( KFF_SRC
@@ -75,9 +76,6 @@ if(EXISTS "${DIRTOTEST}/copycat${EXE}")
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
-else()
-    message(WARNING "${DIRTOTEST}/copycat${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()
 else()
 #TODO: make run on Windows

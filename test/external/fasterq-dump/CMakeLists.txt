@@ -23,7 +23,8 @@
 # ===========================================================================
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/fasterq-dump${EXE}" )
+
+ToolsRequired(fasterq-dump)
 
     add_test( NAME Test_FasterqDump_Help
         COMMAND ${BINDIR}/fasterq-dump -h
@@ -64,9 +65,6 @@ if ( EXISTS "${DIRTOTEST}/fasterq-dump${EXE}" )
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-tsan PROPERTIES WILL_FAIL TRUE)
     endif()
 
-else()
-	message(WARNING "${DIRTOTEST}/fasterq-dump${EXE} is not found. The corresponding tests are skipped." )
-endif()
 else()
 #TODO: make run on Windows
 endif()

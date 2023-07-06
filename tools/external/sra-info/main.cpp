@@ -210,7 +210,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             if ( param_count == 0 || param_count > 1 ) {
                 MiniUsage(args);
                 DESTRUCT(Args, args);
-                exit(1);
+                exit(3);
             }
 
             const char * accession = nullptr;

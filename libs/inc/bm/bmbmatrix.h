@@ -49,7 +49,6 @@ namespace bm
     succinct data structures, implementing high level abstractions.
 
     @ingroup bmagic
-    @internal
 */
 template<typename BV>
 class basic_bmatrix
@@ -64,6 +63,27 @@ public:
     typedef typename bvector_type::size_type             size_type;
     typedef typename bvector_type::block_idx_type        block_idx_type;
     typedef unsigned char                                octet_type;
+    typedef void                                         value_type;
+
+    typedef typename bvector_type::statistics  statistics;
+
+    /*! Traits and features used in algorithms to correctly run
+        on a particular type of sparse vector
+    */
+    struct is_remap_support { enum trait { value = false }; };
+    struct is_rsc_support { enum trait { value = false }; };
+    struct is_dynamic_splices { enum trait { value = true }; };
+
+
+    /// unused remap matrix type for compatibility with the sparse serializer
+    typedef
+    bm::heap_matrix<unsigned char,
+                    sizeof(int), /* ROWS */
+                    256,          /* COLS = number of chars in the ASCII set */
+                    typename bvector_type::allocator_type>
+                                                    remap_matrix_type;
+
+    
 
 public:
     // ------------------------------------------------------------
@@ -71,6 +91,7 @@ public:
     ///@{
 
     basic_bmatrix(size_type rsize,
+                  bool is_dynamic = true,
                   allocation_policy_type ap = allocation_policy_type(),
                   size_type bv_max_size = bm::id_max,
                   const allocator_type&   alloc  = allocator_type());
@@ -120,6 +141,9 @@ public:
     /*! Freeze content into read-only mode drop editing overhead */
     void freeze();
 
+    /*! check if two bit-matrices are equal */
+    bool equal(const basic_bmatrix<BV>& bbm) const BMNOEXCEPT;
+
     ///@}
 
     // ------------------------------------------------------------
@@ -150,6 +174,8 @@ public:
 
     /*! Make sure row is copy-constructed, return bit-vector */
     bvector_type_ptr construct_row(size_type row, const bvector_type& bv);
+
+    bvector_type_ptr get_create_slice(unsigned i) { return construct_row(i); }
 
     /*! destruct/deallocate row */
     void destruct_row(size_type row);
@@ -224,6 +250,20 @@ public:
     
     ///@}
 
+    // ------------------------------------------------------------
+    /*! @name Clear                                              */
+    ///@{
+
+    /*! \brief resize to zero, free memory
+        @param free_mem - true - indicates the need to free underlying memory in bit-vectors
+    */
+    void clear_all(bool free_mem, unsigned ) BMNOEXCEPT;
+
+    /*! \brief resize to zero, free memory */
+    void clear() BMNOEXCEPT { clear_all(true, 0); }
+
+    ///@}
+
 
     // ------------------------------------------------------------
     /*! @name Utility functions                                  */
@@ -268,6 +308,12 @@ public:
     void calc_stat(typename bvector_type::statistics& st,
                    size_type rsize) const BMNOEXCEPT;
 
+    /*! Compute memory statistics
+        @param st [out] - statistics object
+    */
+    void calc_stat(typename bvector_type::statistics* st) const BMNOEXCEPT
+            { return calc_stat(*st, rows()); }
+
     /*! Erase column/element
         @param idx - index (of column) / element of bit-vectors to erase
         @param erase_null - erase all including NULL vector (true)
@@ -305,10 +351,66 @@ public:
      */
     void bit_and_rows(const bvector_type& bv);
 
+    /// Return if matrix is dynamic resizable
+    bool is_dynamic() const BMNOEXCEPT { return is_dynamic_; }
+
+
+    /// Debugging function to check if two matrixes have the same rows created
+    /// @return true - if the same
+    ///
+    bool is_same_structure(const basic_bmatrix<BV>& bbm) const BMNOEXCEPT;
+
+    /// return true if matrix is in read-only mode
+    bool is_ro() const BMNOEXCEPT { return is_ro_; }
+
+    /// Construct digest vector of 1s for every row in the matrix
+    /// @param digest_bv - (out) digest vector to set 1s
+    void build_plane_digest(bvector_type& digest_bv) const;
+
+    /*! \brief return size of the vector (always bm::id_max )
+        \return constant size (bm::id_max )
+    */
+    size_type size() const BMNOEXCEPT { return bm::id_max; }
+
+    /// same as size()
+    size_type size_internal() const BMNOEXCEPT { return size(); }
+
+    /*! \brief syncronize internal structures, build fast access index
+    */
+    void sync(bool /*force*/) { }
+
+    ///@}
+
+
+    // ------------------------------------------------------------
+    /*! @name Various traits                                     */
+    ///@{
+
+    /** \brief various type traits
+    */
+
+    /// trait to identify that class does not support any remappings
+    constexpr bool is_remap() const BMNOEXCEPT { return false; }
+
+    static constexpr
+    bool is_compressed() BMNOEXCEPT { return false; }
+
+    static constexpr
+    bool is_str() BMNOEXCEPT { return false; }
+
+    /**
+        \brief check if container supports NULL(unassigned) values
+    */
+    bool is_nullable() const BMNOEXCEPT { return get_null_idx(); }
 
     ///@}
 
 protected:
+    enum vector_cap
+    {
+        max_vector_size = bm::id_max,
+        sv_value_slices = 0
+    };
 
     bvector_type* construct_bvector(const bvector_type* bv) const;
     void destruct_bvector(bvector_type* bv) const;
@@ -319,15 +421,57 @@ protected:
     template<typename Val, typename BVect, unsigned MAX_SIZE>
     friend class base_sparse_vector;
 
+    template<class SVect> friend class sparse_vector_serializer;
+    template<class SVect> friend class sparse_vector_deserializer;
+    template<class Val, class SV> friend class rsc_sparse_vector;
+
+
+    void resize_internal(size_type sz, bool set_null=true) BMNOEXCEPT
+        { (void)sz,(void)set_null; }
+
+    /// return *this (for serializer compat)
+    const basic_bmatrix<BV>& get_bmatrix() const BMNOEXCEPT { return *this; }
+
+    /// return *this (for serializer compat)
+    basic_bmatrix<BV>& get_bmatrix() BMNOEXCEPT { return *this; }
+
+    const remap_matrix_type* get_remap_matrix() const { return 0; }
+    remap_matrix_type* get_remap_matrix() { return 0; }
+
+    size_t remap_size() const BMNOEXCEPT { return 0; }
+    const unsigned char* get_remap_buffer() const BMNOEXCEPT { return 0; }
+    unsigned char* init_remap_buffer() BMNOEXCEPT { return 0; }
+    void set_remap() BMNOEXCEPT { }
+
+    /// always return 0 as basic matrix does not support the notion of NULL plane (as sparse_vectors do)
+    bvector_type* get_null_bvector() BMNOEXCEPT
+        { return null_idx_ ? get_row(null_idx_) : 0; }
+
+    void mark_null_idx(unsigned null_idx) BMNOEXCEPT { null_idx_ = null_idx; }
+
+    static unsigned stored_slices() BMNOEXCEPT { return 0; }
+
+    /// Force RO flag without running freeze ops on content
+    void set_ro_flag(bool b) BMNOEXCEPT { is_ro_ = b; }
+
+    /// Nominal function for serializer compatibility
+    bool resolve_range(size_type from, size_type to,
+                       size_type* idx_from, size_type* idx_to) const BMNOEXCEPT
+    {
+        *idx_from = from; *idx_to = to; return true;
+    }
+
 protected:
     size_type                bv_size_;
     allocator_type           alloc_;
     allocation_policy_type   ap_;
-    allocator_pool_type*     pool_;
+    allocator_pool_type*     pool_ = 0;
     
-    bvector_type_ptr*        bv_rows_;
-    size_type                rsize_;
-    size_type                null_idx_; ///< Index of the NULL row
+    bvector_type_ptr*        bv_rows_ = 0;
+    size_type                rsize_ = 0;
+    bool                     is_dynamic_ = true; ///< if rsize is dynamic (variable length)
+    size_type                null_idx_ = 0; ///< Index of the NULL row
+    bool                     is_ro_=false; ///< read-only
 };
 
 /**
@@ -369,6 +513,7 @@ public:
     base_sparse_vector();
 
     base_sparse_vector(bm::null_support        null_able,
+                       bool                    is_dynamic,
                        allocation_policy_type  ap = allocation_policy_type(),
                        size_type               bv_max_size = bm::id_max,
                        const allocator_type&   alloc = allocator_type());
@@ -425,7 +570,7 @@ public:
     /**
         \brief check if container supports NULL(unassigned) values
     */
-    bool is_nullable() const BMNOEXCEPT { return bmatr_.get_null_idx(); }
+    bool is_nullable() const BMNOEXCEPT { return bmatr_.is_nullable(); }
 
     /**
         \brief check if container supports NULL (unassigned) values
@@ -552,7 +697,7 @@ public:
         @internal
      */
     void mark_null_idx(unsigned null_idx) BMNOEXCEPT
-        { bmatr_.null_idx_ = null_idx; }
+        { bmatr_.mark_null_idx(null_idx); }
     /**
         Convert signed value type to unsigned representation
         @internal
@@ -619,7 +764,7 @@ protected:
     /**
         Turn on RO mode
      */
-    void freeze_matr() { bmatr_.freeze(); is_ro_ = true; }
+    void freeze_matr() { bmatr_.freeze(); }
 
     /*!
         clear column in all value planes
@@ -686,12 +831,15 @@ protected:
         typename base_sparse_vector<Val, BV, MAX_SIZE>::size_type right,
         bm::null_support slice_null);
 
+    /// Force RO flag without running freeze ops on content
+    void set_ro_flag(bool b) BMNOEXCEPT { bmatr_.set_ro_flag(b); }
+
 protected:
     bmatrix_type             bmatr_;              ///< bit-transposed matrix
     unsigned_value_type      slice_mask_ = 0;     ///< slice presence bit-mask
     size_type                size_ = 0;           ///< array size
     unsigned                 effective_slices_=0; ///< number of bit slices actually allocated
-    bool                     is_ro_=false; ///< read-only
+//    bool                     is_ro_=false; ///< read-only
 };
 
 //---------------------------------------------------------------------
@@ -705,18 +853,16 @@ protected:
 
 template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(size_type rsize,
+              bool is_dynamic,
               allocation_policy_type ap,
               size_type bv_max_size,
               const allocator_type&   alloc)
 : bv_size_(bv_max_size),
   alloc_(alloc),
-  ap_(ap),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(ap)
 {
     allocate_rows(rsize);
+    is_dynamic_ = is_dynamic;
 }
 
 //---------------------------------------------------------------------
@@ -733,13 +879,10 @@ template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(const basic_bmatrix<BV>& bbm)
 : bv_size_(bbm.bv_size_),
   alloc_(bbm.alloc_),
-  ap_(bbm.ap_),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(bbm.ap_)
 {
     copy_from(bbm);
+    is_dynamic_ = bbm.is_dynamic_;
 }
 
 //---------------------------------------------------------------------
@@ -748,13 +891,10 @@ template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(basic_bmatrix<BV>&& bbm) BMNOEXCEPT
 : bv_size_(bbm.bv_size_),
   alloc_(bbm.alloc_),
-  ap_(bbm.ap_),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(bbm.ap_)
 {
     swap(bbm);
+    is_dynamic_ = bbm.is_dynamic_;
 }
 
 //---------------------------------------------------------------------
@@ -898,8 +1038,59 @@ void basic_bmatrix<BV>::allocate_rows(size_type rsize)
             bv_rows_[rsize-1] = bv_rows_[null_idx_];
             bv_rows_[null_idx_] = 0;
             null_idx_ = rsize-1;
+            BM_ASSERT(rsize & 1u);
         }
     }
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+void basic_bmatrix<BV>::clear_all(bool free_mem, unsigned) BMNOEXCEPT
+{
+    auto slices = rows();
+    for (size_type i = 0; i < slices; ++i)
+        if (bvector_type* bv = get_row(i))
+            clear_row(i, free_mem);
+//    is_ro_ = false;
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+bool basic_bmatrix<BV>::equal(const basic_bmatrix<BV>& bbm) const BMNOEXCEPT
+{
+    unsigned slices = (unsigned) this->rows();
+    unsigned arg_slices = (unsigned) bbm.rows();
+    unsigned max_slices(slices);
+    if (max_slices < arg_slices)
+        max_slices = arg_slices;
+    bool eq = true;
+    for (unsigned j = 0; eq && (j < max_slices); ++j)
+    {
+        const bvector_type *bv, *arg_bv;
+
+        bv = (j < slices) ? this->get_row(j) : 0;
+        arg_bv = (j < arg_slices) ? bbm.get_row(j) : 0;
+        if (bv == arg_bv) // same NULL
+            continue;
+        // check if any not NULL and not empty
+        if (!bv && arg_bv)
+        {
+            if (arg_bv->any())
+                return false;
+            continue;
+        }
+        if (bv && !arg_bv)
+        {
+            if (bv->any())
+                return false;
+            continue;
+        }
+        // both not NULL
+        eq = bv->equal(*arg_bv);
+    } // for j
+    return eq;
 }
 
 //---------------------------------------------------------------------
@@ -929,6 +1120,30 @@ void basic_bmatrix<BV>::free_rows() BMNOEXCEPT
     if (bv_rows_)
         alloc_.free_ptr(bv_rows_, unsigned(rsize_));
     bv_rows_ = 0;
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+bool basic_bmatrix<BV>::is_same_structure(
+                        const basic_bmatrix<BV>& bbm) const BMNOEXCEPT
+{
+    BM_ASSERT(this != &bbm);
+    
+    if (rsize_ != bbm.rsize_)
+        return false;
+    if (null_idx_ != bbm.null_idx_)
+        return false;
+    for (size_type i = 0; i < rsize_; ++i)
+    {
+        const bvector_type* bv = bv_rows_[i];
+        const bvector_type* bv_arg = bbm.bv_rows_[i];
+        if (bool(bv) != bool(bv_arg))
+            return false;
+    } // for i
+
+
+    return true;
 }
 
 //---------------------------------------------------------------------
@@ -1026,8 +1241,16 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row)
 {
-    if (row >= rsize_)
-        allocate_rows(row + 8);
+    if (is_dynamic())
+    {
+        if (row >= rsize_)
+        {
+            size_type new_rsize = rsize_ + 8;
+            while (row >= new_rsize)
+                new_rsize +=8;
+            allocate_rows(new_rsize);
+        }
+    }
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];
     if (!bv)
@@ -1545,6 +1768,7 @@ void basic_bmatrix<BV>::freeze()
     for (unsigned k = 0; k < rsize_; ++k)
         if (bvector_type* bv = get_row(k))
             bv->freeze();
+    is_ro_ = true;
 }
 
 //---------------------------------------------------------------------
@@ -1585,6 +1809,21 @@ void basic_bmatrix<BV>::optimize_block(block_idx_type nb,
 }
 
 //---------------------------------------------------------------------
+
+template<typename BV>
+void basic_bmatrix<BV>::build_plane_digest(bvector_type& digest_bv) const
+{
+    digest_bv.init();
+    digest_bv.clear(false);
+    unsigned planes = (unsigned)rows();
+    for (unsigned i = 0; i < planes; ++i)
+    {
+        if (bvector_type_const_ptr bv = get_row(i); bv)
+            digest_bv.set_bit_no_check(i);
+    } // for i
+}
+
+//---------------------------------------------------------------------
 //
 //---------------------------------------------------------------------
 
@@ -1592,7 +1831,7 @@ void basic_bmatrix<BV>::optimize_block(block_idx_type nb,
 
 template<class Val, class BV, unsigned MAX_SIZE>
 base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector()
-: bmatr_(sv_slices, allocation_policy_type(), bm::id_max, allocator_type())
+: bmatr_(sv_slices, true, allocation_policy_type(), bm::id_max, allocator_type())
 {}
 
 //---------------------------------------------------------------------
@@ -1600,10 +1839,11 @@ base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector()
 template<class Val, class BV, unsigned MAX_SIZE>
 base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector(
         bm::null_support        null_able,
+        bool                    is_dynamic,
         allocation_policy_type  ap,
         size_type               bv_max_size,
         const allocator_type&       alloc)
-: bmatr_(sv_slices, ap, bv_max_size, alloc)
+: bmatr_(sv_slices, is_dynamic, ap, bv_max_size, alloc)
 {
     if (null_able == bm::use_null)
     {
@@ -1735,7 +1975,7 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::clear_all(bool free_mem) BMNOEXCEPT
     slice_mask_ = 0; size_ = 0;
     if (bv_null)
         bv_null->clear(true);
-    is_ro_ = false;
+    this->bmatr_.is_ro_ = false;
 }
 
 //---------------------------------------------------------------------
@@ -1944,8 +2184,7 @@ bool base_sparse_vector<Val, BV, MAX_SIZE>::equal(
 
     for (unsigned j = 0; j < max_slices; ++j)
     {
-        const bvector_type* bv;
-        const bvector_type* arg_bv;
+        const bvector_type *bv, *arg_bv;
 
         bv = (j < slices) ? this->bmatr_.get_row(j) : 0;
         arg_bv = (j < arg_slices) ? sv.bmatr_.get_row(j) : 0;
@@ -2004,7 +2243,7 @@ void base_sparse_vector<Val, BV, MAX_SIZE>::sync_ro() BMNOEXCEPT
         {
             if (bv->is_ro())
             {
-                is_ro_ = true;
+                bmatr_.is_ro_ = true;
                 break;
             }
         }

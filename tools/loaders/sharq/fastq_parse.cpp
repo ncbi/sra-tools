@@ -82,6 +82,7 @@ private:
     int Run();
     int xRun();
     int xRunDigest();
+    int xRunDump();
     int xRunSpotAssembly();
 
     template <typename ScoreValidator, typename parser_t>
@@ -106,6 +107,7 @@ private:
 
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
+    string mDump;                       ///< Dump mode
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
     vector<char> mReadTypes;            ///< ReadType parameter value
     using TInputFiles = vector<string>;
@@ -249,6 +251,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         opt->add_option("--hash", hash_file, "Check hash file");
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
         opt->add_flag("--debug", mDebug, "Debug mode");
+        opt->add_option("--dump", mDump, "Parse and dump")->check(CLI::IsMember({"na", "sort", "rotate"}));
 
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
@@ -420,6 +423,8 @@ int CFastqParseApp::Run()
     int retStatus = 0;
     if (mDigest != 0)
         retStatus = xRunDigest();
+    else if (!mDump.empty())
+        retStatus = xRunDump();
     else if (mSpotAssembly)
         retStatus = xRunSpotAssembly();
     else
@@ -792,6 +797,60 @@ void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
     if (++mErrorCount >= mMaxErrCount)
         throw fastq_error(e.error_code(), "Exceeded maximum number of errors {}", mMaxErrCount);
 }
+
+
+int CFastqParseApp::xRunDump()
+{
+    if (mInputBatches.empty())
+        return 1;
+    json data;
+    get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);});
+    xProcessDigest(data);
+    mErrorCount = 0; //Reset error counts after initial digest
+    xCreateWriterFromDigest(data);
+    size_t total_spots = 0;
+    for (auto& group : data["groups"]) 
+        total_spots += group["estimated_spots"].get<size_t>();;
+
+    fastq_parser<fastq_writer> parser(m_writer);
+    try {
+        if (!mDebug)
+            parser.set_spot_file(mSpotFile);
+        parser.set_allow_early_end(mAllowEarlyFileEnd);
+        m_writer->open();
+        auto err_checker = [this](fastq_error& e) -> void { CFastqParseApp::xCheckErrorLimits(e);};
+        for (auto& group : data["groups"]) {
+            parser.set_readers(group);
+            if (!group["files"].empty()) {
+                switch ((int)group["files"].front()["quality_encoding"]) {
+                    case 0:
+                        parser.parse_and_dump<validator_options<eNumeric, -5, 40>>(mDump, err_checker);
+                        break;
+                    case 33:
+                        parser.parse_and_dump<validator_options<ePhred, 33, 126>>(mDump, err_checker);
+                        break;
+                    case 64:
+                        parser.parse_and_dump<validator_options<ePhred, 64, 126>>(mDump, err_checker);
+                        break;
+                    default:
+                        throw runtime_error("Invalid quality encoding");
+                }
+            }
+        }
+        spdlog::stopwatch sw;
+        spdlog::info("Parsing complete");
+        m_writer->close();
+    } catch (exception& e) {
+        if (!mTelemetryFile.empty()) 
+            parser.report_telemetry(mReport);
+        throw;
+    }
+    if (!mTelemetryFile.empty()) 
+        parser.report_telemetry(mReport);
+
+    return 0;
+}
+
 
 //  ----------------------------------------------------------------------------
 int main(int argc, const char* argv[])

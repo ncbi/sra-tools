@@ -51,7 +51,7 @@
 #include <bm/bm64.h>
 #include <bm/bmdbg.h>
 #include <bm/bmtimer.h>
-
+#include <bm/bmbmatrix.h>
 #include <bm/bmstrsparsevec.h>
 #include <bm/bmsparsevec_algo.h>
 #include <spdlog/spdlog.h>
@@ -663,6 +663,23 @@ public:
     void set_hot_reads_threshold(size_t threshold) { 
         m_spot_assembly.m_hot_reads_threshold = threshold; 
     }
+
+
+    template<typename ScoreValidator, typename ErrorChecker>
+    void parse_and_dump(const string& mode, ErrorChecker&& err_checker);
+
+    template<typename ScoreValidator, typename ErrorChecker>
+    void parse_and_dump_na(ErrorChecker&& err_checker);
+
+    template<typename ScoreValidator, typename ErrorChecker>
+    void parse_and_dump_sort(ErrorChecker&& err_checker);
+
+    template<typename ScoreValidator, typename ErrorChecker>
+    void parse_and_dump_rotate(ErrorChecker&& err_checker);
+
+    template<typename ScoreValidator, typename ErrorChecker>
+    void test_sort_create(const string& case_name, ErrorChecker&& error_checker);
+
 
 private:
 
@@ -1380,7 +1397,7 @@ void fastq_parser<TWriter>::update_readers_telemetry()
 template<typename TWriter>
 void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
 {
-    assert(spot.empty() == false);
+    assert(reads.empty() == false);
     auto& telemetry = m_telemetry.groups.back();
     telemetry.number_of_spots += 1;
     telemetry.number_of_reads += reads.size();
@@ -2494,7 +2511,261 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
     spdlog::info("parsing time: {}", sw);
 }
-
 #endif
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::parse_and_dump(const string& mode, ErrorChecker&& error_checker)
+{
+    spdlog::stopwatch sw;
+    spdlog::info("Parsing from {} files", m_readers.size());
+    if (mode == "na")
+        parse_and_dump_na<ScoreValidator>(error_checker);
+    else if (mode == "sort")        
+        parse_and_dump_sort<ScoreValidator>(error_checker);
+    else if (mode == "rotate")        
+        parse_and_dump_rotate<ScoreValidator>(error_checker);
+
+    spdlog::debug("parsing time: {}", sw);
+}
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::parse_and_dump_na(ErrorChecker&& error_checker)
+{
+    spot_compress_t sc("test");
+    sc.m_mid_score = ScoreValidator::min_score() + 30;
+    sc.open();
+    size_t spot_id = 0;
+    for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
+        sc.save_spot(spot_id, spot);
+        ++spot_id;
+    });
+    sc.close();
+    sc.save_sequence();
+    spot_compress_t sc1("test");
+    sc1.load_sequence();
+    spot_id = 0;
+    sc.for_each_fasta([&](size_t idx, const string& seq) {
+        string saved_seq = sc1.load_spot_sequnce(idx); 
+        if (seq != saved_seq)
+            spdlog::error("seq mismatch {} != {}", seq, saved_seq);  
+        ++spot_id;          
+    });
+    spdlog::info("{} spots matched", spot_id);
+
+    auto file_size_seq = fs::file_size("test.seq");
+    auto file_size_offset = fs::file_size("test.seq_offset");
+    spdlog::info("base_count: {}", sc.m_base_count);
+    spdlog::info("size: {}", file_size_seq + file_size_offset);
+
+}
+
+typedef bm::basic_bmatrix< bvector_type >         bmatr_32;
+typedef bm::sparse_vector_serializer<bmatr_32>   bmb_serializer_type;
+typedef bm::sparse_vector_deserializer<bmatr_32> bmb_deserializer_type;
+typedef bm::sparse_vector_serial_layout<bmatr_32> bmatr_lay_t;
+
+static int save_matrix(const string& fname, bmatr_32& bmatr)
+{
+    bmatr_lay_t sv_lay;
+    bmb_serializer_type bmbser;     // serializer class
+    // set bookmarks for faster range deserialization
+    //bmbser.set_bookmarks(true, 16);
+    // enable XOR filter
+    bmbser.enable_xor_compression();
+
+    // run serialization, layout now contains BLOB
+    bmbser.serialize(bmatr, sv_lay);
+
+    std::ofstream fout(fname.c_str(), std::ios::binary);
+    if (!fout.good()) return -1;
+    const char* buf = (char*)sv_lay.buf();
+    fout.write(buf, std::streamsize(sv_lay.size()));
+    if (!fout.good()) return -1;
+    fout.close();
+    return 0;
+}
+static int load_matrix(const string& fname, bmatr_32& bmatr)
+{
+    std::vector<unsigned char> buffer;
+    // read the input buffer, validate errors
+    auto ret = bm::read_dump_file(fname, buffer);
+    if (ret != 0) return -2;
+    if (buffer.size() == 0) return -3;
+
+    bmb_deserializer_type bmatr_deserial_ro; // deserializer instance
+    bmatr_deserial_ro.set_finalization(bm::finalization::READONLY);
+
+    const unsigned char* buf = &buffer[0];
+    bmatr_deserial_ro.deserialize(bmatr, buf, TB);
+    return 0;
+}
+
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::test_sort_create(const string& case_name, ErrorChecker&& error_checker)
+{
+    size_t spot_id = 0;
+    size_t max_size = 0;
+    //unordered_map<size_t, vector<string>> i_seqs;
+    //unordered_map<size_t, vector<uint32_t>> i_order;
+    vector<string> i_seqs;
+    //string seq;
+    ofstream seq_in(case_name + ".seq.in");
+
+    for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
+        //seq.clear();
+        auto& seq = i_seqs.emplace_back();
+        for (const auto& read: spot) {
+            seq += read.Sequence();
+        }
+        seq_in << seq << endl;
+        //i_seqs[seq.size()].push_back(move(seq));
+        //i_order[seq.size()].push_back(spot_id);
+        max_size = max(max_size, seq.size());
+        ++spot_id;
+    });
+    seq_in.close();
+
+    auto& seqs = i_seqs;
+    vector<size_t> idx(seqs.size());
+    iota(idx.begin(), idx.end(), 0);
+    tf::Executor executor(min<int>(8, std::thread::hardware_concurrency())); 
+    tf::Taskflow taskflow;
+    taskflow.sort(idx.begin(), idx.end(), [&](uint32_t  l, uint32_t  r) {
+        return seqs[l] < seqs[r];
+    });
+    executor.run(taskflow).wait();
+    svector_u32 len_vec;
+    auto bi = len_vec.get_back_inserter();
+
+    svector_u32 idx_vec;
+    auto idx_bi = idx_vec.get_back_inserter();
+
+    vector<unsigned> lens(idx.size());
+    bmatr_32 len_matr(max_size); // create sample row major bit-matrix
+    for (size_t j = 0; j < idx.size(); ++j) {
+        auto& seq = seqs[idx[j]];
+        bi = seq.size();
+        idx_bi = idx[j];
+        lens[j] = seq.size();
+    }
+    bi.flush();
+    idx_bi.flush();
+    len_vec.optimize(TB);
+    bm::file_save_svector(len_vec, case_name + ".len");        
+
+    idx_vec.optimize(TB);
+    bm::file_save_svector(idx_vec, case_name + ".idx");        
+    spdlog::info("Creating matrix");
+
+    bmatr_32 bmatr0(max_size * 3); // create sample row major bit-matrix
+    for (size_t i = 0; i < max_size; ++i) {
+        bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i * 3);
+        bmatr_32::bvector_type* bv2 = bmatr0.construct_row(i * 3 + 1);
+        bmatr_32::bvector_type* bv3 = bmatr0.construct_row(i * 3 + 2);
+
+        for (size_t j = 0; j < idx.size(); ++j) {
+            auto& seq = seqs[idx[j]];
+            if (i >= seq.size()) continue;
+            auto v = DNA2int(seq[i]);
+            if (v & 1) bv1->set(j, v & 1);
+            v >>= 1;
+            if (v & 1) bv2->set(j, v & 1);
+            v >>= 1;
+            if (v & 1) bv3->set(j, v & 1);
+        }
+    }
+    bmatr0.optimize(TB);
+    save_matrix(case_name + ".matrix", bmatr0);
+
+    auto matrix_sz = fs::file_size(case_name + ".matrix");
+    auto index_sz = fs::file_size(case_name + ".idx");
+    auto len_sz = fs::file_size(case_name + ".len");
+
+    spdlog::info("Matrix rows {}, seqs {}", max_size, idx.size());
+    spdlog::info("Matrix {}, Index {}, Len {}, Total {} ", matrix_sz, index_sz, len_sz, matrix_sz + index_sz + len_sz);
+}
+
+
+static 
+void test_sort_dump(const string& case_name)
+{
+    vector<uint32_t> lens;
+    {
+        svector_u32 len_vec;
+        bm::file_load_svector(len_vec, case_name + ".len");        
+        lens.resize(len_vec.size());
+        len_vec.decode(&lens[0], 0, len_vec.size());
+    }
+
+    vector<uint32_t> idx;
+    {
+        svector_u32 idx_vec;
+        bm::file_load_svector(idx_vec, case_name + ".idx");
+        idx.resize(idx_vec.size());
+        idx_vec.decode(&idx[0], 0, idx.size());
+    }
+
+    bmatr_32 bmatr(0); // create sample row major bit-matrix
+    load_matrix(case_name + ".matrix", bmatr);
+    size_t num_seq = idx.size();
+    vector<string> seqs(num_seq);
+
+
+    for (size_t i = 0; i < num_seq; ++i) 
+        seqs[i].resize(lens[idx[i]]);
+
+    size_t num_rows = bmatr.rows();
+    for (size_t i = 0; i < num_rows; ++i) {
+        bmatr_32::bvector_type* bv1 = bmatr.get_row(i * 3);
+        bmatr_32::bvector_type* bv2 = bmatr.get_row(i * 3 + 1);
+        bmatr_32::bvector_type* bv3 = bmatr.get_row(i * 3 + 2);
+
+        for (size_t j = 0; j < num_seq; ++j) {
+            auto& seq = seqs[idx[j]];
+            if (i >= lens[j]) continue;
+            uint8_t v = 0;
+            if (bv3->test(j))
+                v = 1 << 2;
+            if (bv2->test(j)) 
+                v |= 1 << 1;
+            if (bv1->test(j))
+            v |= 1; 
+            seq[i] = Int2DNA(v);
+        }
+    }
+    ofstream seq_out(case_name + ".seq.out");
+    for (size_t i = 0; i < idx.size(); ++i) {
+        seq_out << seqs[i] << endl;
+    }
+    auto cmd = fmt::format("diff {} {}", case_name + ".seq.in", case_name + ".seq.out");
+    int result = system(cmd.c_str());
+    // Check the result, if you want to get the result of the diff command
+    if (result == 0)
+        spdlog::info("Files are identical");
+    else
+        spdlog::info("Files are different");
+}
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::parse_and_dump_sort(ErrorChecker&& error_checker)
+{
+
+    test_sort_create<ScoreValidator>("test", error_checker);
+    test_sort_dump("test");
+ 
+}
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::parse_and_dump_rotate(ErrorChecker&& error_checker)
+{
+
+}
+
 #endif
 

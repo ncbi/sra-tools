@@ -14,6 +14,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <bm/bm64.h>
 #include <bm/bmsparsevec_compr.h>
+#include <bm/bmdbg.h>
 #include "taskflow/taskflow.hpp"
 #include "taskflow/algorithm/sort.hpp"
 
@@ -348,8 +349,8 @@ void spot_assembly_t::save_read(size_t row_id, fastq_read& read) {
     for (size_t i = 0; i < sz; ++i) 
         tmp_buffer[i] = DNA2int(seq[i]);
     size_t offset = m_seq_offset[read_idx];
-    m_sequences.emplace_back().import(&tmp_buffer[0], sz, offset);
-    m_seq_offset.emplace_back() = offset + sz;
+    m_sequences[read_idx].import(&tmp_buffer[0], sz, offset);
+    m_seq_offset[read_idx] = offset + sz;
     offset |= sz << 48;
     metadata.get<u64_t>(metadata_t::e_SeqOffsetId).set(row_id, offset);
     tmp_qual_scores.clear();
@@ -363,13 +364,15 @@ void spot_assembly_t::save_read(size_t row_id, fastq_read& read) {
         tmp_qual_buffer[i] = tmp_qual_scores[i] - tmp_qual_scores[i - 1];
     }
     size_t qual_offset = m_qual_offset[read_idx];
-    m_qualities.emplace_back().import(&tmp_qual_buffer[0], sz, qual_offset);
-    m_qual_offset.emplace_back() = qual_offset + sz;
+    m_qualities[read_idx].import(&tmp_qual_buffer[0], sz, qual_offset);
+    m_qual_offset[read_idx] = qual_offset + sz;
     qual_offset |= sz << 48;
     metadata.get<u64_t>(metadata_t::e_QualOffsetId).set(row_id, qual_offset);
     m_spot_index.inc(row_id);
     ++m_num_rows_to_optimize;
 }
+
+
 
 // retrieves all reads for the spot from hot or cold storage
 template<typename ScoreValidator, bool is_nanopore = false>
@@ -784,6 +787,121 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
         auto logger = spdlog::get("parser_logger"); // send log to stderr        
         if (logger) logger->info("cleanup took: {}", sw);
     }
+}
+
+// --------------------------------------------------------------------------
+
+struct spot_compress_t 
+{
+    spot_compress_t (const string& name) : m_case_name(name) 
+    {
+    }
+    ~spot_compress_t () {
+    }
+
+    void save_spot(size_t row_id, const vector<fastq_read>& spot);
+    void open() {
+        m_ofs.open(m_case_name + ".fasta");
+    }
+    void close() {
+        m_ofs.close();
+    }
+
+    metadata_t m_metadata; ///< reads metadata from defline - readNum,  spotGroup, sequence and quality offset 
+    svector_u32 m_sequence;     ///< sequence data
+    size_t m_seq_offset{0};         ///< last sequence offset per read
+
+    svector_int m_quality;     ///< quality data
+    size_t m_qual_offset{0};        ///< last quality offset per read
+
+    int m_mid_score{0};// = ScoreValidator::min_score() + 30;
+
+    string load_spot_sequnce(size_t spot_id) 
+    {
+        size_t offset = m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId).get(spot_id);
+        size_t len = offset >> 48;
+        offset &= 0x0000FFFFFFFFFFFF;
+        tmp_buffer.resize(len);
+        m_sequence.decode(&tmp_buffer[0], offset, len);
+        string seq;
+        seq.resize(len);
+        for (size_t j = 0; j < len; ++j)
+            seq[j] = Int2DNA(tmp_buffer[j]);
+        return seq;
+
+    }
+
+    void save_sequence()
+    {
+        auto& sv = m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId);
+        sv.optimize(TB1);
+        bm::file_save_svector(sv, m_case_name + ".seq_offset");
+        m_sequence.optimize(TB1);
+        bm::file_save_svector(m_sequence, m_case_name + ".seq");
+    }
+
+    void load_sequence()
+    {
+        bm::file_load_svector(m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId), m_case_name + ".seq_offset");
+        bm::file_load_svector( m_sequence, m_case_name + ".seq");
+
+    }
+
+    template<typename T>
+    void for_each_fasta(T&& func) {
+        string seq;
+        size_t idx = 0;
+        ifstream ifs(m_case_name + ".fasta");
+        while (ifs.good()) {
+            getline(ifs, seq);
+            if (!seq.empty()) {
+                func(idx, seq);
+                ++idx;
+            }
+        }
+    }
+
+    string m_case_name;
+    ofstream m_ofs;
+    size_t m_base_count{0};
+};
+
+
+void spot_compress_t::save_spot(size_t spot_id, const vector<fastq_read>& spot) 
+{
+
+    tmp_str.clear();
+    tmp_qual_scores.clear();
+    for (const auto& read: spot) {
+        tmp_str += read.Sequence();
+        read.GetQualScores(tmp_qual_scores);        
+    }
+    m_ofs << tmp_str << endl;
+    size_t sz = tmp_str.size();
+    m_base_count += sz;
+
+    assert(sz > 0);
+    tmp_buffer.resize(sz);
+    for (size_t i = 0; i < sz; ++i) 
+        tmp_buffer[i] = DNA2int(tmp_str[i]);
+    size_t offset = m_seq_offset;
+    m_sequence.import(&tmp_buffer[0], sz, offset);
+    m_seq_offset = offset + sz;
+    offset |= sz << 48;
+    m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId).set(spot_id, offset);
+
+    sz = tmp_qual_scores.size();
+    assert(sz == tmp_str.size());
+    tmp_qual_buffer.resize(sz);
+    tmp_qual_buffer[0] = tmp_qual_scores[0] - m_mid_score;
+    for (size_t i = 1; i < sz; ++i) {
+        tmp_qual_buffer[i] = tmp_qual_scores[i] - tmp_qual_scores[i - 1];
+    }
+    size_t qual_offset = m_qual_offset;
+    m_quality.import(&tmp_qual_buffer[0], sz, qual_offset);
+    m_qual_offset = qual_offset + sz;
+    qual_offset |= sz << 48;
+    m_metadata.get<u64_t>(metadata_t::e_QualOffsetId).set(spot_id, qual_offset);
 }
 
 

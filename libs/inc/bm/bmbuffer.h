@@ -215,7 +215,7 @@ public:
     /// adjust current size (no need to reallocate)
     void resize_no_check(size_t new_size) BMNOEXCEPT
     {
-        BM_ASSERT(new_size < capacity_ || !new_size);
+        BM_ASSERT(new_size <= capacity_ || !new_size);
         this->size_ = new_size;
     }
 
@@ -750,6 +750,7 @@ public:
     void free() BMNOEXCEPT
     {
         buffer_.free_buffer();
+        rows_ = 0; cols_ = 0;
     }
 
     size_type rows() const BMNOEXCEPT { return rows_; }

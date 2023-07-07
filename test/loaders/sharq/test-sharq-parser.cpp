@@ -1003,47 +1003,34 @@ FIXTURE_TEST_CASE(LS454_6, LS454Fixture)
 //        # @ONBWR:00329:02356/1 (WWW000044)
 //        # >311CX:3560:2667   length=347 (SRR547526)
 
-class IonTorrentFixture : public LoaderFixture
+// type, defline, spot, spot_group, read_num
+vector<tuple<string, string, string, string>> cIonTorrentCases = 
 {
-public:
-    void IonTorrent(const string& defline)
-    {
-        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
-        THROW_ON_FALSE( reader.get_read(m_read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ION_TORRENT );
-        m_type = reader.defline_type();
-    }
-
-    string m_type;
-    CFastqRead m_read;
+    { "@A313D:7:49", "A313D:7:49", "", "" },
+    { "@RD4FE:00027:00172", "RD4FE:00027:00172", "", "" },
+    { "@ONBWR:00329:02356/1", "ONBWR:00329:02356", "", "1" },
+    { ">311CX:3560:2667   length=347", "311CX:3560:2667", "", ""} ,
+    { "@SEDCJ:00674:05781 1:N:0:AAAAA", "SEDCJ:00674:05781", "AAAAA", "1" }, 
+    { "@ONBWR:00329:02356#GGTCATTT+TAGGTATG/2", "ONBWR:00329:02356", "GGTCATTT+TAGGTATG", "2" },
 };
 
-FIXTURE_TEST_CASE(IonTorrent_1, IonTorrentFixture)
+FIXTURE_TEST_CASE(IonTorrentTests, LoaderFixture)
 {
-    IonTorrent("@A313D:7:49");
-    REQUIRE_EQ( m_read.Spot(), string( "A313D:7:49") );
-    REQUIRE( m_read.ReadNum().empty() );
-}
-
-FIXTURE_TEST_CASE(IonTorrent_2, IonTorrentFixture)
-{
-    IonTorrent("@RD4FE:00027:00172");
-    REQUIRE_EQ( m_read.Spot(), string( "RD4FE:00027:00172") );
-    REQUIRE( m_read.ReadNum().empty() );
-}
-
-FIXTURE_TEST_CASE(IonTorrent_3, IonTorrentFixture)
-{
-    IonTorrent("@ONBWR:00329:02356/1");
-    REQUIRE_EQ( m_read.Spot(), string( "ONBWR:00329:02356") );
-    REQUIRE_EQ( m_read.ReadNum(), string("1") );
-}
-
-FIXTURE_TEST_CASE(IonTorrent_4, IonTorrentFixture)
-{
-    IonTorrent(">311CX:3560:2667   length=347");
-    REQUIRE_EQ( m_read.Spot(), string( "311CX:3560:2667") );
-    REQUIRE( m_read.ReadNum().empty() );
+    CFastqRead read;
+    for (size_t i = 0; i < cIonTorrentCases.size(); ++i) {
+        const auto& test_case = cIonTorrentCases[i];
+        const auto& defline = get<0>(test_case);
+        const auto& spot = get<1>(test_case);
+        const auto& spot_group = get<2>(test_case);
+        const auto& readNum = get<3>(test_case);
+        cout << "IonTorrent" << ", case " << i << ": " << defline << endl;
+        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ION_TORRENT);
+        REQUIRE_EQ(read.Spot(), spot);
+        REQUIRE_EQ(read.SpotGroup(), spot_group);
+        REQUIRE_EQ(read.ReadNum(), readNum);
+    }
 }
 
 struct illumina_old_t {

@@ -1035,8 +1035,10 @@ public:
         auto& suffix = re.GetMatch()[5];
 
         auto& spotGroup = re.GetMatch()[6];
-        if (!spotGroup.empty()) 
+        if (!spotGroup.empty()) {
+            spotGroup.remove_prefix(1);
             read.SetSpotGroup(spotGroup);            
+        }
 
         auto& readNum = re.GetMatch()[7];
         static const re2::StringPiece readNum1{"1"};
@@ -1076,8 +1078,9 @@ public:
     virtual void GetMatch(CFastqRead& read) override
     {
 
-        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, reserved, spotGroup, endSep
-        // 0      1     2    3     4       5       6     7         8          9         10        11         12     
+        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, spotGroup, endSep
+        // 0      1     2    3     4       5       6     7         8          9         10         11
+        
 
 
         m_tmp_spot.clear();
@@ -1095,7 +1098,7 @@ public:
 
         read.SetReadFilter(re.GetMatch()[8] == "Y" ? 1 : 0);
 
-        read.SetSpotGroup(re.GetMatch()[11]);
+        read.SetSpotGroup(re.GetMatch()[10]);
     }
 };
 

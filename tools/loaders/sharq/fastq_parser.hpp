@@ -1380,7 +1380,7 @@ void fastq_parser<TWriter>::update_readers_telemetry()
 template<typename TWriter>
 void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
 {
-    assert(spot.empty() == false);
+    assert(reads.empty() == false);
     auto& telemetry = m_telemetry.groups.back();
     telemetry.number_of_spots += 1;
     telemetry.number_of_reads += reads.size();

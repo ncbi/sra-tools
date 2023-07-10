@@ -45,6 +45,8 @@
 #define _BSD_SOURCE
 #endif
 
+#include <stdlib.h> /* mkdtemp */
+
 #include "make-read-filter.h" /* contains mostly boilerplate code */
 
 /* NOTE: Needs to be in same order as Options array */

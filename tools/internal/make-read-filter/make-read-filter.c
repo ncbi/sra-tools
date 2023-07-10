@@ -45,6 +45,7 @@
 #define _BSD_SOURCE
 #endif
 
+#include <unistd.h> /* mkdtemp */
 #include <stdlib.h> /* mkdtemp */
 
 #include "make-read-filter.h" /* contains mostly boilerplate code */

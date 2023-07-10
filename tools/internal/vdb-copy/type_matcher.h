@@ -30,10 +30,26 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+    
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+    
 #ifndef _h_matcher_input_
 #include "matcher_input.h"
 #endif
-
+    
 typedef struct matcher matcher;
 
 /* initializes the matcher */

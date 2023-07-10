@@ -30,10 +30,10 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
-
+    
 rc_t get_table_platform( const char * table_path, char ** dst,
                          const char pre_and_postfix );
 rc_t get_db_platform( const char * db_path, const char * tab_name, 

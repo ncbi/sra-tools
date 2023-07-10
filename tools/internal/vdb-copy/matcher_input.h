@@ -30,11 +30,27 @@
 extern "C" {
 #endif
 
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
+#ifndef _h_kfg_config_
+#include <kfg/config.h>
+#endif
+
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
+#endif
+    
 /* structure with all the matcher-inputs */
 typedef struct matcher_input
 {
     VDBManager * manager;
-    const KNamelist * add_schemas;
+    const VNamelist * add_schemas;
     KConfig * cfg;
     KDirectory * dir;
     const char * columns;

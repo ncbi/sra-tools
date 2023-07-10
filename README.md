@@ -15,6 +15,18 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
+----
+
+_July, 10, 2023_: **SRA Toolkit 3.0.6**
+
+Prefetch now supports the latest GCP access tokens.
+
+Fixed a bug in vdb-config for Windows users.
+
+To ensure output of techinical reads, fasterq-dump will now automatically switch to --split-files mode if --include-technical option is used.
+
+----
+
 _May 9, 2023_: **SRA Toolkit 3.0.5**
 
 Added support for PacBio to fasterq-dump.

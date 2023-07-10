@@ -94,7 +94,10 @@ std::vector<Response2::ResultEntry::Flat> Response2::ResultEntry::flatten() cons
 Response2::ResultEntry::TypeIndex Response2::ResultEntry::indexTypes() const
 {
     auto result = TypeIndex();
-    for (int i = 0; i < (int)files.size(); ++i) {
+    for (auto const &file : files) {
+        result[file.type] = TypeIndex::value_type::second_type();
+    }
+    for (int i = 0; i < (int)flattened.size(); ++i) {
         auto const &p = flattened[i];
         auto const &file = files[p.first];
         result[file.type].push_back(i);
@@ -121,26 +124,26 @@ int Response2::ResultEntry::getCacheFor(Flattened const &match) const
     auto const isFromNCBI = (service == "ncbi" || service == "sra-ncbi");
     auto const encrypted = isFromNCBI ? match.second.projectId.has_value() : false;
     auto const fnd = byType.find("vdbcache");
-    if (fnd != byType.end()) {
-        for (auto i : fnd->second) {
-            auto const &p = flattened[i];
-            auto const &file = files[p.first];
+    if (fnd == byType.end())
+        return -1;
+    for (auto i : fnd->second) {
+        auto const &p = flattened[i];
+        auto const &file = files[p.first];
 
-            if (file.noqual != match.first.noqual) ///< quality must match
-                continue;
+        if (file.noqual != match.first.noqual) ///< quality must match
+            continue;
 
-            auto const &location = file.locations[p.second];
+        auto const &location = file.locations[p.second];
 
-            if (location.service == service && location.region == region)
+        if (location.service == service && location.region == region)
+            return i; ///< a solid match, look no further
+
+        if (location.service == "ncbi" || location.service == "sra-ncbi") {
+            auto const thisEncrypted = location.projectId.has_value();
+            if (thisEncrypted && encrypted && match.second.projectId == location.projectId)
                 return i; ///< a solid match, look no further
-
-            if (location.service == "ncbi" || location.service == "sra-ncbi") {
-                auto const thisEncrypted = location.projectId.has_value();
-                if (thisEncrypted && encrypted && match.second.projectId == location.projectId)
-                    return i; ///< a solid match, look no further
-                else if (!thisEncrypted)
-                    result = i; ///< a weak match, maybe there's a better one
-            }
+            else if (!thisEncrypted)
+                result = i; ///< a weak match, maybe there's a better one
         }
     }
     return result;

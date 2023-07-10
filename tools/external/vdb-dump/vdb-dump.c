@@ -27,6 +27,7 @@
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/table.h>
+#include <vdb/view.h>
 #include <vdb/cursor.h>
 #include <vdb/blob.h>
 #include <vdb/database.h>
@@ -74,6 +75,7 @@
 #include "vdb-dump-fastq.h"
 #include "vdb-dump-redir.h"
 #include "vdb_info.h"
+#include "vdb-dump-view-spec.h"
 
 static const char * row_id_on_usage[]           = { "print row id",                                 NULL };
 static const char * line_feed_usage[]           = { "line-feed's inbetween rows",                   NULL };
@@ -120,7 +122,8 @@ static const char * spotgroup_usage[]           = { "show spotgroups",          
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
 static const char * append_usage[]              = { "append to output-file, if output-file used",   NULL };
-static const char * ngc_usage[]                 = { "path to ngc file", NULL };
+static const char * ngc_usage[]                 = { "path to ngc file",                             NULL };
+static const char * view_usage[]                = { "view-name",                                    NULL };
 
 /* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
@@ -178,7 +181,8 @@ OptDef DumpOptions[] =
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
     { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
     { OPTION_CELL_V1,               NULL,                     NULL, NULL,                    1, false,  false },
-    { OPTION_NGC,                   NULL,                     NULL, ngc_usage,               1, true,   false }
+    { OPTION_NGC,                   NULL,                     NULL, ngc_usage,               1, true,   false },
+    { OPTION_VIEW,                  NULL,                     NULL, view_usage,              1, true,   false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -274,7 +278,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
     HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
     HelpOptionLine ( ALIAS_APPEND,              OPTION_APPEND,          NULL,           append_usage );
-    HelpOptionLine ( NULL,                      OPTION_NGC, "path", ngc_usage);
+    HelpOptionLine ( NULL,                      OPTION_NGC,             "path",         ngc_usage);
+    HelpOptionLine ( NULL,                      OPTION_VIEW,            "view",         view_usage );
 
     HelpOptionsStandard ();
 
@@ -602,7 +607,6 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx, const V
     return res;
 }
 
-
 static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx, const VTable *tbl,
                                                  p_col_defs col_defs, uint32_t * invalid_columns )
 {
@@ -621,6 +625,31 @@ static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx, const
     }
     return res;
 
+}
+
+static uint32_t vdm_extract_or_parse_columns_view( const p_dump_context ctx,
+                                                   const VView *my_view,
+                                                   p_col_defs my_col_defs, 
+                                                   uint32_t * invalid_columns )
+{
+    uint32_t count = 0;
+    if ( ctx != NULL && my_col_defs != NULL )
+    {
+        bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
+        if ( cols_unknown )
+        {
+            /* the user does not know the column-names or wants all of them */
+            count = vdcd_extract_from_view( my_col_defs, my_view, invalid_columns );
+        }
+        else
+            /* the user knows the names of the wanted columns... */
+            count = vdcd_parse_string_view( my_col_defs, ctx->columns, my_view );
+
+        if ( ctx->excluded_columns != NULL )
+            vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );
+    }
+
+    return count;
 }
 
 /*************************************************************************************
@@ -1999,43 +2028,45 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
                               const VDBManager *mgr,
                               const db_tab_t tab_fkt )
 {
-    rc_t rc;
-    const VTable *tbl;
     VSchema *schema = NULL;
     VPath * path = NULL;
 
-    vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /*ctx->force_sra_schema*/ );
-
-    rc = vdh_path_to_vpath( ctx -> path, &path );
-    if ( 0 == rc )
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /*ctx->force_sra_schema*/ );
+    if ( rc == 0 )
     {
-        rc = VDBManagerOpenTableReadVPath( mgr, &tbl, schema, path );
-        if ( 0 != rc )
-            ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
-        else
+        const VTable *tbl;    
+
+        rc = vdh_path_to_vpath( ctx -> path, &path );
+        if ( 0 == rc )
         {
-            rc = vdh_check_table_empty( tbl );
-            if ( 0 == rc )
+            rc = VDBManagerOpenTableReadVPath( mgr, &tbl, schema, path );
+            if ( 0 != rc )
+                ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
+            else
             {
-                rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
+                rc = vdh_check_table_empty( tbl );
+                if ( 0 == rc )
+                {
+                    rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
+                }
+                {
+                    rc_t rc2 = VTableRelease( tbl );
+                    DISP_RC( rc2, "VTableRelease() failed" );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
             }
+
+            if ( schema != NULL )
             {
-                rc_t rc2 = VTableRelease( tbl );
-                DISP_RC( rc2, "VTableRelease() failed" );
+                rc_t rc2 = VSchemaRelease( schema );
+                DISP_RC( rc2, "VSchemaRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
-        }
-
-        if ( schema != NULL )
-        {
-            rc_t rc2 = VSchemaRelease( schema );
-            DISP_RC( rc2, "VSchemaRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
-        {
-            rc_t rc2 = VPathRelease( path );
-            DISP_RC( rc2, "VPathRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
+            {
+                rc_t rc2 = VPathRelease( path );
+                DISP_RC( rc2, "VPathRelease() failed" );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
         }
     }
     return rc;
@@ -2146,87 +2177,89 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
                              const VDBManager * mgr,
                              const db_fkt_t db_fkt )
 {
-    rc_t rc;
-    const VDatabase *db;
     VSchema *schema = NULL;
     VPath * path = NULL;
 
-    vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /* ctx->force_sra_schema */ );
-
-    rc = vdh_path_to_vpath( ctx -> path, &path );
+    rc_t rc = vdh_parse_schema( mgr, &schema, &( ctx -> schema_list ), true /* ctx->force_sra_schema */ );
     if ( 0 == rc )
     {
-        rc = VDBManagerOpenDBReadVPath( mgr, &db, schema, path );
-        if ( 0 != rc )
+        const VDatabase *db;
+
+        rc = vdh_path_to_vpath( ctx -> path, &path );
+        if ( 0 == rc )
         {
-            ErrMsg( "VDBManagerOpenDBReadVPath( '%s' ) -> %R", ctx -> path, rc );
-        }
-        else
-        {
-            KNamelist *tbl_names;
-            rc = VDatabaseListTbl( db, &tbl_names );
+            rc = VDBManagerOpenDBReadVPath( mgr, &db, schema, path );
             if ( 0 != rc )
             {
-                ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx -> path, rc );
+                ErrMsg( "VDBManagerOpenDBReadVPath( '%s' ) -> %R", ctx -> path, rc );
             }
             else
             {
-                if ( NULL == ctx -> table )
+                KNamelist *tbl_names;
+                rc = VDatabaseListTbl( db, &tbl_names );
+                if ( 0 != rc )
                 {
-                    /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
-                    bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
-                    /* if there is no SEQUENCE-table, just pick the first table available... */
-                    if ( !table_found )
-                    {
-                        vdh_take_1st_table_from_db( ctx, tbl_names );
-                    }
+                    ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx -> path, rc );
                 }
                 else
                 {
-                    /* the user DID specify a table: check if the database has a table with this name,
-                    if not try with a sub-string */
-                    String value;
-                    StringInitCString( &value, ctx -> table );
-                    if ( !vdh_list_contains_value( tbl_names, &value ) ) /* vdb-dump-helper.c */
+                    if ( NULL == ctx -> table )
                     {
-                        vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
+                        /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                        bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                        /* if there is no SEQUENCE-table, just pick the first table available... */
+                        if ( !table_found )
+                        {
+                            vdh_take_1st_table_from_db( ctx, tbl_names );
+                        }
+                    }
+                    else
+                    {
+                        /* the user DID specify a table: check if the database has a table with this name,
+                        if not try with a sub-string */
+                        String value;
+                        StringInitCString( &value, ctx -> table );
+                        if ( !vdh_list_contains_value( tbl_names, &value ) ) /* vdb-dump-helper.c */
+                        {
+                            vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
+                        }
+                    }
+                    
+                    if ( ctx -> table != NULL || ctx -> table_enum_requested )
+                    {
+                        rc = db_fkt( ctx, db ); /* fkt-pointer is called */
+                    }
+                    else
+                    {
+                        LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
+                        ctx -> usage_requested = true;
+                    }
+                    {
+                        rc_t rc2 = KNamelistRelease( tbl_names );
+                        DISP_RC( rc2, "KNamelistRelease() failed" );
+                        rc = ( 0 == rc ) ? rc2 : rc;
                     }
                 }
-                
-                if ( ctx -> table != NULL || ctx -> table_enum_requested )
                 {
-                    rc = db_fkt( ctx, db ); /* fkt-pointer is called */
-                }
-                else
-                {
-                    LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
-                    ctx -> usage_requested = true;
-                }
-                {
-                    rc_t rc2 = KNamelistRelease( tbl_names );
-                    DISP_RC( rc2, "KNamelistRelease() failed" );
+                    rc_t rc2 = VDatabaseRelease( db );
+                    DISP_RC( rc2, "VDatabaseRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
-                }
+                }                
             }
+
             {
-                rc_t rc2 = VDatabaseRelease( db );
-                DISP_RC( rc2, "VDatabaseRelease() failed" );
+                rc_t rc2 = VPathRelease( path );
+                DISP_RC( rc2, "VPathRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
-            }                
+            }
         }
 
+        if ( schema != NULL )
         {
-            rc_t rc2 = VPathRelease( path );
-            DISP_RC( rc2, "VPathRelease() failed" );
+            rc_t rc2 = VSchemaRelease( schema );
+            DISP_RC( rc2, "VSchemaRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
-    }
-
-    if ( schema != NULL )
-    {
-        rc_t rc2 = VSchemaRelease( schema );
-        DISP_RC( rc2, "VSchemaRelease() failed" );
-        rc = ( 0 == rc ) ? rc2 : rc;
     }
     
     return rc;
@@ -2283,6 +2316,170 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *mgr )
     return 0;
 }
 
+static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManager *mgr, row_context * r_ctx, uint32_t * invalid_columns )
+{
+    view_spec * spec;
+    char error [1024];
+    rc_t rc = view_spec_parse ( ctx -> view, & spec, error, sizeof ( error ) );
+    if ( rc != 0 )
+    {
+        ErrMsg( "view_spec_parse( '%s' ) -> %R (%s)", ctx->path, rc, error );
+    }
+    else
+    {
+        const VDatabase * db;
+        rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", ctx->path );
+        if ( rc != 0 )
+        {
+            ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
+        }
+        else
+        {
+            VSchema * schema = NULL;
+            rc = VDatabaseOpenSchema ( db, ( const VSchema ** ) & schema );
+            if ( rc != 0 )
+            {
+                ErrMsg( "VDatabaseOpenSchema( '%s' ) -> %R", ctx->path, rc );
+            }
+            else
+            {
+                rc = vdh_parse_schema_add_on ( mgr, schema, &(ctx->schema_list) );
+                if ( rc != 0 )
+                {
+                    ErrMsg( "vdh_parse_schema_add_on( '%s' ) -> %R", ctx->path, rc );
+                }
+                else
+                {
+                    rc = view_spec_open ( spec, db, schema, & r_ctx -> view );
+                    if ( rc != 0 )
+                    {
+                        ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
+                    }
+                    else if ( ! vdcd_init( &(r_ctx->col_defs), ctx->max_line_len ) )
+                    {
+                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                        DISP_RC( rc, "col_defs_init() failed" );
+                    }
+                    else
+                    {
+                        uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx->view, r_ctx->col_defs, invalid_columns );
+                        if ( n < 1 )
+                        {
+                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                        }
+                        if ( rc == 0 )
+                        {
+                            rc = VViewCreateCursor ( r_ctx -> view, & r_ctx->cursor );
+                            if ( rc == 0 )
+                            {
+                                n = vdcd_add_to_cursor( r_ctx->col_defs, r_ctx->cursor );
+                                if ( n < 1 )
+                                {
+                                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                                    DISP_RC( rc, "vdcd_add_to_cursor() failed" );
+                                }
+                            }
+                        }
+                    }
+                }
+                VSchemaRelease ( schema );
+            }
+            VDatabaseRelease ( db );
+        }
+        view_spec_free ( spec );
+    }
+    return rc;
+}
+
+/***************************************************************************
+    dump_view:
+    * called by "dump_main()" to handle a view
+    * similar to dump_table but dumps a view
+
+ctx        [IN] ... contains path, view instantiation string, columns, row-range etc.
+my_manager [IN] ... open manager needed for vdb-calls
+***************************************************************************/
+static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
+{
+    rc_t rc;
+
+    if ( ! vdh_is_path_database( mgr, ctx->path, NULL ) )
+    {
+        ErrMsg( "Option --view can only be used with a database object" );
+        rc = RC( rcVDB, rcTable, rcConstructing, rcFormat, rcIncorrect );
+    }
+    else
+    {
+        row_context r_ctx;
+        uint32_t invalid_columns = 0;
+        rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx, & invalid_columns );
+        if ( rc == 0 )
+        {
+            const VSchema * my_schema;
+            rc = VViewOpenSchema( r_ctx.view, & my_schema );
+            DISP_RC( rc, "VViewOpenSchema() failed" );
+            if ( rc == 0 )
+            {
+                /* translate in special columns to numeric values to strings */
+                vdcd_ins_trans_fkt( r_ctx.col_defs, my_schema );
+                VSchemaRelease( my_schema );
+            }
+
+            rc = VCursorOpen( r_ctx.cursor );
+            DISP_RC( rc, "VCursorOpen() failed" );
+            if ( rc == 0 )
+            {
+                int64_t  first;
+                uint64_t count;
+                rc = VCursorIdRange( r_ctx.cursor, 0, &first, &count );
+                DISP_RC( rc, "VCursorIdRange() failed" );
+                if ( rc == 0 )
+                {
+                    if ( ctx->rows == NULL )
+                   {
+                        /* if the user did not specify a row-range, take all rows */
+                        rc = num_gen_make_from_range( &ctx->rows, first, count );
+                        DISP_RC( rc, "num_gen_make_from_range() failed" );
+                    }
+                    else
+                    {
+                        /* if the user did specify a row-range, check the boundaries */
+                        if ( count > 0 )
+                        {
+                            /* trim only if the row-range is not zero, otherwise
+                                we will not get data if the user specified only static columns
+                                because they report a row-range of zero! */
+                            rc = num_gen_trim( ctx->rows, first, count );
+                            DISP_RC( rc, "num_gen_trim() failed" );
+                        }
+                    }
+
+                    if ( rc == 0 )
+                    {
+                        if ( num_gen_empty( ctx->rows ) )
+                        {
+                            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                        }
+                        else
+                        {
+                            r_ctx.ctx = ctx;
+                            rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                        }
+                    }
+                }
+                VCursorRelease( r_ctx.cursor );
+            }
+            VViewRelease ( r_ctx.view );
+            vdcd_destroy( r_ctx.col_defs );
+
+            if ( 0 == rc && invalid_columns > 0 )
+            {
+                rc = RC( rcExe, rcDatabase, rcResolving, rcColumn, rcInvalid );
+            }        
+        }
+    }
+    return rc;
+}
 
 static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )
 {
@@ -2426,6 +2623,10 @@ static rc_t vdm_main_one_obj( const p_dump_context ctx,
     {
         vdm_print_objtype( mgr, acc_or_path );
     }
+    else if ( ctx -> view_defined )
+    {
+        rc = vdm_dump_view ( ctx, mgr );
+    }    
     else
     {
         if ( USE_PATHTYPE_TO_DETECT_DB_OR_TAB ) /* in vdb-dump-context.h */

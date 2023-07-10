@@ -30,8 +30,19 @@
  *  make-read-filter --temp /tmp SRR123456
  */
 
+/* mkdtemp */
 #if _POSIX_C_SOURCE < 200809L
-#define _POSIX_C_SOURCE 200809L /* mkdtemp */
+#define _POSIX_C_SOURCE 200809L
+#endif
+
+/* mkdtemp */
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
+/* mkdtemp */
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE
 #endif
 
 #include "make-read-filter.h" /* contains mostly boilerplate code */

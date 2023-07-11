@@ -45,6 +45,10 @@
 #define _BSD_SOURCE
 #endif
 
+#ifndef _XOPEN_SOURCE
+#define  _XOPEN_SOURCE 500L
+#endif
+
 #include <unistd.h> /* mkdtemp */
 #include <stdlib.h> /* mkdtemp */
 

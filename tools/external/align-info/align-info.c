@@ -384,9 +384,9 @@ static rc_t align_info(const Params* prm) {
                 if (prm->paramHeaders) {
                     OUTMSG(("Alignments:\n"));
                 }
-                rc = VDatabaseListDependencies(db, &dep, false);
+                rc = VDatabaseFindDependencies(db, &dep);
                 DISP_RC2(rc, prm->dbPath,
-                    "while calling VDatabaseListDependencies");
+                    "while calling VDatabaseFindDependencies");
                 if (rc == 0) {
                     rc = VDBDependenciesCount(dep, &count);
                     DISP_RC2(rc, prm->dbPath,

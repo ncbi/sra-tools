@@ -30,27 +30,7 @@
  *  make-read-filter --temp /tmp SRR123456
  */
 
-/* mkdtemp */
-#if _POSIX_C_SOURCE < 200809L
-#define _POSIX_C_SOURCE 200809L
-#endif
-
-/* mkdtemp */
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
-
-/* mkdtemp */
-#ifndef _BSD_SOURCE
-#define _BSD_SOURCE
-#endif
-
-#ifndef _XOPEN_SOURCE
-#define  _XOPEN_SOURCE 500L
-#endif
-
-#include <unistd.h> /* mkdtemp */
-#include <stdlib.h> /* mkdtemp */
+#include <sys/stat.h> /* stat */
 
 #include "make-read-filter.h" /* contains mostly boilerplate code */
 
@@ -956,8 +936,15 @@ static char const *temporaryDirectory(Args *const args)
         len *= 2;
     }
     KDirectoryRelease(ndir);
-    
-    mkdtemp(pattern);
+
+    {
+        /* delete directory if it exists */
+        struct stat st = {0};
+        if (stat(pattern, &st) == 0)
+            removeTempDir(pattern);
+    }
+
+    mkdir(pattern, 0700);
     pLogMsg(klogDebug, "output to $(out)", "out=%s", pattern);
     if (chdir(pattern) == 0)
         return pattern;

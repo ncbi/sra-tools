@@ -808,6 +808,7 @@ struct spot_compress_t
     }
 
     metadata_t m_metadata; ///< reads metadata from defline - readNum,  spotGroup, sequence and quality offset 
+    bvector_type m_offsets;
     svector_u32 m_sequence;     ///< sequence data
     size_t m_seq_offset{0};         ///< last sequence offset per read
 
@@ -815,9 +816,14 @@ struct spot_compress_t
     size_t m_qual_offset{0};        ///< last quality offset per read
 
     int m_mid_score{0};// = ScoreValidator::min_score() + 30;
-
-    string load_spot_sequnce(size_t spot_id) 
+    size_t m_last_offset = 0;
+    string load_spot_sequence(size_t spot_id) 
     {
+        //bvector_type::size_type pos = m_offsets.get_next(m_last_offset);
+        //size_t len = pos - m_last_offset;
+        //size_t offset = m_last_offset;
+        //m_last_offset = pos;
+        
         size_t offset = m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId).get(spot_id);
         size_t len = offset >> 48;
         offset &= 0x0000FFFFFFFFFFFF;
@@ -825,25 +831,70 @@ struct spot_compress_t
         m_sequence.decode(&tmp_buffer[0], offset, len);
         string seq;
         seq.resize(len);
-        for (size_t j = 0; j < len; ++j)
+        for (size_t j = 0; j < len; ++j) {
             seq[j] = Int2DNA(tmp_buffer[j]);
+        }
         return seq;
 
     }
 
+    vector<uint8_t> load_quality(size_t spot_id) 
+    {
+        //bvector_type::size_type pos = m_offsets.get_next(m_last_offset);
+        //size_t len = pos - m_last_offset;
+        //size_t offset = m_last_offset;
+        //m_last_offset = pos;
+        
+        size_t qual_offset = m_metadata.get<u64_t>(metadata_t::e_QualOffsetId).get(spot_id);
+        size_t len = qual_offset >> 48;
+        qual_offset &= 0x0000FFFFFFFFFFFF;
+        tmp_qual_buffer.resize(len);
+        m_quality.decode(&tmp_qual_buffer[0], qual_offset, len);
+        vector<uint8_t> qual_scores;
+        qual_scores.resize(len);
+        qual_scores[0] = tmp_qual_buffer[0] + m_mid_score;
+        for (size_t i = 1; i < len; ++i) {
+            qual_scores[i] = tmp_qual_buffer[i] + qual_scores[i - 1];
+        }
+
+        return qual_scores;
+
+    }
+
+
     void save_sequence()
     {
-        auto& sv = m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId);
-        sv.optimize(TB1);
-        bm::file_save_svector(sv, m_case_name + ".seq_offset");
-        m_sequence.optimize(TB1);
-        bm::file_save_svector(m_sequence, m_case_name + ".seq");
+        {
+            auto& sv = m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId);
+            sv.optimize(TB1);
+            bm::file_save_svector(sv, m_case_name + ".seq_offset");
+
+            //m_offsets.optimize(TB1);
+            //string fname = m_case_name + ".seq_offset";
+            //bm::SaveBVector(fname.c_str(), m_offsets);
+
+            m_sequence.optimize(TB1);
+            bm::file_save_svector(m_sequence, m_case_name + ".seq");
+        }
+        {
+
+            auto& sv = m_metadata.get<u64_t>(metadata_t::e_QualOffsetId);
+            sv.optimize(TB1);
+            bm::file_save_svector(sv, m_case_name + ".qual_offset");
+
+            m_quality.optimize(TB1);
+            bm::file_save_svector(m_quality, m_case_name + ".qual");
+        }
+
     }
 
     void load_sequence()
     {
         bm::file_load_svector(m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId), m_case_name + ".seq_offset");
         bm::file_load_svector( m_sequence, m_case_name + ".seq");
+
+        bm::file_load_svector(m_metadata.get<u64_t>(metadata_t::e_QualOffsetId), m_case_name + ".qual_offset");
+        bm::file_load_svector(m_quality, m_case_name + ".qual");
 
     }
 
@@ -882,11 +933,14 @@ void spot_compress_t::save_spot(size_t spot_id, const vector<fastq_read>& spot)
 
     assert(sz > 0);
     tmp_buffer.resize(sz);
-    for (size_t i = 0; i < sz; ++i) 
+    for (size_t i = 0; i < sz; ++i) {
         tmp_buffer[i] = DNA2int(tmp_str[i]);
+    }
     size_t offset = m_seq_offset;
     m_sequence.import(&tmp_buffer[0], sz, offset);
     m_seq_offset = offset + sz;
+    //m_offsets.set(m_seq_offset);
+
     offset |= sz << 48;
     m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId).set(spot_id, offset);
 
@@ -902,6 +956,7 @@ void spot_compress_t::save_spot(size_t spot_id, const vector<fastq_read>& spot)
     m_qual_offset = qual_offset + sz;
     qual_offset |= sz << 48;
     m_metadata.get<u64_t>(metadata_t::e_QualOffsetId).set(spot_id, qual_offset);
+    
 }
 
 

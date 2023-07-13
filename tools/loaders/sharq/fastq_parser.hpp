@@ -64,6 +64,7 @@
 #include <limits>
 #include "taskflow/taskflow.hpp"
 #include "taskflow/algorithm/sort.hpp"
+#include "taskflow/algorithm/for_each.hpp"
 #include "fastq_defline_parser.hpp"
 #include "rwqueue/readerwriterqueue.h"
 #include <condition_variable>
@@ -680,6 +681,8 @@ public:
     template<typename ScoreValidator, typename ErrorChecker>
     void test_sort_create(const string& case_name, ErrorChecker&& error_checker);
 
+    template<typename ScoreValidator, typename ErrorChecker>
+    void test_rotate_create(const string& case_name, ErrorChecker&& error_checker, size_t batch_size = 100000);
 
 private:
 
@@ -2547,9 +2550,11 @@ void fastq_parser<TWriter>::parse_and_dump_na(ErrorChecker&& error_checker)
     sc1.load_sequence();
     spot_id = 0;
     sc.for_each_fasta([&](size_t idx, const string& seq) {
-        string saved_seq = sc1.load_spot_sequnce(idx); 
-        if (seq != saved_seq)
+        string saved_seq = sc1.load_spot_sequence(spot_id); 
+        if (seq != saved_seq) {
             spdlog::error("seq mismatch {} != {}", seq, saved_seq);  
+            exit(0);
+        }
         ++spot_id;          
     });
     spdlog::info("{} spots matched", spot_id);
@@ -2602,37 +2607,15 @@ static int load_matrix(const string& fname, bmatr_32& bmatr)
     return 0;
 }
 
-
-template<typename TWriter>
-template<typename ScoreValidator, typename ErrorChecker>
-void fastq_parser<TWriter>::test_sort_create(const string& case_name, ErrorChecker&& error_checker)
+static
+void test_sort_save_batch(size_t offset, size_t max_size, vector<string>& seqs, const string& case_name)
 {
-    size_t spot_id = 0;
-    size_t max_size = 0;
-    //unordered_map<size_t, vector<string>> i_seqs;
-    //unordered_map<size_t, vector<uint32_t>> i_order;
-    vector<string> i_seqs;
-    //string seq;
-    ofstream seq_in(case_name + ".seq.in");
 
-    for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
-        //seq.clear();
-        auto& seq = i_seqs.emplace_back();
-        for (const auto& read: spot) {
-            seq += read.Sequence();
-        }
-        seq_in << seq << endl;
-        //i_seqs[seq.size()].push_back(move(seq));
-        //i_order[seq.size()].push_back(spot_id);
-        max_size = max(max_size, seq.size());
-        ++spot_id;
-    });
-    seq_in.close();
-
-    auto& seqs = i_seqs;
+    string name = case_name + "_" + to_string(offset);
     vector<size_t> idx(seqs.size());
     iota(idx.begin(), idx.end(), 0);
-    tf::Executor executor(min<int>(8, std::thread::hardware_concurrency())); 
+    tf::Executor executor(min<int>(12, std::thread::hardware_concurrency())); 
+
     tf::Taskflow taskflow;
     taskflow.sort(idx.begin(), idx.end(), [&](uint32_t  l, uint32_t  r) {
         return seqs[l] < seqs[r];
@@ -2645,7 +2628,6 @@ void fastq_parser<TWriter>::test_sort_create(const string& case_name, ErrorCheck
     auto idx_bi = idx_vec.get_back_inserter();
 
     vector<unsigned> lens(idx.size());
-    bmatr_32 len_matr(max_size); // create sample row major bit-matrix
     for (size_t j = 0; j < idx.size(); ++j) {
         auto& seq = seqs[idx[j]];
         bi = seq.size();
@@ -2655,91 +2637,198 @@ void fastq_parser<TWriter>::test_sort_create(const string& case_name, ErrorCheck
     bi.flush();
     idx_bi.flush();
     len_vec.optimize(TB);
-    bm::file_save_svector(len_vec, case_name + ".len");        
+    bm::file_save_svector(len_vec, name + ".len");        
 
     idx_vec.optimize(TB);
-    bm::file_save_svector(idx_vec, case_name + ".idx");        
-    spdlog::info("Creating matrix");
-
+    bm::file_save_svector(idx_vec, name + ".idx");        
+    //spdlog::info("Creating matrix");
+    int first = 0, last = max_size*3;
     bmatr_32 bmatr0(max_size * 3); // create sample row major bit-matrix
-    for (size_t i = 0; i < max_size; ++i) {
-        bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i * 3);
-        bmatr_32::bvector_type* bv2 = bmatr0.construct_row(i * 3 + 1);
-        bmatr_32::bvector_type* bv3 = bmatr0.construct_row(i * 3 + 2);
-
-        for (size_t j = 0; j < idx.size(); ++j) {
-            auto& seq = seqs[idx[j]];
-            if (i >= seq.size()) continue;
-            auto v = DNA2int(seq[i]);
-            if (v & 1) bv1->set(j, v & 1);
-            v >>= 1;
-            if (v & 1) bv2->set(j, v & 1);
-            v >>= 1;
-            if (v & 1) bv3->set(j, v & 1);
+    taskflow.clear();
+    taskflow.for_each_index(std::ref(first), std::ref(last), 1, 
+        [&] (int i) {
+            bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i);
+            size_t seq_idx = i/3;
+            size_t bv_idx = i % 3;
+            for (size_t j = 0; j < idx.size(); ++j) {
+                auto& seq = seqs[idx[j]];
+                if (seq_idx >= seq.size()) continue;
+                auto v = DNA2int(seq[seq_idx]);
+                v >>= bv_idx;
+                if (v & 1) bv1->set(j, v & 1);
+            }
         }
-    }
+    );
+    executor.run(taskflow).wait();
+    //executor.corun(taskflow);
     bmatr0.optimize(TB);
-    save_matrix(case_name + ".matrix", bmatr0);
+    save_matrix(name + ".matrix", bmatr0);
+/*
+    {
+        bmatr_32 bmatr3(max_size * 3); // create sample row major bit-matrix
+        array<bmatr_32::bvector_type*, 3> bv3;
+        for (size_t i = 0; i < max_size; ++i) {
+            bv3[0] = bmatr3.construct_row(i * 3);
+            bv3[1] = bmatr3.construct_row(i * 3 + 1);
+            bv3[2] = bmatr3.construct_row(i * 3 + 2);
+            taskflow.clear();
+            taskflow.for_each_index(0, 3, 1, [&](size_t bv_idx) {
+                for (size_t j = 0; j < idx.size(); ++j) {
+                    auto& seq = seqs[idx[j]];
+                    if (i >= seq.size()) continue;
+                    auto v = DNA2int(seq[i]);
+                    v >>= bv_idx;
+                    if (v & 1) bv3[bv_idx]->set(j);
+                }
+            });
+            executor.corun(taskflow);
+        }
+        bmatr3.optimize(TB);
+        save_matrix(name + ".matrix", bmatr3);
+    }    
+*/    
+}
 
-    auto matrix_sz = fs::file_size(case_name + ".matrix");
-    auto index_sz = fs::file_size(case_name + ".idx");
-    auto len_sz = fs::file_size(case_name + ".len");
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::test_sort_create(const string& case_name, ErrorChecker&& error_checker)
+{
+    size_t spot_id = 0;
+    //size_t max_size = 0;
+    //unordered_map<size_t, vector<string>> i_seqs;
+    //unordered_map<size_t, vector<uint32_t>> i_order;
+    vector<string> i_seqs;
+    vector<vector<string>> v_seqs;
+    vector<size_t> v_max_sizes;
+    //string seq;
+    ofstream seq_in(case_name + ".seq.in");
+    for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
+        //seq.clear();
+        auto& seq = i_seqs.emplace_back();
+        if (spot.size() > v_seqs.size()) {
+            auto n = v_seqs.size();
+            v_seqs.resize(spot.size());
+            v_max_sizes.resize(spot.size());
 
-    spdlog::info("Matrix rows {}, seqs {}", max_size, idx.size());
-    spdlog::info("Matrix {}, Index {}, Len {}, Total {} ", matrix_sz, index_sz, len_sz, matrix_sz + index_sz + len_sz);
+            for (size_t i = n; i < spot.size(); ++i) {
+                v_seqs[i].resize(spot_id);
+                v_max_sizes[i] = 0;
+            }
+        }
+        for (size_t i = 0; i < v_seqs.size(); ++i) {
+            if (i < spot.size()) {
+                v_max_sizes[i] = max(v_max_sizes[i], spot[i].Sequence().size());
+                v_seqs[i].emplace_back(spot[i].Sequence());
+            } else {
+                v_seqs[i].emplace_back();
+            }
+        }
+        for (const auto& read: spot) {
+            seq += read.Sequence();
+        }
+        seq_in << seq << endl;
+        //max_size = max(max_size, seq.size());
+        //if (i_seqs.size() >= 10000000) {
+        //    test_sort_save_bach(spot_id, max_size, i_seqs, case_name);
+        //    i_seqs.clear();
+        //    max_size = 0;
+       // }
+        ++spot_id;
+    });
+    seq_in.close();
+    tf::Executor executor(min<int>(4, std::thread::hardware_concurrency())); 
+    tf::Taskflow taskflow;
+    int first = 0, last = v_seqs.size();
+    taskflow.for_each_index(ref(first), ref(last), 1, [&](int i) { 
+        test_sort_save_batch(i, v_max_sizes[i], v_seqs[i], case_name);
+    });
+    executor.run(taskflow).wait();
+
+    //for (size_t i = 0; i < v_seqs.size(); ++i) {
+    //    test_sort_save_bach(executor, i, v_max_sizes[i], v_seqs[i], case_name);
+    //}
+    //if (!i_seqs.empty()) 
+    //    test_sort_save_bach(spot_id, max_size, i_seqs, case_name);
+    
+
+    //auto matrix_sz = fs::file_size(case_name + ".matrix");
+    //auto index_sz = fs::file_size(case_name + ".idx");
+    //auto len_sz = fs::file_size(case_name + ".len");
+    //spdlog::info("Matrix rows {}, seqs {}", max_size, idx.size());
+    //spdlog::info("Matrix {}, Index {}, Len {}, Total {} ", matrix_sz, index_sz, len_sz, matrix_sz + index_sz + len_sz);
 }
 
 
 static 
 void test_sort_dump(const string& case_name)
 {
-    vector<uint32_t> lens;
-    {
-        svector_u32 len_vec;
-        bm::file_load_svector(len_vec, case_name + ".len");        
-        lens.resize(len_vec.size());
-        len_vec.decode(&lens[0], 0, len_vec.size());
-    }
-
-    vector<uint32_t> idx;
-    {
-        svector_u32 idx_vec;
-        bm::file_load_svector(idx_vec, case_name + ".idx");
-        idx.resize(idx_vec.size());
-        idx_vec.decode(&idx[0], 0, idx.size());
-    }
-
-    bmatr_32 bmatr(0); // create sample row major bit-matrix
-    load_matrix(case_name + ".matrix", bmatr);
-    size_t num_seq = idx.size();
-    vector<string> seqs(num_seq);
-
-
-    for (size_t i = 0; i < num_seq; ++i) 
-        seqs[i].resize(lens[idx[i]]);
-
-    size_t num_rows = bmatr.rows();
-    for (size_t i = 0; i < num_rows; ++i) {
-        bmatr_32::bvector_type* bv1 = bmatr.get_row(i * 3);
-        bmatr_32::bvector_type* bv2 = bmatr.get_row(i * 3 + 1);
-        bmatr_32::bvector_type* bv3 = bmatr.get_row(i * 3 + 2);
-
-        for (size_t j = 0; j < num_seq; ++j) {
-            auto& seq = seqs[idx[j]];
-            if (i >= lens[j]) continue;
-            uint8_t v = 0;
-            if (bv3->test(j))
-                v = 1 << 2;
-            if (bv2->test(j)) 
-                v |= 1 << 1;
-            if (bv1->test(j))
-            v |= 1; 
-            seq[i] = Int2DNA(v);
+    size_t case_idx = 0;
+    vector<vector<string>> spots;
+    while (true) {
+        string name = case_name + "_" + to_string(case_idx);
+        if (!fs::exists(name + ".matrix"))
+            break;
+        ++case_idx;
+        vector<uint32_t> lens;
+        {
+            svector_u32 len_vec;
+            bm::file_load_svector(len_vec, name + ".len");        
+            lens.resize(len_vec.size());
+            len_vec.decode(&lens[0], 0, len_vec.size());
         }
+
+        vector<uint32_t> idx;
+        {
+            svector_u32 idx_vec;
+            bm::file_load_svector(idx_vec, name + ".idx");
+            idx.resize(idx_vec.size());
+            idx_vec.decode(&idx[0], 0, idx.size());
+        }
+
+        bmatr_32 bmatr(0); // create sample row major bit-matrix
+        load_matrix(name + ".matrix", bmatr);
+        size_t num_seq = idx.size();
+        vector<string> seqs(num_seq);
+
+
+        for (size_t i = 0; i < num_seq; ++i) 
+            seqs[i].resize(lens[idx[i]]);
+
+        size_t num_rows = bmatr.rows();
+        for (size_t i = 0; i < num_rows; ++i) {
+            bmatr_32::bvector_type* bv1 = bmatr.get_row(i * 3);
+            bmatr_32::bvector_type* bv2 = bmatr.get_row(i * 3 + 1);
+            bmatr_32::bvector_type* bv3 = bmatr.get_row(i * 3 + 2);
+
+            for (size_t j = 0; j < num_seq; ++j) {
+                auto& seq = seqs[idx[j]];
+                if (i >= lens[j]) continue;
+                uint8_t v = 0;
+                if (bv3->test(j))
+                    v = 1 << 2;
+                if (bv2->test(j)) 
+                    v |= 1 << 1;
+                if (bv1->test(j))
+                v |= 1; 
+                seq[i] = Int2DNA(v);
+            }
+        }
+        spots.push_back(move(seqs));
     }
+    size_t read_id = 0;
     ofstream seq_out(case_name + ".seq.out");
-    for (size_t i = 0; i < idx.size(); ++i) {
-        seq_out << seqs[i] << endl;
+
+    string s;
+    while (true) {
+        for (const auto& reads : spots) {
+            if (read_id < reads.size()) {
+                s+= reads[read_id];
+            }
+        }
+        if (s.empty()) break;
+        seq_out << s << endl;
+        s.clear();
+        ++read_id;
     }
     auto cmd = fmt::format("diff {} {}", case_name + ".seq.in", case_name + ".seq.out");
     int result = system(cmd.c_str());
@@ -2756,14 +2845,468 @@ void fastq_parser<TWriter>::parse_and_dump_sort(ErrorChecker&& error_checker)
 {
 
     test_sort_create<ScoreValidator>("test", error_checker);
-    test_sort_dump("test");
- 
+    //spdlog::info("test_sort_create done");
+    //test_sort_dump("test");
 }
+
+
+typedef bm::dynamic_heap_matrix<unsigned, bvector_type::allocator_type> DPMatrix;
+
+/**
+  Result of longest common substring search
+ */
+struct LCS_result
+{
+  unsigned pos1;   ///< pos in string 1
+  unsigned pos2;   ///< pos in string 2
+  unsigned len = 0; /// LCS length
+
+  void set(unsigned p1, unsigned p2, unsigned l) noexcept
+    { pos1 = p1; pos2 = p2; len = l; }
+};
+
+/**
+  Find longest common substring
+ */
+template<typename DPM>
+LCS_result find_LCS(
+      const std::string& in_str1, const std::string& in_str2, DPM& dp)
+{
+    auto len1 = in_str1.length();
+    auto len2 = in_str2.length();
+
+    dp.resize(typename DPM::size_type(len1)+1, typename DPM::size_type(len2)+1, false);
+    dp.set_zero();
+
+    const char* s1 = in_str1.c_str();
+    const char* s2 = in_str2.c_str();
+
+    unsigned max_len = 0;
+    LCS_result result;
+
+    for (size_t i = 1; i <= len1; ++i) {
+        unsigned* row = dp.row(i);
+        const unsigned* row_prev = dp.row(i-1);
+        for (size_t j = 1; j <= len2; ++j) {
+            if (s1[i - 1] == s2[j - 1]) {
+                row[j] = row_prev[j-1] + 1;
+                if (row[j] > max_len) {
+                    max_len = row[j];
+                    result.set(unsigned(i - max_len), unsigned(j - max_len), max_len);
+                }
+            }
+        } // for j
+    } // for i
+    return result;
+}
+
+inline
+size_t compute_match_count(const string& str1, const string& str2,
+              size_t max_match_len,
+              const LCS_result& lcs_res) noexcept
+{
+    const char* s1 = str1.c_str() + lcs_res.pos1;
+    const char* s2 = str2.c_str() + lcs_res.pos2;
+    size_t match_cnt = lcs_res.len;
+    for (size_t i = lcs_res.len; i < max_match_len; ++i) {
+        match_cnt += (*s1 == *s2);
+        ++s1; ++s2;
+        if (!s2)
+        break;
+    } // for i
+    return match_cnt;
+}
+
+void cyclicRotateString(std::string& str, int N) 
+{
+    int len = str.length();
+
+    // Adjust the rotation value to be within the string length
+    N = N % len;
+    if (N < 0) {
+        // Reverse rotation
+        N = len + N;
+    }
+
+    // Perform the rotation in place by swapping substrings
+    std::reverse(str.begin(), str.begin() + N);
+    std::reverse(str.begin() + N, str.end());
+    std::reverse(str.begin(), str.end());
+}
+
+vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect)
+{
+    //spdlog::info("rotating {} sequences", seq_vect.size());
+    vector<uint16_t> rotations;
+    rotations.resize(seq_vect.size());
+    fill(rotations.begin(), rotations.end(), 0);
+
+    std::vector<LCS_result> row_results;
+    row_results.resize(seq_vect.size());    
+
+    //DPMatrix dp;
+    //bvector_type bv_sim_found; // elements already picked for rotation
+    //bv_sim_found.init();
+    const unsigned min_match = 4;
+    size_t found_count = 0;
+    tf::Taskflow taskflow;
+    std::mutex best_match_mutex;
+ 
+    for (size_t i = 0; i < seq_vect.size(); ++i) {
+
+        //cout << i << ":" << endl;
+        const string& s_i = seq_vect[i];
+        unsigned best_sim = 0;
+        size_t best_mate_idx;
+        int first = i + 1;
+        int last = seq_vect.size();
+        taskflow.clear();
+        taskflow.for_each_index(ref(first), ref(last), 1, [&](int j) {
+        //for (size_t j = i+1; j < seq_vect.size(); ++j) {
+            //bool being_found = bv_sim_found.test(j);
+            bool being_found = rotations[j] != 0;
+            if (being_found) // we have a greedy algo here, it is ok to skip some
+                return;
+            const string& s_j = seq_vect[j];
+            static thread_local DPMatrix dp;
+            LCS_result result = find_LCS(s_i, s_j, dp);
+            row_results[j] = result;
+
+            if (result.len > min_match) { // minimal cut-off
+                const lock_guard<mutex> lock(best_match_mutex);
+                if (result.len > best_sim) {
+                    best_sim = result.len; 
+                    best_mate_idx = j;
+                }
+            }
+        }); // for j
+        executor.corun(taskflow);
+        //cout << " best-sim=" << best_sim << " ";
+
+        // find other similar cases in the row
+        //
+        if (best_sim) { // any similarity found?
+            const LCS_result& best_mate_res = row_results[best_mate_idx];
+            //if (best_mate_res.len > rotations[i])                               
+            rotations[i] = best_mate_res.pos1;
+            //if (best_mate_res.len > rotations[best_mate_idx])
+            rotations[best_mate_idx] = best_mate_res.pos2;
+            //bv_sim_found.set_bit_no_check(i);
+            //bv_sim_found.set_bit_no_check(best_mate_idx);
+
+            //size_t cnt{0}, cnt_ext{0};
+            const size_t greed_cut_off = (best_sim / 2);
+            const size_t greed_cut_off2 = (best_sim * 4) / 5;
+
+            for (size_t j = best_mate_idx + 1; j < seq_vect.size(); ++j) {
+                if (rotations[j] != 0)
+                    continue;
+
+                const LCS_result& sim_res = row_results[j];
+                if (best_mate_res.pos1 == sim_res.pos1) { // same similarity position!
+                    if (sim_res.len >= greed_cut_off) {
+                          rotations[j] = sim_res.pos2;
+                        //bv_sim_found.set_bit_no_check(j);
+                        //++cnt;
+                    } else { // extra chance to be included by extension
+                        const string& s_j = seq_vect[j];
+                        size_t match_cnt = compute_match_count(s_i, s_j, best_sim, sim_res);
+                        if (match_cnt >= greed_cut_off2) {
+                              //      bv_sim_found.set_bit_no_check(j);
+                               rotations[j] = sim_res.pos2;
+                            //++cnt; ++cnt_ext;
+                        }
+                    }
+                }
+            } // for j
+            //cout << "greedy-pick = " << cnt << " ext-extra= " << cnt-cnt_ext << endl;
+        }
+
+        //{
+        //    auto found_cnt = bv_sim_found.count();
+        //    cout << "Found=" << found_cnt << " / " << seq_vect.size() << endl;
+        //}
+        //spdlog::info("Found={}/{}", found_count, seq_vect.size());
+    } // for i
+    return rotations;
+}    
+
+static
+void test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_size, vector<string>& seqs, const string& case_name)
+{
+
+    string name = case_name + "_" + to_string(offset);
+    {
+        auto rotations = rotate_seqs(executor, seqs);
+        svector_u32 rotate_vec;
+        auto r_bi = rotate_vec.get_back_inserter();
+        //ofstream ofs(name + ".sorted");
+        for (size_t i = 0; i < seqs.size(); ++i) {
+            //ofs << seqs[i] << endl;
+            if (rotations[i]) {
+                *r_bi = rotations[i];
+                cyclicRotateString(seqs[i], rotations[i]);                 
+            } else {
+                *r_bi = 0;
+            }
+        }
+        r_bi.flush();
+        rotate_vec.optimize(TB);
+        bm::file_save_svector(rotate_vec, name + ".rot");        
+    }
+
+    vector<size_t> idx(seqs.size());
+    iota(idx.begin(), idx.end(), 0);
+    tf::Taskflow taskflow;
+    taskflow.sort(idx.begin(), idx.end(), [&](uint32_t  l, uint32_t  r) {
+        return seqs[l] < seqs[r];
+    });
+    executor.corun(taskflow);
+    svector_u32 len_vec;
+    auto bi = len_vec.get_back_inserter();
+
+    svector_u32 idx_vec;
+    auto idx_bi = idx_vec.get_back_inserter();
+
+    vector<unsigned> lens(idx.size());
+    bmatr_32 len_matr(max_size); // create sample row major bit-matrix
+    //ofstream ofs(name + ".rotations");
+
+    for (size_t j = 0; j < idx.size(); ++j) {
+        auto& seq = seqs[idx[j]];
+        bi = seq.size();
+        idx_bi = idx[j];
+        lens[j] = seq.size();
+        //ofs << seq << endl;
+    }
+    //ofs.close();
+    bi.flush();
+    idx_bi.flush();
+    len_vec.optimize(TB);
+    bm::file_save_svector(len_vec, name + ".len");        
+
+    idx_vec.optimize(TB);
+    bm::file_save_svector(idx_vec, name + ".idx");        
+    //spdlog::info("Creating matrix");
+    bmatr_32 bmatr0(max_size * 3); // create sample row major bit-matrix
+
+    int first = 0, last = max_size*3;
+
+    taskflow.clear();
+    taskflow.for_each_index(std::ref(first), std::ref(last), 1, 
+        [&] (int i) {
+            bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i);
+            size_t seq_idx = i/3;
+            size_t bv_idx = i % 3;
+            for (size_t j = 0; j < idx.size(); ++j) {
+                auto& seq = seqs[idx[j]];
+                if (seq_idx >= seq.size()) continue;
+                auto v = DNA2int(seq[seq_idx]);
+                v >>= bv_idx;
+                if (v & 1) bv1->set_bit_no_check(j);
+            }
+        }
+    );
+    executor.corun(taskflow);
+/*
+    array<bmatr_32::bvector_type*, 3> bv;
+    for (size_t i = 0; i < max_size; ++i) {
+        bv[0] = bmatr0.construct_row(i * 3);
+        bv[1] = bmatr0.construct_row(i * 3 + 1);
+        bv[2] = bmatr0.construct_row(i * 3 + 2);
+        taskflow.clear();
+        taskflow.for_each_index(0, 3, 1, [&](size_t bv_idx) {
+            for (size_t j = 0; j < idx.size(); ++j) {
+                auto& seq = seqs[idx[j]];
+                if (i >= seq.size()) continue;
+                auto v = DNA2int(seq[i]);
+                v >>= bv_idx;                            
+                if (v & 1) bv[bv_idx]->set(j);
+            }
+        });
+        executor.corun(taskflow);
+    }
+*/   
+    bmatr0.optimize(TB);
+    save_matrix(name + ".matrix", bmatr0);
+}
+
+
+template<typename TWriter>
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::test_rotate_create(const string& case_name, ErrorChecker&& error_checker, size_t batch_size)
+{
+    size_t spot_id = 0;
+    vector<vector<string>> v_seqs;
+    vector<size_t> v_max_sizes;
+    tf::Executor executor(min<int>(48, std::thread::hardware_concurrency())); 
+    tf::Taskflow taskflow;
+    size_t batch_id = 0;
+    string seq;
+    ofstream seq_in(case_name + ".seq.in");
+    for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
+        if (spot.size() > v_seqs.size()) {
+            auto n = v_seqs.size();
+            v_seqs.resize(spot.size());
+            v_max_sizes.resize(spot.size());
+            if (n > 0) {
+                for (size_t i = n; i < spot.size(); ++i) {
+                    v_seqs[i].resize(spot_id - (batch_id * batch_size));
+                    v_max_sizes[i] = 0;
+                }
+            }
+        }
+        seq.clear();
+        for (size_t i = 0; i < v_seqs.size(); ++i) {
+            if (i < spot.size()) {
+                v_max_sizes[i] = max(v_max_sizes[i], spot[i].Sequence().size());
+                v_seqs[i].emplace_back(spot[i].Sequence());
+                seq += spot[i].Sequence();
+
+            } else {
+                v_seqs[i].emplace_back();
+            }
+        }
+        seq_in << seq << endl;
+        ++spot_id;
+        if (spot_id % batch_size == 0) { 
+            int first = 0;
+            int last = v_seqs.size();
+            taskflow.clear();
+            taskflow.for_each_index(ref(first), ref(last), 1, [&](int i) { 
+                //spdlog::info("Processing read {} with {} sequences of length {}", i, v_seqs[i].size(), v_max_sizes[i]);
+                test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
+            });
+            executor.run(taskflow).wait();
+            v_max_sizes.clear();
+            v_seqs.clear();
+            ++batch_id;
+        }
+        if (spot_id % 1000000 == 0) 
+            spdlog::info("Processed {} spots", spot_id);
+    });
+    seq_in.close();
+    if (!v_seqs.empty()) {
+        int first = 0;
+        int last = v_seqs.size();
+        taskflow.clear();
+        taskflow.for_each_index(ref(first), ref(last), 1, [&](int i) { 
+            spdlog::info("Processing read {} with {} sequences of length {}", i, v_seqs[i].size(), v_max_sizes[i]);
+            test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
+        });
+        executor.run(taskflow).wait();
+    }
+
+}
+
+static 
+void test_rotate_dump(const string& case_name)
+{
+    size_t batch_id = 0;
+    ofstream seq_out(case_name + ".seq.out");
+
+    while (true) {
+        string batch_name = case_name + "_" + to_string(batch_id);
+        if (!fs::exists(batch_name + "_0.matrix"))
+            break;
+        size_t case_idx = 0;
+        vector<vector<string>> spots;
+        while (true) {
+            string name = batch_name + "_" + to_string(case_idx);
+            if (!fs::exists(name + ".matrix"))
+                break;
+            ++case_idx;
+            vector<uint32_t> lens;
+            {
+                svector_u32 len_vec;
+                bm::file_load_svector(len_vec, name + ".len");        
+                lens.resize(len_vec.size());
+                len_vec.decode(&lens[0], 0, len_vec.size());
+            }
+            vector<uint32_t> idx;
+            {
+                svector_u32 idx_vec;
+                bm::file_load_svector(idx_vec, name + ".idx");
+                idx.resize(idx_vec.size());
+                idx_vec.decode(&idx[0], 0, idx.size());
+            }
+            vector<uint32_t> rotations;
+            {
+                svector_u32 rot_vec;
+                bm::file_load_svector(rot_vec, name + ".rot");
+                rotations.resize(rot_vec.size());
+                rot_vec.decode(&rotations[0], 0, rotations.size());
+            }
+
+            bmatr_32 bmatr(0); // create sample row major bit-matrix
+            load_matrix(name + ".matrix", bmatr);
+            size_t num_seq = idx.size();
+            vector<string> seqs(num_seq);
+            for (size_t i = 0; i < num_seq; ++i) 
+                seqs[i].resize(lens[idx[i]]);
+
+            size_t num_rows = bmatr.rows() / 3;
+            for (size_t i = 0; i < num_rows; ++i) {
+                bmatr_32::bvector_type* bv1 = bmatr.get_row(i * 3);
+                bmatr_32::bvector_type* bv2 = bmatr.get_row(i * 3 + 1);
+                bmatr_32::bvector_type* bv3 = bmatr.get_row(i * 3 + 2);
+
+                for (size_t j = 0; j < num_seq; ++j) {
+                    auto& seq = seqs[idx[j]];
+                    if (i >= lens[j]) continue;
+                    uint8_t v = 0;
+                    if (bv3->test(j))
+                        v = 1 << 2;
+                    if (bv2->test(j)) 
+                        v |= 1 << 1;
+                    if (bv1->test(j))
+                    v |= 1; 
+                    seq[i] = Int2DNA(v);
+                }
+            }
+            //ofstream seq_out(case_name + ".seq.out");
+            for (size_t i = 0; i < num_seq; ++i) {
+                if (rotations[i]) 
+                    cyclicRotateString(seqs[i], -rotations[i]);                 
+                //seq_out << seqs[i] << endl;
+            }
+            spots.push_back(move(seqs));
+        }
+        size_t read_id = 0;
+
+        string s;
+        while (true) {
+            for (const auto& reads : spots) {
+                if (read_id < reads.size()) {
+                    s+= reads[read_id];
+                }
+            }
+            if (s.empty()) break;
+            seq_out << s << endl;
+            s.clear();
+            ++read_id;
+        }
+        ++batch_id;
+    }
+    seq_out.close();
+    auto cmd = fmt::format("diff {} {}", case_name + ".seq.in", case_name + ".seq.out");
+    int result = system(cmd.c_str());
+    // Check the result, if you want to get the result of the diff command
+    if (result == 0)
+        spdlog::info("Files are identical");
+    else
+        spdlog::info("Files are different");
+}
+
+
 
 template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker>
 void fastq_parser<TWriter>::parse_and_dump_rotate(ErrorChecker&& error_checker)
 {
+    test_rotate_create<ScoreValidator>("test", error_checker, 500000);
+    spdlog::info("test_rotate_create done");
+    test_rotate_dump("test");
 
 }
 

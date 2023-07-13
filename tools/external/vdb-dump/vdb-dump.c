@@ -303,16 +303,37 @@ static void CC vdm_read_cell_data( void *item, void *data ) {
     r_ctx -> rc = VCursorCellData( r_ctx -> cursor, col_def -> idx, NULL, &( src . buf ),
                                  &( src . offset_in_bits ), &( src . number_of_elements ) );
     if ( 0 != r_ctx->rc ) {
-        if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
-            UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
-        } else {
-            PLOGERR( klogInt,
-                     (klogInt,
-                     r_ctx -> rc,
-                     "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
-                     "col_name=%s,row_nr=%lu",
-                      col_def -> name, r_ctx -> row_id ));
+        if ( r_ctx->view )
+        {
+            //TODO: make it work for views
+            //if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
+            //    UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
+
+            // do not complain about missing cells if we are in a view
+            if ( r_ctx->rc == SILENT_RC ( rcVDB, rcColumn, rcReading, rcRow, rcNotFound ) ) {
+                r_ctx -> rc = 0;
+            } else {
+                PLOGERR( klogInt,
+                        (klogInt,
+                        r_ctx -> rc,
+                        "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
+                        "col_name=%s,row_nr=%lu",
+                        col_def -> name, r_ctx -> row_id ));
+            }
         }
+        if ( r_ctx->table ) {
+            if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
+                UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
+            } else {
+                PLOGERR( klogInt,
+                        (klogInt,
+                        r_ctx -> rc,
+                        "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
+                        "col_name=%s,row_nr=%lu",
+                        col_def -> name, r_ctx -> row_id ));
+            }
+        }
+
         /* remember the last error */
         r_ctx -> last_rc = r_ctx -> rc;
         /* be forgiving and continue if a cell cannot be read */
@@ -584,6 +605,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
     DISP_RC( rc, "VTableCreateCursorRead() failed" );
     if ( 0 == rc ) {
         r_ctx . table = tbl;
+        r_ctx . view = NULL;
         if ( !vdcd_init( &( r_ctx . col_defs ), ctx -> max_line_len ) ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             DISP_RC( rc, "col_defs_init() failed" );
@@ -671,6 +693,7 @@ static rc_t vdm_dump_opened_view( const p_dump_context ctx, const VView *view ) 
     DISP_RC( rc, "VViewCreateCursor() failed" );
     if ( 0 == rc ) {
         r_ctx . table = NULL; // TODO: make dependency reporting work again
+        r_ctx . view = view;
         if ( !vdcd_init( &( r_ctx . col_defs ), ctx -> max_line_len ) ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             DISP_RC( rc, "col_defs_init() failed" );
@@ -679,7 +702,7 @@ static rc_t vdm_dump_opened_view( const p_dump_context ctx, const VView *view ) 
             uint32_t invalid_columns = 0;
             uint32_t n = vdm_extract_or_parse_columns_view( ctx, view, r_ctx . col_defs, &invalid_columns );
             if ( n < 1 ) {
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                KOutMsg( "the requested view is empty!\n" );
             } else {
                 n = vdcd_add_to_cursor( r_ctx . col_defs, r_ctx . cursor );
                 if ( n < 1 ) {
@@ -1843,6 +1866,7 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *mgr )
     return 0;
 }
 
+// returns a VCursor* in ctx->cursor; may be NULL if the view has no data
 static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManager *mgr,
                                        row_context * r_ctx, uint32_t * invalid_columns ) {
     view_spec * spec;
@@ -1875,8 +1899,10 @@ static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManage
                         uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx -> view,
                                                                         r_ctx -> col_defs, invalid_columns );
                         if ( n < 1 ) {
-                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                            KOutMsg( "the requested view is empty!\n" );
+                            r_ctx -> cursor = NULL;
                         }
+                        else
                         if ( 0 == rc ) {
                             rc = VViewCreateCursor ( r_ctx -> view, & r_ctx -> cursor );
                             if ( 0 == rc ) {
@@ -1916,7 +1942,7 @@ static rc_t vdm_dump_unbound_view( const p_dump_context ctx, const VDBManager *m
         row_context r_ctx;
         uint32_t invalid_columns = 0;
         rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx, & invalid_columns );
-        if ( rc == 0 ) {
+        if ( rc == 0 && r_ctx.cursor != NULL ) {
             const VSchema * schema;
             rc = VViewOpenSchema( r_ctx . view, & schema );
             DISP_RC( rc, "VViewOpenSchema() failed" );

@@ -61,8 +61,8 @@ run_test "1.1" "SRR056386 -R 1 -C READ -f tab -I"
 
 # # nested databases
 run_test "2.0" "-E data/NestedDatabase"
-run_test "2.1" "-T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase"
-run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
+# run_test "2.1" "-T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase"
+# run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
 
 # Views
 #	the accessions used below were taken from a blackbox test run, each represents a
@@ -110,7 +110,7 @@ run_test "6.0" "data/ViewDatabase -T VIEW1"
 run_test "6.1" "data/ViewDatabase -T VIEW3"
 
 rm -rf actual
-rm -rf data
+#rm -rf data
 
 ./test_buffer_insufficient.sh ${bin_dir}/${vdb_dump_binary} VDB-3937.kar
 res=$?

@@ -32,12 +32,9 @@ if ( NOT WIN32 )
 		COMMAND model.sh ${TESTBINDIR}/test-vdb-config-model
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-if ( EXISTS "${DIRTOTEST}/vdb-config${EXE}" )
+	ToolsRequired(vdb-config)
 	add_test( NAME Test_VDB_Config
 		COMMAND test-vdb-config.sh "${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-else()
-	message(WARNING "${DIRTOTEST}/vdb-config${EXE} is not found. The corresponding tests are skipped." )
-endif()
 
 endif()

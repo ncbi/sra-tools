@@ -25,14 +25,11 @@
 add_compile_definitions( __mod__="test/external/align-info" )
 
 if ( NOT WIN32 )
-if(EXISTS "${DIRTOTEST}/align-info${EXE}")
+ToolsRequired(align-info)
     # # make sure align-info -h does not crash
     add_test( NAME Test_Align_Info
         COMMAND ${DIRTOTEST}/align-info -h
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-else()
-    message(WARNING "${DIRTOTEST}/align-info${EXE} is not found. The corresponding tests are skipped." )
-endif()
 else()
 #TODO: make run on Windows
 endif()

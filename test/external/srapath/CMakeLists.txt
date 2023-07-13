@@ -24,7 +24,7 @@
 
 add_compile_definitions( __mod__="test/external/srapath" )
 
-if ( EXISTS "${DIRTOTEST}/srapath${EXE}" )
+ToolsRequired( srapath )
 
 if( Python3_EXECUTABLE )
     add_test( NAME Test_Srapath_Check_exit_code
@@ -56,6 +56,3 @@ if ( NOT WIN32 )
     endif()
 endif()
 
-else()
-	message(WARNING "${DIRTOTEST}/srapath${EXE} is not found. The corresponding tests are skipped." )
-endif()

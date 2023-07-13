@@ -51,6 +51,10 @@ extern "C" {
 #include <vfs/path.h>
 #endif
 
+#ifndef _h_vfs_manger_
+#include <vfs/manager.h>
+#endif
+    
 #ifndef _h_vdb_manager_
 #include <vdb/manager.h>
 #endif
@@ -67,6 +71,25 @@ extern "C" {
 #include <vdb/schema.h>
 #endif
 
+#ifndef _h_vdb_view_
+#include <vdb/view.h>
+#endif
+
+#ifndef _h_vdb_blob_
+#include <vdb/blob.h>
+#endif
+
+#ifndef _h_kdb_table_
+#include <kdb/table.h>
+#endif
+
+#ifndef _h_kdb_database_
+#include <kdb/database.h>
+#endif
+    
+#ifndef _h_kdb_meta_
+#include <kdb/meta.h>
+#endif
 
 #include "vdb-dump-context.h"
 #include "vdb-dump-coldefs.h"
@@ -83,8 +106,7 @@ rc_t vdh_show_manager_version( const VDBManager *my_manager );
 
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
-                       Vector *schema_list,
-                       bool with_sra_schema );
+                       Vector *schema_list );
 rc_t vdh_parse_schema_add_on ( const VDBManager *my_manager,
                                VSchema *base_schema,
                                Vector *schema_list );
@@ -122,6 +144,28 @@ void vdh_clear_recorded_errors( void );
 rc_t vdh_check_table_empty( const VTable * tab );
 
 rc_t vdh_open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab );
+
+rc_t vdh_open_vpath_as_file( const KDirectory * dir, const VPath * vpath, const KFile ** f );
+    
+rc_t vdh_vfsmanager_release( rc_t rc, const VFSManager * mgr );
+rc_t vdh_vpath_release( rc_t rc, const VPath * path );
+rc_t vdh_knamelist_release( rc_t rc, const KNamelist * namelist );
+rc_t vdh_vnamelist_release( rc_t rc, const VNamelist * namelist );
+rc_t vdh_vschema_release( rc_t rc, const VSchema * schema );
+rc_t vdh_vdatabase_release( rc_t rc, const VDatabase * db );
+rc_t vdh_kdatabase_release( rc_t rc, const KDatabase * db );
+rc_t vdh_vtable_release( rc_t rc, const VTable * tbl );
+rc_t vdh_ktable_release( rc_t rc, const KTable * tbl );
+rc_t vdh_vcursor_release( rc_t rc, const VCursor * cursor );
+rc_t vdh_kcolumnblob_release( rc_t rc, const KColumnBlob * blob );
+rc_t vdh_kcolumn_release( rc_t rc, const KColumn * col );
+rc_t vdh_kindex_release( rc_t rc, const KIndex * idx );
+rc_t vdh_datanode_release( rc_t rc, const KMDataNode * node );
+rc_t vdh_kmeta_release( rc_t rc, const KMetadata * meta );
+rc_t vdh_view_release( rc_t rc, const VView * view );
+rc_t vdh_kdirectory_release( rc_t rc, const KDirectory * dir );
+rc_t vdh_kfile_release( rc_t rc, const KFile * f );
+rc_t vdh_vmanager_release( rc_t rc, const VDBManager * mgr );
 
 #ifdef __cplusplus
 }

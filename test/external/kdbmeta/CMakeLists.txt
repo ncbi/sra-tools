@@ -23,7 +23,7 @@
 # ===========================================================================
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/kdbmeta${EXE}" )
+    ToolsRequired(kdbmeta)
 
     add_test( NAME Test_Kdbmeta
           COMMAND bash -c "${DIRTOTEST}/kdbmeta SRR053325 > /dev/null"
@@ -38,9 +38,6 @@ if ( EXISTS "${DIRTOTEST}/kdbmeta${EXE}" )
               COMMAND bash -c "${DIRTOTEST}/kdbmeta-tsan SRR053325 > /dev/null"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-else()
-    message(WARNING "${DIRTOTEST}/kdbmeta${EXE} is not found. The corresponding tests are skipped." )
-endif()
 else()
 #TODO: make run on Windows
 endif()

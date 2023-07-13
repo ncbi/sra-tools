@@ -78,8 +78,8 @@ set_tests_properties(SlowTest_SraSearchWhiteBox PROPERTIES TIMEOUT 3000)
 
 # command line tests
 if ( NOT WIN32)
-set ( SRA_SEARCH  ${DIRTOTEST}/sra-search${EXE} )
-if ( EXISTS "${SRA_SEARCH}" )
+    ToolsRequired(sra-search)
+    set ( SRA_SEARCH  ${DIRTOTEST}/sra-search${EXE} )
 
     # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
 
@@ -213,9 +213,5 @@ if ( EXISTS "${SRA_SEARCH}" )
     # unaligned reads only
 	add_test ( NAME SlowTest_SraSearch-10.0-unaligned WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 10.0-unaligned --args "AGCTAGCTAGCT SRR600099 --unaligned" )
-
-else()
-	message(WARNING "${SRA_SEARCH} is not found. The corresponding tests are skipped." )
-endif()
 
 endif ()

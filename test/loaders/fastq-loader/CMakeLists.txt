@@ -23,7 +23,7 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/latf-load${EXE}" )
+    ToolsRequired(latf-load vdb-dump)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -217,7 +217,4 @@ if ( EXISTS "${DIRTOTEST}/latf-load${EXE}" )
     # VDB-5212: prints a "KQueuePop failed"
     LatfTest_OneInputPhred33( 18.0 3 )
 
-else()
-    message(WARNING "${DIRTOTEST}/latf-load${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

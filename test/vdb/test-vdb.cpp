@@ -60,6 +60,9 @@ TEST_CASE(Error_RcToString_English)
 
 // VDB::Manager
 
+// the current default version of the schema parser
+#define PARSER_VERSION "2"
+
 TEST_CASE(Manager_Construction)
 {
     Manager m;
@@ -73,11 +76,11 @@ TEST_CASE(Manager_Schema_Bad)
 
 TEST_CASE(Manager_Schema_Good)
 {
-    const string Text = "version 1;";
+    const string Text = "version " PARSER_VERSION ";";
     Schema s = Manager().schema(Text.size(), Text.c_str());
     ostringstream out;
     out << s;
-    REQUIRE_EQ( string("version 1;\n"), out.str() );
+    REQUIRE_EQ( string("version " PARSER_VERSION ";\n"), out.str() );
 }
 
 static bool check_Schema_content(Schema const &s)
@@ -89,7 +92,7 @@ static bool check_Schema_content(Schema const &s)
     std::string line;
 
     std::getline(in, line, ';');
-    if (line != "version 1")
+    if (line != "version " PARSER_VERSION)
         return false;
 
     in >> std::ws;
@@ -102,7 +105,7 @@ static bool check_Schema_content(Schema const &s)
 
 TEST_CASE(Manager_Schema_Include)
 {
-    const string Text = "version 1; include 'inc.vschema';";
+    const string Text = "version " PARSER_VERSION "; include 'inc.vschema';";
     const string IncludePath = "./data";
     Schema s = Manager().schema(Text.size(), Text.c_str(), IncludePath.c_str());
 

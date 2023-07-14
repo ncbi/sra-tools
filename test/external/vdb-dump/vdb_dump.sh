@@ -63,6 +63,7 @@ run_test "1.1" "SRR056386 -R 1 -C READ -f tab -I"
 run_test "2.0" "-E data/NestedDatabase"
 # run_test "2.1" "-T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase"
 # run_test "2.2" "-T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase"
+# see VDB-5367
 
 # Views
 #	the accessions used below were taken from a blackbox test run, each represents a
@@ -101,6 +102,7 @@ run_test "3.11" "SRR1063272 --view V8<PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT,PRIMAR
 
 # 4.0 table object - views not supported
 run_test_neg "4.0" "ERR997444 -S view.vschema --view V1<SEQUENCE>"
+#TODO: support stand-alone tables
 
 # 5.0 a bigger view on SEQUENCE
 run_test "5.0" "SRR1063272 --view V9<SEQUENCE> -S view.vschema -R 1"
@@ -110,6 +112,7 @@ run_test "6.0" "data/ViewDatabase -T VIEW1"
 run_test "6.1" "data/ViewDatabase -T VIEW3"
 
 rm -rf actual
+# keep the test database for the other tests that might follow (e.g. Test_Vdb_dump_view-alias - see CMakeLists.txt)
 #rm -rf data
 
 ./test_buffer_insufficient.sh ${bin_dir}/${vdb_dump_binary} VDB-3937.kar

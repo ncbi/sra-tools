@@ -51,6 +51,8 @@ public:
      *
     */
     void GetQualScores(vector<uint8_t>& qual_score) const; ///< Get quality scores as vector of uint8
+    const vector<uint8_t>& GetQualScores() const;
+
 
     void SetType(char readType);
 
@@ -83,6 +85,14 @@ public:
     uint8_t m_ReaderIdx = 0; /// Reader's index
     size_t mLineNumber{0};        ///< Line number the read starts with
     uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
+
+    size_t GetSize() const 
+    { 
+        size_t sz = mSpot.size() + mSuffix.size() + mReadNum.size() + mSpotGroup.size() + mSequence.size() + mChannel.size() + mNanoporeReadNo.size();
+        sz += mQuality.empty() ? mQualScores.size() : mQuality.size();
+        return sz;
+    }
+
 private:
     friend class fastq_reader;
     string mSpot;                 ///< Spot name
@@ -94,7 +104,7 @@ private:
     string mQuality;              ///< Quality string as it comes from file adjusted to seq length
     string mChannel;              ///< Nanopore channel
     string mNanoporeReadNo;       ///< Nanopore read number; not to be confused with mReadNum
-    vector<uint8_t> mQualScores;  ///< Numeric quality scores
+    mutable vector<uint8_t> mQualScores;  ///< Numeric quality scores
 };
 
 typedef CFastqRead fastq_read;
@@ -170,6 +180,13 @@ void CFastqRead::GetQualScores(vector<uint8_t>& qual_score) const
     } else {
         copy(mQualScores.begin(), mQualScores.end(), back_inserter(qual_score));
     }
+}
+
+const vector<uint8_t>& CFastqRead::GetQualScores() const
+{
+    if (mQualScores.empty()) 
+        copy(mQuality.begin(), mQuality.end(), back_inserter(mQualScores));
+    return mQualScores;        
 }
 
 void CFastqRead::SetType(char readType)

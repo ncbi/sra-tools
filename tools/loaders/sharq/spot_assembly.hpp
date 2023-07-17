@@ -51,7 +51,7 @@ inline unsigned DNA2int(char DNA_bp)
         return 4; // 100
     default:
         assert(0);
-        return 0;
+        throw runtime_error(fmt::format("Invalid DNA base: {}", DNA_bp));
     }
 }
 
@@ -71,7 +71,7 @@ inline char Int2DNA(uint8_t code)
         return 'N'; // 100
     default:
         assert(0);
-        return 0;
+        throw runtime_error(fmt::format("Invalid DNA code: {}", code));
     }
 }
 
@@ -110,10 +110,10 @@ public:
 
 
 // temproary buffers for multi-threaded processing
-static thread_local vector<uint32_t> tmp_buffer;
+static thread_local vector<svector_u32::value_type> tmp_buffer;
 static thread_local string tmp_str;
 static thread_local vector<uint8_t> tmp_qual_scores;
-static thread_local vector<qual_type_t> tmp_qual_buffer;
+static thread_local vector<svector_int::value_type> tmp_qual_buffer;
 static thread_local fastq_read tmp_read;
 
 
@@ -152,7 +152,7 @@ struct spot_assembly_t {
     void get_spot(size_t row_id, vector<fastq_read>& reads);
     // multi-threaded version of get_spot
     template<typename ScoreValidator, bool is_nanopore>
-    void get_spot_mt(size_t row_id, vector<fastq_read>& reads);
+    void get_spot_mt(const string& spot_name, size_t row_id, vector<fastq_read>& reads);
 
     // removes spot from hot or cold storage
     template<bool is_nanopore = false>
@@ -314,6 +314,7 @@ void spot_assembly_t::finalize_spot_data(size_t spot_id, vector<uint32_t>& sort_
 
 
 // saves read to hot or cold storage
+/*
 template<typename ScoreValidator, bool is_nanopore = false>
 void spot_assembly_t::save_read(size_t row_id, fastq_read& read) {
 
@@ -370,6 +371,7 @@ void spot_assembly_t::save_read(size_t row_id, fastq_read& read) {
     m_spot_index.inc(row_id);
     ++m_num_rows_to_optimize;
 }
+*/
 
 // retrieves all reads for the spot from hot or cold storage
 template<typename ScoreValidator, bool is_nanopore = false>
@@ -453,6 +455,7 @@ void spot_assembly_t::get_spot(size_t row_id, vector<fastq_read>& reads)
 
 
 // removes spot from hot or cold storage
+/*
 template<bool is_nanopore = false>
 void spot_assembly_t::clear_spot(size_t row_id) 
 {
@@ -509,31 +512,38 @@ void spot_assembly_t::clear_spot(size_t row_id)
         if (logger) logger->info("cleanup took: {}", sw);
     }
 }
-
+*/
 // optimize/compress cold storage data
-void spot_assembly_t::optimize() {
+void spot_assembly_t::optimize() 
+{
     if (m_num_rows_to_optimize < MAX_ROWS_TO_OPTIMIZE)
         return;
     m_num_rows_to_optimize = 0;
     spdlog::stopwatch sw;
     size_t md_mem = 0;
-    for (auto& metadata : m_reads_metadata) {
+    {
         lock_guard<mutex> lock(m_mutex);
-        md_mem += metadata.Optimize();
+        for (auto& metadata : m_reads_metadata) {
+            md_mem += metadata.Optimize();
+        }
     }
     svector_u32::statistics st1;
     size_t seq_mem = 0;
-    for (auto& seq : m_sequences) {
+    {
         lock_guard<mutex> lock(m_mutex);
-        seq.optimize(TB1, bm::bvector<>::opt_compress, &st1);
-        seq_mem += st1.memory_used;
+        for (auto& seq : m_sequences) {
+            seq.optimize(TB1, bm::bvector<>::opt_compress, &st1);
+            seq_mem += st1.memory_used;
+        }
     }
     svector_int::statistics st2;
     size_t qual_mem = 0;
-    for (auto& qual : m_qualities) {
-        lock_guard<mutex> lock(m_mutex);
-        qual.optimize(TB1, bm::bvector<>::opt_compress, &st2);
-        qual_mem += st2.memory_used;
+    lock_guard<mutex> lock(m_mutex);
+    {
+        for (auto& qual : m_qualities) {
+            qual.optimize(TB1, bm::bvector<>::opt_compress, &st2);
+            qual_mem += st2.memory_used;
+        }
     }
     auto logger = spdlog::get("parser_logger"); // send log to stderr        
     if (logger) logger->info("optimize took: {}, seq_mem: {:L}, qual_mem: {:L}, md_mem: {:L}", sw, seq_mem, qual_mem, md_mem);
@@ -619,7 +629,7 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
 }
 
 template<typename ScoreValidator, bool is_nanopore>
-void spot_assembly_t::get_spot_mt(size_t row_id, vector<fastq_read>& reads) 
+void spot_assembly_t::get_spot_mt(const string& spot_name, size_t row_id, vector<fastq_read>& reads) 
 {
 
     reads.clear();
@@ -755,7 +765,7 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
                     size_t len = offset >> 48;
                     if (len > 0) {
                         offset &= 0x0000FFFFFFFFFFFF;
-                        clear_bv.set_range(offset, offset+(len - 1));
+                        clear_bv.set_range(offset, offset + (len - 1));
                     }
                 }
                 m_sequences[read_idx].clear(clear_bv);
@@ -768,13 +778,12 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
                     size_t len = offset >> 48;
                     if (len > 0) {
                         offset &= 0x0000FFFFFFFFFFFF;
-                        clear_bv.set_range(offset, offset+(len - 1));
+                        clear_bv.set_range(offset, offset + (len - 1));
                     }
                 }
                 m_qualities[read_idx].clear(clear_bv);
                 metadata.get<u64_t>(metadata_t::e_QualOffsetId).clear(m_rows_to_clear);
 
-                metadata.get<u16_t>(metadata_t::e_ReaderId).clear(m_rows_to_clear);
 
             }
             m_rows_to_clear.clear();

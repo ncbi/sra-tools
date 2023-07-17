@@ -237,6 +237,8 @@ typedef struct {
     size_t rejected_read_count = 0;
     size_t duplicate_reads_count = 0;
     size_t duplicate_reads_len = 0;
+    size_t subsequence_reads_count = 0;
+    size_t subsequence_reads_len = 0;
     array<size_t, 256> base_counts{};
     array<size_t, 256> quality_counts{};
 } data_input_metrics_t;
@@ -574,12 +576,17 @@ public:
     /**
      * @brief sort/uniq spot to remove duplicate reads
     */
-    void remove_duplicate_reads(vector<fastq_read>& assembled_spot);
+    void remove_duplicate_reads(const string& spot_name,vector<fastq_read>& assembled_spot);
+
+    /**
+     * @brief remove subsequences from reads
+    */
+    void removeSubsequences(const string& spot_name,vector<fastq_read>& reads);
 
     /**
      * removes duplicate reads and assigns readType
     */
-    void prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids);
+    void prepare_assemble_spot(const string& spot_name, vector<fastq_read>& assembled_spot, vector<int>& read_ids);
 
 
     /**
@@ -923,7 +930,7 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
     // assign readTypes
     if (m_read_type_sz > 0) {
         if (m_read_type_sz < (int)reads.size())
-            throw fastq_error(30, "readTypes number should match the number of reads {} != {}", m_read_type.size(), reads.size());
+            throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type.size(), reads.size(), spot_name);
         int i = -1;
         for (auto& read : reads) {
             read.SetType(m_read_type[++i]);
@@ -966,7 +973,7 @@ bool fastq_reader::get_next_spot_mt(string& spot_name, vector<CFastqRead>& reads
     // assign readTypes
     if (m_read_type_sz > 0) {
         if (m_read_type_sz < (int)reads.size())
-            throw fastq_error(30, "readTypes number should match the number of reads {} != {}", m_read_type.size(), reads.size());
+            throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type.size(), reads.size(), spot_name);
         int i = -1;
         for (auto& read : reads) {
             read.SetType(m_read_type[++i]);
@@ -1408,7 +1415,7 @@ void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
         }
         telemetry.max_sequence_size = max<int>(sz, telemetry.max_sequence_size);
         telemetry.min_sequence_size = min<size_t>(sz, telemetry.min_sequence_size);
-        m_telemetry.output_metrics.quality_len += r.Quality().size();
+        m_telemetry.output_metrics.quality_len += r.GetQualScores().size();
     }
     
     if ((int)reads.size() < telemetry.reads_per_spot)
@@ -1898,6 +1905,10 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
             im["duplicate_reads"] = m_telemetry.input_metrics.duplicate_reads_count;
             im["duplicate_reads_len"] = m_telemetry.input_metrics.duplicate_reads_len;
         }
+        if (m_telemetry.input_metrics.subsequence_reads_count) {
+            im["subsequence_reads"] = m_telemetry.input_metrics.subsequence_reads_count;
+            im["subsequence_reads_len"] = m_telemetry.input_metrics.subsequence_reads_len;
+        }
         if (j.contains("is_spot_assembly")) {
             im["far_reads"] = m_telemetry.assembly_metrics.number_of_far_reads;
         }
@@ -1922,13 +1933,13 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         om["read_count"] = m_telemetry.output_metrics.read_count;               
         om["spot_count"] = m_telemetry.output_metrics.spot_count;       
         auto& qm = j["qc"];
-        if (m_telemetry.output_metrics.sequence_len > 0) {
+        if (m_telemetry.input_metrics.sequence_len > 0) {
             qm["sequence_loss"] = m_telemetry.input_metrics.sequence_len - m_telemetry.output_metrics.sequence_len;
-            qm["pct_sequence_loss"] = fmt::format("{:.2f}", 100. * float(m_telemetry.input_metrics.sequence_len - m_telemetry.output_metrics.sequence_len)/m_telemetry.output_metrics.sequence_len);
+            qm["pct_sequence_loss"] = fmt::format("{:.2f}", 100. * (1. - float(m_telemetry.output_metrics.sequence_len)/m_telemetry.input_metrics.sequence_len));
         }
-        if (m_telemetry.output_metrics.quality_len > 0) {
+        if (m_telemetry.input_metrics.quality_len > 0) {
             qm["quality_loss"] = m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len;
-            qm["pct_quality_loss"] = fmt::format("{:.2f}", 100. * float(m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len)/m_telemetry.output_metrics.quality_len);
+            qm["pct_quality_loss"] = fmt::format("{:.2f}", 100. * (1. - float(m_telemetry.output_metrics.quality_len)/m_telemetry.input_metrics.quality_len));
         }
     } catch (exception& e) {
         spdlog::error("Error reporting telemetry: {}", e.what());
@@ -2214,11 +2225,11 @@ void fastq_parser<TWriter>::save_spot_thread()
         auto& read = spot_read.read;
         assert(read.m_SpotId != 0);
         if (spot_read.is_last) {
-            m_spot_assembly. template get_spot_mt<ScoreValidator, is_nanopore>(read.m_SpotId, spot);
             spot_name = read.Spot();
             spot_id = read.m_SpotId;
+            m_spot_assembly. template get_spot_mt<ScoreValidator, is_nanopore>(spot_name, read.m_SpotId, spot);
             spot.push_back(move(read));
-            prepare_assemble_spot(spot, read_ids);
+            prepare_assemble_spot(spot_name, spot, read_ids);
 
             assert(!spot.empty());
             spot.front().SetSpot(move(spot_name));
@@ -2231,38 +2242,95 @@ void fastq_parser<TWriter>::save_spot_thread()
     assemble_spot_queue->close();
 }
 
+
 template<typename TWriter>
-void fastq_parser<TWriter>::remove_duplicate_reads(vector<fastq_read>& assembled_spot)
+void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fastq_read>& reads) 
+{
+    int sz = reads.size();
+    for(int i = 0; i < sz; i++) {
+        auto seq_sz = reads[i].Sequence().size(); 
+        for(int j = 0; j < sz; j++) {
+            if(i != j && seq_sz < reads[j].Sequence().size() && reads[j].Sequence().find(reads[i].Sequence()) != string::npos) 
+            {
+                vector<uint8_t> qual_scores1;
+                reads[i].GetQualScores(qual_scores1);
+                vector<uint8_t> qual_scores2;
+                reads[j].GetQualScores(qual_scores2);
+                if (search(qual_scores2.begin(), qual_scores2.end(), qual_scores1.begin(), qual_scores1.end()) != qual_scores2.end()) {
+                    ++m_telemetry.input_metrics.subsequence_reads_count;
+                    //cerr << "Removing subsequence read: " << spot_name << endl << reads[i].Sequence() << endl;
+                    m_telemetry.input_metrics.subsequence_reads_len += reads[i].GetSize();
+                    for (const auto& c : reads[i].Sequence()) 
+                        --m_telemetry.input_metrics.base_counts[c];
+                    for (const auto& c : reads[i].GetQualScores()) 
+                        --m_telemetry.input_metrics.quality_counts[c];
+
+                    reads.erase(reads.begin() + i);
+                    --i;
+                    --sz;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
+template<typename TWriter>
+void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vector<fastq_read>& assembled_spot)
 {
     sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { 
         if (l.ReadNum() == r.ReadNum()) {
             int c = l.Sequence().compare(r.Sequence()); 
-            if (c == 0) 
-                c = l.Quality().compare(r.Quality());
+            if (c == 0) {
+                if (l.GetQualScores() != r.GetQualScores()) 
+                    c = -1;
+            }        
             return c < 0;
         }
         return l.ReadNum() < r.ReadNum();
     });
-    auto new_end = unique(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r){
-        return l.ReadNum() == r.ReadNum() && l.Sequence().compare(r.Sequence()) == 0 && l.Quality().compare(r.Quality()) == 0;
-    });
+   // same as std::unique but captures stat of the removed duplicates
+    auto uniq = [&] (vector<fastq_read>::iterator first, vector<fastq_read>::iterator last) -> vector<fastq_read>::iterator
+    {
+        if (first == last)
+            return last;
+    
+        auto result = first;
+        while (++first != last)
+            // is duplicate?
+            if (result->ReadNum() == first->ReadNum() && result->Sequence().compare(first->Sequence()) == 0 && result->GetQualScores() == first->GetQualScores()) {
+                // adjust input statistics 
+                for (const auto& c : first->Sequence()) 
+                    --m_telemetry.input_metrics.base_counts[c];
+                for (const auto& c : first->GetQualScores()) 
+                    --m_telemetry.input_metrics.quality_counts[c];
+                m_telemetry.input_metrics.duplicate_reads_len += first->GetSize();
+
+            } else if (++result != first) {
+                *result = std::move(*first);
+            }
+        return ++result;
+    };
+
+    auto new_end = uniq(assembled_spot.begin(), assembled_spot.end());
+
     int duplicate_reads = distance(new_end, assembled_spot.end());
     if (duplicate_reads) {
         m_telemetry.input_metrics.duplicate_reads_count += duplicate_reads;
-        for (auto it = new_end; it != assembled_spot.end(); ++it) {
-            m_telemetry.input_metrics.duplicate_reads_len += it->Sequence().size();
-        }
         assembled_spot.erase(new_end, assembled_spot.end());
     }
+    //removeSubsequences(spot_name, assembled_spot);
+
 }
 
 template<typename TWriter>
-void fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_spot, vector<int>& read_ids)
+void fastq_parser<TWriter>::prepare_assemble_spot(const string& spot_name, vector<fastq_read>& assembled_spot, vector<int>& read_ids)
 {
     assert(!assembled_spot.empty());
     int sz = assembled_spot.size();
     if (sz > 1) {
-        remove_duplicate_reads(assembled_spot);
+        remove_duplicate_reads(spot_name, assembled_spot);
         sz = assembled_spot.size();
         if (m_sort_by_readnum) {
             // already sorted by read number
@@ -2270,8 +2338,8 @@ void fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_
             //sort(assembled_spot.begin(), assembled_spot.end(), [](const fastq_read& l, const fastq_read& r) { 
             //    return l.ReadNum() < r.ReadNum(); });
             if (m_read_type_sz > 0) {
-                if (m_read_type_sz < (int)sz)
-                    throw fastq_error(30, "readTypes number should match the number of reads {} != {}", m_read_type_sz, sz);
+                if (m_read_type_sz < (int)sz) 
+                    throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type_sz, sz, spot_name);
                 // sort index by file order so that readTypes can be applied
                 read_ids.resize(sz);
                 iota(read_ids.begin(), read_ids.end(), 0);
@@ -2290,8 +2358,8 @@ void fastq_parser<TWriter>::prepare_assemble_spot(vector<fastq_read>& assembled_
                 return l.m_ReaderIdx == r.m_ReaderIdx ? l.LineNumber() < r.LineNumber() : l.m_ReaderIdx < r.m_ReaderIdx;});
 
             if (m_read_type_sz > 0) {
-                if (m_read_type_sz < (int)sz)
-                    throw fastq_error(30, "readTypes number should match the number of reads {} != {}", m_read_type_sz, sz);
+                if (m_read_type_sz < (int)sz) 
+                    throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type_sz, sz, spot_name);
                 for (int i = 0; i < sz; ++i) {
                     assembled_spot[i].SetType(m_read_types[i]);
                 }
@@ -2467,7 +2535,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
                 spot = move(read.Spot());
                 assembled_spot.push_back(move(read));
 
-                prepare_assemble_spot(assembled_spot, read_ids);
+                prepare_assemble_spot(spot, assembled_spot, read_ids);
                 m_writer->write_spot(spot, assembled_spot);
                 m_writer->write_messages();
                 m_spot_assembly.clear_spot_mt<is_nanopore>(spot_id); 

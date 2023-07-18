@@ -153,7 +153,7 @@ typedef struct dump_context
     const char *path;
     Vector schema_list;
     const char *table;
-    const char *view;    
+    const char *view; //TODO: merge with table
     const char *columns;
     const char *excluded_columns;
     const char *filter;
@@ -201,7 +201,7 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
     bool table_defined;
-    bool view_defined;    
+    bool view_defined;
     bool show_spotgroups;
     bool merge_ranges;
     bool show_spread;

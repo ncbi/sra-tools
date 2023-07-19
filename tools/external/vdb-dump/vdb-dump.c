@@ -148,7 +148,7 @@ OptDef DumpOptions[] =
     { OPTION_SHOW_VDB_BLOBS,        NULL,                     NULL, show_vdb_blobs_usage,    1, false,  false },
     { OPTION_ENUM_PHYS,             NULL,                     NULL, enum_phys_usage,         1, false,  false },
     { OPTION_ENUM_READABLE,         NULL,                     NULL, enum_readable_usage,     1, false,  false },
-    { OPTION_ENUM_STATIC,           NULL,                     NULL, enum_static_usage,       1, false,  false },    
+    { OPTION_ENUM_STATIC,           NULL,                     NULL, enum_static_usage,       1, false,  false },
     { OPTION_OBJVER,                ALIAS_OBJVER,             NULL, objver_usage,            1, false,  false },
     { OPTION_OBJTS,                 NULL,                     NULL, objts_usage,             1, false,  false },
     { OPTION_OBJTYPE,               ALIAS_OBJTYPE,            NULL, objtype_usage,           1, false,  false },
@@ -166,7 +166,7 @@ OptDef DumpOptions[] =
     { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
     { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
-    { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
+    { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
     { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
     { OPTION_CELL_V1,               NULL,                     NULL, NULL,                    1, false,  false },
@@ -227,11 +227,11 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
     KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
     KOutMsg( "      fastq ... FASTQ( 4 lines ) for each row\n" );
-    KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );    
+    KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );
     KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
     KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
     KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n" );
-    KOutMsg( "      qual .... QUAL( 2 lines ) for each row\n" );    
+    KOutMsg( "      qual .... QUAL( 2 lines ) for each row\n" );
     KOutMsg( "      qual1 ... QUAL( 2 lines ) for each fragment if possible\n\n" );
     HelpOptionLine ( ALIAS_ID_RANGE,            OPTION_ID_RANGE,        NULL,           id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA,         OPTION_WITHOUT_SRA,     NULL,           without_sra_usage );
@@ -246,9 +246,9 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_SHOW_VDB_BLOBS,  NULL,           show_vdb_blobs_usage );
     HelpOptionLine ( NULL,                      OPTION_ENUM_PHYS,       NULL,           enum_phys_usage );
     HelpOptionLine ( NULL,                      OPTION_ENUM_READABLE,   NULL,           enum_readable_usage );
-    HelpOptionLine ( NULL,                      OPTION_IDX_ENUM,        NULL,           idx_enum_usage );    
-    HelpOptionLine ( NULL,                      OPTION_IDX_RANGE,       "idx-name",     idx_range_usage );    
-    HelpOptionLine ( NULL,                      OPTION_CUR_CACHE,       "size",         cur_cache_usage );    
+    HelpOptionLine ( NULL,                      OPTION_IDX_ENUM,        NULL,           idx_enum_usage );
+    HelpOptionLine ( NULL,                      OPTION_IDX_RANGE,       "idx-name",     idx_range_usage );
+    HelpOptionLine ( NULL,                      OPTION_CUR_CACHE,       "size",         cur_cache_usage );
     HelpOptionLine ( NULL,                      OPTION_OUT_FILE,        "filename",     out_file_usage );
     HelpOptionLine ( NULL,                      OPTION_OUT_PATH,        "path",         out_path_usage );
     HelpOptionLine ( NULL,                      OPTION_GZIP,            NULL,           gzip_usage );
@@ -263,7 +263,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_NGC,             "path",         ngc_usage);
     HelpOptionLine ( NULL,                      OPTION_VIEW,            "view",         view_usage );
     HelpOptionLine ( NULL,                      OPTION_INSPECT,         NULL,           inspect_usage );
-    
+
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -303,16 +303,37 @@ static void CC vdm_read_cell_data( void *item, void *data ) {
     r_ctx -> rc = VCursorCellData( r_ctx -> cursor, col_def -> idx, NULL, &( src . buf ),
                                  &( src . offset_in_bits ), &( src . number_of_elements ) );
     if ( 0 != r_ctx->rc ) {
-        if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
-            UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
-        } else {
-            PLOGERR( klogInt,
-                     (klogInt,
-                     r_ctx -> rc,
-                     "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
-                     "col_name=%s,row_nr=%lu",
-                      col_def -> name, r_ctx -> row_id ));
+        if ( r_ctx->view )
+        {
+            //TODO: make it work for views
+            //if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
+            //    UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
+
+            // do not complain about missing cells if we are in a view
+            if ( r_ctx->rc == SILENT_RC ( rcVDB, rcColumn, rcReading, rcRow, rcNotFound ) ) {
+                r_ctx -> rc = 0;
+            } else {
+                PLOGERR( klogInt,
+                        (klogInt,
+                        r_ctx -> rc,
+                        "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
+                        "col_name=%s,row_nr=%lu",
+                        col_def -> name, r_ctx -> row_id ));
+            }
         }
+        if ( r_ctx->table ) {
+            if ( UIError( r_ctx -> rc, NULL, r_ctx -> table ) ) {
+                UITableLOGError( r_ctx -> rc, r_ctx -> table, true );
+            } else {
+                PLOGERR( klogInt,
+                        (klogInt,
+                        r_ctx -> rc,
+                        "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
+                        "col_name=%s,row_nr=%lu",
+                        col_def -> name, r_ctx -> row_id ));
+            }
+        }
+
         /* remember the last error */
         r_ctx -> last_rc = r_ctx -> rc;
         /* be forgiving and continue if a cell cannot be read */
@@ -328,14 +349,14 @@ static void CC vdm_read_cell_data( void *item, void *data ) {
 
         /* special treatment to suppress spaces between values */
         src . translate_sra_values = ( r_ctx -> ctx -> format == df_sra_dump );
-        
+
         /* transfer context-flags (hex-print, no sra-types) */
         src . in_hex = r_ctx -> ctx -> print_in_hex;
         src . without_sra_types = r_ctx -> ctx -> without_sra_types;
 
         /* how a boolean is displayed */
         src . c_boolean = r_ctx -> ctx -> c_boolean;
-        
+
         /* hardcoded printing of dna-bases if the column-type fits */
         src . print_dna_bases = ( r_ctx -> ctx -> print_dna_bases &
                     ( col_def -> type_desc . intrinsic_dim == 2 ) &
@@ -345,7 +366,7 @@ static void CC vdm_read_cell_data( void *item, void *data ) {
             char temp[ 16 ];
             size_t num_writ;
 
-            r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%u", src . number_of_elements ); 
+            r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%u", src . number_of_elements );
             if ( 0 == r_ctx -> rc ) {
                 vds_append_str( &( col_def -> content ), temp );
             }
@@ -372,7 +393,7 @@ static void CC vdm_print_elem_sum( void *item, void *data ) {
     if ( 0 != r_ctx -> rc ) return; /* important to stop if the last read was not successful */
     vds_clear( &( col_def -> content ) ); /* clear the destination-dump-string */
 
-    r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%,zu", col_def -> elementsum ); 
+    r_ctx -> rc = string_printf ( temp, sizeof temp, &num_writ, "%,zu", col_def -> elementsum );
     if ( 0 == r_ctx -> rc ) {
         vds_append_str( &( col_def -> content ), temp );
     }
@@ -410,7 +431,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx ) {
         if ( 0 == r_ctx -> rc ) {
             uint64_t count;
             r_ctx -> rc = num_gen_iterator_count( iter, &count );
-            DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_count() failed" );            
+            DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_count() failed" );
             if ( 0 == r_ctx -> rc ) {
                 uint64_t num = 0;
                 while ( ( 0 == r_ctx -> rc ) &&
@@ -421,12 +442,12 @@ static rc_t vdm_dump_rows( p_row_context r_ctx ) {
                     if ( 0 != r_ctx -> rc ) break;
                     r_ctx -> rc = VCursorSetRowId( r_ctx -> cursor, r_ctx -> row_id );
                     if ( 0 != r_ctx -> rc ) {
-                        vdm_row_error( "vdm_dump_rows().VCursorSetRowId( row#$(row_nr) ) failed", 
+                        vdm_row_error( "vdm_dump_rows().VCursorSetRowId( row#$(row_nr) ) failed",
                                     r_ctx -> rc, r_ctx -> row_id ); /* above */
                     } else {
                         r_ctx -> rc = VCursorOpenRow( r_ctx -> cursor );
                         if ( 0 != r_ctx -> rc ) {
-                            vdm_row_error( "vdm_dump_rows().VCursorOpenRow( row#$(row_nr) ) failed", 
+                            vdm_row_error( "vdm_dump_rows().VCursorOpenRow( row#$(row_nr) ) failed",
                                         r_ctx -> rc, r_ctx -> row_id ); /* above */
                         } else {
                             /* first reset the string and valid-flag for every column */
@@ -440,14 +461,14 @@ static rc_t vdm_dump_rows( p_row_context r_ctx ) {
                                     bool last  = ( num >= count - 1 );
                                     r_ctx -> rc = vdfo_print_row( r_ctx, first, last ); /* in vdb-dump-formats.c */
                                     if ( 0 != r_ctx -> rc ) {
-                                        vdm_row_error( "vdm_dump_rows().vdfo_print_row( row#$(row_nr) ) failed", 
+                                        vdm_row_error( "vdm_dump_rows().vdfo_print_row( row#$(row_nr) ) failed",
                                             r_ctx -> rc, r_ctx -> row_id ); /* above */
                                     }
                                 }
                             }
                             r_ctx -> rc = VCursorCloseRow( r_ctx -> cursor );
                             if ( 0 != r_ctx -> rc ) {
-                                vdm_row_error( "vdm_dump_rows().VCursorCloseRow( row#$(row_nr) ) failed", 
+                                vdm_row_error( "vdm_dump_rows().VCursorCloseRow( row#$(row_nr) ) failed",
                                             r_ctx -> rc, r_ctx -> row_id ); /* above */
                             }
                         }
@@ -541,7 +562,7 @@ static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx, const
 
 static uint32_t vdm_extract_or_parse_columns_view( const p_dump_context ctx,
                                                    const VView *my_view,
-                                                   p_col_defs my_col_defs, 
+                                                   p_col_defs my_col_defs,
                                                    uint32_t * invalid_columns ) {
     uint32_t count = 0;
     if ( NULL != ctx && NULL != my_col_defs ) {
@@ -584,6 +605,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
     DISP_RC( rc, "VTableCreateCursorRead() failed" );
     if ( 0 == rc ) {
         r_ctx . table = tbl;
+        r_ctx . view = NULL;
         if ( !vdcd_init( &( r_ctx . col_defs ), ctx -> max_line_len ) ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             DISP_RC( rc, "col_defs_init() failed" );
@@ -658,6 +680,94 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
 }
 
 /*************************************************************************************
+    vdm_dump_opened_view:
+    * opens a cursor to read from a view
+
+ctx [IN] ... contains path, tablename, columns, row-range etc.
+view [IN] ... open view needed for vdb-calls
+*************************************************************************************/
+static rc_t vdm_dump_opened_view( const p_dump_context ctx, const VView *view ) {
+    row_context r_ctx;
+    rc_t rc = VViewCreateCursor( view, &( r_ctx . cursor ) );
+    r_ctx . last_rc = 0;
+    DISP_RC( rc, "VViewCreateCursor() failed" );
+    if ( 0 == rc ) {
+        r_ctx . table = NULL; // TODO: make dependency reporting work again
+        r_ctx . view = view;
+        if ( !vdcd_init( &( r_ctx . col_defs ), ctx -> max_line_len ) ) {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            DISP_RC( rc, "col_defs_init() failed" );
+        }
+        if ( 0 == rc ) {
+            uint32_t invalid_columns = 0;
+            uint32_t n = vdm_extract_or_parse_columns_view( ctx, view, r_ctx . col_defs, &invalid_columns );
+            if ( n < 1 ) {
+                KOutMsg( "the requested view is empty!\n" );
+            } else {
+                n = vdcd_add_to_cursor( r_ctx . col_defs, r_ctx . cursor );
+                if ( n < 1 ) {
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                } else {
+                    {
+                        /* if this fails, we do not have name-translations for special cell-values
+                        but we do not abort because of it ... */
+                        const VSchema *schema;
+                        rc_t rc2 = VViewOpenSchema( view, &schema );
+                        DISP_RC( rc2, "VViewOpenSchema() failed" );
+                        if ( 0 == rc2 ) {
+                            /* translate in special columns to numeric values to strings */
+                            vdcd_ins_trans_fkt( r_ctx . col_defs, schema );
+                            vdh_vschema_release( rc, schema );
+                        }
+                    }
+                    rc = VCursorOpen( r_ctx . cursor );
+                    DISP_RC( rc, "VCursorOpen() failed" );
+                    if ( 0 == rc ) {
+                        int64_t  first;
+                        uint64_t count;
+                        rc = VCursorIdRange( r_ctx . cursor, 0, &first, &count );
+                        DISP_RC( rc, "VCursorIdRange() failed" );
+                        if ( 0 == rc ) {
+                            if ( NULL == ctx -> rows ) {
+                                /* if the user did not specify a row-range, take all rows */
+                                rc = num_gen_make_from_range( &( ctx -> rows ), first, count );
+                                DISP_RC( rc, "num_gen_make_from_range() failed" );
+                            } else {
+                                /* if the user did specify a row-range, check the boundaries */
+                                if ( count > 0 ) {
+                                    /* trim only if the row-range is not zero, otherwise
+                                        we will not get data if the user specified only static columns
+                                        because they report a row-range of zero! */
+                                    rc = num_gen_trim( ctx -> rows, first, count );
+                                    DISP_RC( rc, "num_gen_trim() failed" );
+                                }
+                            }
+                            if ( 0 == rc ) {
+                                if ( num_gen_empty( ctx -> rows ) ) {
+                                    rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                } else {
+                                    r_ctx . ctx = ctx;
+                                    rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if ( 0 == rc && invalid_columns > 0 ) {
+                rc = RC( rcExe, rcDatabase, rcResolving, rcColumn, rcInvalid );
+            }
+            vdcd_destroy( r_ctx . col_defs );
+        }
+        rc = vdh_vcursor_release( rc, r_ctx . cursor );
+        if ( 0 == rc && 0 != r_ctx . last_rc ) {
+            rc = r_ctx . last_rc;
+        }
+    }
+    return rc;
+}
+
+/*************************************************************************************
     dump_db_table:
     * called by "dump_database()" as a fkt-pointer
     * opens a table to read
@@ -669,11 +779,32 @@ db   [IN] ... open database needed for vdb-calls
 *************************************************************************************/
 static rc_t vdm_dump_opened_database( const p_dump_context ctx,
                                       const VDatabase *db ) {
-    const VTable *tbl;
-    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
-    if ( 0 == rc ) {
-        rc = vdm_dump_opened_table( ctx, tbl );
-        rc = vdh_vtable_release( rc, tbl );
+    uint32_t t;
+    rc_t rc = VDatabaseMemberType( db, ctx -> table, &t );
+    if ( rc == 0 ) {
+        switch ( t ) {
+        case dbmTable: {
+                const VTable *tbl;
+                rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
+                if ( 0 == rc ) {
+                    rc = vdm_dump_opened_table( ctx, tbl );
+                    rc = vdh_vtable_release( rc, tbl );
+                }
+            }
+            break;
+        case dbmViewAlias: {
+                const VView * view;
+                rc = VDatabaseOpenView ( db, & view, ctx -> table );
+                if ( 0 == rc ) {
+                    rc = vdm_dump_opened_view( ctx, view );
+                    rc = vdh_view_release( rc, view );
+                }
+            }
+            break;
+        default:
+            rc = RC( rcExe, rcDatabase, rcOpening, rcTable, rcInvalid );
+            break;
+        }
     }
     return rc;
 }
@@ -1212,7 +1343,7 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *tbl ) 
             } else if ( ctx -> enum_static ) {
                 extracted = vdm_extract_or_parse_static_columns( ctx, tbl, col_defs, &invalid_columns );
                 rc = VTableOpenKTableRead( tbl, &( ci_ctx . ktbl ) );
-                DISP_RC( rc, "VTableOpenKTableRead() failed" );            
+                DISP_RC( rc, "VTableOpenKTableRead() failed" );
             } else {
                 extracted = vdm_extract_or_parse_columns( ctx, tbl, col_defs, &invalid_columns );
                 ci_ctx . ktbl = NULL;
@@ -1285,7 +1416,7 @@ static rc_t vdm_print_tab_id_range( const p_dump_context ctx, const VTable *tbl 
                         int64_t  first;
                         uint64_t count;
                         uint32_t idx = 0;
-                        
+
                         /* calling with idx = 0 means: let the cursor find out the min/max values of
                            all open columns...
                            vdcd_get_first_none_static_column_idx( col_defs, curs, &idx );
@@ -1499,7 +1630,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
                                             char name_attr[ 2048 ];
                                             size_t num_writ;
                                             rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
-                                            DISP_RC( rc, "KMDataNodeReadAttr() failed" );    
+                                            DISP_RC( rc, "KMDataNodeReadAttr() failed" );
                                             if ( 0 == rc ) {
                                                 rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
                                                 rc = vdh_datanode_release( rc, spot_group_node );
@@ -1558,7 +1689,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
         VPath * path = NULL;
         rc = vdh_path_to_vpath( ctx -> path, &path );
         if ( 0 == rc ) {
-            const VTable *tbl;            
+            const VTable *tbl;
             rc = VDBManagerOpenTableReadVPath( mgr, &tbl, schema, path );
             if ( 0 != rc ) {
                 ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
@@ -1567,7 +1698,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
                 if ( 0 == rc ) {
                     rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
                 }
-                rc = vdh_vtable_release( rc, tbl );                
+                rc = vdh_vtable_release( rc, tbl );
             }
             rc = vdh_vschema_release( rc, schema );
             rc = vdh_vpath_release( rc, path );
@@ -1577,7 +1708,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
 }
 
 static bool enum_col_request( const p_dump_context ctx ) {
-    return ( ctx -> column_enum_requested || ctx -> column_enum_short || 
+    return ( ctx -> column_enum_requested || ctx -> column_enum_short ||
              ctx -> show_kdb_blobs || ctx -> show_vdb_blobs ||
              ctx -> enum_phys || ctx -> enum_readable );
 }
@@ -1735,6 +1866,7 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *mgr )
     return 0;
 }
 
+// returns a VCursor* in ctx->cursor; may be NULL if the view has no data
 static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManager *mgr,
                                        row_context * r_ctx, uint32_t * invalid_columns ) {
     view_spec * spec;
@@ -1767,8 +1899,10 @@ static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManage
                         uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx -> view,
                                                                         r_ctx -> col_defs, invalid_columns );
                         if ( n < 1 ) {
-                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                            KOutMsg( "the requested view is empty!\n" );
+                            r_ctx -> cursor = NULL;
                         }
+                        else
                         if ( 0 == rc ) {
                             rc = VViewCreateCursor ( r_ctx -> view, & r_ctx -> cursor );
                             if ( 0 == rc ) {
@@ -1791,14 +1925,15 @@ static rc_t vdb_dump_view_make_cursor( const p_dump_context ctx, const VDBManage
 }
 
 /***************************************************************************
-    dump_view:
+    dump_unbound_view:
     * called by "dump_main()" to handle a view
     * similar to dump_table but dumps a view
+    * before dumping, binds the view's arguments to existing tables according to the view-spec string given in ctx.view
 
 ctx        [IN] ... contains path, view instantiation string, columns, row-range etc.
 my_manager [IN] ... open manager needed for vdb-calls
 ***************************************************************************/
-static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr ) {
+static rc_t vdm_dump_unbound_view( const p_dump_context ctx, const VDBManager *mgr ) {
     rc_t rc;
     if ( ! vdh_is_path_database( mgr, ctx -> path, NULL ) ) {
         ErrMsg( "Option --view can only be used with a database object" );
@@ -1807,7 +1942,7 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr ) {
         row_context r_ctx;
         uint32_t invalid_columns = 0;
         rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx, & invalid_columns );
-        if ( rc == 0 ) {
+        if ( rc == 0 && r_ctx.cursor != NULL ) {
             const VSchema * schema;
             rc = VViewOpenSchema( r_ctx . view, & schema );
             DISP_RC( rc, "VViewOpenSchema() failed" );
@@ -1962,7 +2097,7 @@ static rc_t vdm_main_one_obj( const p_dump_context ctx,
     } else if ( ctx -> objtype_requested ) {
         vdm_print_objtype( mgr, acc_or_path );
     } else if ( ctx -> view_defined ) {
-        rc = vdm_dump_view ( ctx, mgr );
+        rc = vdm_dump_unbound_view ( ctx, mgr ); // V<t1> where V is an ubound view, needs binding to source(s)
     } else {
         if ( USE_PATHTYPE_TO_DETECT_DB_OR_TAB ) { /* in vdb-dump-context.h */
             rc = vdb_main_one_obj_by_pathtype( ctx, mgr );
@@ -1993,15 +2128,15 @@ ctx        [IN] ... contains path, tablename, columns, row-range etc.
 static rc_t vdm_main( const p_dump_context ctx, Args * args ) {
     KDirectory *dir;
     rc_t rc = KDirectoryNativeDir( &dir );
-    DISP_RC( rc, "KDirectoryNativeDir() failed" ); 
+    DISP_RC( rc, "KDirectoryNativeDir() failed" );
     if ( 0 == rc ) {
         const VDBManager *mgr;
         rc = VDBManagerMakeRead( &mgr, dir );
-        DISP_RC( rc, "VDBManagerMakeRead() failed" ); 
+        DISP_RC( rc, "VDBManagerMakeRead() failed" );
         if( 0 == rc ) {
             if ( ctx -> disable_multithreading ) {
                 rc = VDBManagerDisablePagemapThread( mgr );
-                DISP_RC( rc, "VDBManagerDisablePagemapThread() failed" ); 
+                DISP_RC( rc, "VDBManagerDisablePagemapThread() failed" );
                 rc = 0; /* not a typo, we continue even if we cannot disable threads! */
             }
             /* show manager is independend form db or tab */
@@ -2010,14 +2145,14 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args ) {
             } else {
                 uint32_t count;
                 rc = ArgsParamCount( args, &count );
-                DISP_RC( rc, "ArgsParamCount() failed" ); 
+                DISP_RC( rc, "ArgsParamCount() failed" );
                 if ( 0 == rc ) {
                     if ( count > 0 ) {
                         uint32_t idx;
                         for ( idx = 0; idx < count && 0 == rc; ++idx ) {
                             const char *value = NULL;
                             rc = ArgsParamValue( args, idx, (const void **)&value );
-                            DISP_RC( rc, "ArgsParamValue() failed" ); 
+                            DISP_RC( rc, "ArgsParamValue() failed" );
                             if ( 0 == rc ) {
                                 if ( ctx -> print_info ) {
                                     rc = vdb_info( &( ctx -> schema_list ), ctx -> format, mgr,
@@ -2118,14 +2253,14 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( 0 == rc )
                 {
                     out_redir redir; /* vdb-dump-redir.h */
-                    
+
                     KLogHandlerSetStdErr();
                     rc = init_out_redir( &redir,
                                      ctx -> compress_mode,
                                      ctx -> output_file,
                                      ctx -> interactive ? 0 : ctx -> output_buffer_size,
                                      ctx -> append ); /* vdb-dump-redir.c */
-                    
+
                     if ( 0 == rc )
                     {
                         rc = vdm_main( ctx, args );         /* <=== code is above */

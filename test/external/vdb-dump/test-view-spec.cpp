@@ -195,8 +195,9 @@ TEST_CASE ( NestedViews )
 const string SchemaText =
     "version 2;"
     "table T#1 { column ascii col; } "
-    "database D#1 { table T t; } "
-    "view V#1 < T tbl > { column ascii c = tbl . col; }";
+    "view V#1 < T tbl > { column ascii c = tbl . col; }"
+    "database D#1 { table T t; alias V<t> qq; } "
+;
 
 class ViewCursorFixture
 {

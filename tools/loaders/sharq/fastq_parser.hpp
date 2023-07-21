@@ -3373,17 +3373,22 @@ size_t test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_
         auto rotations = rotate_seqs(executor, seqs, max_size, offset);
         svector_u32 rotate_vec;
         auto r_bi = rotate_vec.get_back_inserter();
-        //ofstream ofs(name + ".sorted");
+        ofstream ofs1(name + ".original");
+        ofstream ofs2(name + ".rotated");
+
         for (size_t i = 0; i < seqs.size(); ++i) {
             base_count += seqs[i].size();
-            //ofs << seqs[i] << endl;
+            ofs1 << seqs[i] << endl;
             if (rotations[i] != UINT16_MAX && rotations[i] != 0) {
                 *r_bi = rotations[i];
                 cyclicRotateString(seqs[i], rotations[i]);                 
             } else {
                 *r_bi = 0;
             }
+            ofs2 << seqs[i] << endl;
         }
+        ofs1.close();
+        ofs2.close();
         r_bi.flush();
         rotate_vec.optimize(TB);
         bm::file_save_svector(rotate_vec, name + ".rot");        
@@ -3404,15 +3409,15 @@ size_t test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_
     auto idx_bi = idx_vec.get_back_inserter();
 
     bmatr_32 len_matr(max_size); // create sample row major bit-matrix
-    ofstream ofs(name + ".rotated");
+    //ofstream ofs(name + ".rotated");
 
     for (size_t j = 0; j < idx.size(); ++j) {
         auto& seq = seqs[idx[j]];
         len_bi = seq.size();
         idx_bi = idx[j];
-        ofs << seq << endl;
+        //ofs << seq << endl;
     }
-    ofs.close();
+    //ofs.close();
     len_bi.flush();
     idx_bi.flush();
     len_vec.optimize(TB);
@@ -3452,7 +3457,7 @@ size_t test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_
     spdlog::info("{} Batch size {}, num_rows {}, base_count {}, bits/base {}", offset, batch_size, max_size, base_count, bits_per_base);
     {
         ofstream os(name + ".info");
-        os << "Number of sequences : " << batch_size << endl;
+        os << "Batch size (bytes)  : " << batch_size << endl;
         os << "Max sequence length : " << max_size << endl;
         os << "Number of bases     : " << base_count << endl;
         os << "bits/base ratio     : " << bits_per_base << endl;

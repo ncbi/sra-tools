@@ -2610,7 +2610,7 @@ static int load_matrix(const string& fname, bmatr_32& bmatr)
 static
 void test_sort_save_batch(size_t offset, size_t max_size, vector<string>& seqs, const string& case_name)
 {
-
+    BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block
     string name = case_name + "_" + to_string(offset);
     vector<size_t> idx(seqs.size());
     iota(idx.begin(), idx.end(), 0);
@@ -2627,12 +2627,12 @@ void test_sort_save_batch(size_t offset, size_t max_size, vector<string>& seqs, 
     svector_u32 idx_vec;
     auto idx_bi = idx_vec.get_back_inserter();
 
-    vector<unsigned> lens(idx.size());
+    //vector<unsigned> lens(idx.size());
     for (size_t j = 0; j < idx.size(); ++j) {
         auto& seq = seqs[idx[j]];
         bi = seq.size();
         idx_bi = idx[j];
-        lens[j] = seq.size();
+        //lens[j] = seq.size();
     }
     bi.flush();
     idx_bi.flush();
@@ -2792,7 +2792,7 @@ void test_sort_dump(const string& case_name)
 
 
         for (size_t i = 0; i < num_seq; ++i) 
-            seqs[i].resize(lens[idx[i]]);
+            seqs[idx[i]].resize(lens[i]);
 
         size_t num_rows = bmatr.rows();
         for (size_t i = 0; i < num_rows; ++i) {
@@ -2802,7 +2802,7 @@ void test_sort_dump(const string& case_name)
 
             for (size_t j = 0; j < num_seq; ++j) {
                 auto& seq = seqs[idx[j]];
-                if (i >= lens[j]) continue;
+                if (i >= seq.size()) continue;
                 uint8_t v = 0;
                 if (bv3->test(j))
                     v = 1 << 2;
@@ -2934,27 +2934,97 @@ void cyclicRotateString(std::string& str, int N)
     std::reverse(str.begin(), str.end());
 }
 
-vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect)
+
+typedef bm::dynamic_heap_matrix<unsigned long long, bvector_type::allocator_type> LCS_ResultsMatrix;
+
+/// Codes for heuristical decision maker for best set to pick
+enum E_LCS_BestSet
 {
-    //spdlog::info("rotating {} sequences", seq_vect.size());
+  e_LCS,    ///< max length LCS substring (and all associalted mate subjects)
+  e_LCS_maxsum, ///< maximum sum of all LCS substrings
+  e_LCS_best_avg, ///< best LCS average: sum(lcs)/N
+  e_LCS_Best_none  ///< no good variant to follow
+};
+
+inline
+E_LCS_BestSet find_best_subject_set(size_t LCS_sum, size_t LCS_count,
+                  size_t LCS_max_sum, size_t LCS_max_sum_cnt,
+                  float LCS_best_avg, size_t LCS_avg_cnt) noexcept
+                   
+{
+    const size_t min_set_count = 32; // to prevent really small sets of subjects from winning
+    E_LCS_BestSet ret = (LCS_max_sum_cnt > min_set_count/2) ? e_LCS_maxsum : e_LCS_Best_none; // default choice
+
+    float lcs_sum_avg = (LCS_count > min_set_count) ? float(LCS_sum) / float(LCS_count) : 0.0f;
+    float lcs_max_sum_avg = (LCS_max_sum_cnt > min_set_count) ? float(LCS_max_sum) / float(LCS_max_sum_cnt) : 0.0f;
+
+    // evaluate best average
+    //
+    // if BEST avg (SUM(lcs)/N is better than SUM(lcs)
+    if ((LCS_best_avg > lcs_max_sum_avg) && (LCS_avg_cnt > min_set_count)) {
+        float d = LCS_best_avg - lcs_max_sum_avg;
+        if (d > 0.7f) { // gain is substantial enough to warrant a switch
+            ret = e_LCS_best_avg; // new best established
+            // evaluate longest LCS beats it
+            if ((lcs_sum_avg > LCS_best_avg) && (LCS_count > min_set_count)) {
+                d = lcs_sum_avg - LCS_best_avg;
+                if (d > 0.7f) {
+                    ret = e_LCS;
+                }
+            }
+        }
+    } else {
+        // evaluate longest LCS beats sum(lcs)
+        if ((lcs_sum_avg > lcs_max_sum_avg) && (LCS_count > min_set_count)) {
+            float d = lcs_sum_avg - lcs_max_sum_avg;
+            if (d > 0.7f) {
+                ret = e_LCS;
+            }
+        }
+    }
+    return ret;
+}
+
+
+
+vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect, size_t max_ssize, size_t offset)
+{
+    auto logger = spdlog::get("parser_logger");
+    logger->info("rotating {} sequences", seq_vect.size());
     vector<uint16_t> rotations;
     rotations.resize(seq_vect.size());
-    fill(rotations.begin(), rotations.end(), 0);
+    fill(rotations.begin(), rotations.end(), UINT16_MAX);
 
     std::vector<LCS_result> row_results;
     row_results.resize(seq_vect.size());    
 
-    //DPMatrix dp;
-    //bvector_type bv_sim_found; // elements already picked for rotation
-    //bv_sim_found.init();
-    const unsigned min_match = 4;
+    unsigned min_match = 6;
+    
+    //if (max_ssize > 300)
+    //    min_match = 20;
+    //else if (max_ssize > 200)
+    //    min_match = 16;
+    //else if (max_ssize > 100)
+    //    min_match = 12;
+    
     size_t found_count = 0;
     tf::Taskflow taskflow;
     std::mutex best_match_mutex;
- 
-    for (size_t i = 0; i < seq_vect.size(); ++i) {
 
-        //cout << i << ":" << endl;
+    std::vector<size_t> LCS_sum_vect;
+    LCS_sum_vect.resize(max_ssize, 0); // resize and set to 0
+
+    std::vector<size_t> LCS_cnt_vect;
+    LCS_cnt_vect.resize(max_ssize, 0); // resize and set to 0
+
+
+    size_t LCS_cnt{0}, LCS_max_sum_cnt{0}, LCS_best_avg_cnt{0}, LCS_none{0};
+    for (size_t i{0}, c{0}; i < seq_vect.size(); ++i) {
+        if (rotations[i] != UINT16_MAX) 
+            continue;
+        if (found_count >= seq_vect.size())
+            break;
+
         const string& s_i = seq_vect[i];
         unsigned best_sim = 0;
         size_t best_mate_idx;
@@ -2962,16 +3032,12 @@ vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect)
         int last = seq_vect.size();
         taskflow.clear();
         taskflow.for_each_index(ref(first), ref(last), 1, [&](int j) {
-        //for (size_t j = i+1; j < seq_vect.size(); ++j) {
-            //bool being_found = bv_sim_found.test(j);
-            bool being_found = rotations[j] != 0;
-            if (being_found) // we have a greedy algo here, it is ok to skip some
+            if (rotations[j] != UINT16_MAX) // we have a greedy algo here, it is ok to skip some
                 return;
             const string& s_j = seq_vect[j];
             static thread_local DPMatrix dp;
             LCS_result result = find_LCS(s_i, s_j, dp);
             row_results[j] = result;
-
             if (result.len > min_match) { // minimal cut-off
                 const lock_guard<mutex> lock(best_match_mutex);
                 if (result.len > best_sim) {
@@ -2979,71 +3045,339 @@ vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect)
                     best_mate_idx = j;
                 }
             }
+
         }); // for j
+        //executor.run(taskflow).wait();
         executor.corun(taskflow);
-        //cout << " best-sim=" << best_sim << " ";
 
-        // find other similar cases in the row
+        fill(LCS_sum_vect.begin(), LCS_sum_vect.end(), 0);
+        fill(LCS_cnt_vect.begin(), LCS_cnt_vect.end(), 0);
+  
+        for (size_t j = i + 1; j < seq_vect.size(); ++j) {
+            if (rotations[j] != UINT16_MAX) 
+                continue;
+            const LCS_result& result = row_results[j];
+            if (result.len == 0)
+                continue;
+            auto query_pos = result.pos1;
+            assert(query_pos < LCS_sum_vect.size());
+            LCS_sum_vect[query_pos] += result.len; // sum of all possible gains for a particular position on the query
+            LCS_cnt_vect[query_pos]++; // register a hit
+        } // for j
+
+        // find the max-sum position
         //
-        if (best_sim) { // any similarity found?
-            const LCS_result& best_mate_res = row_results[best_mate_idx];
-            //if (best_mate_res.len > rotations[i])                               
-            rotations[i] = best_mate_res.pos1;
-            //if (best_mate_res.len > rotations[best_mate_idx])
-            rotations[best_mate_idx] = best_mate_res.pos2;
-            //bv_sim_found.set_bit_no_check(i);
-            //bv_sim_found.set_bit_no_check(best_mate_idx);
+        size_t best_LCS_sum = 0;
+        size_t best_LCS_pos = 0;
 
-            //size_t cnt{0}, cnt_ext{0};
-            const size_t greed_cut_off = (best_sim / 2);
-            const size_t greed_cut_off2 = (best_sim * 4) / 5;
+        float best_LCS_avg = 0;
+        size_t best_LCS_avg_pos = 0;
 
-            for (size_t j = best_mate_idx + 1; j < seq_vect.size(); ++j) {
-                if (rotations[j] != 0)
-                    continue;
 
-                const LCS_result& sim_res = row_results[j];
-                if (best_mate_res.pos1 == sim_res.pos1) { // same similarity position!
-                    if (sim_res.len >= greed_cut_off) {
-                          rotations[j] = sim_res.pos2;
-                        //bv_sim_found.set_bit_no_check(j);
-                        //++cnt;
-                    } else { // extra chance to be included by extension
-                        const string& s_j = seq_vect[j];
-                        size_t match_cnt = compute_match_count(s_i, s_j, best_sim, sim_res);
-                        if (match_cnt >= greed_cut_off2) {
-                              //      bv_sim_found.set_bit_no_check(j);
-                               rotations[j] = sim_res.pos2;
-                            //++cnt; ++cnt_ext;
-                        }
-                    }
+        for (size_t k = 0; k < LCS_sum_vect.size(); ++k) {
+            if (LCS_cnt_vect[k]) {
+                if (LCS_sum_vect[k] > best_LCS_sum) {
+                    best_LCS_sum = LCS_sum_vect[k];
+                    best_LCS_pos = k;
                 }
-            } // for j
-            //cout << "greedy-pick = " << cnt << " ext-extra= " << cnt-cnt_ext << endl;
-        }
+                float LCS_avg = float(LCS_sum_vect[k]) / float(LCS_cnt_vect[k]);
+                float d = LCS_avg - best_LCS_avg;
+                if (d > 0.1f ) {
+                    best_LCS_avg = LCS_avg;
+                    best_LCS_avg_pos = k;
+                }
+            }
+        } // for k
 
-        //{
-        //    auto found_cnt = bv_sim_found.count();
-        //    cout << "Found=" << found_cnt << " / " << seq_vect.size() << endl;
-        //}
-        //spdlog::info("Found={}/{}", found_count, seq_vect.size());
+        const LCS_result& max_LCS_res = row_results[best_mate_idx];
+        auto LCS_max_pos1 = max_LCS_res.pos1;
+
+        auto LCS_bestsum_pos1 = best_LCS_pos;
+
+        E_LCS_BestSet best_subj_set = find_best_subject_set(
+            LCS_sum_vect[LCS_max_pos1], LCS_cnt_vect[LCS_max_pos1],
+            LCS_sum_vect[LCS_bestsum_pos1], LCS_cnt_vect[LCS_bestsum_pos1],
+            best_LCS_avg, LCS_cnt_vect[best_LCS_avg_pos]);
+
+        size_t query_pos = 0;
+        bool result_flag = true;
+        switch(best_subj_set) {
+            case e_LCS: query_pos = LCS_max_pos1; break;
+            case e_LCS_maxsum: query_pos = LCS_bestsum_pos1; break;
+            case e_LCS_best_avg: query_pos = best_LCS_avg_pos; break;
+            default:
+                result_flag = false;
+            break;
+        } // switch
+        if (result_flag) {
+            size_t cnt = 0;
+            for (size_t j = i + 1; j < seq_vect.size(); ++j) {
+                if (rotations[j] != UINT16_MAX)
+                    continue;
+                const LCS_result& sim_res = row_results[j];
+                if ( sim_res.len && query_pos == sim_res.pos1 ) { //&& sim_res.len >= min_match) { // same similarity position!
+                    if (rotations[i] == UINT16_MAX) {
+                        rotations[i] = sim_res.pos1;
+                        ++found_count;
+                        ++cnt;
+                    }
+                    rotations[j] = sim_res.pos2;
+                    ++cnt;
+                    ++found_count;
+                }
+                //logger->info( "{}: Found={}/{}, min_match: {}", offset, found_count, seq_vect.size(), min_match);
+            } // for j
+        } else {
+            rotations[i] = 0;
+            ++found_count;
+        }
     } // for i
+
     return rotations;
 }    
 
+/*
+typedef struct {
+    vector<string> seqs;
+    vector<uint16_t> rotations;
+    vector<uint32_t> idx;
+} cluster_t;
+
+vector<uint16_t> rotate_seqs(tf::Executor& executor, vector<string>& seq_vect, size_t max_ssize, size_t offset)
+{
+    auto logger = spdlog::get("parser_logger");
+    logger->info("rotating {} sequences", seq_vect.size());
+    vector<uint16_t> rotations;
+    rotations.resize(seq_vect.size());
+    fill(rotations.begin(), rotations.end(), UINT16_MAX);
+
+    std::vector<LCS_result> row_results;
+    row_results.resize(seq_vect.size());    
+
+    //DPMatrix dp;
+    //bvector_type bv_sim_found; // elements already picked for rotation
+    //bv_sim_found.init();
+    unsigned min_match = 4;
+    if (max_ssize > 300)
+        min_match = 20;
+    else if (max_ssize > 200)
+        min_match = 16;
+    else if (max_ssize > 100)
+        min_match = 12;
+        
+    size_t found_count = 0;
+    tf::Taskflow taskflow;
+    std::mutex best_match_mutex;
+    std::vector<size_t> LCS_sum_vect;
+
+    LCS_sum_vect.resize(max_ssize); // resize and set to 0     
+    size_t cluster_id = 0;
+    map<size_t, size_t> cluster_stat;
+    vector<cluster_t> clusters;
+
+    for (size_t i = 0; i < seq_vect.size(); ++i) {
+
+        if (rotations[i] != UINT16_MAX) 
+            continue;
+        if (found_count >= seq_vect.size())
+            break;
+        //cout << i << ":" << endl;
+        const string& s_i = seq_vect[i];
+        unsigned best_sim = 0;
+        size_t best_mate_idx;
+        int first = i + 1;
+        int last = seq_vect.size();
+        //fill(row_results.begin(), row_results.end(), LCS_result());
+        taskflow.clear();
+        taskflow.for_each_index(ref(first), ref(last), 1, [&](int j) {
+        //for (size_t j = i+1; j < seq_vect.size(); ++j) {
+            if (rotations[j] != UINT16_MAX) // we have a greedy algo here, it is ok to skip some
+                return;
+            const string& s_j = seq_vect[j];
+            static thread_local DPMatrix dp;
+            LCS_result result = find_LCS(s_i, s_j, dp);
+            row_results[j] = result;
+            //if (result.len > min_match) { // minimal cut-off
+            //    const lock_guard<mutex> lock(best_match_mutex);
+            //    if (result.len > best_sim) {
+            //        best_sim = result.len; 
+            //        best_mate_idx = j;
+            //    }
+            //}
+
+        }); // for j
+        //executor.run(taskflow).wait();
+        executor.corun(taskflow);
+        //cout << " best-sim=" << best_sim << " ";
+
+        fill(LCS_sum_vect.begin(), LCS_sum_vect.end(), 0);   
+
+        for (size_t j = first; j < last; ++j) {
+            if (rotations[j] != UINT16_MAX) 
+                continue;
+
+            const LCS_result& result = row_results[j];
+            if (result.len == 0)
+                continue;
+            auto query_pos = result.pos1;
+            //if (result.len < min_match) // minimal cut-off
+              //  continue;
+            if  (query_pos >= LCS_sum_vect.size()) {
+                logger->error("query_pos {} out of range {}", query_pos, LCS_sum_vect.size());
+                throw runtime_error("query_pos out of range");
+            }
+            assert(query_pos < LCS_sum_vect.size());
+            LCS_sum_vect[query_pos] += result.len; // sum of all possible gains for a particular position on the query
+        } // for j
+        // find the max-sum position
+        //
+        //size_t best_LCS_sum = 0;
+        //size_t best_LCS_pos = -1;
+        auto maxElement = std::max_element(LCS_sum_vect.begin(), LCS_sum_vect.end());        
+        size_t best_LCS_pos = maxElement - LCS_sum_vect.begin();
+        // find other similar cases in the row
+        //
+        //if (best_LCS_pos != -1) { // any similarity found?
+            //auto& cluster = clusters.emplace_back();
+            size_t cnt = 0;
+            for (size_t j = i + 1; j < seq_vect.size(); ++j) {
+                if (rotations[j] != UINT16_MAX)
+                    continue;
+                const LCS_result& sim_res = row_results[j];
+                if ( sim_res.len && best_LCS_pos == sim_res.pos1 ) { //&& sim_res.len >= min_match) { // same similarity position!
+                    if (rotations[i] == UINT16_MAX) {
+                        //cluster.seqs.push_back(seq_vect[i]);
+                        //cluster.rotations.push_back(sim_res.pos1);
+                        //cluster.idx.push_back(i);
+
+                        rotations[i] = sim_res.pos1;
+                        ++found_count;
+                        ++cnt;
+                    }
+                    rotations[j] = sim_res.pos2;
+                    //cluster.seqs.push_back(seq_vect[j]);
+                    //cluster.rotations.push_back(sim_res.pos2);
+                    //cluster.idx.push_back(j);
+
+                    ++cnt;
+                    ++found_count;
+                }
+            } // for j
+            logger->info( "{}: Found={}/{}, min_match: {}", offset, found_count, seq_vect.size(), min_match);
+            cluster_stat[cluster_id++] = cnt;
+        //}
+    } // for i
+
+//    for (int i = 0; i < clusters.size(); ++i) {
+//        ofstream ofs("cluster_" + to_string(i));
+//        for (int j = 0; j < clusters[i].seqs.size(); ++j) {
+//            cyclicRotateString(clusters[i].seqs[j], clusters[i].rotations[j]);
+//            ofs << clusters[i].seqs[j] << endl;
+//        }
+//    }
+        
+//    for (const auto& it : cluster_stat) {
+//        logger->info("Cluster: {} size: {}", it.first, it.second);
+//    }
+    
+    return rotations;
+}    
+*/
+/*
 static
 void test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_size, vector<string>& seqs, const string& case_name)
 {
 
+    BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block    
     string name = case_name + "_" + to_string(offset);
+    vector<cluster_t> clusters = rotate_seqs(executor, seqs, max_size, offset);
+    svector_u32 rotate_vec;
+    auto r_bi = rotate_vec.get_back_inserter();
+
+    svector_u32 len_vec;
+    auto len_bi = len_vec.get_back_inserter();
+
+    svector_u32 idx_vec;
+    auto idx_bi = idx_vec.get_back_inserter();
+
+    bmatr_32 len_matr(max_size); // create sample row major bit-matrix
+
+    bmatr_32 bmatr0(max_size * 3); // create sample row major bit-matrix
+    int first = 0, last = max_size*3;
+    tf::Taskflow taskflow;
+    size_t cluster_offset = 0;
+    size_t cluster_id = 0;
+
+    for (auto& cluster : clusters) {
+        if (cluster.seqs.empty())
+            continue;
+        ofstream ofs(name + ".cluster_" + to_string(cluster_id++));       
+        for (size_t i = 0; i < cluster.seqs.size(); ++i) {
+            if (cluster.rotations[i] != 0) {
+                *r_bi = cluster.rotations[i];
+                cyclicRotateString(cluster.seqs[i], cluster.rotations[i]);                 
+            } else {
+                *r_bi = 0;
+            }
+            len_bi = cluster.seqs[i].size();
+            idx_bi = cluster.idx[i];
+            ofs << cluster.seqs[i] << endl;
+        }
+        taskflow.clear();
+        taskflow.for_each_index(std::ref(first), std::ref(last), 1, [&] (int i) {
+                bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i);
+                size_t seq_idx = i/3;
+                size_t bv_idx = i % 3;
+                for (size_t j = 0; j < cluster.seqs.size(); ++j) {
+                    auto& seq = cluster.seqs[j];
+                    if (seq_idx >= seq.size()) continue;
+                    auto v = DNA2int(seq[seq_idx]);
+                    v >>= bv_idx;
+                    if (v & 1) bv1->set_bit_no_check(j + cluster_offset);
+                }
+            }
+        );
+        executor.corun(taskflow);
+        cluster_offset += cluster.seqs.size();
+
+    }
+    r_bi.flush();
+    rotate_vec.optimize(TB);
+    bm::file_save_svector(rotate_vec, name + ".rot");        
+
+    idx_bi.flush();
+    idx_vec.optimize(TB);
+    bm::file_save_svector(idx_vec, name + ".idx");        
+
+    len_bi.flush();
+    len_vec.optimize(TB);
+    bm::file_save_svector(len_vec, name + ".len");        
+
+    bmatr0.optimize(TB);
+    save_matrix(name + ".matrix", bmatr0);
+
+    auto batch_size = fs::file_size(name + ".rot") + fs::file_size(name + ".len") + fs::file_size(name + ".idx") + fs::file_size(name + ".matrix");
+    spdlog::info("{} Batch size {}, num_rows {}", offset, batch_size, max_size);
+}
+
+*/
+
+static
+size_t test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_size, vector<string>& seqs, const string& case_name)
+{
+
+    BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block    
+    string name = case_name + "_" + to_string(offset);
+    size_t base_count = 0;
     {
-        auto rotations = rotate_seqs(executor, seqs);
+        auto rotations = rotate_seqs(executor, seqs, max_size, offset);
         svector_u32 rotate_vec;
         auto r_bi = rotate_vec.get_back_inserter();
         //ofstream ofs(name + ".sorted");
         for (size_t i = 0; i < seqs.size(); ++i) {
+            base_count += seqs[i].size();
             //ofs << seqs[i] << endl;
-            if (rotations[i]) {
+            if (rotations[i] != UINT16_MAX && rotations[i] != 0) {
                 *r_bi = rotations[i];
                 cyclicRotateString(seqs[i], rotations[i]);                 
             } else {
@@ -3061,26 +3395,25 @@ void test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_si
     taskflow.sort(idx.begin(), idx.end(), [&](uint32_t  l, uint32_t  r) {
         return seqs[l] < seqs[r];
     });
+    //executor.run(taskflow).wait();
     executor.corun(taskflow);
     svector_u32 len_vec;
-    auto bi = len_vec.get_back_inserter();
+    auto len_bi = len_vec.get_back_inserter();
 
     svector_u32 idx_vec;
     auto idx_bi = idx_vec.get_back_inserter();
 
-    vector<unsigned> lens(idx.size());
     bmatr_32 len_matr(max_size); // create sample row major bit-matrix
-    //ofstream ofs(name + ".rotations");
+    ofstream ofs(name + ".rotated");
 
     for (size_t j = 0; j < idx.size(); ++j) {
         auto& seq = seqs[idx[j]];
-        bi = seq.size();
+        len_bi = seq.size();
         idx_bi = idx[j];
-        lens[j] = seq.size();
-        //ofs << seq << endl;
+        ofs << seq << endl;
     }
-    //ofs.close();
-    bi.flush();
+    ofs.close();
+    len_bi.flush();
     idx_bi.flush();
     len_vec.optimize(TB);
     bm::file_save_svector(len_vec, name + ".len");        
@@ -3093,8 +3426,7 @@ void test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_si
     int first = 0, last = max_size*3;
 
     taskflow.clear();
-    taskflow.for_each_index(std::ref(first), std::ref(last), 1, 
-        [&] (int i) {
+    taskflow.for_each_index(std::ref(first), std::ref(last), 1, [&] (int i) {
             bmatr_32::bvector_type* bv1 = bmatr0.construct_row(i);
             size_t seq_idx = i/3;
             size_t bv_idx = i % 3;
@@ -3107,29 +3439,28 @@ void test_rotate_save_batch(tf::Executor& executor, size_t offset, size_t max_si
             }
         }
     );
+    //executor.run(taskflow).wait();
     executor.corun(taskflow);
-/*
-    array<bmatr_32::bvector_type*, 3> bv;
-    for (size_t i = 0; i < max_size; ++i) {
-        bv[0] = bmatr0.construct_row(i * 3);
-        bv[1] = bmatr0.construct_row(i * 3 + 1);
-        bv[2] = bmatr0.construct_row(i * 3 + 2);
-        taskflow.clear();
-        taskflow.for_each_index(0, 3, 1, [&](size_t bv_idx) {
-            for (size_t j = 0; j < idx.size(); ++j) {
-                auto& seq = seqs[idx[j]];
-                if (i >= seq.size()) continue;
-                auto v = DNA2int(seq[i]);
-                v >>= bv_idx;                            
-                if (v & 1) bv[bv_idx]->set(j);
-            }
-        });
-        executor.corun(taskflow);
-    }
-*/   
     bmatr0.optimize(TB);
     save_matrix(name + ".matrix", bmatr0);
+
+    auto batch_size = fs::file_size(name + ".rot") + fs::file_size(name + ".len") + fs::file_size(name + ".idx") + fs::file_size(name + ".matrix");
+    float bits_per_base = 0;
+    if (base_count) {
+        bits_per_base = float(batch_size * 8)/base_count;
+    }
+    spdlog::info("{} Batch size {}, num_rows {}, base_count {}, bits/base {}", offset, batch_size, max_size, base_count, bits_per_base);
+    {
+        ofstream os(name + ".info");
+        os << "Number of sequences : " << batch_size << endl;
+        os << "Max sequence length : " << max_size << endl;
+        os << "Number of bases     : " << base_count << endl;
+        os << "bits/base ratio     : " << bits_per_base << endl;
+    }
+    return batch_size;
 }
+
+
 
 
 template<typename TWriter>
@@ -3144,11 +3475,12 @@ void fastq_parser<TWriter>::test_rotate_create(const string& case_name, ErrorChe
     size_t batch_id = 0;
     string seq;
     ofstream seq_in(case_name + ".seq.in");
+    atomic<size_t> total_size = 0;
     for_each_spot<ScoreValidator>(error_checker, [&](vector<fastq_read>& spot) {
         if (spot.size() > v_seqs.size()) {
             auto n = v_seqs.size();
             v_seqs.resize(spot.size());
-            v_max_sizes.resize(spot.size());
+            v_max_sizes.resize(spot.size(), 0);
             if (n > 0) {
                 for (size_t i = n; i < spot.size(); ++i) {
                     v_seqs[i].resize(spot_id - (batch_id * batch_size));
@@ -3172,12 +3504,14 @@ void fastq_parser<TWriter>::test_rotate_create(const string& case_name, ErrorChe
         if (spot_id % batch_size == 0) { 
             int first = 0;
             int last = v_seqs.size();
+            
             taskflow.clear();
             taskflow.for_each_index(ref(first), ref(last), 1, [&](int i) { 
-                //spdlog::info("Processing read {} with {} sequences of length {}", i, v_seqs[i].size(), v_max_sizes[i]);
-                test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
+                spdlog::info("Processing batch {}, read {} with {} sequences of length {}", batch_id, i, v_seqs[i].size(), v_max_sizes[i]);
+                total_size += test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
             });
             executor.run(taskflow).wait();
+            
             v_max_sizes.clear();
             v_seqs.clear();
             ++batch_id;
@@ -3192,10 +3526,12 @@ void fastq_parser<TWriter>::test_rotate_create(const string& case_name, ErrorChe
         taskflow.clear();
         taskflow.for_each_index(ref(first), ref(last), 1, [&](int i) { 
             spdlog::info("Processing read {} with {} sequences of length {}", i, v_seqs[i].size(), v_max_sizes[i]);
-            test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
+            total_size += test_rotate_save_batch(executor, i, v_max_sizes[i], v_seqs[i], case_name + "_" + to_string(batch_id));
         });
         executor.run(taskflow).wait();
+        
     }
+    spdlog::info("Total size {}", total_size);
 
 }
 
@@ -3243,7 +3579,7 @@ void test_rotate_dump(const string& case_name)
             size_t num_seq = idx.size();
             vector<string> seqs(num_seq);
             for (size_t i = 0; i < num_seq; ++i) 
-                seqs[i].resize(lens[idx[i]]);
+                seqs[idx[i]].resize(lens[i]);
 
             size_t num_rows = bmatr.rows() / 3;
             for (size_t i = 0; i < num_rows; ++i) {
@@ -3253,7 +3589,7 @@ void test_rotate_dump(const string& case_name)
 
                 for (size_t j = 0; j < num_seq; ++j) {
                     auto& seq = seqs[idx[j]];
-                    if (i >= lens[j]) continue;
+                    if (i >= seq.size()) continue;
                     uint8_t v = 0;
                     if (bv3->test(j))
                         v = 1 << 2;
@@ -3264,12 +3600,12 @@ void test_rotate_dump(const string& case_name)
                     seq[i] = Int2DNA(v);
                 }
             }
-            //ofstream seq_out(case_name + ".seq.out");
+            
             for (size_t i = 0; i < num_seq; ++i) {
                 if (rotations[i]) 
                     cyclicRotateString(seqs[i], -rotations[i]);                 
-                //seq_out << seqs[i] << endl;
             }
+            
             spots.push_back(move(seqs));
         }
         size_t read_id = 0;
@@ -3289,7 +3625,7 @@ void test_rotate_dump(const string& case_name)
         ++batch_id;
     }
     seq_out.close();
-    auto cmd = fmt::format("diff {} {}", case_name + ".seq.in", case_name + ".seq.out");
+    auto cmd = fmt::format("diff --text {} {}", case_name + ".seq.in", case_name + ".seq.out");
     int result = system(cmd.c_str());
     // Check the result, if you want to get the result of the diff command
     if (result == 0)
@@ -3304,11 +3640,15 @@ template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker>
 void fastq_parser<TWriter>::parse_and_dump_rotate(ErrorChecker&& error_checker)
 {
-    test_rotate_create<ScoreValidator>("test", error_checker, 500000);
+    test_rotate_create<ScoreValidator>("test", error_checker, 1000000);
     spdlog::info("test_rotate_create done");
     test_rotate_dump("test");
 
 }
+
+
+
+
 
 #endif
 

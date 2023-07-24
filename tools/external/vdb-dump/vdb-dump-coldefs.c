@@ -526,14 +526,14 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t *i
                                 }
                                 def -> valid = false;
                             }
-                            
+
                         } else {
                             if ( NULL != invalid_columns ) {
                                 ( *invalid_columns )++;
                             }
                             def -> valid = false;
                         }
-                        
+
                     }
                 }
             }
@@ -546,8 +546,8 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t *i
 
 uint32_t vdcd_extract_from_view( col_defs* defs, const VView *view, uint32_t *invalid_columns ) {
     uint32_t found = 0;
-    KNamelist *physical_columns;
-    rc_t rc = VViewListCol( view, &physical_columns );
+    KNamelist * columns;
+    rc_t rc = VViewListCol( view, & columns );
     DISP_RC( rc, "VViewListCol() failed" );
     if ( rc == 0 ) {
         const VCursor *cursor;
@@ -555,13 +555,13 @@ uint32_t vdcd_extract_from_view( col_defs* defs, const VView *view, uint32_t *in
         DISP_RC( rc, "VViewCreateCursor() failed" );
         if ( rc == 0 ) {
             uint32_t n;
-            rc = KNamelistCount( physical_columns, &n );
+            rc = KNamelistCount( columns, &n );
             DISP_RC( rc, "KNamelistCount() failed" );
             if ( rc == 0 ) {
                 uint32_t i;
                 for ( i = 0; i < n && rc == 0; ++i ) {
                     const char *col_name;
-                    rc = KNamelistGet( physical_columns, i, &col_name );
+                    rc = KNamelistGet( columns, i, &col_name );
                     DISP_RC( rc, "KNamelistGet() failed" );
                     if ( rc == 0 ) {
                         p_col_def def = vdcd_append_col( defs, col_name );
@@ -584,7 +584,7 @@ uint32_t vdcd_extract_from_view( col_defs* defs, const VView *view, uint32_t *in
             }
             rc = vdh_vcursor_release( rc, cursor );
         }
-        rc = vdh_knamelist_release( rc, physical_columns );
+        rc = vdh_knamelist_release( rc, columns );
     }
     return found;
 }
@@ -853,7 +853,7 @@ static rc_t vdcd_collect_spread_col( const struct num_gen *row_set, col_def *cd,
                 rc = KOutMsg( "median = %,ld\n", round_to_uint64_t( median ) );
                 if ( 0 == rc ) {
                     double stdev = sqrt( ( ( s . sum_sq - ( s . sum * s . sum ) / s . count ) ) / ( s . count - 1 ) );
-                    rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );	
+                    rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );
                 }
             }
         }

@@ -92,4 +92,13 @@ if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
 else()
     message(WARNING "${DIRTOTEST}/bam-load${EXE} is not found. The corresponding tests are skipped." )
 endif()
+
+	add_executable( Test_BamLoader_Config_Tool config-tool.cpp )
+	target_link_libraries( Test_BamLoader_Config_Tool ${COMMON_LIBS_WRITE} ${COMMON_LINK_LIBRARIES})
+
+	add_test( NAME Test_BamLoader_Config
+		COMMAND
+			Test_BamLoader_Config_Tool
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	)
 endif()

@@ -101,7 +101,7 @@ static int color_2_ansi( KTUI_color c )
         case KTUI_c_black           : res = 0;  break;
         case KTUI_c_gray            : res = 8;  break;
 
-        case KTUI_c_dark_red        : res = 1;  break;    
+        case KTUI_c_dark_red        : res = 1;  break;
         case KTUI_c_red             : res = 9;  break;
 
         case KTUI_c_green           : res = 10;  break;
@@ -223,7 +223,7 @@ static void set_kb_raw_mode( struct termios * stored_settings )
     struct termios new_settings;
 
     /* ioctl( STDIN_FILENO, TCGETA, stored_settings ); */
-    tcgetattr( STDIN_FILENO, stored_settings );    
+    tcgetattr( STDIN_FILENO, stored_settings );
     memmove ( &new_settings, stored_settings, sizeof new_settings );
 
     new_settings.c_lflag &= ( ~ICANON );    /* exit canonical mode, enter raw mode */
@@ -232,7 +232,7 @@ static void set_kb_raw_mode( struct termios * stored_settings )
     new_settings.c_lflag &= ( ~ISIG );      /* don't automatically handle control-C */
     new_settings.c_cc[ VTIME ] = 1;         /* timeout (tenths of a second) */
     new_settings.c_cc[ VMIN ] = 0;          /* minimum number of characters */
-    
+
     /* apply the new settings */
     /* ioctl( STDIN_FILENO, TCSETA, &new_settings ); */
     tcsetattr( STDIN_FILENO, TCSANOW, &new_settings );
@@ -268,11 +268,11 @@ rc_t CC KTUI_Init_platform( KTUI * self )
         printf( "\033[?25l" );      /* cursor off */
 
         /* printf( "\033[?9h" );     mouse tracking on ( SET_X10_MOUSE ): mouse-down events, does not work with putty */
-		
+
 		printf( "\033[?1000h" );     /* mouse tracking on ( SET_VT200_MOUSE ): mouse-up/down events, does work with putty */
 		printf( "\033[?1002h" );     /* mouse tracking on ( SET_BTN_EVENT_MOUSE ): mouse-up/down/move events, does work with putty */
 		/*printf( "\033[?1003h" );   mouse tracking on ( SET_ANY_EVENT_MOUSE ): ??? */
-		
+
         fflush( stdout );
 
         sig_self = self;
@@ -298,9 +298,9 @@ rc_t CC KTUI_Destroy_platform ( struct KTUI_pf * pf )
     printf( "\033[?25h" );      /* cursor off */
 
     /*printf( "\033[?9l" );       mouse tracking X10-style off */
-	printf( "\033[?1000l" );       /* mouse tracking off */	
-	printf( "\033[?1002l" );       /* mouse tracking off */		
-	/*printf( "\033[?1003l" );    mouse tracking off */	
+	printf( "\033[?1000l" );       /* mouse tracking off */
+	printf( "\033[?1002l" );       /* mouse tracking off */
+	/*printf( "\033[?1003l" );    mouse tracking off */
     fflush( stdout );
 
     return 0;
@@ -359,7 +359,7 @@ mouse_event	7 6 5 4 3 2 1 0
               0 1 ............. button event ( down, up )				0x20
               1 0 ............. move event ( + button )					0x40
               1 1 ............. scroll event ( + button )				0x60
-			  
+
 ------------------------------------------------------------------------------------- */
 static void put_mouse_event_u( struct KTUI * self, unsigned int y )
 {
@@ -376,7 +376,7 @@ static void put_mouse_event_u( struct KTUI * self, unsigned int y )
 			case 0x02 : b = ktui_mouse_button_right; break;
 			case 0x03 : b = ktui_mouse_button_up; break;
 		}
-		
+
 		switch ( ev & 0x60 )
 		{
 			case 0x20 : a = ktui_mouse_action_button; break;

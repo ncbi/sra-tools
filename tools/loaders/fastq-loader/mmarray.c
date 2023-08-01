@@ -28,6 +28,7 @@
 #include <sys/mman.h>
 #include <klib/log.h>
 
+extern int ftruncate(int fd, off_t length);
 
 #define MMA_NUM_CHUNKS_BITS (20u)
 #define MMA_NUM_SUBCHUNKS_BITS ((32u)-(MMA_NUM_CHUNKS_BITS))
@@ -74,7 +75,7 @@ static MMA_ELEM_T *MMArrayGet(MMArray *const self, rc_t *const prc, uint64_t con
 
             if (ftruncate(self->fd, new_fsize) == 0) {
                 void *const base = mmap(NULL, chunk, PROT_READ|PROT_WRITE,
-                                        MAP_FILE|MAP_SHARED, self->fd, cur_fsize);
+                                        MAP_SHARED, self->fd, cur_fsize);
 
                 self->fsize = new_fsize;
                 if (base != MAP_FAILED)

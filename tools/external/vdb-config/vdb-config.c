@@ -24,6 +24,14 @@
 *
 */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* memchr */
+#endif
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /* strncasecmp */
+#endif
+
 #include "configure.h"
 
 #include <cloud/manager.h> /* CloudMgrRelease */
@@ -1178,7 +1186,7 @@ static rc_t In(const char* prompt, const char* def, char** read) {
                 string_copy_measure(buf, sizeof buf, def);
             }
             if (buf[0]) {
-                *read = strdup(buf);
+                *read = string_dup_measure(buf, NULL);
                 if (*read == NULL) {
                     rc = RC
                         (rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
@@ -1416,7 +1424,7 @@ static rc_t SetNode(KConfig* cfg, const Params* prm) {
             "normally this application should not be run as root/superuser");
     }
 
-    name = strdup(prm->setValue);
+    name = string_dup_measure(prm->setValue, NULL);
     if (name == NULL)
     {   return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
 

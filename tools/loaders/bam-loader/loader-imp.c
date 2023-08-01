@@ -2635,12 +2635,12 @@ MIXED_BASE_AND_COLOR:
                     else if (rl != clipped_rl) {
                         if (isPrimary) {
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded none-primary alignment. Try to defer none-primary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
                             rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogWarn, (klogWarn, rc, "None-primary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding none-primary alignment.",
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Non-primary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding non-primary alignment.",
                                                      "name=%s,len=%d", name, readlen));
                             DISCARD_BAD_SECONDARY;
                             rc = CheckLimitAndLogError();
@@ -2659,7 +2659,7 @@ MIXED_BASE_AND_COLOR:
                     }
                 }
                 else {
-                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding none-primary alignment",
+                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding non-primary alignment",
                                              "name=%s,ref=%s,pos=%u,count=%u", name, refSeq->name, (unsigned)rpos, (unsigned)matches));
                     DISCARD_BAD_SECONDARY;
                     rc = 0;
@@ -2794,7 +2794,7 @@ WRITE_SEQUENCE:
                             if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                 goto WRITE_ALIGNMENT;
                             }
-                            (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from none-primary alignment information", "id=%lx,name=%s", keyId, name));
+                            (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                         }
                         /* start spot assembly */
                         unsigned sz;
@@ -2925,7 +2925,7 @@ WRITE_SEQUENCE:
                                 if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                     goto WRITE_ALIGNMENT;
                                 }
-                                (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from none-primary alignment information", "id=%lx,name=%s", keyId, name));
+                                (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                             }
                             rc = KDataBufferResize(&seqBuffer, readlen + fip->readlen);
                             if (rc) {
@@ -3072,7 +3072,7 @@ WRITE_SEQUENCE:
                     if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                         goto WRITE_ALIGNMENT;
                     }
-                    (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from none-primary alignment information", "id=%lx,name=%s", keyId, name));
+                    (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                 }
                 if (ctx->m_isSingleGroup == false) // otherwise spotGroup was captured
                     getSpotGroup(rec, spotGroup);

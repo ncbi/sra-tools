@@ -23,6 +23,10 @@
 * =============================================================================$
 */
 
+#if _POSIX_C_SOURCE < 2
+#define _POSIX_C_SOURCE 2 /* popen, pclose */
+#endif
+
 #include <kapp/args.h> /* ArgsWhack */
 #include <kapp/log-xml.h> /* XMLLogger_Release */
 #include <kapp/main.h> /* KAppVersion */

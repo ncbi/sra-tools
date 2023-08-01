@@ -30,6 +30,8 @@
  *  make-read-filter --temp /tmp SRR123456
  */
 
+#include <sys/stat.h> /* stat */
+
 #include "make-read-filter.h" /* contains mostly boilerplate code */
 
 /* NOTE: Needs to be in same order as Options array */
@@ -544,7 +546,7 @@ static void updateCache(char const *const cachePath, char const *const inPath, V
     else {
         off_t const fsize = invalidated < 0 ? 0 : lseek(invalidated, 0, SEEK_END);
         if (fsize % sizeof(int64_t) == 0) {
-            void *const map = mmap(NULL, fsize, PROT_READ|PROT_WRITE, MAP_FILE | MAP_PRIVATE, invalidated, 0);
+            void *const map = mmap(NULL, fsize, PROT_READ|PROT_WRITE, MAP_PRIVATE, invalidated, 0);
             close(invalidated);
             if (map) {
                 qsort(map, fsize / sizeof(int64_t), sizeof(int64_t), cmp_int64_t);
@@ -858,7 +860,7 @@ static char const *absolutePath(char const *const path, char const *const wd)
                 buffer = temp;
                 bufsize *= 2;
                 if (rc == 0) {
-                    char const *const result = strdup(buffer);
+                    char const *const result = string_dup_measure(buffer, NULL);
                     free(buffer);
                     return result;
                 }
@@ -868,7 +870,7 @@ static char const *absolutePath(char const *const path, char const *const wd)
         }
     }
     else
-        return strdup(path);
+        return string_dup_measure(path, NULL);
 }
 
 static char const *getParameter(Args *const args, char const *const wd)
@@ -934,8 +936,15 @@ static char const *temporaryDirectory(Args *const args)
         len *= 2;
     }
     KDirectoryRelease(ndir);
-    
-    mkdtemp(pattern);
+
+    {
+        /* delete directory if it exists */
+        struct stat st = {0};
+        if (stat(pattern, &st) == 0)
+            removeTempDir(pattern);
+    }
+
+    mkdir(pattern, 0700);
     pLogMsg(klogDebug, "output to $(out)", "out=%s", pattern);
     if (chdir(pattern) == 0)
         return pattern;

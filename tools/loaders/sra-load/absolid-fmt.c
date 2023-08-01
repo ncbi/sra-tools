@@ -23,6 +23,11 @@
  * ===========================================================================
  *
  */
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /* strncasecmp */
+#endif
+
 #include <kapp/main.h>
 #include <klib/log.h>
 #include <klib/rc.h>

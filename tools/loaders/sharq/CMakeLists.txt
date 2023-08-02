@@ -47,6 +47,7 @@ set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib .tbd)
 find_package(ZLIB)
 find_package(BZip2)
 find_package (Threads)
+find_package(OpenMP)
 
 # check whether RE2 is accessible
 set(RE2_URL https://github.com/google/re2)
@@ -96,9 +97,10 @@ ExternalProject_Add(RE2
     -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
     -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
 )
-set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
+set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2)
 
 #file(COPY ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py  DESTINATION ${BINDIR})
+
 
 add_custom_target(
   sharq.py
@@ -113,7 +115,7 @@ target_include_directories(sharq PUBLIC ${LOCAL_INCDIR} ./ ../../../)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
 endif()
-target_link_libraries(sharq ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(sharq ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}  libsais  OpenMP::OpenMP_CXX)
 MakeLinksExe( sharq false )
 
 if( RUN_SANITIZER_TESTS )

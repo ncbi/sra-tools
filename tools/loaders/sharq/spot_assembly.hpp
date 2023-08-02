@@ -793,6 +793,10 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
 
 struct spot_compress_t 
 {
+    spot_compress_t() = default;
+    spot_compress_t(const spot_compress_t&) {
+
+    };
     spot_compress_t (const string& name) : m_case_name(name) 
     {
     }
@@ -896,6 +900,23 @@ struct spot_compress_t
         bm::file_load_svector(m_metadata.get<u64_t>(metadata_t::e_QualOffsetId), m_case_name + ".qual_offset");
         bm::file_load_svector(m_quality, m_case_name + ".qual");
 
+    }
+
+
+    void save_seq(size_t spot_id, const string& seq) 
+    {
+        size_t sz = seq.size();
+        assert(sz > 0);
+        tmp_buffer.resize(sz);
+        for (size_t i = 0; i < sz; ++i) {
+            tmp_buffer[i] = DNA2int(seq[i]);
+        }
+        size_t offset = m_seq_offset;
+        m_sequence.import(&tmp_buffer[0], sz, offset);
+        m_seq_offset = offset + sz;
+        //m_offsets.set(m_seq_offset);
+        offset |= sz << 48;
+        m_metadata.get<u64_t>(metadata_t::e_SeqOffsetId).set(spot_id, offset);
     }
 
     template<typename T>

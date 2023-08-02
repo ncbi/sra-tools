@@ -105,6 +105,9 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Short         7.8.1 "--spot-layout
 AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Abbreviated   7.8.2 "--spot-layout SRR000123 --detail 1" )
 AddQueryTest( Test_Sra_Info_SpotLayout_Detail_Full          7.8.3 "--spot-layout SRR000123 --detail 2" )
 
+# spot layout, first N rows only
+AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR000123 --rows 5" )
+
 # # multiple queries
 # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
 # COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123 -P -A -Q -S" "." "8.0"

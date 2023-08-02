@@ -32,10 +32,7 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
-// #include <utility>
-// #include <map>
 #include <vector>
-// #include <algorithm>
 
 #include <klib/rc.h>
 #include <klib/printf.h>

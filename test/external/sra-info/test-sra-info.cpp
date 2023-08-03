@@ -266,8 +266,6 @@ FIXTURE_TEST_CASE(SpotLayout_NotUsingConsensus, SraInfoFixture)
     REQUIRE_EQ( uint32_t(378), sl[0].reads[0].length );
 }
 
-
-
 // SpotLayout, detail levels
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
 {
@@ -407,6 +405,42 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_XML, SraInfoFixture)
 {
     const string expected("<layout><count>4583</count><reads>2</reads></layout>\n");
     REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Short, Formatter::XML ) );
+}
+
+// SpotLayout, limited to N top rows
+FIXTURE_TEST_CASE(SpotLayout_TopRows, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    const uint64_t TOP_ROWS = 5;
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Full, true, TOP_ROWS );
+    REQUIRE_EQ( size_t( TOP_ROWS ), sl.size() );
+
+    // the top 5 rows are all different layouts
+    {
+        class SraInfo::SpotLayout & l = sl[0];
+        REQUIRE_EQ( uint64_t(1), l.count );
+        REQUIRE_EQ( size_t(2), l.reads.size() );
+        REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
+        REQUIRE_EQ( uint32_t(4), l.reads[0].length );
+        REQUIRE_EQ( string("BIOLOGICAL"), l.reads[1].TypeAsString() );
+        REQUIRE_EQ( uint32_t(297), l.reads[1].length );
+    }
+    //etc
+}
+
+FIXTURE_TEST_CASE(SpotLayout_TopRows_MoreThanPresent, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    const uint64_t TOTAL_ROWS = 4583;
+    const uint64_t TOP_ROWS = TOTAL_ROWS + 10000;
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Full, true, TOP_ROWS );
+    // check the total
+    size_t total = 0;
+    for( auto i : sl )
+    {
+        total += i.count;
+    }
+    REQUIRE_EQ( size_t( TOTAL_ROWS ), total );
 }
 
 // IsAligned

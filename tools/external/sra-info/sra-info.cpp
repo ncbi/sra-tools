@@ -235,8 +235,11 @@ SraInfo::ReadStructure::Encode( Detail detail ) const
     }
 }
 
-SraInfo::SpotLayouts
-SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by descending count
+SraInfo::SpotLayouts // sorted by descending count
+SraInfo::GetSpotLayouts(
+    Detail detail,
+    bool useConsensus,
+    uint64_t topRows ) const
 {
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
@@ -304,7 +307,32 @@ SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by d
             rs_map[r] = 1;
         }
     };
-    cursor.foreach( handle_row );
+    if ( topRows == 0 )
+    {   // all rows
+        cursor.foreach( handle_row );
+    }
+    else
+    {   // read at most topRows
+        auto const range = cursor.rowRange();
+        size_t count = range.second - range.first;
+        if ( count > topRows )
+        {
+            count = topRows;
+        }
+
+        std::vector< VDB :: Cursor :: RawData > data;
+        data.resize( cursor.columns() );
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            auto rowId = range.first + i;
+            for ( unsigned int j = 0; j < cursor.columns(); ++j)
+            {
+                data[ j ] = cursor.read( rowId, j );
+            }
+            handle_row( rowId, data );
+        }
+    }
 
     for( auto it = rs_map.begin(); it != rs_map.end(); ++it )
     {

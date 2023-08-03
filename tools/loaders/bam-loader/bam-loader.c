@@ -719,7 +719,7 @@ static rc_t getArgValue(Args *const args, char const *name, int index, char cons
     rc_t const rc = ArgsOptionValue(args, name, index, &value);
     if (rc) return rc;
     free((void *)*result);
-    *result = strdup((const char*)value);
+    *result = string_dup_measure((const char*)value, NULL);
     assert(*result);
     return 0;
 }
@@ -860,7 +860,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             if (rc)
                 break;
             if (load == 0) {
-                G.firstOut = strdup(G.outpath);
+                G.firstOut = string_dup_measure(G.outpath, NULL);
             }
             value = strrchr(G.outpath, '/');
             G.outname = value ? (value + 1) : G.outpath;
@@ -1345,11 +1345,11 @@ rc_t CC KMain(int argc, char *argv[])
     G.mode = mode_Archive;
     G.globalMode = mode_Archive;
     G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
-    G.schemaPath = strdup(SCHEMAFILE);
+    G.schemaPath = string_dup_measure(SCHEMAFILE, NULL);
     G.omit_aligned_reads = true;
     G.omit_reference_reads = true;
     G.minMapQual = 0; /* accept all */
-    G.tmpfs = strdup("/tmp");
+    G.tmpfs = string_dup_measure("/tmp", NULL);
     G.cache_size = ((size_t)16) << 30;
     G.maxErrCount = 1000;
     G.minMatchCount = 10;

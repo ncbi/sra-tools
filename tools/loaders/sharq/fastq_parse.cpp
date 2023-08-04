@@ -706,7 +706,7 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     if (mNoTimeStamp == false)
         mReport["timing"]["second_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
 
-    parser.update_readers_telemetry();
+    parser.template update_readers_telemetry<ScoreValidator>();
 
 }
 

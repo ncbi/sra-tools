@@ -239,6 +239,8 @@ typedef struct {
     size_t duplicate_reads_len = 0;
     size_t subsequence_reads_count = 0;
     size_t subsequence_reads_len = 0;
+    size_t qual_scores_added = 0;
+    size_t qual_scores_removed = 0;
     array<size_t, 256> base_counts{};
     array<size_t, 256> quality_counts{};
 } data_input_metrics_t;
@@ -369,9 +371,13 @@ public:
     template<typename ScoreValidator = validator_options<>>
     bool get_spot_mt(const string& spot_name, vector<CFastqRead>& reads);
 
-    bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true if file has no more reads
+    bool eof() const { return m_stream->eof();}  ///< Returns true if file is  at eof 
     // multi-threaded version of eof
-    bool eof_mt() const { return m_read_queue->is_done && m_read_queue->queue.peek() == nullptr;}  ///< Returns true if file has no more reads
+    bool eof_mt() const { return m_read_queue->is_done && m_read_queue->queue.peek() == nullptr;}  ///< Returns true if file is at eof
+
+    bool end_of_data() const { return m_buffered_spot.empty() && m_pending_spot.empty() && eof();}  ///< Returns true if file has no more reads
+    // multi-threaded version of end_of_data      
+    bool end_of_data_mt() const { return m_buffered_spot.empty() && m_pending_spot.empty() && eof_mt();}  ///< Returns true if file has no more reads
 
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
@@ -654,6 +660,7 @@ public:
     /**
      * @brief Update telemetry for the readers
     */
+    template<typename ScoreValidator>
     void update_readers_telemetry();
 
     /**
@@ -728,8 +735,6 @@ private:
      * @param[in] reads assembled spot
      */
     void update_telemetry(const spot_t& spot);
-
-
 
     shared_ptr<TWriter>  m_writer;                     ///< FASTQ writer
     vector<fastq_reader> m_readers;                    ///< List of readers
@@ -996,6 +1001,7 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
     }
     if (!m_pending_spot.empty() && m_pending_spot.front().Spot() == spot_name) {
         get_next_spot<ScoreValidator>(m_spot, reads);
+        assert(!reads.empty() && reads.front().Spot() == spot_name);
         m_buffered_spot = move(m_next_reads);
         return true;
     } 
@@ -1017,6 +1023,7 @@ bool fastq_reader::get_spot_mt(const string& spot_name, vector<CFastqRead>& read
     }
     if (!m_pending_spot.empty() && m_pending_spot.front().Spot() == spot_name) {
         get_next_spot_mt<ScoreValidator>(m_spot, reads);
+        assert(!reads.empty() && reads.front().Spot() == spot_name);
         m_buffered_spot = move(m_next_reads);
         return true;
     } 
@@ -1068,6 +1075,8 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
         spdlog::warn(e.Message());
         read.mQualScores.resize( sz );
+        m_input_metrics.qual_scores_removed += (qual_size - sz);
+
     }
 
     while (qual_size < sz) {
@@ -1075,6 +1084,8 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         read.mQuality += to_string(ScoreValidator::min_score() + 30);
         read.mQualScores.push_back(ScoreValidator::min_score() + 30);
         ++qual_size;
+        ++m_input_metrics.qual_scores_added;
+
     }
     if (m_curr_platform != m_defline_parser.GetPlatform())
         throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
@@ -1097,6 +1108,7 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
         // quality line too long; warn and truncate
         fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
         spdlog::warn(e.Message());
+        m_input_metrics.qual_scores_removed += (qual_size - sz);
         read.mQuality.resize( sz );
     }
 
@@ -1109,12 +1121,13 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
     if (qual_size < sz) {
         if (qual_size == 0 && !eof())
             throw fastq_error(111, "Read {}: no quality scores", read.Spot());
+        m_input_metrics.qual_scores_added += (sz - qual_size);
         read.mQuality.append(sz - qual_size,  char(ScoreValidator::min_score() + 30));
     }
     if (m_curr_platform != m_defline_parser.GetPlatform())
         throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
 
-    for (auto c : read.mQuality)
+    for (const auto& c : read.mQuality)
         ++m_input_metrics.quality_counts[c];
 }
 
@@ -1341,7 +1354,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         check_duplicate_spot_names(search_terms, error_checker);
     }
 
-    update_readers_telemetry();
+    update_readers_telemetry<ScoreValidator>();
 
 //    spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
     if (m_telemetry.groups.back().rejected_spots > 0)
@@ -1350,6 +1363,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
 }
 
 template<typename TWriter>
+template<typename ScoreValidator>
 void fastq_parser<TWriter>::update_readers_telemetry()
 {
     for(const auto& reader : m_readers) {
@@ -1357,6 +1371,8 @@ void fastq_parser<TWriter>::update_readers_telemetry()
         m_telemetry.input_metrics.sequence_len += reader.m_input_metrics.sequence_len;
         m_telemetry.input_metrics.quality_len += reader.m_input_metrics.quality_len;
         m_telemetry.input_metrics.rejected_read_count += reader.m_input_metrics.rejected_read_count;
+        m_telemetry.input_metrics.qual_scores_added += reader.m_input_metrics.qual_scores_added;
+        m_telemetry.input_metrics.qual_scores_removed += reader.m_input_metrics.qual_scores_removed;
 
         for (size_t i = 0; i < reader.m_input_metrics.base_counts.size(); ++i) {
             m_telemetry.input_metrics.base_counts[i] += reader.m_input_metrics.base_counts[i];
@@ -1381,6 +1397,15 @@ void fastq_parser<TWriter>::update_readers_telemetry()
         if (m_telemetry.input_metrics.quality_counts[i] != out_counts) 
             throw fastq_error(230, "Input quality counts mismatch for {} : input {} != parsed {}", char(i), m_telemetry.input_metrics.quality_counts[i], out_counts);
     }       
+    // adjust quality counts for numeric scores to match run_stat format
+    if constexpr (ScoreValidator::type() == eNumeric) {
+        for (int i = (int)m_telemetry.output_metrics.quality_counts.size() - 1; i >= 0; --i) {
+            if (m_telemetry.output_metrics.quality_counts[i] > 0) {
+                m_telemetry.output_metrics.quality_counts[i + 33] = m_telemetry.output_metrics.quality_counts[i];
+                m_telemetry.output_metrics.quality_counts[i] = 0;
+            }
+        }
+    }
 
 }
 
@@ -1410,7 +1435,7 @@ void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
         }
         qual_scores.clear();
         r.GetQualScores(qual_scores);
-        for (auto c : qual_scores) {
+        for (const auto& c : qual_scores) {
             ++m_telemetry.output_metrics.quality_counts[c];
         }
         telemetry.max_sequence_size = max<int>(sz, telemetry.max_sequence_size);
@@ -1909,6 +1934,11 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
             im["subsequence_reads"] = m_telemetry.input_metrics.subsequence_reads_count;
             im["subsequence_reads_len"] = m_telemetry.input_metrics.subsequence_reads_len;
         }
+        if (m_telemetry.input_metrics.qual_scores_added) 
+            im["qual_scores_added"] = m_telemetry.input_metrics.qual_scores_added;
+        if (m_telemetry.input_metrics.qual_scores_removed) 
+            im["qual_scores_removed"] = m_telemetry.input_metrics.qual_scores_removed;
+
         if (j.contains("is_spot_assembly")) {
             im["far_reads"] = m_telemetry.assembly_metrics.number_of_far_reads;
         }
@@ -1934,11 +1964,11 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         om["spot_count"] = m_telemetry.output_metrics.spot_count;       
         auto& qm = j["qc"];
         if (m_telemetry.input_metrics.sequence_len > 0) {
-            qm["sequence_loss"] = m_telemetry.input_metrics.sequence_len - m_telemetry.output_metrics.sequence_len;
+            qm["sequence_loss"] = (long long int)(m_telemetry.input_metrics.sequence_len - m_telemetry.output_metrics.sequence_len);
             qm["pct_sequence_loss"] = fmt::format("{:.2f}", 100. * (1. - float(m_telemetry.output_metrics.sequence_len)/m_telemetry.input_metrics.sequence_len));
         }
         if (m_telemetry.input_metrics.quality_len > 0) {
-            qm["quality_loss"] = m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len;
+            qm["quality_loss"] = (long long int)(m_telemetry.input_metrics.quality_len - m_telemetry.output_metrics.quality_len);
             qm["pct_quality_loss"] = fmt::format("{:.2f}", 100. * (1. - float(m_telemetry.output_metrics.quality_len)/m_telemetry.input_metrics.quality_len));
         }
     } catch (exception& e) {
@@ -2058,7 +2088,6 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
         bool has_spots;
         string spot;
         bool check_readers = false;
-        int early_end = 0;
         CFastqRead read;
 
         vector<vector<CFastqRead>> spot_reads(num_readers);
@@ -2071,12 +2100,11 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
             try {
     #ifdef _PARALLEL_READ1_
                 if (!m_readers[i] . template get_next_spot_mt<ScoreValidator>(spot, spot_reads[i])) {
-                    if (m_readers[i].eof_mt()) {
+                    if (m_readers[i].end_of_data_mt()) {
     #else                
                 if (!m_readers[i] . template get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
-                    if (m_readers[i].eof()) {
+                    if (m_readers[i].end_of_data()) {
     #endif                    
-                        ++early_end;
                         check_readers = num_readers > 1 && m_allow_early_end == false;
                         continue;
                     }
@@ -2116,6 +2144,7 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
                 break;
 
             if (check_readers) {
+                // All readers must be at eof unless we allow early file end
                 int readers_at_eof = 0;
                 for (int i = 0; i < num_readers; ++i) {
     #ifdef _PARALLEL_READ1_
@@ -2125,8 +2154,6 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
     #endif                
                         ++readers_at_eof;
                 }
-                if ((int)readers_at_eof == num_readers) // all readers are at EOF
-                    break;
                 if (readers_at_eof > 0 && (int)readers_at_eof < num_readers) {
                     for (int i = 0; i < num_readers; ++i) {
     #ifdef _PARALLEL_READ1_

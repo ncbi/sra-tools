@@ -107,7 +107,7 @@ retry:
         }
     }
     if( rc != 0 ) {
-        PLOGERR(klogErr, (klogErr, rc, "failed to create table with schema $(schema)", PLOG_S(tablespec), tablespec));
+        PLOGERR(klogErr, (klogErr, rc, "failed to create table with schema $(schema)", PLOG_S(schema), tablespec));
     } else {
         DEBUG_MSG (7, ("Created table with schema '%s'\n", tablespec));
     }

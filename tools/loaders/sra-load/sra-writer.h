@@ -34,7 +34,7 @@ typedef struct SRAWriter SRAWriter;
  */
 rc_t SRAWriter_Make( SRAWriter** self, const SRALoaderConfig* config);
 
-rc_t SRAWriter_CreateTable(SRAWriter* self, const char* schema);
+rc_t SRAWriter_CreateTable(SRAWriter* self, const char * schema_file, const char* tablespec);
 
 rc_t SRAWriter_OpenColumnWrite(SRAWriter* self, uint32_t *idx, const char *name, const char *datatype);
 

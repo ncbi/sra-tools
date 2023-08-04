@@ -376,7 +376,7 @@ rc_t SRAWriteAbsolid_Write(const SRAWriteAbsolid* cself, const SRALoaderFile* fi
     }
     if( rc == 0 && cself->ci_name == 0 ) {
         SRAWriteAbsolid* self =(SRAWriteAbsolid*)cself;
-        if( (rc = SRAWriter_CreateTable(cself->base, "NCBI:SRA:ABI:tbl:v2")) != 0 ) {
+        if( (rc = SRAWriter_CreateTable(cself->base, "sra/abi.vschema", "NCBI:SRA:ABI:tbl:v2")) != 0 ) {
             return rc;
         }
         if( (rc = SRAWriter_WriteDefaults(cself->base)) != 0 ) {

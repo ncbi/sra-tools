@@ -62,7 +62,7 @@ struct SchemaData {
 
         if (!parent.empty()) {
             out += openParent1;
-            if (openParent2 != "") {
+            if (!openParent2.empty()) {
                 for (int i = 0; i < indent; ++i) out += space;
                 out += openParent2;
                 ++indent;
@@ -76,12 +76,12 @@ struct SchemaData {
                 frst = false;
             }
  
-            if (closeParent2 != "") {
+            if (!closeParent2.empty()) {
                 out += closeParent1;
                 for (int i = 0; i < indent; ++i) out += space;
                 out += closeParent2;
             }
-            if (openParent2 != "")
+            if (!openParent2.empty())
                 --indent;
         }
         else

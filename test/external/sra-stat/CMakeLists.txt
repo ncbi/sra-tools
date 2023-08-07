@@ -20,18 +20,18 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# ==============================================================================$
 
 add_compile_definitions( __mod__="test/external/sra-stat" )
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
+    ToolsRequired(sra-stat)
 
 	#add_executable( testAssemblyStatistics testAssemblyStatistics )
 	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	#target_link_libraries( testAssemblyStatistics ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
-	add_test( NAME Test_Sra_stat
+	add_test( NAME Test_Sra_stat_dflt
 		COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
@@ -41,6 +41,24 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 		add_test( NAME Test_Sra_stat-tsan
 			COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+
+	if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
+	    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
+	    add_test(NAME LatfLoadTestSetup COMMAND
+	        bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n' > tmp.kfg"
+	        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	    set_tests_properties(
+	        LatfLoadTestSetup PROPERTIES FIXTURES_SETUP LatfLoadTest )
+
+	    add_test( NAME Test_Sra_stat_unln
+		    COMMAND
+		        ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+		        ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+		        ./test-sra-stat-unaligned-bam.sh ${DIRTOTEST} sra-stat
+		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	    set_tests_properties(
+	        Test_Sra_stat_unln PROPERTIES FIXTURES_REQUIRED LatfLoadTest )
 	endif()
 
 	add_test( NAME SlowTest_Sra_stat
@@ -55,7 +73,4 @@ if ( EXISTS "${DIRTOTEST}/sra-stat${EXE}" )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
-else()
-	message(WARNING "${DIRTOTEST}/sra-stat${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

@@ -52,6 +52,7 @@
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/sort.h> /* ksort */
+#include <klib/text.h>
 
 #include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
 
@@ -163,9 +164,9 @@ rc_t BAM_HEADER_RG_copy(BAM_HEADER_RG* dest, const BAM_HEADER_RG* src)
     assert(dest && !dest->ID && !dest->LB && !dest->SM
         && src  &&  src ->ID &&  src ->LB &&  src ->SM);
 
-    dest->ID = strdup(src->ID);
-    dest->LB = strdup(src->LB);
-    dest->SM = strdup(src->SM);
+    dest->ID = string_dup_measure(src->ID, NULL);
+    dest->LB = string_dup_measure(src->LB, NULL);
+    dest->SM = string_dup_measure(src->SM, NULL);
 
     if (!dest->ID || !dest->LB || !dest->SM) {
         return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
@@ -1460,7 +1461,7 @@ rc_t TableCountsRead1(TableCounts* self,
         assert((self->used < self->allocated) && (self->count != NULL));
         c = &self->count[self->used];
         memset(c, 0, sizeof *c);
-        c->tableName = strdup(tableName);
+        c->tableName = string_dup_measure(tableName, NULL);
         if (c->tableName == NULL)
         {   return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
         c->tableState = eMSFound;
@@ -2149,7 +2150,7 @@ rc_t readStatsMetaAttr(const KMDataNode* parent, const char* parentName,
     }
     else if (rc == 0)
     {
-        *result = strdup(temp);
+        *result = string_dup_measure(temp, NULL);
     }
     if (rc == 0 && *result == NULL)
     {
@@ -2189,7 +2190,7 @@ rc_t readStatsMetaNodes(const KMDataNode* parent, const char* name,
             if (tempname)
                 stats->spot_group = tempname;
             else {
-                stats->spot_group = strdup(name);
+                stats->spot_group = string_dup_measure(name, NULL);
                 if (stats->spot_group == NULL)
                 {   rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
             }
@@ -2828,16 +2829,31 @@ rc_t print_results(const Ctx* ctx)
             mismatch |= eBIO_BASE_COUNT;
         if (ctx->total->spot_count != mDfl->spot_count)
             mismatch |= eSPOT_COUNT;
+
         if (ctx->total->total_cmp_len != mDfl->CMP_BASE_COUNT) {
-            if (ctx->total->total_cmp_len == 0 &&
-                ctx->total->BASE_COUNT == mDfl->CMP_BASE_COUNT &&
-                ctx->db != NULL)
-            { /* DB without references. See comment below. */
+            /* DB without references and without CMP reads */
+            bool noRefDbWithoutCmpReads =
+                ctx->total->total_cmp_len == 0 &&
+                mDfl->CMP_BASE_COUNT == ctx->total->BASE_COUNT &&
+                ctx->db != NULL;
+            
+            /* DB without references and with CMP reads.
+               A database with a single SEQUENCE table (without references)
+               and all reads compressed.
+               In this case CMP_BASE_COUNT == 0 or absent is ignored. */
+            bool noRefDbWithCmpReads =
+                ctx->total->total_cmp_len == ctx->total->BASE_COUNT &&
+                mDfl->CMP_BASE_COUNT == 0 &&
+                ctx->singleTblDb;
+
+            if (noRefDbWithoutCmpReads || noRefDbWithCmpReads)
+                /* DB without references. */
+                /* See comment about noRefDbWithoutCmpReads below. */
                 mismatchCMP_BASE_COUNT = true;
-            }
             else
                 mismatch |= eCMP_BASE_COUNT;
         }
+
         if (ssDfl != NULL) {
             uint32_t i = 0;
             SSGMatcher sg;
@@ -2865,18 +2881,23 @@ rc_t print_results(const Ctx* ctx)
                     break;
                 }
                 if (ssNxt->total_cmp_len != mNxt->CMP_BASE_COUNT) {
-                    if (ctx->total->total_cmp_len == 0 &&
-                        ssNxt->total_len == mNxt->CMP_BASE_COUNT &&
-                        ctx->db != NULL)
-                    {
-                    /* for a database where total basecont == total cmp basecount:
-                      CMP_BASE_COUNT does not make sence.
-                      It is a dababase without references.
-                      So if it is not recorded at all - it's OK.
-                      We ignore this.
-                     */
+                    bool noRefDbWithoutCmpReads =
+                        ctx->total->total_cmp_len == 0 &&
+                        mNxt->CMP_BASE_COUNT == ssNxt->total_len &&
+                        ctx->db != NULL;
+                    bool noRefDbWithCmpReads =
+                        ctx->total->total_cmp_len == ctx->total->BASE_COUNT &&
+                        mNxt->CMP_BASE_COUNT == 0 &&
+                        mDfl->CMP_BASE_COUNT == 0 &&
+                        ctx->singleTblDb;
+                    if (noRefDbWithoutCmpReads || noRefDbWithCmpReads)
+                         /* noRefDbWithoutCmpReads:
+                     for a database where total basecont == total cmp basecount:
+                     CMP_BASE_COUNT does not make sence.
+                     It is a dababase without references.
+                     So if it is not recorded at all - it's OK.
+                     We ignore this. */
                         mismatchCMP_BASE_COUNT = true;
-                    }
                     else {
                       if (ctx->pb->repair && spotGroupN == 1 && isDefault) {
                         PLOGMSG(klogInfo, (klogInfo,
@@ -2884,7 +2905,7 @@ rc_t print_results(const Ctx* ctx)
                           "N=%s,E=%lu,A=%lu",
                           "STATS/SPOT_GROUP/default/CMP_BASE_COUNT",
                           ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
-                        if (ctx->pb->report)
+                      if (ctx->pb->report)
                             PLOGMSG(klogInfo, (klogInfo,
                               "Examined STATS/SPOT_GROUP/$(N)/CMP_BASE_COUNT - "
                               "mismatch: Expected:$(E), Actual:$(A).",
@@ -2904,7 +2925,7 @@ rc_t print_results(const Ctx* ctx)
                     "Expected:$(E), Actual:$(A).",
                     "N=%s,E=%lu,A=%lu", mNxt->spot_group,
                     ssNxt->total_cmp_len, mNxt->CMP_BASE_COUNT));
-               if (ssNxt->total_len != mNxt->BASE_COUNT) {
+                if (ssNxt->total_len != mNxt->BASE_COUNT) {
                     mismatch |= eSG_BASE_COUNT;
                     break;
                 }
@@ -2996,12 +3017,16 @@ rc_t print_results(const Ctx* ctx)
             if (ctx->pb->total.spot_count != m->spot_count)
                 mismatch |= eTOTAL_SPOT_COUNT;
             if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT) {
-                if (ctx->pb->total.total_cmp_len == 0 &&
-                    ctx->pb->total.BASE_COUNT == m->CMP_BASE_COUNT &&
-                    ctx->db != NULL)
-                {
+                bool noRefDbWithoutCmpReads =
+                    ctx->pb->total.total_cmp_len == 0 &&
+                    m->CMP_BASE_COUNT == ctx->pb->total.BASE_COUNT &&
+                    ctx->db != NULL;
+                bool noRefDbWithCmpReads =
+                    ctx->pb->total.total_cmp_len == ctx->pb->total.BASE_COUNT &&
+                    m->CMP_BASE_COUNT == 0 &&
+                    ctx->singleTblDb;
+                if (noRefDbWithoutCmpReads || noRefDbWithCmpReads)
                     mismatchCMP_BASE_COUNT = true;
-                }
                 else
                     mismatch |= eTOTAL_CMP_BASE_COUNT;
             }
@@ -4288,6 +4313,33 @@ void CtxRelease(Ctx* ctx)
 
     memset(ctx, 0, sizeof *ctx);
 }
+
+static bool VDatabaseIsSingleTblDb(const VDatabase * self) {
+    bool isSingleTblDb = false;
+
+    uint32_t count = 0;
+    
+    KNamelist *names = NULL;
+    rc_t rc = VDatabaseListTbl(self, &names);
+    if (rc != 0)
+        return false;
+    
+    rc = KNamelistCount(names, &count);
+    if (rc == 0 && count == 1) {
+        const char *name = NULL;
+        rc = KNamelistGet(names, 0, &name);
+
+        if (rc == 0) {
+            const char SEQUENCE[] = "SEQUENCE";
+            isSingleTblDb = strcmp(SEQUENCE, name) == 0;
+        }
+    }
+
+    KNamelistRelease(names);
+ 
+    return isSingleTblDb;
+}
+
 static
 rc_t run(srastat_parms* pb)
 {
@@ -4352,6 +4404,7 @@ rc_t run(srastat_parms* pb)
             memset(&ctx, 0, sizeof ctx);
             ctx . db  = db;
             ctx . tbl = tbl;
+            ctx.singleTblDb = VDatabaseIsSingleTblDb(ctx.db);
 
             memset(&total, 0, sizeof total);
 

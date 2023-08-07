@@ -69,8 +69,11 @@ public:
         uint64_t count = 0;
         ReadStructures reads;
     };
-    typedef std::vector<SpotLayout> SpotLayouts;
-    SpotLayouts GetSpotLayouts( Detail detail, bool useConsensus = true ) const; // sorted by descending count
+    typedef std::vector<SpotLayout> SpotLayouts; // sorted by descending count
+    SpotLayouts GetSpotLayouts(
+        Detail detail,
+        bool useConsensus = true,
+        uint64_t topRows = 0 ) const; // only use topRows rows of the table; 0 to use all
 
     // Alignment
     bool IsAligned() const;

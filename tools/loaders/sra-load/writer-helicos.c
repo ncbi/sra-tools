@@ -99,7 +99,7 @@ rc_t SRAWriterHelicos_Write(const SRAWriterHelicos* cself, const SRALoaderFile* 
     DEBUG_MSG(3, ("spot name '%s'\n", name ? name->data : NULL));
 
     if( self->ci_name == 0 ) {
-        if( (rc = SRAWriter_CreateTable(self->base, "NCBI:SRA:Helicos:tbl:v2")) != 0 ) {
+        if( (rc = SRAWriter_CreateTable(self->base, "sra/helicos.vschema", "NCBI:SRA:Helicos:tbl:v2")) != 0 ) {
             return rc;
         }
         if( (rc = SRAWriter_WriteDefaults(self->base)) != 0 ) {

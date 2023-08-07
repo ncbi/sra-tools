@@ -34,12 +34,22 @@ message(RE2_FOUND=${RE2_FOUND})
         add_definitions(-msse4.2 -DBMSSE42OPT)
 
         # assume tools/sharq built libre2
+        #TODO make it like in ./ngs/ngs-sdk
+        if( SINGLE_CONFIG OR WIN32 )
+            set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+        else() # XCode
+            # TODO: test on XCode
+            set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}) # Temporary solution
+            #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
+            #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+        endif()
+
         set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
         set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
         set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
         set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
-        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
         endif()
 

@@ -309,7 +309,7 @@ static
 rc_t SRASplitterFiler_FixFSName(const char* name, char** fname)
 {
     /* replace invalid chars with '_' in name */
-    char* nn = strdup(name);
+    char* nn = string_dup(name, string_size(name));
 
     if( nn == NULL ) {
         return RC(rcExe, rcFile, rcOpening, rcMemory, rcExhausted);
@@ -363,7 +363,7 @@ rc_t SRASplitterFiler_GetCurrFile(const SRASplitterFile** out_file)
     if( !SLListDoUntil( &g_filer->files, SRASplitterFiler_GetCurrFile_FindByKey, &file ) ) {
         SRA_DUMP_DBG(5, ("New file: '%s'\n", key));
         file = calloc(1, sizeof(*file));
-        key = strdup(key);
+        key = string_dup(key, string_size(key));
         if( file == NULL || key == NULL ) {
             free(file);
             free(key);
@@ -415,7 +415,7 @@ rc_t SRASplitterFactory_FilerPrefix(const char* prefix)
     } else if( prefix == NULL || strcmp(prefix, g_filer->prefix) != 0 ) {
         if( (rc = SRASplitterFiler_PopKey()) == 0 ) {
             free(g_filer->prefix);
-            g_filer->prefix = strdup(prefix ? prefix : "");
+            g_filer->prefix = prefix ? string_dup(prefix, string_size(prefix)) : string_dup("", 1);
             if( g_filer->prefix == NULL ) {
                 rc = RC(rcExe, rcFile, rcConstructing, rcMemory, rcExhausted);
             } else {
@@ -444,7 +444,7 @@ rc_t SRASplitterFactory_FilerInit(bool to_stdout, bool gzip, bool bzip2, bool ke
         g_filer->arc_extension = gzip ? ".gz" : (bzip2 ? ".bz2" : "");
         SLListInit(&g_filer->files);
         /* push empty prefix */
-        g_filer->prefix = strdup("");
+        g_filer->prefix = string_dup("", 1);
         if( (rc = SRASplitterFiler_PushKey(g_filer->prefix)) == 0 &&
             (rc = KDirectoryNativeDir(&g_filer->dir)) == 0 ) {
             if( to_stdout ) {
@@ -870,7 +870,7 @@ rc_t SRASplitter_FileActivate(const SRASplitter* cself, const char* key)
 rc_t SRASplitter_FileWrite( const SRASplitter* cself, spotid_t spot, const void* buf, size_t size )
 {
     SRASplitter* self = NULL;
-    
+
     rc_t rc = SRASplitter_ResolveSelf( cself, rcWriting, &self );
     if ( rc == 0 )
     {
@@ -902,7 +902,7 @@ rc_t SRASplitter_FileWrite( const SRASplitter* cself, spotid_t spot, const void*
     return rc;
 }
 
-rc_t SRASplitter_FileWritePos( const SRASplitter* cself, spotid_t spot, 
+rc_t SRASplitter_FileWritePos( const SRASplitter* cself, spotid_t spot,
                                uint64_t pos, const void* buf, size_t size )
 {
     SRASplitter* self = NULL;

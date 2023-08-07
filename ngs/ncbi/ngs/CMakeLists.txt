@@ -61,9 +61,16 @@ set( SRC
 	VByteBlob
 )
 
+# suppress certain compiler warnings
+if  ( "Clang" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    set_source_files_properties( SRA_Statistics PROPERTIES COMPILE_FLAGS -Wno-implicit-int-float-conversion )
+endif()
+
 GenerateStaticLibsWithDefs( ngs "${SRC}" "__mod__=\"ngs/ncbi/ngs\"" "" )
 target_link_libraries( ngs ${COMMON_LIBS_READ} )
 if( RUN_SANITIZER_TESTS )
 	target_link_libraries( ngs-asan ${COMMON_LIBS_READ} )
 	target_link_libraries( ngs-tsan ${COMMON_LIBS_READ} )
 endif()
+
+

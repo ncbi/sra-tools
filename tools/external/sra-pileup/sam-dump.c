@@ -133,6 +133,10 @@
 #include <strtol.h>     /* strtou32() */
 #include <ctype.h>      /* tolower() / toupper() / isdigit() / isalpha() */
 
+#ifndef WINDOWS
+#include <strings.h> /* strcasecmp */
+#endif
+
 #if _ARCH_BITS == 64
 #define USE_MATE_CACHE 1
 #define CURSOR_CACHE (4 * 1024 * 1024 * 1024UL)

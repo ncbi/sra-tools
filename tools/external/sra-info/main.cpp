@@ -53,6 +53,7 @@ using namespace std;
 #define OPTION_LIMIT        "limit"
 #define OPTION_DETAIL       "detail"
 #define OPTION_SEQUENCE     "sequence"
+#define OPTION_ROWS         "rows"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
@@ -63,6 +64,7 @@ using namespace std;
 #define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
 #define ALIAS_SEQUENCE      "s"
+#define ALIAS_ROWS          "R"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
@@ -74,6 +76,7 @@ static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSU
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
 static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
+static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -86,6 +89,7 @@ OptDef InfoOptions[] =
     { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
     { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
+    { OPTION_ROWS,          ALIAS_ROWS,         nullptr, rows_usage,        1, true,    false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -136,6 +140,7 @@ rc_t CC Usage ( const Args * args )
 
     HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
     HelpOptionLine ( ALIAS_DETAIL, OPTION_DETAIL, "N", detail_usage );
+    HelpOptionLine ( ALIAS_ROWS,   OPTION_ROWS,  "N", rows_usage );
 
     HelpOptionsStandard ();
 
@@ -216,7 +221,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             if ( param_count == 0 || param_count > 1 ) {
                 MiniUsage(args);
                 DESTRUCT(Args, args);
-                exit(1);
+                exit(3);
             }
 
             const char * accession = nullptr;
@@ -305,7 +310,16 @@ rc_t CC KMain ( int argc, char *argv [] )
                     {
                         useConsensus = false;
                     }
-                    Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus ), detail ) );
+
+                    rc = ArgsOptionCount( args, OPTION_ROWS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    unsigned int topRows = 0;
+                    if ( opt_count > 0 )
+                    {
+                        topRows = GetNonNegativeNumber( args, OPTION_ROWS );
+                    }
+
+                    Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus, topRows ), detail ) );
                 }
 
             }

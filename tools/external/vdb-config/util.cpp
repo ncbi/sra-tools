@@ -320,6 +320,7 @@ rc_t CKConfig::Commit(void)
     return rc;
 }
 
+#ifdef NAMESCGI
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     bool updated = NodeExists("/repository_remote/CGI/resolver-cgi/trace");
 
@@ -385,6 +386,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
 
     return rc;
 }
+#endif
 
 rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
     if (repoName.size() == 0)
@@ -757,6 +759,7 @@ rc_t CKConfig::UpdateNode(bool verbose,
     return rc;
 }
 
+#ifdef NAMESCGI
 rc_t CKConfig::FixResolverCgiNodes ( void ) {
     rc_t rc = KConfigFixMainResolverCgiNode ( m_Self );
     rc_t r2 = KConfigFixProtectedResolverCgiNode  ( m_Self );
@@ -769,7 +772,7 @@ rc_t CKConfig::FixResolverCgiNodes ( void ) {
     }
     return rc;
 }
-
+#endif
 
 CApp::CApp(const CKDirectory &dir, const CKConfigNode &rep,
         const string &root, const string &name)

@@ -28,7 +28,7 @@
 * Unit tests for vdb-dump's command line view spec parsing
 */
 
-#include "vdb-dump-view-spec.c"
+#include "vdb-dump-view-spec.h"
 
 #include <ktst/unit_test.hpp>
 
@@ -37,6 +37,9 @@
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/table.h>
+#include <vdb/cursor.h>
+#include <vdb/view.h>
+
 
 using namespace std;
 
@@ -192,8 +195,9 @@ TEST_CASE ( NestedViews )
 const string SchemaText =
     "version 2;"
     "table T#1 { column ascii col; } "
-    "database D#1 { table T t; } "
-    "view V#1 < T tbl > { column ascii c = tbl . col; }";
+    "view V#1 < T tbl > { column ascii c = tbl . col; }"
+    "database D#1 { table T t; alias V<t> qq; } "
+;
 
 class ViewCursorFixture
 {

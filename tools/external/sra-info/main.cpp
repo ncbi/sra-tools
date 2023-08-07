@@ -59,7 +59,7 @@ using namespace std;
 #define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
 #define ALIAS_QUALITY       "Q"
-#define ALIAS_SCHEMAVERS    "a"
+#define ALIAS_SCHEMAVERS    "C"
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
@@ -153,7 +153,8 @@ static
 void
 Output( const string & text )
 {
-    KOutMsg ( "%s\n", text.c_str() );
+    if ( ! text.empty() )
+        KOutMsg ( "%s\n", text.c_str() );
 }
 
 int
@@ -253,7 +254,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     fmt = Formatter::StringToFormat( res );
                 }
                 Formatter formatter( fmt, limit );
-         //       Output( formatter.start() );
+                Output( formatter.start() );
 
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
@@ -266,14 +267,19 @@ rc_t CC KMain ( int argc, char *argv [] )
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    Output( formatter.format( info.IsAligned() ? "ALIGNED" : "UNALIGNED" ) );
+                    Output( formatter.format(
+                        info.IsAligned() ? "ALIGNED" : "UNALIGNED",
+                        "ALIGNED" ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    Output( formatter.format( info.HasPhysicalQualities() ? "STORED" : "GENERATED" ) );
+                    Output( formatter.format(
+                        info.HasPhysicalQualities()
+                            ? "STORED" : "GENERATED",
+                        "QUALITY" ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
@@ -322,6 +328,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus, topRows ), detail ) );
                 }
 
+                Output( formatter.end() );
             }
             catch( const exception& ex )
             {

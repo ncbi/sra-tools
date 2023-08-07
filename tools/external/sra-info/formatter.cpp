@@ -57,13 +57,25 @@ Formatter::~Formatter()
 }
 
 string
+Formatter::formatJsonSeparator( void ) const
+{
+    if ( first ) {
+        Formatter * ncThis = const_cast<Formatter *>(this);
+        ncThis->first = false;
+        return "";
+    }
+    else
+        return ",";
+}
+
+string
 JoinPlatforms( const SraInfo::Platforms & platforms,
                const string & separator,
                const string & prefix = string(),
                const string & suffix = string()
 )
 {
-    string ret;
+    string ret(" ");
     bool first = true;
     for( auto p : platforms )
     {
@@ -92,8 +104,16 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         // XML, each value in a tag, one per line
         return JoinPlatforms( platforms, "\n", "<platform>", "</platform>" );
     case Json:
+    {
         // Json, array of strings
-        return string("[\n") + JoinPlatforms( platforms, ",\n", "\"", "\"" ) + "\n]";
+        string out;
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = " " + separator + "\n";
+        out += string(" \"PLATFORMS\": [\n")
+            + JoinPlatforms( platforms, ",\n", "\"", "\"" ) + "\n ]";
+        return out;
+    }
     case Tab:
         // Tabbed, all values on 1 line
         return JoinPlatforms( platforms, "\t" );
@@ -112,7 +132,7 @@ Formatter::start( void ) const
     case Tab:
         return "";
     case XML:
-        return "<SRA_INFO>\n";
+        return "<SRA_INFO>";
     case Json:
         return "{";
     default:
@@ -121,17 +141,44 @@ Formatter::start( void ) const
 }
 
 string
-Formatter::format( const string & value ) const
+Formatter::end( void ) const
 {
+    switch ( fmt )
+    {
+    case Default:
+    case CSV:
+    case Tab:
+        return "";
+    case XML:
+        return "</SRA_INFO>";
+    case Json:
+        return "}";
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+}
+
+string
+Formatter::format( const string & value, const string & name ) const
+{
+    const string space(" ");
+
     switch ( fmt )
     {
     case Default:
     case CSV:
     case XML:
     case Tab:
-        return value;
+        return space + value;
     case Json:
-        return string("\"") + value + "\"";
+    {
+        string out;
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = space + separator + "\n";
+        out += space + "\"" + name + string("\": \"") + value + "\"";
+        return out;
+    }
     default:
         throw VDB::Error( "unsupported formatting option");
     }
@@ -196,7 +243,10 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case Json:
         {
-            ret << "[" << endl;
+            const string separator(formatJsonSeparator());
+            if (!separator.empty())
+                ret << " " << separator << endl;
+            ret << " \"SPOTS\": [" << endl;
             bool  first_layout = true;
             for( size_t i = 0; i < count; ++i )
             {
@@ -211,7 +261,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
                 }
 
                 bool  first_read = true;
-                ret << "{ \"count\": " << l.count << ", \"reads\": ";
+                ret << "  { \"count\": " << l.count << ", \"reads\": ";
 
                 switch( detail )
                 {
@@ -243,7 +293,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
                 ret << " }";
             }
-            ret << endl << "]" << endl;
+            ret << endl << " ]" << endl;
         }
         break;
 
@@ -305,7 +355,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
         for( size_t i = 0; i < count; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
-            ret << "<layout><count>" << l.count << "</count>";
+            ret << " <layout><count>" << l.count << "</count>";
             switch( detail )
             {
             case SraInfo::Short:
@@ -365,8 +415,11 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         break;
 
     case Json:
-        out = "{\n"
-            + space + "\"SCHEMA\": {\n"
+    {
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = space + separator + "\n";
+        out += space + "\"SCHEMA\": {\n"
 
             + space + space + "\"DBS\": [\n";
         first = true;
@@ -399,14 +452,12 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         }
         out += space + space + "]\n"
 
-            + space + "}\n"
-            + "}";
+            + space + "}";
         break;
+    }
 
     case XML:
-      //  out = "<SRA_INFO>\n"
-        //    + space +
-        out = "<SCHEMA>\n"
+        out = space +  "<SCHEMA>\n"
 
             + space + space + "<DBS>\n";
         for (auto it = info.db.begin(); it < info.db.end(); it++)
@@ -426,10 +477,7 @@ string Formatter::format(const VDB::SchemaInfo & info) const
                 "<View>", "", "\n", "</View>\n");
         out += space + space + "</VIEWS>\n"
 
-        //   + space
-            + "</SCHEMA>"//\n"
-            //+ "</SRA_INFO>"
-            ;
+            + space + "</SCHEMA>";
         break;
 
     default:

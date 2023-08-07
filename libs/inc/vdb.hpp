@@ -1,4 +1,4 @@
-/* ===========================================================================
+/* =============================================================================
  *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
@@ -34,18 +34,22 @@
 #include <memory>
 // #include <utility>
 // #include <map>
-#include <vector>
 // #include <algorithm>
 
-#include <klib/rc.h>
+#include "vdb-data.hpp" /* SchemaInfo */
+
 #include <klib/printf.h>
+#include <klib/rc.h>
+#include <klib/symbol.h> /* KSymbol */
+#include <klib/vector.h> /* VectorForEach */
 
 #include <kdb/manager.h>
-#include <vdb/manager.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
 #include <vdb/cursor.h>
+#include <vdb/database.h>
+#include <vdb/manager.h>
+#include <vdb/schema-priv.h> /* KSymbolName */
 #include <vdb/schema.h>
+#include <vdb/table.h>
 #include <vdb/vdb-priv.h>
 
 namespace VDB {
@@ -106,7 +110,10 @@ namespace VDB {
     };
 
     class Schema {
+        friend class Database;
         friend class Manager;
+        friend class Table;
+
         VSchema *const o;
 
         static rc_t dumpToStream(void *const p, void const *const b, size_t const s)
@@ -114,6 +121,100 @@ namespace VDB {
             ((std::ostream *)p)->write((char const *)b, s);
             return 0;
         }
+
+        static std::string MkName(KSymbolName *sn)
+        {
+            if (sn == NULL)
+                return "";
+        
+            std::string name;
+          
+            KSymbolNameElm *e = sn->name;
+            std::string part(e->name->addr, e->name->size);
+            name += part;
+          
+            for (e = e->next; e; e = e->next) {
+                std::string part(e->name->addr, e->name->size);
+                name += ":" + part;
+            }
+          
+            uint32_t version = sn->version;
+            char v[99] = "";
+            string_printf(v, sizeof v, NULL, "#%V", version);
+            name += v;
+     
+            return name;
+        }
+
+        static void OnDb(void * item, void * data)
+        {
+            struct SDatabase * self = static_cast<struct SDatabase *>(item);
+            VDB::SchemaData::Data * sd
+                = static_cast<VDB::SchemaData::Data *>(data);
+            assert(self && sd);
+            
+            KSymbolName *sn = NULL;
+            rc_t rc = SDatabaseMakeKSymbolName(self, &sn);
+            
+            const SDatabase * dad = NULL;
+            rc_t r2 = SDatabaseGetDad(self, &dad);
+            
+            VDB::SchemaData elm;
+            if (rc == 0)
+                elm.name = MkName(sn);
+            if (r2 == 0 && dad != NULL)
+                OnDb(const_cast<SDatabase*>(dad), &elm.parent);
+            sd->push_back(elm);
+
+            KSymbolNameWhack(sn);
+        }
+
+        static void OnTbl(void * item, void * data)
+        {
+            struct STable * self = static_cast<struct STable *>(item);
+            VDB::SchemaData::Data * sd
+                = static_cast<VDB::SchemaData::Data *>(data);
+            assert(self && sd);
+            
+            KSymbolName *sn = NULL;
+            rc_t rc = STableMakeKSymbolName(self, &sn);
+            
+            const Vector * parents = NULL;
+            rc_t r2 = STableGetParents(self, &parents);
+            
+            VDB::SchemaData elm;
+            if (rc == 0)
+                elm.name = MkName(sn);
+            if (r2 == 0 && parents != NULL)
+                VectorForEach(parents, false, OnTbl, &elm.parent);
+            sd->push_back(elm);
+
+            KSymbolNameWhack(sn);
+        }
+
+        static void OnView(void * item, void * data)
+        {
+            struct SView * self = static_cast<struct SView *>(item);
+            VDB::SchemaData::Data * sd
+                = static_cast<VDB::SchemaData::Data *>(data);
+            assert(self && sd);
+         
+            KSymbolName *sn = NULL;
+            rc_t rc = SViewMakeKSymbolName(self, &sn);
+        
+            const Vector * parents = NULL;
+            rc_t r2 = SViewGetParents(self, &parents);
+       
+            VDB::SchemaData elm;
+            if (rc == 0)
+                elm.name = MkName(sn);
+            if (r2 == 0 && parents != NULL)
+                VectorForEach(parents, false, OnView, &elm.parent);
+            sd->push_back(elm);
+       
+            KSymbolNameWhack(sn);
+        }
+
         void parseText(size_t const length, char const text[], char const *const name = 0)
         {
             rc_t const rc = VSchemaParseText(o, name, text, length);
@@ -129,6 +230,23 @@ namespace VDB {
         Schema(Schema const &other) : o(other.o) { VSchemaAddRef(o); }
         ~Schema() { VSchemaRelease(o); }
 
+        VDB::SchemaInfo GetInfo(void)
+        {
+            VDB::SchemaInfo out;
+            const Vector *v(NULL);
+ 
+            VSchemaGetDb(o, &v);
+            VectorForEach(v, false, OnDb, &out.db);
+ 
+            VSchemaGetTbl(o, &v);
+            VectorForEach(v, false, OnTbl, &out.table);
+ 
+            VSchemaGetView(o, &v);
+            VectorForEach(v, false, OnView, &out.view);
+ 
+            return out;
+        }
+
         friend std::ostream &operator <<(std::ostream &strm, Schema const &s)
         {
             rc_t const rc = VSchemaDump(s.o, sdmPrint, 0, dumpToStream, (void *)&strm);
@@ -136,6 +254,7 @@ namespace VDB {
             return strm;
         }
     };
+
     class Cursor {
         friend class Table;
         VCursor *const o;
@@ -344,6 +463,15 @@ namespace VDB {
             return Cursor(const_cast<VCursor *>(curs), columns);
         }
 
+        Schema openSchema( void ) const
+        {
+            const VSchema *schema = NULL;
+            rc_t rc = VTableOpenSchema( o, &schema );
+            if (rc != 0)
+                throw Error(rc, __FILE__, __LINE__);
+            return Schema(const_cast<VSchema *>(schema));
+        }
+
         typedef std::vector< std::string > ColumnNames;
         ColumnNames physicalColumns() const
         {
@@ -412,6 +540,15 @@ namespace VDB {
             rc_t rc = VDatabaseListTbl ( o, & names );
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return KNamelistContains( names, table.c_str() );
+        }
+
+        Schema openSchema( void ) const
+        {
+            const VSchema *schema = NULL;
+            rc_t rc = VDatabaseOpenSchema( o, &schema );
+            if (rc != 0)
+                throw Error(rc, __FILE__, __LINE__);
+            return Schema(const_cast<VSchema *>(schema));
         }
     };
 

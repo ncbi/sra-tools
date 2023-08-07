@@ -48,7 +48,7 @@ using namespace std;
 #define OPTION_FORMAT       "format"
 #define OPTION_ISALIGNED    "is-aligned"
 #define OPTION_QUALITY      "quality"
-#define OPTION_SCHEMAVERS   "schema-version"
+#define OPTION_SCHEMAVERS   "schema"
 #define OPTION_SPOTLAYOUT   "spot-layout"
 #define OPTION_LIMIT        "limit"
 #define OPTION_DETAIL       "detail"
@@ -68,7 +68,8 @@ static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
 static const char * quality_usage[] = { "are quality scores stored or generated", nullptr };
-static const char * schema_vers_usage[] = { "print schema version", nullptr };
+static const char * schema_vers_usage[] = {
+    "print schema version and dependencies", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
 static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
@@ -273,7 +274,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
                 {
-                    Output( formatter.format( info.GetSchemaVersion() ) );
+                    Output( formatter.format( info.GetSchemaInfo() ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );

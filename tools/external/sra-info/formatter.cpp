@@ -318,3 +318,105 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     return ret.str();
 }
+
+string Formatter::format(const VDB::SchemaInfo & info) const
+{
+    string space(" ");
+    int indent(3);
+    bool first(true);
+    string out;
+
+    switch ( fmt )
+    {
+    case Default:
+        indent = 2;
+        out = "SCHEMA\n"
+
+            + space + "DBS\n";
+        for (auto it = info.db.begin(); it < info.db.end(); it++)
+            (*it).print(space, indent, out);
+
+        out += space + "TABLES\n";
+        for (auto it = info.table.begin(); it < info.table.end(); it++)
+            (*it).print(space, indent, out);
+
+        out += space + "VIEWS\n";
+        for (auto it = info.view.begin(); it < info.view.end(); it++)
+            (*it).print(space, indent, out);
+
+        break;
+
+    case Json:
+        out = "{\n"
+            + space + "\"SCHEMA\": {\n"
+
+            + space + space + "\"DBS\": [\n";
+        first = true;
+        for (auto it = info.db.begin(); it < info.db.end(); it++) {
+            (*it).print(indent, space, out, first,
+                "{ \"Db\": \"", ",\n", "\"", "}",
+                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            first = false;
+        }
+        out += space + space + "],\n"
+
+            + space + space + "\"TABLES\": [\n";
+        first = true;
+        for (auto it = info.table.begin(); it < info.table.end(); it++) {
+            (*it).print(indent, space, out, first,
+                "{ \"Tbl\": \"", ",\n", "\"", "}",
+                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            first = false;
+        }
+        out += "\n"
+            + space + space + "],\n"
+
+            + space + space + "\"VIEWS\": [\n";
+        first = true;
+        for (auto it = info.view.begin(); it < info.view.end(); it++) {
+            (*it).print(indent, space, out, first,
+                "{ \"View\": \"", ",\n", "\"", "}",
+                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            first = false;
+        }
+        out += space + space + "]\n"
+
+            + space + "}\n"
+            + "}";
+        break;
+
+    case XML:
+      //  out = "<SRA_INFO>\n"
+        //    + space +
+        out = "<SCHEMA>\n"
+
+            + space + space + "<DBS>\n";
+        for (auto it = info.db.begin(); it < info.db.end(); it++)
+            (*it).print(indent, space, out, true,
+                "<Db>", "", "\n", "</Db>\n");
+        out += space + space + "</DBS>\n"
+
+            + space + space + "<TABLES>\n";
+        for (auto it = info.table.begin(); it < info.table.end(); it++)
+            (*it).print(indent, space, out, true,
+                "<Tbl>", "", "\n", "</Tbl>\n");
+        out += space + space + "</TABLES>\n" 
+
+            + space + space + "<VIEWS>\n";
+        for (auto it = info.view.begin(); it < info.view.end(); it++)
+            (*it).print(indent, space, out, true,
+                "<View>", "", "\n", "</View>\n");
+        out += space + space + "</VIEWS>\n"
+
+        //   + space
+            + "</SCHEMA>"//\n"
+            //+ "</SRA_INFO>"
+            ;
+        break;
+
+    default:
+        throw VDB::Error( "unsupported formatting option for schema" );
+    }
+
+    return out;
+}

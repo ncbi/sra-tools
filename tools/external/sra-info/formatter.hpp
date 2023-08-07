@@ -47,6 +47,7 @@ public:
     std::string format( const SraInfo::Platforms & ) const;
     std::string format( const std::string & ) const;
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
+    std::string format( const VDB::SchemaInfo & ) const;
 
 private:
     Format fmt;

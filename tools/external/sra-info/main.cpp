@@ -248,6 +248,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     fmt = Formatter::StringToFormat( res );
                 }
                 Formatter formatter( fmt, limit );
+         //       Output( formatter.start() );
 
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );

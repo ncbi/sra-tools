@@ -103,6 +103,24 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
 }
 
 string
+Formatter::start( void ) const
+{
+    switch ( fmt )
+    {
+    case Default:
+    case CSV:
+    case Tab:
+        return "";
+    case XML:
+        return "<SRA_INFO>\n";
+    case Json:
+        return "{";
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+}
+
+string
 Formatter::format( const string & value ) const
 {
     switch ( fmt )

@@ -44,6 +44,8 @@ public:
     Formatter( Format = Default, uint32_t limit = 0 );
     virtual ~Formatter();
 
+    std::string start( void ) const;
+
     std::string format( const SraInfo::Platforms & ) const;
     std::string format( const std::string & ) const;
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;

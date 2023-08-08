@@ -75,7 +75,7 @@ JoinPlatforms( const SraInfo::Platforms & platforms,
                const string & suffix = string()
 )
 {
-    string ret(" ");
+    string ret;
     bool first = true;
     for( auto p : platforms )
     {
@@ -102,7 +102,8 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         return JoinPlatforms( platforms, "," );
     case XML:
         // XML, each value in a tag, one per line
-        return JoinPlatforms( platforms, "\n", "<platform>", "</platform>" );
+        return
+            JoinPlatforms( platforms, "\n", " <platform>", "</platform>" );
     case Json:
     {
         // Json, array of strings
@@ -111,7 +112,7 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         if (!separator.empty())
             out = " " + separator + "\n";
         out += string(" \"PLATFORMS\": [\n")
-            + JoinPlatforms( platforms, ",\n", "\"", "\"" ) + "\n ]";
+            + JoinPlatforms( platforms, ",\n", "  \"", "\"" ) + "\n ]";
         return out;
     }
     case Tab:

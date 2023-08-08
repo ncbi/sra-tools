@@ -48,7 +48,7 @@ Formatter::StringToFormat( const string & value )
 }
 
 Formatter::Formatter( Format f, uint32_t l )
-: fmt( f ), limit( l )
+: fmt( f ), limit( l ), first( true )
 {
 }
 

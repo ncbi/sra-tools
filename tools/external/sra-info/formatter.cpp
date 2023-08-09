@@ -185,6 +185,93 @@ Formatter::format( const string & value, const string & name ) const
     }
 }
 
+class SimpleSchemaDataFormatter : public VDB::SchemaDataFormatter {
+    const std::string _space;
+    int _indent;
+public:
+    SimpleSchemaDataFormatter(const std::string &space, int indent) :
+        _space(space), _indent(indent)
+    {}
+    void format(
+        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+    {
+        if (indent < 0)
+            indent = _indent;
+        for (int i = 0; i < indent; ++i)
+            out += _space;
+        out += d.name + "\n";
+        for (auto it = d.parent.begin(); it < d.parent.end(); ++it)
+            format(*it, indent + 1);
+    }
+};
+
+class FullSchemaDataFormatter : public VDB::SchemaDataFormatter {
+    const std::string _space;
+    int _indent;
+    const std::string _open;
+    const std::string _openNext;
+    const std::string _closeName;
+    const std::string _close;
+    const std::string _openParent1;
+    const std::string _openParent2;
+    const std::string _closeParent1;
+    const std::string _closeParent2;
+    const std::string _noParent;
+public:
+    FullSchemaDataFormatter(int indent, const std::string &space,
+        const std::string &open, const std::string &openNext,
+        const std::string &closeName, const std::string &close,
+        const std::string &openParent1 = "",
+        const std::string &openParent2 = "",
+        const std::string &closeParent1 = "",
+        const std::string &closeParent2 = "",
+        const std::string &noParent = "")
+        :
+        _space(space), _indent(indent), _open(open), _openNext(openNext),
+        _closeName(closeName), _close(close), _openParent1(openParent1),
+        _openParent2(openParent2), _closeParent1(closeParent1),
+        _closeParent2(closeParent2), _noParent(noParent)
+    {}
+    void format(
+        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+    {
+        if (indent < 0)
+            indent = _indent;
+        if (!first) out += _openNext;
+
+        for (int i = 0; i < indent; ++i) out += _space;
+        out += _open + d.name + _closeName;
+
+        if (!d.parent.empty()) {
+            out += _openParent1;
+            if (!_openParent2.empty()) {
+                for (int i = 0; i < indent; ++i) out += _space;
+                out += _openParent2;
+                ++indent;
+            }
+
+            bool frst = true;
+            for (auto it = d.parent.begin(); it < d.parent.end(); it++) {
+                format(*it, indent + 1, frst);
+                frst = false;
+            }
+
+            if (!_closeParent2.empty()) {
+                out += _closeParent1;
+                for (int i = 0; i < indent; ++i) out += _space;
+                out += _closeParent2;
+            }
+            if (!_openParent2.empty())
+                --indent;
+        }
+        else
+            out += _noParent;
+
+        for (int i = 0; i < indent; ++i) out += _space;
+        out += _close;
+    }
+};
+
 string
 Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail ) const
 {
@@ -398,22 +485,30 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     switch ( fmt )
     {
     case Default:
+    {
         indent = 2;
         out = "SCHEMA\n"
 
             + space + "DBS\n";
+        SimpleSchemaDataFormatter db(" ", indent);
         for (auto it = info.db.begin(); it < info.db.end(); it++)
-            (*it).print(space, indent, out);
+            db.format(*it);
+        out += db.out;
 
         out += space + "TABLES\n";
+        SimpleSchemaDataFormatter table(" ", indent);
         for (auto it = info.table.begin(); it < info.table.end(); it++)
-            (*it).print(space, indent, out);
+            table.format(*it);
+        out += table.out;
 
         out += space + "VIEWS\n";
+        SimpleSchemaDataFormatter view(" ", indent);
         for (auto it = info.view.begin(); it < info.view.end(); it++)
-            (*it).print(space, indent, out);
+            view.format(*it);
+        out += view.out;
 
         break;
+    }
 
     case Json:
     {
@@ -423,34 +518,40 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out += space + "\"SCHEMA\": {\n"
 
             + space + space + "\"DBS\": [\n";
+        FullSchemaDataFormatter db(indent, " ",
+            "{ \"Db\": \"", ",\n", "\"", "}",
+            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
         first = true;
         for (auto it = info.db.begin(); it < info.db.end(); it++) {
-            (*it).print(indent, space, out, first,
-                "{ \"Db\": \"", ",\n", "\"", "}",
-                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            db.format(*it, indent, first);
             first = false;
         }
+        out += db.out;
         out += space + space + "],\n"
 
             + space + space + "\"TABLES\": [\n";
+        FullSchemaDataFormatter table(indent, " ",
+            "{ \"Tbl\": \"", ",\n", "\"", "}",
+            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
         first = true;
         for (auto it = info.table.begin(); it < info.table.end(); it++) {
-            (*it).print(indent, space, out, first,
-                "{ \"Tbl\": \"", ",\n", "\"", "}",
-                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            table.format(*it, indent, first);
             first = false;
         }
+        out += table.out;
         out += "\n"
             + space + space + "],\n"
 
             + space + space + "\"VIEWS\": [\n";
         first = true;
+        FullSchemaDataFormatter view(indent, " ",
+            "{ \"View\": \"", ",\n", "\"", "}",
+            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
         for (auto it = info.view.begin(); it < info.view.end(); it++) {
-            (*it).print(indent, space, out, first,
-                "{ \"View\": \"", ",\n", "\"", "}",
-                ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+            view.format(*it, indent, first);
             first = false;
         }
+        out += view.out;
         out += space + space + "]\n"
 
             + space + "}";
@@ -458,28 +559,37 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     }
 
     case XML:
-        out = space +  "<SCHEMA>\n"
+    {
+        out = space + "<SCHEMA>\n"
 
             + space + space + "<DBS>\n";
+        FullSchemaDataFormatter db(indent, space,
+            "<Db>", "", "\n", "</Db>\n");
         for (auto it = info.db.begin(); it < info.db.end(); it++)
-            (*it).print(indent, space, out, true,
-                "<Db>", "", "\n", "</Db>\n");
+            db.format(*it);
+        out += db.out;
         out += space + space + "</DBS>\n"
 
             + space + space + "<TABLES>\n";
+        FullSchemaDataFormatter table(indent, space,
+            "<Tbl>", "", "\n", "</Tbl>\n");
         for (auto it = info.table.begin(); it < info.table.end(); it++)
-            (*it).print(indent, space, out, true,
-                "<Tbl>", "", "\n", "</Tbl>\n");
-        out += space + space + "</TABLES>\n" 
+            table.format(*it);
+        out += table.out;
+        out += space + space + "</TABLES>\n"
 
             + space + space + "<VIEWS>\n";
+        FullSchemaDataFormatter view(indent, space,
+            "<View>", "", "\n", "</View>\n");
         for (auto it = info.view.begin(); it < info.view.end(); it++)
-            (*it).print(indent, space, out, true,
-                "<View>", "", "\n", "</View>\n");
+            view.format(*it);
+        out += view.out;
         out += space + space + "</VIEWS>\n"
 
             + space + "</SCHEMA>";
+
         break;
+    }
 
     default:
         throw VDB::Error( "unsupported formatting option for schema" );

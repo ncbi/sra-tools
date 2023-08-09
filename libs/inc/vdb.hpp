@@ -26,14 +26,13 @@
 #ifndef __VDB_HPP_INCLUDED__
 #define __VDB_HPP_INCLUDED__ 1
 
-#include <stdexcept>
-#include <string>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <memory>
-
-#include "vdb-data.hpp" /* SchemaInfo */
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <klib/printf.h>
 #include <klib/rc.h>
@@ -104,6 +103,28 @@ namespace VDB {
             string_printf ( &ret[0], num_writ, nullptr, FmtRc, rc );
             return ret;
         }
+    };
+
+    class SchemaDataFormatter {
+    public:
+        std::string out;
+        virtual void format(
+            const struct SchemaData &d, int indent = -1, bool first = true) = 0;
+    };
+
+    struct SchemaData {
+        typedef std::vector<SchemaData> Data;
+
+        std::string name;
+        std::vector<SchemaData> parent;
+
+        void format(SchemaDataFormatter &v) { v.format(*this); }
+    };
+
+    struct SchemaInfo {
+        SchemaData::Data db;
+        SchemaData::Data table;
+        SchemaData::Data view;
     };
 
     class Schema {

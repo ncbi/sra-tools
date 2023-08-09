@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -256,6 +256,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 Formatter formatter( fmt, limit );
                 Output( formatter.start() );
 
+                rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    Output( formatter.format( info.GetSchemaInfo() ) );
+                }
+
                 rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
                 if ( opt_count > 0 )
@@ -280,13 +287,6 @@ rc_t CC KMain ( int argc, char *argv [] )
                         info.HasPhysicalQualities()
                             ? "STORED" : "GENERATED",
                         "QUALITY" ) );
-                }
-
-                rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
-                {
-                    Output( formatter.format( info.GetSchemaInfo() ) );
                 }
 
                 rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );

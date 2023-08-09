@@ -54,8 +54,10 @@ public:
 
 private:
     std::string formatJsonSeparator( void ) const;
+    void expectSingleQuery( const std::string & error ) const;
 
     Format fmt;
     uint32_t limit;
     bool first;
+    int count;
 };

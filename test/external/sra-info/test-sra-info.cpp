@@ -44,7 +44,7 @@ const string Accession_Table    = "SRR000123";
 const string Accession_CSRA     = "ERR334733";
 const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
-const string Run_Multiplatform  = "./input/MultiPlatform";
+const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
 
 TEST_CASE(Construction)
@@ -152,7 +152,9 @@ FIXTURE_TEST_CASE(Format_Platforms_Default, SraInfoFixture)
     Formatter f; // default= plain
     string out = f.format( p );
     // one value per line, sorted
-    REQUIRE_EQ( string("SRA_PLATFORM_454\nSRA_PLATFORM_ILLUMINA\nSRA_PLATFORM_UNDEFINED"), out );
+    REQUIRE_EQ( string("PLATFORM: SRA_PLATFORM_454\n"
+        "PLATFORM: SRA_PLATFORM_ILLUMINA\n"
+        "PLATFORM: SRA_PLATFORM_UNDEFINED"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_CSV, SraInfoFixture)
@@ -172,9 +174,11 @@ FIXTURE_TEST_CASE(Format_Platforms_XML, SraInfoFixture)
     Formatter f( Formatter::XML );
     string out = f.format( p );
     // one value per line, sorted
-    REQUIRE_EQ( string(" <platform>SRA_PLATFORM_454</platform>\n"
-                       " <platform>SRA_PLATFORM_ILLUMINA</platform>\n"
-                       " <platform>SRA_PLATFORM_UNDEFINED</platform>"), out );
+    REQUIRE_EQ( string(" <PLATFORMS>\n"
+                       "  <platform>SRA_PLATFORM_454</platform>\n"
+                       "  <platform>SRA_PLATFORM_ILLUMINA</platform>\n"
+                       "  <platform>SRA_PLATFORM_UNDEFINED</platform>\n"
+                       " </PLATFORMS>"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_Json, SraInfoFixture)
@@ -208,7 +212,8 @@ FIXTURE_TEST_CASE(Format_MultiRow_Limited, SraInfoFixture)
     REQUIRE_EQ( size_t(267), sl.size() );
     const Formatter f( Formatter::Default, 2 ); // 2 top elements
     const string out = f.format( sl, SraInfo::Short );
-    const string expected("119 spots: 2 reads\n112 spots: 2 reads");
+    const string expected("SPOT: 119 spots: 2 reads\n"
+        "SPOT: 112 spots: 2 reads");
     REQUIRE_EQ( expected, out );
 }
 
@@ -399,23 +404,28 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_Tab, SraInfoFixture)
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full_XML, SraInfoFixture)
 {
     const string expected(
-" <layout><count>119</count><read><type>T</type><length>4</length></read><read><type>B</type><length>259</length></read></layout>\n"
-" <layout><count>112</count><read><type>T</type><length>4</length></read><read><type>B</type><length>256</length></read></layout>\n"
-    );
+" <SPOTS>\n"
+"  <layout><count>119</count><read><type>T</type><length>4</length></read><read><type>B</type><length>259</length></read></layout>\n"
+"  <layout><count>112</count><read><type>T</type><length>4</length></read><read><type>B</type><length>256</length></read></layout>\n"
+" </SPOTS>");
     const string out( FormatSpotLayout(
         Accession_Table, SraInfo::Full, Formatter::XML ) );
     REQUIRE_EQ( expected, out );
 }
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated_XML, SraInfoFixture)
 {
-    const string expected(" <layout><count>4583</count><reads>TB</reads></layout>\n");
+    const string expected(" <SPOTS>\n"
+        "  <layout><count>4583</count><reads>TB</reads></layout>\n"
+        " </SPOTS>");
     const string out( FormatSpotLayout(
         Accession_Table, SraInfo::Abbreviated, Formatter::XML ) );
     REQUIRE_EQ( expected, out );
 }
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_XML, SraInfoFixture)
 {
-    const string expected(" <layout><count>4583</count><reads>2</reads></layout>\n");
+    const string expected(" <SPOTS>\n"
+        "  <layout><count>4583</count><reads>2</reads></layout>\n"
+        " </SPOTS>");
     const string out( FormatSpotLayout(
         Accession_Table, SraInfo::Short, Formatter::XML ) );
     REQUIRE_EQ( expected, out );

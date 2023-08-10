@@ -44,6 +44,8 @@ public:
     Formatter( Format = Default, uint32_t limit = 0 );
     virtual ~Formatter();
 
+    Format getFormat( void ) const { return fmt; }
+
     std::string start( void ) const;
     std::string end( void ) const;
 

@@ -204,6 +204,30 @@ GetNonNegativeNumber( Args * args, const char * option )
     }
 }
 
+typedef class {
+    bool aligned;
+    bool platforms;
+    bool quality;
+    bool schema;
+    bool spots;
+    int count;
+
+public:
+    void doAligned(void) { ++count; aligned = true; }
+    void doPlatforms(void) { ++count; platforms = true; }
+    void doQuality(void) { ++count; quality = true; }
+    void doSchema(void) { ++count; schema = true; }
+    void doSpots(void) { ++count; spots = true; }
+
+    int queries(void) const { return count; }
+
+    bool needAligned(void) const { return aligned; }
+    bool needPlatforms(void) const { return platforms; }
+    bool needQuality(void) const { return quality; }
+    bool needSchema(void) const { return schema; }
+    bool needSpots(void) const { return spots; }
+} Query;
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
@@ -254,34 +278,73 @@ rc_t CC KMain ( int argc, char *argv [] )
                     fmt = Formatter::StringToFormat( res );
                 }
                 Formatter formatter( fmt, limit );
-                Output( formatter.start() );
 
-                rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                Query q{};
+
+                {
+                    rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if (opt_count > 0)
+                        q.doSchema();
+
+                    rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doPlatforms();
+
+                    rc = ArgsOptionCount( args, OPTION_ISALIGNED, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doAligned();
+
+                    rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doQuality();
+
+                    rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doSpots();
+                }
+
+                if (q.queries() > 1) {
+                    if (formatter.getFormat() == Formatter::CSV)
+                        throw VDB::Error(
+                            "CVS format does not support multiple queries");
+                    else if (formatter.getFormat() == Formatter::Tab)
+                        throw VDB::Error(
+                            "TAB format does not support multiple queries");
+                }
+                if (q.needSchema()) {
+                    if (formatter.getFormat() == Formatter::CSV)
+                        throw VDB::Error(
+                            "unsupported CSV formatting option for schema");
+                    else if (formatter.getFormat() == Formatter::Tab)
+                        throw VDB::Error(
+                            "unsupported TAB formatting option for schema");
+                }
+
+                Output(formatter.start());
+
+                if ( q.needSchema() )
                 {
                     Output( formatter.format( info.GetSchemaInfo() ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needPlatforms() )
                 {
                     Output( formatter.format( info.GetPlatforms() ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_ISALIGNED, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needAligned() )
                 {
                     Output( formatter.format(
                         info.IsAligned() ? "ALIGNED" : "UNALIGNED",
                         "ALIGNED" ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needQuality() )
                 {
                     Output( formatter.format(
                         info.HasPhysicalQualities()
@@ -289,9 +352,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                         "QUALITY" ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needSpots() )
                 {
                     SraInfo::Detail detail = SraInfo::Verbose;
 

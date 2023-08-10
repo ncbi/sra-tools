@@ -118,4 +118,22 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR00012
 #     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+# schema, Default format
+AddQueryTest( Test_Sra_Info_Schema_Default 9.0 "--schema input/MultiPlatform.sra" )
+
+# schema, JSON format
+AddQueryTest( Test_Sra_Info_Schema_Json 9.1 "--schema input/MultiPlatform.sra -fjson" )
+
+# schema, XML format
+AddQueryTest( Test_Sra_Info_Schema_Xml 9.2 "--schema input/MultiPlatform.sra -fxml" )
+
+# query for ACPQS, Default format
+AddQueryTest( Test_Sra_Info_ACPQS_Default 10.0 "input/MultiPlatform.sra -ACPQS" )
+
+# query for ACPQS, JSON format
+AddQueryTest( Test_Sra_Info_ACPQS_Json 10.1 "input/MultiPlatform.sra -ACPQS -fjson" )
+
+# query for ACPQS, XML format
+AddQueryTest( Test_Sra_Info_ACPQS_Xml 10.2 "input/MultiPlatform.sra -ACPQS -fxml" )
+
 endif()

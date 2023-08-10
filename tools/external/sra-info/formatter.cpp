@@ -206,7 +206,7 @@ class SimpleSchemaDataFormatter : public VDB::SchemaDataFormatter {
     const std::string _space;
     int _indent;
 public:
-    SimpleSchemaDataFormatter(const std::string &space, int indent) :
+    SimpleSchemaDataFormatter(const std::string &space = " ", int indent = 1) :
         _space(space), _indent(indent)
     {}
     void format(
@@ -234,6 +234,7 @@ class FullSchemaDataFormatter : public VDB::SchemaDataFormatter {
     const std::string _closeParent1;
     const std::string _closeParent2;
     const std::string _noParent;
+
 public:
     FullSchemaDataFormatter(int indent, const std::string &space,
         const std::string &open, const std::string &openNext,
@@ -249,8 +250,9 @@ public:
         _openParent2(openParent2), _closeParent1(closeParent1),
         _closeParent2(closeParent2), _noParent(noParent)
     {}
-    void format(
-        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+
+    void format(const struct VDB::SchemaData &d,
+        int indent = -1, bool first = true)
     {
         if (indent < 0)
             indent = _indent;
@@ -287,6 +289,25 @@ public:
         for (int i = 0; i < indent; ++i) out += _space;
         out += _close;
     }
+};
+
+class JsonSchemaDataFormatter : public FullSchemaDataFormatter {
+public:
+    JsonSchemaDataFormatter(
+        const std::string &open, int indent, const std::string &space = " "
+    )
+        : FullSchemaDataFormatter(indent, space, open, ",\n", "\"", "}", ",\n",
+            " \"Parents\": [\n", "\n", "]\n", "\n")
+    {}
+};
+
+class XmlSchemaDataFormatter : public FullSchemaDataFormatter {
+public:
+    XmlSchemaDataFormatter(int indent, const std::string &open,
+        const std::string &close, const std::string &space = " "
+    )
+        : FullSchemaDataFormatter(indent, space, open, "", "\n", close)
+    {}
 };
 
 string
@@ -512,19 +533,19 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out = "SCHEMA:\n"
 
             + space + "DBS:\n";
-        SimpleSchemaDataFormatter db(" ", indent);
+        SimpleSchemaDataFormatter db;
         for (auto it = info.db.begin(); it < info.db.end(); it++)
             db.format(*it);
         out += db.out;
 
         out += space + "TABLES:\n";
-        SimpleSchemaDataFormatter table(" ", indent);
+        SimpleSchemaDataFormatter table;
         for (auto it = info.table.begin(); it < info.table.end(); it++)
             table.format(*it);
         out += table.out;
 
         out += space + "VIEWS:\n";
-        SimpleSchemaDataFormatter view(" ", indent);
+        SimpleSchemaDataFormatter view;
         for (auto it = info.view.begin(); it < info.view.end(); it++)
             view.format(*it);
         out += view.out;
@@ -540,9 +561,7 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out += space + "\"SCHEMA\": {\n"
 
             + space + space + "\"DBS\": [\n";
-        FullSchemaDataFormatter db(indent, " ",
-            "{ \"Db\": \"", ",\n", "\"", "}",
-            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+        JsonSchemaDataFormatter db("{ \"Db\": \"", indent);
         first = true;
         for (auto it = info.db.begin(); it < info.db.end(); it++) {
             db.format(*it, indent, first);
@@ -552,11 +571,11 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out += space + space + "],\n"
 
             + space + space + "\"TABLES\": [\n";
-        FullSchemaDataFormatter table(indent, " ",
-            "{ \"Tbl\": \"", ",\n", "\"", "}",
-            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+        JsonSchemaDataFormatter table("{ \"Tbl\": \"", indent);
         first = true;
-        for (auto it = info.table.begin(); it < info.table.end(); it++) {
+        for (auto it = info.table.begin(); it < info.table.end();
+            ++it)
+        {
             table.format(*it, indent, first);
             first = false;
         }
@@ -566,9 +585,7 @@ string Formatter::format(const VDB::SchemaInfo & info) const
 
             + space + space + "\"VIEWS\": [\n";
         first = true;
-        FullSchemaDataFormatter view(indent, " ",
-            "{ \"View\": \"", ",\n", "\"", "}",
-            ",\n", " \"Parents\": [\n", "\n", "]\n", "\n");
+        JsonSchemaDataFormatter view("{ \"View\": \"", indent);
         for (auto it = info.view.begin(); it < info.view.end(); it++) {
             view.format(*it, indent, first);
             first = false;
@@ -585,24 +602,21 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out = space + "<SCHEMA>\n"
 
             + space + space + "<DBS>\n";
-        FullSchemaDataFormatter db(indent, space,
-            "<Db>", "", "\n", "</Db>\n");
+        XmlSchemaDataFormatter db(indent, "<Db>", "</Db>\n");
         for (auto it = info.db.begin(); it < info.db.end(); it++)
             db.format(*it);
         out += db.out;
         out += space + space + "</DBS>\n"
 
             + space + space + "<TABLES>\n";
-        FullSchemaDataFormatter table(indent, space,
-            "<Tbl>", "", "\n", "</Tbl>\n");
+        XmlSchemaDataFormatter table(indent, "<Tbl>", "</Tbl>\n");
         for (auto it = info.table.begin(); it < info.table.end(); it++)
             table.format(*it);
         out += table.out;
         out += space + space + "</TABLES>\n"
 
             + space + space + "<VIEWS>\n";
-        FullSchemaDataFormatter view(indent, space,
-            "<View>", "", "\n", "</View>\n");
+        XmlSchemaDataFormatter view(indent, "<View>", "</View>\n");
         for (auto it = info.view.begin(); it < info.view.end(); it++)
             view.format(*it);
         out += view.out;

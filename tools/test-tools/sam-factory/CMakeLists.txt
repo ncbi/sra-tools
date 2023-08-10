@@ -22,4 +22,17 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( sam-factory sam-factory.cpp "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")
+set( TOOL_SRC
+	helper
+    cigar
+    progline_params
+    progline
+    reference
+    alignment
+    alignment_group
+    settings
+    factory
+	sam-factory
+)
+
+GenerateExecutableWithDefs( sam-factory "${TOOL_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")

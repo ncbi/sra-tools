@@ -27,18 +27,18 @@ config:config.txt
 #sort:false
 
 #full list of p/s - keys:
-#name  ... name of alignment ( can/should be used multiple times )
-#ref   ... alias/name of reference ( see references above )
-#pos   ... position on reference
-#mapq  ... mapping-quality
-#cigar ... can include literal bases for mismatches, will be 'purified' for sam-output
-#tlen  ... template-length
-#qual  ... quality-string ( if shorter then READ, will be repeated to fill length )
-#opts  ... space separated list of sam-options ( will be literally appended )
-#ins   ... bases to be used if cigar-string has insert-op's
-#flags ... additional flags
-#repeat... how may times to repeat ( uses random values if specific keys are omitted )
-#len   ... length for unaligned reads if seq is omitted
+#name  ... mandatory ... name of alignment ( can/should be used multiple times )
+#ref   ... optional .... alias/name of reference ( see references above )
+#pos   ... optional .... position on reference
+#mapq  ... optional .... mapping-quality
+#cigar ... optional .... can include literal bases for mismatches, will be 'purified' for sam-output
+#tlen  ... optional .... template-length
+#qual  ... optional .... quality-string ( if shorter then READ, will be repeated to fill length )
+#opts  ... optional .... space separated list of sam-options ( will be literally appended )
+#ins   ... optional .... bases to be used if cigar-string has insert-op's
+#flags ... optional .... additional flags
+#repeat... optional .... how may times to repeat ( uses random values if specific keys are omitted )
+#len   ... optional .... length for unaligned reads if seq is omitted
 p:name=A1,pos=100,reverse=yes,qual=abcd
 p:name=A1,pos=120,qual=*
 s:name=A1,pos=200

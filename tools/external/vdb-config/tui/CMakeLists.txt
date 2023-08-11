@@ -25,19 +25,23 @@
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/.. )
 
 set ( UNIX_SRC unix/systui.c )
+set ( BSD_SRC bsd/systui.c )
 set ( LINUX_SRC linux/systui.c )
 set ( MAC_SRC bsd/systui.c )
 set ( WIN_SRC win/systui.c )
 
-if ( "windows" STREQUAL ${OS} )
-    set ( OS_SPECIFIC_SRC ${WIN_SRC} )
-    #include_directories( win )
+if( "bsd" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${BSD_SRC} )
+    #include_directories( unix )
 elseif( "linux" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC ${LINUX_SRC} )
     #include_directories( unix )
 elseif( "mac" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC ${MAC_SRC} )
     #include_directories( unix )
+elseif ( "windows" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${WIN_SRC} )
+    #include_directories( win )
 endif()
 
 set( SRC

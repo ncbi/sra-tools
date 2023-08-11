@@ -1,7 +1,6 @@
 
 #include "cigar.hpp"
-
-const std::string empty_string( "" );
+#include "helper.hpp"
 
 cigar_t::cigar_t( const std::string &s ) { // ctor
     uint32_t count = 0;

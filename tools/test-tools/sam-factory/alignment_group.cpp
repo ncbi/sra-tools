@@ -34,23 +34,23 @@ void t_alignment_group::finish_alignmnet_vector( t_alignment_vec& v ) {
             if ( idx == 0 ) {
                 // first ...
                 a -> set_mate( v[ 1 ] );
-                a -> set_flag( FLAG_FIRST, true );
-                a -> set_flag( FLAG_LAST, false );
+                a -> toggle_flag( FLAG_FIRST, true );
+                a -> toggle_flag( FLAG_LAST, false );
             } else if ( idx == cnt -1 ) {
                 // last ...
                 a -> set_mate( v[ 0 ] );
-                a -> set_flag( FLAG_FIRST, false );
-                a -> set_flag( FLAG_LAST, true );
+                a -> toggle_flag( FLAG_FIRST, false );
+                a -> toggle_flag( FLAG_LAST, true );
             } else {
                 // in between
                 a -> set_mate( v[ idx + 1 ] );
-                a -> set_flag( FLAG_FIRST, false );
-                a -> set_flag( FLAG_LAST, false );
+                a -> toggle_flag( FLAG_FIRST, false );
+                a -> toggle_flag( FLAG_LAST, false );
             }
             idx++;
         }
     } else if ( cnt == 1 ) {
-        v[ 0 ] -> set_flag( FLAG_MULTI, false );
+        v[ 0 ] -> toggle_flag( FLAG_MULTI, false );
     }
 }
     
@@ -62,7 +62,7 @@ void t_alignment_group::finish_alignments( void ) {
 void t_alignment_group::bin_alignment_by_ref( t_alignment_ptr a, t_alignment_bins &by_ref,
                                               t_alignment_vec &without_ref ) {
     if ( a -> has_ref() ) {
-        std::string name = a -> refname();
+        std::string name = a -> get_refname();
         auto bin = by_ref . find( name );
         if ( bin == by_ref . end() ) {
             // no : we have to make one ...

@@ -43,33 +43,42 @@ int t_factory::get_flags( const t_progline_ptr pl, int type_flags ) const {
     
 void t_factory::generate_single_align( const t_progline_ptr pl, const std::string &name,
                             const t_reference_ptr ref, int flags, int qual_div ) {
-    t_alignment_ptr a = t_alignment::make( name,
-                                            flags,
-                                            ref,
-                                            pl -> get_int_key( "pos", 0 ),
-                                            pl -> get_int_key( "mapq", settings.get_dflt_mapq() ),
-                                            pl -> get_string_key( "cigar", settings.get_dflt_cigar() ),
-                                            pl -> get_int_key( "tlen", 0 ),
-                                            pl -> get_string_key( "qual" ),
-                                            pl -> get_string_key( "opts" ),
-                                            pl -> get_string_key( "ins" ),
-                                            qual_div );
+    t_alignment_ptr a = t_alignment::make( name, flags );
+    // order is important!
+    a -> set_reference( ref );
+    a -> set_ref_pos( pl -> get_int_key( "pos", 0 ) );
+    a -> set_mapq( pl -> get_int_key( "mapq", settings.get_dflt_mapq() ) );
+    a -> set_ins_bases( pl -> get_string_key( "ins" ) );
+    a -> set_cigar( pl -> get_string_key( "cigar", settings.get_dflt_cigar() ) );
+    a -> set_opts( pl -> get_string_key( "opts" ) );
+    a -> set_tlen( pl -> get_int_key( "tlen", 0 ) );
+    a -> set_quality( pl -> get_string_key( "qual" ), qual_div );
+    a -> adjust_refpos_and_seq();
     t_alignment_group::insert_alignment( a, alignment_groups );
 }
 
 void t_factory::generate_multiple_align( const t_progline_ptr pl, const std::string &base_name,
                                 const t_reference_ptr ref, int flags, int repeat, int qual_div ) {
-    int pos = pl -> get_int_key( "pos", 0 );
+    int ref_pos = pl -> get_int_key( "pos", 0 );
     int mapq = pl -> get_int_key( "mapq", settings.get_dflt_mapq() );
+    const std::string& ins_bases = pl -> get_string_key( "ins" );
     const std::string& cigar = pl -> get_string_key( "cigar", settings.get_dflt_cigar() );
+    const std::string& opts = pl -> get_string_key( "opts" );
     int tlen = pl -> get_int_key( "tlen", 0 );
     const std::string& qual = pl -> get_string_key( "qual" );
-    const std::string& opts = pl -> get_string_key( "opts" );
-    const std::string& ins_bases = pl -> get_string_key( "ins" );
     for ( int i = 0; i < repeat; i++ ) {
         std::ostringstream os;
         os << base_name << "_" << i;
-        t_alignment_ptr a = t_alignment::make( os.str(), flags, ref, pos, mapq, cigar, tlen, qual, opts, ins_bases, qual_div );
+        t_alignment_ptr a = t_alignment::make( os.str(), flags );
+        a -> set_reference( ref );
+        a -> set_ref_pos( ref_pos );
+        a -> set_mapq( mapq );
+        a -> set_ins_bases( ins_bases );
+        a -> set_cigar( cigar );
+        a -> set_opts( opts );
+        a -> set_tlen( tlen );
+        a -> set_quality( qual, qual_div );
+        a -> adjust_refpos_and_seq();        
         t_alignment_group::insert_alignment( a, alignment_groups );
     }
 }
@@ -102,6 +111,8 @@ void t_factory::generate_unaligned( const t_progline_ptr pl ) {
     } else {
         int flags = pl -> get_int_key( "flags", 0 ) | FLAG_UNMAPPED;
         int qual_div = pl -> get_int_key( "qdiv", settings.get_dflt_qdiv() );
+        std::string qual = pl -> get_string_key( "qual" );
+        std::string opts = pl -> get_string_key( "opts" );        
         std::string seq = pl -> get_string_key( "seq" ); // not const ref, because we may overwrite it
         if ( seq.empty() ) {
             int len = pl -> get_int_key( "len", 0 );
@@ -111,10 +122,11 @@ void t_factory::generate_unaligned( const t_progline_ptr pl ) {
                 seq = random_bases( len );
             }
         }
-        t_alignment_group::insert_alignment(
-            t_alignment::make( name, flags, seq, pl -> get_string_key( "qual" ),
-                                pl -> get_string_key( "opts" ), qual_div ),
-                                            alignment_groups );
+        t_alignment_ptr a = t_alignment::make( name, flags );
+        a -> set_seq( seq );
+        a -> set_opts( opts );
+        a -> set_quality( qual, qual_div );        
+        t_alignment_group::insert_alignment( a, alignment_groups );
     }
 }
 

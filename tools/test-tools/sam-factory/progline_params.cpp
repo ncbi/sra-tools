@@ -1,7 +1,6 @@
 
 #include "progline_params.hpp"
-
-const std::string empty_string( "" );
+#include "helper.hpp"
 
 void t_params::split_kv( const std::string &kv ) {
     int eq_pos = kv.find( '=' );

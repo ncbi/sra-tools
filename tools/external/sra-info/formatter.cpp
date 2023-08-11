@@ -206,7 +206,7 @@ class SimpleSchemaDataFormatter : public VDB::SchemaDataFormatter {
     const std::string _space;
     int _indent;
 public:
-    SimpleSchemaDataFormatter(const std::string &space = " ", int indent = 1) :
+    SimpleSchemaDataFormatter(const std::string &space = "  ", int indent = 1) :
         _space(space), _indent(indent)
     {}
     void format(
@@ -520,7 +520,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
 string Formatter::format(const VDB::SchemaInfo & info) const
 {
-    string space(" ");
+    string space("  ");
     int indent(3);
     bool first(true);
     string out;
@@ -533,19 +533,19 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         out = "SCHEMA:\n"
 
             + space + "DBS:\n";
-        SimpleSchemaDataFormatter db;
+        SimpleSchemaDataFormatter db(space, indent);
         for (auto it = info.db.begin(); it < info.db.end(); it++)
             db.format(*it);
         out += db.out;
 
         out += space + "TABLES:\n";
-        SimpleSchemaDataFormatter table;
+        SimpleSchemaDataFormatter table(space, indent);
         for (auto it = info.table.begin(); it < info.table.end(); it++)
             table.format(*it);
         out += table.out;
 
         out += space + "VIEWS:\n";
-        SimpleSchemaDataFormatter view;
+        SimpleSchemaDataFormatter view(space, indent);
         for (auto it = info.view.begin(); it < info.view.end(); it++)
             view.format(*it);
         out += view.out;

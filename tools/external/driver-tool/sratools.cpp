@@ -578,7 +578,9 @@ static int main(CommandLine const &argv)
 
 } // namespace sratools
 
-#if BSD
+// BSD is defined when compiling on Mac
+// Use the MAC case below, not this one
+#if BSD && !MAC
 int main(int argc, char *argv[], char *envp[])
 {
     auto const invocation = CommandLine(argc, argv, envp, nullptr);

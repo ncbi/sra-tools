@@ -97,24 +97,13 @@ const char *vdcd_get_hole_status_txt( const uint32_t id ) {
 }
 
 const char *vdcd_get_platform_txt( const uint32_t id ) {
-#define CASE( id ) \
-    case id : return # id; break
-
-    switch( id ) {
-        CASE ( SRA_PLATFORM_UNDEFINED );
-        CASE ( SRA_PLATFORM_454 );
-        CASE ( SRA_PLATFORM_ILLUMINA );
-        CASE ( SRA_PLATFORM_ABSOLID );
-        CASE ( SRA_PLATFORM_COMPLETE_GENOMICS );
-        CASE ( SRA_PLATFORM_HELICOS );
-        CASE ( SRA_PLATFORM_PACBIO_SMRT );
-        CASE ( SRA_PLATFORM_ION_TORRENT );
-        CASE ( SRA_PLATFORM_CAPILLARY );
-        CASE ( SRA_PLATFORM_OXFORD_NANOPORE );
+    static const char *platform_symbolic_names[] = { INSDC_SRA_PLATFORM_SYMBOLS };
+    size_t platform_count = sizeof( platform_symbolic_names ) / sizeof( * platform_symbolic_names );
+    if ( id >= platform_count )
+    {
+        return "unknown platform";
     }
-#undef CASE
-
-    return "unknown platform";
+    return platform_symbolic_names[ id ];
 }
 
 const char SRA_RT_0[] = { SRA_NAME  ( READ_TYPE_TECHNICAL ) };

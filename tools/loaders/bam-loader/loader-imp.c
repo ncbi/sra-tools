@@ -726,48 +726,57 @@ static bool platform_cmp(char const platform[], char const test[])
 static
 INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
     if (name) {
-        BAMReadGroup const *rg;
+        BAMReadGroup const *rg = NULL;
 
         BAM_FileGetReadGroupByName(bam, name, &rg);
         if (rg && rg->platform) {
-            switch (toupper(rg->platform[0])) {
+        	char const *platform = rg->platform;
+            switch (toupper(platform[0])) {
             case 'C':
-                if (platform_cmp(rg->platform, "COMPLETE GENOMICS"))
+                if (platform_cmp(platform, "COMPLETE GENOMICS"))
                     return SRA_PLATFORM_COMPLETE_GENOMICS;
-                if (platform_cmp(rg->platform, "CAPILLARY"))
+                if (platform_cmp(platform, "CAPILLARY"))
                     return SRA_PLATFORM_CAPILLARY;
                 break;
+            case 'D':
+                if (platform_cmp(platform, "DNBSEQ"))
+                    return SRA_PLATFORM_BGISEQ;
+                break;
+            case 'E':
+                if (platform_cmp(platform, "ELEMENT"))
+                    return SRA_PLATFORM_ELEMENT_BIO;
+                break;
             case 'H':
-                if (platform_cmp(rg->platform, "HELICOS"))
+                if (platform_cmp(platform, "HELICOS"))
                     return SRA_PLATFORM_HELICOS;
                 break;
             case 'I':
-                if (platform_cmp(rg->platform, "ILLUMINA"))
+                if (platform_cmp(platform, "ILLUMINA"))
                     return SRA_PLATFORM_ILLUMINA;
-                if (platform_cmp(rg->platform, "IONTORRENT"))
+                if (platform_cmp(platform, "IONTORRENT"))
                     return SRA_PLATFORM_ION_TORRENT;
                 break;
             case 'L':
-                if (platform_cmp(rg->platform, "LS454"))
+                if (platform_cmp(platform, "LS454"))
                     return SRA_PLATFORM_454;
                 break;
-            case 'N':
-                if (platform_cmp(name, "NANOPORE"))
-                    return SRA_PLATFORM_OXFORD_NANOPORE;
-                break;
             case 'O':
-                if (platform_cmp(name, "OXFORD_NANOPORE"))
+                if (platform_cmp(platform, "ONT"))
                     return SRA_PLATFORM_OXFORD_NANOPORE;
                 break;
             case 'P':
-                if (platform_cmp(rg->platform, "PACBIO"))
+                if (platform_cmp(platform, "PACBIO"))
                     return SRA_PLATFORM_PACBIO_SMRT;
                 break;
             case 'S':
-                if (platform_cmp(rg->platform, "SOLID"))
+                if (platform_cmp(platform, "SOLID"))
                     return SRA_PLATFORM_ABSOLID;
-                if (platform_cmp(name, "SANGER"))
+                if (platform_cmp(platform, "SANGER"))
                     return SRA_PLATFORM_CAPILLARY;
+                break;
+            case 'U':
+                if (platform_cmp(platform, "ULTIMA"))
+                    return SRA_PLATFORM_ULTIMA;
                 break;
             default:
                 break;

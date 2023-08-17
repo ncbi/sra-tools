@@ -134,9 +134,11 @@ rc_t CC Usage ( const Args * args )
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
-    KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+    KOutMsg( "      xml ..... xml-style\n" );
     KOutMsg( "      json .... json-style\n" );
     KOutMsg( "      tab ..... tab-separated values on one line\n" );
+    KOutMsg( "             csv and tab formats can be used just with a single query\n" );
+    KOutMsg( "             --" OPTION_SCHEMAVERS " does npt support csv and tab\n" );
 
     HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
     HelpOptionLine ( ALIAS_DETAIL, OPTION_DETAIL, "N", detail_usage );

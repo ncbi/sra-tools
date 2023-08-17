@@ -29,10 +29,6 @@
 #include <vfs/resolver.h> /* VResolver */
 #include <vfs/path.h> /* VPathMake */
 
-#include <kapp/main.h>
-#include <kapp/args.h>
-#include <kapp/log-xml.h>
-
 #include <kdb/manager.h>
 #include <kdb/database.h>
 #include <kdb/table.h>
@@ -40,8 +36,6 @@
 #include <kdb/namelist.h>
 #include <kdb/consistency-check.h>
 #include <kdb/kdb-priv.h> /* KTableOpenDirectoryRead */
-
-#include <kfg/config.h> /* KConfigSetNgcFile */
 
 #include <vdb/manager.h>
 #include <vdb/schema.h>
@@ -76,6 +70,8 @@
 #include <klib/data-buffer.h>
 #include <klib/sort.h>
 
+#include <kapp/main.h> /* Quitting */
+
 #include <sysalloc.h>
 
 #include <stdio.h>
@@ -84,6 +80,8 @@
 #include <ctype.h>
 #include <assert.h>
 #include <math.h>
+
+#include "vdb-validate.h"
 
 #ifndef MIN
 #define MIN(a,b)    (((a) < (b)) ? (a) : (b))
@@ -104,10 +102,6 @@
 #define DBG_MSG(args)
 #endif
 
-static bool exhaustive;
-static bool md5_required;
-static bool ref_int_check;
-static bool s_IndexOnly;
 static size_t memory_suggestion = (2ull * 1024ull * 1024ull * 1024ull);
 
 typedef struct node_s {
@@ -325,7 +319,7 @@ static rc_t visiting(CCReportInfoBlock const *what, cc_context_t *ctx)
 
 static rc_t CC report(CCReportInfoBlock const *what, void *Ctx)
 {
-    cc_context_t *ctx = Ctx;
+    cc_context_t *ctx = (cc_context_t *)Ctx;
     rc_t rc = Quitting();
 
     if (rc)
@@ -475,13 +469,15 @@ typedef struct ColumnInfo_s {
     uint32_t elem_count;
 } ColumnInfo;
 
+struct CountSize {
+	unsigned count;
+	size_t size;
+};
+
 static rc_t CC get_sizes_cb(const KDirectory *dir,
     uint32_t type, const char *name, void *data)
 {
-    struct {
-        unsigned count;
-        size_t size;
-    } *pb = data;
+    struct CountSize *pb = (struct CountSize *)data;
 
     ++pb->count;
     pb->size += strlen(name) + 1;
@@ -492,10 +488,7 @@ static rc_t CC get_sizes_cb(const KDirectory *dir,
 static rc_t get_sizes(KDirectory const *dir, unsigned *nobj, size_t *namesz)
 {
     rc_t rc;
-    struct {
-        unsigned count;
-        size_t size;
-    } pb;
+    struct CountSize pb;
 
     memset(&pb, 0, sizeof(pb));
     rc = KDirectoryVisit(dir, true, get_sizes_cb, &pb, NULL);
@@ -690,7 +683,7 @@ static rc_t init_dbcc(KDirectory const *dir, char const name[], bool is_file,
         *names = NULL;
     }
     else {
-        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz + 1);
+        *nodes = (node_t *)calloc(1, nobj * sizeof(**nodes) + namesz + 1);
         if (names)
             *names = (char *)&(*nodes)[nobj];
         else
@@ -761,44 +754,6 @@ static rc_t sra_dbcc_454(VTable const *tbl, char const name[])
     /* TODO: complete this */
     return 0;
 }
-
-typedef struct vdb_validate_params vdb_validate_params;
-struct vdb_validate_params
-{
-    const KDirectory *wd;
-    const KDBManager *kmgr;
-    const VDBManager *vmgr;
-
-    bool md5_chk;
-    bool md5_chk_explicit;
-    bool blob_crc;
-    bool index_chk;
-    bool consist_check;
-    bool exhaustive;
-
-    // data integrity checks parameters
-    bool sdc_enabled;
-    bool sdc_sec_rows_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_sec_rows;
-
-    bool sdc_seq_rows_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_seq_rows;
-
-    bool sdc_pa_len_thold_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_pa_len_thold;
-};
 
 static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
 {
@@ -1057,7 +1012,7 @@ static rc_t VTable_get_platform(VTable const *tbl,
         /* probable fatal */
         return rc;
     }
-    rc = VCursorAddColumn(curs, &cid, "("sra_platform_id_t")PLATFORM");
+    rc = VCursorAddColumn(curs, &cid, "(" sra_platform_id_t ")PLATFORM");
     if (rc == 0) {
         rc = VCursorOpen(curs);
         if (rc == 0) {
@@ -1350,17 +1305,19 @@ static size_t load_key_pairs(int64_t const startId,
 
 static bool is_sorted(uint32_t const N, int64_t const key[/* N */])
 {
-    uint32_t i = 0;
-    int64_t last = key[i];
+	if (N > 0) {
+		uint32_t i = 0;
+		int64_t last = key[i];
 
-    for (i = 1; i < N; ++i) {
-        int64_t const cur = key[i];
+		for (i = 1; i < N; ++i) {
+			int64_t const cur = key[i];
 
-        if (cur < last)
-            return false;
+			if (cur < last)
+				return false;
 
-        last = cur;
-    }
+			last = cur;
+		}
+	}
     return true;
 }
 
@@ -1428,7 +1385,7 @@ static rc_t ric_align_generic(int64_t const startId,
                 } else if (rc)
                     return rc;
 
-                if (!is_sorted(elem_count, id)) {
+                if (elem_count > 0 && !is_sorted(elem_count, id)) {
                     if (scratch_size < elem_count) {
                         void *const temp = realloc(scratch[0], elem_count * sizeof(id[0]));
 
@@ -1439,8 +1396,8 @@ static rc_t ric_align_generic(int64_t const startId,
                         scratch_size = elem_count;
                     }
                     memmove(scratch[0], id, elem_count * sizeof(id[0]));
-                    sort_keys(elem_count, scratch[0]);
-                    id = scratch[0];
+                    sort_keys(elem_count, (int64_t *)scratch[0]);
+                    id = (int64_t const *)scratch[0];
                 }
                 current = 0;
                 cur_fkey = fkey;
@@ -1448,13 +1405,13 @@ static rc_t ric_align_generic(int64_t const startId,
                     ++current;
                 }
             }
-            if (current >= elem_count || id[current] != row){
-				  (void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
-                                     "$(aname) <-> $(bname)"
-                                     " inconsistens pair $(first) -> $(second)",
-                                     "aname=%s,bname=%s,first=%ld,second=%ld",
-                                     aci->name, bci->name,
-                                     pair[i].first,pair[i].second));
+            if (current >= elem_count || id[current] != row) {
+                (void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
+                                         "$(aname) <-> $(bname) "
+                                         "inconsistent pair $(first) -> $(second)",
+                                         "aname=%s,bname=%s,first=%ld,second=%ld",
+                                         aci->name, bci->name,
+                                         pair[i].first,pair[i].second));
 
                 return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
 			}
@@ -1463,8 +1420,8 @@ static rc_t ric_align_generic(int64_t const startId,
     }
     if (show_complete) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Referential Integrity: "
-                                 "$(aname) <-> $(bname)"
-                                 " $(pct)% complete",
+                                 "$(aname) <-> $(bname) "
+                                 "$(pct)% complete",
                                  "aname=%s,bname=%s,pct=%5.1f",
                                  aci->name, bci->name,
                                  100.0));
@@ -1491,31 +1448,30 @@ static rc_t ric_align_ref_and_align(char const dbname[],
 
     aci.name = "REF_ID";
     bci.name = id_col_name;
-
-    rc = VTableCreateCursorRead(align, &acurs);
-    if (rc == 0) {
-        rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
-        if (rc == 0)
-            rc = VCursorOpen(acurs);
-        if (rc == 0)
-            rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
-    }
-    if (rc)
-        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-            "alignment table can not be read", "name=%s", dbname));
-    else {
-        rc = VTableCreateCursorRead(ref, &bcurs);
-        if (rc == 0)
-            rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
-        if (rc == 0)
-            rc = VCursorOpen(bcurs);
-        if (rc)
-            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-                "reference table can not be read", "name=%s", dbname));
-    }
-    if (rc == 0) {
+    
+	rc = VTableCreateCursorRead(align, &acurs);
+	if (rc == 0)
+	    rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
+	if (rc == 0)
+		rc = VCursorOpen(acurs);
+	if (rc == 0)
+		rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
+	if (rc)
+		(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+								"alignment table can not be read", "name=%s", dbname));
+	else {
+		rc = VTableCreateCursorRead(ref, &bcurs);
+		if (rc == 0)
+			rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
+		if (rc == 0)
+			rc = VCursorOpen(bcurs);
+		if (rc)
+			(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+									"reference table can not be read", "name=%s", dbname));
+	}
+	if (rc == 0) {
         size_t const chunk = work_chunk(count);
-        id_pair_t *const pair = malloc(sizeof(id_pair_t) * chunk);
+        id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
 
         if (pair) {
             void *scratch = NULL;
@@ -1527,21 +1483,21 @@ static rc_t ric_align_ref_and_align(char const dbname[],
 
             if (GetRCObject(rc) == (enum RCObject)rcData && GetRCState(rc) == rcUnexpected)
                 (void)PLOGERR(klogErr, (klogErr, rc,
-                    "Database '$(name)': failed referential "
-                    "integrity check", "name=%s", dbname));
+                                        "Database '$(name)': failed referential "
+                                        "integrity check", "name=%s", dbname));
             else if (GetRCObject(rc) == (enum RCObject)rcData &&
                      GetRCState(rc) == rcInconsistent)
                 (void)PLOGERR(klogErr, (klogErr, rc,
- "Database '$(name)': column '$(idcol)' failed referential integrity check",
- "name=%s,idcol=%s", dbname, id_col_name));
+                                        "Database '$(name)': column '$(idcol)' failed referential integrity check",
+                                        "name=%s,idcol=%s", dbname, id_col_name));
             else if (GetRCObject(rc) == (enum RCObject)rcData &&
                      GetRCState(rc) == rcTooBig)
                 (void)PLOGERR(klogWarn, (klogWarn, rc = 0, "Database '$(name)':"
-                         " referential integrity could not be checked, skipped",
-                         "name=%s", dbname));
+                                         " referential integrity could not be checked, skipped",
+                                         "name=%s", dbname));
             else if (rc)
                 (void)PLOGERR(klogErr, (klogErr, rc,
-"Database '$(name)': reference table can not be read", "name=%s", dbname));
+                                        "Database '$(name)': reference table can not be read", "name=%s", dbname));
 
             free(pair);
         }
@@ -1597,7 +1553,7 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     }
     if (rc == 0) {
         size_t const chunk = work_chunk(count);
-        id_pair_t *const pair = malloc((sizeof(id_pair_t)+sizeof(int64_t)) * chunk);
+        id_pair_t *const pair = (id_pair_t *)malloc((sizeof(id_pair_t)+sizeof(int64_t)) * chunk);
 
         if (pair) {
             void *scratch = NULL;
@@ -1772,11 +1728,11 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
     {
         chunk_size = sec_row_count > SDC_ROW_CHUNK_MAX ? SDC_ROW_CHUNK_MAX : sec_row_count;
 
-        pri_id_pairs = malloc(sizeof(*pri_id_pairs) * chunk_size);
-        pri_len_pairs = malloc(sizeof(*pri_len_pairs) * chunk_size);
-        seq_spot_id_pairs = malloc(sizeof(*seq_spot_id_pairs) * chunk_size);
-        seq_spot_read_id_pairs = malloc(sizeof(*seq_spot_read_id_pairs) * chunk_size);
-        seq_read_lens = malloc(sizeof(*seq_read_lens) * chunk_size);
+        pri_id_pairs = (id_pair_t *)malloc(sizeof(*pri_id_pairs) * chunk_size);
+        pri_len_pairs = (id_pair_t *)malloc(sizeof(*pri_len_pairs) * chunk_size);
+        seq_spot_id_pairs = (id_pair_t *)malloc(sizeof(*seq_spot_id_pairs) * chunk_size);
+        seq_spot_read_id_pairs = (id_pair_t *)malloc(sizeof(*seq_spot_read_id_pairs) * chunk_size);
+        seq_read_lens = (uint32_t *)malloc(sizeof(*seq_read_lens) * chunk_size);
 
         if (seq_spot_id_pairs == NULL)
         {
@@ -1816,7 +1772,8 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
         for ( chunk = sec_row_id_start; chunk < sec_row_id_end; chunk += chunk_size )
         {
             int64_t i;
-            int64_t i_count = MIN(chunk_size, sec_row_id_end - chunk);
+            size_t const remaining = sec_row_id_end - chunk;
+            int64_t i_count = MIN(chunk_size, remaining);
             const void * data_ptr = NULL;
             uint32_t data_len;
             int64_t last_seq_spot_id = INT64_MIN;
@@ -2653,19 +2610,20 @@ KPathType vdb_subdir_type ( const vdb_validate_params *pb, const KDirectory *dir
 static
 rc_t CC vdb_validate_dir ( const KDirectory *dir, uint32_t type, const char *name, void *data )
 {
+	vdb_validate_params const *pb = (vdb_validate_params *)data;
     switch ( type & ~ kptAlias )
     {
     case kptFile:
-        return vdb_validate_file ( data, dir, name );
+        return vdb_validate_file ( pb, dir, name );
     case kptDir:
         {
             bool is_ad;
-            switch ( vdb_subdir_type ( data, dir, name, &is_ad ) )
+            switch ( vdb_subdir_type ( pb, dir, name, &is_ad ) )
             {
             case kptDatabase:
-                return vdb_validate_database ( data, dir, name, is_ad );
+                return vdb_validate_database ( pb, dir, name, is_ad );
             case kptTable:
-                return vdb_validate_table ( data, dir, name, is_ad );
+                return vdb_validate_table ( pb, dir, name, is_ad );
             default:
                 return KDirectoryVisit ( dir, false, vdb_validate_dir, data, "%s", name );
             }
@@ -2689,7 +2647,7 @@ static bool NotFoundByResolver(rc_t rc) {
     return false;
 }
 
-static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
+rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     bool bad = false;
     const String *local = NULL;
     VFSManager *mgr = NULL;
@@ -2822,633 +2780,6 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     if (bad) {
         PLOGMSG ( klogWarn, ( klogWarn,
             "Path '$(fname)' could not be validated", "fname=%s", path ) );
-    }
-
-    return rc;
-}
-
-/*static char const* const defaultLogLevel =
-#if _DEBUGGING
-"debug5";
-#else
-"info";
-#endif*/
-
-/******************************************************************************
- * Usage
- ******************************************************************************/
-const char UsageDefaultName[] = "vdb-validate";
-
-rc_t CC UsageSummary(const char *prog_name)
-{
-    return KOutMsg ( "Usage: %s [options] path [ path... ]\n"
-                     "\n"
-                     , prog_name );
-}
-
-/*static char const *help_text[] =
-{
-    "Check components md5s if present, "
-            "fail unless other checks are requested (default: yes)", NULL,
-    "Check blobs CRC32 (default: no)", NULL,
-    "Check 'skey' index (default: no)", NULL,
-    "Continue checking object for all possible errors (default: no)", NULL,
-    "Check data referential integrity for databases (default: no)", NULL,
-    "Check index-only with blobs CRC32 (default: no)", NULL
-};*/
-
-#define ALIAS_md5  "5"
-#define OPTION_md5 "md5"
-static const char *USAGE_MD5[] = { "Check components md5s if present, "
-    "fail unless other checks are requested (default: yes)", NULL };
-/*
-#define ALIAS_MD5  "M"
-#define OPTION_MD5 "MD5"
-*/
-#define ALIAS_blob_crc  "b"
-#define OPTION_blob_crc "blob-crc"
-static const char *USAGE_BLOB_CRC[] =
-{ "Check blobs CRC32 (default: yes)", NULL };
-
-#define ALIAS_BLOB_CRC  "B"
-#define OPTION_BLOB_CRC "BLOB-CRC"
-
-#define ALIAS_CNS_CHK  "C"
-#define OPTION_CNS_CHK "CONSISTENCY-CHECK"
-static const char *USAGE_CNS_CHK[] =
-{ "Deeply check data consistency for tables (default: no)", NULL };
-
-#if CHECK_INDEX
-#define ALIAS_INDEX  "i"
-#define OPTION_INDEX "index"
-static const char *USAGE_INDEX[] = { "Check 'skey' index (default: no)", NULL };
-#endif
-
-#define ALIAS_EXHAUSTIVE  "x"
-#define OPTION_EXHAUSTIVE "exhaustive"
-static const char *USAGE_EXHAUSTIVE[] =
-{ "Continue checking object for all possible errors (default: false)", NULL };
-
-#define ALIAS_ref_int  "d"
-#define OPTION_ref_int "referential-integrity"
-static const char *USAGE_REF_INT[] =
-{ "Check data referential integrity for databases (default: yes)", NULL };
-
-#define ALIAS_REF_INT  "I"
-#define OPTION_REF_INT "REFERENTIAL-INTEGRITY"
-
-#define OPTION_SDC_SEC_ROWS "sdc:rows"
-static const char *USAGE_SDC_SEC_ROWS[] =
-{ "Specify maximum amount of secondary alignment table rows to look at before saying accession is good, default 100000.",
-  "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
-  NULL };
-
-#define OPTION_SDC_SEQ_ROWS "sdc:seq-rows"
-static const char *USAGE_SDC_SEQ_ROWS[] =
-{ "Specify maximum amount of sequence table rows to look at before saying accession is good, default 100000.",
-  "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
-  NULL };
-
-#define OPTION_SDC_PLEN_THOLD "sdc:plen_thold"
-static const char *USAGE_SDC_PLEN_THOLD[] =
-{ "Specify a threshold for amount of secondary alignment which are shorter (hard-clipped) than corresponding primaries, default 1%.", NULL };
-
-#define OPTION_NGC "ngc"
-static const char *USAGE_NGC[] = { "path to ngc file", NULL };
-
-static const char *USAGE_DRI[] =
-{ "Do not check data referential integrity for databases", NULL };
-
-static const char *USAGE_IND_ONLY[] =
-{ "Check index-only with blobs CRC32 (default: no)", NULL };
-
-static OptDef options [] =
-{                                                    /* needs_value, required */
-/*  { OPTION_MD5     , ALIAS_MD5     , NULL, USAGE_MD5     , 1, true , false }*/
-    { OPTION_BLOB_CRC, ALIAS_BLOB_CRC, NULL, USAGE_BLOB_CRC, 1, true , false }
-#if CHECK_INDEX
-  , { OPTION_INDEX   , ALIAS_INDEX   , NULL, USAGE_INDEX   , 1, false, false }
-#endif
-  , { OPTION_EXHAUSTIVE,
-                   ALIAS_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE, 1, false, false }
-  , { OPTION_REF_INT , ALIAS_REF_INT , NULL, USAGE_REF_INT , 1, true , false }
-  , { OPTION_CNS_CHK , ALIAS_CNS_CHK , NULL, USAGE_CNS_CHK , 1, true , false }
-  , { OPTION_NGC     , NULL          , NULL, USAGE_NGC     , 1, true , false }
-
-    /* secondary alignment table data check options */
-  , { OPTION_SDC_SEC_ROWS, NULL      , NULL, USAGE_SDC_SEC_ROWS, 1, true , false }
-  , { OPTION_SDC_SEQ_ROWS, NULL      , NULL, USAGE_SDC_SEQ_ROWS, 1, true , false }
-  , { OPTION_SDC_PLEN_THOLD, NULL    , NULL, USAGE_SDC_PLEN_THOLD, 1, true , false }
-
-    /* not printed by --help */
-  , { "dri"          , NULL          , NULL, USAGE_DRI     , 1, false, false }
-  , { "index-only"   ,NULL           , NULL, USAGE_IND_ONLY, 1, false, false }
-
-    /* obsolete options for backward compatibility */
-  , { OPTION_md5     , ALIAS_md5     , NULL, USAGE_MD5     , 1, true , false }
-  , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
-  , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
-};
-
-/*
-#define NUM_SILENT_TRAILING_OPTIONS 5
-
-static const char *option_params [] =
-{
-    NULL
-  , NULL
-#if CHECK_INDEX
-  , NULL
-#endif
-  , NULL
-  , NULL
-  , NULL
-  , NULL
-};
-*/
-rc_t CC Usage ( const Args * args )
-{
-/*  uint32_t i; */
-    const char *progname, *fullpath;
-    rc_t rc = ArgsProgram ( args, & fullpath, & progname );
-    if ( rc != 0 )
-        progname = fullpath = UsageDefaultName;
-
-    UsageSummary ( progname );
-
-    KOutMsg ( "  Examine directories, files and VDB objects,\n"
-              "  reporting any problems that can be detected.\n"
-              "\n"
-              "Components md5s are always checked if present.\n"
-              "\n"
-              "Options:\n"
-        );
-
-/*  HelpOptionLine(ALIAS_MD5     , OPTION_MD5     , "yes | no", USAGE_MD5); */
-    HelpOptionLine(ALIAS_BLOB_CRC, OPTION_BLOB_CRC, "yes | no", USAGE_BLOB_CRC);
-#if CHECK_INDEX
-    HelpOptionLine(ALIAS_INDEX   , OPTION_INDEX   , "yes | no", USAGE_INDEX);
-#endif
-    HelpOptionLine(ALIAS_REF_INT , OPTION_REF_INT , "yes | no", USAGE_REF_INT);
-    HelpOptionLine(ALIAS_CNS_CHK , OPTION_CNS_CHK , "yes | no", USAGE_CNS_CHK);
-    HelpOptionLine(ALIAS_EXHAUSTIVE, OPTION_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE);
-    HelpOptionLine(NULL          , OPTION_SDC_SEC_ROWS, "rows"    , USAGE_SDC_SEC_ROWS);
-    HelpOptionLine(NULL          , OPTION_SDC_SEQ_ROWS, "rows"    , USAGE_SDC_SEQ_ROWS);
-    HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
-    HelpOptionLine(NULL          , OPTION_NGC           , "path", USAGE_NGC);
-
-/*
-#define NUM_LISTABLE_OPTIONS \
-    ( sizeof options / sizeof options [ 0 ] - NUM_SILENT_TRAILING_OPTIONS )
-
-    for ( i = 0; i < NUM_LISTABLE_OPTIONS; ++i )
-    {
-        HelpOptionLine ( options [ i ] . aliases, options [ i ] . name,
-            option_params [ i ], options [ i ] . help );
-    }
-*/
-
-    KOutMsg("\n");
-
-    HelpOptionsStandard ();
-
-    HelpVersion ( fullpath, KAppVersion () );
-
-    return 0;
-}
-
-static
-rc_t parse_args ( vdb_validate_params *pb, Args *args )
-{
-    const char *dummy = NULL;
-    rc_t rc;
-    uint32_t cnt;
-
-    pb -> md5_chk = true;
-    pb->consist_check = false;
-    ref_int_check = pb -> blob_crc
-        = pb -> md5_chk_explicit = md5_required = true;
-    pb -> sdc_sec_rows_in_percent = false;
-    pb -> sdc_sec_rows.number = 100000;
-    pb -> sdc_seq_rows_in_percent = false;
-    pb -> sdc_seq_rows.number = 100000;
-    pb -> sdc_pa_len_thold_in_percent = true;
-    pb -> sdc_pa_len_thold.percent = 0.01;
-
-  {
-    rc = ArgsOptionCount(args, OPTION_CNS_CHK, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_CNS_CHK "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_CNS_CHK, 0, (const void **)&dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc,
-                "Failure to get '" OPTION_CNS_CHK "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'y') {
-            pb->consist_check = true;
-        }
-    }
-  }
-  {
-    rc = ArgsOptionCount ( args, "exhaustive", & cnt );
-    if ( rc != 0 )
-        return rc;
-    exhaustive = cnt != 0;
-  }
-  {
-    rc = ArgsOptionCount(args, OPTION_REF_INT, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_REF_INT "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_REF_INT, 0, (const void **)&dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc,
-                "Failure to get '" OPTION_REF_INT "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            ref_int_check = false;
-        }
-    }
-  }
-  {
-    rc = ArgsOptionCount ( args, "dri", & cnt );
-    if ( rc != 0 )
-        return rc;
-    if (cnt != 0) {
-        ref_int_check = false;
-    }
-  }
-#if CHECK_INDEX
-  {
-    rc = ArgsOptionCount ( args, "index", & cnt );
-    if ( rc != 0 )
-        return rc;
-    pb -> index_chk = cnt != 0;
-  }
-#endif
-  {
-    rc = ArgsOptionCount ( args, "index-only", & cnt );
-    if ( rc != 0 )
-        return rc;
-    if ( cnt != 0 )
-        s_IndexOnly = pb -> blob_crc = true;
-  }
-  {
-    rc = ArgsOptionCount( args, OPTION_BLOB_CRC, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_BLOB_CRC "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_BLOB_CRC, 0, (const void **)&dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc,
-                "Failure to get '" OPTION_BLOB_CRC "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            pb -> blob_crc = false;
-        }
-    }
-  }
-  {
-    rc = ArgsOptionCount(args, OPTION_md5, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_md5 "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_md5, 0, (const void **)&dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_md5 "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            pb -> md5_chk = pb -> md5_chk_explicit = md5_required = false;
-        }
-    }
-  }
-  {
-      rc = ArgsOptionCount ( args, OPTION_SDC_SEC_ROWS, &cnt );
-      if (rc)
-      {
-          LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_SEC_ROWS);
-          return rc;
-      }
-
-      if (cnt > 0)
-      {
-          uint64_t value;
-          size_t value_size;
-          rc = ArgsOptionValue ( args, OPTION_SDC_SEC_ROWS, 0, (const void **) &dummy );
-          if (rc)
-          {
-              LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_SEC_ROWS);
-              return rc;
-          }
-
-          pb->sdc_enabled = true;
-
-          value_size = string_size ( dummy );
-          if ( value_size >= 1 && dummy[value_size - 1] == '%' )
-          {
-              value = string_to_U64 ( dummy, value_size - 1, &rc );
-              if (rc)
-              {
-                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEC_ROWS);
-                  return rc;
-              }
-              else if (value == 0 || value > 100)
-              {
-                  rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                  LOGERR (klogInt, rc, OPTION_SDC_SEC_ROWS " has illegal percentage value (has to be 1-100%)" );
-                  return rc;
-              }
-
-              pb->sdc_sec_rows_in_percent = true;
-              pb->sdc_sec_rows.percent = (double)value / 100;
-          }
-          else
-          {
-              value = string_to_U64 ( dummy, value_size, &rc );
-              if (rc)
-              {
-                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEC_ROWS);
-                  return rc;
-              }
-              pb->sdc_sec_rows_in_percent = false;
-              pb->sdc_sec_rows.number = value;
-          }
-      }
-  }
-  {
-        rc = ArgsOptionCount ( args, OPTION_SDC_SEQ_ROWS, &cnt );
-        if (rc)
-        {
-            LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_SEQ_ROWS);
-            return rc;
-        }
-
-        if (cnt > 0)
-        {
-            uint64_t value;
-            size_t value_size;
-            rc = ArgsOptionValue ( args, OPTION_SDC_SEQ_ROWS, 0, (const void **) &dummy );
-            if (rc)
-            {
-                LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_SEQ_ROWS);
-                return rc;
-            }
-
-            pb->sdc_enabled = true;
-
-            value_size = string_size ( dummy );
-            if ( value_size >= 1 && dummy[value_size - 1] == '%' )
-            {
-                value = string_to_U64 ( dummy, value_size - 1, &rc );
-                if (rc)
-                {
-                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEQ_ROWS);
-                    return rc;
-                }
-                else if (value == 0 || value > 100)
-                {
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR (klogInt, rc, OPTION_SDC_SEQ_ROWS " has illegal percentage value (has to be 1-100%)" );
-                    return rc;
-                }
-
-                pb->sdc_seq_rows_in_percent = true;
-                pb->sdc_seq_rows.percent = (double)value / 100;
-            }
-            else
-            {
-                value = string_to_U64 ( dummy, value_size, &rc );
-                if (rc)
-                {
-                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEQ_ROWS);
-                    return rc;
-                }
-                pb->sdc_seq_rows_in_percent = false;
-                pb->sdc_seq_rows.number = value;
-            }
-        }
-    }
-    {
-        rc = ArgsOptionCount ( args, OPTION_SDC_PLEN_THOLD, &cnt );
-        if (rc)
-        {
-            LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_PLEN_THOLD);
-            return rc;
-        }
-
-        if (cnt > 0)
-        {
-            uint64_t value;
-            size_t value_size;
-            rc = ArgsOptionValue ( args, OPTION_SDC_PLEN_THOLD, 0, (const void **) &dummy );
-            if (rc)
-            {
-                LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_PLEN_THOLD);
-                return rc;
-            }
-
-            pb->sdc_enabled = true;
-
-            value_size = string_size ( dummy );
-            if ( value_size >= 1 && dummy[value_size - 1] == '%' )
-            {
-                value = string_to_U64 ( dummy, value_size - 1, &rc );
-                if (rc)
-                {
-                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
-                    return rc;
-                }
-                else if (value == 0 || value > 100)
-                {
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR (klogInt, rc, OPTION_SDC_PLEN_THOLD " has illegal percentage value (has to be 1-100%)" );
-                    return rc;
-                }
-
-                pb->sdc_pa_len_thold_in_percent = true;
-                pb->sdc_pa_len_thold.percent = (double)value / 100;
-            }
-            else
-            {
-                value = string_to_U64 ( dummy, value_size, &rc );
-                if (rc)
-                {
-                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
-                    return rc;
-                }
-                pb->sdc_pa_len_thold_in_percent = false;
-                pb->sdc_pa_len_thold.number = value;
-            }
-        }
-    }
-
-/* OPTION_NGC */
-    {
-        rc = ArgsOptionCount(args, OPTION_NGC, &cnt);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_NGC "' argument");
-            return rc;
-        }
-        if (cnt != 0) {
-            rc = ArgsOptionValue(args, OPTION_NGC, 0, (const void **)&dummy);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_NGC "' argument");
-                return rc;
-            }
-            KConfigSetNgcFile(dummy);
-        }
-    }
-
-    if ( pb -> blob_crc || pb -> index_chk )
-        pb -> md5_chk = pb -> md5_chk_explicit;
-
-    pb->exhaustive = exhaustive;
-
-    return 0;
-}
-
-static
-void vdb_validate_params_whack ( vdb_validate_params *pb )
-{
-    VDBManagerRelease ( pb -> vmgr );
-    KDBManagerRelease ( pb -> kmgr );
-    KDirectoryRelease ( pb -> wd );
-    memset ( pb, 0, sizeof * pb );
-}
-
-static
-rc_t vdb_validate_params_init ( vdb_validate_params *pb )
-{
-    rc_t rc;
-    KDirectory *wd;
-
-    memset ( pb, 0, sizeof * pb );
-
-    rc = KDirectoryNativeDir ( & wd );
-    if ( rc == 0 )
-    {
-        pb -> wd = wd;
-        rc = VDBManagerMakeRead ( & pb -> vmgr, wd );
-        if ( rc == 0 )
-        {
-            rc = VDBManagerOpenKDBManagerRead ( pb -> vmgr, & pb -> kmgr );
-            if ( rc == 0 )
-                return 0;
-        }
-    }
-
-    vdb_validate_params_whack ( pb );
-    return rc;
-}
-
-static rc_t main_with_args(Args *const args)
-{
-    XMLLogger const *xlogger = NULL;
-    rc_t rc = XMLLogger_Make(&xlogger, NULL, args);
-
-    if (rc) {
-        LOGERR(klogErr, rc, "Failed to make XML logger");
-    }
-    else {
-        uint32_t pcount;
-        rc = ArgsParamCount ( args, & pcount );
-        if ( rc != 0 )
-            LOGERR ( klogErr, rc, "Failed to count command line parameters" );
-        else if ( pcount == 0 )
-        {
-            rc = RC ( rcExe, rcPath, rcValidating, rcParam, rcInsufficient );
-            LOGERR ( klogErr, rc, "No paths to validate" );
-            MiniUsage ( args );
-        }
-        else
-        {
-            vdb_validate_params pb;
-            rc = vdb_validate_params_init ( & pb );
-            if ( rc != 0 )
-                LOGERR ( klogErr, rc, "Failed to initialize internal managers" );
-            else
-            {
-                rc = parse_args ( & pb, args );
-                if ( rc != 0 )
-                    LOGERR ( klogErr, rc, "Failed to extract command line options" );
-                else
-                {
-                    rc = KLogLevelSet ( klogInfo );
-                    if ( rc != 0 )
-                        LOGERR ( klogErr, rc, "Failed to set log level" );
-                    else
-                    {
-                        uint32_t i;
-
-                        md5_required = false;
-
-                        STSMSG(2, ("exhaustive = %d", exhaustive));
-                        STSMSG(2, ("ref_int_check = %d", ref_int_check));
-                        STSMSG(2, ("md5_required = %d", md5_required));
-                        STSMSG(2, ("P {"));
-                        STSMSG(2, ("\tmd5_chk = %d", pb.md5_chk));
-                        STSMSG(2, ("\tmd5_chk_explicit = %d",
-                            pb.md5_chk_explicit));
-                        STSMSG(2, ("\tblob_crc = %d", pb.blob_crc));
-                        STSMSG(2, ("\tconsist_check = %d", pb.consist_check));
-                        STSMSG(2, ("}"));
-                        for ( i = 0; i < pcount; ++ i )
-                        {
-                            rc_t rc2;
-                            const char *path;
-                            rc = ArgsParamValue ( args, i, (const void **)& path );
-                            if ( rc != 0 )
-                            {
-                                LOGERR ( klogErr, rc, "Failed to extract command line options" );
-                                break;
-                            }
-
-                            rc2 = vdb_validate ( & pb, path );
-                            if ( rc == 0 )
-                                rc = rc2;
-                        }
-                    }
-                }
-
-                vdb_validate_params_whack ( & pb );
-            }
-        }
-        XMLLogger_Release(xlogger);
-    }
-    return rc;
-}
-
-rc_t CC KMain(int argc, char *argv[])
-{
-    Args *args = NULL;
-    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
-                                options, sizeof(options)/sizeof(options[0]),
-                                XMLLogger_Args, XMLLogger_ArgsQty);
-
-    if ( rc != 0 )
-        LOGERR ( klogErr, rc, "Failed to parse command line" );
-    else
-    {
-        rc = main_with_args(args);
-        ArgsWhack ( args );
     }
 
     return rc;

@@ -21,6 +21,14 @@
 #  Please cite the author in any work or product based on this material.
 #
 # ===========================================================================
+add_compile_definitions( __mod__="test/external/vdb-validate" )
+
+# unit tests
+
+AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
+                                "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+                                "${PROJECT_SOURCE_DIR}/tools/external/vdb-validate" )
+
 
 if ( NOT WIN32 )
 	ToolsRequired(vdb-validate prefetch)

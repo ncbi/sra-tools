@@ -31,8 +31,7 @@ AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
 
 
 if ( NOT WIN32 )
-	
-if ( EXISTS "${DIRTOTEST}/vdb-validate${EXE}" )
+	ToolsRequired(vdb-validate prefetch)
 
 	add_test( NAME Test_Vdb_validate
 		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate
@@ -46,7 +45,4 @@ if ( EXISTS "${DIRTOTEST}/vdb-validate${EXE}" )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
-else()
-	message(WARNING "${DIRTOTEST}/vdb-validate${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

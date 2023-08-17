@@ -645,7 +645,7 @@ rc_t SRAWriterIllumina_Write(const SRAWriterIllumina* cself, const SRALoaderFile
             rc = RC(rcExe, rcTable, rcCreating, rcType, rcUnknown);
             return rc;
         }
-        if( (rc = SRAWriter_CreateTable(self->base, schema)) != 0 ) {
+        if( (rc = SRAWriter_CreateTable(self->base, "sra/illumina.vschema", schema)) != 0 ) {
             return rc;
         }
         if( (rc = SRAWriter_WriteDefaults(self->base)) != 0 ) {

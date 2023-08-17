@@ -47,6 +47,8 @@
 #include <unistd.h> /* dup */
 #include <sys/wait.h> /* waitpid */
 
+extern int kill(pid_t pid, int sig);
+
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
@@ -211,7 +213,7 @@ rc_t run_ascp(const char *path, const char *key,
                 LOGERR(klogErr,
                     RC(rcExe, rcProcess, rcCreating, rcBuffer, rcInsufficient),
                     "extra ascp options are ignored");
-                
+
                 maxRate = opt->target_rate;
             }
             else {
@@ -634,11 +636,11 @@ int silent_system(const char *command) {
 
     fflush(stdout);
     dup2(oldOut, STDOUT_FILENO);
-    close(oldOut);    
+    close(oldOut);
 
     fflush(stderr);
     dup2(oldErr, STDERR_FILENO);
-    close(oldErr);    
+    close(oldErr);
 
     return ret;
 }

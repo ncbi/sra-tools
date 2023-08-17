@@ -44,7 +44,7 @@ const string Accession_Table    = "SRR000123";
 const string Accession_CSRA     = "ERR334733";
 const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
-const string Run_Multiplatform  = "./input/MultiPlatform";
+const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
 
 TEST_CASE(Construction)
@@ -152,7 +152,9 @@ FIXTURE_TEST_CASE(Format_Platforms_Default, SraInfoFixture)
     Formatter f; // default= plain
     string out = f.format( p );
     // one value per line, sorted
-    REQUIRE_EQ( string("SRA_PLATFORM_454\nSRA_PLATFORM_ILLUMINA\nSRA_PLATFORM_UNDEFINED"), out );
+    REQUIRE_EQ( string("PLATFORM: SRA_PLATFORM_454\n"
+        "PLATFORM: SRA_PLATFORM_ILLUMINA\n"
+        "PLATFORM: SRA_PLATFORM_UNDEFINED"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_CSV, SraInfoFixture)
@@ -172,9 +174,11 @@ FIXTURE_TEST_CASE(Format_Platforms_XML, SraInfoFixture)
     Formatter f( Formatter::XML );
     string out = f.format( p );
     // one value per line, sorted
-    REQUIRE_EQ( string("<platform>SRA_PLATFORM_454</platform>\n"
-                       "<platform>SRA_PLATFORM_ILLUMINA</platform>\n"
-                       "<platform>SRA_PLATFORM_UNDEFINED</platform>"), out );
+    REQUIRE_EQ( string(" <PLATFORMS>\n"
+                       "  <platform>SRA_PLATFORM_454</platform>\n"
+                       "  <platform>SRA_PLATFORM_ILLUMINA</platform>\n"
+                       "  <platform>SRA_PLATFORM_UNDEFINED</platform>\n"
+                       " </PLATFORMS>"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_Json, SraInfoFixture)
@@ -184,11 +188,11 @@ FIXTURE_TEST_CASE(Format_Platforms_Json, SraInfoFixture)
     Formatter f( Formatter::Json );
     string out = f.format( p );
     // one value per line, sorted
-    REQUIRE_EQ( string("[\n"
-                       "\"SRA_PLATFORM_454\",\n"
-                       "\"SRA_PLATFORM_ILLUMINA\",\n"
-                       "\"SRA_PLATFORM_UNDEFINED\"\n"
-                       "]"), out );
+    REQUIRE_EQ( string(" \"PLATFORMS\": [\n"
+                       "  \"SRA_PLATFORM_454\",\n"
+                       "  \"SRA_PLATFORM_ILLUMINA\",\n"
+                       "  \"SRA_PLATFORM_UNDEFINED\"\n"
+                       " ]"), out );
 }
 
 FIXTURE_TEST_CASE(Format_Platforms_Tab, SraInfoFixture)
@@ -208,7 +212,8 @@ FIXTURE_TEST_CASE(Format_MultiRow_Limited, SraInfoFixture)
     REQUIRE_EQ( size_t(267), sl.size() );
     const Formatter f( Formatter::Default, 2 ); // 2 top elements
     const string out = f.format( sl, SraInfo::Short );
-    const string expected("119 spots: 2 reads\n112 spots: 2 reads");
+    const string expected("SPOT: 119 spots: 2 reads\n"
+        "SPOT: 112 spots: 2 reads");
     REQUIRE_EQ( expected, out );
 }
 
@@ -265,8 +270,6 @@ FIXTURE_TEST_CASE(SpotLayout_NotUsingConsensus, SraInfoFixture)
     REQUIRE_EQ( string("BIOLOGICAL"), sl[0].reads[0].TypeAsString() );
     REQUIRE_EQ( uint32_t(378), sl[0].reads[0].length );
 }
-
-
 
 // SpotLayout, detail levels
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
@@ -340,22 +343,30 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short, SraInfoFixture)
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full_Json, SraInfoFixture)
 {
     const string expected(
-"[\n"
-"{ \"count\": 119, \"reads\": [{ \"type\": \"T\", \"length\": 4 }, { \"type\": \"B\", \"length\": 259 }] },\n"
-"{ \"count\": 112, \"reads\": [{ \"type\": \"T\", \"length\": 4 }, { \"type\": \"B\", \"length\": 256 }] }\n"
-"]\n");
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Full, Formatter::Json ) );
+" \"SPOTS\": [\n"
+"  { \"count\": 119, \"reads\": [{ \"type\": \"T\", \"length\": 4 }, { \"type\": \"B\", \"length\": 259 }] },\n"
+"  { \"count\": 112, \"reads\": [{ \"type\": \"T\", \"length\": 4 }, { \"type\": \"B\", \"length\": 256 }] }\n"
+" ]\n");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Full, Formatter::Json ) );
+    REQUIRE_EQ( expected, out );
 }
 
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated_Json, SraInfoFixture)
 {
-    const string expected("[\n{ \"count\": 4583, \"reads\": \"TB\" }\n]\n");
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Abbreviated, Formatter::Json ) );
+    const string expected(" \"SPOTS\": [\n"
+        "  { \"count\": 4583, \"reads\": \"TB\" }\n ]\n");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Abbreviated, Formatter::Json ) );
+    REQUIRE_EQ( expected, out );
 }
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_Json, SraInfoFixture)
 {
-    const string expected("[\n{ \"count\": 4583, \"reads\": 2 }\n]\n");
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Short, Formatter::Json ) );
+    const string expected(" \"SPOTS\": [\n"
+        "  { \"count\": 4583, \"reads\": 2 }\n ]\n");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Short, Formatter::Json ) );
+    REQUIRE_EQ( expected, out );
 }
 
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full_CSV, SraInfoFixture)
@@ -393,20 +404,67 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_Tab, SraInfoFixture)
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full_XML, SraInfoFixture)
 {
     const string expected(
-"<layout><count>119</count><read><type>T</type><length>4</length></read><read><type>B</type><length>259</length></read></layout>\n"
-"<layout><count>112</count><read><type>T</type><length>4</length></read><read><type>B</type><length>256</length></read></layout>\n"
-    );
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Full, Formatter::XML ) );
+" <SPOTS>\n"
+"  <layout><count>119</count><read><type>T</type><length>4</length></read><read><type>B</type><length>259</length></read></layout>\n"
+"  <layout><count>112</count><read><type>T</type><length>4</length></read><read><type>B</type><length>256</length></read></layout>\n"
+" </SPOTS>");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Full, Formatter::XML ) );
+    REQUIRE_EQ( expected, out );
 }
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated_XML, SraInfoFixture)
 {
-    const string expected("<layout><count>4583</count><reads>TB</reads></layout>\n");
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Abbreviated, Formatter::XML ) );
+    const string expected(" <SPOTS>\n"
+        "  <layout><count>4583</count><reads>TB</reads></layout>\n"
+        " </SPOTS>");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Abbreviated, Formatter::XML ) );
+    REQUIRE_EQ( expected, out );
 }
 FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short_XML, SraInfoFixture)
 {
-    const string expected("<layout><count>4583</count><reads>2</reads></layout>\n");
-    REQUIRE_EQ( expected, FormatSpotLayout( Accession_Table, SraInfo::Short, Formatter::XML ) );
+    const string expected(" <SPOTS>\n"
+        "  <layout><count>4583</count><reads>2</reads></layout>\n"
+        " </SPOTS>");
+    const string out( FormatSpotLayout(
+        Accession_Table, SraInfo::Short, Formatter::XML ) );
+    REQUIRE_EQ( expected, out );
+}
+
+// SpotLayout, limited to N top rows
+FIXTURE_TEST_CASE(SpotLayout_TopRows, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    const uint64_t TOP_ROWS = 5;
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Full, true, TOP_ROWS );
+    REQUIRE_EQ( size_t( TOP_ROWS ), sl.size() );
+
+    // the top 5 rows are all different layouts
+    {
+        class SraInfo::SpotLayout & l = sl[0];
+        REQUIRE_EQ( uint64_t(1), l.count );
+        REQUIRE_EQ( size_t(2), l.reads.size() );
+        REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
+        REQUIRE_EQ( uint32_t(4), l.reads[0].length );
+        REQUIRE_EQ( string("BIOLOGICAL"), l.reads[1].TypeAsString() );
+        REQUIRE_EQ( uint32_t(297), l.reads[1].length );
+    }
+    //etc
+}
+
+FIXTURE_TEST_CASE(SpotLayout_TopRows_MoreThanPresent, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    const uint64_t TOTAL_ROWS = 4583;
+    const uint64_t TOP_ROWS = TOTAL_ROWS + 10000;
+    SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Full, true, TOP_ROWS );
+    // check the total
+    size_t total = 0;
+    for( auto i : sl )
+    {
+        total += i.count;
+    }
+    REQUIRE_EQ( size_t( TOTAL_ROWS ), total );
 }
 
 // IsAligned

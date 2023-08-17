@@ -726,7 +726,10 @@ static rc_t get_tbl_schema_info(VTable const *tbl, char buffer[], size_t bsz,
     rc_t rc = VTableOpenMetadataRead(tbl, &meta);
 
     *(*vers = &buffer[0]) = '\0';
-    if (rc == 0) rc = get_schema_info(meta, buffer, bsz, vers);
+    if ( rc == 0 ) {
+        rc = get_schema_info(meta, buffer, bsz, vers);
+        KMetadataRelease( meta );
+    }
     return 0;
 }
 

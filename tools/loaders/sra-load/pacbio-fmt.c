@@ -68,7 +68,7 @@ rc_t PacBioLoaderXmlFmt_ExecPrep(const PacBioLoaderXmlFmt *self, const TArgs* ar
         size_t il = string_copy_measure(resolved, sizeof(resolved), args->_input_path);
         resolved[il++] = '/';
         if( (rc = SRALoaderFileResolveName(input->blocks[0].files[0], &resolved[il], sizeof(resolved) - il)) == 0 ) {
-            eargs[i] = strdup(resolved);
+            eargs[i] = string_dup_measure(resolved, NULL);
             if( eargs[i++] == NULL ) {
                 rc = RC(rcSRA, rcFormatter, rcExecuting, rcMemory, rcExhausted);
             }

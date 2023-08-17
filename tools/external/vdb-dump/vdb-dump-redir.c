@@ -35,12 +35,10 @@
 
 #include "vdb-dump-helper.h"
 
-static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ )
-{
+static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ ) {
     out_redir * redir = ( out_redir * )self;
     rc_t rc = KFileWriteAll( redir -> kfile, redir -> pos, buffer, bufsize, num_writ );
-    if ( 0 == rc )
-    {
+    if ( 0 == rc ) {
         redir -> pos += *num_writ;
     }
     return rc;
@@ -48,58 +46,41 @@ static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufs
 
 rc_t init_out_redir( out_redir * self, out_redir_mode_t mode,
                      const char * filename, size_t bufsize,
-                     bool append )
-{
+                     bool append ) {
     rc_t rc;
     KFile *output_file;
 
-    if ( NULL != filename )
-    {
+    if ( NULL != filename ) {
         KDirectory *dir;
         rc = KDirectoryNativeDir( &dir );
         DISP_RC( rc, "KDirectoryNativeDir() failed" );
-        if ( 0 == rc )
-        {
+        if ( 0 == rc ) {
             rc = KDirectoryCreateFile( dir, &output_file, false, 0664, kcmOpen, "%s", filename );
             DISP_RC( rc, "KDirectoryCreateFile() failed" );
-            {
-                rc_t rc2 = KDirectoryRelease( dir );
-                DISP_RC( rc2, "KDirectoryRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc = vdh_kdirectory_release( rc, dir );
         }
-        
-        if ( 0 == rc && append )
-        {
+        if ( 0 == rc && append ) {
             KFile *temp_file;
-            if ( mode != orm_uncompressed )
-            {
+            if ( mode != orm_uncompressed ) {
                 mode = orm_uncompressed;
             }
             rc = KFileMakeAppend ( &temp_file, output_file );
             DISP_RC( rc, "KFileMakeAppend() failed" );
-            if ( 0 == rc )
-            {
-                rc_t rc2 = KFileRelease( output_file );
-                DISP_RC( rc2, "KFileRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
+            if ( 0 == rc ) {
+                rc = vdh_kfile_release( rc, output_file );
                 output_file = temp_file;
             }
         }
-    }
-    else
-    {
+    } else {
         rc = KFileMakeStdOut ( &output_file );
         DISP_RC( rc, "KFileMakeStdOut() failed" );
     }
 
-    if ( 0 == rc )
-    {
+    if ( 0 == rc ) {
         KFile *temp_file;
 
         /* wrap the output-file in compression, if requested */
-        switch ( mode )
-        {
+        switch ( mode ) {
             case orm_gzip  : rc = KFileMakeGzipForWrite( &temp_file, output_file );
                              DISP_RC( rc, "KFileMakeGzipForWrite() failed" );
                              break;
@@ -108,32 +89,23 @@ rc_t init_out_redir( out_redir * self, out_redir_mode_t mode,
                              break;
             case orm_uncompressed : break;
         }
-        if ( 0 == rc )
-        {
-            if ( mode != orm_uncompressed )
-            {
-                rc_t rc2 = KFileRelease( output_file );
-                DISP_RC( rc2, "KFileRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
+        if ( 0 == rc ) {
+            if ( mode != orm_uncompressed ) {
+                rc = vdh_kfile_release( rc, output_file );
                 output_file = temp_file;
             }
 
             /* wrap the output/compressed-file in buffering, if requested */
-            if ( 0 == rc && 0 != bufsize )
-            {
+            if ( 0 == rc && 0 != bufsize ) {
                 rc = KBufFileMakeWrite( &temp_file, output_file, false, bufsize );
                 DISP_RC( rc, "KBufFileMakeWrite() failed" );
-                if ( 0 == rc )
-                {
-                    rc_t rc2 = KFileRelease( output_file );
-                    DISP_RC( rc2, "KFileRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
+                if ( 0 == rc ) {
+                    rc = vdh_kfile_release( rc, output_file );
                     output_file = temp_file;
                 }
             }
 
-            if ( 0 == rc )
-            {
+            if ( 0 == rc ) {
                 self -> kfile = output_file;
                 self -> org_writer = KOutWriterGet();
                 self -> org_data = KOutDataGet();
@@ -146,13 +118,9 @@ rc_t init_out_redir( out_redir * self, out_redir_mode_t mode,
     return rc;
 }
 
-
-rc_t release_out_redir( out_redir * self )
-{
-    rc_t rc = KFileRelease( self -> kfile );
-    DISP_RC( rc, "KFileRelease() failed" );
-    if ( NULL != self->org_writer )
-    {
+rc_t release_out_redir( out_redir * self ) {
+    rc_t rc = vdh_kfile_release( 0, self -> kfile );
+    if ( NULL != self -> org_writer ) {
         rc_t rc2 = KOutHandlerSet( self -> org_writer, self -> org_data );
         DISP_RC( rc2, "KOutHandlerSet() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
@@ -160,4 +128,3 @@ rc_t release_out_redir( out_redir * self )
     self -> org_writer = NULL;
     return rc;
 }
-

@@ -24,6 +24,10 @@
 *
 */
 
+#if _POSIX_C_SOURCE < 200112L
+#define _POSIX_C_SOURCE 200112L /* lstat */
+#endif
+
 #include "helper.h"
 
 #ifndef _h_err_msg_

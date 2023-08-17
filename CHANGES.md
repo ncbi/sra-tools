@@ -1,6 +1,36 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.7
+**August 29, 2023**
+
+  **abi-load, fastq-load, helicos-load, illumina-load, pacbio-load, sff-load, sra, srf-load**: fixed loaders to work without predefined schema  
+  **align-info, prefetch, vdb, vfs**: stopped printing incorrect 'reference not found' messages; reduced number of calls to resolve WGS references; align-info don't resolve references remotely if found locally  
+  **bam-load**: changed 'secondary' to 'non-primary' in log messages  
+  **bam-load, kdb, vdb-validate**: index works correctly with only one key  
+  **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
+  **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
+  **sra-info**: added parameter --rows to spot layout query  
+  **sra-info**: added query --schema  
+  **sra-info**: fixed formatting of multiple queries  
+  **vdb**: added database-contained view aliases to the schema language  
+  **vdb-dump**: new --inspect feature to show column-size and compression ratios  
+  **vdb, vdb-validate**: fixes a memory leak  
+
+
+## SRA Toolkit 3.0.6
+**July 10, 2023**
+
+  **bam-load, sra-stat**: fixed false detection of CMP_BASE_COUNT mismatch for unaligned runs  
+  **cloud, sra-tools**: fixed a bug in reading chunked HTTP responses in GCP-related code  
+  **fasterq-dump**: now switches to split-files if asked to include technical reads  
+  **sra-info**: added query --spot-layout  
+  **sratools**: better handling for URL command line arguments  
+  **sra-tools wiki**: new features for fasterq-dump appended  
+  **vdb-config**: handles path on windows for temp. storage correctly  
+  **vdb-copy**: return error code in case of invalid/missing input  
+
+
 ## SRA Toolkit 3.0.5
 **May 9, 2023**
 

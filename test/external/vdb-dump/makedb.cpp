@@ -57,6 +57,7 @@ NestedDatabase()
 {
     const string ScratchDir         = "./data/";
     const string DefaultSchemaText  =
+        "version 2;\n"
         "table table1 #1.0.0 { column ascii col; };\n"
         "table table2 #1.0.0 { column ascii col; };\n"
 
@@ -196,6 +197,90 @@ NestedDatabase()
     return 0;
 }
 
+rc_t
+ViewDatabase()
+{
+    const string ScratchDir         = "./data/";
+    const string DefaultSchemaText  =
+        "version 2;\n"
+        "table table1 #1.0.0 { column ascii col1; };\n"
+        "table table2 #1.0.0 { column ascii col2; };\n"
+        "table table3 #1.0.0 { column ascii col3; };\n"
+
+        "view V #1<table1 t1, table2 t2, table3 t3>\n"
+        "{ column ascii c1 = t1.col1; column ascii c2 = t2.col2; column ascii c3 = t3.col3; }\n"
+
+        "view V3 #1<table3 t>{ column ascii c = t.col3; }\n"
+
+        "database root_database #1\n"
+        "{\n"
+        " table table1 #1 TABLE1;\n"
+        " table table2 #1 TABLE2;\n"
+        " table table3 #1 TABLE3;\n"
+        " alias V#1<TABLE1, TABLE2, TABLE3> VIEW1;\n"
+        " alias V3#1<TABLE3> VIEW3;\n"
+        " };\n"
+    ;
+    const string DefaultDatabase    = "root_database";
+
+    VDBManager* mgr;
+    CHECK_RC ( VDBManagerMakeUpdate ( & mgr, NULL ) );
+    VSchema* schema;
+    CHECK_RC ( VDBManagerMakeSchema ( mgr, & schema ) );
+    CHECK_RC ( VSchemaParseText ( schema, NULL, DefaultSchemaText.c_str(), DefaultSchemaText.size() ) );
+
+    VDatabase* db;
+    CHECK_RC ( VDBManagerCreateDB ( mgr,
+                                    & db,
+                                    schema,
+                                    DefaultDatabase . c_str(),
+                                    kcmInit + kcmMD5,
+                                    "%s",
+                                    ( ScratchDir + "ViewDatabase" ) . c_str() ) );
+
+    {   // TABLE1 - 1 physical column
+        VTable *tab;
+        CHECK_RC ( VDatabaseCreateTable ( db, & tab, "TABLE1", kcmInit + kcmMD5, "TABLE1" ) );
+        VCursor *curs;
+        CHECK_RC ( VTableCreateCursorWrite ( tab, & curs, kcmInsert ) ) ;
+        uint32_t idx;
+        CHECK_RC ( VCursorAddColumn ( curs, & idx, "col1" ) );
+        CHECK_RC ( VCursorOpen ( curs ) );
+        CHECK_RC ( AddRow ( curs, 1, idx, "1-1/1" ) );
+        CHECK_RC ( AddRow ( curs, 2, idx, "1-1/2" ) );
+        CHECK_RC ( VCursorRelease ( curs ) );
+        CHECK_RC ( VTableRelease ( tab ) );
+    }
+    {   // TABLE2 - 1 static column
+        VTable *tab;
+        CHECK_RC ( VDatabaseCreateTable ( db, & tab, "TABLE2", kcmInit + kcmMD5, "TABLE2" ) );
+        VCursor *curs;
+        CHECK_RC ( VTableCreateCursorWrite ( tab, & curs, kcmInsert ) ) ;
+        uint32_t idx;
+        CHECK_RC ( VCursorAddColumn ( curs, & idx, "col2" ) );
+        CHECK_RC ( VCursorOpen ( curs ) );
+        CHECK_RC ( AddRow ( curs, 1, idx, "2-1/1" ) );
+        CHECK_RC ( VCursorRelease ( curs ) );
+        CHECK_RC ( VTableRelease ( tab ) );
+    }
+    {   // TABLE - no data
+        VTable *tab;
+        CHECK_RC ( VDatabaseCreateTable ( db, & tab, "TABLE3", kcmInit + kcmMD5, "TABLE3" ) );
+        VCursor *curs;
+        CHECK_RC ( VTableCreateCursorWrite ( tab, & curs, kcmInsert ) ) ;
+        uint32_t idx;
+        CHECK_RC ( VCursorAddColumn ( curs, & idx, "col3" ) );
+        CHECK_RC ( VCursorOpen ( curs ) );
+        CHECK_RC ( VCursorRelease ( curs ) );
+        CHECK_RC ( VTableRelease ( tab ) );
+    }
+
+    CHECK_RC ( VSchemaRelease ( schema ) );
+    CHECK_RC ( VDatabaseRelease ( db ) );
+    CHECK_RC ( VDBManagerRelease ( mgr ) );
+    return 0;
+}
+
 //////////////////////////////////////////// Main
 extern "C"
 {
@@ -223,7 +308,12 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
 
-    return NestedDatabase();
+    rc_t rc = NestedDatabase();
+    if ( rc == 0 )
+    {
+        rc = ViewDatabase();
+    }
+    return rc;
 }
 
 }

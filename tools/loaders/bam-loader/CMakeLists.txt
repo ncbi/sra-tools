@@ -42,6 +42,9 @@ if( NOT WIN32)
 	endif()
 	find_package(OpenSSL)
 message(OpenSSL_FOUND=${OpenSSL_FOUND})
+message(OPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY})
+message(OPENSSL_LIBRARIES="${OPENSSL_LIBRARIES}")
+message(OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR})
 	if (OpenSSL_FOUND)
         set( SRC
             bam-loader
@@ -62,8 +65,9 @@ message(OpenSSL_FOUND=${OpenSSL_FOUND})
         if (COMPILER_OPTION_SSE42_SUPPORTED)
             target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
         endif()
-        target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-        target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+        target_include_directories( bam-load PRIVATE ${OPENSSL_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/libs/inc)
+        target_link_libraries( bam-load  loader ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${COMMON_LINK_LIBRARIES}  
+${COMMON_LIBS_WRITE})
 
         MakeLinksExe( bam-load false )
 	endif()

@@ -1,4 +1,4 @@
-# ===========================================================================
+#===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -41,10 +41,10 @@ if( NOT WIN32)
 		set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 	endif()
 	find_package(OpenSSL)
-message(OpenSSL_FOUND=${OpenSSL_FOUND})
-message(OPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY})
-message(OPENSSL_LIBRARIES="${OPENSSL_LIBRARIES}")
-message(OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR})
+message(OpenSSL_FOUND         =${OpenSSL_FOUND})
+message(OPENSSL_SSL_LIBRARY   =${OPENSSL_SSL_LIBRARY})
+message(OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY})
+message(OPENSSL_INCLUDE_DIR   =${OPENSSL_INCLUDE_DIR})
 	if (OpenSSL_FOUND)
         set( SRC
             bam-loader

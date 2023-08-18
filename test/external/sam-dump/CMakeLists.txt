@@ -23,7 +23,6 @@
 # ===========================================================================
 
 if ( "linux" STREQUAL ${OS} )
-if (OpenSSL_FOUND)
 
     ToolsRequired(sam-dump sam-factory bam-load kar)
 
@@ -47,5 +46,4 @@ if (OpenSSL_FOUND)
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties( Test_sam_dump_star_quality PROPERTIES FIXTURES_REQUIRED SamDumpTest )
 
-    endif()
 endif()

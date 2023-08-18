@@ -29,19 +29,19 @@
 #include <bm/bm64.h>
 #include <vector>
 #include <functional>
-#include <openssl/sha.h>
 #include <bitset>
+#include <klib/checksum.h>
 
 using namespace std;
 namespace hashing {
     using bvector_type = bm::bvector<>;
 
-    uint64_t fnv1a(const char* key, std::size_t key_size, size_t hash = 14695981039346656037u) 
+    uint64_t fnv1a(const char* key, std::size_t key_size, size_t hash = 14695981039346656037u)
     {
         static const std::size_t FnvPrime = 1099511628211u;
         unsigned char *bp = (unsigned char *)key;
         unsigned char *be = bp + key_size;
-        while (bp < be) {        
+        while (bp < be) {
             hash ^= *bp++;
             hash *= FnvPrime;
         }
@@ -73,12 +73,12 @@ namespace hashing {
         {
             uint64_t k = *data++;
 
-            k *= m; 
-            k ^= k >> r; 
-            k *= m; 
+            k *= m;
+            k ^= k >> r;
+            k *= m;
 
             h ^= k;
-            h *= m; 
+            h *= m;
         }
 
         const unsigned char * data2 = (const unsigned char*)data;
@@ -100,7 +100,32 @@ namespace hashing {
         h ^= h >> r;
 
         return h;
-    } 
+    }
+
+    static unsigned char *SHA1(const unsigned char *data, size_t count, unsigned char *md_buf)
+    {
+        SHA1State state;
+        SHA1StateInit(&state);
+        SHA1StateAppend(&state, reinterpret_cast<void const *>(data), count);
+        SHA1StateFinish(&state, reinterpret_cast<uint8_t *>(&md_buf[0]));
+        return md_buf;
+    }
+    static unsigned char *SHA224(const unsigned char *data, size_t count, unsigned char *md_buf)
+    {
+        SHA224State state;
+        SHA224StateInit(&state);
+        SHA224StateAppend(&state, reinterpret_cast<void const *>(data), count);
+        SHA224StateFinish(&state, reinterpret_cast<uint8_t *>(&md_buf[0]));
+        return md_buf;
+    }
+    static unsigned char *SHA256(const unsigned char *data, size_t count, unsigned char *md_buf)
+    {
+        SHA256State state;
+        SHA256StateInit(&state);
+        SHA256StateAppend(&state, reinterpret_cast<void const *>(data), count);
+        SHA256StateFinish(&state, reinterpret_cast<uint8_t *>(&md_buf[0]));
+        return md_buf;
+    }
 }
 
 class spot_name_filter
@@ -119,7 +144,7 @@ protected:
 
 class fnv_murmur_filter : public spot_name_filter
 {
-public:    
+public:
     fnv_murmur_filter() {
         for (auto& hb : hash_buckets) {
             hb = hashing::bvector_type(bm::BM_GAP, bm::gap_len_table_min<true>::_len);
@@ -132,7 +157,7 @@ public:
         m_name_hash = hashing::fnv1a(value, sz);
         auto murmur_hash = hashing::MurmurHash(value, sz);
         uint32_t hash32 = m_name_hash;
-        hits[0] = (hash32 == bm::id_max || !hash_buckets[0].set_bit_conditional(hash32, true, false)); 
+        hits[0] = (hash32 == bm::id_max || !hash_buckets[0].set_bit_conditional(hash32, true, false));
         hash32 = (m_name_hash >> 32);
         hits[1] = (hash32 == bm::id_max || !hash_buckets[1].set_bit_conditional(hash32, true, false));
         hash32 = murmur_hash;
@@ -151,8 +176,8 @@ public:
         return memory_used;
     }
 
-private:    
-    
+private:
+
     array<hashing::bvector_type, 4> hash_buckets;
 
 };
@@ -161,7 +186,7 @@ template<unsigned char* ShaFunc(const unsigned char *data, size_t count, unsigne
 class sha_filter : public spot_name_filter
 {
 public:
-    virtual bool seen_before(const char* value, size_t sz) override 
+    virtual bool seen_before(const char* value, size_t sz) override
     {
         m_name_hash = hashing::fnv1a(value, sz);
         ShaFunc((const unsigned char*)value, sz, (unsigned char*)m_md_buf.data());
@@ -182,15 +207,15 @@ private:
     array<std::bitset<4294967296>, NUM_BUCKETS> hash_buckets;
 };
 
-class sha1_filter : public sha_filter<SHA1, 5>
+class sha1_filter : public sha_filter<hashing::SHA1, 5>
 {
 };
 
-class sha224_filter : public sha_filter<SHA224, 7>
+class sha224_filter : public sha_filter<hashing::SHA224, 7>
 {
 };
 
-class sha256_filter : public sha_filter<SHA256, 8>
+class sha256_filter : public sha_filter<hashing::SHA256, 8>
 {
 };
 

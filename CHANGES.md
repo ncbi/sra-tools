@@ -8,6 +8,7 @@
   **align-info, prefetch, vdb, vfs**: stopped printing incorrect 'reference not found' messages; reduced number of calls to resolve WGS references; align-info don't resolve references remotely if found locally  
   **bam-load**: changed 'secondary' to 'non-primary' in log messages  
   **bam-load, kdb, vdb-validate**: index works correctly with only one key  
+  **cloud, kns, ngs-tools, sra-tools**: added support of IMDSv2 to allow to use instance identity on new AWS machines  
   **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
   **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
   **sra-info**: added parameter --rows to spot layout query  
@@ -15,6 +16,7 @@
   **sra-info**: fixed formatting of multiple queries  
   **vdb**: added database-contained view aliases to the schema language  
   **vdb-dump**: new --inspect feature to show column-size and compression ratios  
+  **vdb-validate**: compensated for loader optimization that caused a segfault  
   **vdb, vdb-validate**: fixes a memory leak  
 
 

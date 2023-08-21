@@ -46,14 +46,18 @@ void t_factory::generate_single_align( const t_progline_ptr pl, const std::strin
     t_alignment_ptr a = t_alignment::make( name, flags );
     // order is important!
     a -> set_reference( ref );
-    a -> set_ref_pos( pl -> get_int_key( "pos", 0 ) );
+    int ref_pos = pl -> get_int_key( "pos", 0 );
+    a -> set_ref_pos( ref_pos );
     a -> set_mapq( pl -> get_int_key( "mapq", settings.get_dflt_mapq() ) );
     a -> set_ins_bases( pl -> get_string_key( "ins" ) );
+    a -> set_ref_name_override( pl -> get_string_key( "rname" ) );
     a -> set_cigar( pl -> get_string_key( "cigar", settings.get_dflt_cigar() ) );
     a -> set_opts( pl -> get_string_key( "opts" ) );
     a -> set_tlen( pl -> get_int_key( "tlen", 0 ) );
     a -> set_quality( pl -> get_string_key( "qual" ), qual_div );
-    a -> adjust_refpos_and_seq();
+    if ( 0 == ref_pos ) {
+        a -> adjust_refpos_and_seq();
+    }
     t_alignment_group::insert_alignment( a, alignment_groups );
 }
 
@@ -62,6 +66,7 @@ void t_factory::generate_multiple_align( const t_progline_ptr pl, const std::str
     int ref_pos = pl -> get_int_key( "pos", 0 );
     int mapq = pl -> get_int_key( "mapq", settings.get_dflt_mapq() );
     const std::string& ins_bases = pl -> get_string_key( "ins" );
+    const std::string& rname = pl -> get_string_key( "rname" );
     const std::string& cigar = pl -> get_string_key( "cigar", settings.get_dflt_cigar() );
     const std::string& opts = pl -> get_string_key( "opts" );
     int tlen = pl -> get_int_key( "tlen", 0 );
@@ -74,11 +79,14 @@ void t_factory::generate_multiple_align( const t_progline_ptr pl, const std::str
         a -> set_ref_pos( ref_pos );
         a -> set_mapq( mapq );
         a -> set_ins_bases( ins_bases );
+        a -> set_ref_name_override( rname );
         a -> set_cigar( cigar );
         a -> set_opts( opts );
         a -> set_tlen( tlen );
         a -> set_quality( qual, qual_div );
-        a -> adjust_refpos_and_seq();        
+        if ( 0 == ref_pos ) {
+            a -> adjust_refpos_and_seq();
+        }
         t_alignment_group::insert_alignment( a, alignment_groups );
     }
 }

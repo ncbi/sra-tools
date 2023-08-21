@@ -1,0 +1,27 @@
+#bam-load error test #04 : 2 aligments are paired, but refname is '*'
+#simulated by use of the rname-key
+
+r:type=random,name=R1,length=6000
+r:type=random,name=R2,length=7000
+
+# write all references into one file as FASTA
+ref-out:E04.fasta
+
+# write the final SAM-output into this file
+sam-out:E04.sam
+
+# write a config-file for bam-load
+config:E04.config
+
+p:name=A1,pos=100,rname=*
+p:name=A1,pos=300
+
+p:name=A2,ref=R2
+p:name=A2,ref=R2
+
+#some additional ( correct ) alignments
+p:name=B,repeat=20
+p:name=B,repeat=2
+
+#there is a problem with this: if the repeat-count is increased from 24 to 25:
+#bam-load reports all alignments named B_* as having an invalid references

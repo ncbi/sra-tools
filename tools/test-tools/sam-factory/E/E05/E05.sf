@@ -1,0 +1,21 @@
+#bam-load error test #05 : an aligment lines up past the end of the reference
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E05.fasta
+
+# write the final SAM-output into this file
+sam-out:E05.sam
+
+# write a config-file for bam-load
+config:E05.config
+
+#4990 + 30 --> past the end of the reference...
+p:name=A1,pos=4990
+p:name=A1,pos=300
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50
+

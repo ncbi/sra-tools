@@ -1,0 +1,2 @@
+err: tools/loaders/bam-loader/loader-imp.c:2016:ProcessBAM: data inconsistent while reading file within application support module - File 'E01.sam' contains base space and color space
+err: libs/kdb/wkdb.c:1193:KDBVDrop: data inconsistent while reading file within application support module - load failed

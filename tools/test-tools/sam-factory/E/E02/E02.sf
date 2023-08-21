@@ -1,0 +1,20 @@
+#bam-load error test #02 : an aligment has an optional 'OQ'-tag ( orig. quality )
+#but of different lenght then SEQUENCE
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E02.fasta
+
+# write the final SAM-output into this file
+sam-out:E02.sam
+
+# write a config-file for bam-load
+config:E02.config
+
+p:name=A1,pos=100,cigar=30M,opts=OQ:Z:actfgrh0123
+p:name=A1,pos=300
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50

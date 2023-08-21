@@ -48,6 +48,7 @@ t_alignment::t_alignment( const std::string &a_name, int a_flags )
       qual( empty_string ),
       opts( empty_string ),
       ins_bases( empty_string ),
+      ref_name_override( empty_string ),
       ref( nullptr ),
       mate( nullptr ),
       flags( a_flags ),
@@ -77,6 +78,10 @@ void t_alignment::set_mapq( int a_mapq ) {
 
 void t_alignment::set_ins_bases( const std::string &a_bases ) {
     ins_bases = a_bases;
+}
+
+void t_alignment::set_ref_name_override( const std::string &a_ref_name ) {
+    ref_name_override = a_ref_name;
 }
 
 void t_alignment::set_opts( const std::string &a_opts ) {
@@ -133,11 +138,18 @@ std::string t_alignment::get_refname( void ) const {
     if ( ref != nullptr ) { return ref -> get_alias(); } else { return star_string; }
 }
 
+std::string t_alignment::get_print_refname( void ) const {
+    if ( ref_name_override.empty() ) {
+        return get_refname();
+    }
+    return ref_name_override;
+}
+
 void t_alignment::print_SAM( std::ostream &out ) const {
-    out << name << tab_string << flags << tab_string << get_refname() << tab_string;
+    out << name << tab_string << flags << tab_string << get_print_refname() << tab_string;
     out << ref_pos << tab_string << mapq << tab_string << pure_cigar << tab_string;
     if ( mate != nullptr ) {
-        out << mate -> get_refname() << tab_string << mate -> ref_pos << tab_string;
+        out << mate -> get_print_refname() << tab_string << mate -> ref_pos << tab_string;
     } else {
         out << "*\t0\t";
     }

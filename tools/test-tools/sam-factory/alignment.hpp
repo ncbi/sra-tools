@@ -23,6 +23,7 @@ class t_alignment {
         std::string qual;
         std::string opts;
         std::string ins_bases;
+        std::string ref_name_override;
         t_reference_ptr ref;
         t_alignment_ptr mate;
         int flags;
@@ -42,6 +43,7 @@ class t_alignment {
         void set_ref_pos( int a_pos ); // needs: ref and cigar
         void set_mapq( int a_mapq );
         void set_ins_bases( const std::string &a_bases );
+        void set_ref_name_override( const std::string &a_ref_name );
         void set_opts( const std::string &a_opts );
         void set_cigar( const std::string &a_cigar ); // needs: ref, ref_pos, ins_bases
         void set_seq( const std::string &a_seq );
@@ -53,6 +55,7 @@ class t_alignment {
         bool operator<( const t_alignment& other ) const;
 
         std::string get_refname( void ) const;
+        std::string get_print_refname( void ) const;
         void print_SAM( std::ostream &out ) const;
         bool has_flag( int mask ) const;
         bool has_ref( void ) const;

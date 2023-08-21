@@ -1,0 +1,20 @@
+#bam-load error test #01 : an aligment has an optional 'CS'-tag
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E01.fasta
+
+# write the final SAM-output into this file
+sam-out:E01.sam
+
+# write a config-file for bam-load
+config:E01.config
+
+p:name=A1,pos=100,opts=CS:Z:T0123
+p:name=A1,pos=300
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50
+

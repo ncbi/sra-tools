@@ -95,3 +95,12 @@ void t_alignment_group::insert_alignment( t_alignment_ptr a, t_alignment_group_m
         ( found -> second ) -> add( a );
     }
 }
+
+void t_alignment_group::handle_tagline( const t_progline_ptr &pl ) {
+    const std::string& tag = pl -> get_string_key( "name" );
+    if ( tag != empty_string ) {
+        for ( const auto &a : prim_alignments ) { a -> handle_tagline( pl ); }
+        for ( const auto &a : sec_alignments ) { a -> handle_tagline( pl ); }
+        for ( const auto &a : unaligned ) { a -> handle_tagline( pl ); }        
+    }
+}

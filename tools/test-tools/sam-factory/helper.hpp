@@ -34,6 +34,8 @@ std::string random_div_quality( int length, int max_div );
 std::string random_string( int length );
 std::string pattern_quality( std::string &pattern, size_t len );
 
+int string_to_flag( const std::string& s );
+
 class t_errors {
     private :
         std::vector< std::string > errors;

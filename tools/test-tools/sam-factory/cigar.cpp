@@ -159,3 +159,30 @@ cigar_t cigar_t::merge( void ) const {
     }
     return res;
 }
+
+int string_to_flag( const std::string& s ) {
+    if ( "MULTI" == s ) {
+        return FLAG_MULTI;
+    } else if ( "PROPPER" == s ) {
+        return FLAG_PROPPER;
+    } else if ( "UNMAPPED" == s ) {
+        return FLAG_UNMAPPED;
+    } else if ( "NEXT_UNMAPPED" == s  ) {
+        return FLAG_NEXT_UNMAPPED;
+    } else if ( "REVERSED" == s ) {
+        return FLAG_REVERSED;
+    } else if ( "NEXT_REVERSED" == s ) {
+        return FLAG_NEXT_REVERSED;
+    } else if ( "FIRST" == s ) {
+        return FLAG_FIRST;
+    } else if ( "LAST" == s ) {
+        return FLAG_LAST;
+    } else if ( "SECONDARY" == s ) {
+        return FLAG_SECONDARY;
+    } else if ( "BAD" == s ) {
+        return FLAG_BAD;
+    } else if ( "PCR" == s ) {
+        return FLAG_PCR;
+    }
+    return 0;
+}

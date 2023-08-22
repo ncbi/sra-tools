@@ -12,7 +12,7 @@ typedef std::shared_ptr< t_progline > t_progline_ptr;
 typedef std::vector< t_progline_ptr > t_proglines;
 
 enum e_progline_kind { ref, ref_out, sam_out, dflt_cigar, dflt_mapq, dflt_qdiv, config, prim, sec,
-    unaligned, link, sort, unknown };
+    unaligned, tag, link, sort, unknown };
     
 class t_progline {
     private :

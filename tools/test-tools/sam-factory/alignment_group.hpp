@@ -33,7 +33,9 @@ class t_alignment_group {
         static void finish_alignmnet_vector( t_alignment_vec& v );
     
         void finish_alignments( void );
-    
+
+        void handle_tagline( const t_progline_ptr &pl );
+        
         void bin_alignment_by_ref( t_alignment_ptr a, t_alignment_bins &by_ref,
                                    t_alignment_vec &without_ref );
     

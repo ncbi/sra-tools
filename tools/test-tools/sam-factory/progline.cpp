@@ -17,6 +17,7 @@ static e_progline_kind cmd_2_kind( std::string &c ) {
     else if ( c == "prim" || c == "p" ) { return e_progline_kind::prim; }
     else if ( c == "sec" || c == "s" ) { return e_progline_kind::sec; }
     else if ( c == "unalig" || c == "u" ) { return e_progline_kind::unaligned; }
+    else if ( c == "tag" || c == "t" ) { return e_progline_kind::tag; }
     else if ( c == "lnk" || c == "l" ) { return e_progline_kind::link; }
     else if ( c == "sort" ) { return e_progline_kind::sort; }
     return e_progline_kind::unknown;

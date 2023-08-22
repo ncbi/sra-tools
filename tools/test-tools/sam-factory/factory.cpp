@@ -55,6 +55,7 @@ void t_factory::generate_single_align( const t_progline_ptr pl, const std::strin
     a -> set_opts( pl -> get_string_key( "opts" ) );
     a -> set_tlen( pl -> get_int_key( "tlen", 0 ) );
     a -> set_quality( pl -> get_string_key( "qual" ), qual_div );
+    a -> set_tag( pl -> get_string_key( "tag" ) );
     if ( 0 == ref_pos ) {
         a -> adjust_refpos_and_seq();
     }
@@ -69,6 +70,7 @@ void t_factory::generate_multiple_align( const t_progline_ptr pl, const std::str
     const std::string& rname = pl -> get_string_key( "rname" );
     const std::string& cigar = pl -> get_string_key( "cigar", settings.get_dflt_cigar() );
     const std::string& opts = pl -> get_string_key( "opts" );
+    const std::string& tag = pl -> get_string_key( "tag" );
     int tlen = pl -> get_int_key( "tlen", 0 );
     const std::string& qual = pl -> get_string_key( "qual" );
     for ( int i = 0; i < repeat; i++ ) {
@@ -84,6 +86,7 @@ void t_factory::generate_multiple_align( const t_progline_ptr pl, const std::str
         a -> set_opts( opts );
         a -> set_tlen( tlen );
         a -> set_quality( qual, qual_div );
+        a -> set_tag( tag );
         if ( 0 == ref_pos ) {
             a -> adjust_refpos_and_seq();
         }
@@ -192,7 +195,17 @@ void t_factory::print_all( std::ostream &out ) {
 bool t_factory::phase3( void ) {
     // set flags / next_ref / next_pos
     for( auto ag : alignment_groups ) { ag . second -> finish_alignments(); }
-    
+
+    // perform tag-actions to produce error-conditions...
+    // handle the different line-types prim|sec||unaligned
+    for ( const t_progline_ptr &pl : proglines ) {
+        if ( pl -> is( e_progline_kind::tag ) ) {
+            for( const auto &ag : alignment_groups ) {
+                ag . second -> handle_tagline( pl );
+            }
+        }
+    }
+
     // finally produce SAM-output
     if ( errors.empty() ) {
         // if sam-out-filename is given, create that file and write SAM into it,
@@ -207,16 +220,16 @@ bool t_factory::phase3( void ) {
     }
     return errors . empty();
 }
-                                                              
+
+// ctor...
 t_factory::t_factory( const t_proglines& lines, t_errors& error_list )
     : proglines( lines ), errors( error_list ), settings( lines, error_list ) {
-
 }
     
 int t_factory::produce( void ) {
-    if ( phase1() ) {
-        if ( phase2() ) {
-            if ( phase3() ) {
+    if ( phase1() ) { // aka produce references
+        if ( phase2() ) { // aka read prim/sec and unaligned lines into alignment-groups
+            if ( phase3() ) { // aka finish alignments in groups and produce output
                 return 0;
             }
         }

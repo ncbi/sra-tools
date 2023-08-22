@@ -49,5 +49,12 @@ u:name=U1,len=44
 p:name=B,ref=R2,repeat=5000
 p:name=B,ref=R2,repeat=5000
 
+#tag-actions
+t:name=tag1,action=set,flag=.
+p:name=A3,ref=R1,cigar=20M,tag=tag1
+
+#actions: SET | CLR
+#flags: MULTI | PROPPER | UNMAPPED | NEXT_UNMAPPED | REVERSED | NEXT_REVERSED | FIRST | LAST | SECONDARY | BAD | PCR
+
 #now make one stick over the end of it's reference
 #p:name=C,ref=R3,pos=2999

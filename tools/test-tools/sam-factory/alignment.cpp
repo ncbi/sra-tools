@@ -49,6 +49,7 @@ t_alignment::t_alignment( const std::string &a_name, int a_flags )
       opts( empty_string ),
       ins_bases( empty_string ),
       ref_name_override( empty_string ),
+      tag( empty_string ),
       ref( nullptr ),
       mate( nullptr ),
       flags( a_flags ),
@@ -82,6 +83,10 @@ void t_alignment::set_ins_bases( const std::string &a_bases ) {
 
 void t_alignment::set_ref_name_override( const std::string &a_ref_name ) {
     ref_name_override = a_ref_name;
+}
+
+void t_alignment::set_tag( const std::string &a_tag ) {
+    tag = a_tag;
 }
 
 void t_alignment::set_opts( const std::string &a_opts ) {
@@ -138,6 +143,10 @@ std::string t_alignment::get_refname( void ) const {
     if ( ref != nullptr ) { return ref -> get_alias(); } else { return star_string; }
 }
 
+const std::string& t_alignment::get_tag( void ) const {
+    return tag;
+}
+
 std::string t_alignment::get_print_refname( void ) const {
     if ( ref_name_override.empty() ) {
         return get_refname();
@@ -169,6 +178,10 @@ bool t_alignment::has_ref( void ) const {
     return ref != nullptr;
 }
 
+bool t_alignment::has_tag( const std::string& a_tag ) const{
+    return tag == a_tag;
+}
+
 const std::string& t_alignment::get_name( void ) const { 
     return name;
 }
@@ -178,5 +191,21 @@ void t_alignment::toggle_flag( int flagbit, bool state ) {
         flags |= flagbit;
     } else {
         flags &= ~flagbit;
+    }
+}
+
+void t_alignment::handle_tagline( const t_progline_ptr &pl ) {
+    if ( tag != empty_string ) {
+        const std::string& tag_name = pl -> get_string_key( "name" );
+        if ( tag == tag_name ) {
+            const std::string& action_name = pl -> get_string_key( "action" );
+            if ( ( "set" == action_name )||( "SET" == action_name ) ) {
+                int flag = string_to_flag( pl -> get_string_key( "flag" ) );
+                toggle_flag( flag, true );
+            } else if ( ( "clr" == action_name )||( "CLR" == action_name ) ) {
+                int flag = string_to_flag( pl -> get_string_key( "flag" ) );
+                toggle_flag( flag, false );
+            }
+        }
     }
 }

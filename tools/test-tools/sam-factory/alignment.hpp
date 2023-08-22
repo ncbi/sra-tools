@@ -24,6 +24,7 @@ class t_alignment {
         std::string opts;
         std::string ins_bases;
         std::string ref_name_override;
+        std::string tag;
         t_reference_ptr ref;
         t_alignment_ptr mate;
         int flags;
@@ -50,6 +51,7 @@ class t_alignment {
         void set_tlen( int a_tlen );
         void set_mate( t_alignment_ptr a_mate );
         void set_quality( const std::string &a_qual, int qual_div ); //needs seq ( cigar )
+        void set_tag( const std::string &a_tag );
         void adjust_refpos_and_seq( void );
 
         bool operator<( const t_alignment& other ) const;
@@ -59,8 +61,12 @@ class t_alignment {
         void print_SAM( std::ostream &out ) const;
         bool has_flag( int mask ) const;
         bool has_ref( void ) const;
+        bool has_tag( const std::string& a_tag ) const;
         const std::string& get_name( void ) const;
+        const std::string& get_tag( void ) const;
         void toggle_flag( int flagbit, bool state );
+
+        void handle_tagline( const t_progline_ptr &pl );
 };
 
 //we need that because we have a vector of smart-pointers - not objects, to sort...

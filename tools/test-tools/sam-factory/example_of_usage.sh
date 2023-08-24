@@ -29,7 +29,9 @@ function insert_schema_paths() {
     local SCHEMA_PATHS_KEY="/vdb/schema/paths"
     local SCHEMA_PATHS_VALUE="${HOME}/devel/ncbi-vdb/interfaces"
 
-    if [ -z $(grep "${SCHEMA_PATHS_KEY}" "${USER_SETTINGS}") ]; then
+    local FOUND_SCHEMA_PATHS=`grep ${SCHEMA_PATHS_KEY} ${USER_SETTINGS}`
+    set -- $FOUND_SCHEMA_PATHS
+    if [ -z $1 ]; then
         local LINE="${SCHEMA_PATHS_KEY} = \"${SCHEMA_PATHS_VALUE}\""
         echo "inserting: $LINE"
         echo "$LINE" >> "$USER_SETTINGS"

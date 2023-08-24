@@ -1,0 +1,21 @@
+#bam-load error test #10 : a pair of alignments have their mate-flag not set in one of them
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E10.fasta
+
+# write the final SAM-output into this file
+sam-out:E10.sam
+
+# write a config-file for bam-load
+config:E10.config
+
+p:name=A1,pos=100,tag=T1
+p:name=A1,pos=300
+# MULTI=0x01 aka MATED
+t:name=T1,action=clr,flag=MULTI
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50

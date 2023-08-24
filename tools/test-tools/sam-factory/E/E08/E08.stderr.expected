@@ -1,0 +1,2 @@
+warn: Spots without fragment info have been encountered
+warn: libs/vdb/phys-cmn.c:733:VPhysicalProdColumnIdRange: data inconsistent while reading file within application support module - Spot 'A1', which was first seen with mate info, now has no mate info

@@ -70,6 +70,9 @@ set VERSION=%4
 
 echo Smoke testing %VERSION% toolkit tarball ...
 
+echo "$ vdb-config -on HOME"
+vdb-config -on HOME
+
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t -h ; )

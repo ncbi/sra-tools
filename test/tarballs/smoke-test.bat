@@ -76,6 +76,9 @@ vdb-config -on HOME
 echo "$ dir c:\Users\teamcitysrv"
 dir c:\Users\teamcitysrv
 
+echo "$ dir c:\Users\teamcitysrvi\.ncbi"
+dir c:\Users\teamcitysrv\.ncbi
+
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t -h ; )

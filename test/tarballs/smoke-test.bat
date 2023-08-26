@@ -79,6 +79,9 @@ dir c:\Users\teamcitysrv
 echo "$ dir c:\Users\teamcitysrvi\.ncbi"
 dir c:\Users\teamcitysrv\.ncbi
 
+echo "$ type c:\Users\teamcitysrvi\.ncbi\user-settings.mkfg"
+type c:\Users\teamcitysrv\.ncbi\user-settings.mkfg
+
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t -h ; )

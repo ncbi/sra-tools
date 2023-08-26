@@ -70,6 +70,9 @@ set VERSION=%4
 
 echo Smoke testing %VERSION% toolkit tarball ...
 
+echo "$ vdb-config -on"
+vdb-config -on
+
 echo "$ vdb-config -on HOME"
 vdb-config -on HOME
 

@@ -81,8 +81,9 @@ function re_produce_sam_with_sam_dump() {
     echo -e "\t${CMD}"
     eval "${CMD}"
     echo -e "\tsam-dump return-code = $?"
-
-    #cat "${AFTER_SAM_DUMP}"
+    
+    #cleaning up ...
+    rm -rf ${AFTER_SAM_DUMP} ${AFTER_KAR}
 }
 
 function test_sam_factory() {
@@ -105,6 +106,10 @@ function test_sam_factory() {
     load_with_bam_load
     create_archive_with_kar
     re_produce_sam_with_sam_dump
+
+    #cleaning up...
+    rm -rf $BAM_LOAD_CONFIG $BAM_LOAD_SAM $BAM_LOAD_REF
+
 }
 
 #----------------------------------------------------------------------

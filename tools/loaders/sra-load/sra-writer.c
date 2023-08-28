@@ -95,7 +95,7 @@ void SRAWriter_Whack(SRAWriter* self, SRATable** table)
     }
 }
 
-rc_t SRAWriter_CreateTable(SRAWriter* self, const char* schema)
+rc_t SRAWriter_CreateTable(SRAWriter* self, const char * schema_file, const char* tablespec)
 {
     rc_t rc = 0;
 
@@ -104,7 +104,7 @@ rc_t SRAWriter_CreateTable(SRAWriter* self, const char* schema)
         rc = RC( rcSRA, rcFormatter, rcWriting, rcSelf, rcNull);
     } else {
 retry:
-        rc = SRAMgrCreateTable(self->config->sra_mgr, &self->table, schema, "%s", self->config->table_path);
+        rc = SRAMgrCreateTable(self->config->sra_mgr, &self->table, schema_file, tablespec, "%s", self->config->table_path);
         if( GetRCObject(rc) == (enum RCObject)rcTable && GetRCState(rc) == rcExists && self->config->force_table_overwrite ) {
             if( (rc = SRAMgrDropTable(self->config->sra_mgr, true, "%s", self->config->table_path)) == 0 ) {
                 goto retry;
@@ -112,9 +112,9 @@ retry:
         }
     }
     if( rc != 0 ) {
-        PLOGERR(klogErr, (klogErr, rc, "failed to create table with schema $(schema)", PLOG_S(schema), schema));
+        PLOGERR(klogErr, (klogErr, rc, "failed to create table with schema $(schema)", PLOG_S(schema), tablespec));
     } else {
-        DEBUG_MSG (7, ("Created table with schema '%s'\n", schema));
+        DEBUG_MSG (7, ("Created table with schema '%s'\n", tablespec));
     }
     return rc;
 }

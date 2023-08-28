@@ -17,7 +17,17 @@ using data in the INSDC Sequence Read Archives.
 
 ----
 
-_July, 10, 2023_: **SRA Toolkit 3.0.6**
+_August 29, 2023_: **SRA Toolkit 3.0.7**
+
+Updated vdb-config to improve AWS credential interface and usage by SRA Toolkit.
+
+Fixed a bug in AWS credentials with prefetch.
+
+Fixed a bug resulting in 'reference not found' messages for reference sequences stored inside a run.
+
+----
+
+_July 10, 2023_: **SRA Toolkit 3.0.6**
 
 Prefetch now supports the latest GCP access tokens.
 

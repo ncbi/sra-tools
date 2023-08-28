@@ -81,10 +81,13 @@ public:
     // Qualities
     bool HasPhysicalQualities() const;
 
-private:
-    VDB::Table openSequenceTable( const std::string & accession ) const;
+    const VDB::SchemaInfo GetSchemaInfo() const;
 
 private:
-    VDB::Manager mgr;
+    VDB::Table openSequenceTable( const std::string & accession ) const;
+    VDB::Schema openSchema( const std::string & accession ) const;
+
+private:
+    VDB::Manager m_mgr;
     std::string m_accession;
 };

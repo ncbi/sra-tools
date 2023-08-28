@@ -68,21 +68,21 @@ endfunction()
 AddQueryTest( Test_Sra_Info_Platform_Table      1.0 "-P SRR000123" )
 AddQueryTest( Test_Sra_Info_Platform_CSRA       1.1 "-P ERR334733" )
 AddQueryTest( Test_Sra_Info_Platform_WGS        1.2 "-P AAAAAA01" )
-AddQueryTest( Test_Sra_Info_Platform_Multiple   2.0 "-P ./input/MultiPlatform"  )
+AddQueryTest( Test_Sra_Info_Platform_Multiple   2.0 "-P ./input/MultiPlatform.sra"  )
 AddQueryTest( Test_Sra_Info_Platform_Reference  3.0 "-P NC_000001.11" )
 
 # formatting
-AddQueryTest( Test_Sra_Info_Platform_Format_CSV     4.1 "-P ./input/MultiPlatform -f csv" )
-AddQueryTest( Test_Sra_Info_Platform_Format_XML     4.2 "-P ./input/MultiPlatform -f xml" )
-AddQueryTest( Test_Sra_Info_Platform_Format_Json    4.3 "-P ./input/MultiPlatform -f json" )
-AddQueryTest( Test_Sra_Info_Platform_Format_Tab     4.4 "-P ./input/MultiPlatform -f tab" )
+AddQueryTest( Test_Sra_Info_Platform_Format_CSV     4.1 "-P ./input/MultiPlatform.sra -f csv" )
+AddQueryTest( Test_Sra_Info_Platform_Format_XML     4.2 "-P ./input/MultiPlatform.sra -f xml" )
+AddQueryTest( Test_Sra_Info_Platform_Format_Json    4.3 "-P ./input/MultiPlatform.sra -f json" )
+AddQueryTest( Test_Sra_Info_Platform_Format_Tab     4.4 "-P ./input/MultiPlatform.sra -f tab" )
 
 # is-aligned
 AddQueryTest( Test_Sra_Info_IsAligned_No    5.1 "-A SRR000123" )
 AddQueryTest( Test_Sra_Info_IsAligned_Yes   5.2 "--is-aligned ERR334733" )
 
 # quality
-AddQueryTest( Test_Sra_Info_Quality_Physical        6.1 "--quality ./input/MultiPlatform" )
+AddQueryTest( Test_Sra_Info_Quality_Physical        6.1 "--quality ./input/MultiPlatform.sra" )
 AddQueryTest( Test_Sra_Info_Quality_Physical_Refseq 6.2 "-Q NC_000001.10" )
 
 # spot layout
@@ -117,5 +117,23 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR00012
 # add_test( NAME Test_Sra_Info_Default.8.0
 #     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+# schema, Default format
+AddQueryTest( Test_Sra_Info_Schema_Default 9.0 "--schema input/MultiPlatform.sra" )
+
+# schema, JSON format
+AddQueryTest( Test_Sra_Info_Schema_Json 9.1 "--schema input/MultiPlatform.sra -fjson" )
+
+# schema, XML format
+AddQueryTest( Test_Sra_Info_Schema_Xml 9.2 "--schema input/MultiPlatform.sra -fxml" )
+
+# query for ACPQS, Default format
+AddQueryTest( Test_Sra_Info_ACPQS_Default 10.0 "input/MultiPlatform.sra -ACPQS" )
+
+# query for ACPQS, JSON format
+AddQueryTest( Test_Sra_Info_ACPQS_Json 10.1 "input/MultiPlatform.sra -ACPQS -fjson" )
+
+# query for ACPQS, XML format
+AddQueryTest( Test_Sra_Info_ACPQS_Xml 10.2 "input/MultiPlatform.sra -ACPQS -fxml" )
 
 endif()

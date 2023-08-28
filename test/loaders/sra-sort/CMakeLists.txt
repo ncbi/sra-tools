@@ -25,7 +25,6 @@
 add_compile_definitions( __mod__="test/sra-sort" )
 
 if ( NOT WIN32 )
-if (OpenSSL_FOUND)
 
     ToolsRequired(sra-sort kar bam-load sra-stat sam-factory)
 
@@ -44,5 +43,4 @@ if (OpenSSL_FOUND)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
-endif()
 endif()

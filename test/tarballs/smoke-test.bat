@@ -24,8 +24,6 @@
 
 @echo off
 
-dir "C:\Program Files"
-
 set FAILED=
 
 echo Smoke testing ngs tarball in %3 ...
@@ -69,21 +67,6 @@ set VERSION_CHECKER=%2
 set VERSION=%4
 
 echo Smoke testing %VERSION% toolkit tarball ...
-
-echo "$ vdb-config -on"
-vdb-config -on
-
-echo "$ vdb-config -on HOME"
-vdb-config -on HOME
-
-echo "$ dir c:\Users\teamcitysrv"
-dir c:\Users\teamcitysrv
-
-echo "$ dir c:\Users\teamcitysrvi\.ncbi"
-dir c:\Users\teamcitysrv\.ncbi
-
-echo "$ type c:\Users\teamcitysrvi\.ncbi\user-settings.mkfg"
-type c:\Users\teamcitysrv\.ncbi\user-settings.mkfg
 
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h

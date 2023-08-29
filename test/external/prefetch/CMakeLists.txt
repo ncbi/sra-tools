@@ -31,7 +31,7 @@ add_compile_definitions( __mod__="test/external/prefetch" )
 # endif()
 
 if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/prefetch${EXE}" )
+	ToolsRequired(prefetch srapath)
 
 	GenerateExecutableWithDefs( SlowTest_Prefetch "test-quality" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
@@ -100,7 +100,4 @@ if ( EXISTS "${DIRTOTEST}/prefetch${EXE}" )
 			COMMAND perl vdbcache.pl ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
-else()
-    message(WARNING "${DIRTOTEST}/prefetch${EXE} is not found. The corresponding tests are skipped." )
-endif()
 endif()

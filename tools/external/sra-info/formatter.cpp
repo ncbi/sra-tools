@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -48,12 +48,32 @@ Formatter::StringToFormat( const string & value )
 }
 
 Formatter::Formatter( Format f, uint32_t l )
-: fmt( f ), limit( l )
+: fmt( f ), limit( l ), first ( true ), count( 0 )
 {
 }
 
 Formatter::~Formatter()
 {
+}
+
+string
+Formatter::formatJsonSeparator( void ) const
+{
+    if ( first ) {
+        Formatter * ncThis = const_cast<Formatter *>(this);
+        ncThis->first = false;
+        return "";
+    }
+    else
+        return ",";
+}
+
+void
+Formatter::expectSingleQuery( const string & error ) const
+{
+    Formatter * ncThis = const_cast<Formatter *>(this);
+    if ( ++ncThis->count > 1 )
+        throw VDB::Error( error );
 }
 
 string
@@ -84,18 +104,30 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
     {
     case Default:
         // default format, 1 value per line
-        return JoinPlatforms( platforms, "\n" );
+        return JoinPlatforms( platforms, "\n", "PLATFORM: " );
     case CSV:
         // CSV, all values on 1 line
+        expectSingleQuery( "CVS format does not support multiple queries" );
         return JoinPlatforms( platforms, "," );
     case XML:
         // XML, each value in a tag, one per line
-        return JoinPlatforms( platforms, "\n", "<platform>", "</platform>" );
+        return " <PLATFORMS>\n" + 
+            JoinPlatforms( platforms, "\n", "  <platform>", "</platform>" )
+            + "\n </PLATFORMS>";
     case Json:
+    {
         // Json, array of strings
-        return string("[\n") + JoinPlatforms( platforms, ",\n", "\"", "\"" ) + "\n]";
+        string out;
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = " " + separator + "\n";
+        out += string(" \"PLATFORMS\": [\n")
+            + JoinPlatforms( platforms, ",\n", "  \"", "\"" ) + "\n ]";
+        return out;
+    }
     case Tab:
         // Tabbed, all values on 1 line
+        expectSingleQuery("TAB format does not support multiple queries");
         return JoinPlatforms( platforms, "\t" );
     default:
         throw VDB::Error( "unsupported formatting option");
@@ -103,21 +135,180 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
 }
 
 string
-Formatter::format( const string & value ) const
+Formatter::start( void ) const
 {
     switch ( fmt )
     {
     case Default:
     case CSV:
-    case XML:
     case Tab:
-        return value;
+        return "";
+    case XML:
+        return "<SRA_INFO>";
     case Json:
-        return string("\"") + value + "\"";
+        return "{";
     default:
         throw VDB::Error( "unsupported formatting option");
     }
 }
+
+string
+Formatter::end( void ) const
+{
+    switch ( fmt )
+    {
+    case Default:
+    case CSV:
+    case Tab:
+        return "";
+    case XML:
+        return "</SRA_INFO>";
+    case Json:
+        return "}";
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+}
+
+string
+Formatter::format( const string & value, const string & name ) const
+{
+    const string space(" ");
+
+    switch ( fmt )
+    {
+    case CSV:
+        expectSingleQuery("CVS format does not support multiple queries");
+        return value;
+    case Tab:
+        expectSingleQuery( "TAB format does not support multiple queries" );
+        return value;
+    case Default:
+        return name + ": " + value;
+    case XML:
+        return space + "<" + name + ">"
+            + value + "</" + name + ">";
+    case Json:
+    {
+        string out;
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = space + separator + "\n";
+        out += space + "\"" + name + string("\": \"") + value + "\"";
+        return out;
+    }
+    default:
+        throw VDB::Error( "unsupported formatting option");
+    }
+}
+
+class SimpleSchemaDataFormatter : public VDB::SchemaDataFormatter {
+    const std::string _space;
+    int _indent;
+public:
+    SimpleSchemaDataFormatter(const std::string &space = "  ", int indent = 1) :
+        _space(space), _indent(indent)
+    {}
+    void format(
+        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+    {
+        if (indent < 0)
+            indent = _indent;
+        for (int i = 0; i < indent; ++i)
+            out += _space;
+        out += d.name + "\n";
+        for (auto it = d.parent.begin(); it < d.parent.end(); ++it)
+            format(*it, indent + 1);
+    }
+};
+
+class FullSchemaDataFormatter : public VDB::SchemaDataFormatter {
+    const std::string _space;
+    int _indent;
+    const std::string _open;
+    const std::string _openNext;
+    const std::string _closeName;
+    const std::string _close;
+    const std::string _openParent1;
+    const std::string _openParent2;
+    const std::string _closeParent1;
+    const std::string _closeParent2;
+    const std::string _noParent;
+
+public:
+    FullSchemaDataFormatter(int indent, const std::string &space,
+        const std::string &open, const std::string &openNext,
+        const std::string &closeName, const std::string &close,
+        const std::string &openParent1 = "",
+        const std::string &openParent2 = "",
+        const std::string &closeParent1 = "",
+        const std::string &closeParent2 = "",
+        const std::string &noParent = "")
+        :
+        _space(space), _indent(indent), _open(open), _openNext(openNext),
+        _closeName(closeName), _close(close), _openParent1(openParent1),
+        _openParent2(openParent2), _closeParent1(closeParent1),
+        _closeParent2(closeParent2), _noParent(noParent)
+    {}
+
+    void format(const struct VDB::SchemaData &d,
+        int indent = -1, bool first = true)
+    {
+        if (indent < 0)
+            indent = _indent;
+        if (!first) out += _openNext;
+
+        for (int i = 0; i < indent; ++i) out += _space;
+        out += _open + d.name + _closeName;
+
+        if (!d.parent.empty()) {
+            out += _openParent1;
+            if (!_openParent2.empty()) {
+                for (int i = 0; i < indent; ++i) out += _space;
+                out += _openParent2;
+                ++indent;
+            }
+
+            bool frst = true;
+            for (auto it = d.parent.begin(); it < d.parent.end(); it++) {
+                format(*it, indent + 1, frst);
+                frst = false;
+            }
+
+            if (!_closeParent2.empty()) {
+                out += _closeParent1;
+                for (int i = 0; i < indent; ++i) out += _space;
+                out += _closeParent2;
+            }
+            if (!_openParent2.empty())
+                --indent;
+        }
+        else
+            out += _noParent;
+
+        for (int i = 0; i < indent; ++i) out += _space;
+        out += _close;
+    }
+};
+
+class JsonSchemaDataFormatter : public FullSchemaDataFormatter {
+public:
+    JsonSchemaDataFormatter(
+        const std::string &open, int indent, const std::string &space = " "
+    )
+        : FullSchemaDataFormatter(indent, space, open, ",\n", "\"", "}", ",\n",
+            " \"Parents\": [\n", "\n", "]\n", "\n")
+    {}
+};
+
+class XmlSchemaDataFormatter : public FullSchemaDataFormatter {
+public:
+    XmlSchemaDataFormatter(int indent, const std::string &open,
+        const std::string &close, const std::string &space = " "
+    )
+        : FullSchemaDataFormatter(indent, space, open, "", "\n", close)
+    {}
+};
 
 string
 Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail ) const
@@ -148,7 +339,8 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
                 const SraInfo::SpotLayout & l = layouts[i];
                 bool  first = true;
-                ret << l.count << ( l.count == 1 ? " spot: " : " spots: " );
+                ret << "SPOT: " << l.count
+                    << ( l.count == 1 ? " spot: " : " spots: " );
                 switch( detail )
                 {
                 case SraInfo::Short: ret << l.reads.size() << " reads"; break;
@@ -178,7 +370,10 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case Json:
         {
-            ret << "[" << endl;
+            const string separator(formatJsonSeparator());
+            if (!separator.empty())
+                ret << " " << separator << endl;
+            ret << " \"SPOTS\": [" << endl;
             bool  first_layout = true;
             for( size_t i = 0; i < count; ++i )
             {
@@ -193,7 +388,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
                 }
 
                 bool  first_read = true;
-                ret << "{ \"count\": " << l.count << ", \"reads\": ";
+                ret << "  { \"count\": " << l.count << ", \"reads\": ";
 
                 switch( detail )
                 {
@@ -225,11 +420,12 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
                 ret << " }";
             }
-            ret << endl << "]" << endl;
+            ret << endl << " ]" << endl;
         }
         break;
 
     case CSV:
+        expectSingleQuery( "CVS format does not support multiple queries" );
         for( size_t i = 0; i < count; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
@@ -257,6 +453,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
         break;
 
     case Tab:
+        expectSingleQuery("TAB format does not support multiple queries");
         for( size_t i = 0; i < count; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
@@ -284,10 +481,11 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
         break;
 
     case XML:
+        ret << " <SPOTS>" << endl;
         for( size_t i = 0; i < count; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
-            ret << "<layout><count>" << l.count << "</count>";
+            ret << "  <layout><count>" << l.count << "</count>";
             switch( detail )
             {
             case SraInfo::Short:
@@ -310,6 +508,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
             ret << "</layout>" << endl;
         }
+        ret << " </SPOTS>";
         break;
 
     default:
@@ -317,4 +516,120 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
     }
 
     return ret.str();
+}
+
+string Formatter::format(const VDB::SchemaInfo & info) const
+{
+    string space("  ");
+    int indent(3);
+    bool first(true);
+    string out;
+
+    switch ( fmt )
+    {
+    case Default:
+    {
+        indent = 2;
+        out = "SCHEMA:\n"
+
+            + space + "DBS:\n";
+        SimpleSchemaDataFormatter db(space, indent);
+        for (auto it = info.db.begin(); it < info.db.end(); it++)
+            db.format(*it);
+        out += db.out;
+
+        out += space + "TABLES:\n";
+        SimpleSchemaDataFormatter table(space, indent);
+        for (auto it = info.table.begin(); it < info.table.end(); it++)
+            table.format(*it);
+        out += table.out;
+
+        out += space + "VIEWS:\n";
+        SimpleSchemaDataFormatter view(space, indent);
+        for (auto it = info.view.begin(); it < info.view.end(); it++)
+            view.format(*it);
+        out += view.out;
+
+        break;
+    }
+
+    case Json:
+    {
+        const string separator(formatJsonSeparator());
+        if (!separator.empty())
+            out = space + separator + "\n";
+        out += space + "\"SCHEMA\": {\n"
+
+            + space + space + "\"DBS\": [\n";
+        JsonSchemaDataFormatter db("{ \"Db\": \"", indent);
+        first = true;
+        for (auto it = info.db.begin(); it < info.db.end(); it++) {
+            db.format(*it, indent, first);
+            first = false;
+        }
+        out += db.out;
+        out += space + space + "],\n"
+
+            + space + space + "\"TABLES\": [\n";
+        JsonSchemaDataFormatter table("{ \"Tbl\": \"", indent);
+        first = true;
+        for (auto it = info.table.begin(); it < info.table.end();
+            ++it)
+        {
+            table.format(*it, indent, first);
+            first = false;
+        }
+        out += table.out;
+        out += "\n"
+            + space + space + "],\n"
+
+            + space + space + "\"VIEWS\": [\n";
+        first = true;
+        JsonSchemaDataFormatter view("{ \"View\": \"", indent);
+        for (auto it = info.view.begin(); it < info.view.end(); it++) {
+            view.format(*it, indent, first);
+            first = false;
+        }
+        out += view.out;
+        out += space + space + "]\n"
+
+            + space + "}";
+        break;
+    }
+
+    case XML:
+    {
+        out = space + "<SCHEMA>\n"
+
+            + space + space + "<DBS>\n";
+        XmlSchemaDataFormatter db(indent, "<Db>", "</Db>\n");
+        for (auto it = info.db.begin(); it < info.db.end(); it++)
+            db.format(*it);
+        out += db.out;
+        out += space + space + "</DBS>\n"
+
+            + space + space + "<TABLES>\n";
+        XmlSchemaDataFormatter table(indent, "<Tbl>", "</Tbl>\n");
+        for (auto it = info.table.begin(); it < info.table.end(); it++)
+            table.format(*it);
+        out += table.out;
+        out += space + space + "</TABLES>\n"
+
+            + space + space + "<VIEWS>\n";
+        XmlSchemaDataFormatter view(indent, "<View>", "</View>\n");
+        for (auto it = info.view.begin(); it < info.view.end(); it++)
+            view.format(*it);
+        out += view.out;
+        out += space + space + "</VIEWS>\n"
+
+            + space + "</SCHEMA>";
+
+        break;
+    }
+
+    default:
+        throw VDB::Error( "unsupported formatting option for schema" );
+    }
+
+    return out;
 }

@@ -586,7 +586,7 @@ LIB_EXPORT rc_t CC KLoaderFile_Make(const KLoaderFile **file, const KDirectory* 
     } else {
         *file = NULL;
         if( (obj = calloc(1, sizeof(*obj))) == NULL ||
-            (obj->filename = strdup(filename)) == NULL ) {
+            (obj->filename = string_dup(filename, string_size(filename))) == NULL ) {
             rc = RC(rcApp, rcFile, rcConstructing, rcMemory, rcExhausted);
         } else {
             if( (rc = KDirectoryAddRef(dir)) == 0 ) {
@@ -624,7 +624,7 @@ LIB_EXPORT rc_t CC KLoaderFile_Make(const KLoaderFile **file, const KDirectory* 
 #else
                         obj->ahead = read_ahead;
 #endif
-                        obj->realname = strdup(resolved);
+                        obj->realname = string_dup(resolved, string_size(resolved));
                         if( obj->realname == NULL ) {
                             rc = RC(rcApp, rcFile, rcConstructing, rcMemory, rcExhausted);
                         }

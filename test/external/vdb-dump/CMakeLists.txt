@@ -34,10 +34,13 @@ if( Python3_EXECUTABLE )
 	)
 endif()
 
+set(TOOL_HOME ${CMAKE_SOURCE_DIR}/tools/external/vdb-dump)
+
 file ( MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/db )
-AddExecutableTest( Test_Vdb_dump_view-spec "test-view-spec" 
-                    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" 
-                    "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump" )
+AddExecutableTest( Test_Vdb_dump_view-spec
+    "test-view-spec;${TOOL_HOME}/vdb-dump-view-spec.c;${TOOL_HOME}/vdb-dump-helper.c;${TOOL_HOME}/vdb-dump-context.c;${TOOL_HOME}/vdb-dump-coldefs.c;${TOOL_HOME}/vdb-dump-str.c"
+    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}"
+    "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump" )
 
 if ( NOT WIN32 )
 
@@ -70,5 +73,12 @@ if ( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()
+
+    # run this test after Test_Vdb_dump to make sure the test database has been created
+    AddExecutableTest( Test_Vdb_dump_view-alias
+        "test-view-alias"
+        "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+        "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump"
+    )
 
 endif()

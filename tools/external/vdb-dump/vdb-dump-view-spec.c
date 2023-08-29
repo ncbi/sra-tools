@@ -37,9 +37,9 @@
 #include <vdb/database.h>
 #include <vdb/manager.h>
 
-static
-rc_t Error ( char * p_error, size_t p_error_size, const char * p_message )
-{
+#include "vdb-dump-helper.h"
+
+static rc_t Error ( char * p_error, size_t p_error_size, const char * p_message ) {
     size_t num_writ;
     string_printf( p_error, p_error_size, & num_writ, p_message );
     return RC( rcVDB, rcTable, rcConstructing, rcFormat, rcIncorrect );
@@ -47,37 +47,24 @@ rc_t Error ( char * p_error, size_t p_error_size, const char * p_message )
 
 static rc_t view_args_parse ( view_spec * p_owner, KTokenSource * p_src, char * p_error, size_t p_error_size, bool p_optional );
 
-static
-rc_t
-view_arg_parse( view_spec * p_owner, KTokenSource * p_src, char * p_error, size_t p_error_size )
-{
+static rc_t view_arg_parse( view_spec * p_owner, KTokenSource * p_src, char * p_error, size_t p_error_size ) {
     /* view_arg = ident [ view_args ] */
-
     rc_t rc = 0;
     KToken tok;
-    if ( KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id != eIdent )
-    {
+    if ( KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id != eIdent ) {
         rc = Error ( p_error, p_error_size, "missing view parameter(s)" );
-    }
-    else
-    {
+    } else {
         char * name = string_dup ( tok . str . addr, tok . str . size );
         view_spec * self = ( view_spec * ) malloc ( sizeof ( * self ) );
-        if ( self == NULL )
-        {
+        if ( NULL == self ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        }
-        else
-        {
+        } else {
             VectorInit( & self -> args, 0, 4 );
             rc = view_args_parse ( self, p_src, p_error, p_error_size, true );
-            if ( rc == 0 )
-            {
+            if ( 0 == rc ) {
                 self -> name = name;
                 VectorAppend ( & p_owner -> args, NULL, self );
-            }
-            else
-            {
+            } else {
                 free ( name );
                 free ( self );
             }
@@ -86,96 +73,68 @@ view_arg_parse( view_spec * p_owner, KTokenSource * p_src, char * p_error, size_
     return rc;
 }
 
-static
-rc_t
-view_args_parse ( view_spec * p_owner, KTokenSource * p_src, char * p_error, size_t p_error_size, bool p_optional )
-{
+static rc_t view_args_parse( view_spec * p_owner, KTokenSource * p_src, char * p_error,
+                             size_t p_error_size, bool p_optional ) {
     /* view_args = '<' view_arg { ',' view_arg } >' */
-
     rc_t rc = 0;
     KToken tok;
-    if ( KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id != eLeftAngle )
-    {
+    if ( KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id != eLeftAngle ) {
         KTokenSourceReturn ( p_src, & tok );
-        if ( p_optional )
-        {
+        if ( p_optional ) {
             rc = 0;
-        }
-        else
-        {
+        } else {
             rc = Error ( p_error, p_error_size, "missing '<' after the view name" );
         }
-    }
-    else
-    {
-        do
-        {
+    } else {
+        do {
             rc = view_arg_parse ( p_owner, p_src, p_error, p_error_size );
         }
-        while ( rc == 0 && KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id == eComma );
-
-        if ( rc == 0 )
-        {
-            switch ( tok . id )
-            {
-            case eRightAngle:
-                break;
-            case eDblRightAngle:
-                {   /* split ">>"" and return '>' */
-                    KTokenText tt;
-                    KToken t;
-                    KTokenTextInitCString ( &tt , ">", "" );
-                    t . txt = & tt;
-                    t . sym = NULL;
-                    t . str . addr = tok . str . addr + 1;
-                    t . str . size = 1;
-                    t . id = eRightAngle;
-                    KTokenSourceReturn ( p_src, & t );
-                }
-                break;
-            default:
-                rc = Error ( p_error, p_error_size, "expected ',' or '>' after a view parameter" );
-                break;
+        while ( 0 == rc && KTokenizerNext ( kDefaultTokenizer, p_src, & tok ) -> id == eComma );
+        if ( 0 == rc ) {
+            switch ( tok . id ) {
+                case eRightAngle:
+                    break;
+                case eDblRightAngle:
+                    {   /* split ">>"" and return '>' */
+                        KTokenText tt;
+                        KToken t;
+                        KTokenTextInitCString ( &tt , ">", "" );
+                        t . txt = & tt;
+                        t . sym = NULL;
+                        t . str . addr = tok . str . addr + 1;
+                        t . str . size = 1;
+                        t . id = eRightAngle;
+                        KTokenSourceReturn ( p_src, & t );
+                    }
+                    break;
+                default:
+                    rc = Error ( p_error, p_error_size, "expected ',' or '>' after a view parameter" );
+                    break;
             }
         }
     }
-
     return rc;
 }
 
-rc_t
-view_spec_parse ( const char * p_spec, view_spec ** p_self, char * p_error, size_t p_error_size )
-{
+rc_t view_spec_parse ( const char * p_spec, view_spec ** p_self, char * p_error, size_t p_error_size ) {
     rc_t rc = 0;
-    if ( p_self == NULL )
-    {
+    if ( NULL == p_self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
-    }
-    else if ( p_error == NULL || p_error_size == 0 )
-    {
+    } else if ( NULL == p_error || 0 == p_error_size ) {
         * p_self = NULL;
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    }
-    else
-    {
+    } else {
         view_spec * self = ( view_spec * ) malloc ( sizeof ( * self ) );
         p_error [0] = 0;
-        if ( self == NULL )
-        {
+        if ( NULL == self ) {
             * p_self = NULL;
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        }
-        else
-        {
+        } else {
             self -> name = NULL;
             VectorInit( & self -> args, 0, 4 );
-
-            if ( p_spec == NULL )
-            {
+            if ( NULL == p_spec ) {
                 rc = Error ( p_error, p_error_size, "empty view specification" );
-            }
-            else
-            {   /* parse p_spec */
+            } else {   /* parse p_spec */
                 /* ident view-args  */
                 String input;
                 String empty;
@@ -186,161 +145,113 @@ view_spec_parse ( const char * p_spec, view_spec ** p_self, char * p_error, size
                 StringInit ( & empty, NULL, 0, 0 );
                 KTokenTextInit ( & txt, & input, & empty );
                 KTokenSourceInit ( & src, & txt );
-                if ( KTokenizerNext ( kDefaultTokenizer, & src, & tok ) -> id != eIdent )
-                {
+                if ( KTokenizerNext ( kDefaultTokenizer, & src, & tok ) -> id != eIdent ) {
                     rc = Error ( p_error, p_error_size, "missing view name" );
-                }
-                else
-                {
+                } else {
                     self -> name = string_dup ( tok . str . addr, tok . str . size );
-                    if ( self -> name == NULL )
-                    {
+                    if ( NULL == self -> name ) {
                         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                    }
-                    else
-                    {
+                    } else {
                         rc = view_args_parse ( self, & src, p_error, p_error_size, false );
-                        if ( rc == 0 && KTokenizerNext ( kDefaultTokenizer, & src, & tok ) -> id != eEndOfInput )
-                        {
+                        if ( 0 == rc && KTokenizerNext ( kDefaultTokenizer, & src, & tok ) -> id != eEndOfInput ) {
                             rc = Error ( p_error, p_error_size, "extra characters after '>'" );
                         }
                     }
                 }
             }
-            if ( rc != 0 )
-            {
+            if ( rc != 0 ) {
                 view_spec_free ( self );
                 * p_self = NULL;
-            }
-            else
-            {
+            } else {
                 * p_self = self;
             }
         }
     }
-
     return rc;
 }
 
-static
-void CC free_arg ( void* item, void * data )
-{
+static void CC free_arg ( void* item, void * data ) {
     view_spec_free ( ( view_spec * ) item );
 }
 
-void view_spec_free ( view_spec * p_self )
-{
-    if ( p_self != NULL )
-    {
+void view_spec_free ( view_spec * p_self ) {
+    if ( p_self != NULL ) {
         VectorWhack( & p_self -> args, free_arg, NULL );
         free ( p_self -> name );
         free ( p_self );
     }
 }
 
-static
-rc_t
-InstantiateView ( const VDatabase * p_db, const view_spec * p_self, const struct VSchema * p_schema, const struct VView ** p_view )
-{
+static rc_t InstantiateView( const VDatabase * p_db, const view_spec * p_self,
+                             const struct VSchema * p_schema, const struct VView ** p_view ) {
     /* open view and bind parameters */
-
     const VDBManager * mgr;
     rc_t rc = VDatabaseOpenManagerRead ( p_db, & mgr );
-    if ( rc == 0 )
-    {
+    if ( 0 == rc) {
         const struct VView * view;
         rc = VDBManagerOpenView ( mgr, & view, p_schema, p_self -> name );
-        if ( rc == 0 )
-        {
+        if ( 0 == rc ) {
             uint32_t count = VectorLength ( & p_self -> args );
-            if ( count != VViewParameterCount ( view ) )
-            {
+            if ( count != VViewParameterCount ( view ) ) {
                 rc = RC( rcVDB, rcCursor, rcConstructing, rcParam, rcIncorrect );
-            }
-            else
-            {
+            } else {
                 uint32_t start = VectorStart ( & p_self -> args );
                 uint32_t i;
-                for ( i = 0; i < count; ++i )
-                {
+                for ( i = 0; i < count; ++i ) {
                     uint32_t idx = start + i;
                     const String * paramName;
                     bool is_table;
                     const view_spec * arg = (const view_spec*) VectorGet ( & p_self -> args, idx );
                     rc = VViewGetParameter ( view, idx, & paramName, & is_table );
-                    if ( rc == 0 )
-                    {
-                        if ( is_table )
-                        {
-                            if ( VectorLength ( & arg -> args ) != 0 )
-                            {
+                    if ( 0 == rc ) {
+                        if ( is_table ) {
+                            if ( 0 != VectorLength ( & arg -> args ) ) {
                                 rc = RC( rcVDB, rcCursor, rcConstructing, rcParam, rcExcessive );
-                            }
-                            else
-                            {
+                            } else {
                                 const VTable * tbl;
                                 rc = VDatabaseOpenTableRead ( p_db, & tbl, "%s", arg -> name );
-                                if ( rc == 0 )
-                                {
+                                if ( 0 == rc ) {
                                     rc = VViewBindParameterTable ( view, paramName, tbl );
-                                    VTableRelease ( tbl );
+                                    rc = vdh_vtable_release( rc, tbl );
                                 }
                             }
-                        }
-                        else /* view */
-                        {
-                            if ( VectorLength ( & arg -> args ) == 0 )
-                            {
+                        } else {
+                            /* view */
+                            if ( 0 == VectorLength ( & arg -> args ) ) {
                                 rc = RC( rcVDB, rcCursor, rcConstructing, rcParam, rcInsufficient );
-                            }
-                            else
-                            {
+                            } else {
                                 const VView * v;
                                 rc = InstantiateView ( p_db, arg, p_schema, & v );
-                                if ( rc == 0 )
-                                {
+                                if ( rc == 0 ) {
                                     rc = VViewBindParameterView ( view, paramName, v );
-                                    VViewRelease ( v );
+                                    rc = vdh_view_release( rc, v );
                                 }
                             }
                         }
                     }
-                    if ( rc != 0 )
-                    {
-                        break;
-                    }
+                    if ( rc != 0 ) { break; }
                 }
             }
-            if ( rc == 0 )
-            {
+            if ( 0 == rc ) {
                 * p_view = view;
-            }
-            else
-            {
-                VViewRelease ( view );
+            } else {
+                rc = vdh_view_release( rc, view );
             }
         }
-        VDBManagerRelease ( mgr );
+        rc = vdh_vmanager_release( rc, mgr );
     }
     return rc;
 }
 
-rc_t
-view_spec_open ( view_spec *             p_self,
-                 const VDatabase *       p_db,
-                 const struct VSchema *  p_schema,
-                 const VView **          p_view )
-{
-    if ( p_self == NULL )
-    {
+rc_t view_spec_open ( view_spec *             p_self,
+                     const VDatabase *       p_db,
+                     const struct VSchema *  p_schema,
+                     const VView **          p_view ) {
+    if ( NULL == p_self ) {
         return RC( rcVDB, rcCursor, rcConstructing, rcSelf, rcNull );
-    }
-    else if ( p_db == NULL || p_schema == NULL || p_view == NULL )
-    {
+    } else if ( NULL == p_db || NULL == p_schema || NULL == p_view ) {
         return RC( rcVDB, rcCursor, rcConstructing, rcParam, rcNull );
-    }
-    else
-    {
+    } else {
         return InstantiateView ( p_db, p_self, p_schema, p_view );
     }
 }

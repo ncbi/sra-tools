@@ -24,6 +24,10 @@
  *
  */
 
+#if _POSIX_C_SOURCE < 200809L
+#define _POSIX_C_SOURCE 200809L /* pwrite */
+#endif
+
 #include "common-writer.h"
 
 #include <stdio.h>
@@ -478,7 +482,7 @@ static void readRejected(Rejected const *const reject, struct ReadResult *const 
 
     if (rc == 0) {
         rslt->type = rr_rejected;
-        rslt->u.reject.message = strdup(message);
+        rslt->u.reject.message = string_dup_measure(message, NULL);
         rslt->u.reject.line = line;
         rslt->u.reject.column = col;
         rslt->u.reject.fatal = fatal;

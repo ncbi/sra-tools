@@ -24,9 +24,10 @@
 
 add_compile_definitions( __mod__="test/internal/align-cache" )
 
-if ( NOT WIN32 )
-if(EXISTS "${DIRTOTEST}/align-cache${EXE}")
 
+if ( NOT WIN32 )
+
+    ToolsRequired( align-cache vdb-validate )
     add_test( NAME Test_Align_Cache
           COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -38,11 +39,8 @@ if(EXISTS "${DIRTOTEST}/align-cache${EXE}")
               COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-tsan
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-else()
-      message(WARNING "${DIRTOTEST}/align-cache${EXE} is not found. The corresponding tests are skipped." )
-endif()
-else()
-#TODO: make run on Windows
+
+    #TODO: make run on Windows
 endif()
 
 # vg: $(DIRTOTEST)/align-cache

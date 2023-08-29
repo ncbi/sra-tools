@@ -118,7 +118,7 @@ rc_t SRAWriter454_Open(const SRAWriter454* cself, bool sig_and_pos)
         INSDC_coord_one d = 0;
         pstring x;
 
-        if( (rc = SRAWriter_CreateTable(self->base, "NCBI:SRA:_454_:tbl:v2")) != 0 ) {
+        if( (rc = SRAWriter_CreateTable(self->base, "sra/454.vschema", "NCBI:SRA:_454_:tbl:v2")) != 0 ) {
             return rc;
         }
         if( (rc = SRAWriter_WriteDefaults(self->base)) != 0 ) {

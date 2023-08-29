@@ -23,6 +23,11 @@
  * ===========================================================================
  *
  */
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* memchr */
+#endif
+
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <kapp/main.h>      /* for KAppVersion()*/

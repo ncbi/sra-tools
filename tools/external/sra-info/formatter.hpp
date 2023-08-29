@@ -44,11 +44,22 @@ public:
     Formatter( Format = Default, uint32_t limit = 0 );
     virtual ~Formatter();
 
+    Format getFormat( void ) const { return fmt; }
+
+    std::string start( void ) const;
+    std::string end( void ) const;
+
     std::string format( const SraInfo::Platforms & ) const;
-    std::string format( const std::string & ) const;
+    std::string format( const std::string &, const std::string & = "") const;
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
+    std::string format( const VDB::SchemaInfo & ) const;
 
 private:
+    std::string formatJsonSeparator( void ) const;
+    void expectSingleQuery( const std::string & error ) const;
+
     Format fmt;
     uint32_t limit;
+    bool first;
+    int count;
 };

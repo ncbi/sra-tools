@@ -24,6 +24,14 @@
 *
 */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* memchr */
+#endif
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /* strncasecmp */
+#endif
+
 #include "configure.h"
 
 #include <cloud/manager.h> /* CloudMgrRelease */
@@ -1178,7 +1186,7 @@ static rc_t In(const char* prompt, const char* def, char** read) {
                 string_copy_measure(buf, sizeof buf, def);
             }
             if (buf[0]) {
-                *read = strdup(buf);
+                *read = string_dup_measure(buf, NULL);
                 if (*read == NULL) {
                     rc = RC
                         (rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
@@ -1416,7 +1424,7 @@ static rc_t SetNode(KConfig* cfg, const Params* prm) {
             "normally this application should not be run as root/superuser");
     }
 
-    name = strdup(prm->setValue);
+    name = string_dup_measure(prm->setValue, NULL);
     if (name == NULL)
     {   return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted); }
 
@@ -1959,6 +1967,19 @@ rc_t S3SetAcceptCharges(KConfig * cfg, EState value, bool * set) {
     return rc;
 }
 
+static const char * s_ToAbsPath(const char * value) {
+    static char reslvd[4096] = "";
+    KDirectory * d = NULL;
+    rc_t rc = KDirectoryNativeDir(&d);
+    if (rc == 0) {
+        rc = KDirectoryResolvePath(d, true, reslvd, sizeof reslvd, "%s", value);
+        if (rc == 0)
+            value = reslvd;
+        KDirectoryRelease(d);
+    }
+    return value;
+}
+
 static rc_t S3SetCredentialsFile(KConfig * cfg, const char * aValue,
     bool * set)
 {
@@ -1968,8 +1989,14 @@ static rc_t S3SetCredentialsFile(KConfig * cfg, const char * aValue,
         return rc;
     if (value[0] == ' ' && value[1] == '\0')
         value = "";
+    else
+        value = s_ToAbsPath(value);
     rc = KConfig_Set_Aws_Credential_File(cfg, value);
     if (rc == 0) {
+        char buf[PATH_MAX] = "";
+        rc_t rc = KConfig_Get_Aws_Credential_File(cfg, buf, sizeof buf, NULL);
+        if (rc == 0)
+            value = buf;
         assert(set);
         *set = true;
         OUTMSG(("Path to AWS Credentials File was set to '%s'\n", value));
@@ -2020,8 +2047,14 @@ static rc_t GsSetCredentialsFile(KConfig * cfg, const char * aValue,
         return rc;
     if (value[0] == ' ' && value[1] == '\0')
         value = "";
+    else
+        value = s_ToAbsPath(value);
     rc = KConfig_Set_Gcp_Credential_File(cfg, value);
     if (rc == 0) {
+        char buf[PATH_MAX] = "";
+        rc_t rc = KConfig_Get_Gcp_Credential_File(cfg, buf, sizeof buf, NULL);
+        if (rc == 0)
+            value = buf;
         assert(set);
         *set = true;
         OUTMSG(("Path to GCP Credentials File was set to '%s'\n", value));

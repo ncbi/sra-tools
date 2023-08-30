@@ -1,0 +1,4 @@
+err: tools/loaders/bam-loader/bam.c:1956:BAM_FileRefNameIncrementalLookup: row invalid while reading file within alignment module - Parsing SAM RNAME: R20
+err: tools/loaders/bam-loader/bam.c:1956:BAM_FileRefNameIncrementalLookup: row invalid while reading file within alignment module - Parsing SAM RNEXT: R1
+err: tools/loaders/bam-loader/bam.c:1956:BAM_FileRefNameIncrementalLookup: row invalid while reading file within alignment module - bamread_thread done
+err: libs/kdb/wkdb.c:1193:KDBVDrop: row invalid while reading file within alignment module - load failed

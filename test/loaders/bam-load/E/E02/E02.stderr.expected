@@ -1,0 +1,2 @@
+err: tools/loaders/bam-loader/bam.c:2711:BAM_AlignmentGetQuality2: data inconsistent while reading document within alignment module - Spot 'A1': length of original quality does not match sequence
+err: libs/kdb/wkdb.c:1193:KDBVDrop: data inconsistent while reading document within alignment module - load failed

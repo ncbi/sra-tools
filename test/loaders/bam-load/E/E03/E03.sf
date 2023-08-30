@@ -1,0 +1,21 @@
+#bam-load error test #03 : an alunknown ( to bamload ) reference is mentioned
+#simulated by the use of the name-override key: 'rname'
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E03.fasta
+
+# write the final SAM-output into this file
+sam-out:E03.sam
+
+# write a config-file for bam-load
+config:E03.config
+
+p:name=A1,pos=100,rname=R20
+p:name=A1,pos=300
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50
+

@@ -1,0 +1,1 @@
+warn: libs/align/writer-reference.c:3019:ReferenceSeq_Compress: data invalid while processing file within alignment module - Spot 'A1': bad alignment to reference 'R1' at 4989

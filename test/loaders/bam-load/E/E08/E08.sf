@@ -1,0 +1,20 @@
+#bam-load error test #08 : a pair of alignments is missing the LAST flag
+
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:E08.fasta
+
+# write the final SAM-output into this file
+sam-out:E08.sam
+
+# write a config-file for bam-load
+config:E08.config
+
+p:name=A1,pos=100
+p:name=A1,pos=300,tag=T1
+t:name=T1,action=clr,flag=LAST
+
+#some additional ( correct ) alignments
+p:name=B,repeat=50
+p:name=B,repeat=50

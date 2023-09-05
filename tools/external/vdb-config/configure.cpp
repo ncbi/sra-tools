@@ -256,55 +256,8 @@ struct SUserRepo {
         }
         else {
             cacheEnabled = kfg->is_protected_repo_cached(id);
-//          enabled = kfg->is_protected_repo_enabled(id);
             root = kfg->get_repo_location(id);
         }
-    }
-};
-struct SProtectedRepo : SUserRepo {
-public:
-    const string name;
-    const string description;
-    SProtectedRepo(const vdbconf_model *kfg,
-            uint32_t id, const string &aName)
-        : SUserRepo(kfg, id)
-        , name(aName), description(kfg->get_repo_description(name))
-    {}
-    void Reload(const vdbconf_model *kfg,
-        uint32_t id, const string &aName)
-    {
-        assert(name == aName);
-        SUserRepo::Reload(kfg, id);
-    }
-};
-class CProtectedRepos : public std::map<const string, SProtectedRepo> {
-    typedef std::map<const string, SProtectedRepo>::iterator TI;
-public:
-    typedef std::map<const string, SProtectedRepo>::const_iterator TCI;
-    CProtectedRepos(const vdbconf_model *kfg) { Reload(kfg); }
-    void Reload(const vdbconf_model *kfg) {
-        assert(kfg);
-        uint32_t n = kfg->get_repo_count();
-        for (uint32_t i = 0; i < n; ++i) {
-            const string name(kfg->get_repo_name(i));
-            TI it = find(name);
-            if (it == end()) {
-                insert(std::pair<const string, SProtectedRepo>
-                    (name, SProtectedRepo(kfg, i, name)));
-            }
-            else {
-                (*it).second.Reload(kfg, i, name);
-            }
-        }
-    }
-    TCI Get(uint32_t id) const {
-        TCI it = begin();
-        for (uint32_t i = 0; it != end(); ++it, ++i) {
-            if (i == id) {
-                break;
-            }
-        }
-        return it;
     }
 };
 struct SData {
@@ -319,9 +272,8 @@ struct SData {
         bool remote_enabled;
         bool cache_disabled;
         SUserRepo userR;
-        CProtectedRepos protectedR;
         SCrntData(const vdbconf_model *kfg)
-            : m_Kfg(kfg), userR(kfg), protectedR(kfg)
+            : m_Kfg(kfg), userR(kfg)
         {
             Reload();
         }
@@ -331,7 +283,6 @@ struct SData {
             remote_enabled = m_Kfg->is_remote_enabled();
             cache_disabled = ! m_Kfg->is_global_cache_enabled();
             userR.Reload(m_Kfg);
-            protectedR.Reload(m_Kfg);
         }
     } crnt;
     SData(const vdbconf_model *kfg)
@@ -514,36 +465,7 @@ class CTextualConfigurator : public CConfigurator {
         OUTMSG(("location: '%s' (4)\n", d.crnt.userR.root.c_str()));
 
         uint32_t id = 0;
-        for (CProtectedRepos::TCI it = d.crnt.protectedR.begin();
-            it != d.crnt.protectedR.end(); ++it, ++id)
-        {
-            const SProtectedRepo r((*it).second);
-            OUTMSG(("\n   %s:\n", r.name.c_str()));
-            if (r.description.size() > 0) {
-                OUTMSG(("  ( %s )\n", r.description.c_str()));
-            }
-            STrinity t(CSymGen::Id2Seq(id));
 
-/*          OUTMSG(("%s) ", t.enabled.c_str()));
-            if (r.enabled) {
-                OUTMSG(("enabled (recommended)\n"));
-            }
-            else {
-                OUTMSG(("DISABLED (not recommended)\n"));
-            }*/
-
-            OUTMSG(("%s) ", t.cached.c_str()));
-            if (r.cacheEnabled) {
-                OUTMSG(("caching is enabled (recommended)\n"));
-            }
-            else {
-                OUTMSG(("CACHING IS DISABLED (not recommended)\n"));
-            }
-
-            OUTMSG(("%s) root: %s\n", t.root.c_str(), r.root.c_str()));
-        }
-
-//"To print help info      : Enter H and Press <Enter>\n"
         OUTMSG(("\n\n"
 "To cancel and exit      : Press <Enter>\n"));
         if (d.updated) {
@@ -688,88 +610,9 @@ class CTextualConfigurator : public CConfigurator {
                             (!d.crnt.userR.cacheEnabled);
                         d.updated = true;
                     }
-                    else {
-                        CProtectedRepos::TCI it
-                            (d.crnt.protectedR.Get(answer.id));
-                        if (it == d.crnt.protectedR.end()) {
-                            OUTMSG(("Unrecognized input. Continuing..."));
-                        }
-                        else {
-                            const SProtectedRepo r((*it).second);
-                            int32_t id = m_Config->get_repo_id(r.name);
-                            if (id < 0) {
-                                OUTMSG(("ERROR: CANNOT FIND '%s' REPOSITORY",
-                                    r.name.c_str()));
-                            }
-                            else {
-                                if (r.cacheEnabled) {
-                                    OUTMSG(("WARNING: DISABLING '%s' REPOSITORY"
-                                        " CACHING!!!", r.name.c_str()));
-                                }
-                                else {
-                                    OUTMSG(("Enabling '%s' repository "
-                                        "caching...", r.name.c_str()));
-                                }
-                                m_Config->set_protected_repo_cached
-                                    (id, !r.cacheEnabled);
-                                d.updated = true;
-                            }
-                        }
-                    }
                     break;
-/*              case eUserEnable:
-                    if (answer.id < 0) {
-                        if (d.crnt.userR.enabled) {
-                            OUTMSG(("WARNING: DISABLING USER REPOSITORY!!!"));
-                        }
-                        else {
-                            OUTMSG(("Enabling user repository..."));
-                        }
-                        m_Config->set_user_enabled(!d.crnt.userR.enabled);
-                        d.updated = true;
-                    }
-                    else {
-                        CProtectedRepos::TCI it
-                            (d.crnt.protectedR.Get(answer.id));
-                        if (it == d.crnt.protectedR.end()) {
-                            OUTMSG(("Unrecognized input. Continuing..."));
-                        }
-                        else {
-                            const SProtectedRepo r((*it).second);
-                            int32_t id = m_Config->get_repo_id(r.name);
-                            if (id < 0) {
-                                OUTMSG(("ERROR: CANNOT FIND '%s' REPOSITORY",
-                                    r.name.c_str()));
-                            }
-                            else {
-                                if (r.enabled) {
-                                    OUTMSG(("WARNING: DISABLING '%s' "
-                                        "REPOSITORY!!!", r.name.c_str()));
-                                }
-                                else {
-                                    OUTMSG(("Enabling '%s' repository...",
-                                        r.name.c_str()));
-                                }
-                                m_Config->set_protected_repo_enabled
-                                    (id, !r.enabled);
-                                d.updated = true;
-                            }
-                        }
-                    }
-                    break;*/
                 case eUserRoot: {
                     string root(d.crnt.userR.root);
-                    if (answer.id >= 0) {
-                        CProtectedRepos::TCI it
-                            (d.crnt.protectedR.Get(answer.id));
-                        if (it == d.crnt.protectedR.end()) {
-                            OUTMSG(("Unrecognized input. Continuing..."));
-                            break;
-                        }
-                        else {
-                            root = (*it).second.root;
-                        }
-                    }
                     d.updated = SetRoot(answer.id, root);
                     break;
                 }

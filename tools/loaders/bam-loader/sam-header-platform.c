@@ -24,9 +24,6 @@
  *
  */
 
-#include <ctype.h>      /* toupper */
-#include <insdc/sra.h>  /* SRA platform ID values */
-
 static int platform_cmp(char const platform[], char const test[])
 {
     unsigned i;
@@ -40,9 +37,8 @@ static int platform_cmp(char const platform[], char const test[])
         if (ch2 < ch1)
             return 1;
         if (ch1 == '\0')
-            break;
+            return 0;
     }
-    return 0;
 }
 
 static INSDC_SRA_platform_id get_platform_id(char const *qry)

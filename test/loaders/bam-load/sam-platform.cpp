@@ -26,15 +26,26 @@
 
 #include <iostream>
 #include <vector>
-#include <string>
 
+
+#include <ctype.h>      /* toupper */
+#include <insdc/sra.h>  /* SRA platform ID values */
+
+extern "C" {
 #include "../../../tools/loaders/bam-loader/sam-header-platform.c"
+}
 static const char *platform_symbolic_names[] = { INSDC_SRA_PLATFORM_SYMBOLS };
 
 int main(int argc, char *argv[]) {
-	auto const testValues = std::vector<std::string> {
-		"CAPILLARY", "DNBSEQ", "ELEMENT", "HELICOS", "ILLUMINA", "IONTORRENT", "LS454",
-		"ONT", "PACBIO", "SOLID", "ULTIMA", "NONE"
+	auto const testValues = std::vector<char const *> {
+		"CAPILLARY", "DNBSEQ", "ELEMENT",
+		"HELICOS", "ILLUMINA", "IONTORRENT",
+		"LS454", "ONT", "PACBIO",
+		"SOLID", "ULTIMA",
+		"SANGER", "DNSSEC", "ELEFENT",
+		"HELICOPTER", "ILLUMINATE", "NONTORRENT",
+		"LA454", "0NT", "PACBI0",
+		"SALAD", "ULTIMATE",
 	};
 	auto const expected = std::vector<int> {
 		SRA_PLATFORM_CAPILLARY,
@@ -48,13 +59,23 @@ int main(int argc, char *argv[]) {
 		SRA_PLATFORM_PACBIO_SMRT,
 		SRA_PLATFORM_ABSOLID,
 		SRA_PLATFORM_ULTIMA,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
+		SRA_PLATFORM_UNDEFINED,
 		SRA_PLATFORM_UNDEFINED
 	};
-	int i = 0;
 	
 	for (auto && testValue : testValues) {
-		auto const expect = expected[i++];
-		auto const got = (int)get_platform_id(testValue.c_str());
+		auto const i = &testValue - &testValues[0];
+		auto const expect = expected[i];
+		auto const got = (int)get_platform_id(testValue);
 		if (got == expect)
 			continue;
 		

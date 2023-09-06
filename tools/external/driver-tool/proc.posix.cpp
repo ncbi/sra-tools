@@ -242,8 +242,6 @@ Process::ExitStatus Process::wait() const
         }
 
         assert(rc != 0); // only happens if WNOHANG is given
-        if (rc == 0)
-            std::unexpected();
     } while (errno == EINTR);
     
     assert(errno != ECHILD); // you already waited on this!

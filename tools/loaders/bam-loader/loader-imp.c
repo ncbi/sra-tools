@@ -1796,7 +1796,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         for (unsigned rgi = 0; rgi != rgcount; ++rgi) {
             BAMReadGroup const *rg;
             BAM_FileGetReadGroup(bam, rgi, &rg);
-            if (rg && rg->platform && platform_cmp(rg->platform, "CAPILLARY")) {
+            if (rg && rg->platformId == SRA_PLATFORM_CAPILLARY) {
                 G.hasTI = true;
                 break;
             }

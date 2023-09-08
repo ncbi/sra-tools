@@ -70,6 +70,7 @@ struct s_reference_info {
     unsigned name;          /* offset of start of name in ref_names */
     unsigned id;
     unsigned lastOffset;
+    unsigned lastOffset_sec;
 };
 
 extern void ReferenceMgr_DumpConfig(ReferenceMgr const *const self);
@@ -112,6 +113,11 @@ rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
 
 static
 rc_t Unsorted(Reference *self) {
+    if (G.noSortOrderCheck) {
+        (void)LOGMSG(klogInfo, "Ignoring failed sort order check, the check is disabled.");
+        return 0;
+    }
+    
     if (G.requireSorted) {
         rc_t const rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
         (void)LOGERR(klogWarn, rc, "Alignments are unsorted");
@@ -193,7 +199,7 @@ static rc_t FlushBuffers(Reference *self, unsigned upto, bool full, bool final)
                 rc_t rc = ReferenceSeq_AddCoverage(self->rseq, curPos, &data);
                 
                 if (rc) {
-                    return Unsorted(self);
+                    return G.noSortOrderCheck ? rc : Unsorted(self);
                 }
             }
             
@@ -294,25 +300,31 @@ static struct s_reference_info s_reference_info_make(unsigned const name, unsign
     
     rslt.name = name;
     rslt.id = id;
-    rslt.lastOffset = 0;
+    rslt.lastOffset = rslt.lastOffset_sec = 0;
     
     return rslt;
 }
 
-static unsigned GetLastOffset(Reference const *const self)
+static unsigned GetLastOffset(Reference const *const self, bool primary)
 {
     if (self->last_id < self->ref_info.elem_count) {
         struct s_reference_info const *const refInfoBase = self->ref_info.base;
-        return refInfoBase[self->last_id].lastOffset;
+        unsigned const *const lastOffset = primary 
+            ? &refInfoBase[self->last_id].lastOffset 
+            : &refInfoBase[self->last_id].lastOffset_sec;
+        return *lastOffset;
     }
     return 0;
 }
 
-static void SetLastOffset(Reference *const self, unsigned const newValue)
+static void SetLastOffset(Reference *const self, unsigned const newValue, bool primary)
 {
     if (self->last_id < self->ref_info.elem_count) {
         struct s_reference_info *const refInfoBase = self->ref_info.base;
-        refInfoBase[self->last_id].lastOffset = newValue;
+        unsigned *const lastOffset = primary 
+            ? &refInfoBase[self->last_id].lastOffset 
+            : &refInfoBase[self->last_id].lastOffset_sec;
+        *lastOffset = newValue;
     }
 }
 
@@ -516,6 +528,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     unsigned nmis = 0;
     unsigned nmatch = 0;
     unsigned indels = 0;
+    rc_t rc = 0;
        
     *matches = 0;
     BAIL_ON_FAIL(ReferenceSeq_Compress(self->rseq,
@@ -530,24 +543,18 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     GetCounts(data, seqLen, &nmatch, &nmis, &indels);
     *matches = nmatch;
 	*misses  = nmis;
-/* removed before more comlete implementation - EY 
-    if (!G.acceptNoMatch && data->data.ref_len == 0)
-        return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-***********************/
     
-    if (!self->out_of_order && pos < GetLastOffset(self)) {
-        return Unsorted(self);
-    }
+    if (!self->out_of_order && pos < GetLastOffset(self, data->isPrimary))
+        rc = Unsorted(self);
+    
     if (!self->out_of_order) {
-        SetLastOffset(self, data->data.effective_offset);
+        SetLastOffset(self, data->data.effective_offset, data->isPrimary);
         
-        /* if (G.acceptNoMatch || nmatch >= G.minMatchCount)    --- removed before more comlete implementation - EY ***/
-            return ReferenceAddCoverage(self, data->data.effective_offset,
+        rc = ReferenceAddCoverage(self, data->data.effective_offset,
                                         data->data.ref_len, nmis, indels,
                                         data->isPrimary);
-       /* else return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated); --- removed before more comlete implementation - EY ***/
     }
-    return 0;
+    return rc;
 }
 
 static rc_t IdVecAppend(KDataBuffer *vec, uint64_t id)

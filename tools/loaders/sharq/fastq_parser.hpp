@@ -1916,7 +1916,7 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
             g["min_sequence_size"] = gr.min_sequence_size;
             defline_types.insert(gr.defline_types.begin(), gr.defline_types.end());
         }
-        for (const auto d : defline_types)
+        for (const auto &d : defline_types)
             j["defline_types"].push_back(d);
 
         auto& im = j["i"];

@@ -374,7 +374,7 @@ void spot_assembly_t::save_read(size_t row_id, fastq_read& read) {
 */
 
 // retrieves all reads for the spot from hot or cold storage
-template<typename ScoreValidator, bool is_nanopore = false>
+template<typename ScoreValidator, bool is_nanopore>
 void spot_assembly_t::get_spot(size_t row_id, vector<fastq_read>& reads) 
 {
 

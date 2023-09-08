@@ -80,5 +80,6 @@ if( NOT WIN32 )
         )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
-
+    
+    AddExecutableTest( Test_BamLoader_platform sam-platform.cpp "" "" )
 endif()

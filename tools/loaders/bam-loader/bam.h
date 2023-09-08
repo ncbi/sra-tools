@@ -498,6 +498,7 @@ struct BAMReadGroup
     const char *runDate;
     const char *platform; /* e.g. ILLUMINA */
     uint32_t id;
+    uint8_t platformId; /* values from insdc/sra.h */
 };
 
 

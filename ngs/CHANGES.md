@@ -28,7 +28,11 @@
 ### NGS SDK 3.0.1
 **November 15, 2022**
 
+<<<<<<< HEAD
+  SRA tolkit release 3.0.1.
+=======
   SRA toolkit release 3.0.1.
+>>>>>>> 3.0.6rc
 
 
 ### NGS SDK 3.0.0

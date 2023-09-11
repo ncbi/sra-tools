@@ -199,26 +199,35 @@ public:
             std::visit([&total_memory, &TB](auto&& c) {
                 using T = std::decay_t<decltype(c)>;
                 if constexpr (std::is_same<str_t, T>::value) {
-                    str_t::statistics st;
-                    c.optimize(TB, bm::bvector<>::opt_compress, &st);
-                    total_memory += st.memory_used;
+                    if (!c.empty()) {
+                        str_t::statistics st;
+                        c.optimize(TB, bm::bvector<>::opt_compress, &st);
+                        total_memory += st.memory_used;
+                    }
                 } else if constexpr (std::is_same<u16_t, T>::value) {
-                    u16_t::statistics st;
-                    c.optimize(TB, bm::bvector<>::opt_compress, &st);
-                    total_memory += st.memory_used;
+                    if (!c.empty()) {
+                        u16_t::statistics st;
+                        c.optimize(TB, bm::bvector<>::opt_compress, &st);
+                        total_memory += st.memory_used;
+                    }
                 } else if constexpr (std::is_same<u32_t, T>::value) {
-                    u32_t::statistics st;
-                    c.optimize(TB, bm::bvector<>::opt_compress, &st);
-                    total_memory += st.memory_used;
+                    if (!c.empty()) {
+                        u32_t::statistics st;
+                        c.optimize(TB, bm::bvector<>::opt_compress, &st);
+                        total_memory += st.memory_used;
+                    }
                 } else if constexpr (std::is_same<u64_t, T>::value) {
-                    u64_t::statistics st;
-                    c.optimize(TB, bm::bvector<>::opt_compress, &st);
-                    total_memory += st.memory_used;
+                    if (!c.empty()) {
+                        u64_t::statistics st;
+                        c.optimize(TB, bm::bvector<>::opt_compress, &st);
+                        total_memory += st.memory_used;
+                    }
                 } else if constexpr (std::is_same<bit_t, T>::value) {
-                    bit_t::statistics st;
-                    c.optimize(TB, bm::bvector<>::opt_compress, &st);
-                    total_memory += st.memory_used;
-
+                    if (!c.empty()) {
+                        bit_t::statistics st;
+                        c.optimize(TB, bm::bvector<>::opt_compress, &st);
+                        total_memory += st.memory_used;
+                    }
                 }
             }, col);        
         }

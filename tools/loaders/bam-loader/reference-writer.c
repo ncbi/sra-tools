@@ -319,7 +319,8 @@ static void SetLastOffset(Reference *const self, unsigned const newValue)
 rc_t ReferenceSetFile(Reference *const self, char const id[],
                       uint64_t const length, uint8_t const md5[16],
                       bool *const shouldUnmap,
-                      bool *const wasRenamed)
+                      bool *const wasRenamed,
+                      bool *const wasInserted)
 {
     ReferenceSeq const *rseq;
     int found = 0;
@@ -372,7 +373,7 @@ rc_t ReferenceSetFile(Reference *const self, char const id[],
     }
     else if (!self->out_of_order)
         Unsorted(self);
-        
+    *wasInserted = found == 0;        
     self->last_id = at;
     self->curPos = self->endPos = 0;
     self->length = (unsigned)length;

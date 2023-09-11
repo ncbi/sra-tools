@@ -43,6 +43,8 @@ typedef struct globals
     char const *schemaIncludePath;
 
     char const *refXRefPath;
+    
+    char const *telemetryPath;
 
     char const *QualQuantizer;
 

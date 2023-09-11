@@ -111,13 +111,15 @@ extern "C" {
 #include <bm/bmsparsevec_algo.h>
 #include <bm/bmtimer.h>
 #include "hashing.hpp"
+#include <set>
 
 #ifdef __linux__
 #include <sys/resource.h>
 #endif
 #include <tsl/array_map.h>
 #include "spot_assembly.hpp"
-
+#define JSON_HAS_CPP_14
+#include "json.hpp"
 
 #define NEW_QUEUE
 #if defined(NEW_QUEUE)
@@ -130,6 +132,7 @@ extern "C" {
 
 using namespace std;
 using namespace moodycamel;
+using json = nlohmann::json;
 
 #define NUM_ID_SPACES (256u)
 #if defined(HAS_CTX_VALUE)
@@ -149,21 +152,23 @@ static constexpr unsigned MAX_GROUPS_ALLOWED = NUM_ID_SPACES;//(1u << MAX_GROUP_
 
 
 /**
- * Returns the current resident memory use measured in bytes
+ * Returns the current resident memory use measured in Kb
  */
-size_t getCurrentRSS( )
-{
-    long rss = 0L;
-    FILE* fp = NULL;
-    if ( (fp = fopen( "/proc/self/statm", "r" )) == NULL )
-        return (size_t)0L;      /* Can't open? */
-    if ( fscanf( fp, "%*s%ld", &rss ) != 1 )
-    {
-        fclose( fp );
-        return (size_t)0L;      /* Can't read? */
+static
+unsigned long getCurrentRSS() {
+    unsigned long rss = 0;
+    std::ifstream in("/proc/self/status");
+    if(in.is_open()) {
+        std::string line;
+        while(std::getline(in, line)) {
+            if(line.substr(0, 6) == "VmHWM:") {
+                std::istringstream iss(line.substr(6));
+                iss >> rss;
+                break; // No need to read further
+            }
+        }
     }
-    fclose( fp );
-    return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
+    return rss; // Size is in kB
 }
 
 #if defined(HAS_CTX_VALUE)
@@ -249,14 +254,26 @@ typedef struct context_t {
     array<const KLoadProgressbar*, 4> progress = {nullptr, nullptr, nullptr, nullptr};
     MemBank *frags = nullptr;
     uint64_t spotId = 0;
+    uint64_t readCount = 0;
     uint64_t primaryId  = 0;
     uint64_t secondId  = 0;
     uint64_t alignCount  = 0;
     unsigned pass;
     bool isColorSpace;
     BAM_FilePosition m_fileOffset = 0;    ///< Position in the current BAM file
+    BAM_FilePosition m_HeaderOffset = 0; 
     uint64_t m_inputSize = 0;             ///< Total size in bytes of all input files (can be 0 for stdin inputs)
     uint64_t m_processedSize = 0;         ///< Number of already processed bytes
+    atomic<uint64_t> m_BankedSpots{0};               
+    atomic<uint64_t> m_BankedSize{0};
+    atomic<uint64_t> m_SpotSize{0};
+    atomic<uint64_t> m_reference_len{0};
+    atomic<uint64_t> m_estimated_spot_count{0};
+    atomic<uint64_t> maxSpotLength{0};
+    bool has_far_reads{false};
+    size_t m_ReferenceSize{0};
+    size_t m_ReferenceCount{0};
+    json  mTelemetry;    
     size_t m_estimatedBatchSize = 0;      ///< Estimated size of the search batch
     bool m_calcBatchSize = true;          ///< Flag to indicate whether the batch needs to be calculated
     unique_ptr<tf::Executor> m_executor;  ///< Taskflow executor
@@ -825,32 +842,69 @@ rc_t GetKeyID(context_t *const ctx,
         }
     }
     spot_count += rec.wasInserted ? 1 : 0;
-    // Check if read_groups need to be packed
-    if (spot_count % 10000000 == 0 && spot_count && spot_count != last_spot_count) {
+
+    if (spot_count % 1000000 == 0 && spot_count && spot_count != last_spot_count && ctx->m_inputSize > 0) {
         last_spot_count = spot_count;
-        size_t num_chunks = 0;
-        // Estimated batch size until 10% of input size is processed
-        if (ctx->m_calcBatchSize && ctx->m_inputSize) {
-            BAM_FilePosition end_pos = 0;
-            BAM_FileGetPosition(bam, &end_pos);
-            end_pos >>= 16;
-            size_t chunk_len = end_pos - ctx->m_fileOffset;
-            ctx->m_processedSize += chunk_len;
-            ctx->m_fileOffset = end_pos;
-            if (ctx->m_processedSize) {
-                num_chunks = (ctx->m_inputSize / ctx->m_processedSize) + 1;
+        BAM_FilePosition end_pos = 0;
+        BAM_FileGetPosition(bam, &end_pos);
+        end_pos >>= 16;
+        size_t chunk_len = end_pos - ctx->m_fileOffset;
+        ctx->m_processedSize += chunk_len;
+        ctx->m_fileOffset = end_pos;
+        if (ctx->m_processedSize) {
+            int pct = 100 * (float)ctx->m_processedSize/ctx->m_inputSize;
+            // Estimated batch size until 10% of input size is processed
+            if (pct <= 10) {
+                size_t num_chunks = (ctx->m_inputSize / ctx->m_processedSize) + 1;
                 size_t num_spots = num_chunks * spot_count;
-                ctx->set_key_filter(num_spots);
-                ctx->m_estimatedBatchSize = min<int>(G.searchBatchSize, num_spots/(ctx->m_executor->num_workers() - 1));
-                ctx->m_estimatedBatchSize = max<int>(G.minBatchSize, ctx->m_estimatedBatchSize);
-                if ((float)ctx->m_processedSize/ctx->m_inputSize > 0.1f) {
-                    ctx->m_calcBatchSize = false;
+                ctx->m_estimated_spot_count = num_spots;
+                if (spot_count % 10000000) {
+                    ctx->set_key_filter(num_spots);
+                    ctx->m_estimatedBatchSize = min<int>(G.searchBatchSize, num_spots/(ctx->m_executor->num_workers() - 1));
+                    ctx->m_estimatedBatchSize = max<int>(G.minBatchSize, ctx->m_estimatedBatchSize);
+                    spdlog::info("Current spot_count: {:L}, estimated spot count {:L}, estimated batch size: {:L}", spot_count, num_spots, ctx->m_estimatedBatchSize);
                 }
-                spdlog::info("Current spot_count: {:L}, estimated spot count {:L}, estimated batch size: {:L}", spot_count, num_spots, ctx->m_estimatedBatchSize);
+            }
+            if (pct >= 5 && pct <= 25) {
+                size_t est_mem_cnt = 1;
+                int last_pct = 0;
+                const auto& prev_items = ctx->mTelemetry["estimates"];
+                if (prev_items.size() > 0) {
+                    est_mem_cnt += prev_items.size();
+                    auto& prev = prev_items[to_string(prev_items.size())];
+                    last_pct = prev["pct-done"].get<int>();
+                }
+                if (pct > last_pct) {
+                    size_t sa_mem_used = ctx->m_key_filter->memory_used();
+                    for (const auto& sa : ctx->m_read_groups) {
+                        sa_mem_used += sa->memory_used();
+                    }
+                    size_t est_mem = ((float)(sa_mem_used * ctx->m_estimated_spot_count)/ctx->spotId)  + ctx->m_ReferenceSize;
+                    //size_t est_mem_total = est_mem/1204;
+
+                    size_t max_mem = getCurrentRSS();
+                    json j;
+                    j["est-max-mem-kb"] = est_mem/1204;
+                    //j["est-max-mem2-kb"] = (max_mem * 100)/pct;
+                    //j["est-max-mem-avg"] = int(round((float)est_mem_total / est_mem_cnt));
+
+                    j["est-spot-count"] = ctx->m_estimated_spot_count.load();
+                    j["spot-assembly-mem-kb"] = sa_mem_used/1024;
+                    j["reference-mem-kb"] = ctx->m_reference_len.load()/1024;
+                    j["pending-spot-size"] = ctx->m_BankedSize.load();
+                    j["pending-spot-count"] = ctx->m_BankedSpots.load();
+                    j["spot-count"] = ctx->spotId;
+                    j["spot-size"] = ctx->m_SpotSize.load();
+                    j["max-mem-kb"] = max_mem;
+                    j["pct-done"] = pct;
+                    ctx->mTelemetry["estimates"][to_string(est_mem_cnt)] = j;
+                }
             }
         }
-        ctx->pack_read_groups(ctx->m_estimatedBatchSize);
+        if (spot_count % 10000000 == 0)
+            ctx->pack_read_groups(ctx->m_estimatedBatchSize);
     }
+
     return 0;
 }
 
@@ -1024,6 +1078,7 @@ static KFile *MakeDeferralFile() {
     return NULL;
 }
 
+
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
     rc_t rc = 0;
@@ -1062,6 +1117,33 @@ static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
         }
     }
 
+    return rc;
+}
+
+static rc_t CollectReferences(context_t *ctx, unsigned bamFiles, char const *bamFile[])
+{
+    rc_t rc = 0;
+    map<string, size_t> references;     ///< name, count
+
+    for (unsigned i = 0; i < bamFiles && rc == 0; ++i) {
+        if (strcmp(bamFile[i], "/dev/stdin") == 0) 
+            continue;
+        const BAM_File *bam = nullptr;
+        rc = OpenBAM(&bam, NULL, bamFile[i]);
+        if (rc) return rc;
+        uint32_t n;
+        BAM_FileGetRefSeqCount(bam, &n);
+        BAMRefSeq const *refSeq;
+        for (unsigned k = 0; k != n; ++k) {
+            BAM_FileGetRefSeq(bam, k, &refSeq);
+            references.emplace(string(refSeq->name), refSeq->length);
+        }
+        BAM_FileRelease(bam);
+    }
+    ctx->m_ReferenceSize = 0;
+    ctx->m_ReferenceCount = references.size();
+    for (const auto& it : references)
+        ctx->m_ReferenceSize += it.second;
     return rc;
 }
 
@@ -1634,7 +1716,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
             }
             if (rw_done)
                 break;
-
+            std::this_thread::yield();    
 #else
             timeout_t tm;
             TimeoutInit(&tm, 1000);
@@ -1694,6 +1776,7 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
         }
         if (rw_done.load())
             break;
+        std::this_thread::yield();
 #else
         timeout_t tm;
         TimeoutInit(&tm, 10000);
@@ -1840,6 +1923,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     }
     BAM_FileGetPosition(bam, &ctx->m_fileOffset);
     ctx->m_fileOffset >>= 16;
+    ctx->m_HeaderOffset = ctx->m_fileOffset;
 
     {
         uint32_t rgcount;
@@ -1858,6 +1942,18 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 G.hasTI = true;
                 break;
             }
+        }
+    }
+
+    if (strcmp(bamFile, "/dev/stdin") == 0) {
+        uint32_t n;
+        BAM_FileGetRefSeqCount(bam, &n);
+        ctx->m_ReferenceSize = 0;
+        ctx->m_ReferenceCount = n;
+        BAMRefSeq const *refSeq;
+        for (unsigned i = 0; i != n; ++i) {
+            BAM_FileGetRefSeq(bam, i, &refSeq);
+            ctx->m_ReferenceSize += refSeq->length;
         }
     }
 
@@ -1971,8 +2067,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         opt_frag_len[0].reset();
         opt_frag_len[1].reset();
 #endif
-        ++recordsRead;
-        if (recordsRead % 10000000 == 0) {
+        ++ctx->readCount;
+        if (ctx->readCount % 10000000 == 0) {
 
             {
                 float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
@@ -2372,14 +2468,18 @@ MIXED_BASE_AND_COLOR:
                         DISCARD_SKIP_REFERENCE;
                         goto LOOP_END;
                     }
-                    /*
+/*
                     if (ctx->references.count(refSeq->name) == 0) {
-                        spdlog::info("Reference: '{}', length: {}", refSeq->name, refSeq->length);
-                        ctx->references.insert(refSeq->name);
+                        //spdlog::info("Reference: '{}', length: {}", refSeq->name, refSeq->length);
+                        ctx->references.insert(string(refSeq->name));
+                        ctx->m_reference_len += refSeq->length;
                     }
-                    */
-                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap, &wasRenamed);
+ */                 
+                    bool is_new = false;
+                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap, &wasRenamed, &is_new);
                     if (rc == 0) {
+                        if (is_new)
+                            ctx->m_reference_len += refSeq->length;
                         lastRefSeqId = refSeqId;
                         if (shouldUnmap) {
                             aligned = false;
@@ -2881,33 +2981,38 @@ WRITE_SEQUENCE:
                             QUAL_CHANGED_REVERSED;
                             SEQ__CHANGED_REV_COMP;
                         }
+                        ++ctx->m_BankedSpots;
+                        ctx->m_BankedSize += sz;
+                        ctx->m_SpotSize += 2*fi.readlen + fi.sglen + fi.lglen;
+                        if (ctx->m_BankedSpots > 10)
+                            ctx->has_far_reads = true;
                     }
                     else if (spotHasFragmentInfo) {
                         /* continue spot assembly */
                         FragmentInfo *fip;
+                        size_t banked_size = 0;
                         {
-                            size_t size1;
                             size_t size2;
 
-                            rc = MemBankSize(ctx->frags, fragmentId, &size1);
+                            rc = MemBankSize(ctx->frags, fragmentId, &banked_size);
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
 
-                            rc = KDataBufferResize(&fragBuf, size1);
+                            rc = KDataBufferResize(&fragBuf, banked_size);
                             fip = (FragmentInfo *)fragBuf.base;
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
                                 goto LOOP_END;
                             }
 
-                            rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
+                            rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, banked_size, &size2);
                             if (rc) {
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
-                            assert(size1 == size2);
+                            assert(banked_size == size2);
                         }
                         if (readNo == fip->readNo) {
                             /* is a repeat of the same read; do nothing */
@@ -2920,6 +3025,9 @@ WRITE_SEQUENCE:
                             char const *const qual1 = (const char *)(seq1 + fip->readlen);
                             char const *const sg1 = (const char *)(qual1 + fip->readlen);
                             char const *const bx1 = (const char *)(sg1 + fip->sglen);
+                            
+                            ctx->m_SpotSize += 2*fip->readlen + fip->sglen + fip->lglen;
+
 
                             if (!isPrimary) {
                                 if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
@@ -3035,6 +3143,10 @@ WRITE_SEQUENCE:
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
+
+                            --ctx->m_BankedSpots;
+                            ctx->m_BankedSize -= banked_size;
+
     #ifndef NO_METADATA
                             //fragment_buffer.set_bit_no_check(row_id);
                             metadata.get<u32_t>(metadata_t::e_fragmentId).set(row_id, 0);
@@ -3088,6 +3200,7 @@ WRITE_SEQUENCE:
                             memmove(spotGroup, barCode, sglen + 1);
                     }
                 }
+                ctx->m_SpotSize += readlen*2 + strlen(spotGroup) + strlen(linkageGroup);
 
                 memset(&srecStorage, 0, sizeof(srecStorage));
                 srec.numreads = 1;
@@ -4033,6 +4146,11 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     Sequence seq;
     Alignment *align;
     static context_t *ctx = &GlobalContext;
+
+    rc = CollectReferences(ctx, bamFiles, bamFile);
+    if (rc)
+        return rc;
+
     bool has_sequences = false;
     unsigned i;
 
@@ -4070,6 +4188,8 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     if (rc)
         return rc;
     ctx->pass = 1;
+    spdlog::info("ArchiveBAM start, memory: {:L}", getCurrentRSS());
+
     for (i = 0; i < bamFiles && rc == 0; ++i) {
         bool this_has_alignments = false;
         bool this_has_sequences = false;
@@ -4087,8 +4207,22 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         has_sequences |= this_has_sequences;
     }
     spdlog::info("Processing done, memory: {:L}, spotCount: {:L}", getCurrentRSS(), ctx->spotId);
-
     if (!continuing) {
+        ctx->mTelemetry["spot-count"] = ctx->spotId;
+        ctx->mTelemetry["read-count"] = ctx->readCount;
+        ctx->mTelemetry["spot-size-kb"] = ctx->m_SpotSize/1024;
+        ctx->mTelemetry["reference-size_kb"] = ctx->m_ReferenceSize/1024;
+        ctx->mTelemetry["reference-count"] = ctx->m_ReferenceCount;
+        ctx->mTelemetry["input-size-kb"] = ctx->m_inputSize/1024;
+        ctx->mTelemetry["number-read-groups"] = ctx->m_read_groups.size();
+
+        if (ctx->has_far_reads)
+            ctx->mTelemetry["has-far-reads"] = 1;
+        if (*has_alignments == false)
+            ctx->mTelemetry["is-unaligned"] = 1;
+        if (ref.out_of_order)
+            ctx->mTelemetry["is-unsorted"] = 1;
+
         ctx->release_search_memory();
         // Clear the metadata columns that we don't need anymore
         ctx->clear_column<bit_t>(metadata_t::e_unaligned_1);
@@ -4134,6 +4268,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         (void)LOGMSG(klogInfo, "Writing alignment spot ids");
         rc = AlignmentUpdateSpotInfo(ctx, align);
     }
+    spdlog::info("Before Whacking, memory: {:L}", getCurrentRSS());
     for (auto& b : ctx->m_spot_id_buffer) {
         b.values.clear();
         b.values.shrink_to_fit();
@@ -4142,7 +4277,6 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     }
     ctx->m_read_groups.clear();
     ctx->m_executor.reset(nullptr);
-    spdlog::info("Whacking, memory: {:L}", getCurrentRSS());
 
     rc2 = AlignmentWhack(align, *has_alignments && rc == 0 && (rc = Quitting()) == 0);
     if (rc == 0)
@@ -4159,6 +4293,9 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     if (rc == 0) {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");
     }
+
+    spdlog::info("ArchiveBAM, memory: {:L}", getCurrentRSS());
+    
     return rc;
 }
 
@@ -4334,5 +4471,14 @@ rc_t run(char const progName[],
         if (rc == 0)
             rc = rc2;
     }
+
+    if (G.telemetryPath) try {
+        GlobalContext.mTelemetry["max-mem-kb"] = getCurrentRSS();
+        std::ofstream f(G.telemetryPath, std::ios::out);
+        f << GlobalContext.mTelemetry.dump(4, ' ', true) << endl;
+    } catch(std::exception const& e) {
+        (void)PLOGMSG(klogErr, (klogWarn, "Failed to write telemetry", "%s", e.what()));
+    }
+
     return rc;
 }

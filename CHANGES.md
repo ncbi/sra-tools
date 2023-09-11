@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.8
+**September 19, 2023**
+
+  **align, bam-load**: 'circular' can be set from configuration for fasta references  
+
+
 ## SRA Toolkit 3.0.7
 **August 29, 2023**
 

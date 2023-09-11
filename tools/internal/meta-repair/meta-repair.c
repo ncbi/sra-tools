@@ -997,7 +997,7 @@ static rc_t RepairParseFix(Repair *self) {
 
 static rc_t RepairDoFix(const Repair *self) {
     rc_t rc = 0;
-    char command[4123] = "";
+    char command[5000] = "";
     char hex[17] = "";
     char val[33] = "";
     int i = 0, j = 0;

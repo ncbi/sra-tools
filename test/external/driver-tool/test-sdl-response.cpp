@@ -989,8 +989,6 @@ static void test_nonmatching_vdbcache() {
         ASSERT(raw.results.size() == 1);
         auto passed = false;
         auto const files = raw.results[0].files.size();
-        auto sras = 0;
-        auto srrs = 0;
 
         ASSERT(files == 2);
         for (auto const &fl : raw.results[0].getByType("sra")) {
@@ -999,6 +997,7 @@ static void test_nonmatching_vdbcache() {
 
             ASSERT(vcache < 0);
             passed = true;
+			(void)file;
         }
         ASSERT(passed);
 

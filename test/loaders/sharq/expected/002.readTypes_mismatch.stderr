@@ -1,1 +1,1 @@
-[error] [code:30] readTypes number should match the number of reads (1)
+[error] [code:30] readTypes number should match the number of reads 2 != 1

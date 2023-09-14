@@ -105,7 +105,7 @@ Filtering Options:
 Rare or Esoteric Options:
   input <directory>                 where to find fasta files
   ref-file <file>                   fasta file with references
-  no-sort-check                     disable sort-order checking
+  force-sorted                      disable sort-order checking
   unsorted                          expect unsorted input (requires more memory)
   sorted                            require sorted input
   TI                                look for trace id optional tag

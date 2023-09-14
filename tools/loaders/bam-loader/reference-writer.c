@@ -111,6 +111,8 @@ rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
     return rc;
 }
 
+/* do not ever change this message text */
+static char const unsortedMessage[] = "Alignments are unsorted";
 static
 rc_t Unsorted(Reference *self) {
     if (G.noSortOrderCheck) {
@@ -120,11 +122,10 @@ rc_t Unsorted(Reference *self) {
     
     if (G.requireSorted) {
         rc_t const rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-        (void)LOGERR(klogWarn, rc, "Alignments are unsorted");
+        (void)LOGERR(klogWarn, rc, unsortedMessage);
         return rc;
     }
-    /* do not ever change this message */
-    (void)LOGMSG(klogWarn, "Alignments are unsorted");
+    (void)LOGMSG(klogWarn, unsortedMessage);
 
     self->out_of_order = true;
     

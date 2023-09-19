@@ -527,7 +527,7 @@ static uint32_t ref_walker_make_reflist_options( struct ref_walker * self ) {
 
 static rc_t make_cursor_ids( Vector * cursor_id_vector, walker_col_ids ** cursor_ids ) {
     rc_t rc;
-    walker_col_ids * ids = malloc( sizeof * ids );
+    walker_col_ids * ids = calloc( 1, sizeof * ids );
     if ( ids == NULL ) {
         rc = RC ( rcApp, rcNoTarg, rcOpening, rcMemory, rcExhausted );
     } else {

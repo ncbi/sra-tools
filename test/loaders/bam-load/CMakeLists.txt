@@ -23,7 +23,6 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-if (OpenSSL_FOUND)
 
     ToolsRequired(bam-load)
 
@@ -81,6 +80,6 @@ if (OpenSSL_FOUND)
         )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
-
-endif()
+    
+    AddExecutableTest( Test_BamLoader_platform sam-platform.cpp "" "" )
 endif()

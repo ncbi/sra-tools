@@ -87,6 +87,7 @@ set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
 
 # Google RE2 release
 set(RE2_TAG 2021-09-01)
+#set(RE2_TAG 2023-03-01)
 
 include (ExternalProject)
 ExternalProject_Add(RE2

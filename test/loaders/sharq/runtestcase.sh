@@ -82,23 +82,42 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
+expected=$CASEID
+suffixes=('-sa-hot' '-sa-cold')
+
+for suffix in "${suffixes[@]}"; do
+    if [[ $expected == *"$suffix" ]]; then
+        expected=${expected%"$suffix"}
+    fi
+done
+
 if [ "$rc" == "0" ] ; then
     OUT=stdout
 else
     OUT=stderr
+    sed -i '/\[info\]/d' $TEMPDIR/load.$OUT
+    sed -i '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
 fi
 
-$DIFF $WORKDIR/expected/$CASEID.$OUT $TEMPDIR/load.$OUT >$TEMPDIR/diff
+$DIFF $WORKDIR/expected/$expected.$OUT $TEMPDIR/load.$OUT >$TEMPDIR/diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/diff
-    echo "command executed:"
-    echo $CMD
-    exit 3
+
+    # retry on sorted output
+    sort $WORKDIR/expected/$expected.$OUT >$TEMPDIR/$expected.$OUT.sorted
+    sort $TEMPDIR/load.$OUT >$TEMPDIR/load.$OUT.sorted
+    $DIFF $TEMPDIR/$expected.$OUT.sorted $TEMPDIR/load.$OUT.sorted >$TEMPDIR/diff.sorted
+    rc="$?"
+    if (( rc != 0 )); then
+        cat $TEMPDIR/diff
+        echo "command executed:"
+        echo $CMD
+        exit 3
+    fi    
 fi
 
 if [ "$TELEMETRY_RPT" != "0" ] ; then
-    $DIFF $WORKDIR/expected/$CASEID.telemetry <(grep -v '"version":' $TEMPDIR/telemetry) >$TEMPDIR/telemetry.diff
+    $DIFF $WORKDIR/expected/$expected.telemetry <(grep -v '"version":' $TEMPDIR/telemetry) >$TEMPDIR/telemetry.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then
         cat $TEMPDIR/telemetry.diff

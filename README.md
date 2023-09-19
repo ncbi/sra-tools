@@ -17,6 +17,10 @@ using data in the INSDC Sequence Read Archives.
 
 ----
 
+_September 19, 2023_: **SRA Toolkit Internal Release 3.0.8**
+
+----
+
 _August 29, 2023_: **SRA Toolkit 3.0.7**
 
 Updated vdb-config to improve AWS credential interface and usage by SRA Toolkit.
@@ -28,12 +32,6 @@ Fixed a bug resulting in 'reference not found' messages for reference sequences 
 ----
 
 _July 10, 2023_: **SRA Toolkit 3.0.6**
-
-Prefetch now supports the latest GCP access tokens.
-
-Fixed a bug in vdb-config for Windows users.
-
-To ensure output of techinical reads, fasterq-dump will now automatically switch to --split-files mode if --include-technical option is used.
 
 Prefetch now supports the latest GCP access tokens.
 

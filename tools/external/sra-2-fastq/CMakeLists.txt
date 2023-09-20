@@ -22,24 +22,11 @@
 #
 # ===========================================================================
 
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-pileup )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( ngs-pileup )
-add_subdirectory( rcexplain )
-add_subdirectory( kdbmeta )
-add_subdirectory( align-info )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( test-sra )
-add_subdirectory( cache-mgr ) # obsolete
-add_subdirectory( driver-tool )
-add_subdirectory( sra-info )
-add_subdirectory( sra-2-fastq )
+set( TOOLS_SRC
+	sra-2-fastq.cpp
+)
+
+GenerateExecutableWithDefs( sra-2-fastq "${TOOLS_SRC}" "__mod__=\"tools/sra-2-fastq\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
+#dont forget to change it to true ( aka plug it into the driver-tool, aka rename it to xxx-orig, make links etc. )
+MakeLinksExe( sra-2-fastq false )

@@ -42,7 +42,8 @@ ToolsRequired(fasterq-dump)
 
     add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
         COMMAND
-            bash test_for_read_id_cSRA.sh ${DIRTOTEST}
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+            bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     if( RUN_SANITIZER_TESTS )

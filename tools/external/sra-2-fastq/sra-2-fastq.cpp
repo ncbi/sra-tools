@@ -24,82 +24,31 @@
 *
 */
 
-#include <klib/out.h>
-#include <klib/log.h>
-#include <klib/rc.h>
-
 #include <kapp/main.h>
-#include <kapp/args.h>
-#include <kapp/args-conv.h>
 
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
+#include "option_reader.hpp"
 
-#define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 && !rc) { rc = rc2; } obj = nullptr; } while (false)
-
-#define OPTION_MODE         "mode"
-
-#define ALIAS_MODE          "m"
-
-static const char * mode_usage[]    = { "modes are: ...", nullptr };
-
-OptDef ConverterOptions[] =
-{
-    { OPTION_MODE,          ALIAS_MODE,         nullptr, mode_usage,        1, true,    false },
-};
-
-const char UsageDefaultName[] = "sra-2-fastq";
-
-rc_t CC UsageSummary ( const char * progname )
-{
-    return KOutMsg ("\n"
-                    "Usage:\n"
-                    "  %s <accession> [options]\n"
-                    "\n", progname);
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    const char * progname = UsageDefaultName;
-    const char * fullpath = UsageDefaultName;
+// mandatory by kapp/main.h
+rc_t CC KMain ( int argc, char *argv [] ) {
     rc_t rc;
-
-    if ( args == nullptr )
-    {
-        rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
+    // gather commandline-options
+    auto options = read_options( argc, argv, &rc );
+    if ( 0 == rc )  {
+        if ( options -> show_opts ) {
+            rc = options -> print();
+        }
     }
-    else
-    {
-        rc = ArgsProgram ( args, &fullpath, &progname );
+    // run the inspector to create inspection-data
+    if ( 0 == rc ) {
+        
     }
-
-    if ( rc )
-    {
-        progname = fullpath = UsageDefaultName;
+    // run factory to create create converter
+    if ( 0 == rc ) {
+        
     }
-
-    UsageSummary ( progname );
-
-    KOutMsg ( "Options:\n" );
-    HelpOptionLine ( ALIAS_MODE,        OPTION_MODE,        nullptr, mode_usage );
-    HelpOptionsStandard ();
-    HelpVersion ( fullpath, KAppVersion() );
-
-    return rc;
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
-    Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
-        1, ConverterOptions, sizeof ConverterOptions / sizeof ConverterOptions [ 0 ] );
-    DISP_RC( rc, "ArgsMakeAndHandle() failed" );
-    if ( rc == 0)
-    {
-        // the meat...
-
-        DESTRUCT( Args, args );
+    // execute the converter
+    if ( 0 == rc ) {
+        
     }
-
     return rc;
 }

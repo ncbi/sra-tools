@@ -34,6 +34,7 @@
 #include <vdb/vdb-priv.h>
 #include <kdb/manager.h>
 #include <kdb/meta.h>
+#include <kdb/kdb-priv.h>
 #include <kfs/directory.h>
 #include <klib/log.h>
 #include <klib/out.h>
@@ -215,7 +216,6 @@ static void getSchemaInfo(KMetadata const *const meta, char const **type, VSchem
         }
     }
     {
-        extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
         rc_t const rc = KMDataNodeAddr(node, (const void **)&value, &valueLen);
         if (rc != 0) {
             LogErr(klogFatal, rc, "can't get database schema");
@@ -506,7 +506,6 @@ static KMDataNode *openChildNodeUpdate(KMDataNode *const node, char const *const
 
 static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
 {
-    extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
     void const *data = NULL;
     size_t data_size = 0;
     rc_t rc = KMDataNodeAddr(src, &data, &data_size);

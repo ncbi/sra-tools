@@ -11,8 +11,8 @@
 
 using namespace std;
 
-class CFastqRead
 /// FASTQ read
+class CFastqRead
 {
 public:
     /// ReadTypes
@@ -51,22 +51,26 @@ public:
      *
     */
     void GetQualScores(vector<uint8_t>& qual_score) const; ///< Get quality scores as vector of uint8
+    const vector<uint8_t>& GetQualScores() const;
+
 
     void SetType(char readType);
 
     uint8_t Type() const { return mReadType;} ///< return ReadType
 
     void SetLineNumber(size_t line_number) { mLineNumber = line_number;}
-    void SetSpot(const string& spot) { mSpot = spot; }
+    void SetSpot(string spot) { mSpot = move(spot); }
     void SetSpot(const re2::StringPiece& spot) {  spot.CopyToString(&mSpot); }
 
-    void SetReadNum(const string& readNum) { mReadNum = readNum; }
+    void MoveSpot(string&& spot) { mSpot = move(spot); }
+
+    void SetReadNum(string readNum) { mReadNum = move(readNum); }
     void SetReadNum(const re2::StringPiece& readNum) { readNum.CopyToString(&mReadNum); }
 
-    void SetSuffix(const string& suffix) { mSuffix = suffix; }
+    void SetSuffix(string suffix) { mSuffix = move(suffix); }
     void SetSuffix(const re2::StringPiece& suffix) { suffix.CopyToString(&mSuffix); }
 
-    void SetSpotGroup(const string& spotGroup);
+    void SetSpotGroup(string spotGroup);
     void SetSpotGroup(const re2::StringPiece& spotGroup);
 
     void SetReadFilter(uint8_t readFilter) { mReadFilter = readFilter; }
@@ -74,23 +78,36 @@ public:
     void SetChannel(const re2::StringPiece& channel) { channel.CopyToString(&mChannel); }
     void SetNanoporeReadNo(const re2::StringPiece& readNo) { readNo.CopyToString(&mNanoporeReadNo); }
 
+    void SetSequence(string sequence) { mSequence = move(sequence); }
+    void SetQualScores(vector<uint8_t> qual_scores) { mQualScores = move(qual_scores); }
+
+    size_t m_SpotId = 0;     ///< Assigned spot_id  
+    uint8_t m_ReaderIdx = 0; /// Reader's index
+    size_t mLineNumber{0};        ///< Line number the read starts with
+    uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
+
+    size_t GetSize() const 
+    { 
+        size_t sz = mSpot.size() + mSuffix.size() + mReadNum.size() + mSpotGroup.size() + mSequence.size() + mChannel.size() + mNanoporeReadNo.size();
+        sz += mQuality.empty() ? mQualScores.size() : mQuality.size();
+        return sz;
+    }
 
 private:
     friend class fastq_reader;
-    size_t mLineNumber{0};        ///< Line number the read starts with
     string mSpot;                 ///< Spot name
     string mReadNum;              ///< optional read number
     string mSpotGroup;            ///< spot group (barcode)
     uint8_t mReadFilter{0};       ///< read filter 0, 1
-    uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
     string mSuffix;               ///< Illumina suffix
     string mSequence;             ///< Sequence string
     string mQuality;              ///< Quality string as it comes from file adjusted to seq length
     string mChannel;              ///< Nanopore channel
     string mNanoporeReadNo;       ///< Nanopore read number; not to be confused with mReadNum
-    vector<uint8_t> mQualScores;  ///< Numeric quality scores
+    mutable vector<uint8_t> mQualScores;  ///< Numeric quality scores
 };
 
+typedef CFastqRead fastq_read;
 
 CFastqRead::CFastqRead()
 {
@@ -110,6 +127,8 @@ void CFastqRead::Reset()
     mChannel.clear();
     mNanoporeReadNo.clear();
     mLineNumber = 0;
+    m_SpotId = 0;
+    m_ReaderIdx = 0;
 }
 
 static
@@ -124,9 +143,10 @@ translate( char ch )
         case '-':
         case 'X':
         case '?':
+        case '.':
             return 'N';
         default:
-            return ch;
+            return toupper(ch);
     }
 }
 
@@ -162,6 +182,13 @@ void CFastqRead::GetQualScores(vector<uint8_t>& qual_score) const
     }
 }
 
+const vector<uint8_t>& CFastqRead::GetQualScores() const
+{
+    if (mQualScores.empty()) 
+        copy(mQuality.begin(), mQuality.end(), back_inserter(mQualScores));
+    return mQualScores;        
+}
+
 void CFastqRead::SetType(char readType)
 {
     switch (readType) {
@@ -180,12 +207,12 @@ void CFastqRead::SetType(char readType)
 }
 
 
-void CFastqRead::SetSpotGroup(const string& spotGroup)
+void CFastqRead::SetSpotGroup(string spotGroup)
 {
     if (spotGroup == "0")
         mSpotGroup.clear();
     else
-        mSpotGroup = spotGroup;
+        mSpotGroup = move(spotGroup);
 }
 
 void CFastqRead::SetSpotGroup(const re2::StringPiece& spotGroup)

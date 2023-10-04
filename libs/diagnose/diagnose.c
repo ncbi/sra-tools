@@ -813,7 +813,7 @@ static rc_t STestVStart ( STest * self, bool checking, uint64_t code,
     if ( test == NULL )
         return RC ( rcRuntime, rcData, rcAllocating, rcMemory, rcExhausted );
     test -> code = code;
-    test -> name = strdup (b); /*TODO*/
+    test -> name = string_dup (b, string_size(b)); /*TODO*/
     if ( test -> name == NULL ) {
         free ( test );
         return RC ( rcRuntime, rcData, rcAllocating, rcMemory, rcExhausted );

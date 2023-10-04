@@ -795,7 +795,7 @@ class vdbconf_ctrl : public Dlg_Runner {
         }
 
         // common code for on_aws_choose() and on_aws_clear() to set the credential path
-        bool aws_page_upate_credentials( Dlg &dlg, vdbconf_model * model, std::string &path ) {
+        bool aws_page_update_credentials(Dlg &dlg, vdbconf_model * model, std::string &path ) {
             model -> set_aws_credential_file_location( path ); /* model-connection */
             return update_view( dlg );
         }
@@ -806,8 +806,9 @@ class vdbconf_ctrl : public Dlg_Runner {
             if ( path.empty() ) {
                 path = model -> get_current_dir();
             }
-            if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) && !path.empty() ) {
-                aws_page_upate_credentials( dlg, model, path );
+            path = pick_file(dlg, Tui_Rect(0, 0, 80, 40), path.c_str(), NULL);
+            if ( !path.empty() ) {
+                aws_page_update_credentials(dlg, model, path );
             }
             return true;
         }
@@ -815,7 +816,7 @@ class vdbconf_ctrl : public Dlg_Runner {
         // user has pressed the button to clear the path to AWS credentials
         bool aws_page_on_clear_credentials( Dlg &dlg, vdbconf_model * model ) {
             std::string path( "" );
-            return aws_page_upate_credentials( dlg, model, path );
+            return aws_page_update_credentials(dlg, model, path );
         }
 
         // ================ the GCP-page:

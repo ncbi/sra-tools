@@ -36,6 +36,7 @@
 #include <klib/text.h>
 #include <klib/refcount.h>
 #include <klib/data-buffer.h>
+#include <insdc/sra.h>
 #include <sysalloc.h>
 
 #include <atomic32.h>
@@ -793,6 +794,8 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
     return st == 4 ? i : 0;
 }
 
+#include "sam-header-platform.c" /* get_platform_id */
+
 static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
 {
     unsigned i;
@@ -857,7 +860,7 @@ static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
                 else if (strcmp(&hdata[tag], "DT") == 0)
                     dst->runDate = &hdata[value];
                 else if (strcmp(&hdata[tag], "PL") == 0)
-                    dst->platform = &hdata[value];
+                    dst->platformId = get_platform_id(dst->platform = &hdata[value]);
 
                 ++st;
                 ws = 1;
@@ -1052,18 +1055,18 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
     }
     else
         self->header = text;
-    {
-    char *const copy = malloc(size + 1); /* an editable copy */
-    if (copy == NULL)
-        return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
-    self->headerData1 = copy; /* so it's not leaked */
-    memmove(copy, text, size + 1);
 
     {
-    bool const parsed = ParseHeader(self, copy, size);
-    if (!parsed)
-        return RC(rcAlign, rcFile, rcParsing, rcData, rcInvalid);
-    }
+		char *const copy = malloc(size + 1); /* an editable copy */
+		if (copy == NULL)
+			return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
+		self->headerData1 = copy; /* so it's not leaked */
+		memmove(copy, text, size + 1);
+		{
+			bool const parsed = ParseHeader(self, copy, size);
+			if (!parsed)
+				return RC(rcAlign, rcFile, rcParsing, rcData, rcInvalid);
+		}
     }
     for (i = 0; i < self->readGroups; ++i)
         self->readGroup[i].id = i;

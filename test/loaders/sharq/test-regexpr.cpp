@@ -37,7 +37,7 @@ TEST_SUITE(RegexprTestSuite);
 
 TEST_CASE(Construction)
 {
-    CRegExprMatcher m( string() );
+    CRegExprMatcher m{ string() };
 }
 
 TEST_CASE(LastInput)

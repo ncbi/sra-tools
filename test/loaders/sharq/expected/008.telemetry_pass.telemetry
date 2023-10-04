@@ -1,14 +1,7 @@
 {
     "--readTypes": "BBT",
-    "args": [
-        "--debug",
-        "--no-timestamp",
-        "--readTypes=BBT",
-        "--read1PairFiles=input/003.t_R1.fastq.gz,input/003.t2_R1.fastq,input/003.t3_R1.fastq",
-        "--read2PairFiles=input/003.t_R2.fastq.gz,input/003.t2_R2.fastq,input/003.t3_R2.fastq",
-        "--read3PairFiles=input/003.t_I1.fastq.gz,input/003.t2_I1.fastq,input/003.t3_I1.fastq",
-        "-t",
-        "./actual/008.telemetry_pass/telemetry"
+    "defline_types": [
+        "illuminaNew"
     ],
     "groups": [
         {
@@ -75,6 +68,37 @@
             "rejected_spots": 0
         }
     ],
+    "i": {
+        "defline_len": 1317,
+        "quality_len": 2790,
+        "sequence_len": 2790
+    },
+    "o": {
+        "base_counts": {
+            "A": 916,
+            "C": 386,
+            "G": 471,
+            "T": 855
+        },
+        "quality_counts": {
+            "14": 97,
+            "21": 25,
+            "27": 101,
+            "32": 371,
+            "36": 2196
+        },
+        "quality_len": 2790,
+        "read_count": 27,
+        "sequence_len": 2790,
+        "sequence_len_bio": 2628,
+        "spot_count": 9
+    },
     "platform_code": 2,
-    "quality_code": 33,
+    "qc": {
+        "pct_quality_loss": "0.00",
+        "pct_sequence_loss": "0.00",
+        "quality_loss": 0,
+        "sequence_loss": 0
+    },
+    "quality_code": 33
 }

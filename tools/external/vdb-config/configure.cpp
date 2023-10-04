@@ -105,6 +105,7 @@ class CConfigurator : CNoncopyable {
         rc = KConfigMakeRepositoryMgrRead(m_Cfg.Get(), &mgr);
         KRepositoryVector repositories;
         memset(&repositories, 0, sizeof repositories);
+#ifdef NAMESCGI
         if (rc == 0) {
             rc = KRepositoryMgrRemoteRepositories(mgr, &repositories);
             if (rc == 0)
@@ -117,9 +118,11 @@ class CConfigurator : CNoncopyable {
         }
         if ( rc == 0 && fix )
             rc = m_Cfg.CreateRemoteRepositories(fix);
+#endif
         if (rc == 0) {
-
+#ifdef NAMESCGI
             m_Cfg . FixResolverCgiNodes ( );
+#endif
 
             bool noUser = false;
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);

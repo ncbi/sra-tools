@@ -42,6 +42,10 @@
 #include "mmarray.c"
 #undef MMA_ELEM_T
 
+#include <sys/stat.h>
+
+extern ssize_t pread(int fd, void *buf, size_t count, off_t offset);
+
 ctx_value_t * SpotAssemblerGetCtxValue(SpotAssembler * self, rc_t *const prc, uint64_t const keyId)
 {
     return MMArrayGet(self->id2value, prc, keyId);

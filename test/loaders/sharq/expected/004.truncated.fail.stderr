@@ -1,3 +1,1 @@
-[info] File group: input/004.truncated_1.fq.gz, input/004.truncated_2.fq.gz
-[info] Parsing from 2 files
 [error] [code:180] input/004.truncated_1.fq.gz ended early at line 35772. Use '--allowEarlyFileEnd' to allow load to finish.

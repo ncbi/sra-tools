@@ -995,8 +995,8 @@ static tar_header_type what_header_type(const tar_header *header)
          * Next we look for SunOS5 extensions to the header
          */
         else if (header->suntar.extnum &&
-                 header->suntar.extcount &&
-                 header->suntar.fullsize)
+                 header->suntar.extcount /* &&
+                 header->suntar.fullsize nonsensical comparison, always true */)
         {
             type = TAR_SUN;
         }

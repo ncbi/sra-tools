@@ -1,6 +1,31 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.8
+**September 19, 2023**
+
+  **align, bam-load**: 'circular' can be set from configuration for fasta references  
+
+
+## SRA Toolkit 3.0.7
+**August 29, 2023**
+
+  **abi-load, fastq-load, helicos-load, illumina-load, pacbio-load, sff-load, sra, srf-load**: fixed loaders to work without predefined schema  
+  **align-info, prefetch, vdb, vfs**: stopped printing incorrect 'reference not found' messages; reduced number of calls to resolve WGS references; align-info don't resolve references remotely if found locally  
+  **bam-load**: changed 'secondary' to 'non-primary' in log messages  
+  **bam-load, kdb, vdb-validate**: index works correctly with only one key  
+  **cloud, kns, ngs-tools, sra-tools**: added support of IMDSv2 to allow to use instance identity on new AWS machines  
+  **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
+  **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
+  **sra-info**: added parameter --rows to spot layout query  
+  **sra-info**: added query --schema  
+  **sra-info**: fixed formatting of multiple queries  
+  **vdb**: added database-contained view aliases to the schema language  
+  **vdb-dump**: new --inspect feature to show column-size and compression ratios  
+  **vdb-validate**: compensated for loader optimization that caused a segfault  
+  **vdb, vdb-validate**: fixes a memory leak  
+
+
 ## SRA Toolkit 3.0.6
 **July 10, 2023**
 

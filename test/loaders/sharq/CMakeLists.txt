@@ -34,12 +34,22 @@ message(RE2_FOUND=${RE2_FOUND})
         add_definitions(-msse4.2 -DBMSSE42OPT)
 
         # assume tools/sharq built libre2
+        #TODO make it like in ./ngs/ngs-sdk
+        if( SINGLE_CONFIG OR WIN32 )
+            set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+        else() # XCode
+            # TODO: test on XCode
+            set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}) # Temporary solution
+            #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
+            #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+        endif()
+
         set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
         set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
         set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
         set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
-        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
         endif()
 
@@ -122,6 +132,37 @@ message(RE2_FOUND=${RE2_FOUND})
         endif()
 
         macro(SharqTest TestName Result TestParams)
+            unset(spot_assembly)
+            set (extra_args ${ARGN})
+            # Did we get any optional args?
+            list(LENGTH extra_args extra_count)
+            if (${extra_count} GREATER 0)
+                list(GET extra_args 0 spot_assembly)
+            endif ()
+
+            if (DEFINED spot_assembly AND spot_assembly STREQUAL "only-sa")            
+                set(params "--spot-assembly ${TestParams}")
+                SharqTestImpl("${TestName}-sa-hot" ${Result} ${params} "sharq" ${TestName}-sa-hot)
+
+                set(params "--spot-assembly --hot-reads-threshold 0 ${TestParams}")
+                SharqTestImpl("${TestName}-sa-cold" ${Result} ${params} "sharq" ${TestName}-sa-cold)
+            else()
+                SharqTestNormal(${TestName} ${Result} ${TestParams})
+                if (NOT DEFINED spot_assembly OR NOT spot_assembly STREQUAL "no-sa")
+                    set(params "--spot-assembly ${TestParams}")
+                    SharqTestImpl("${TestName}-sa-hot" ${Result} ${params} "sharq" ${TestName}-sa-hot)
+
+                    set(params "--spot-assembly --hot-reads-threshold 0 ${TestParams}")
+                    SharqTestImpl("${TestName}-sa-cold" ${Result} ${params} "sharq" ${TestName}-sa-cold)
+                endif()    
+            endif()
+            if( RUN_SANITIZER_TESTS )
+                SharqTestAsan(${TestName} ${Result} ${TestParams})
+                SharqTestTsan(${TestName} ${Result} ${TestParams})
+            endif()
+        endmacro()
+
+        macro(SharqTestNoSA TestName Result TestParams)
             SharqTestNormal(${TestName} ${Result} ${TestParams})
             if( RUN_SANITIZER_TESTS )
                 SharqTestAsan(${TestName} ${Result} ${TestParams})
@@ -176,36 +217,40 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(002.readTypes_missing 1 "--read1PairFiles=${IN}001.R1.fastq")
         SharqTest(002.readTypes_mismatch 1 "--readTypes=TB --read1PairFiles=${IN}001.R1.fastq")
         SharqTest(002.readTypes_unexpected 1 "--readTypes=X --read1PairFiles=${IN}002.allBiological_1.fq")
-        SharqTest(002.readTypes_interlaved_fail_1 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq")
-        SharqTest(002.readTypes_interlaved_fail_2 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq")
+        SharqTest(002.readTypes_interlaved_fail_1 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "no-sa")
+        SharqTest(002.readTypes_interleaved_fail_4 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "no-sa")
+        SharqTest(002.readTypes_interlaved_fail_3 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
+        SharqTest(002.readTypes_interlaved_fail_2 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
         SharqTest(002.readTypes_interlaved_pass 0 "--readTypes=BTB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq")
         SharqTest(003.files_not_exists 1 "dummy1.fq")
         SharqTest(003.files_not_valid 1 "${IN}003.empty.fq")
         SharqTest(003.files_readpairs 0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
         SharqTest(003.files_mixed 1 "${IN}005.offset0_1.fq ${IN}001.R1.fastq")
-        SharqTest(003.files_mixed_cluster 1 "${IN}003.t_R1.fastq ${IN}003.t_I1.fastq ${IN}001.R1.fastq")
+        SharqTest(003.files_mixed_cluster 1 "${IN}003.t_R1.fastq ${IN}003.t_I1.fastq ${IN}001.R1.fastq" "no-sa")
         SharqTest(003.files_10x_mixed 1 "${IN}003.t_I1.fastq ${IN}003.t_R1.fastq ${IN}003.t_R2.fastq ${IN}003._I1.fastq ${IN}003.R1.fastq ${IN}003.R2.fastq")
-        SharqTest(003.readTypes_10x 0 "${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
+        SharqTest(003.readTypes_10x 0 "${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq" "no-sa")
         SharqTest(003.wrong_pairing 1 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
-        SharqTest(004.truncated.fail 1 "${IN}004.truncated_1.fq.gz ${IN}004.truncated_2.fq.gz")
+        SharqTest(004.truncated.fail 1 "${IN}004.truncated_1.fq.gz ${IN}004.truncated_2.fq.gz" "no-sa")
         SharqTest(004.truncated.pass 0 "--allowEarlyFileEnd ${IN}004.truncated_1.fq.gz ${IN}004.truncated_2.fq.gz")
         SharqTest(005.offset0 0 "${IN}005.offset0_1.fq ${IN}005.offset0_2.fq")
         SharqTest(005.offset64 0 "${IN}005.offset64_1.fq ${IN}005.offset64_2.fq")
-        SharqTest(006.duplicate 1 "${IN}006.duplicate.fq")
+        SharqTestNoSA(006.duplicate 1 "--max-err-count 0 ${IN}006.duplicate.fq")
         SharqTest(007.digest.udenfined 0 "--digest ${IN}001.read.unsupported.fq")
         SharqTest(007.digest.multiple 0 "--digest ${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
-        SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq")
+        SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq" "no-sa")
         SharqTest(007.digest.error 0 "--max-err-count 0 --digest ${IN}001.read.invalid_quality0.fq")
         SharqTestWithTelemetry(008.telemetry_pass  0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
-        SharqTest(009.more_than_4_per_spot 1 "--debug ${IN}009.test_I1_001.fastq ${IN}009.test_R1_001.fastq ${IN}009.test_R2_001.fastq ${IN}009.test_R3_001.fastq")
+        SharqTestNoSA(009.more_than_4_per_spot 1 "--debug ${IN}009.test_I1_001.fastq ${IN}009.test_R1_001.fastq ${IN}009.test_R2_001.fastq ${IN}009.test_R3_001.fastq")
         SharqTest(010.errors.invalid_seq_pass1 0 "${IN}010.errors.invalid_seq.fq")
-        SharqTest(010.errors.invalid_seq_pass2 0 "--max-err-count 5 ${IN}010.errors.invalid_seq.fq")
+        SharqTest(010.errors.invalid_seq_pass2 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
         SharqTest(010.errors.invalid_seq_fail 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
 
         SharqTest(011.nanopore.3 0 "--max-err-count 0 ${IN}011.nanopore.3.fq")
         SharqTest(012.qualities 0 "--max-err-count 0 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq") #VDB-4745
+        SharqTest(012.qualities_with_types 0 "--readTypes=TTB ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq" "only-sa") #VDB-4745
         SharqTest(013.no-reads 0 "--max-err-count 0 ${IN}013.t_I1.fastq ${IN}013.t_I2.fastq ${IN}013.t_R1.fastq ${IN}013.t_R2.fastq") #VDB-4745
-
+        SharqTest(014.2files_bad_sequence 0 "${IN}014.R1.fastq ${IN}014.R2.fastq" "no-sa") 
+        SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
     endif()
 
 endif()

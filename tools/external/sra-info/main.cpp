@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -48,28 +48,35 @@ using namespace std;
 #define OPTION_FORMAT       "format"
 #define OPTION_ISALIGNED    "is-aligned"
 #define OPTION_QUALITY      "quality"
+#define OPTION_SCHEMAVERS   "schema"
 #define OPTION_SPOTLAYOUT   "spot-layout"
 #define OPTION_LIMIT        "limit"
 #define OPTION_DETAIL       "detail"
 #define OPTION_SEQUENCE     "sequence"
+#define OPTION_ROWS         "rows"
 
 #define ALIAS_PLATFORM      "P"
 #define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
 #define ALIAS_QUALITY       "Q"
+#define ALIAS_SCHEMAVERS    "C"
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
 #define ALIAS_SEQUENCE      "s"
+#define ALIAS_ROWS          "R"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
-static const char * quality_usage[]     = { "are quality scores stored or generated", nullptr };
+static const char * quality_usage[] = { "are quality scores stored or generated", nullptr };
+static const char * schema_vers_usage[] = {
+    "print schema version and dependencies", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
 static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
+static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -77,10 +84,12 @@ OptDef InfoOptions[] =
     { OPTION_FORMAT,        ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false, nullptr },
     { OPTION_ISALIGNED,     ALIAS_ISALIGNED,    nullptr, isaligned_usage,   1, false,   false, nullptr },
     { OPTION_QUALITY,       ALIAS_QUALITY,      nullptr, quality_usage,     1, false,   false, nullptr },
+    { OPTION_SCHEMAVERS,    ALIAS_SCHEMAVERS,   nullptr, schema_vers_usage, 1, false,   false, nullptr },
     { OPTION_SPOTLAYOUT,    ALIAS_SPOTLAYOUT,   nullptr, spot_layout_usage, 1, false,   false, nullptr },
     { OPTION_LIMIT,         ALIAS_LIMIT,        nullptr, limit_usage,       1, true,    false, nullptr },
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
     { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
+    { OPTION_ROWS,          ALIAS_ROWS,         nullptr, rows_usage,        1, true,    false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -120,16 +129,20 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,    nullptr, platform_usage );
     HelpOptionLine ( ALIAS_QUALITY,     OPTION_QUALITY,     nullptr, quality_usage );
     HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED,   nullptr, isaligned_usage );
+    HelpOptionLine ( ALIAS_SCHEMAVERS,  OPTION_SCHEMAVERS,  nullptr, schema_vers_usage );
     HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
-    KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+    KOutMsg( "      xml ..... xml-style\n" );
     KOutMsg( "      json .... json-style\n" );
     KOutMsg( "      tab ..... tab-separated values on one line\n" );
+    KOutMsg( "             csv and tab formats can be used just with a single query\n" );
+    KOutMsg( "             --" OPTION_SCHEMAVERS " does npt support csv and tab\n" );
 
     HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
     HelpOptionLine ( ALIAS_DETAIL, OPTION_DETAIL, "N", detail_usage );
+    HelpOptionLine ( ALIAS_ROWS,   OPTION_ROWS,  "N", rows_usage );
 
     HelpOptionsStandard ();
 
@@ -142,7 +155,8 @@ static
 void
 Output( const string & text )
 {
-    KOutMsg ( "%s\n", text.c_str() );
+    if ( ! text.empty() )
+        KOutMsg ( "%s\n", text.c_str() );
 }
 
 int
@@ -191,6 +205,30 @@ GetNonNegativeNumber( Args * args, const char * option )
         throw VDB::Error( string("invalid value for --") + option + "(not a non-negative number)");
     }
 }
+
+typedef class {
+    bool aligned;
+    bool platforms;
+    bool quality;
+    bool schema;
+    bool spots;
+    int count;
+
+public:
+    void doAligned(void) { ++count; aligned = true; }
+    void doPlatforms(void) { ++count; platforms = true; }
+    void doQuality(void) { ++count; quality = true; }
+    void doSchema(void) { ++count; schema = true; }
+    void doSpots(void) { ++count; spots = true; }
+
+    int queries(void) const { return count; }
+
+    bool needAligned(void) const { return aligned; }
+    bool needPlatforms(void) const { return platforms; }
+    bool needQuality(void) const { return quality; }
+    bool needSchema(void) const { return schema; }
+    bool needSpots(void) const { return spots; }
+} Query;
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
@@ -243,30 +281,80 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
                 Formatter formatter( fmt, limit );
 
-                rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                Query q{};
+
+                {
+                    rc = ArgsOptionCount( args, OPTION_SCHEMAVERS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if (opt_count > 0)
+                        q.doSchema();
+
+                    rc = ArgsOptionCount( args, OPTION_PLATFORM, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doPlatforms();
+
+                    rc = ArgsOptionCount( args, OPTION_ISALIGNED, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doAligned();
+
+                    rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doQuality();
+
+                    rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doSpots();
+                }
+
+                if (q.queries() > 1) {
+                    if (formatter.getFormat() == Formatter::CSV)
+                        throw VDB::Error(
+                            "CVS format does not support multiple queries");
+                    else if (formatter.getFormat() == Formatter::Tab)
+                        throw VDB::Error(
+                            "TAB format does not support multiple queries");
+                }
+                if (q.needSchema()) {
+                    if (formatter.getFormat() == Formatter::CSV)
+                        throw VDB::Error(
+                            "unsupported CSV formatting option for schema");
+                    else if (formatter.getFormat() == Formatter::Tab)
+                        throw VDB::Error(
+                            "unsupported TAB formatting option for schema");
+                }
+
+                Output(formatter.start());
+
+                if ( q.needSchema() )
+                {
+                    Output( formatter.format( info.GetSchemaInfo() ) );
+                }
+
+                if ( q.needPlatforms() )
                 {
                     Output( formatter.format( info.GetPlatforms() ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_ISALIGNED, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needAligned() )
                 {
-                    Output( formatter.format( info.IsAligned() ? "ALIGNED" : "UNALIGNED" ) );
+                    Output( formatter.format(
+                        info.IsAligned() ? "ALIGNED" : "UNALIGNED",
+                        "ALIGNED" ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_QUALITY, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needQuality() )
                 {
-                    Output( formatter.format( info.HasPhysicalQualities() ? "STORED" : "GENERATED" ) );
+                    Output( formatter.format(
+                        info.HasPhysicalQualities()
+                            ? "STORED" : "GENERATED",
+                        "QUALITY" ) );
                 }
 
-                rc = ArgsOptionCount( args, OPTION_SPOTLAYOUT, &opt_count );
-                DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                if ( q.needSpots() )
                 {
                     SraInfo::Detail detail = SraInfo::Verbose;
 
@@ -291,9 +379,19 @@ rc_t CC KMain ( int argc, char *argv [] )
                     {
                         useConsensus = false;
                     }
-                    Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus ), detail ) );
+
+                    rc = ArgsOptionCount( args, OPTION_ROWS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    unsigned int topRows = 0;
+                    if ( opt_count > 0 )
+                    {
+                        topRows = GetNonNegativeNumber( args, OPTION_ROWS );
+                    }
+
+                    Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus, topRows ), detail ) );
                 }
 
+                Output( formatter.end() );
             }
             catch( const exception& ex )
             {

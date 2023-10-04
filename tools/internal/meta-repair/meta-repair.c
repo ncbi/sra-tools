@@ -23,6 +23,10 @@
 * =============================================================================$
 */
 
+#if _POSIX_C_SOURCE < 2
+#define _POSIX_C_SOURCE 2 /* popen, pclose */
+#endif
+
 #include <kapp/args.h> /* ArgsWhack */
 #include <kapp/log-xml.h> /* XMLLogger_Release */
 #include <kapp/main.h> /* KAppVersion */
@@ -993,7 +997,7 @@ static rc_t RepairParseFix(Repair *self) {
 
 static rc_t RepairDoFix(const Repair *self) {
     rc_t rc = 0;
-    char command[4123] = "";
+    char command[5000] = "";
     char hex[17] = "";
     char val[33] = "";
     int i = 0, j = 0;

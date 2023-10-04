@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -48,19 +48,41 @@ SraInfo::SetAccession( const std::string& p_accession )
 VDB::Table
 SraInfo::openSequenceTable( const string & accession ) const
 {
-    switch ( mgr.pathType( accession ) )
+    switch ( m_mgr.pathType( accession ) )
     {
         case VDB::Manager::ptDatabase :
-            return mgr.openDatabase(accession)["SEQUENCE"];
+            return m_mgr.openDatabase(accession)["SEQUENCE"];
 
         case VDB::Manager::ptTable :
-            return mgr.openTable(accession);
+            return m_mgr.openTable(accession);
 
         case VDB::Manager::ptPrereleaseTable :
             throw VDB::Error( (accession + ": VDB::Manager::pathType(): unsupported path type").c_str(), __FILE__, __LINE__);
 
         default :
             throw VDB::Error( (accession + ": VDB::Manager::pathType(): returned invalid data").c_str(), __FILE__, __LINE__);
+    }
+}
+
+VDB::Schema SraInfo::openSchema( const string & accession) const
+{
+    switch ( m_mgr.pathType( accession ) )
+    {
+    case VDB::Manager::ptDatabase :
+        return m_mgr.openDatabase(accession).openSchema();
+
+    case VDB::Manager::ptTable :
+        return m_mgr.openTable(accession).openSchema();
+
+    case VDB::Manager::ptPrereleaseTable :
+        throw VDB::Error( (accession
+            + ": VDB::Manager::pathType(): unsupported path type").c_str(),
+            __FILE__, __LINE__);
+
+    default :
+        throw VDB::Error( (accession
+            + ": VDB::Manager::pathType(): returned invalid data").c_str(),
+            __FILE__, __LINE__);
     }
 }
 
@@ -235,24 +257,27 @@ SraInfo::ReadStructure::Encode( Detail detail ) const
     }
 }
 
-SraInfo::SpotLayouts
-SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by descending count
+SraInfo::SpotLayouts // sorted by descending count
+SraInfo::GetSpotLayouts(
+    Detail detail,
+    bool useConsensus,
+    uint64_t topRows ) const
 {
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
     VDB::Table table;
-    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
+    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
     {
         const char * CONSENSUS_TABLE = "CONSENSUS";
-        VDB::Database db = mgr.openDatabase( m_accession );
+        VDB::Database db = m_mgr.openDatabase( m_accession );
         if ( db.hasTable( CONSENSUS_TABLE ) )
         {
-            table = mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
+            table = m_mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
         }
         else
         {
-            table = mgr.openDatabase( m_accession )["SEQUENCE"];
+            table = m_mgr.openDatabase( m_accession )["SEQUENCE"];
         }
     }
     else
@@ -304,7 +329,32 @@ SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by d
             rs_map[r] = 1;
         }
     };
-    cursor.foreach( handle_row );
+    if ( topRows == 0 )
+    {   // all rows
+        cursor.foreach( handle_row );
+    }
+    else
+    {   // read at most topRows
+        auto const range = cursor.rowRange();
+        size_t count = range.second - range.first;
+        if ( count > topRows )
+        {
+            count = topRows;
+        }
+
+        std::vector< VDB :: Cursor :: RawData > data;
+        data.resize( cursor.columns() );
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            auto rowId = range.first + i;
+            for ( unsigned int j = 0; j < cursor.columns(); ++j)
+            {
+                data[ j ] = cursor.read( rowId, j );
+            }
+            handle_row( rowId, data );
+        }
+    }
 
     for( auto it = rs_map.begin(); it != rs_map.end(); ++it )
     {
@@ -326,9 +376,9 @@ SraInfo::GetSpotLayouts( Detail detail, bool useConsensus ) const // sorted by d
 bool
 SraInfo::IsAligned() const
 {
-    if ( mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
+    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
     {   // aligned if there is a non-empty alignment table
-        VDB::Database db = mgr.openDatabase(m_accession);
+        VDB::Database db = m_mgr.openDatabase(m_accession);
         const string PrimaryAlignmentTable = "PRIMARY_ALIGNMENT";
         if (db.hasTable(PrimaryAlignmentTable))
         {
@@ -360,4 +410,10 @@ SraInfo::HasPhysicalQualities() const
         }
     }
     return false;
+}
+
+const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
+    VDB::Schema schema(openSchema(m_accession));
+    VDB::SchemaInfo info(schema.GetInfo());
+    return info;
 }

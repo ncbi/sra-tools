@@ -1,0 +1,628 @@
+{
+ "SCHEMA": {
+  "DBS": [
+   { "Db": "NCBI:align:db:alignment_sorted#2"
+   }  ],
+  "TABLES": [
+   { "Tbl": "INSDC:tbl:sequence#1.0.1"
+   },
+   { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+   },
+   { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+    "Parents": [
+     { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+     }
+    ]
+   },
+   { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     }
+    ]
+   },
+   { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+   },
+   { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     },
+     { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+      "Parents": [
+       { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+       }
+      ]
+     },
+     { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       }
+      ]
+     },
+     { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:tbl:seqloc#1"
+   },
+   { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+   },
+   { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     },
+     { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       }
+      ]
+     },
+     { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+     },
+     { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:tbl:base_space#3",
+    "Parents": [
+     { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         }
+        ]
+       },
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:tbl:phred_quality#2.0.6",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+    "Parents": [
+     { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+     },
+     { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+        "Parents": [
+         { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+         }
+        ]
+       },
+       { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         }
+        ]
+       },
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:SRA:tbl:spotdesc_nocol#1.1",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     },
+     { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:SRA:tbl:spotdesc_nophys#1.1",
+    "Parents": [
+     { "Tbl": "NCBI:SRA:tbl:spotdesc_nocol#1.1",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:SRA:tbl:spotdesc#1.1",
+    "Parents": [
+     { "Tbl": "NCBI:SRA:tbl:spotdesc_nophys#1.1",
+      "Parents": [
+       { "Tbl": "NCBI:SRA:tbl:spotdesc_nocol#1.1",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:cmp_base_space#1",
+    "Parents": [
+     { "Tbl": "INSDC:tbl:sequence#1.0.1"
+     },
+     { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:qstat#1"
+   },
+   { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+   },
+   { "Tbl": "NCBI:align:tbl:global_ref_block#1",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:align_cmn#2.1.1",
+    "Parents": [
+     { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         }
+        ]
+       },
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+      "Parents": [
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+          "Parents": [
+           { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         }
+        ]
+       }
+      ]
+     },
+     { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:align_full#1.1.1",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:align_cmn#2.1.1",
+      "Parents": [
+       { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+         }
+        ]
+       },
+       { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+        "Parents": [
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+            "Parents": [
+             { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           }
+          ]
+         }
+        ]
+       },
+       { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:compressed_by_reference#1.2.1",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:align_cmn#2.1.1",
+      "Parents": [
+       { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+         }
+        ]
+       },
+       { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+        "Parents": [
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+            "Parents": [
+             { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           }
+          ]
+         }
+        ]
+       },
+       { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:align_sorted#1.2.1",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:compressed_by_reference#1.2.1",
+      "Parents": [
+       { "Tbl": "NCBI:align:tbl:align_cmn#2.1.1",
+        "Parents": [
+         { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           },
+           { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+           }
+          ]
+         },
+         { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+          "Parents": [
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             },
+             { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+              "Parents": [
+               { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+               }
+              ]
+             },
+             { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+              "Parents": [
+               { "Tbl": "INSDC:tbl:sequence#1.0.1"
+               }
+              ]
+             },
+             { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+             }
+            ]
+           }
+          ]
+         },
+         { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+         }
+        ]
+       }
+      ]
+     },
+     { "Tbl": "NCBI:align:tbl:global_ref_block#1",
+      "Parents": [
+       { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:align_mate_sorted#1.1.1",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:align_full#1.1.1",
+      "Parents": [
+       { "Tbl": "NCBI:align:tbl:align_cmn#2.1.1",
+        "Parents": [
+         { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             }
+            ]
+           },
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           },
+           { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+           }
+          ]
+         },
+         { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+          "Parents": [
+           { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             },
+             { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+              "Parents": [
+               { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+               }
+              ]
+             },
+             { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+              "Parents": [
+               { "Tbl": "INSDC:tbl:sequence#1.0.1"
+               }
+              ]
+             },
+             { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+             }
+            ]
+           }
+          ]
+         },
+         { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+         }
+        ]
+       }
+      ]
+     },
+     { "Tbl": "NCBI:align:tbl:global_ref_block#1",
+      "Parents": [
+       { "Tbl": "NCBI:align:tbl:ref_block_cmn#1"
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:seq#2",
+    "Parents": [
+     { "Tbl": "NCBI:tbl:base_space#3",
+      "Parents": [
+       { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+         }
+        ]
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:tbl:phred_quality#2.0.6",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:align:tbl:cmp_base_space#1",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:SRA:tbl:spotdesc#1.1",
+      "Parents": [
+       { "Tbl": "NCBI:SRA:tbl:spotdesc_nophys#1.1",
+        "Parents": [
+         { "Tbl": "NCBI:SRA:tbl:spotdesc_nocol#1.1",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           },
+           { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+            "Parents": [
+             { "Tbl": "INSDC:tbl:sequence#1.0.1"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+      "Parents": [
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+          "Parents": [
+           { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   { "Tbl": "NCBI:align:tbl:reference#3",
+    "Parents": [
+     { "Tbl": "NCBI:align:tbl:cmp_base_space#1",
+      "Parents": [
+       { "Tbl": "INSDC:tbl:sequence#1.0.1"
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:tbl:base_space#3",
+      "Parents": [
+       { "Tbl": "NCBI:tbl:base_space_common#1.0.3",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         },
+         { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+         }
+        ]
+       },
+       { "Tbl": "NCBI:tbl:dcmp_base_space#1"
+       }
+      ]
+     },
+     { "Tbl": "NCBI:tbl:seqloc#1"
+     },
+     { "Tbl": "NCBI:SRA:tbl:stats#1.2.1",
+      "Parents": [
+       { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+       },
+       { "Tbl": "INSDC:SRA:tbl:sra#1.0.4",
+        "Parents": [
+         { "Tbl": "INSDC:tbl:sequence#1.0.1"
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotname#1.1",
+          "Parents": [
+           { "Tbl": "INSDC:SRA:tbl:spotcoord#1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:spotdesc#1.0.2",
+          "Parents": [
+           { "Tbl": "INSDC:tbl:sequence#1.0.1"
+           }
+          ]
+         },
+         { "Tbl": "INSDC:SRA:tbl:stats#1.1"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "VIEWS": [
+  ]
+ }
+ ,
+ "PLATFORMS": [
+  "SRA_PLATFORM_454",
+  "SRA_PLATFORM_ILLUMINA",
+  "SRA_PLATFORM_UNDEFINED"
+ ]
+ ,
+ "ALIGNED": "UNALIGNED"
+ ,
+ "QUALITY": "STORED"
+ ,
+ "SPOTS": [
+  { "count": 3, "reads": [{ "type": "BIOLOGICAL", "length": 36 }, { "type": "BIOLOGICAL", "length": 36 }] }
+ ]
+
+}

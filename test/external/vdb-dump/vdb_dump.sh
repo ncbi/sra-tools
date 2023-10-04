@@ -16,7 +16,10 @@ rm -rf actual
 mkdir -p actual
 
 echo makedb:
-rm -rf data; mkdir -p data; ${vdb_dump_makedb}
+if [ ! -f data ]
+then
+	mkdir -p data; ${vdb_dump_makedb}
+fi
 
 function run_test() {
 	local test_id=$1
@@ -110,6 +113,9 @@ run_test "5.0" "SRR1063272 --view V9<SEQUENCE> -S view.vschema -R 1"
 # 6.0 an aliased view from a database
 run_test "6.0" "data/ViewDatabase -T VIEW1"
 run_test "6.1" "data/ViewDatabase -T VIEW3"
+
+# 7.0 symbolic names for various platforms
+run_test "7.0" "input/platforms -C PLATFORM"
 
 rm -rf actual
 # keep the test database for the other tests that might follow (e.g. Test_Vdb_dump_view-alias - see CMakeLists.txt)

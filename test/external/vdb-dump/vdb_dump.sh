@@ -16,10 +16,7 @@ rm -rf actual
 mkdir -p actual
 
 echo makedb:
-if [ ! -f data ]
-then
-	mkdir -p data; ${vdb_dump_makedb}
-fi
+rm -rf data; mkdir -p data; ${vdb_dump_makedb}
 
 function run_test() {
 	local test_id=$1

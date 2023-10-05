@@ -73,6 +73,7 @@
         "quality_len": 2790,
         "sequence_len": 2790
     },
+    "input_size": 4214,
     "o": {
         "base_counts": {
             "A": 916,

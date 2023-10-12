@@ -1025,7 +1025,7 @@ static void show_placement_params( const char * prefix, const ReferenceObj *refo
 
 static rc_t make_cursor_ids( Vector *cursor_id_vector, pileup_col_ids ** cursor_ids ) {
     rc_t rc;
-    pileup_col_ids * ids = malloc( sizeof * ids );
+    pileup_col_ids * ids = calloc( 1, sizeof * ids );
     if ( ids == NULL ) {
         rc = RC ( rcApp, rcNoTarg, rcOpening, rcMemory, rcExhausted );
     } else {

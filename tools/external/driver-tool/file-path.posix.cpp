@@ -88,7 +88,7 @@ static std::string trimPath(std::string const &path, bool const issecond = false
     if (issecond && path[start] == '/')
         ++start;
 
-    while (end - 1 > start && path[end - 1] == '/')
+    while (end > 0 && end - 1 > start && path[end - 1] == '/')
         --end;
 
     return path.substr(start, end - start);

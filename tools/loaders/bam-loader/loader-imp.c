@@ -184,7 +184,7 @@ typedef struct {
     uint32_t primaryId[2];
     uint32_t spotId;
     uint32_t fragmentId;
-	uint8_t  fragment_len[2]; /*** lowest byte of fragment length to prevent different sizes of primary and secondary alignments **/
+    uint8_t  fragment_len[2]; /*** lowest byte of fragment length to prevent different sizes of primary and secondary alignments **/
     uint8_t  platform;
     uint8_t  pId_ext[2];
     uint8_t  spotId_ext;
@@ -579,7 +579,7 @@ static void MMArrayClear(MMArray *self)
 #if PROT
                 mprotect(self->map[i].submap[j].base, chunk, PROT_READ|PROT_WRITE);
 #endif
-            	memset(self->map[i].submap[j].base, 0, chunk);
+                memset(self->map[i].submap[j].base, 0, chunk);
 #if PROT
                 mprotect(self->map[i].submap[j].base, chunk, PROT_NONE);
 #endif
@@ -606,7 +606,7 @@ static void MMArrayWhack(MMArray *self)
 
         for (j = 0; j != sizeof(self->map[0].submap)/sizeof(self->map[0].submap[0]); ++j) {
             if (self->map[i].submap[j].base)
-            	munmap(self->map[i].submap[j].base, chunk);
+                munmap(self->map[i].submap[j].base, chunk);
         }
     }
     close(self->fd);
@@ -707,72 +707,14 @@ static size_t GetFixedNameLength(char const name[], size_t const namelen)
     return namelen;
 }
 
-static bool platform_cmp(char const platform[], char const test[])
-{
-    unsigned i;
-
-    for (i = 0; ; ++i) {
-        int ch1 = test[i];
-        int ch2 = toupper(platform[i]);
-
-        if (ch1 != ch2)
-            break;
-        if (ch1 == 0)
-            return true;
-    }
-    return false;
-}
-
 static
 INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
     if (name) {
-        BAMReadGroup const *rg;
+        BAMReadGroup const *rg = NULL;
 
         BAM_FileGetReadGroupByName(bam, name, &rg);
-        if (rg && rg->platform) {
-            switch (toupper(rg->platform[0])) {
-            case 'C':
-                if (platform_cmp(rg->platform, "COMPLETE GENOMICS"))
-                    return SRA_PLATFORM_COMPLETE_GENOMICS;
-                if (platform_cmp(rg->platform, "CAPILLARY"))
-                    return SRA_PLATFORM_CAPILLARY;
-                break;
-            case 'H':
-                if (platform_cmp(rg->platform, "HELICOS"))
-                    return SRA_PLATFORM_HELICOS;
-                break;
-            case 'I':
-                if (platform_cmp(rg->platform, "ILLUMINA"))
-                    return SRA_PLATFORM_ILLUMINA;
-                if (platform_cmp(rg->platform, "IONTORRENT"))
-                    return SRA_PLATFORM_ION_TORRENT;
-                break;
-            case 'L':
-                if (platform_cmp(rg->platform, "LS454"))
-                    return SRA_PLATFORM_454;
-                break;
-            case 'N':
-                if (platform_cmp(name, "NANOPORE"))
-                    return SRA_PLATFORM_OXFORD_NANOPORE;
-                break;
-            case 'O':
-                if (platform_cmp(name, "OXFORD_NANOPORE"))
-                    return SRA_PLATFORM_OXFORD_NANOPORE;
-                break;
-            case 'P':
-                if (platform_cmp(rg->platform, "PACBIO"))
-                    return SRA_PLATFORM_PACBIO_SMRT;
-                break;
-            case 'S':
-                if (platform_cmp(rg->platform, "SOLID"))
-                    return SRA_PLATFORM_ABSOLID;
-                if (platform_cmp(name, "SANGER"))
-                    return SRA_PLATFORM_CAPILLARY;
-                break;
-            default:
-                break;
-            }
-        }
+        if (rg)
+            return rg->platformId;
     }
     return SRA_PLATFORM_UNDEFINED;
 }
@@ -1723,7 +1665,7 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
     KThreadRelease(bamread_thread);
     bamread_thread = NULL;
 #ifndef NEW_QUEUE
-	KQueueRelease(bamq);
+    KQueueRelease(bamq);
     bamq = NULL;
 #endif
     return queue_rec;
@@ -1854,7 +1796,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         for (unsigned rgi = 0; rgi != rgcount; ++rgi) {
             BAMReadGroup const *rg;
             BAM_FileGetReadGroup(bam, rgi, &rg);
-            if (rg && rg->platform && platform_cmp(rg->platform, "CAPILLARY")) {
+            if (rg && rg->platformId == SRA_PLATFORM_CAPILLARY) {
                 G.hasTI = true;
                 break;
             }
@@ -2130,6 +2072,7 @@ MIXED_BASE_AND_COLOR:
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
+            // FATAL ERROR, DATA ERROR, NOT FIXABLE
             (void)LOGERR(klogErr, rc, "Invalid CG data");
             goto LOOP_END;
         }
@@ -2138,6 +2081,7 @@ MIXED_BASE_AND_COLOR:
             BAM_AlignmentGetCigarCount(rec, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount * 2 + 5);
             if (rc) {
+                // FATAL ERROR, OUT OF MEMORY
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
@@ -2145,6 +2089,7 @@ MIXED_BASE_AND_COLOR:
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen);
             if (rc) {
+                // FATAL ERROR, OUT OF MEMORY
                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                 goto LOOP_END;
             }
@@ -2157,6 +2102,7 @@ MIXED_BASE_AND_COLOR:
                 rc = BAM_AlignmentGetCGCigar(rec, (uint32_t*)cigBuf.base, cigBuf.elem_count, &opCount);
             }
             if (rc) {
+                // FATAL ERROR, DATA ERROR, NOT FIXABLE
                 (void)LOGERR(klogErr, rc, "Failed to read CG data");
                 goto LOOP_END;
             }
@@ -2175,6 +2121,7 @@ MIXED_BASE_AND_COLOR:
             rc = KDataBufferResize(&cigBuf, opCount);
             assert(rc == 0);
             if (rc) {
+                // FATAL ERROR, OUT OF MEMORY
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
@@ -2185,6 +2132,7 @@ MIXED_BASE_AND_COLOR:
                 if (isPrimary && !wasPromoted) {
                     /* when we promote a secondary to primary and it is hardclipped, we want to "fix" it */
                     if (!G.acceptHardClip) {
+                        // FATAL ERROR, DATA ERROR, CAN BE FORCED WITH COMMAND LINE OPTION
                         rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
                         (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
                         goto LOOP_END;
@@ -2199,6 +2147,7 @@ MIXED_BASE_AND_COLOR:
                     rpad = (rOp & 0xF) == 5 ? (rOp >> 4) : 0;
 
                     if (lpad + rpad == 0) {
+                        // FATAL ERROR, DATA ERROR
                         rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
                         (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
                         goto LOOP_END;
@@ -2239,6 +2188,7 @@ MIXED_BASE_AND_COLOR:
                         rc = KDataBufferResize(&cigBuf, opCount + 1);
                         assert(rc == 0);
                         if (rc) {
+                            // FATAL ERROR, OUT OF MEMORY
                             (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                             goto LOOP_END;
                         }
@@ -2263,6 +2213,7 @@ MIXED_BASE_AND_COLOR:
                 rc = KDataBufferResize(&buf, readlen + lpad + rpad);
             assert(rc == 0);
             if (rc) {
+                // FATAL ERROR, OUT OF MEMORY
                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                 goto LOOP_END;
             }
@@ -2286,6 +2237,7 @@ MIXED_BASE_AND_COLOR:
 
                 rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);
                 if (rc) {
+                    // FATAL ERROR; DATA INCONSISTENT
                     (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
                     goto LOOP_END;
                 }
@@ -2310,11 +2262,13 @@ MIXED_BASE_AND_COLOR:
 
         rc = KDataBufferResize(&seqBuffer, readlen);
         if (rc) {
+            // FATAL ERROR, OUT OF MEMORY
             (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
             goto LOOP_END;
         }
         rc = KDataBufferResize(&qualBuffer, readlen);
         if (rc) {
+            // FATAL ERROR, OUT OF MEMORY
             (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
             goto LOOP_END;
         }
@@ -2340,6 +2294,7 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
 
         if (aligned && align == NULL) {
+            // FATAL ERROR, COMMAND AND DATA ARE INCONSISTENT
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
             (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains aligned records", "file=%s", bamFile));
             goto LOOP_END;
@@ -2357,6 +2312,7 @@ MIXED_BASE_AND_COLOR:
                 }
                 unmapRefSeqId = -1;
                 if (refSeq == NULL) {
+                    // NOT FATAL ERROR, DATA ERROR, LIKELY IMPOSSIBLE 
                     rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
@@ -2391,9 +2347,11 @@ MIXED_BASE_AND_COLOR:
                     if (GetRCObject(rc) == rcConstraint && GetRCState(rc) == rcViolated) {
                         int const level = G.limit2config ? klogWarn : klogErr;
 
+                        // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
                         (void)PLOGMSG(level, (level, "Could not find a Reference to match { name: '$(name)', length: $(rlen) }", "name=%s,rlen=%u", refSeq->name, (unsigned)refSeq->length));
                     }
                     else if (!G.limit2config) {
+                        // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
                         (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
                     }
                     if (G.limit2config) {
@@ -2404,11 +2362,13 @@ MIXED_BASE_AND_COLOR:
                 }
             }
             else if (refSeqId < 0) {
+                // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference id = $(id) is invalid", "name=%.*s,id=%i", namelen, name, refSeqId));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
                 UNALIGNED_INVALID_REF;
             }
             else {
+                // FATAL IF TOO MANY, DATA ERROR, POSSIBLE CONFIGURATION ERROR
                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference position = $(pos) is invalid", "name=%.*s,pos=%i", namelen, name, rpos));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
                 UNALIGNED_INVALID_REF_POS;
@@ -2474,6 +2434,7 @@ MIXED_BASE_AND_COLOR:
             auto v_unmated = value->unmated;
 #endif
             if (mated && v_unmated) {
+                // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                 (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen without mate info, now has mate info",
                                          "name=%s", name));
@@ -2482,6 +2443,7 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
             else if (!mated && !v_unmated) {
+                // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                 (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen with mate info, now has no mate info",
                                          "name=%s", name));
@@ -2523,6 +2485,7 @@ MIXED_BASE_AND_COLOR:
                     auto v_unaligned_1 = value->unaligned_1;
 #endif
                     if (v_unaligned_1) {
+                        // NOT FATAL, DATA ERROR, INCONSISTENT DATA
                         (void)PLOGMSG(klogWarn, (klogWarn, "Read 1 of spot '$(name)', which was unmapped, is now being mapped at position $(pos) on reference '$(ref)'; this alignment will be considered as secondary", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                         isPrimary = false;
                         FLAG_CHANGED_WAS_UNALIGNED;
@@ -2564,6 +2527,7 @@ MIXED_BASE_AND_COLOR:
                     auto v_unaligned_2 = value->unaligned_2;
 #endif
                     if (v_unaligned_2) {
+                        // NOT FATAL, DATA ERROR, INCONSISTENT DATA
                         (void)PLOGMSG(klogWarn, (klogWarn, "Read 2 of spot '$(name)', which was unmapped, is now being mapped at position $(pos) on reference '$(ref)'; this alignment will be considered as secondary", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                         isPrimary = false;
                         FLAG_CHANGED_WAS_UNALIGNED;
@@ -2634,13 +2598,15 @@ MIXED_BASE_AND_COLOR:
                     }
                     else if (rl != clipped_rl) {
                         if (isPrimary) {
+                            // FATAL ERROR, DATA ERROR, INCONSISTENT DATA
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded secondary alignment. Try to defer secondary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
+                            // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                             rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding secondary alignment.",
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Non-primary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding non-primary alignment.",
                                                      "name=%s,len=%d", name, readlen));
                             DISCARD_BAD_SECONDARY;
                             rc = CheckLimitAndLogError();
@@ -2659,7 +2625,8 @@ MIXED_BASE_AND_COLOR:
                     }
                 }
                 else {
-                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",
+                    // WARNING
+                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding non-primary alignment",
                                              "name=%s,ref=%s,pos=%u,count=%u", name, refSeq->name, (unsigned)rpos, (unsigned)matches));
                     DISCARD_BAD_SECONDARY;
                     rc = 0;
@@ -2674,12 +2641,14 @@ MIXED_BASE_AND_COLOR:
                     abort();
                 }
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
+                    // FATAL IF TOO MANY, DATA ERROR
                     UNALIGNED_INVALID_INFO;
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     /* Data errors may get reset; alignment will be unmapped at any rate */
                     rc = CheckLimitAndLogError();
                 }
                 else {
+                    // FATAL IF TOO MANY, DATA ERROR
                     UNALIGNED_INVALID_REF_POS;
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': error reading reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     rc = CheckLimitAndLogError();
@@ -2794,7 +2763,7 @@ WRITE_SEQUENCE:
                             if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                 goto WRITE_ALIGNMENT;
                             }
-                            (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                            (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                         }
                         /* start spot assembly */
                         unsigned sz;
@@ -2848,6 +2817,7 @@ WRITE_SEQUENCE:
 #endif
 
                         if (rc) {
+                            // FATAL ERROR, OUT OF MEMORY
                             (void)LOGERR(klogErr, rc, "KMemBankAlloc failed");
                             goto LOOP_END;
                         }
@@ -2855,6 +2825,7 @@ WRITE_SEQUENCE:
 
                         rc = KDataBufferResize(&fragBuf, sz);
                         if (rc) {
+                            // FATAL ERROR, OUT OF MEMORY
                             (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
                             goto LOOP_END;
                         }
@@ -2874,6 +2845,7 @@ WRITE_SEQUENCE:
                         }}
                         rc = MemBankWrite(ctx->frags, fragmentId, 0, fragBuf.base, sz, &rsize);
                         if (rc) {
+                            // FATAL ERROR, RUNTIME ERROR, LIKELY IMPOSSIBLE
                             (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankWrite failed writing fragment $(id)", "id=%u", fragmentId));
                             goto LOOP_END;
                         }
@@ -2891,6 +2863,7 @@ WRITE_SEQUENCE:
 
                             rc = MemBankSize(ctx->frags, fragmentId, &size1);
                             if (rc) {
+                                // FATAL ERROR, INTERNAL CONSISTENCY ERROR
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
@@ -2898,12 +2871,14 @@ WRITE_SEQUENCE:
                             rc = KDataBufferResize(&fragBuf, size1);
                             fip = (FragmentInfo *)fragBuf.base;
                             if (rc) {
+                                // FATAL ERROR, OUT OF MEMORY
                                 (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
                                 goto LOOP_END;
                             }
 
                             rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
                             if (rc) {
+                                // FATAL ERROR, INTERNAL CONSISTENCY ERROR
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
@@ -2925,15 +2900,17 @@ WRITE_SEQUENCE:
                                 if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                     goto WRITE_ALIGNMENT;
                                 }
-                                (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                                (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                             }
                             rc = KDataBufferResize(&seqBuffer, readlen + fip->readlen);
                             if (rc) {
+                                // FATAL ERROR, OUT OF MEMORY
                                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                                 goto LOOP_END;
                             }
                             rc = KDataBufferResize(&qualBuffer, readlen + fip->readlen);
                             if (rc) {
+                                // FATAL ERROR, OUT OF MEMORY
                                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                                 goto LOOP_END;
                             }
@@ -3012,6 +2989,7 @@ WRITE_SEQUENCE:
     #endif
                             rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
                             if (rc) {
+                                // FATAL ERROR, VDB I/O ERROR
                                 (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                                 goto LOOP_END;
                             }
@@ -3029,9 +3007,10 @@ WRITE_SEQUENCE:
                             } else {
                                 fcountBoth--;
                             }
-                            /*	printf("OUT:%9d\tcnt2=%ld\tcnt1=%ld\n",fragmentId,fcountBoth,fcountOne);*/
+                            /*  printf("OUT:%9d\tcnt2=%ld\tcnt1=%ld\n",fragmentId,fcountBoth,fcountOne);*/
                             rc = MemBankFree(ctx->frags, fragmentId);
                             if (rc) {
+                                // FATAL ERROR, RUNTIME ERROR, LIKELY IMPOSSIBLE
                                 (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
@@ -3051,19 +3030,25 @@ WRITE_SEQUENCE:
                                 FLAG_CHANGED_400_AND_200;
                                 filterFlagConflictRecords++;
                                 if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
+                                    // WARNING
                                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                                 }
                                 else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
+                                    // WARNING
                                     (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                                 }
                             }
                         }
                     }
                     else {
+                        // FATAL INTERNAL CONSISTENCY ERROR
                         (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
                         assert("this should never happen");
+                        abort();
                     }
-                } else { // Spot has been written
+                }
+                else {
+                    // Spot has been written already
                 }
             }
             else if (spotId == 0) {
@@ -3072,7 +3057,7 @@ WRITE_SEQUENCE:
                     if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                         goto WRITE_ALIGNMENT;
                     }
-                    (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                    (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from non-primary alignment information", "id=%lx,name=%s", keyId, name));
                 }
                 if (ctx->m_isSingleGroup == false) // otherwise spotGroup was captured
                     getSpotGroup(rec, spotGroup);
@@ -3122,6 +3107,7 @@ WRITE_SEQUENCE:
 #endif
                 rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
                 if (rc) {
+                    // FATAL ERROR, VDB I/O ERROR
                     (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", NULL));
                     goto LOOP_END;
                 }
@@ -3142,9 +3128,11 @@ WRITE_SEQUENCE:
                     FLAG_CHANGED_400_AND_200;
                     filterFlagConflictRecords++;
                     if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
+                        // WARNING
                         (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                     }
                     else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
+                        // WARNING
                         (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                     }
                 }
@@ -3178,6 +3166,7 @@ WRITE_ALIGNMENT:
                             data.mate_ref_orientation = (flags & BAMFlags_MateIsReverse) ? 1 : 0;
                         }
                         else {
+                            // WARNING
                             (void)PLOGERR(klogWarn, (klogWarn, rc_temp, "Failed to get refID for $(name)", "name=%s", mref->name));
                             MATE_INFO_LOST_UNKNOWN_REF;
                         }
@@ -3229,6 +3218,7 @@ WRITE_ALIGNMENT:
 
                 rc = ReferenceAddAlignId(ref, data.alignId, isPrimary);
                 if (rc) {
+                    // FATAL ERROR, VDB I/O ERROR                   
                     (void)PLOGERR(klogErr, (klogErr, rc, "ReferenceAddAlignId failed", NULL));
                 }
                 else {
@@ -3236,6 +3226,7 @@ WRITE_ALIGNMENT:
                 }
             }
             else {
+                // FATAL ERROR, VDB I/O ERROR
                 (void)PLOGERR(klogErr, (klogErr, rc, "AlignmentWriteRecord failed", NULL));
             }
         }
@@ -3329,6 +3320,7 @@ WRITE_ALIGNMENT:
 }
 
 #if defined(HAS_CTX_VALUE) && defined(NO_METADATA)
+/*
 static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
 {
     uint32_t i;
@@ -3427,10 +3419,11 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
         assert(false);
         rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, value->pcr_dup, value->platform);
         if (rc) {
+            // FATAL ERROR, VDB I/O ERROR
             (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
             return;
         }
-        /*rc = KMemBankFree(frags, id);*/
+        rc = KMemBankFree(frags, id);
         CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
     });
     MMArrayLock(ctx->id2value);
@@ -3470,7 +3463,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         {{
             int64_t primaryId[2];
-            int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;*/
+            int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
@@ -3546,6 +3539,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
     MMArrayLock(ctx->id2value);
     return rc;
 }
+*/
 #else
 
 static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
@@ -3570,6 +3564,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
 
     rc = KDataBufferMake(&fragBuf, 8, 0);
     if (rc) {
+        // FATAL ERROR, OUT OF MEMORY
         (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
         return rc;
     }
@@ -3602,16 +3597,19 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 FragmentInfo const *fip;
                 rc = MemBankSize(ctx->frags, fragment_it.value(), &sz);
                 if (rc) {
+                    // FATAL ERROR, INTERNAL CONSISTENCY ERROR
                     (void)LOGERR(klogErr, rc, "KMemBankSize failed");
                     break;
                 }
                 rc = KDataBufferResize(&fragBuf, (size_t)sz);
                 if (rc) {
+                    // FATAL ERROR, OUT OF MEMORY
                     (void)LOGERR(klogErr, rc, "KDataBufferResize failed");
                     break;
                 }
                 rc = MemBankRead(ctx->frags, fragment_it.value(), 0, fragBuf.base, sz, &rsize);
                 if (rc) {
+                    // FATAL ERROR, INTERNAL CONSISTENCY ERROR
                     (void)LOGERR(klogErr, rc, "KMemBankRead failed");
                     break;
                 }
@@ -3654,6 +3652,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                     metadata.get<u16_t>(metadata_t::e_platform).get(row_id) : ctx->m_read_groups[group_id]->m_platform;
                 rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id), platform_id);
                 if (rc) {
+                    // FATAL ERROR, VDB I/O ERROR
                     (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                     break;
                 }
@@ -3877,11 +3876,13 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     auto i_row = i + batch.offset;
                     if (batch.primaryId[i * 2] == 0 && batch.alignmentCount[i * 2] != 0) {
                         rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                        // WARNING
                         (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", batch.keys[i]));
                     }
                     bool is_unmated = batch.unmated[i];
                     if (!is_unmated && batch.primaryId[i * 2 + 1] == 0 && batch.alignmentCount[i * 2 + 1] != 0) {
                         rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                        // WARNING
                         (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", batch.keys[i]));
                     }
                     if (rc != 0 && logLevel == klogErr) {
@@ -3891,6 +3892,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     rc = SequenceUpdateAlignData(seq, i_row, is_unmated ? 1 : 2, &batch.primaryId[i * 2], &batch.alignmentCount[i * 2]);
                     if (rc) {
                         exit_on_error = true;
+                        // FATAL ERROR, VDB I/O ERROR
                         (void)LOGERR(klogErr, rc, "Failed updating Alignment data in sequence table");
                         break;
                     }
@@ -3909,6 +3911,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     for (row = 1; row <= ctx->spotId; ++row) {
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
+            // FATAL ERROR, VDB I/O ERROR
             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to get key for row $(row)", "row=%u", (unsigned)row));
             break;
         }
@@ -3918,6 +3921,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 //if (row != metadata->get<u64_t>(metadata_t::e_spotId).get_no_check(local_row_id)) {
                 //  auto spotId = metadata->get<u64_t>(metadata_t::e_spotId).get_no_check(local_row_id);
                 rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
+                // FATAL ERROR, INTERNAL CONSISTENCY ERROR
                 (void)PLOGMSG(klogErr, (klogErr, "Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)spotId, (unsigned)row, (unsigned)keyId));
                 break;
             }
@@ -3996,6 +4000,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
         auto spotId = ctx->m_spot_id_buffer[group_id].get(row_id);
         if (spotId == 0) {
             rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+            // FATAL ERROR, DATA ERROR, CAN BE FIXED WITH COMMAND LINE OPTIONS
             (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
             break;
         }

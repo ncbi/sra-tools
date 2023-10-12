@@ -72,6 +72,11 @@ public:
     const string& Defline() const { return mDefLineName;}
 
     /**
+     * @brief Return matcher's pattern
+    */
+    const string& GetPattern() const { return re.GetPattern();}
+
+    /**
      * @brief Fill CFastqRead with the data from matched defline
      *
      * @param read
@@ -85,9 +90,12 @@ public:
      */
     virtual uint8_t GetPlatform() const = 0;
 
+
 protected:
     string mDefLineName;             ///< Defline description
     CRegExprMatcher re;              ///< regexpr matcher
+    string m_tmp_spot;               ///< variable for spot name assembly 
+
 };
 
 class CDefLineMatcher_NoMatch : public CDefLineMatcher
@@ -130,7 +138,7 @@ public:
     CDefLineMatcherIlluminaNewDataGroup() :
         CDefLineMatcher(
             "illuminaNewDataGroup",
-            "^[@>+]([!-~]+?)(\\s+|[_|])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
+            R"(^[@>+]([!-~]+?)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {
     }
 
@@ -149,6 +157,13 @@ public:
 private:
 };
 
+static inline
+void s_add_sep(string& s, re2::StringPiece& sep)
+{
+    if (!sep.empty())
+        s.append(1, (sep[0] == '-') ? ':' : sep[0]);
+}
+
 class CDefLineMatcherIlluminaNewBase : public CDefLineMatcher
 /// Base class for IlluminaNew matchers
 {
@@ -165,19 +180,19 @@ public:
 
     virtual void GetMatch(CFastqRead& read) override
     {
-        string spot;
+        m_tmp_spot.clear();
         if (!re.GetMatch()[0].empty()) {
-            re.GetMatch()[0].CopyToString(&spot);
-            spot.append(1, (re.GetMatch()[1][0] == '_') ? ':' : re.GetMatch()[1][0]);
+            re.GetMatch()[0].CopyToString(&m_tmp_spot);
+            s_add_sep(m_tmp_spot, re.GetMatch()[1]);
         }
-        re.GetMatch()[2].AppendToString(&spot); //lane
-        spot.append(1, (re.GetMatch()[3][0] == '_') ? ':' : re.GetMatch()[3][0]);
-        re.GetMatch()[4].AppendToString(&spot); //tile
-        spot.append(1, (re.GetMatch()[5][0] == '_') ? ':' : re.GetMatch()[5][0]);
-        re.GetMatch()[6].AppendToString(&spot); //x
-        spot.append(1, (re.GetMatch()[7][0] == '_') ? ':' : re.GetMatch()[7][0]);
-        re.GetMatch()[8].AppendToString(&spot); //y
-        read.SetSpot(spot);
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //lane
+        s_add_sep(m_tmp_spot, re.GetMatch()[3]);
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); //tile
+        s_add_sep(m_tmp_spot, re.GetMatch()[5]);
+        re.GetMatch()[6].AppendToString(&m_tmp_spot); //x
+        s_add_sep(m_tmp_spot, re.GetMatch()[7]);
+        re.GetMatch()[8].AppendToString(&m_tmp_spot); //y
+        read.MoveSpot(move(m_tmp_spot));
 
         read.SetReadNum(re.GetMatch()[10]);
 
@@ -190,6 +205,199 @@ private:
 };
 
 
+static 
+bool s_is_number(const string_view& s)
+{
+    return !s.empty() && find_if(s.begin(), s.end(), [](unsigned char c) { return !isdigit(c); }) == s.end();
+}
+
+
+class CDefLineMatcherIlluminaOldBase : public CDefLineMatcher
+/// Base class for IlluminaNew matchers
+{
+    CRegExprMatcher sub_re1;              ///< additional regex to support numDiscards matching 
+    CRegExprMatcher sub_re2;              ///< additional regex to support numDiscards matching
+    CRegExprMatcher sub_re3;              ///< additional regex to support numDiscards matching
+    CRegExprMatcher illuminaOldSuffix2;   ///< additional regex for suffix matching 
+    CRegExprMatcher illuminaOldSuffix;    ///< additional regex for suffix matching
+
+public:
+    CDefLineMatcherIlluminaOldBase(
+        const string& displayName,
+        const string& pattern): CDefLineMatcher(displayName, pattern),
+        sub_re1(R"(([!-~]*?)(:)(\d+)$)"),
+        sub_re2(R"(([!-~]*?)(:)(\d+)(:)(\d+)(\s+|$))"),
+        sub_re3(R"((\d+)(:)(\d+)(\s+|$))"),
+        illuminaOldSuffix2(R"((-?\d+\.\d+|-?\d+)([^\d\s.][!-~]+))"),
+        illuminaOldSuffix(R"((/[12345])([^\d\s][!-~]+))")
+    {
+        
+    }
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_ILLUMINA;
+    };
+
+    //prefix, sep1, lane, sep2, tile, sep3, x, sep4, y, spotGroup, readNum, endSep
+    //0       1     2     3     4     5     6  7     8  9          10       11 
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        re2::StringPiece prefix{re.GetMatch()[0]};
+        auto& lane = re.GetMatch()[2];
+        auto& tile = re.GetMatch()[4];
+        auto& x = re.GetMatch()[6];
+        auto& y = re.GetMatch()[8];
+
+        auto& readNum = re.GetMatch()[10];
+
+        m_tmp_suffix.set(nullptr, 0);
+        if (illuminaOldSuffix2.Matches(y)) {
+            y = illuminaOldSuffix2.GetMatch()[0];
+            auto& suffix = illuminaOldSuffix2.GetMatch()[1];
+            if (suffix.size() >= 3) {
+                if (suffix.starts_with("/1") || suffix.starts_with("/2"))
+                    suffix.remove_prefix(2);
+                m_tmp_suffix = suffix;                    
+            }         
+        } else if (!readNum.empty() && illuminaOldSuffix.Matches(readNum)) {
+            readNum = illuminaOldSuffix.GetMatch()[0];    
+            if (illuminaOldSuffix.GetMatch()[1].size() >= 3) 
+                m_tmp_suffix = illuminaOldSuffix.GetMatch()[1];
+        }
+
+        if (!m_tmp_suffix.empty())
+            read.SetSuffix(m_tmp_suffix);
+
+        int numDiscards = 0;
+        if (!prefix.empty()) {
+            numDiscards = countExtraNumbersInIllumina(prefix, re.GetMatch()[7], x, y);
+            if (numDiscards == 2 && x.find('.') != re2::StringPiece::npos) {
+                string new_suffix;
+                re.GetMatch()[5].AppendToString(&new_suffix); // sep3
+                x.AppendToString(&new_suffix); //x 
+                re.GetMatch()[7].AppendToString(&new_suffix); // sep4
+                y.AppendToString(&new_suffix); //y
+                new_suffix.append(read.Suffix());
+                read.SetSuffix(new_suffix);
+            } else if (numDiscards == 1 && y.find('.') != re2::StringPiece::npos) {
+                string new_suffix;
+                re.GetMatch()[7].AppendToString(&new_suffix); // sep4
+                y.AppendToString(&new_suffix); //y
+                new_suffix.append(read.Suffix());
+                read.SetSuffix(new_suffix);
+            }
+        }
+
+        m_tmp_spot.clear();
+        if (numDiscards == 1) {
+            assert(!prefix.empty());
+            if (sub_re1.Matches(prefix)) {
+                sub_re1.GetMatch()[0].AppendToString(&m_tmp_spot);
+                sub_re1.GetMatch()[1].AppendToString(&m_tmp_spot);
+                sub_re1.GetMatch()[2].AppendToString(&m_tmp_spot);
+            } else {
+                prefix.AppendToString(&m_tmp_spot);
+            }
+            s_add_sep(m_tmp_spot, re.GetMatch()[1]);
+            lane.AppendToString(&m_tmp_spot);
+            s_add_sep(m_tmp_spot, re.GetMatch()[3]);
+            tile.AppendToString(&m_tmp_spot);
+            s_add_sep(m_tmp_spot, re.GetMatch()[5]);
+            x.AppendToString(&m_tmp_spot);
+
+        } else if (numDiscards == 2) {
+            assert(!prefix.empty());
+            if (sub_re2.Matches(prefix)) {
+                sub_re2.GetMatch()[0].AppendToString(&m_tmp_spot);
+                sub_re2.GetMatch()[1].AppendToString(&m_tmp_spot);
+                sub_re2.GetMatch()[2].AppendToString(&m_tmp_spot);
+                sub_re2.GetMatch()[3].AppendToString(&m_tmp_spot);
+                sub_re2.GetMatch()[4].AppendToString(&m_tmp_spot);
+            } else if (sub_re3.Matches(prefix)) {
+                sub_re3.GetMatch()[0].AppendToString(&m_tmp_spot);
+                sub_re3.GetMatch()[1].AppendToString(&m_tmp_spot);
+                sub_re3.GetMatch()[2].AppendToString(&m_tmp_spot);
+            } else {
+                assert(false);
+                throw fastq_error(101, "Unexpected IlluminaOld Defline");
+            }
+            s_add_sep(m_tmp_spot, re.GetMatch()[1]);
+            lane.AppendToString(&m_tmp_spot);
+            s_add_sep(m_tmp_spot, re.GetMatch()[3]);
+            tile.AppendToString(&m_tmp_spot);
+
+        } else {
+            if (!prefix.empty()) {
+                prefix.CopyToString(&m_tmp_spot);
+                s_add_sep(m_tmp_spot, re.GetMatch()[1]);
+            }
+            lane.AppendToString(&m_tmp_spot); //lane
+            s_add_sep(m_tmp_spot, re.GetMatch()[3]); // sep2
+            tile.AppendToString(&m_tmp_spot); //tile
+            s_add_sep(m_tmp_spot, re.GetMatch()[5]); // sep3
+            x.AppendToString(&m_tmp_spot); //x
+            s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
+            y.AppendToString(&m_tmp_spot); //y
+        }
+        read.MoveSpot(move(m_tmp_spot));
+
+        if (!readNum.empty()) { // readNum
+            readNum.remove_prefix(1);
+            read.SetReadNum(readNum);
+        }
+
+        if (!re.GetMatch()[9].empty()) {
+            re.GetMatch()[9].remove_prefix(1); // spotGroup
+            read.SetSpotGroup(re.GetMatch()[9]);
+        }
+
+    }
+
+    int countExtraNumbersInIllumina(re2::StringPiece& prefix, re2::StringPiece& sep_str, re2::StringPiece& x, re2::StringPiece& y)
+    {
+        if (sep_str.empty())
+            return 0;
+        const char sep = (sep_str[0] == '-') ? ':' : sep_str[0];
+        // Determine how many numbers at the end of prefix
+        // separated by sep 
+        sharq::split(prefix, m_tmp_strlist, sep);
+        int numCount = 0;
+
+        // Determine if prefix ends in one or two digits
+        // delineated with 'sep'
+        auto sz = m_tmp_strlist.size();
+        if (sz == 0)
+            return 0;
+
+        if (s_is_number(m_tmp_strlist[sz - 1]))
+            ++numCount;
+        if (sz > 1 && s_is_number(m_tmp_strlist[sz - 2]))
+            ++numCount;
+
+        // Determine how many numbers to discard (capping at 2 based on what we have seen in the data)
+        int discardCount = 0;
+        if (numCount) {
+            sharq::split(y, m_tmp_strlist, '.');
+            if (!m_tmp_strlist.empty() && atoi(m_tmp_strlist.front().data()) < 4) {
+                discardCount += 1;
+                if (numCount == 2) {
+                    sharq::split(x, m_tmp_strlist, '.');
+                    if (!m_tmp_strlist.empty() && atoi(m_tmp_strlist.front().data()) < 4) 
+                        discardCount += 1;
+                }
+            }
+        }
+        return discardCount;
+    }
+
+private:
+    vector<string_view> m_tmp_strlist;
+    re2::StringPiece m_tmp_suffix;
+
+};
+
+
 class CDefLineMatcherIlluminaNew : public CDefLineMatcherIlluminaNewBase
 /// illuminaNew matcher
 {
@@ -197,7 +405,7 @@ public:
     CDefLineMatcherIlluminaNew() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNew",
-            "^[@>+]([!-~]+?)([:_])(\\d+)([:_])(\\d+)([:_])(-?\\d+\\.?\\d*)([:_])(-?\\d+\\.\\d+|\\d+)(\\s+|[_|-])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
+            R"(^[@>+]([!-~]+?)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)(\s+|[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {}
 };
 
@@ -209,7 +417,7 @@ public:
     CDefLineMatcherIlluminaNewNoPrefix() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNewNoPrefix",
-            "^[@>+]([!-~]*?)(:?)(\\d+)([:_])(\\d+)([:_])(\\d+)([:_])(\\d+)(\\s+|_)([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
+            R"(^[@>+]([!-~]*?)(:?)(\d+)([:_])(\d+)([:_])(\d+)([:_])(\d+)(\s+|_)([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {}
 
 };
@@ -222,7 +430,7 @@ public:
     CDefLineMatcherIlluminaNewWithSuffix() :
         CDefLineMatcherIlluminaNewBase(
             "illuminaNewWithSuffix",
-            "^[@>+]([!-~]+)([:_])(\\d+)([:_])(\\d+)([:_])(-?\\d+\\.?\\d*)([:_])(-?\\d+\\.\\d+|\\d+)([!-~]+?\\s+|[!-~]+?[:_|-])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)"),
+            R"(^[@>+]([!-~]+)([:_])(\d+)([:_])(\d+)([:_])(-?\d+\.?\d*)([:_])(-?\d+\.\d+|\d+)([!-/:-~][!-~]*?\s+|[!-/:-~][!-~]*?[:_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))"),
         mSuffixPattern("(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)")
     {
     }
@@ -276,6 +484,66 @@ public:
     {}
 };
 
+class CDefLineMatcherIlluminaOldColon : public CDefLineMatcherIlluminaOldBase
+/// illuminaOldColon
+{
+public:
+    CDefLineMatcherIlluminaOldColon() :
+        CDefLineMatcherIlluminaOldBase(
+            "IlluminaOldColon",
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)([-:])(-?\d+\.\d+|-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+    {}
+
+};
+
+class CDefLineMatcherIlluminaOldUnderscore : public CDefLineMatcherIlluminaOldBase
+/// IlluminaOldUnderscore
+{
+public:
+    CDefLineMatcherIlluminaOldUnderscore() :
+        CDefLineMatcherIlluminaOldBase(
+            "IlluminaOldUnderscore",
+            R"(^[@>+]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+\.?\d*)(_)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+    {}
+
+};
+
+class CDefLineMatcherIlluminaOldNoPrefix : public CDefLineMatcherIlluminaOldBase
+/// IlluminaOldUnderscore
+{
+public:
+    CDefLineMatcherIlluminaOldNoPrefix() :
+        CDefLineMatcherIlluminaOldBase(
+            "IlluminaOldNoPrefix",
+            R"(^[@>+]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+    {}
+
+};
+
+
+class CDefLineMatcherIlluminaOldWithSuffix : public CDefLineMatcherIlluminaOldBase
+/// IlluminaOldUnderscore
+{
+public:
+    CDefLineMatcherIlluminaOldWithSuffix() :
+        CDefLineMatcherIlluminaOldBase(
+            "IlluminaOldWithSuffix",
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.\d+|-?\d+)(#[!-~]*?|)(/[12345][!-~]+)(\s+|$))")
+    {}
+};
+
+class CDefLineMatcherIlluminaOldWithSuffix2 : public CDefLineMatcherIlluminaOldBase
+/// IlluminaOldUnderscore
+{
+public:
+    CDefLineMatcherIlluminaOldWithSuffix2() :
+        CDefLineMatcherIlluminaOldBase(
+            "IlluminaOldWithSuffix2",
+            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)(:)(-?\d+\.?\d*[!-~]+?)(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+    {}
+
+};
+
 
 class CDefLineMatcherBgiOld : public CDefLineMatcher
 /// BgiOld matcher
@@ -284,7 +552,7 @@ public:
     CDefLineMatcherBgiOld() :
         CDefLineMatcher(
             "BgiOld",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))")
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -295,13 +563,13 @@ public:
     {
 
         // flowcell, lane, column, row, readNo, spotGroup, readNum, endSep
-        string spot;
-        re.GetMatch()[0].AppendToString(&spot); //flowcell
-        re.GetMatch()[1].AppendToString(&spot); //lane
-        re.GetMatch()[2].AppendToString(&spot); //column
-        re.GetMatch()[3].AppendToString(&spot); //row
-        re.GetMatch()[4].AppendToString(&spot); // readNo
-        read.SetSpot(spot);
+        m_tmp_spot.clear();
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //flowcell
+        re.GetMatch()[1].AppendToString(&m_tmp_spot); //lane
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //column
+        re.GetMatch()[3].AppendToString(&m_tmp_spot); //row
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); // readNo
+        read.MoveSpot(move(m_tmp_spot));
 
         if (!re.GetMatch()[6].empty() && re.GetMatch()[6].starts_with("/"))
             re.GetMatch()[6].remove_prefix(1);
@@ -321,7 +589,8 @@ public:
     CDefLineMatcherBgiNew() :
         CDefLineMatcher(
             "BgiNew",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d)(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+
     {}
 
     uint8_t GetPlatform() const override {
@@ -332,13 +601,13 @@ public:
     {
         //  0         1     2       3    4       5       6     7        8           9         10         11
         //  flowcell, lane, column, row, readNo, suffix, sep1, readNum, filterRead, reserved, spotGroup, endSep
-        string spot;
-        re.GetMatch()[0].AppendToString(&spot); //flowcell
-        re.GetMatch()[1].AppendToString(&spot); //lane
-        re.GetMatch()[2].AppendToString(&spot); //column
-        re.GetMatch()[3].AppendToString(&spot); //row
-        re.GetMatch()[4].AppendToString(&spot); // readNo
-        read.SetSpot(spot);
+        m_tmp_spot.clear();
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //flowcell
+        re.GetMatch()[1].AppendToString(&m_tmp_spot); //lane
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //column
+        re.GetMatch()[3].AppendToString(&m_tmp_spot); //row
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); // readNo
+        read.MoveSpot(move(m_tmp_spot));
 
         read.SetSuffix(re.GetMatch()[5]);
 
@@ -492,29 +761,29 @@ public:
         // 6 self.poreFile
         // 7 endSep
 
-        string spot;
+        m_tmp_spot.clear();
         if ( !re.GetMatch()[3].empty() )
         {   // self.name = poreStart + self.channel + poreMid + self.readNo + poreEnd
-            re.GetMatch()[0].AppendToString(&spot); //poreStart
-            re.GetMatch()[1].AppendToString(&spot); //channel
-            re.GetMatch()[2].AppendToString(&spot); //poreMid
-            re.GetMatch()[3].AppendToString(&spot); //readNo
-            re.GetMatch()[4].AppendToString(&spot); //poreEnd
+            re.GetMatch()[0].AppendToString(&m_tmp_spot); //poreStart
+            re.GetMatch()[1].AppendToString(&m_tmp_spot); //channel
+            re.GetMatch()[2].AppendToString(&m_tmp_spot); //poreMid
+            re.GetMatch()[3].AppendToString(&m_tmp_spot); //readNo
+            re.GetMatch()[4].AppendToString(&m_tmp_spot); //poreEnd
 
             read.SetNanoporeReadNo( re.GetMatch()[3] );
         }
         else
         {   // self.name = poreStart + self.channel + poreEnd
-            re.GetMatch()[0].AppendToString(&spot); //poreStart
-            re.GetMatch()[1].AppendToString(&spot); //channel
-            re.GetMatch()[4].AppendToString(&spot); //poreEnd
+            re.GetMatch()[0].AppendToString(&m_tmp_spot); //poreStart
+            re.GetMatch()[1].AppendToString(&m_tmp_spot); //channel
+            re.GetMatch()[4].AppendToString(&m_tmp_spot); //poreEnd
 
             if ( getPoreReadNo2.Matches(re.GetLastInput()) )
             {
                 read.SetNanoporeReadNo( getPoreReadNo2.GetMatch()[0] );
             }
         }
-        read.SetSpot(spot);
+        read.MoveSpot(move(m_tmp_spot));
 
         read.SetChannel( re.GetMatch()[1] );
 
@@ -698,5 +967,284 @@ public:
         PostProcess( read );
     }
 };
+
+// LS454
+class CDefLineMatcherLS454 : public CDefLineMatcher
+/// LS454 matcher
+{
+public:
+    CDefLineMatcherLS454() :
+        CDefLineMatcher(
+            "LS454",
+            R"(^[@>+]([!-~]+_|)([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})(/[12345])?(\s+|$))")
+    {
+    }
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_454;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // prefix, dateAndHash454, region454, xy454, readNum, endSep
+        // 0       1               2          3      4        5
+        m_tmp_spot.clear();
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //prefix
+        re.GetMatch()[1].AppendToString(&m_tmp_spot); //dateAndHash454
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //region454
+        re.GetMatch()[3].AppendToString(&m_tmp_spot); //xy454
+        read.MoveSpot(move(m_tmp_spot));
+        auto& readNo = re.GetMatch()[4];
+        if (!readNo.empty()) {
+            readNo.remove_prefix(1);
+            read.SetReadNum(readNo);
+        }
+    }
+};
+
+/*
+    self.ionTorrent = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([^#/\s]*)(#[!-~]*?|)(/[12345]|\\[12345]|[LR])?(\s+|$)")
+    self.ionTorrent2 = re.compile(r"[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+):?([!-~]*?)(\s+|$)")
+*/
+class CDefLineMatcherIonTorrent : public CDefLineMatcher
+/// ION_TORRENT
+{
+public:
+    CDefLineMatcherIonTorrent() :
+        CDefLineMatcher(
+            "IonTorrent",
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([^#/\s]*)(#[!-~]*?|)(/[12345]|\\[12345]|[LR])?(\s+|$))")
+    {
+    }
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_ION_TORRENT;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // runId, sep1, row, sep2, column, readNum, endSep
+        // runId, sep1, row, sep2, column, suffix, spotGroup, readNum, endSep
+        // 0      1     2    3     4       5       6          7        8 
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //runId
+        re.GetMatch()[1].AppendToString(&m_tmp_spot); //sep1
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //row
+        re.GetMatch()[3].AppendToString(&m_tmp_spot); //sep2
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
+        read.MoveSpot(move(m_tmp_spot));
+        auto& suffix = re.GetMatch()[5];
+
+        auto& spotGroup = re.GetMatch()[6];
+        if (!spotGroup.empty()) {
+            spotGroup.remove_prefix(1);
+            read.SetSpotGroup(spotGroup);            
+        }
+
+        auto& readNum = re.GetMatch()[7];
+        static const re2::StringPiece readNum1{"1"};
+        static const re2::StringPiece readNum2{"2"};
+
+        if (readNum.empty() && !suffix.empty() && (suffix[0] == 'L' || suffix[0] == 'R')) {
+            assert(suffix.size() == 1 && (suffix[0] == 'L' || suffix[0] == 'R'));
+            read.SetReadNum( suffix == "L" ? readNum1 : readNum2 );
+        } else {
+            read.SetSuffix(suffix);
+            if (readNum.starts_with("/") || readNum.starts_with("\\")) 
+                readNum.remove_prefix(1);
+            else if (readNum == "L")
+                readNum = "1";
+            else if (readNum == "R")
+                readNum = "2";
+            read.SetReadNum(readNum);
+        }
+    }
+};
+
+
+class CDefLineMatcherIonTorrent2 : public CDefLineMatcher
+/// ION_TORRENT
+{
+public:
+    CDefLineMatcherIonTorrent2() :
+        CDefLineMatcher(
+            "IonTorrent2",
+            R"(^[@>+]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})([!-~]*)(\s+|[_|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
+    {
+    }
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_ION_TORRENT;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+
+        // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, spotGroup, endSep
+        // 0      1     2    3     4       5       6     7         8          9         10         11
+        
+
+
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //runId
+        re.GetMatch()[1].AppendToString(&m_tmp_spot); //sep1
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //row
+        re.GetMatch()[3].AppendToString(&m_tmp_spot); //sep2
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
+        read.MoveSpot(move(m_tmp_spot));
+
+        read.SetSuffix(re.GetMatch()[5]);
+
+        read.SetReadNum(re.GetMatch()[7]);
+
+        read.SetReadFilter(re.GetMatch()[8] == "Y" ? 1 : 0);
+
+        read.SetSpotGroup(re.GetMatch()[10]);
+    }
+};
+
+
+class CDefLineMatcherPacBio : public CDefLineMatcher
+/// PacBio
+{
+public:
+    CDefLineMatcherPacBio() :
+        CDefLineMatcher(
+            "PacBio",
+            R"(^[@>+](m\d{5,6}_\d{6}_[!-~]+?_c\d{33}_s\d+_[pX]\d/\d+/?\d*_?\d*|m\d{6}_\d{6}_[!-~]+?_c\d{33}_s\d+_[pX]\d[|/]\d+[|/]ccs[!-~]*?)(\s+|$))")
+    {
+    }
+    CDefLineMatcherPacBio(const string& defLineName, const string& pattern) :
+        CDefLineMatcher(defLineName, pattern)
+    {
+    }
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_PACBIO_SMRT;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // Name
+        // 0   
+
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
+        read.MoveSpot(move(m_tmp_spot));
+    }
+};
+
+class CDefLineMatcherPacBio2 : public CDefLineMatcherPacBio
+/// PacBio2
+{
+public:
+    CDefLineMatcherPacBio2() :
+        CDefLineMatcherPacBio(
+            "PacBio2",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
+
+class CDefLineMatcherPacBio3 : public CDefLineMatcherPacBio
+/// PacBio3
+{
+public:
+    CDefLineMatcherPacBio3() :
+        CDefLineMatcherPacBio(
+            "PacBio3",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/ccs[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
+class CDefLineMatcherPacBio4 : public CDefLineMatcherPacBio
+/// PacBio4
+{
+public:
+    CDefLineMatcherPacBio4() :
+        CDefLineMatcherPacBio(
+            "PacBio4",
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/\d+_\d+[!-~]*?)(\s+|$))")
+    {
+    }
+};
+
+
+//self.illuminaOldBcRnOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+?)(/[12345]|\\[12345])(\s+|$)")
+
+class CDefLineIlluminaOldBcRn : public CDefLineMatcher
+/// IlluminaOld BarCode and ReadNum only 
+{
+public:
+    CDefLineIlluminaOldBcRn() :
+        CDefLineMatcher(
+            "illuminaOldBcRnOnly",
+            R"(^[@>+]([!-~]+?)(#[!-~]+?)(/[1234]|\\[1234])(\s+|$))")
+    {
+    }
+    CDefLineIlluminaOldBcRn(const string& defLineName, const string& pattern) :
+        CDefLineMatcher(defLineName, pattern)
+    {
+    }
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_UNDEFINED;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // Name SpotGroup ReadNum endSep
+        // 0    1         2       3
+
+        m_tmp_spot.clear();
+
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
+        read.MoveSpot(move(m_tmp_spot));
+
+        auto& spot_group = re.GetMatch()[1];
+        if (spot_group.starts_with("#")) {
+            spot_group.remove_prefix(1);
+            read.SetSpotGroup(spot_group);
+            auto& read_num = re.GetMatch()[2];
+            auto sz = read_num.size();
+            if ((sz > 0 && read_num[0] == '/') || (sz > 1 && read_num[0] == '\\')) {
+                read_num.remove_prefix(1);
+                read.SetReadNum(read_num);
+            }
+        } else {
+            spot_group.remove_prefix(1);
+            read.SetReadNum(spot_group);
+        }
+    }
+};
+
+//self.illuminaOldBcOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+)(\s+|$)(.?)")
+class CDefLineIlluminaOldBcOnly : public CDefLineIlluminaOldBcRn
+/// IlluminaOld BarCode only 
+{
+public:
+    CDefLineIlluminaOldBcOnly() :
+        CDefLineIlluminaOldBcRn(
+            "illuminaOldBcOnly",
+            R"(^[@>+]([!-~]+?)(#[!-~]+)(\s+|$)(.?))")
+    {
+    }
+};
+
+//self.illuminaOldRnOnly = re.compile(r"^[@>+]([!-~]+?)(/[12345]|\\[12345])(\s+|$)(.?)")
+class CDefLineIlluminaOldRnOnly : public CDefLineIlluminaOldBcRn
+/// IlluminaOld ReadNum only 
+{
+public:
+    CDefLineIlluminaOldRnOnly() :
+        CDefLineIlluminaOldBcRn(
+            "illuminaOldRnOnly",
+            R"(^[@>+]([!-~]+?)(/[1234]|\\[1234])(\s+|$)(.?))")
+    {
+    }
+};
+
 
 #endif

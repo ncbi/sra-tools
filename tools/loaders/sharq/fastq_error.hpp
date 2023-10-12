@@ -44,6 +44,7 @@ SHARQ_ERR_CODES = {
     {70  ,{ "Input files have deflines from different platforms", "Input files have deflines from different platforms."}},
     {80  ,{ "10x input files are mixed with different types.", "10x input files are mixed with different types (check file names)."}},
     {100 ,{ "Defline '{}' not recognized", "SharQ failed to parse defline."}},
+    {101 ,{ "Illumina defline '{}' is not recognized", "SharQ failed to parse defline."}},
     {110 ,{ "Read {}: no sequence data", "FastQ read has no sequence data."}},
     {111 ,{ "Read {}: no quality scores", "FastQ read has no quality scores."}},
     {120 ,{ "Read {}: unexpected quality score value '{}'", "Quality score is out of expected range."}},
@@ -53,9 +54,12 @@ SHARQ_ERR_CODES = {
     {160 ,{ "Read {}: invalid sequence characters", "Sequence contains non-alphabetical character."}},
     {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
-    {190 ,{ "Usupported interleaved file with orphans", "Usupported interleaved file with orphans."}},
-    {200 ,{ "Invaid quality encoding", "Failure to calculate quality score encoding."}},
-    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}}
+    {190 ,{ "Unsupported interleaved file with orphans", "Unsupported interleaved file with orphans."}},
+    {200 ,{ "Invalid quality encoding", "Failure to calculate quality score encoding."}},
+    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
+    {220 ,{ "Invalid experiment file", "Invalid experiment file."}},
+    {230 ,{ "Internal QC failure", "Internal QC failure."}},
+    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}}
 
 };
 

@@ -34,24 +34,31 @@
 
 // all options
 #define OPTION_MODE         "mode"
+#define OPTION_FORMAT       "format"
 #define OPTION_THREADS      "threads"
 #define OPTION_SHOW_OPT     "show-opts"
+#define OPTION_SHOW_REP     "show-report"
 
 // all aliases of the options ( aka short options )
 #define ALIAS_MODE          "m"
+#define ALIAS_FORMAT        "f"
 #define ALIAS_THREADS       "e"
 
 // all usage help texts for the options
 static const char * mode_usage[]    = { "modes are: ...", nullptr };
+static const char * format_usage[]  = { "formats are: fastq|fasta", nullptr };
 static const char * threads_usage[] = { "number of threads", nullptr };
 static const char * show_opts_usage[] = { "show commandline args", nullptr };
+static const char * show_rep_usage[]  = { "show inspector report", nullptr };
 
 // the array of options, to be given to the args-module in kapp
 OptDef ConverterOptions[] =
 {
     { OPTION_MODE,          ALIAS_MODE,         nullptr, mode_usage,        1, true,    false },
+    { OPTION_FORMAT,        ALIAS_FORMAT,       nullptr, format_usage,      1, true,    false },
     { OPTION_THREADS,       ALIAS_THREADS,      nullptr, threads_usage,     1, true,    false },
-    { OPTION_SHOW_OPT,      nullptr,            nullptr, show_opts_usage,   1, false,   false },    
+    { OPTION_SHOW_OPT,      nullptr,            nullptr, show_opts_usage,   1, false,   false },
+    { OPTION_SHOW_REP,      nullptr,            nullptr, show_rep_usage,    1, false,   false },
 };
 
 static rc_t make_args( Args ** args, int argc, char *argv [] ){
@@ -115,8 +122,8 @@ static bool read_bool( Args * args, const char * option, rc_t * rc_out ) {
     return res;
 }
 
-std::unique_ptr< Options > read_options( int argc, char *argv [], rc_t * rc_out ) {
-    auto res = std::unique_ptr< Options >( new Options );
+OptionsPtr read_options( int argc, char *argv [], rc_t * rc_out ) {
+    auto res = OptionsPtr( new Options );
     Args * args;
     rc_t rc = make_args( &args, argc, argv );
     if ( 0 == rc ) {
@@ -137,17 +144,27 @@ std::unique_ptr< Options > read_options( int argc, char *argv [], rc_t * rc_out 
             }
         }
         if ( 0 == rc ) {
-            res -> threads = read_u32( args, OPTION_THREADS, &rc, 6 );
+            auto s = read_string( args, OPTION_MODE, &rc, "" );
+            if ( 0 == rc && !s.empty() ) {
+                res -> split_mode = Options::String2SplitMode( s );
+            }
         }
         if ( 0 == rc ) {
-            auto mode = read_string( args, OPTION_MODE, &rc, "split3" );
-            if ( 0 == rc && !mode.empty() ) {
-                res -> split_mode = Options::String2SplitMode( mode );
+            auto s = read_string( args, OPTION_FORMAT, &rc, "" );
+            if ( 0 == rc && !s.empty() ) {
+                res -> format = Options::String2Format( s );
             }
+        }
+        if ( 0 == rc ) {
+            res -> threads = read_u32( args, OPTION_THREADS, &rc, 6 );
         }
         if ( 0 == rc ) {
             res -> show_opts = read_bool( args, OPTION_SHOW_OPT, &rc );
         }
+        if ( 0 == rc ) {
+            res -> show_report = read_bool( args, OPTION_SHOW_REP, &rc );
+        }
+        
         DESTRUCT( Args, args );            
     }
     *rc_out = rc;
@@ -165,6 +182,7 @@ void option_lines( void ) {
     }
     HelpOptionsStandard ();
 }
+
 /* ---------------------------------------------------------------------------------------- */
 
 // mandatory by kapp/main.h

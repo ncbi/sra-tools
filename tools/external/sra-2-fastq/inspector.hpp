@@ -24,11 +24,7 @@
  *
  */
 
-#pragma once
-
-#include <kapp/args.h>
-#include <klib/rc.h>
-
 #include "options.hpp"
+#include "report.hpp"
 
-OptionsPtr read_options( int argc, char *argv [], rc_t * rc );
+ReportPtr create_report( OptionsPtr options, rc_t * rc );

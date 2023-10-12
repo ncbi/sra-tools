@@ -25,6 +25,7 @@
 set( TOOLS_SRC
 	sra-2-fastq.cpp
     option_reader.cpp
+    inspector.cpp
 )
 
 GenerateExecutableWithDefs( sra-2-fastq "${TOOLS_SRC}" "__mod__=\"tools/sra-2-fastq\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

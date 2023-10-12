@@ -29,30 +29,37 @@
 #include <klib/out.h>
 
 #include <string>
+#include <memory>
 
 #include "helper.hpp"
 
 enum SplitMode { split3, split_spot, split_file, concat, unknown_split_mode };
+enum Format { fastq, fasta, unknown_format };
 
 struct Options {
 
     std::string accession;
     uint32_t threads;
     SplitMode split_mode;
+    Format format;
     bool show_opts;
         
     Options() {
         accession = "";
         threads = 6;
         split_mode = split3;
+        format = fastq;
         show_opts = false;
+        show_report = false;
     }
     
     rc_t print( void ) const {
         rc_t rc = KOutMsg( "Options:\n" );
-        if ( 0 == rc ) { rc = KOutMsg( "acc:\t%s\n", accession.c_str() ); }
-        if ( 0 == rc ) { rc = KOutMsg( "split-mode:\t%s\n", Options::SplitMode2String( split_mode ).c_str() ); }
-        if ( 0 == rc ) { rc = KOutMsg( "threads:\t%u\n", threads ); }
+        if ( 0 == rc ) { rc = KOutMsg( "acc         : %s\n", accession.c_str() ); }
+        if ( 0 == rc ) { rc = KOutMsg( "split-mode  : %s\n", Options::SplitMode2String( split_mode ).c_str() ); }
+        if ( 0 == rc ) { rc = KOutMsg( "format      : %s\n", Options::Format2String( format ).c_str() ); }        
+        if ( 0 == rc ) { rc = KOutMsg( "threads     : %u\n", threads ); }
+        if ( 0 == rc ) { rc = KOutMsg( "show report : %s\n", show_report ? "yes" : "no" ); }
         return rc;
     }
     
@@ -80,6 +87,26 @@ struct Options {
             return unknown_split_mode;
         }
     }
-   
+
+    static std::string Format2String( Format format ) {
+        switch( format ) {
+            case fastq : return ENUM_TO_STR( fastq ); break;
+            case fasta : return ENUM_TO_STR( fasta ); break;
+            case unknown_format : return ENUM_TO_STR( unknown_format ); break;
+        }
+        return ENUM_TO_STR( unknown_format );
+    }
+    
+    static Format String2Format( const std::string& format ) {
+        if ( 0 == format.compare( ENUM_TO_STR( fastq ) ) ) {
+            return fastq;
+        } else if ( 0 == format.compare( ENUM_TO_STR( fasta ) ) ) {
+            return fasta;
+        } else {
+            return unknown_format;
+        }
+    }
+    
 };
 
+typedef std::shared_ptr< Options > OptionsPtr;

@@ -24,11 +24,12 @@
  *
  */
 
-#pragma once
+#include <klib/log.h>
 
-#include <kapp/args.h>
-#include <klib/rc.h>
+#include "inspector.hpp"
 
-#include "options.hpp"
-
-OptionsPtr read_options( int argc, char *argv [], rc_t * rc );
+ReportPtr create_report( OptionsPtr options, rc_t * rc ) {
+    auto res = ReportPtr ( new Report );
+    
+    return res;
+}

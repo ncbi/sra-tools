@@ -27,28 +27,32 @@
 #include <kapp/main.h>
 
 #include "option_reader.hpp"
+#include "inspector.hpp"
 
 // mandatory by kapp/main.h
 rc_t CC KMain ( int argc, char *argv [] ) {
     rc_t rc;
     // gather commandline-options
-    auto options = read_options( argc, argv, &rc );
-    if ( 0 == rc )  {
-        if ( options -> show_opts ) {
-            rc = options -> print();
+    auto options = read_options( argc, argv, &rc ); // option_reader.cpp
+    if ( 0 == rc && options -> show_opts )  {
+        rc = options -> print();
+    }
+
+    // run the inspector to create a report ( on the accession )
+    if ( 0 == rc ) {
+        auto report = create_report( options, &rc ); // inspector.cpp
+        if ( 0 == rc && options -> show_report ) {
+            rc = report -> print();
+        }
+        // run factory to create create converter
+        if ( 0 == rc ) {
+            
+        }
+        // execute the converter
+        if ( 0 == rc ) {
+            
         }
     }
-    // run the inspector to create inspection-data
-    if ( 0 == rc ) {
-        
-    }
-    // run factory to create create converter
-    if ( 0 == rc ) {
-        
-    }
-    // execute the converter
-    if ( 0 == rc ) {
-        
-    }
+
     return rc;
 }

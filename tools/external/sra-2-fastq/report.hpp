@@ -26,9 +26,42 @@
 
 #pragma once
 
-#include <kapp/args.h>
-#include <klib/rc.h>
+#include <klib/out.h>
+#include <string>
+#include <memory>
+#include "helper.hpp"
 
-#include "options.hpp"
+enum Layout { cSRA, table, unknown_layout };
 
-OptionsPtr read_options( int argc, char *argv [], rc_t * rc );
+struct Report {
+    Layout layout;
+    uint64_t seq_rows;
+    uint64_t file_size;
+    // etc.
+
+    Report() {
+        layout = unknown_layout;
+        seq_rows = 0;
+        file_size = 0;
+    }
+    
+    rc_t print( void ) const {
+        rc_t rc = KOutMsg( "Report:\n" );
+        if ( 0 == rc ) { rc = KOutMsg( "layout:\t%s\n", Report::Layout2String( layout ).c_str() ); }
+        if ( 0 == rc ) { rc = KOutMsg( "SEQ-rows:\t%u\n", seq_rows ); }
+        if ( 0 == rc ) { rc = KOutMsg( "size:\t%u\n", file_size ); }
+        return rc;
+    }
+
+    static std::string Layout2String( Layout layout ) {
+        switch( layout ) {
+            case cSRA     : return ENUM_TO_STR( cSRA ); break;
+            case table    : return ENUM_TO_STR( table ); break;
+            case unknown_layout : return ENUM_TO_STR( unknown_layout ); break;
+        }
+        return ENUM_TO_STR( unknown_layout );
+    }
+    
+};
+
+typedef std::shared_ptr< Report > ReportPtr;

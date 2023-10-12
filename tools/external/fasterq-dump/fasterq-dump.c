@@ -340,6 +340,8 @@ rc_t CC Usage ( const Args * args ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
+#define MIN_ROWCOUNT 10000
+
 static const char * dflt_requested_seq_tabl_name = "SEQUENCE";
 
 #define DFLT_CUR_CACHE ( 5 * 1024 * 1024 )
@@ -874,6 +876,19 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     tool_ctx . insp_output . seq . tbl_name = dflt_requested_seq_tabl_name;
                 }
 
+                /* if a cSRA has a small number of alignments : */
+                if ( acc_csra == tool_ctx . insp_output . acc_type &&
+                     tool_ctx . insp_output . align . row_count < MIN_ROWCOUNT ) {
+                        /* treat it as SRA-db with only unaligned data ( let the schema-funcions do the join ) */
+                        tool_ctx . insp_output . acc_type = acc_sra_db;
+                }
+                
+                /* if an accession ( of any type ) has a small number of spots : */
+                if ( tool_ctx . insp_output . seq . row_count < MIN_ROWCOUNT ) {
+                    /* use only 1 thread */
+                    tool_ctx . num_threads = 1;
+                }
+                
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */

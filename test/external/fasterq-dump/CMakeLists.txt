@@ -66,6 +66,11 @@ ToolsRequired(fasterq-dump)
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-tsan PROPERTIES WILL_FAIL TRUE)
     endif()
 
+    add_test( NAME Test_Tiny_cSRA
+        COMMAND
+            bash tiny_csra.sh ${DIRTOTEST}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 else()
 #TODO: make run on Windows
 endif()

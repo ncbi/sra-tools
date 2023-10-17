@@ -14,14 +14,16 @@
 #include <spdlog/fmt/fmt.h>
 #include <bm/bm64.h>
 #include <bm/bmsparsevec_compr.h>
+#include <bm/bmconst.h>
 #include "taskflow/taskflow.hpp"
 #include "taskflow/algorithm/sort.hpp"
+#include "taskflow/algorithm/for_each.hpp"
 
 
 using namespace std;
 
 static constexpr int MAX_ROW_TO_CLEAR = 5000000;
-static constexpr int MAX_ROWS_TO_OPTIMIZE = 1000000; 
+static constexpr int MAX_ROWS_TO_OPTIMIZE = 10000000; 
 
 static_assert(bm::id_max == bm::id_max48, "BitMagic should be compiled in 64-bit mode");
 
@@ -35,6 +37,7 @@ typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
 
 
 BM_DECLARE_TEMP_BLOCK(TB1) // BitMagic Temporary block
+
 inline unsigned DNA2int(char DNA_bp)
 {
     switch (DNA_bp)
@@ -116,7 +119,6 @@ static thread_local vector<uint8_t> tmp_qual_scores;
 static thread_local vector<svector_int::value_type> tmp_qual_buffer;
 static thread_local fastq_read tmp_read;
 
-
 // --------------------------------------------------------------------------
 // spot_assembly_t - class to assemble reads into spots
 
@@ -129,10 +131,11 @@ struct spot_assembly_t {
 
     // assign spot_ids for collected read_names
     // after this function, m_read_index will have spot_id assigned for consecutive reads from the input
-    void assign_spot_id(str_sv_type& read_names);
+    template<typename T>
+    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index);
 
-    // finalizes spot data
-    void finalize_spot_data(size_t spot_id, vector<uint32_t>& sort_vector);
+    template<typename T>
+    void x_assign_spot_id(tf::Executor& executor, str_sv_type& read_names, vector<T>& sort_index, vector<T>& read_index);
 
     // optimize/compress cold storage data
     void optimize();
@@ -160,9 +163,6 @@ struct spot_assembly_t {
     // multi-threaded version of clear_spot
     template<bool is_nanopore>
     void clear_spot_mt(size_t row_id);
-    
-    vector<uint32_t> m_read_index; ///< spot id for each read
-    
     bvector_type m_last_index;     ///< bitvector of num_reads size, 1 if read is last in the spot
 
     bvector_type m_rows_to_clear;  ///< bitvector, 1 if row should be cleared
@@ -171,7 +171,7 @@ struct spot_assembly_t {
     atomic<int> m_num_rows_to_optimize = 0; ///< number of rows to optimize, once it reaches MAX_ROWS_TO_OPTIMIZE, optimization is performed
 
     size_t m_total_spots = 0; ///< total number of spots
-    map<int, size_t> m_reads_counts; ///< number of reads in each spot
+    map<uint32_t, size_t> m_reads_counts; ///< number of reads in each spot
 
     mutex m_mutex; ///< lock for access hot and cold storage 
 
@@ -191,12 +191,11 @@ struct spot_assembly_t {
     vector<size_t> m_qual_offset;        ///< last quality offset per read
 
     size_t m_hot_reads_threshold = 10000000;  ///< threshold for hot reads, if read is far from the last read in the spot, it is saved in cold storage
+
 };
 
 void spot_assembly_t::init(size_t num_rows) 
 {
-
-    m_read_index.resize(num_rows);
 
     m_last_index = bvector_type();
     m_last_index.init();
@@ -221,59 +220,279 @@ void spot_assembly_t::init(size_t num_rows)
     m_total_spots = 0;
 } 
 
-
-void spot_assembly_t::assign_spot_id(str_sv_type& read_names) 
+static bool file_exists(const string& name) 
 {
-    size_t num_rows = read_names.size();
-    spdlog::stopwatch sw;
-    // build and sort the index by read names
-    vector<uint32_t> sort_index(num_rows);
-    iota(sort_index.begin(), sort_index.end(), 0);
-    tf::Executor executor(min<int>(24, std::thread::hardware_concurrency())); // TODO set max number of threads baased on the number of rows
-    tf::Taskflow taskflow;
-    taskflow.sort(sort_index.begin(), sort_index.end(), [&](uint32_t  l, uint32_t  r) {
-        static thread_local string last_right_str;
-        static thread_local uint32_t last_right = -1;
+    struct stat stat_buffer;   
+    return stat(name.c_str(), &stat_buffer) == 0; 
+}
 
-        if (last_right != r) {
-            last_right = r; 
-            read_names.get(last_right, last_right_str);
+struct assign_spot_page_t 
+{
+    size_t page_start;
+    bvector_type last_index;
+    bvector_type hot_spot_index;
+    map<uint32_t, size_t> reads_counts;
+    size_t total_spots = 0;
+};
+
+
+template<typename T>
+void spot_assembly_t::x_assign_spot_id(tf::Executor& executor, str_sv_type& read_names, vector<T>& sort_index, vector<T>& read_index)
+{
+
+    size_t num_rows = read_names.size();
+    size_t num_workers = executor.num_workers();
+    if (num_workers == 0) num_workers = 1;
+    size_t page_size = num_rows/num_workers + 1;
+    if (page_size < 1000) {
+        page_size = num_rows;
+        num_workers = 1;
+    }
+    vector<assign_spot_page_t> pages;
+    pages.resize(num_workers);
+    for (size_t i = 0; i < num_workers; ++i) {
+        pages[i].page_start = i * page_size;
+        pages[i].last_index.init();
+        pages[i].hot_spot_index.init();
+    }   
+    assert(pages.back().page_start + page_size >= num_rows);
+    atomic<size_t> spot_id{1};
+    tf::Taskflow taskflow;
+    taskflow.for_each(pages.begin(), pages.end(), [&](assign_spot_page_t& page) { 
+        if (page.page_start >= num_rows)
+            return;
+        //moodycamel::ProducerToken token(*save_spot_queue->queue);
+        size_t end = min(page.page_start + page_size, num_rows);
+        size_t curr_spot_id = 0;
+        string spot_name;
+        vector<uint64_t> sort_vector;
+        size_t start = page.page_start;
+        size_t rows_skipped = 0, rows_borrowed = 0;
+
+        if (start == 0) {
+            curr_spot_id = 1;
+            size_t row = sort_index[0];
+            read_index[row] = curr_spot_id;
+            read_names.get(row, spot_name);
+            sort_vector.push_back(row);
+        } else {
+            size_t row = sort_index[start];
+            read_names.get(row, spot_name);
+            size_t prev_row = sort_index[start - 1];
+            // skip rows that belong to the last spot of the prevoius page
+            while (read_names.compare_remap(prev_row, spot_name.c_str()) == 0)  {
+                ++start;
+                if (start == num_rows)
+                    return;
+                ++rows_skipped;
+                row = sort_index[start];
+                read_names.get(row, spot_name);
+            }
+            curr_spot_id = ++spot_id;
+            read_index[row] = curr_spot_id;
+            sort_vector.push_back(row);
         }
-        return read_names.compare_remap(l, last_right_str.c_str()) < 0;
+        ++start;
+        for (; start < end; ++start) {
+            size_t row = sort_index[start];
+            if (read_names.compare_remap(row, spot_name.c_str()) == 0)  {
+                read_index[row] = curr_spot_id;
+                sort_vector.push_back(row);
+            } else {
+                sort(sort_vector.begin(), sort_vector.end()); 
+                page.last_index.set_bit_no_check(sort_vector.back());
+                if (sort_vector.back() - sort_vector.front() < m_hot_reads_threshold)
+                    page.hot_spot_index.set_bit_no_check(curr_spot_id);
+                ++page.total_spots;    
+                ++page.reads_counts[sort_vector.size()];
+                curr_spot_id = ++spot_id;
+                read_index[row] = curr_spot_id;
+                sort_vector.clear();
+                sort_vector.push_back(row);
+                read_names.get(row, spot_name);
+            }
+        }
+        if (!sort_vector.empty()) {
+            assert(spot_name.empty() == false);
+            // pick up all the rows that belong to the last spot
+            while (start < num_rows) {
+                size_t row = sort_index[start];
+                if (read_names.compare_remap(row, spot_name.c_str()) != 0) 
+                    break; 
+                read_index[row] = curr_spot_id;
+                sort_vector.push_back(row);
+                ++start;
+                ++rows_borrowed;
+            }
+            sort(sort_vector.begin(), sort_vector.end()); 
+            page.last_index.set_bit_no_check(sort_vector.back());
+            if (sort_vector.back() - sort_vector.front() < m_hot_reads_threshold)
+                page.hot_spot_index.set_bit_no_check(curr_spot_id);
+            ++page.total_spots;    
+            ++page.reads_counts[sort_vector.size()];
+        }
+        if (page.total_spots > 0) {
+            bvector_type::statistics st1, st2;
+            BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block        
+            page.last_index.optimize(TB, bm::bvector<>::opt_compress, &st1);
+            page.hot_spot_index.optimize(TB, bm::bvector<>::opt_compress, &st2);
+            spdlog::stopwatch sw;
+            {
+                lock_guard<mutex> lock(m_mutex);
+                m_last_index.merge(page.last_index);
+                m_hot_spot_ids.merge(page.hot_spot_index);
+                m_total_spots += page.total_spots;
+                for (auto& p : page.reads_counts) {
+                    m_reads_counts[p.first] += p.second;
+                }   
+            }
+            page.last_index.clear(true);
+            page.hot_spot_index.clear(true);
+            page.reads_counts.clear();
+            //spdlog::info("page {:L} done, last_index mem {:L}, hot_index mem {:L}, mutex time {}, skipped {}, borrowed {}", page.page_start, st1.memory_used, st2.memory_used, sw, rows_skipped, rows_borrowed);
+        }
+
+        
     });
     executor.run(taskflow).wait();
-    spdlog::info("Sorting took {:.3}", sw);       
+}
 
-    sw.reset();
-    init(num_rows);
-
-
+template<typename T>
+void assign_spot_id3(str_sv_type& read_names, vector<T>& sort_index, vector<T>& read_index, size_t threshold, bvector_type& last_index, bvector_type& hot_spot_ids)
+{
+    last_index.init();
+    hot_spot_ids.init();
+    size_t num_rows= read_names.size();
     size_t spot_id = 1;
-    m_read_index[sort_index[0]] = spot_id;
     size_t prev_row = sort_index[0];
+    read_index[prev_row] = spot_id;
 
-    vector<uint32_t> sort_vector;
+    vector<uint64_t> sort_vector;
     sort_vector.push_back(prev_row);
     string spot_name;
     read_names.get(prev_row, spot_name);
 
     for (size_t i = 1; i < num_rows; ++i) {
-        auto row = sort_index[i];
+        size_t row = sort_index[i];
+        assert(row < num_rows);
         if (read_names.compare_remap(row, spot_name.c_str()) == 0)  {
-            m_read_index[row] = spot_id;
+            read_index[row] = spot_id;
             sort_vector.push_back(row);
         } else {
-            finalize_spot_data(spot_id, sort_vector);
-            m_read_index[row] = ++spot_id;
+            sort(sort_vector.begin(), sort_vector.end()); 
+            last_index.set_bit_no_check(sort_vector.back());
+
+            // decide if spot is hot or cold
+            if (sort_vector.back() - sort_vector.front() < threshold)
+                hot_spot_ids.set_bit_no_check(spot_id);
+
+            read_index[row] = ++spot_id;
             sort_vector.clear();
             sort_vector.push_back(row);
             read_names.get(row, spot_name);
         }
     }
     if (!sort_vector.empty()) {
-        finalize_spot_data(spot_id, sort_vector);
+        sort(sort_vector.begin(), sort_vector.end()); 
+        last_index.set_bit_no_check(sort_vector.back());
+
+        // decide if spot is hot or cold
+        if (sort_vector.back() - sort_vector.front() < threshold)
+            hot_spot_ids.set_bit_no_check(spot_id);
     }
-    assert(m_total_spots == spot_id);
+}
+
+
+template<typename T>
+void spot_assembly_t::assign_spot_id(str_sv_type& read_names, vector<T>& read_index) 
+{
+    size_t num_rows = read_names.size();
+    read_index.resize(num_rows);
+    spdlog::stopwatch sw;
+    // build and sort the index by read names
+    vector<T> sort_index(num_rows);
+
+    tf::Executor executor(min<int>(24, std::thread::hardware_concurrency())); // TODO set max number of threads baased on the number of rows
+#if defined(__SAVE_FIRST_PASS__)
+    if (file_exists("sort_index")) {
+        ifstream is("sort_index");
+        is.read((char*)&sort_index[0], num_rows * sizeof(T));
+        is.close();
+    } else {
+#endif        
+        iota(sort_index.begin(), sort_index.end(), T(0));
+
+        tf::Taskflow taskflow;
+        taskflow.sort(sort_index.begin(), sort_index.end(), [&](T  l, T  r) {
+            static thread_local string last_right_str;
+            static thread_local T last_right = -1;
+
+            if (last_right != r) {
+                last_right = r; 
+                read_names.get(last_right, last_right_str);
+            }
+            return read_names.compare_remap(l, last_right_str.c_str()) < 0;
+        });
+        executor.run(taskflow).wait();
+        spdlog::info("Sorting took {:.3}", sw);       
+#if defined(__SAVE_FIRST_PASS__)        
+        ofstream os("sort_index");
+        os.write((char*)&sort_index[0], num_rows * sizeof(T));
+    }
+#endif    
+    init(num_rows);
+    sw.reset();
+    x_assign_spot_id(executor, read_names, sort_index, read_index);
+    /*
+    spdlog::info("Assigning spot ids new took {:.3}", sw);
+    sw.reset();
+
+    vector<T> read_index2(num_rows);
+    bvector_type last_index;
+    bvector_type hot_spot_ids; 
+    assign_spot_id3(read_names, sort_index, read_index2, m_hot_reads_threshold, last_index, hot_spot_ids);
+    spdlog::info("Assigning spot ids old took {:.3}", sw);
+    assert(last_index.count() == m_last_index.count());
+    assert(hot_spot_ids.count() == m_hot_spot_ids.count());
+    vector<uint64_t> rows1, rows2;
+    bvector_type spot_tested1, spot_tested2;
+    spot_tested1.init();
+    spot_tested2.init();
+    size_t spot_id_cnt1 = 0, spot_id_cnt2 = 0;
+    for (size_t row = 0; row < num_rows; ++row) {
+        size_t spot_id = read_index[row];
+        if (spot_tested1.set_bit_conditional(spot_id, true, false)) {
+            ++spot_id_cnt1;
+            for (size_t i = row; i < num_rows; ++i) {
+                if (read_index[i] == spot_id) {
+                    rows1.push_back(i);
+                    if (m_last_index.test(i)) 
+                        break;                      
+                }
+            }
+        }
+        spot_id = read_index2[row];
+        if (spot_tested2.set_bit_conditional(spot_id, true, false)) {
+            ++spot_id_cnt2;
+            for (size_t i = row; i < num_rows; ++i) {
+                if (read_index2[i] == spot_id) {
+                    rows2.push_back(i);
+                    if (last_index.test(i)) 
+                        break;                      
+                }
+            }
+        }
+        if (rows1 != rows2) {
+            spdlog::error("row {} rows1 {} rows2 {}", row, rows1.size(), rows2.size());
+            exit(1);
+        }
+        rows1.clear();
+        rows2.clear();
+    }
+    assert(spot_tested1.count() == spot_tested2.count());
+    assert(spot_id_cnt1 == spot_id_cnt2);
+    assert(spot_id_cnt1 == spot_tested2.count());
+    */
     m_last_index.optimize(TB1);
     m_last_index.freeze();
 
@@ -294,24 +513,6 @@ void spot_assembly_t::assign_spot_id(str_sv_type& read_names)
     m_qual_offset.resize(max_reads);
     fill(m_qual_offset.begin(), m_qual_offset.end(), 0);
 }
-
-
-// finalizes spot data
-void spot_assembly_t::finalize_spot_data(size_t spot_id, vector<uint32_t>& sort_vector) 
-{
-    sort(sort_vector.begin(), sort_vector.end()); 
-    // sets last flag for the last read
-    m_last_index.set_bit_no_check(sort_vector.back());
-
-    // decide if spot is hot or cold
-    if (sort_vector.back() - sort_vector.front() < m_hot_reads_threshold)
-        m_hot_spot_ids.set_bit_no_check(spot_id);
-
-    // update counters            
-    ++m_reads_counts[sort_vector.size()];
-    ++m_total_spots;
-}
-
 
 // saves read to hot or cold storage
 /*

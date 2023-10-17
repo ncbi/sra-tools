@@ -710,7 +710,8 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     mErrorCount = 0;
     parser.set_readers(group, false);
     spdlog::stopwatch sw;
-    parser.template first_pass<ScoreValidator>(err_checker);
+    str_sv_type read_names;
+    parser.template first_pass<ScoreValidator>(read_names, err_checker);
     if (mNoTimeStamp == false)
         mReport["timing"]["first_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
     sw.reset();        
@@ -718,10 +719,31 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     //Reset readers
     mErrorCount = 0;
     parser.set_readers(group);
-    if (is_nanopore)
-        parser.template second_pass<ScoreValidator, true>(err_checker);
-    else
-        parser.template second_pass<ScoreValidator, false>(err_checker);
+
+    size_t num_rows = read_names.size();
+    if (num_rows > numeric_limits<uint32_t>::max()) {
+        spdlog::info("Using 64-bit spot ids");
+        vector<uint64_t> read_index(num_rows);
+        parser.assign_spot_id(read_names, read_index);
+        read_names.clear();
+
+
+        if (is_nanopore)
+            parser.template second_pass<ScoreValidator, true>(err_checker, read_index);
+        else
+            parser.template second_pass<ScoreValidator, false>(err_checker, read_index);
+
+    } else {
+        spdlog::info("Using 32-bit spot ids");
+        vector<uint32_t> read_index(num_rows);
+        parser.assign_spot_id(read_names, read_index);
+        read_names.clear();
+
+        if (is_nanopore)
+            parser.template second_pass<ScoreValidator, true>(err_checker, read_index);
+        else
+            parser.template second_pass<ScoreValidator, false>(err_checker, read_index);
+    }
 
     if (mNoTimeStamp == false)
         mReport["timing"]["second_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;

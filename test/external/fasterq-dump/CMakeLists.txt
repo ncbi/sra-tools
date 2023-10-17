@@ -24,7 +24,7 @@
 
 if ( NOT WIN32 )
 
-ToolsRequired(fasterq-dump)
+ToolsRequired(fasterq-dump sam-factory bam-load kar)
 
     add_test( NAME Test_FasterqDump_Help
         COMMAND ${BINDIR}/fasterq-dump -h
@@ -68,7 +68,8 @@ ToolsRequired(fasterq-dump)
 
     add_test( NAME Test_Tiny_cSRA
         COMMAND
-            bash tiny_csra.sh ${DIRTOTEST}
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+            bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

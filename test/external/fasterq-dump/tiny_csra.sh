@@ -10,27 +10,31 @@
 
 set -e
 
-BINDIR="$1"
+DIRTOTEST="$1"
+BINDIR="$2"
 
-SAMFACTORY="${BINDIR}/sam-factory"
+SAMFACTORY="${DIRTOTEST}/sam-factory"
 if [[ ! -x $SAMFACTORY ]]; then
-    echo "${SAMFACTORY} not found - exiting..."
-    exit 3
+    SAMFACTORY="${BINDIR}/sam-factory"
+    if [[ ! -x $SAMFACTORY ]]; then
+        echo "${SAMFACTORY} not found - exiting..."
+        exit 3
+    fi
 fi
 
-BAMLOAD="${BINDIR}/bam-load"
+BAMLOAD="${DIRTOTEST}/bam-load"
 if [[ ! -x $BAMLOAD ]]; then
     echo "${BAMLOAD} not found - exiting..."
     exit 3
 fi
 
-KAR="${BINDIR}/kar"
+KAR="${DIRTOTEST}/kar"
 if [[ ! -x $KAR ]]; then
     echo "${KAR} not found - exiting..."
     exit 3
 fi
 
-FASTERQDUMP="${BINDIR}/fasterq-dump"
+FASTERQDUMP="${DIRTOTEST}/fasterq-dump"
 if [[ ! -x $FASTERQDUMP ]]; then
     echo "${FASTERQDUMP} not found - exiting..."
     exit 3

@@ -59,7 +59,8 @@ SHARQ_ERR_CODES = {
     {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
     {220 ,{ "Invalid experiment file", "Invalid experiment file."}},
     {230 ,{ "Internal QC failure", "Internal QC failure."}},
-    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}}
+    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}},
+    {250 ,{ "SRAE-70: Estimated number of spots excceds the limit for this mode. Re-run with --spot-assembly parameter", "SRAE-70: Estimated number of spots excceds the limit for this mode. Re-run with --spot-assembly parameter."}},
 
 };
 

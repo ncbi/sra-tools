@@ -1284,7 +1284,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     if (sz == 0)
         return;
     static thread_local bm::sparse_vector_scanner<str_sv_type> scanner;
-
+    spdlog::stopwatch sw;
     bm::sparse_vector_scanner<str_sv_type>::pipeline<bm::agg_opt_only_counts> pipe(m_spot_names);
     pipe.options().batch_size = 0;
     for (const auto& term : terms)
@@ -1298,6 +1298,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
             error_checker(e);
         }
     }
+    spdlog::info("check_duplicate_spot_names time: {} size: {}", sw, sz);
 }
 
 

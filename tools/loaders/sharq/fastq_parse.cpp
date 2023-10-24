@@ -137,6 +137,7 @@ private:
     size_t mHotReadsThreshold{10000000};      ///< Threshold for hot reads
     uint8_t m_platform_code{0};         ///< Platform code set from the parameters
     set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
+    size_t mMaxSpotsInLinearMode = 1200000000; ///< Max spot number for linear (non-spot assembly) mode
 };
 
 
@@ -215,6 +216,10 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mQuality = -1;
         app.add_option("--quality,-q", mQuality, "Interpretation of ascii quality")
             ->check(CLI::IsMember({0, 33, 64}));
+
+        app.add_option("--max-spots", mMaxSpotsInLinearMode, "Maximum spot number for non spot-assembly mode (default: 1,200,000,000)")
+            //->default_val(1200000000)
+            ->check(CLI::PositiveNumber);
 
         mDigest = 0;
         app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
@@ -651,7 +656,8 @@ int CFastqParseApp::xRun()
     size_t total_spots = 0;
     for (auto& group : data["groups"]) 
         total_spots += group["estimated_spots"].get<size_t>();
-
+    if (total_spots > mMaxSpotsInLinearMode)
+        throw fastq_error(250, "SRAE-70: Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
     spot_name_check name_checker(total_spots);
 
     fastq_parser<fastq_writer> parser(m_writer);

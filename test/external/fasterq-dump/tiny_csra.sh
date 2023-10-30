@@ -116,7 +116,7 @@ fi
 #now we do not need the tiny-csra-file any more
 rm -rf "${KAR_OUTPUT}"
 
-LINES=`wc -l $FASTQ_OUTPUT`
+LINES=`wc -l <$FASTQ_OUTPUT`
 if [ "$LINES" == "12" ]; then
     #now we do not need the tiny-csra-fastq-file any more
     rm -rf $FASTQ_OUTPUT

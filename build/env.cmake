@@ -97,6 +97,11 @@ else()
     message ( FATAL_ERROR "unknown architecture " ${CMAKE_HOST_SYSTEM_PROCESSOR})
 endif ()
 
+if( "arm64" STREQUAL "${ARCH}" )
+    # for bitmagic SIMD
+    add_compile_definitions(BMNEONOPT)
+endif()
+
 # create variables based entirely upon OS
 if ( "mac" STREQUAL ${OS} )
     add_compile_definitions( MAC BSD UNIX )
@@ -191,13 +196,16 @@ if ( SINGLE_TARGET )
     message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 endif()
 
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-msse4.2" COMPILER_OPTION_SSE42_SUPPORTED)
-# if (COMPILER_OPTION_SSE42_SUPPORTED)
-#     message("compiler accepts sse4.2 flag")
-# else()
-#     message("compiler does not accept sse4.2 flag")
-# endif()
+set(COMPILER_OPTION_SSE42_SUPPORTED OFF)
+if( "x86_64" STREQUAL ${ARCH} )
+    include(CheckCXXCompilerFlag)
+    CHECK_CXX_COMPILER_FLAG("-msse4.2" COMPILER_OPTION_SSE42_SUPPORTED)
+endif()
+if (COMPILER_OPTION_SSE42_SUPPORTED)
+    message("compiler accepts sse4.2 flag")
+else()
+    message("compiler does not accept sse4.2 flag")
+endif()
 
 #message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 

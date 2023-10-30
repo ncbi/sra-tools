@@ -116,13 +116,13 @@ fi
 #now we do not need the tiny-csra-file any more
 rm -rf "${KAR_OUTPUT}"
 
-LINES=`wc -l $FASTQ_OUTPUT`
-if [ "$LINES" == "12 $FASTQ_OUTPUT" ]; then
+LINES=`wc -l <$FASTQ_OUTPUT`
+if [ "$LINES" == "12" ]; then
     #now we do not need the tiny-csra-fastq-file any more
     rm -rf $FASTQ_OUTPUT
     echo "success!"
     exit 0
 else
-    echo "we should have 12 lines in $FASTQ_OUTPUT"
+    echo "we should have 12 lines in $FASTQ_OUTPUT, but we have $LINES lines instead!"
     exit 3
 fi

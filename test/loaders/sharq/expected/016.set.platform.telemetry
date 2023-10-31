@@ -1,0 +1,63 @@
+{
+    "--platform": "BGISEQ",
+    "defline_types": [
+        "illuminaNew"
+    ],
+    "groups": [
+        {
+            "defline_type": [
+                "illuminaNew"
+            ],
+            "files": [
+                "input/001.R1.fastq"
+            ],
+            "has_read_names": true,
+            "is_10x": false,
+            "is_early_end": false,
+            "is_interleaved": false,
+            "max_sequence_size": 26,
+            "min_sequence_size": 26,
+            "number_of_reads": 4,
+            "number_of_spots": 4,
+            "number_of_spots_with_orphans": 0,
+            "reads_per_spot": 1,
+            "rejected_spots": 0
+        }
+    ],
+    "i": {
+        "defline_len": 226,
+        "quality_len": 104,
+        "sequence_len": 104
+    },
+    "input_size": 454,
+    "o": {
+        "base_counts": {
+            "A": 29,
+            "C": 22,
+            "G": 22,
+            "N": 4,
+            "T": 27
+        },
+        "quality_counts": {
+            "14": 1,
+            "2": 4,
+            "27": 1,
+            "32": 16,
+            "36": 82
+        },
+        "quality_len": 104,
+        "read_count": 4,
+        "sequence_len": 104,
+        "sequence_len_bio": 104,
+        "spot_count": 4
+    },
+    "platform_code": 2,
+    "platform_override": "BGISEQ",
+    "qc": {
+        "pct_quality_loss": "0.00",
+        "pct_sequence_loss": "0.00",
+        "quality_loss": 0,
+        "sequence_loss": 0
+    },
+    "quality_code": 33
+}

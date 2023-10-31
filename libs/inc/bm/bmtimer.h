@@ -46,21 +46,21 @@ public:
     {
         std::chrono::duration<double, std::milli>  duration;
         unsigned                                   repeats;
-
+        
         statistics() : duration(0), repeats(1) {}
-
+        
         statistics(std::chrono::duration<double, std::milli> d, unsigned r)
         : duration(d), repeats(r)
         {}
     };
-
+    
     enum format
     {
         ct_time = 0,
         ct_ops_per_sec,
         ct_all
     };
-
+    
     /// test name to duration map
     ///
     typedef std::map<std::string, statistics > duration_map_type;
@@ -78,7 +78,7 @@ public:
     {
         start_ = std::chrono::steady_clock::now();
     }
-
+    
     ~chrono_taker()
     {
         try
@@ -91,7 +91,7 @@ public:
         catch(...)
         {}
     }
-
+    
 
     void stop(bool silent=false)
     {
@@ -121,7 +121,7 @@ public:
         }
         is_stopped_ = true;
     }
-
+    
     void add_repeats(unsigned inc)
     {
         repeats_ += inc;
@@ -145,13 +145,13 @@ public:
             tout << name << "; " << ms << " ms" << std::endl;
     }
 
-
+    
     static
     void print_duration_map(TOut& tout, const duration_map_type& dmap, format fmt = ct_time)
     {
         typename duration_map_type::const_iterator it = dmap.begin();
         typename duration_map_type::const_iterator it_end = dmap.end();
-
+        
         for ( ;it != it_end; ++it)
         {
             const chrono_taker::statistics& st = it->second;
@@ -211,11 +211,11 @@ public:
             }
         } // for
     }
-
+    
 
     chrono_taker(const chrono_taker&) = delete;
     chrono_taker & operator=(const chrono_taker) = delete;
-
+    
 protected:
     TOut&                                              tout_;
     std::string                                        name_;

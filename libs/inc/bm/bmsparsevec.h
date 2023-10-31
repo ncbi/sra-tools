@@ -417,7 +417,7 @@ public:
     {
         if (this != &sv)
         {
-            clear_all(true);
+            clear_all(true, 0);
             swap(sv);
         }
         return *this;
@@ -554,6 +554,13 @@ public:
     void clear(const bvector_type& bv_idx)
         { this->bit_sub_rows(bv_idx, false); }
 
+    /** Get raw unsigned value first N bits
+        \param idx - element index in the vector
+        \param N_bits - number of bits to be extracted (should be > 0)
+         @return unsigned value for
+    */
+    unsigned_value_type get_unsigned_bits(size_type idx,
+                                          size_type N_bits) const BMNOEXCEPT;
 
     ///@}
 
@@ -692,11 +699,13 @@ public:
     /*! @name Clear                                              */
     ///@{
 
-    /*! \brief resize to zero, free memory */
-    void clear_all(bool free_mem) BMNOEXCEPT;
+    /*! \brief resize to zero, free memory
+        @param free_mem - true - indicates the need to free underlying memory in bit-vectors
+    */
+    void clear_all(bool free_mem, unsigned ) BMNOEXCEPT;
 
     /*! \brief resize to zero, free memory */
-    void clear() BMNOEXCEPT { clear_all(true); }
+    void clear() BMNOEXCEPT { clear_all(true, 0); }
 
     /*!
         \brief clear range (assign bit 0 for all planes)
@@ -1070,8 +1079,9 @@ protected:
     static
     void u2s_translate(value_type* arr, size_type sz) BMNOEXCEPT;
 
-    // get raw unsigned value
+    /// get raw unsigned value
     unsigned_value_type get_unsigned(size_type idx) const BMNOEXCEPT;
+
 
 protected:
     template<class V, class SV> friend class rsc_sparse_vector;
@@ -1092,7 +1102,7 @@ sparse_vector<Val, BV>::sparse_vector(
         allocation_policy_type  ap,
         size_type               bv_max_size,
         const allocator_type&   alloc)
-: parent_type(null_able, ap, bv_max_size, alloc)
+: parent_type(null_able, false, ap, bv_max_size, alloc)
 {}
 
 //---------------------------------------------------------------------
@@ -1370,10 +1380,9 @@ sparse_vector<Val, BV>::gather(value_type*       arr,
         return size;
     }
     ::memset(arr, 0, sizeof(value_type)*size);
-    
     for (size_type i = 0; i < size;)
     {
-        bool sorted_block = true;
+        bool sorted_block = true; // initial assumption
         
         // look ahead for the depth of the same block
         //          (speculate more than one index lookup per block)
@@ -1385,7 +1394,7 @@ sparse_vector<Val, BV>::gather(value_type*       arr,
         {
         case BM_UNKNOWN:
             {
-                sorted_block = true; // initial assumption
+                // check if sorted, it pays off to verify
                 size_type idx_prev = idx[r];
                 for (; (r < size) && (nb == (idx[r] >> bm::set_block_shift)); ++r)
                 {
@@ -1777,7 +1786,7 @@ sparse_vector<Val, BV>::get_unsigned(
     BM_ASSERT(i < bm::id_max);
 
     unsigned_value_type uv = 0;
-    unsigned eff_planes = this->effective_slices();
+    const unsigned eff_planes = this->effective_slices();
     BM_ASSERT(eff_planes <= (sizeof(value_type) * 8));
 
     unsigned_value_type smask = this->slice_mask_;
@@ -1792,6 +1801,34 @@ sparse_vector<Val, BV>::get_unsigned(
     } // for j
     return uv;
 }
+
+//---------------------------------------------------------------------
+
+template<class Val, class BV>
+typename sparse_vector<Val, BV>::unsigned_value_type
+sparse_vector<Val, BV>::get_unsigned_bits(size_type idx,
+                                          size_type N_bits) const BMNOEXCEPT
+{
+    BM_ASSERT(idx < bm::id_max);
+    const unsigned eff_planes = this->effective_slices();
+    BM_ASSERT(eff_planes <= (sizeof(value_type) * 8));
+    if (N_bits > eff_planes)
+        N_bits = eff_planes;
+    unsigned_value_type uv = 0;
+
+    for (unsigned j = 0; j < N_bits; ++j)
+    {
+        const bvector_type* bv = this->bmatr_.get_row(j);
+        if (bv)
+        {
+            bool b = bv->test(idx);
+            if (b)
+                uv |= unsigned_value_type(1) << j;
+        }
+    } // for j
+    return uv;
+}
+
 
 //---------------------------------------------------------------------
 
@@ -2061,7 +2098,7 @@ void sparse_vector<Val, BV>::inc_no_null(size_type idx, value_type v)
 //---------------------------------------------------------------------
 
 template<class Val, class BV>
-void sparse_vector<Val, BV>::clear_all(bool free_mem) BMNOEXCEPT
+void sparse_vector<Val, BV>::clear_all(bool free_mem, unsigned) BMNOEXCEPT
 {
     parent_type::clear_all(free_mem);
 }

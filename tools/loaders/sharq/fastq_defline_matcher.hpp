@@ -192,7 +192,7 @@ public:
         re.GetMatch()[6].AppendToString(&m_tmp_spot); //x
         s_add_sep(m_tmp_spot, re.GetMatch()[7]);
         re.GetMatch()[8].AppendToString(&m_tmp_spot); //y
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         read.SetReadNum(re.GetMatch()[10]);
 
@@ -340,7 +340,7 @@ public:
             s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
             y.AppendToString(&m_tmp_spot); //y
         }
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         if (!readNum.empty()) { // readNum
             readNum.remove_prefix(1);
@@ -569,7 +569,7 @@ public:
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //column
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //row
         re.GetMatch()[4].AppendToString(&m_tmp_spot); // readNo
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         if (!re.GetMatch()[6].empty() && re.GetMatch()[6].starts_with("/"))
             re.GetMatch()[6].remove_prefix(1);
@@ -607,7 +607,7 @@ public:
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //column
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //row
         re.GetMatch()[4].AppendToString(&m_tmp_spot); // readNo
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         read.SetSuffix(re.GetMatch()[5]);
 
@@ -783,7 +783,7 @@ public:
                 read.SetNanoporeReadNo( getPoreReadNo2.GetMatch()[0] );
             }
         }
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         read.SetChannel( re.GetMatch()[1] );
 
@@ -992,7 +992,7 @@ public:
         re.GetMatch()[1].AppendToString(&m_tmp_spot); //dateAndHash454
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //region454
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //xy454
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
         auto& readNo = re.GetMatch()[4];
         if (!readNo.empty()) {
             readNo.remove_prefix(1);
@@ -1031,7 +1031,7 @@ public:
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //row
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //sep2
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
         auto& suffix = re.GetMatch()[5];
 
         auto& spotGroup = re.GetMatch()[6];
@@ -1090,7 +1090,7 @@ public:
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //row
         re.GetMatch()[3].AppendToString(&m_tmp_spot); //sep2
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //column
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         read.SetSuffix(re.GetMatch()[5]);
 
@@ -1130,7 +1130,7 @@ public:
         m_tmp_spot.clear();
 
         re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
     }
 };
 
@@ -1201,7 +1201,7 @@ public:
         m_tmp_spot.clear();
 
         re.GetMatch()[0].AppendToString(&m_tmp_spot); // name
-        read.MoveSpot(move(m_tmp_spot));
+        read.MoveSpot(std::move(m_tmp_spot));
 
         auto& spot_group = re.GetMatch()[1];
         if (spot_group.starts_with("#")) {

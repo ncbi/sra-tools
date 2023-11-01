@@ -75,7 +75,7 @@ namespace hashing {
 
         while(data != end)
         {
-            uint64_t k = *data++;
+            uint64_t k; memcpy(&k, data++, sizeof(k)); // k = *data++;
 
             k *= m;
             k ^= k >> r;

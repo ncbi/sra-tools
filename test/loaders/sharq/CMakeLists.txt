@@ -31,7 +31,10 @@ message(RE2_FOUND=${RE2_FOUND})
     if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
 
         set(CMAKE_CXX_STANDARD 17)
-        add_definitions(-msse4.2 -DBMSSE42OPT)
+        #specific to BitMagic
+        if (COMPILER_OPTION_SSE42_SUPPORTED)
+            add_definitions(-msse4.2 -DBMSSE42OPT)
+        endif()
 
         # assume tools/sharq built libre2
         #TODO make it like in ./ngs/ngs-sdk

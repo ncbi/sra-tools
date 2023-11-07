@@ -22,16 +22,9 @@
 #
 # ===========================================================================
 
-add_subdirectory( align-cache )
-add_subdirectory( ccextract )
-add_subdirectory( copycat )
-add_subdirectory( make-read-filter )
-add_subdirectory( md5cp )
-add_subdirectory( meta-cmp )
-add_subdirectory( meta-copy )
-add_subdirectory( meta-repair )
-add_subdirectory( rd-filter-redact )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( vdb-sql )
-add_subdirectory( check-redact )
+set( SRC
+	check-redact
+)
+
+GenerateExecutableWithDefs( check-redact "${SRC}" "__mod__=\"tools/check-redact\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+MakeLinksExe( check-redact true )

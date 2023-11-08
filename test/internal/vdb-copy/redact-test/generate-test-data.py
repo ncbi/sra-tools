@@ -10,10 +10,16 @@ import os
 import random
 import re
 
-ncbi_vdb_path = os.path.abspath('../../../../../ncbi-vdb')
-# print(py_vdb_path);exit(0);
-schema_include_path = os.path.join(ncbi_vdb_path, 'interfaces')
-py_vdb_path = os.path.join(ncbi_vdb_path, 'py_vdb')
+try:
+    vdb_path = os.environ['VDB_PATH']
+except KeyError:
+    vdb_path = os.path.abspath('../../../../../ncbi-vdb')
+
+py_vdb_path = os.path.join(vdb_path, 'py_vdb')
+#print(py_vdb_path);sys.exit(0)
+
+schema_include_path = os.path.join(vdb_path, 'interfaces')
+#print(schema_include_path);sys.exit(0)
 
 saveSysPath = sys.path
 sys.path.append(py_vdb_path)

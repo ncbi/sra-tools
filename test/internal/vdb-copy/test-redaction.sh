@@ -47,14 +47,14 @@ SCRATCH=$(mktemp -d) || exit 1
 
     cd ${SCRATCH} || exit 1
     
-    # Verify that redaction is needed.
+    # Verify that redaction is needed. NB. this should exit 3 if awk does not exit 3.
     "${VDB_DUMP}" -f tab 'test-data' -C"READ_FILTER,(INSDC:dna:text)READ" | \
         awk 'BEGIN{ FS="\t" } $1~/REDACTED/ && $2~/[^N]/ {exit 3}' && exit 3;
 
     # Do the redaction.
     "${VDB_COPY}" -k "${CONFIG_PATH}" 'test-data' 'test-data-redacted' || exit $?
 
-    # Verify that redaction worked.
+    # Verify that redaction worked. awk will exit 3 if any redacted spot's sequence has anything but N
     "${VDB_DUMP}" -f tab 'test-data-redacted' -C"READ_FILTER,(INSDC:dna:text)READ" | \
         awk 'BEGIN{ FS="\t" } $1~/REDACTED/ && $2~/[^N]/ {exit 3}'
 )

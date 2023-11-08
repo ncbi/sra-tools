@@ -49,6 +49,10 @@ if( Python3_EXECUTABLE )
 			COMMAND bash -c "./return_code_on_error.sh ${DIRTOTEST}"
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        add_test( NAME Test_VDB_Copy_Redaction
+            COMMAND bash -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${VDB_INCDIR}'"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
 	endif()
 
 else()

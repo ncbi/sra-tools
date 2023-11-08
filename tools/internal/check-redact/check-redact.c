@@ -88,10 +88,7 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-typedef struct check_ctx {
-    const char * path;
-    const char * name;
-} check_ctx;
+/* ==================================================================================== */
 
 static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
     rc_t rc2 = 0;
@@ -110,98 +107,24 @@ static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
     return rc2;
 } 
 
-static rc_t vfsmanager_release( rc_t rc, const VFSManager * mgr ) {
-    if ( NULL != mgr ) {
-        rc_t rc2 = VFSManagerRelease( mgr );
-        ErrMsg( rc2, "VFSManagerRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
+#define GENERIC_RELEASE( OBJTYPE ) \
+static rc_t OBJTYPE ## _Release( rc_t rc, const OBJTYPE * obj ) { \
+    if ( NULL != obj ) { \
+        rc_t rc2 = OBJTYPE##Release( obj ); \
+        ErrMsg( rc2, "%sRelease() failed : %R", #OBJTYPE, rc2 ); \
+        rc = ( 0 == rc ) ? rc2 : rc; \
+    } \
+    return rc; \
+} \
 
-static rc_t vpath_release( rc_t rc, const VPath * path ) {
-    if ( NULL != path ) {
-        rc_t rc2 = VPathRelease( path );
-        ErrMsg( rc2, "VPathRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t vcursor_release( rc_t rc, const VCursor * curs ) {
-    if ( NULL != curs ) {
-        rc_t rc2 = VCursorRelease( curs );
-        ErrMsg( rc2, "VCursorRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t vtable_release( rc_t rc, const VTable * tbl ) {
-    if ( NULL != tbl ) {
-        rc_t rc2 = VTableRelease( tbl );
-        ErrMsg( rc2, "VTableRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t vdatabase_release( rc_t rc, const VDatabase * db ) {
-    if ( NULL != db ) {
-        rc_t rc2 = VDatabaseRelease( db );
-        ErrMsg( rc2, "VDatabaseRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t knamelist_release( rc_t rc, const KNamelist * namelist ) {
-    if ( NULL != namelist ) {
-        rc_t rc2 = KNamelistRelease( namelist );
-        ErrMsg( rc2, "KNamelistRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t vmanager_release( rc_t rc, const VDBManager * mgr ) {
-    if ( NULL != mgr ) {
-        rc_t rc2 = VDBManagerRelease( mgr );
-        ErrMsg( rc2, "VDBManagerRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static rc_t kdirectory_release( rc_t rc, const KDirectory * dir ) {
-    if ( NULL != dir ) {
-        rc_t rc2 = KDirectoryRelease( dir );
-        ErrMsg( rc2, "KDirectoryRelease() failed : %R", rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
-static bool list_contains_value( const KNamelist * list, const String * value ) {
-    bool found = false;
-    uint32_t count;
-    rc_t rc = KNamelistCount( list, &count );
-    ErrMsg( rc, "KNamelistCount() failed : %R", rc );
-    if ( 0 == rc && count > 0 ) {
-        uint32_t i;
-        for ( i = 0; i < count && 0 == rc && !found; ++i ) {
-            const char *s;
-            rc = KNamelistGet( list, i, &s );
-            ErrMsg( rc, "KNamelistGet( %d ) -> %R", i, rc );
-            if ( 0 == rc ) {
-                String item;
-                StringInitCString( &item, s );
-                found = ( 0 == StringCompare ( &item, value ) );
-            }
-        }
-    }
-    return found;
-}
+GENERIC_RELEASE ( VFSManager )
+GENERIC_RELEASE ( VPath )
+GENERIC_RELEASE ( VCursor )
+GENERIC_RELEASE ( VTable )
+GENERIC_RELEASE ( VDatabase )
+GENERIC_RELEASE ( KNamelist )
+GENERIC_RELEASE ( VDBManager )
+GENERIC_RELEASE ( KDirectory )
 
 static rc_t vdh_path_to_vpath( const char * path, VPath ** vpath ) {
     VFSManager * vfs_mgr = NULL;
@@ -214,9 +137,9 @@ static rc_t vdh_path_to_vpath( const char * path, VPath ** vpath ) {
         if ( 0 == rc ) {
             rc = VFSManagerResolvePath( vfs_mgr, vfsmgr_rflag_kdb_acc, in_path, vpath );
             ErrMsg( rc, "VFSManagerResolvePath() failed : %R", rc );
-            rc = vpath_release( rc, in_path );
+            rc = VPath_Release( rc, in_path );
         }
-        rc = vfsmanager_release( rc, vfs_mgr );
+        rc = VFSManager_Release( rc, vfs_mgr );
     }
     return rc;
 }
@@ -235,18 +158,19 @@ static const char* get_str_option( const Args *args, const char *name, rc_t* rc 
 
 /* ==================================================================================== */
 
-static rc_t find_filter_redact( const VCursor * cur, int64_t first, uint64_t count,
-                                uint32_t read_filter_idx, int64_t * row, bool * found ) {
-    rc_t rc = 0;
+static rc_t find_filter_redact( const VCursor * cur, uint32_t read_filter_idx, int64_t * found_row, bool * found ) {
+    int64_t  row;
+    uint64_t count;
     uint32_t element_bits, row_len;
-    int64_t row_id = first;
-    uint64_t rows_left = count;
-    *row = -1;
+    
+    rc_t rc = VCursorIdRange( cur, read_filter_idx, &row, &count );
+    ErrMsg( rc, "VCursorIdRange() failed : %R", rc );
+    *found_row = -1;
     *found = false;
-    while ( 0 == rc && rows_left > 0 && !( *found ) ) {
+    while ( 0 == rc && count > 0 && !( *found ) ) {
         const uint8_t *read_filters;
-        rc = VCursorCellDataDirect( cur, row_id, read_filter_idx, &element_bits, (const void**)&read_filters, NULL, &row_len );
-        ErrMsg( rc, "VCursorCellDataDirect( %ld , READ_FILTER ) failed : %R", row_id, rc );
+        rc = VCursorCellDataDirect( cur, row, read_filter_idx, &element_bits, (const void**)&read_filters, NULL, &row_len );
+        ErrMsg( rc, "VCursorCellDataDirect( %ld , READ_FILTER ) failed : %R", row, rc );
         if ( 0 == rc && 8 == element_bits && row_len > 0 ) {
             uint32_t read_id;
             uint32_t values_found = 0;
@@ -256,13 +180,13 @@ static rc_t find_filter_redact( const VCursor * cur, int64_t first, uint64_t cou
                 }
             }
             if ( values_found > 0 ) {
-                *row = row_id;
+                *found_row = row;
                 *found = true;
             }
         }
         if ( 0 == rc ) {
-            row_id++;
-            rows_left--;
+            row++;
+            count--;
         }
     }
     return rc;
@@ -388,15 +312,18 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     }
     return rc;
 }
-    
+
+typedef struct check_ctx {
+    const char * path;
+    const char * name;
+} check_ctx;
+
 static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
     const VCursor * cur;
     rc_t rc = VTableCreateCachedCursorRead( tbl, &cur, 0 );
     ErrMsg( rc, "VTableCreateCachedCursorRead() failed : %R", rc );
     if ( 0 == rc ) {
         columns_t columns;
-        int64_t  first;
-        uint64_t count;
         int64_t redacted_row = 0;
         bool redact_found = false;
         
@@ -419,11 +346,7 @@ static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
             ErrMsg( rc, "VCursorOpen() failed : %R", rc );
         }
         if ( 0 == rc ) {
-            rc = VCursorIdRange( cur, columns.read, &first, &count );
-            ErrMsg( rc, "VCursorIdRange() failed : %R", rc );
-        }
-        if ( 0 == rc ) {
-            rc = find_filter_redact( cur, first, count, columns.read_filter, &redacted_row, &redact_found );
+            rc = find_filter_redact( cur, columns.read_filter, &redacted_row, &redact_found );
         }
         if ( 0 == rc ) {
             if ( redact_found ) {
@@ -441,7 +364,7 @@ static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
                 rc = KOutMsg( "%s\tPASS\n", ctx -> path );
             }
         }
-        rc = vcursor_release( rc, cur );
+        rc = VCursor_Release( rc, cur );
     }
     return rc;
 }
@@ -455,9 +378,9 @@ static rc_t check_table( const check_ctx* ctx, const VDBManager *mgr ) {
         ErrMsg( rc, "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx -> path, rc );
         if ( 0 == rc ) {
             rc = check_opened_table( ctx, tbl ); /* <=== above */
-            rc = vtable_release( rc, tbl );
+            rc = VTable_Release( rc, tbl );
         }
-        rc = vpath_release( rc, path );
+        rc = VPath_Release( rc, path );
     }
     return rc;
 }
@@ -474,26 +397,24 @@ static rc_t check_database( const check_ctx* ctx, const VDBManager *mgr ) {
             rc = VDatabaseListTbl( db, &tbl_names );
             ErrMsg( rc, "VDatabaseListTbl( '%s' ) -> %R", ctx -> path, rc );
             if ( 0 == rc ) {
-                String value;
-                StringInitCString( &value, "SEQUENCE" );
-                if ( list_contains_value( tbl_names, &value ) ) {
+                if ( KNamelistContains( tbl_names, "SEQUENCE" ) ) {
                     /* we do have a SEQUENCE-table! */
                     const VTable * tbl;
                     rc = VDatabaseOpenTableRead( db, &tbl, "SEQUENCE" );
                     ErrMsg( rc, "VDatabaseOpenTableRead() failed : %R", rc );
                     if ( 0 == rc ) {
                         rc = check_opened_table( ctx, tbl ); /* <=== above */
-                        rc = vtable_release( rc, tbl );
+                        rc = VTable_Release( rc, tbl );
                     }
                 } else {
                     rc = RC( rcExe, rcDatabase, rcOpening, rcTable, rcNotFound );
                     ErrMsg( rc, "opened as vdb-database, but no SEQUENCE-table found" );
                 }
-                rc = knamelist_release( rc, tbl_names );
+                rc = KNamelist_Release( rc, tbl_names );
             }
-            rc = vdatabase_release( rc, db );
+            rc = VDatabase_Release( rc, db );
         }
-        rc = vpath_release( rc, path );
+        rc = VPath_Release( rc, path );
     }
     return rc;
 }
@@ -543,9 +464,9 @@ static rc_t check_main( const Args * args ) {
                     rc = SILENT_RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
                 }
             }
-            rc = vmanager_release( rc, mgr );
+            rc = VDBManager_Release( rc, mgr );
         }
-        rc = kdirectory_release( rc, dir );
+        rc = KDirectory_Release( rc, dir );
     }
     return rc;
 }

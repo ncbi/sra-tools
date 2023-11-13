@@ -1,5 +1,5 @@
 /*===========================================================================
- *
+ * 
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
  *
@@ -24,52 +24,6 @@
  *
  */
 
-#include <kdb/manager.h>
-#include <vdb/manager.h>
+#include <klib/rc.h>
 
-/// startup parameters and top level state
-extern bool exhaustive;
-extern bool md5_required;
-extern bool ref_int_check;
-extern bool s_IndexOnly;
-
-typedef struct vdb_validate_params vdb_validate_params;
-struct vdb_validate_params
-{
-    struct KDirectory const *wd;
-    struct KDBManager const *kmgr;
-    struct VDBManager const *vmgr;
-
-    bool md5_chk;
-    bool md5_chk_explicit;
-    bool blob_crc;
-    bool index_chk;
-    bool consist_check;
-    bool exhaustive;
-    bool check_redact;
-
-    // data integrity checks parameters
-    bool sdc_enabled;
-    bool sdc_sec_rows_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_sec_rows;
-
-    bool sdc_seq_rows_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_seq_rows;
-
-    bool sdc_pa_len_thold_in_percent;
-    union
-    {
-        double percent;
-        uint64_t number;
-    } sdc_pa_len_thold;
-};
-
-rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath);
+rc_t check_redact( const char *aPath );

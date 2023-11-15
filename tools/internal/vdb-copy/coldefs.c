@@ -388,8 +388,8 @@ static rc_t redactable_types_2_type_id_vector( const VSchema * s,
             rc = VNameListGet( r_types, idx, &name );
             if ( 0 == rc ) {
                 VTypedecl td;
-                rc = VSchemaResolveTypedecl ( s, &td, "%s", name );
-                if ( 0 == rc ) {
+                rc_t rc1 = VSchemaResolveTypedecl ( s, &td, "%s", name );
+                if ( 0 == rc1 ) {
                     uint32_t *id = malloc( sizeof *id );
                     if ( NULL != id ) {
                         *id = td . type_id;

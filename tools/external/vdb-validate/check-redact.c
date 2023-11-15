@@ -97,6 +97,15 @@ static rc_t path_to_vpath( const char * aPath, VPath ** vpath ) {
     return rc;
 }
 
+static void clear_recorded_errors( void ) {
+    rc_t rc;
+    const char * filename;
+    const char * funcname;
+    uint32_t line_nr;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) ) {
+    }
+}
+
 /* ==================================================================================== */
 
 typedef struct columns_t {
@@ -295,7 +304,7 @@ static rc_t check_opened_table( const VTable *tbl, const char * aPath ) {
                 row_idx++;
             }
             if ( 0 != incorrect_rows ) {
-                rc = RC( rcExe, rcFileFormat, rcEvaluating, rcConstraint, rcViolated );
+                rc = SILENT_RC( rcExe, rcFileFormat, rcEvaluating, rcConstraint, rcViolated );
                 ErrMsg( rc, "%lu rows with incorrectly redacted bases detected for '%s'\n", incorrect_rows, aPath );
             } else {
                 ( void )PLOGMSG( klogInfo, ( klogInfo, "Redact : $(correct) of $(total) rows correct",
@@ -388,5 +397,6 @@ rc_t check_redact( const char *aPath ) {
         }
         rc = KDirectory_Release( rc, dir );
     }
+    clear_recorded_errors();
     return rc;
 }

@@ -176,7 +176,7 @@ static OptDef options [] =
   , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
   , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
 
-  , { OPTION_CHECK_REDACT, NULL      , NULL, USAGE_CHECK_REDACT, 1, true , false }
+  , { OPTION_CHECK_REDACT, NULL      , NULL, USAGE_CHECK_REDACT, 1, false , false }
 };
 
 /*

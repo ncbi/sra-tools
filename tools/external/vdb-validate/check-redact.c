@@ -220,6 +220,25 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     return rc;
 }
 
+static rc_t has_redact_flag( const VCursor * cur, int64_t row_id, uint32_t col_idx, bool *has_flag ) {
+    uint32_t filter_element_bits, filter_row_len;
+    const uint8_t *read_filters = NULL;
+    rc_t rc = VCursorCellDataDirect( cur, row_id, col_idx, &filter_element_bits,
+                                (const void**)&read_filters, NULL, &filter_row_len );
+    *has_flag = false;
+    if ( 0 == rc ) {
+        uint32_t idx;
+        uint32_t values_found = 0;
+        for ( idx = 0; idx < filter_row_len; ++idx ) {
+            if ( ( read_filters[ idx ] & SRA_READ_FILTER_REDACTED ) == SRA_READ_FILTER_REDACTED ) {
+                values_found++;
+            }
+        }
+        *has_flag = values_found > 0;
+    }
+    return rc;
+}
+
 static rc_t check_opened_table( const VTable *tbl, const char * aPath ) {
     const VCursor * cur;
     rc_t rc = VTableCreateCachedCursorRead( tbl, &cur, 0 );
@@ -257,21 +276,30 @@ static rc_t check_opened_table( const VTable *tbl, const char * aPath ) {
             uint64_t correct_rows = 0;
             uint64_t incorrect_rows = 0;
             while ( 0 == rc && row_idx < row_count ) {
-                bool correct = false;
-                rc = check_redaction( cur, row, &columns, &correct );
-                if ( 0 == rc ) {
-                    if ( correct ) {
-                        correct_rows++;
-                    } else {
-                        incorrect_rows++;
+                bool has_flag;
+                rc = has_redact_flag( cur, row, columns.read_filter, &has_flag );
+                if ( 0 == rc && has_flag ) {
+                    bool correct = false;
+                    rc = check_redaction( cur, row, &columns, &correct );
+                    if ( 0 == rc ) {
+                        if ( correct ) {
+                            correct_rows++;
+                        } else {
+                            incorrect_rows++;
+                        }
                     }
+                } else {
+                    correct_rows++;
                 }
                 row++;
                 row_idx++;
             }
             if ( 0 != incorrect_rows ) {
                 rc = RC( rcExe, rcFileFormat, rcEvaluating, rcConstraint, rcViolated );
-                ErrMsg( rc, "%lu rows with incorrectly redacted bases detected for '%s'\n", aPath );
+                ErrMsg( rc, "%lu rows with incorrectly redacted bases detected for '%s'\n", incorrect_rows, aPath );
+            } else {
+                ( void )PLOGMSG( klogInfo, ( klogInfo, "Redact : $(correct) of $(total) rows correct",
+                                         "correct=%lu,total=%lu", correct_rows, row_count ) );
             }
         }
         rc = VCursor_Release( rc, cur );

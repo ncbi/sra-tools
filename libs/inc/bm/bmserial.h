@@ -621,10 +621,8 @@ public:
     /** reset range deserialization and reference vectors
         @sa set_range()
     */
-    void reset() BMNOEXCEPT
-    {
-        unset_range(); set_ref_vectors(0);
-    }
+    void reset() BMNOEXCEPT { unset_range(); set_ref_vectors(0); }
+
 protected:
    typedef typename BV::blocks_manager_type blocks_manager_type;
 
@@ -689,7 +687,6 @@ protected:
     block_idx_type            x_nb_;
     unsigned                  xor_chain_size_;
     bm::match_pair            xor_chain_[64];
-//    bool                      x_ref_gap_;
 
     // Range deserialization settings
     //
@@ -4128,12 +4125,15 @@ size_t deserializer<BV, DEC>::deserialize(bvector_type&        bv,
 {
     blocks_manager_type& bman = bv.get_blocks_manager();
     if (!bman.is_init())
-        bman.init_tree();
+    {
+        auto bc = bman.compute_top_block_size(bm::id_max-1);
+        bman.init_tree(bc);
+    }
     
     bm::word_t* temp_block = temp_block_;
 
     bm::strategy  strat = bv.get_new_blocks_strat();
-    bv.set_new_blocks_strat(BM_GAP);
+    //bv.set_new_blocks_strat(BM_GAP);
     typename bvector_type::mem_pool_guard mp_guard_bv;
     mp_guard_bv.assign_if_not_set(pool_, bv);
 
@@ -4539,7 +4539,7 @@ size_t deserializer<BV, DEC>::deserialize(bvector_type&        bv,
                 case 0: row_idx = dec.get_32(); break;
                 default: BM_ASSERT(0); break;
                 } // switch
-                bm::id64_t acc64 = x_ref_d64_ = dec.get_h64();
+                bm::id64_t acc64 = x_ref_d64_ = dec.get_h64(); (void) acc64;
                 BM_ASSERT(!xor_chain_size_);
                 xor_chain_size_ = dec.get_8();
                 BM_ASSERT(xor_chain_size_);
@@ -4579,6 +4579,8 @@ size_t deserializer<BV, DEC>::deserialize(bvector_type&        bv,
         xor_decode(bman);
 
     bv.set_new_blocks_strat(strat);
+
+    bman.shrink_top_blocks(); // reduce top blocks to necessary size
 
     return dec.size();
 }
@@ -4727,7 +4729,7 @@ void deserializer<BV, DEC>::xor_decode(blocks_manager_type& bman)
         if (nb_from == x_nb_ || nb_to == x_nb_)
             return;
     }
-    bman.optimize_bit_block(i0, j0, BV::opt_compress);
+    bman.optimize_bit_block_nocheck(i0, j0);
 
 }
 // ---------------------------------------------------------------------------

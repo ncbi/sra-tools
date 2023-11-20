@@ -817,11 +817,18 @@ public:
     /*! @name Clear                                              */
     ///@{
 
-    /*! \brief resize to zero, free memory */
-    void clear_all(bool free_mem) BMNOEXCEPT;
+    /*! \brief resize to zero, free memory
+        @param free_mem - true - free all bit-vectors memory,
+                         false - set bit-vecor to zero (memory remains reserved)
+        @param remap - 0 - set to no-remap (default), 1 - keep remap substitution matrix for possible re-use
+                     (if remap() was ever called on this vector with the datawith same frequency profiles)
+        Note that feeding the data with disimilar frequency profile would cause undefined behavior.
+        @sa remap
+    */
+    void clear_all(bool free_mem, unsigned remap=0) BMNOEXCEPT;
 
-    /*! \brief resize to zero, free memory */
-    void clear() BMNOEXCEPT { clear_all(true); }
+    /*! \brief resize to zero, free memory, reset remapping */
+    void clear() BMNOEXCEPT { clear_all(true, 0); }
 
     /*!
         \brief clear range (assign bit 0 for all planes)
@@ -1602,7 +1609,7 @@ str_sparse_vector<CharType, BV, STR_SIZE>::str_sparse_vector(
         allocation_policy_type  ap,
         size_type               bv_max_size,
         const allocator_type&   alloc)
-: parent_type(null_able, ap, bv_max_size, alloc),
+: parent_type(null_able, true, ap, bv_max_size, alloc),
   remap_flags_(0)
 {
     static_assert(STR_SIZE > 1,
@@ -1629,7 +1636,7 @@ str_sparse_vector<CharType, BV, STR_SIZE>::str_sparse_vector(
 template<class CharType, class BV, unsigned STR_SIZE>
 str_sparse_vector<CharType, BV, STR_SIZE>::str_sparse_vector(
               const str_sparse_vector& str_sv, bm::remap_setup remap_mode)
-: parent_type(str_sv.get_null_support()),
+: parent_type(str_sv.get_null_support(), true),
   remap_flags_(str_sv.remap_flags_),
   remap_matrix1_(str_sv.remap_matrix1_),
   remap_matrix2_(str_sv.remap_matrix2_)
@@ -2271,6 +2278,9 @@ bool str_sparse_vector<CharType, BV, STR_SIZE>::remap_tosv(
        const value_type* BMRESTRICT str,
        const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix2) BMNOEXCEPT
 {
+    if (!octet_remap_matrix2.rows())
+        return false;
+
     const unsigned char* remap_row = octet_remap_matrix2.row(0);
     for (unsigned i = 0; i < buf_size; ++i, remap_row += 256)
     {
@@ -2280,7 +2290,6 @@ bool str_sparse_vector<CharType, BV, STR_SIZE>::remap_tosv(
             sv_str[i] = ch;
             break;
         }
-//        const unsigned char* remap_row = octet_remap_matrix2.row(i);
         unsigned char remap_value = remap_row[unsigned(ch)];
         sv_str[i] = CharType(remap_value);
         if (!remap_value) // unknown dictionary element
@@ -2588,9 +2597,15 @@ str_sparse_vector<CharType, BV, STR_SIZE>::begin() const BMNOEXCEPT
 
 template<class CharType, class BV, unsigned STR_SIZE>
 void str_sparse_vector<CharType, BV, STR_SIZE>::clear_all(
-                                        bool free_mem) BMNOEXCEPT
+                                        bool free_mem, unsigned remap) BMNOEXCEPT
 {
     parent_type::clear_all(free_mem);
+    if (remap_flags_ && (remap == 0))
+    {
+        remap_flags_ = 0;
+        remap_matrix1_.free();
+        remap_matrix2_.free();
+    }
 }
 
 //---------------------------------------------------------------------

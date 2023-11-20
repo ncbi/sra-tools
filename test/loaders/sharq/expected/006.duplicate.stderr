@@ -1,1 +1,1 @@
-[error] [code:170] Collation check. Duplicate spot 'CL100159005L1C001R001_2' at file input/006.duplicate.fq, line 101
+[error] [code:170] SRAE-75: Collation check. Duplicate spot 'CL100159005L1C001R001_2' at file input/006.duplicate.fq, line 101

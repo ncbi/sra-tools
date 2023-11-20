@@ -1268,7 +1268,7 @@ int s_find_duplicates(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& 
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "Collation check. Duplicate spot '{}' at index {}", terms[i], i);
+            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at index {}", terms[i], i);
             error_checker(e);
         }
     }
@@ -1294,7 +1294,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
+            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
             error_checker(e);
         }
     }

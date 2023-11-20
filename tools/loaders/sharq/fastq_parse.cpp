@@ -55,7 +55,7 @@
 namespace fs = std::experimental::filesystem;
 #else
 #include <filesystem>
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 #endif
 
 using json = nlohmann::json;
@@ -151,7 +151,7 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 
     for (size_t i = 0; i < batch.size(); ++i) {
-        out[i].push_back(move(batch[i]));
+        out[i].push_back(std::move(batch[i]));
     }
 }
 

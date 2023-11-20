@@ -206,7 +206,7 @@ typedef struct {
 #endif
 
 
-typedef struct
+struct u40_t
 {
     vector<uint32_t> values;
     vector<uint8_t> ext;
@@ -216,10 +216,10 @@ typedef struct
         v |= values[index];
         return v;
     }
-} u40_t;
+};
 
 
-typedef struct FragmentInfo {
+struct FragmentInfo {
     uint64_t ti;
     uint32_t readlen;
     uint8_t  aligned;
@@ -229,7 +229,7 @@ typedef struct FragmentInfo {
     uint8_t  sglen;
     uint8_t  lglen;
     uint8_t  cskey;
-} FragmentInfo;
+};
 
 
 
@@ -237,15 +237,14 @@ typedef struct FragmentInfo {
  * @brief Data returned by bam_read threads
  *
  */
-typedef struct
+struct queue_rec_t
 {
     BAM_Alignment* alignment{nullptr};  ///< BAM Alignment
     metadata_t* metadata{nullptr};      ///< Pointer to metadata
     uint32_t row_id{0};                 ///< Corresponding metadata row
-} queue_rec_t;
+};
 
-typedef struct context_t {
-
+struct context_t {
     array<const KLoadProgressbar*, 4> progress = {nullptr, nullptr, nullptr, nullptr};
     MemBank *frags = nullptr;
     uint64_t spotId = 0;
@@ -437,9 +436,7 @@ typedef struct context_t {
         }
 
     }
-
-
-} context_t;
+};
 
 
 
@@ -1571,7 +1568,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
 
         for ( ; ; ) {
 #ifdef NEW_QUEUE
-            if (rw_queue.try_enqueue(move(queue_rec))) {
+            if (rw_queue.try_enqueue(std::move(queue_rec))) {
                 break;
             }
             if (rw_done)
@@ -1739,8 +1736,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     size_t namelen;
     float progress = 0.0;
     unsigned warned = 0;
-    long     fcountBoth=0;
-    long     fcountOne=0;
     int skipRefSeqID = -1;
     int unmapRefSeqId = -1;
     uint64_t recordsRead = 0;
@@ -2804,10 +2799,8 @@ WRITE_SEQUENCE:
                         }
                         if(align && mate_refSeqId == refSeqId && pnext > 0 && pnext!=rpos /*** weird case in some bams**/){
                             rc = MemBankAlloc(ctx->frags, &fragmentId, sz, 0, false);
-                            fcountBoth++;
                         } else {
                             rc = MemBankAlloc(ctx->frags, &fragmentId, sz, 0, true);
-                            fcountOne++;
                         }
 #ifndef NO_METADATA
                         metadata.get<u32_t>(metadata_t::e_fragmentId).set(row_id, fragmentId);
@@ -3002,12 +2995,6 @@ WRITE_SEQUENCE:
     #if defined (HAS_CTX_VALUE)
                             CTX_VALUE_SET_S_ID(*value, ctx->spotId);
     #endif
-                            if(fragmentId & 1){
-                                fcountOne--;
-                            } else {
-                                fcountBoth--;
-                            }
-                            /*  printf("OUT:%9d\tcnt2=%ld\tcnt1=%ld\n",fragmentId,fcountBoth,fcountOne);*/
                             rc = MemBankFree(ctx->frags, fragmentId);
                             if (rc) {
                                 // FATAL ERROR, RUNTIME ERROR, LIKELY IMPOSSIBLE
@@ -3786,13 +3773,13 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     }
     size_t row_offset = 1;
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], ctx->spotId + 1);
-    typedef struct {
+    struct key_batch_t {
         vector<uint64_t> keys;
         vector<uint8_t> alignmentCount;//(BUFFER_SIZE * 2);
         vector<int64_t> primaryId;//(BUFFER_SIZE * 2);
         vector<uint8_t> unmated;//(BUFFER_SIZE * 2);
         size_t offset = 0;
-    } key_batch_t;
+    };
     atomic<bool> queue_done{false};
     atomic<bool> exit_on_error{false};
     atomic<bool> gather_done{false};
@@ -3853,7 +3840,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     }
                 });
                 ctx->m_executor->run(taskflow).wait();
-                while (!update_queue.try_enqueue(move(batch))) {
+                while (!update_queue.try_enqueue(std::move(batch))) {
                     if (exit_on_error)
                         break;
                 };
@@ -3931,10 +3918,10 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             key_batch_t batch;
             batch.offset = row_offset;
             row_offset += keys.size();
-            batch.keys = move(keys);
+            batch.keys = std::move(keys);
             keys.clear();
             keys.reserve(BUFFER_SIZE);
-            while (gather_queue.try_enqueue(move(batch)) == false) {
+            while (gather_queue.try_enqueue(std::move(batch)) == false) {
                 if (exit_on_error)
                     break;
             };
@@ -3948,9 +3935,9 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         key_batch_t batch;
         batch.offset = row_offset;
         row_offset += keys.size();
-        batch.keys = move(keys);
+        batch.keys = std::move(keys);
         keys.clear();
-        while (gather_queue.try_enqueue(move(batch)) == false) {
+        while (gather_queue.try_enqueue(std::move(batch)) == false) {
             if (exit_on_error)
                 break;
         };

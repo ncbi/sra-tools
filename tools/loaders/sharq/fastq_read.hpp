@@ -59,15 +59,15 @@ public:
     uint8_t Type() const { return mReadType;} ///< return ReadType
 
     void SetLineNumber(size_t line_number) { mLineNumber = line_number;}
-    void SetSpot(string spot) { mSpot = move(spot); }
+    void SetSpot(string spot) { mSpot = std::move(spot); }
     void SetSpot(const re2::StringPiece& spot) {  spot.CopyToString(&mSpot); }
 
-    void MoveSpot(string&& spot) { mSpot = move(spot); }
+    void MoveSpot(string&& spot) { mSpot = std::move(spot); }
 
-    void SetReadNum(string readNum) { mReadNum = move(readNum); }
+    void SetReadNum(string readNum) { mReadNum = std::move(readNum); }
     void SetReadNum(const re2::StringPiece& readNum) { readNum.CopyToString(&mReadNum); }
 
-    void SetSuffix(string suffix) { mSuffix = move(suffix); }
+    void SetSuffix(string suffix) { mSuffix = std::move(suffix); }
     void SetSuffix(const re2::StringPiece& suffix) { suffix.CopyToString(&mSuffix); }
 
     void SetSpotGroup(string spotGroup);
@@ -78,8 +78,8 @@ public:
     void SetChannel(const re2::StringPiece& channel) { channel.CopyToString(&mChannel); }
     void SetNanoporeReadNo(const re2::StringPiece& readNo) { readNo.CopyToString(&mNanoporeReadNo); }
 
-    void SetSequence(string sequence) { mSequence = move(sequence); }
-    void SetQualScores(vector<uint8_t> qual_scores) { mQualScores = move(qual_scores); }
+    void SetSequence(string sequence) { mSequence = std::move(sequence); }
+    void SetQualScores(vector<uint8_t> qual_scores) { mQualScores = std::move(qual_scores); }
 
     size_t m_SpotId = 0;     ///< Assigned spot_id  
     uint8_t m_ReaderIdx = 0; /// Reader's index
@@ -212,7 +212,7 @@ void CFastqRead::SetSpotGroup(string spotGroup)
     if (spotGroup == "0")
         mSpotGroup.clear();
     else
-        mSpotGroup = move(spotGroup);
+        mSpotGroup = std::move(spotGroup);
 }
 
 void CFastqRead::SetSpotGroup(const re2::StringPiece& spotGroup)

@@ -55,7 +55,7 @@ sub OsArch {
             } elsif ($MARCH =~ /sun4v/) {
                 $HOST_ARCH = 'sparc64';
                 @ARCHITECTURES = qw(sparc64 sparc32);
-            } elsif ($MARCH =~ /aarch64/) {
+            } elsif ($MARCH =~ /arm64/i || $MARCH =~ /aarch64/i) {
                 $HOST_ARCH = 'arm64';
             } else {
                 $HOST_ARCH = $MARCH;
@@ -68,7 +68,7 @@ sub OsArch {
 sub MacArch {
     my $ARCH = `uname -m`;
     chomp $ARCH;
-    if ($ARCH eq 'x86_64') {
+    if ($ARCH eq 'x86_64' || $ARCH eq 'arm64') {
         return $ARCH;
     } else {
         my $SYSCTL = '/usr/sbin/sysctl';

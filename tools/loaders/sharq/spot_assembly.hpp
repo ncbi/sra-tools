@@ -381,7 +381,7 @@ void spot_assembly_t::get_spot(size_t row_id, vector<fastq_read>& reads)
     if (m_hot_spot_ids.test(row_id)) {
         auto it = m_hot_spots.find(row_id);
         if (it != m_hot_spots.end()) {
-            reads = move(it->second);
+            reads = std::move(it->second);
         } else {
             reads.clear();
         }
@@ -448,7 +448,7 @@ void spot_assembly_t::get_spot(size_t row_id, vector<fastq_read>& reads)
             tmp_qual_scores[i] = tmp_qual_buffer[i] + tmp_qual_scores[i - 1];
         }
         tmp_read.SetQualScores(tmp_qual_scores);
-        reads[read_idx] = move(tmp_read);
+        reads[read_idx] = std::move(tmp_read);
     }
 }
 
@@ -559,7 +559,7 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
 
     if (m_hot_spot_ids.test(row_id)) {
         lock_guard<mutex> lock(m_mutex);
-        m_hot_spots[row_id].push_back(move(read));
+        m_hot_spots[row_id].push_back(std::move(read));
         return;
     }
 
@@ -637,7 +637,7 @@ void spot_assembly_t::get_spot_mt(const string& spot_name, size_t row_id, vector
         lock_guard<mutex> lock(m_mutex);
         auto it = m_hot_spots.find(row_id);
         if (it != m_hot_spots.end()) {
-            reads = move(it->second);
+            reads = std::move(it->second);
         }
         return;
     } 
@@ -704,7 +704,7 @@ void spot_assembly_t::get_spot_mt(const string& spot_name, size_t row_id, vector
         }
         tmp_read.SetQualScores(tmp_qual_scores);
 
-        reads[read_idx] = move(tmp_read);
+        reads[read_idx] = std::move(tmp_read);
     }
 }
 
@@ -783,8 +783,6 @@ void spot_assembly_t::clear_spot_mt(size_t row_id)
                 }
                 m_qualities[read_idx].clear(clear_bv);
                 metadata.get<u64_t>(metadata_t::e_QualOffsetId).clear(m_rows_to_clear);
-
-
             }
             m_rows_to_clear.clear();
             m_num_rows_to_optimize += m_num_rows_to_clear;

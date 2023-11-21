@@ -455,20 +455,20 @@ void fastq_writer_vdb::open()
     };
 
     m_writer->addTable("SEQUENCE", SequenceCols);
-    SEQUENCE_TABLE = move(m_writer->table("SEQUENCE"));
-    c_NAME = move(SEQUENCE_TABLE.column("NAME"));
-    c_SPOT_GROUP = move(SEQUENCE_TABLE.column("SPOT_GROUP"));
-    c_PLATFORM = move(SEQUENCE_TABLE.column("PLATFORM"));
-    c_READ = move(SEQUENCE_TABLE.column("READ"));
-    c_QUALITY = move(SEQUENCE_TABLE.column("QUALITY"));
-    c_READ_START = move(SEQUENCE_TABLE.column("READ_START"));
-    c_READ_LEN = move(SEQUENCE_TABLE.column("READ_LEN"));
-    c_READ_TYPE = move(SEQUENCE_TABLE.column("READ_TYPE"));
-    c_READ_FILTER = move(SEQUENCE_TABLE.column("READ_FILTER"));
+    SEQUENCE_TABLE = m_writer->table("SEQUENCE");
+    c_NAME = SEQUENCE_TABLE.column("NAME");
+    c_SPOT_GROUP = SEQUENCE_TABLE.column("SPOT_GROUP");
+    c_PLATFORM = SEQUENCE_TABLE.column("PLATFORM");
+    c_READ = SEQUENCE_TABLE.column("READ");
+    c_QUALITY = SEQUENCE_TABLE.column("QUALITY");
+    c_READ_START = SEQUENCE_TABLE.column("READ_START");
+    c_READ_LEN = SEQUENCE_TABLE.column("READ_LEN");
+    c_READ_TYPE = SEQUENCE_TABLE.column("READ_TYPE");
+    c_READ_FILTER = SEQUENCE_TABLE.column("READ_FILTER");
     if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
     {
-        c_CHANNEL = move(SEQUENCE_TABLE.column("CHANNEL"));
-        c_READ_NUMBER = move(SEQUENCE_TABLE.column("READ_NUMBER"));
+        c_CHANNEL = SEQUENCE_TABLE.column("CHANNEL");
+        c_READ_NUMBER = SEQUENCE_TABLE.column("READ_NUMBER");
     }
 
     string read_types;

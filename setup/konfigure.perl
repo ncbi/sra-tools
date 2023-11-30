@@ -93,7 +93,7 @@ my @options = ( 'build-prefix=s',
                 'without-debug', );
 {
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
-    push @options, 'arch=s' if (@ARCHITECTURES || $ARCH eq 'arm64');
+    push @options, 'arch=s'    if (@ARCHITECTURES);
 }
 push @options, 'source=s' if ($PKG{LNG} eq 'JAVA');
 push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');

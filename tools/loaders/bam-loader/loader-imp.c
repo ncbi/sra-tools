@@ -808,6 +808,7 @@ rc_t GetKeyID(context_t *const ctx,
     static size_t key_count = 0;
     static size_t spot_count = 0;
     static size_t last_spot_count = 0;
+    static int mem_prediction_err_count = 0;
     BAM_Alignment& rec = *queue_rec.alignment;
     size_t group_id = ctx->m_read_groups.size();
     size_t const namelen = GetFixedNameLength(name, o_namelen);
@@ -843,62 +844,94 @@ rc_t GetKeyID(context_t *const ctx,
     }
     spot_count += rec.wasInserted ? 1 : 0;
 
-    if (spot_count % 1000000 == 0 && spot_count && spot_count != last_spot_count && ctx->m_inputSize > 0) {
-        last_spot_count = spot_count;
-        BAM_FilePosition end_pos = 0;
-        BAM_FileGetPosition(bam, &end_pos);
-        end_pos >>= 16;
-        size_t chunk_len = end_pos - ctx->m_fileOffset;
-        ctx->m_processedSize += chunk_len;
-        ctx->m_fileOffset = end_pos;
-        if (ctx->m_processedSize) {
-            int pct = 100 * (float)ctx->m_processedSize/ctx->m_inputSize;
-            // Estimated batch size until 10% of input size is processed
-            if (pct <= 10) {
-                size_t num_chunks = (ctx->m_inputSize / ctx->m_processedSize) + 1;
-                size_t num_spots = num_chunks * spot_count;
-                ctx->m_estimated_spot_count = num_spots;
-                if (spot_count % 10000000) {
-                    ctx->set_key_filter(num_spots);
-                    ctx->m_estimatedBatchSize = min<int>(G.searchBatchSize, num_spots/(ctx->m_executor->num_workers() - 1));
-                    ctx->m_estimatedBatchSize = max<int>(G.minBatchSize, ctx->m_estimatedBatchSize);
-                    spdlog::info("Current spot_count: {:L}, estimated spot count {:L}, estimated batch size: {:L}", spot_count, num_spots, ctx->m_estimatedBatchSize);
+    if (spot_count % 1000000 == 0 && spot_count && spot_count != last_spot_count) {
+        if (ctx->m_inputSize > 0) {
+            last_spot_count = spot_count;
+            BAM_FilePosition end_pos = 0;
+            BAM_FileGetPosition(bam, &end_pos);
+            end_pos >>= 16;
+            size_t chunk_len = end_pos - ctx->m_fileOffset;
+            ctx->m_processedSize += chunk_len;
+            ctx->m_fileOffset = end_pos;
+            if (ctx->m_processedSize) {
+                int pct = round(100. * (float)ctx->m_processedSize/ctx->m_inputSize);
+                // Estimated batch size until 10% of input size is processed
+                if (pct <= 10) {
+                    size_t num_chunks = (ctx->m_inputSize / ctx->m_processedSize) + 1;
+                    size_t num_spots = num_chunks * spot_count;
+                    ctx->m_estimated_spot_count = num_spots;
+                    if (spot_count % 10000000 == 0) {
+                        ctx->set_key_filter(num_spots);
+                        ctx->m_estimatedBatchSize = min<int>(G.searchBatchSize, num_spots/(ctx->m_executor->num_workers() - 1));
+                        ctx->m_estimatedBatchSize = max<int>(G.minBatchSize, ctx->m_estimatedBatchSize);
+                        spdlog::info("Current spot_count: {:L}, estimated spot count {:L}, estimated batch size: {:L}", spot_count, num_spots, ctx->m_estimatedBatchSize);
+                    }
+                }
+                if (pct >= 10 && pct <= 50) {
+                    size_t est_mem_cnt = 1;
+                    int last_pct = 0;
+                    int last_est_mem = 0;
+                    const auto& prev_items = ctx->mTelemetry["estimates"];
+                    if (prev_items.size() > 0) {
+                        est_mem_cnt += prev_items.size();
+                        auto& prev = prev_items[to_string(prev_items.size())];
+                        last_pct = prev["pct-done"].get<int>();
+                        last_est_mem = prev["est-max-mem-kb"].get<int>();
+                    }
+                    if ((pct - last_pct) > 1) {
+                        size_t sa_mem_used = 0;
+                        for (const auto& sa : ctx->m_read_groups) {
+                            sa_mem_used += sa->memory_used();
+                        }
+                        size_t est_mem = ((float)(sa_mem_used * ctx->m_estimated_spot_count)/ctx->spotId)  + ctx->m_ReferenceSize + ctx->m_key_filter->memory_used();
+                        size_t est_mem_gb = est_mem/(1024 * 1024 * 1024);
+                        (void)PLOGMSG(klogInfo, (klogInfo, "Estimate mem $(m1), limit mem: $(m2)", "m1=%lu,m2=%lu", est_mem_gb, G.LOADER_MEM_LIMIT_GB));
+                        json& j = ctx->mTelemetry["estimates"][to_string(est_mem_cnt)];
+                        j["est-max-mem-kb"] = est_mem/1024;
+                        j["est-spot-count"] = ctx->m_estimated_spot_count.load();
+                        j["spot-assembly-mem-kb"] = sa_mem_used/1024;
+                        j["reference-mem-kb"] = ctx->m_reference_len.load()/1024;
+                        j["pending-spot-size"] = ctx->m_BankedSize.load();
+                        j["pending-spot-count"] = ctx->m_BankedSpots.load();
+                        j["spot-count"] = ctx->spotId;
+                        j["spot-size"] = ctx->m_SpotSize.load();
+                        j["max-mem-kb"] = getCurrentRSS();
+                        j["pct-done"] = pct;
+                        if (G.LOADER_MEM_LIMIT_GB > 0 && float(est_mem_gb)/G.LOADER_MEM_LIMIT_GB > 1.25 && est_mem_cnt > 1) {
+
+                            int x1 = last_pct;
+                            int x2 = pct;
+                            if (x2 - x1 <= 0) {
+                                PLOGMSG(klogErr, (klogErr, "SRAE-68: Estimated memory usage $(pred_m) GB exceeds loader memory limit $(limit_m) GB at $(pct)%", "pred_m=%lu,limit_m=%lu,pct=%u", est_mem_gb, G.LOADER_MEM_LIMIT_GB, pct));
+                                return RC(rcExe, rcNoTarg, rcProjecting, rcMemory, rcExcessive);                        
+                            }
+                            int y1 = last_est_mem;
+                            int y2 = est_mem/1024;
+
+                            float m = (float)(y2 - y1)/(x2 - x1);
+                            float b = y1 - m * x1;
+                            float projected_mem_kb = m * 50 + b; // projected memory at 50%
+                            j["projected-mem-kb"] = round(projected_mem_kb * 100) / 100;
+                            if (projected_mem_kb > 0 && projected_mem_kb/(G.LOADER_MEM_LIMIT_GB * 1024 * 1024) > 1.25) {
+                                if (++mem_prediction_err_count > 3) {
+                                    PLOGMSG(klogErr, (klogErr, "SRAE-68: Estimated memory usage $(pred_m) GB exceeds loader memory limit $(limit_m) GB at $(pct)%", "pred_m=%lu,limit_m=%lu,pct=%u", est_mem_gb, G.LOADER_MEM_LIMIT_GB, pct));
+                                    return RC(rcExe, rcNoTarg, rcProjecting, rcMemory, rcExcessive);                        
+                                } else {
+                                    spdlog::warn("Estimated memory usage {:L} GB exceeds loader memory limit {:L} GB at {:L}%, count {}", est_mem_gb, G.LOADER_MEM_LIMIT_GB, pct, mem_prediction_err_count);
+                                }
+                            } else {
+                                mem_prediction_err_count = 0;
+                            }
+                        }
+                    }
                 }
             }
-            if (pct >= 5 && pct <= 25) {
-                size_t est_mem_cnt = 1;
-                int last_pct = 0;
-                const auto& prev_items = ctx->mTelemetry["estimates"];
-                if (prev_items.size() > 0) {
-                    est_mem_cnt += prev_items.size();
-                    auto& prev = prev_items[to_string(prev_items.size())];
-                    last_pct = prev["pct-done"].get<int>();
-                }
-                if (pct > last_pct) {
-                    size_t sa_mem_used = ctx->m_key_filter->memory_used();
-                    for (const auto& sa : ctx->m_read_groups) {
-                        sa_mem_used += sa->memory_used();
-                    }
-                    size_t est_mem = ((float)(sa_mem_used * ctx->m_estimated_spot_count)/ctx->spotId)  + ctx->m_ReferenceSize;
-                    //size_t est_mem_total = est_mem/1204;
-
-                    size_t max_mem = getCurrentRSS();
-                    json j;
-                    j["est-max-mem-kb"] = est_mem/1204;
-                    //j["est-max-mem2-kb"] = (max_mem * 100)/pct;
-                    //j["est-max-mem-avg"] = int(round((float)est_mem_total / est_mem_cnt));
-
-                    j["est-spot-count"] = ctx->m_estimated_spot_count.load();
-                    j["spot-assembly-mem-kb"] = sa_mem_used/1024;
-                    j["reference-mem-kb"] = ctx->m_reference_len.load()/1024;
-                    j["pending-spot-size"] = ctx->m_BankedSize.load();
-                    j["pending-spot-count"] = ctx->m_BankedSpots.load();
-                    j["spot-count"] = ctx->spotId;
-                    j["spot-size"] = ctx->m_SpotSize.load();
-                    j["max-mem-kb"] = max_mem;
-                    j["pct-done"] = pct;
-                    ctx->mTelemetry["estimates"][to_string(est_mem_cnt)] = j;
-                }
+        } else if (G.LOADER_MEM_LIMIT_GB > 0) {
+            size_t curr_mem_gb = getCurrentRSS()/(1024 * 1024);
+            // input is stdin. we can't make RAM  estimate so we bail out if current memory exceeds the limit
+            if (float(curr_mem_gb)/G.LOADER_MEM_LIMIT_GB > 1.25) {
+                PLOGMSG(klogErr, (klogErr, "SRAE-74: Memory usage $(pred_m) GB exceeds loader memory limit $(limit_m) GB", "pred_m=%lu,limit_m=%lu,pct=%u", curr_mem_gb, G.LOADER_MEM_LIMIT_GB));
+                return RC(rcExe, rcNoTarg, rcProjecting, rcMemory, rcExcessive);                        
             }
         }
         if (spot_count % 10000000 == 0)
@@ -4201,7 +4234,6 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     spdlog::info("SIMD code = {}", bm::simd_version());
     spdlog::info("Num threads  = {}", G.numThreads);
     spdlog::info("Search batch size = {}", G.searchBatchSize);
-
 
     rc_t rc = 0;
     rc_t rc2;

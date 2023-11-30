@@ -1380,6 +1380,13 @@ rc_t CC KMain(int argc, char *argv[])
     G.searchBatchSize = DEFAULT_BATCH_SIZE;
     G.numThreads = 8;
     G.minBatchSize = DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE;
+    if (char* env = getenv("LOADER_MEM_LIMIT_GB")) {
+        G.LOADER_MEM_LIMIT_GB = atoi(env);
+        (void)PLOGMSG(klogInfo, (klogInfo, "LOADER_MEM_LIMIT_GB=$(cnt)", "cnt=%u", G.LOADER_MEM_LIMIT_GB));
+    } else {
+        G.LOADER_MEM_LIMIT_GB = 0;
+    }
+
     set_pid();
 
     for (arglast = 1; arglast < argc; ++arglast) {

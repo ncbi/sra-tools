@@ -50,17 +50,13 @@
 #include <algorithm>
 #include <variant>
 
-using namespace std;
-
-
-
 typedef tsl::array_map<char, uint32_t, 
-hashing::fnv_1a_hash, 
-tsl::ah::str_equal<char>,
-true,
-std::uint16_t,
-std::uint32_t,
-tsl::ah::prime_growth_policy> array_map_t;
+    hashing::fnv_1a_hash, 
+    tsl::ah::str_equal<char>,
+    true,
+    std::uint16_t,
+    std::uint32_t,
+    tsl::ah::prime_growth_policy> array_map_t;
 
 typedef bm::bvector<> bvector_type;
 typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
@@ -268,12 +264,12 @@ struct spot_assembly
      * @brief Structure for teh search results 
      * 
      */
-    typedef struct {
+    struct spot_rec_t {
         size_t pos{0}; // Global spot index
         bool wasInserted{true}; ///< Indicates if spot inserted (new spot)
         metadata_t* metadata{nullptr}; ///< Metadata for the spot
         size_t row_id{0}; ///< Metadata row
-    } spot_rec_t;
+    };
 
     spot_rec_t m_rec;
 

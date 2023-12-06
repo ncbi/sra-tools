@@ -47,13 +47,15 @@
 
 #include <json.hpp>
 #include <algorithm>
+#include <insdc/sra.h>
+
 
 #if __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #else
 #include <filesystem>
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 #endif
 
 using json = nlohmann::json;
@@ -104,6 +106,11 @@ private:
     void xCreateWriterFromDigest(json& data);
     bool xIsSingleFileInput() const;
 
+    /*
+    * @brief Set platform code from platfom parameter
+    */
+    void xSetPlatformCode(const string& platform);
+
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
@@ -128,6 +135,7 @@ private:
     uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
     atomic<uint32_t> mErrorCount{0};            ///< Global error counter
     size_t mHotReadsThreshold{10000000};      ///< Threshold for hot reads
+    uint8_t m_platform_code{0};         ///< Platform code set from the parameters
     set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
 };
 
@@ -143,7 +151,7 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 
     for (size_t i = 0; i < batch.size(); ++i) {
-        out[i].push_back(move(batch[i]));
+        out[i].push_back(std::move(batch[i]));
     }
 }
 
@@ -270,6 +278,12 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             check_hash_file(hash_file);
             return 0;
         }
+
+        if (platform.empty() == false) {
+            xSetPlatformCode(platform);
+            mReport["platform_override"] = platform;
+        } 
+
         vector<string> options2log = {"--platform", "--readTypes", "--useAndDiscardNames", "--allowEarlyFileEnd", "--name-column", "--quality"};
         for (const auto& opt_name : options2log) {
             auto opt = app.get_option(opt_name);
@@ -439,6 +453,7 @@ void CFastqParseApp::xProcessDigest(json& data)
     bool is10x = data["groups"].front()["is_10x"];
     int platform = first["platform_code"].front();
     int total_reads = 0;
+    size_t input_size = 0;
     for (auto& gr : data["groups"]) {
         int max_reads = 0;
         int group_reads = 0;
@@ -447,6 +462,8 @@ void CFastqParseApp::xProcessDigest(json& data)
 
         auto& files = gr["files"];
         for (auto& f : files) {
+            if (f.contains("file_size"))
+                input_size += f["file_size"].get<size_t>();
             if (f["defline_type"].empty() || (f["defline_type"].size() == 1 && f["defline_type"].front() == "undefined")) {
                 string fname = fs::path(f["file_path"]).filename();
                 throw fastq_error(100, "Defline not recognized [{}:1]", fname);
@@ -506,6 +523,8 @@ void CFastqParseApp::xProcessDigest(json& data)
             }
         }
     } 
+    if (input_size)
+        mReport["input_size"] = input_size;
 /*
     else {
         for (auto& gr : data["groups"]) {
@@ -616,7 +635,8 @@ void CFastqParseApp::xCreateWriterFromDigest(json& data)
     default:
         throw fastq_error(200); // "Invalid quality encoding"
     }
-    m_writer->set_attr("platform", to_string(platform_code));
+
+    m_writer->set_attr("platform", to_string(m_platform_code != 0 ? m_platform_code : platform_code));
 }
 
 int CFastqParseApp::xRun()
@@ -630,7 +650,7 @@ int CFastqParseApp::xRun()
     xCreateWriterFromDigest(data);
     size_t total_spots = 0;
     for (auto& group : data["groups"]) 
-        total_spots += group["estimated_spots"].get<size_t>();;
+        total_spots += group["estimated_spots"].get<size_t>();
 
     spot_name_check name_checker(total_spots);
 
@@ -791,6 +811,37 @@ void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
     spdlog::warn(e.Message());
     if (++mErrorCount >= mMaxErrCount)
         throw fastq_error(e.error_code(), "Exceeded maximum number of errors {}", mMaxErrCount);
+    
+}
+
+void CFastqParseApp::xSetPlatformCode(const string& platform)
+{
+    assert(platform.empty() == false);
+    static const vector<string> platform_names = { INSDC_SRA_PLATFORM_SYMBOLS };
+
+    // check if platform name is a digit
+    if (all_of(platform.begin(), platform.end(), [](char c) { return isdigit(c); })) {
+        uint8_t platform_code = stoi(platform);
+        if (platform_code > platform_names.size())
+            throw fastq_error(240, "Invalid platform {}", platform);
+        m_platform_code = platform_code;
+        return;
+    }
+    auto _platform = platform;
+    std::transform(_platform.begin(), _platform.end(), _platform.begin(), [](unsigned char c){ return std::toupper(c); });    
+
+    for (size_t i = 0; i < platform_names.size(); ++i) {
+        const auto& pl_name = platform_names[i];
+        if (_platform == pl_name) {
+            m_platform_code = i;
+            return;
+        }
+        if (pl_name.size() > 13 && _platform == pl_name.substr(13)) {
+            m_platform_code = i;
+            return;
+        }
+    }
+    throw fastq_error(240, "Invalid platform {}", platform);
 }
 
 //  ----------------------------------------------------------------------------

@@ -29,6 +29,10 @@ External dependencies
     header-only JSON for Modern C++
     https://github.com/nlohmann/json.git    
 
+8. TaskFlow
+    General-purpose Parallel and Heterogeneous Task Programming System
+    https://github.com/taskflow/taskflow
+
 
 External libraries
 1. re2

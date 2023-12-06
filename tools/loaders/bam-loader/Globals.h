@@ -70,6 +70,7 @@ typedef struct globals
     bool omit_aligned_reads;
     bool omit_reference_reads;
     bool no_real_output;
+    bool noSortOrderCheck;
     bool expectUnsorted;
     bool requireSorted;
     bool noVerifyReferences;

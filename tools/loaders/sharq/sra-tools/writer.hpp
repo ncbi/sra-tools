@@ -336,7 +336,7 @@ namespace VDB {
         void flush() const {
             stream.flush();
         }
-
+        virtual ~Writer() = default;
     };
 }
 

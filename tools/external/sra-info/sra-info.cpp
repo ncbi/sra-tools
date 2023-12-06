@@ -90,23 +90,11 @@ static
 string
 PlatformToString( const uint32_t id )
 {
-#define CASE( id ) \
-    case id : return # id; break
-
-    switch( id )
+    static const char *platform_symbolic_names[] = { INSDC_SRA_PLATFORM_SYMBOLS };
+    if ( id < sizeof ( platform_symbolic_names ) / sizeof( *platform_symbolic_names ) )
     {
-        CASE ( SRA_PLATFORM_UNDEFINED );
-        CASE ( SRA_PLATFORM_454 );
-        CASE ( SRA_PLATFORM_ILLUMINA );
-        CASE ( SRA_PLATFORM_ABSOLID );
-        CASE ( SRA_PLATFORM_COMPLETE_GENOMICS );
-        CASE ( SRA_PLATFORM_HELICOS );
-        CASE ( SRA_PLATFORM_PACBIO_SMRT );
-        CASE ( SRA_PLATFORM_ION_TORRENT );
-        CASE ( SRA_PLATFORM_CAPILLARY );
-        CASE ( SRA_PLATFORM_OXFORD_NANOPORE );
+        return platform_symbolic_names[ id ];
     }
-#undef CASE
 
     return "unknown platform";
 }

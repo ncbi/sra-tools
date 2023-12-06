@@ -36,23 +36,27 @@ using namespace std;
 namespace hashing {
     using bvector_type = bm::bvector<>;
 
-    uint64_t fnv1a(const char* key, std::size_t key_size, size_t hash = 14695981039346656037u)
+    uint64_t fnv1a(uint8_t const *const beg, uint8_t const *const end, uint64_t hash = 14695981039346656037ull)
     {
-        static const std::size_t FnvPrime = 1099511628211u;
-        unsigned char *bp = (unsigned char *)key;
-        unsigned char *be = bp + key_size;
-        while (bp < be) {
-            hash ^= *bp++;
-            hash *= FnvPrime;
-        }
+        constexpr auto const FnvPrime = uint64_t{1099511628211ull};
+        for (auto cur = beg; cur < end; ++cur)
+            hash = (hash ^ *cur) * FnvPrime;
         return hash;
+    }
+    template< typename T >
+    uint64_t fnv1a(T const *value, size_t count, uint64_t hash = 14695981039346656037ull) {
+        return fnv1a(reinterpret_cast<uint8_t const *>(value), reinterpret_cast<uint8_t const *>(value + count), hash);
+    }
+    template<>
+    uint64_t fnv1a(void const *value, size_t count, uint64_t hash) {
+        return fnv1a(reinterpret_cast<uint8_t const *>(value), reinterpret_cast<uint8_t const *>(value) + count, hash);
     }
 
     struct fnv_1a_hash
     {
         std::size_t operator()(const char* key, std::size_t key_size) const
         {
-            return fnv1a(key, key_size);
+            return fnv1a(key, key_size, 14695981039346656037ull);
         }
     };
 
@@ -71,7 +75,7 @@ namespace hashing {
 
         while(data != end)
         {
-            uint64_t k = *data++;
+            uint64_t k; memcpy(&k, data++, sizeof(k)); // k = *data++;
 
             k *= m;
             k ^= k >> r;

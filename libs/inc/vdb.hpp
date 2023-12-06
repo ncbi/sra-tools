@@ -144,23 +144,23 @@ namespace VDB {
         {
             if (sn == NULL)
                 return "";
-        
+
             std::string name;
-          
+
             KSymbolNameElm *e = sn->name;
             std::string part(e->name->addr, e->name->size);
             name += part;
-          
+
             for (e = e->next; e; e = e->next) {
                 std::string part(e->name->addr, e->name->size);
                 name += ":" + part;
             }
-          
+
             uint32_t version = sn->version;
             char v[99] = "";
             string_printf(v, sizeof v, NULL, "#%V", version);
             name += v;
-     
+
             return name;
         }
 
@@ -170,13 +170,13 @@ namespace VDB {
             VDB::SchemaData::Data * sd
                 = static_cast<VDB::SchemaData::Data *>(data);
             assert(self && sd);
-            
+
             KSymbolName *sn = NULL;
             rc_t rc = SDatabaseMakeKSymbolName(self, &sn);
-            
+
             const SDatabase * dad = NULL;
             rc_t r2 = SDatabaseGetDad(self, &dad);
-            
+
             VDB::SchemaData elm;
             if (rc == 0)
                 elm.name = MkName(sn);
@@ -193,13 +193,13 @@ namespace VDB {
             VDB::SchemaData::Data * sd
                 = static_cast<VDB::SchemaData::Data *>(data);
             assert(self && sd);
-            
+
             KSymbolName *sn = NULL;
             rc_t rc = STableMakeKSymbolName(self, &sn);
-            
+
             const Vector * parents = NULL;
             rc_t r2 = STableGetParents(self, &parents);
-            
+
             VDB::SchemaData elm;
             if (rc == 0)
                 elm.name = MkName(sn);
@@ -216,20 +216,20 @@ namespace VDB {
             VDB::SchemaData::Data * sd
                 = static_cast<VDB::SchemaData::Data *>(data);
             assert(self && sd);
-         
+
             KSymbolName *sn = NULL;
             rc_t rc = SViewMakeKSymbolName(self, &sn);
-        
+
             const Vector * parents = NULL;
             rc_t r2 = SViewGetParents(self, &parents);
-       
+
             VDB::SchemaData elm;
             if (rc == 0)
                 elm.name = MkName(sn);
             if (r2 == 0 && parents != NULL)
                 VectorForEach(parents, false, OnView, &elm.parent);
             sd->push_back(elm);
-       
+
             KSymbolNameWhack(sn);
         }
 
@@ -252,16 +252,16 @@ namespace VDB {
         {
             VDB::SchemaInfo out;
             const Vector *v(NULL);
- 
+
             VSchemaGetDb(o, &v);
             VectorForEach(v, false, OnDb, &out.db);
- 
+
             VSchemaGetTbl(o, &v);
             VectorForEach(v, false, OnTbl, &out.table);
- 
+
             VSchemaGetView(o, &v);
             VectorForEach(v, false, OnView, &out.view);
- 
+
             return out;
         }
 
@@ -557,7 +557,9 @@ namespace VDB {
             KNamelist *names;
             rc_t rc = VDatabaseListTbl ( o, & names );
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return KNamelistContains( names, table.c_str() );
+            bool ret = KNamelistContains( names, table.c_str() );
+            KNamelistRelease( names );
+            return ret;
         }
 
         Schema openSchema( void ) const

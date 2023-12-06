@@ -28,6 +28,7 @@ add_compile_definitions( __mod__="tools/vdb-validate" )
 set(SRC
 	main.c
 	vdb-validate.c
+    check-redact.c
 )
 GenerateExecutableWithDefs( vdb-validate "${SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-validate false )

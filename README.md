@@ -17,6 +17,10 @@ using data in the INSDC Sequence Read Archives.
 
 ----
 
+_September 19, 2023_: **SRA Toolkit Internal Release 3.0.8**
+
+----
+
 _August 29, 2023_: **SRA Toolkit 3.0.7**
 
 Updated vdb-config to improve AWS credential interface and usage by SRA Toolkit.

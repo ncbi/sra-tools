@@ -105,6 +105,7 @@ Filtering Options:
 Rare or Esoteric Options:
   input <directory>                 where to find fasta files
   ref-file <file>                   fasta file with references
+  force-sorted                      disable sort-order checking
   unsorted                          expect unsorted input (requires more memory)
   sorted                            require sorted input
   TI                                look for trace id optional tag
@@ -133,6 +134,7 @@ static char const option_config[] = "config";
 static char const option_min_mapq[] = "min-mapq";
 static char const option_qual_compress[] = "qual-quant";
 static char const option_cache_size[] = "cache-size";
+static char const option_no_sort_check[] = "force-sorted";
 static char const option_unsorted[] = "unsorted";
 static char const option_sorted[] = "sorted";
 static char const option_max_err_count[] = "max-err-count";
@@ -251,6 +253,13 @@ static
 char const * qcomp_usage[] =
 {
     "Quality scores quantization level, can be a number (0: none, 1: 2bit, 2: 1bit), or a string like '1:10,10:20,20:30,30:-' (which is equivalent to 1) (nb. the endpoint is exclusive).",
+    NULL
+};
+
+static
+char const * no_sort_usage[] =
+{
+    "Disable sort order checking.",
     NULL
 };
 
@@ -475,9 +484,9 @@ char const * min_batch_size_usage[] =
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */
-    { OPTION_INPUT, ALIAS_INPUT,  NULL,  input_usage, 1, true,  false },
-    { OPTION_OUTPUT, ALIAS_OUTPUT, NULL, output_usage, 1, true,  true },
-    { OPTION_CONFIG, ALIAS_CONFIG,  NULL,  config_usage, 1, true, false },
+    { OPTION_INPUT, ALIAS_INPUT, NULL, input_usage, 1, true, false },
+    { OPTION_OUTPUT, ALIAS_OUTPUT, NULL, output_usage, 1, true, true },
+    { OPTION_CONFIG, ALIAS_CONFIG, NULL, config_usage, 1, true, false },
     { OPTION_HEADER, NULL, NULL, use_header, 1, true, false },
     { OPTION_TMPFS, ALIAS_TMPFS, NULL, tmpfs_usage, 1, true,  false },
     { OPTION_UNALIGNED, ALIAS_UNALIGNED, NULL, use_unaligned, 256, true, false },
@@ -490,17 +499,18 @@ OptDef Options[] =
     { OPTION_NO_CS, NULL, NULL, use_no_cs, 1, false,  false },
     { OPTION_MIN_MATCH, NULL, NULL, use_min_match, 1, true, false },
     { OPTION_NO_SECONDARY, ALIAS_NO_SECONDARY, NULL, use_no_secondary, 1, false, false },
-    { option_unsorted, NULL, NULL, unsorted_usage, 1, false,  false },
-    { option_sorted, NULL, NULL, sorted_usage, 1, false,  false },
-    { option_no_verify, NULL, NULL, no_verify_usage, 1, false,  false },
-    { option_only_verify, NULL, NULL, only_verify_usage, 1, false,  false },
-    { option_use_qual, NULL, NULL, use_QUAL_usage, 1, false,  false },
-    { option_ref_config, NULL, NULL, use_ref_config, 1, false,  false },
-    { option_ref_filter, NULL, NULL, use_ref_filter, 1, true,  false },
+    { option_no_sort_check, NULL, NULL, no_sort_usage, 1, false, false },
+    { option_unsorted, NULL, NULL, unsorted_usage, 1, false, false },
+    { option_sorted, NULL, NULL, sorted_usage, 1, false, false },
+    { option_no_verify, NULL, NULL, no_verify_usage, 1, false, false },
+    { option_only_verify, NULL, NULL, only_verify_usage, 1, false, false },
+    { option_use_qual, NULL, NULL, use_QUAL_usage, 1, false, false },
+    { option_ref_config, NULL, NULL, use_ref_config, 1, false, false },
+    { option_ref_filter, NULL, NULL, use_ref_filter, 1, true, false },
     { option_edit_aligned_qual, NULL, NULL, use_edit_aligned_qual, 1, true, false },
-    { option_keep_mismatch_qual, NULL, NULL, use_keep_mismatch_qual, 1, false,  false },
-    { OPTION_MAX_REC_COUNT, NULL, NULL, mrc_usage, 1, true,  false },
-    { OPTION_MAX_ERR_COUNT, ALIAS_MAX_ERR_COUNT, NULL, mec_usage, 1, true,  false },
+    { option_keep_mismatch_qual, NULL, NULL, use_keep_mismatch_qual, 1, false, false },
+    { OPTION_MAX_REC_COUNT, NULL, NULL, mrc_usage, 1, true, false },
+    { OPTION_MAX_ERR_COUNT, ALIAS_MAX_ERR_COUNT, NULL, mec_usage, 1, true, false },
     { OPTION_REF_FILE, ALIAS_REF_FILE, NULL, use_ref_file, 0, true, false },
     { OPTION_TI, NULL, NULL, use_TI, 1, false, false },
     { OPTION_MAX_WARN_DUP_FLAG, NULL, NULL, use_max_dup_warnings, 1, true, false },
@@ -729,6 +739,14 @@ static rc_t getArgValue(Args *const args, char const *name, int index, char cons
     return 0;
 }
 
+static bool getFlag(Args *const args, char const *name, rc_t *rc)
+{
+    uint32_t count = 0;
+    *rc = ArgsOptionCount(args, name, &count);
+    return *rc == 0 ? (count > 0) : false;
+}
+
+#define SET_FLAG(FLAG, OPTNAME) FLAG |= getFlag(args, OPTNAME, &rc); if (rc) break
 static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
 {
     Args *args;
@@ -747,25 +765,24 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
     while (rc == 0) {
         uint32_t pcount;
 
-        rc = ArgsOptionCount(args, option_only_verify, &pcount);
-        if (rc)
-            break;
-        G.onlyVerifyReferences |= (pcount > 0);
-
-        rc = ArgsOptionCount(args, option_no_verify, &pcount);
-        if (rc)
-            break;
-        G.noVerifyReferences |= (pcount > 0);
-
-        rc = ArgsOptionCount(args, option_use_qual, &pcount);
-        if (rc)
-            break;
-        G.useQUAL |= (pcount > 0);
-
-        rc = ArgsOptionCount(args, option_ref_config, &pcount);
-        if (rc)
-            break;
-        G.limit2config |= (pcount > 0);
+        SET_FLAG(G.onlyVerifyReferences, option_only_verify);
+        SET_FLAG(G.noVerifyReferences, option_no_verify);
+        SET_FLAG(G.useQUAL, option_use_qual);
+        SET_FLAG(G.limit2config, option_ref_config);
+        SET_FLAG(G.noSortOrderCheck, option_no_sort_check);
+        SET_FLAG(G.expectUnsorted, option_unsorted);
+        SET_FLAG(G.requireSorted, option_sorted);
+        SET_FLAG(G.acceptBadDups, OPTION_ACCEPT_DUP);
+        SET_FLAG(G.acceptNoMatch, OPTION_ACCEPT_NOMATCH);
+        SET_FLAG(G.keepMismatchQual, option_keep_mismatch_qual);
+        SET_FLAG(G.noColorSpace, OPTION_NO_CS);
+        SET_FLAG(G.noSecondary, OPTION_NO_SECONDARY);
+        SET_FLAG(G.hasTI, OPTION_TI);
+        SET_FLAG(G.acceptHardClip, OPTION_ACCEPT_HARD_CLIP);
+        SET_FLAG(G.allowMultiMapping, OPTION_ALLOW_MULTI_MAP);
+        SET_FLAG(G.assembleWithSecondary, OPTION_ALLOW_SECONDARY);
+        SET_FLAG(G.deferSecondary, OPTION_DEFER_SECONDARY);
+        SET_FLAG(G.hasExtraLogging, OPTION_EXTRA_LOGGING);
 
         rc = ArgsOptionCount(args, OPTION_REF_FILE, &pcount);
         if (rc)
@@ -951,16 +968,6 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             G.maxWarnCount_DupConflict = strtoul(value, &dummy, 0);
         }
 
-        rc = ArgsOptionCount (args, option_unsorted, &pcount);
-        if (rc)
-            break;
-        G.expectUnsorted |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, option_sorted, &pcount);
-        if (rc)
-            break;
-        G.requireSorted |= (pcount > 0);
-
         rc = ArgsOptionCount (args, OPTION_MAX_REC_COUNT, &pcount);
         if (rc)
             break;
@@ -993,56 +1000,6 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.minMatchCount = strtoul(value, &dummy, 0);
         }
-
-        rc = ArgsOptionCount (args, OPTION_ACCEPT_DUP, &pcount);
-        if (rc)
-            break;
-        G.acceptBadDups |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_ACCEPT_NOMATCH, &pcount);
-        if (rc)
-            break;
-        G.acceptNoMatch |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, option_keep_mismatch_qual, &pcount);
-        if (rc)
-            break;
-        G.keepMismatchQual |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_NO_CS, &pcount);
-        if (rc)
-            break;
-        G.noColorSpace |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_NO_SECONDARY, &pcount);
-        if (rc)
-            break;
-        G.noSecondary |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_TI, &pcount);
-        if (rc)
-            break;
-        G.hasTI |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_ACCEPT_HARD_CLIP, &pcount);
-        if (rc)
-            break;
-        G.acceptHardClip |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_ALLOW_MULTI_MAP, &pcount);
-        if (rc)
-            break;
-        G.allowMultiMapping |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_ALLOW_SECONDARY, &pcount);
-        if (rc)
-            break;
-        G.assembleWithSecondary |= (pcount > 0);
-
-        rc = ArgsOptionCount (args, OPTION_DEFER_SECONDARY, &pcount);
-        if (rc)
-            break;
-        G.deferSecondary |= (pcount > 0);
 
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)
@@ -1182,11 +1139,6 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 G.numThreads = 8;
         }
 
-        rc = ArgsOptionCount (args, OPTION_EXTRA_LOGGING, &pcount);
-        if (rc)
-            break;
-        G.hasExtraLogging |= (pcount > 0);
-
         rc = ArgsOptionCount (args, OPTION_MIN_BATCH_SIZE, &pcount);
         if (rc)
             break;
@@ -1237,6 +1189,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
     ArgsWhack(args);
     return rc;
 }
+#undef SET_FLAG
 
 static void cleanupGlobal(void)
 {

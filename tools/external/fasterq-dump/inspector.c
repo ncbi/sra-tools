@@ -367,7 +367,7 @@ const char * insp_extract_acc_from_path( const char * s ) {
 
 static rc_t insp_on_file_visit( const KDirectory *dir, uint32_t type, const char *name, void *data ) {
     rc_t rc = 0;
-    if ( kptFile == ( type & kptFile ) ) {
+    if ( kptFile == type ) {
         uint64_t size;
         rc = KDirectoryFileSize( dir, &size, "%s", name );
         if ( 0 == rc ) {
@@ -399,10 +399,10 @@ static uint64_t insp_get_file_size( const KDirectory * dir, const char * path, b
     } else {
         /* we first have to check if the path is a directory or a file! */
         uint32_t pt = KDirectoryPathType( dir, "%s", path );
-        if ( kptDir == ( pt & kptDir ) ) {
+        if ( kptDir == pt ) {
             /* the path is a directory: adding size of each file in it */
-            rc = KDirectoryVisit( dir, false, insp_on_file_visit, &res, "%s", path );
-        } else if ( kptFile == ( pt & kptFile ) ) {
+            rc = KDirectoryVisit( dir, true, insp_on_file_visit, &res, "%s", path );
+        } else if ( kptFile == pt ) {
             /* the path is a file: retrieve its size */
             rc = KDirectoryFileSize( dir, &res, "%s", path );
         }

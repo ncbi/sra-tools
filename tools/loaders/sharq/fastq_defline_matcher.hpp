@@ -1141,7 +1141,7 @@ public:
     CDefLineMatcherPacBio2() :
         CDefLineMatcherPacBio(
             "PacBio2",
-            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+[!-~]*?)(\s+|$))")
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}\S*[/_]\d+[!-~]*?)(\s+|$))")
     {
     }
 };
@@ -1154,7 +1154,7 @@ public:
     CDefLineMatcherPacBio3() :
         CDefLineMatcherPacBio(
             "PacBio3",
-            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/ccs[!-~]*?)(\s+|$))")
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}\S*[/_]\d+/ccs[!-~]*?)(\s+|$))")
     {
     }
 };
@@ -1166,7 +1166,7 @@ public:
     CDefLineMatcherPacBio4() :
         CDefLineMatcherPacBio(
             "PacBio4",
-            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}[/_]\d+/\d+_\d+[!-~]*?)(\s+|$))")
+            R"(^[@>+]([!-~]*?m\d{5,6}\S{0,3}_\d{6}_\d{6}\S*[/_]\d+/\d+_\d+[!-~]*?)(\s+|$))")
     {
     }
 };

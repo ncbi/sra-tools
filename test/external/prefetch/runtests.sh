@@ -223,7 +223,7 @@ then echo "run should be truncated for this test"; exit 1; \
 fi
 
 # prefetch should detect truncated run and redownload it
-VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/${prefetch} ${SRAC} 2>tmp/out \
+VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/${prefetch} ${SRAC} > tmp/out \
     || exit 861
  if grep ": 1) '${SRAC}' is found locally" tmp/out ; \
  then echo "${prefetch} incorrectly stopped on truncated run"; exit 1; \
@@ -234,7 +234,7 @@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/${prefetch} ${SRAC} 2>tmp/out \
 perl check-size.pl 4 || exit 868
 
 # the second run of prefetch should find local file
-VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/${prefetch} ${SRAC} 2>tmp/out \
+VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/${prefetch} ${SRAC} > tmp/out \
                                                    || exit 872
  grep -q ": 1) '${SRAC}' is found locally" tmp/out || exit 873
  perl check-size.pl 4                              || exit 874
@@ -390,7 +390,7 @@ mkdir  tmp                                                           || exit 102
 #pwd
 echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/k || exit 1025
 
-cd tmp && NCBI_SETTINGS=k    ${bin_dir}/${prefetch} SRR619505 -fy > /dev/null 2>&1 \
+cd tmp && NCBI_SETTINGS=k    ${bin_dir}/${prefetch} SRR619505 -fy > /dev/null \
                                                                      || exit 1028
 cd ${work_dir}                                                       || exit 1029
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1030
@@ -398,7 +398,7 @@ rm -r tmp/S*                                                         || exit 103
 
 echo '/libs/vdb/quality = "ZR"'                           >> tmp/k   || exit 1033
 echo '/repository/site/disabled = "true"'                 >> tmp/k   || exit 1034
-cd tmp && NCBI_SETTINGS=k   ${bin_dir}/${prefetch} SRR619505  -fy > /dev/null 2>&1 \
+cd tmp && NCBI_SETTINGS=k   ${bin_dir}/${prefetch} SRR619505  -fy > /dev/null \
                                                                      || exit 1036
 cd ${work_dir}                                                       || exit 1037
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1016
@@ -421,7 +421,7 @@ rm -r tmp/[rS]*                                                      || exit 105
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/${prefetch} SRR353827  -fy \
-                                                    > /dev/null 2>&1 || exit 1058
+                                                    > /dev/null || exit 1058
 cd ${work_dir}                                                       || exit 1059
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info SRR353827 \
 	| grep -v 'false,remote::https:'                     > /dev/null || exit 1061
@@ -448,7 +448,7 @@ printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k \
 
 echo '      ... prefetching...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/${prefetch}   ERR3091357 -fy \
-                                                   > /dev/null  2>&1 || exit 1085
+                                                   > /dev/null || exit 1085
 cd ${work_dir}                                                       || exit 1086
 echo '      ... align-infoing...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357 \

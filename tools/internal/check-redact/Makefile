@@ -22,5 +22,7 @@
 #
 # ===========================================================================
 
-# SRA-TOOLS and library version
-VERSION = 3.0.10
+TOP ?= $(abspath ../../..)
+MODULE = tools/internal/check-redact
+
+include $(TOP)/build/Makefile.env

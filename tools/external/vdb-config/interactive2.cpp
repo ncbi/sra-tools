@@ -140,7 +140,7 @@ static bool on_set_location_error( Dlg &dlg, ESetRootState s ) {
 /* ==== pick public location ================================================================= */
 static std::string public_location_start_dir( vdbconf_model * model ) {
     std::string res = model -> get_public_location();
-
+    return res;
     if ( !model -> does_path_exist( res ) ) {
         res = model -> get_user_default_dir();
     }
@@ -165,6 +165,14 @@ static bool pick_public_location( Dlg &dlg, vdbconf_model * model ) {
     } else {
 		res = input_ctrl::input( dlg, "location of public cache", path, 256 );
     }
+    if ( res ) { 
+        res = path.length() > 0;
+    }
+    if ( res ) {
+        res = model -> set_public_location_direct( path );
+    }
+    /*
+     * No more unneccesary complexity!
     if ( res && path.length() > 0 ) {
         std::ostringstream q;
         q << "do you want to change the location to '" << path << "' ?";
@@ -190,6 +198,7 @@ static bool pick_public_location( Dlg &dlg, vdbconf_model * model ) {
             }
         }
     }
+    */
     return res;
 }
 

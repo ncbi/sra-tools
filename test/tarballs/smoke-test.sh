@@ -109,11 +109,6 @@ TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -v sratools
 
 # run all tools with -h and -V
 
-Distributor=`lsb_release -i | grep CentOS`
-echo ">$Distributor<"
-if [ "$Distributor" = "" ] ; then OS="Ubuntu"; else OS="CentOS";  fi
-echo "OS=$OS"
-
 for tool in ${TOOLS}
 do
 
@@ -124,10 +119,9 @@ do
     if [ "${tool}" = "sra-tblastn" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
-    if [ "${OS}" != "Ubuntu" ] || [ "${tool}" != "bam-load" ]; then
-      RunTool ${BIN_DIR}/$tool -h
-      RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
-    fi
+    
+    RunTool ${BIN_DIR}/$tool -h
+    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
 
 done
 

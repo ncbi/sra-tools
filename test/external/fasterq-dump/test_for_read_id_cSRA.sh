@@ -20,8 +20,8 @@ echo "creating: $RANDOM_CSRA_FILE"
 # with the help of the sam-factory we produce random input for bam-load
 SAMFACTORY="${BINDIR}/sam-factory"
 if [[ ! -x $SAMFACTORY ]]; then
-    echo "${SAMFACTORY} not found - exiting..."
-    exit 3
+    echo "${SAMFACTORY} not found - exiting (skipping)..."
+    exit 0
 fi
 
 RNDREF="random-ref.FASTA"

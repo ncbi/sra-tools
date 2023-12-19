@@ -4247,6 +4247,9 @@ void bvector<Alloc>::import(const size_type* ids, size_type size_in,
 {
     BM_ASSERT(!is_ro());
 
+    if (!size_in)
+        return;
+
     size_type n, start(0), stop(size_in);
     block_idx_type nblock;
 
@@ -4263,6 +4266,10 @@ void bvector<Alloc>::import(const size_type* ids, size_type size_in,
             import_block(ids, nblock, 0, stop);
             return;
         }
+        // multi-block import, do top block space reservation
+        unsigned i, j;
+        bm::get_block_coord(nblock_end, i, j);
+        blockman_.reserve_top_blocks(i+1);        
     }
     break;
     default:
@@ -4380,8 +4387,16 @@ void bvector<Alloc>::import_block(const size_type* ids,
         #else
             bm::set_block_bits_u32(blk, ids, start, stop);
         #endif
+        if (new_blocks_strat_ == BM_GAP) // optimization required
+        {
+            BM_DECLARE_TEMP_BLOCK(temp_blk);
+            unsigned i0, j0;
+            bm::get_block_coord(nblock, i0, j0);
+            blockman_.optimize_block(i0, j0, blk, temp_blk, opt_compress, 0);
+        }
+
         if (nblock == bm::set_total_blocks-1)
-            blk[bm::set_block_size-1] &= ~(1u<<31);
+            blk[bm::set_block_size-1] &= ~(1u<<31); // clear the "impossible" last just in case
     }
 }
 

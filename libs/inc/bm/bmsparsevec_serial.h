@@ -1223,6 +1223,8 @@ void sparse_vector_deserializer<SV>::deserialize(SV& sv,
                                                  const unsigned char* buf,
                                                  bool clear_sv)
 {
+    BM_ASSERT(buf);
+
     idx_range_set_ = false;
     deserialize_sv(sv, buf, 0, clear_sv);
 }
@@ -1237,10 +1239,13 @@ void sparse_vector_deserializer<SV>::deserialize_structure(SV& sv,
 
     unsigned char matr_s_ser = 0;
     unsigned planes = load_header(dec, sv, matr_s_ser);
-    if (planes == 0)
+    if (!planes)
         return;
 
     load_planes_off_table(buf, dec, planes); // read the offset vector of bit-planes
+
+    sv.get_bmatrix().allocate_rows(planes);
+
     for (unsigned i = 0; i < planes; ++i)
     {
         if (!off_vect_[i]) // empty vector
@@ -1260,7 +1265,7 @@ void sparse_vector_deserializer<SV>::deserialize_range(SV& sv,
                                                  bool clear_sv)
 {
     if (clear_sv)
-        sv.clear_all(true);
+        sv.clear_all(true, 1);
 
     idx_range_set_ = true; idx_range_from_ = from; idx_range_to_ = to;
 
@@ -1331,7 +1336,7 @@ void sparse_vector_deserializer<SV>::deserialize_sv(SV& sv,
                                                  bool clear_sv)
 {
     if (clear_sv)
-        sv.clear_all(true);
+        sv.clear_all(true, 1); // free memory, keep remap matrix
 
     remap_buf_ptr_ = 0;
     bm::decoder dec(buf); // TODO: implement correct processing of byte-order
@@ -1567,7 +1572,7 @@ int sparse_vector_deserializer<SV>::load_null_plane(SV& sv,
         // the NULL vector just to get to the offset of remap table
 
         const unsigned char* bv_buf_ptr = buf + offset; // seek to position
-        bvector_type*  bv = sv.get_create_slice(unsigned(i));
+        bvector_type*  bv = sv.slice(unsigned(i));
 
         if (!bv_ref_ptr_)
             bv_ref_.add(bv, unsigned(i));

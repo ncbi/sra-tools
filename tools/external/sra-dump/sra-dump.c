@@ -203,17 +203,18 @@ void dump_platform ( const void *base, bitsz_t row_bits )
 {
     const char *p = NULL;
     const uint8_t *data = base;
-    if ( row_bits == 8 ) switch ( data [ 0 ] )
+    if ( row_bits == 8 )
     {
-    CASE ( SRA_PLATFORM_UNDEFINED );
-    CASE ( SRA_PLATFORM_454 );
-    CASE ( SRA_PLATFORM_ILLUMINA );
-    CASE ( SRA_PLATFORM_ABSOLID );
-    CASE ( SRA_PLATFORM_COMPLETE_GENOMICS );
-    CASE ( SRA_PLATFORM_HELICOS );
-    default:
-        OUTMSG(( "%u", data [ 0 ] ));
-        return;
+        static const char *platform_symbolic_names[] = { INSDC_SRA_PLATFORM_SYMBOLS };
+        if ( data[ 0 ] < sizeof ( platform_symbolic_names ) / sizeof( *platform_symbolic_names ) )
+        {
+            p = platform_symbolic_names[ data [ 0 ] ];
+        }
+        else
+        {
+            OUTMSG(( "%u", data [ 0 ] ));
+            return;
+        }
     }
     OUTMSG(( "%s", p ));
 }
@@ -669,7 +670,7 @@ rc_t open_column ( const VDatatypes *dt, const SRATable *tbl,
             if ( rc == 0 )
                 bt = ( const basetype* ) BSTreeFind ( ttree, & cm -> td, basetype_cmp );
         }
-         
+
         if ( bt == NULL )
             rc = RC ( rcExe, rcColumn, rcOpening, rcType, rcUnsupported );
         else
@@ -705,7 +706,7 @@ rc_t sra_dump ( sradump_parms *pb, const VDatatypes *dt, const SRATable *tbl )
 
                 uint32_t i;
                 uint32_t count2 = count;
-                
+
                 for ( i = count = 0; rc == 0 && i < count2; ++ i )
                 {
                     rc = open_column ( dt,  tbl, & ttree, & cm [ count ], columns [ i ] );
@@ -813,13 +814,13 @@ char * stop_usage[] =
 
 
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
     { OPTION_START, ALIAS_START, NULL, start_usage, 1, true, false},
     { OPTION_STOP,  ALIAS_STOP,  NULL, stop_usage,  1, true, false}
 };
-    
-   
+
+
 const char UsageDefaultName[] = "sra-dump";
 
 
@@ -1002,7 +1003,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     free ( (void*)pb.columns );
             }
         } while (0);
- 
+
         ArgsWhack (args);
     }
     return rc;

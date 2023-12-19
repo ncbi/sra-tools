@@ -1,0 +1,34 @@
+# 1) create artificial, random references
+r:type=random,name=R1,length=5000
+
+# write all references into one file as FASTA
+ref-out:tiny_csra.fasta
+
+# write the final SAM-output into this file
+sam-out:tiny_csra.sam
+
+# write a config-file for bam-load
+config:tiny_csra.config
+
+#full list of p/s - keys:
+#name  ... name of alignment ( can/should be used multiple times )
+#ref   ... alias/name of reference ( see references above )
+#pos   ... position on reference
+#mapq  ... mapping-quality
+#cigar ... can include literal bases for mismatches, will be 'purified' for sam-output
+#tlen  ... template-length
+#qual  ... quality-string ( if shorter then READ, will be repeated to fill length )
+#opts  ... space separated list of sam-options ( will be literally appended )
+#ins   ... bases to be used if cigar-string has insert-op's
+#flags ... additional flags
+#repeat... how may times to repeat ( uses random values if specific keys are omitted )
+#len   ... length for unaligned reads if seq is omitted
+p:name=A1,pos=100
+p:name=A1,pos=1120
+
+p:name=A2,pos=120
+p:name=A2,pos=1220
+
+p:name=A3,pos=140
+p:name=A3,pos=1240
+

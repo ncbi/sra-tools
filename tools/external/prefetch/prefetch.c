@@ -4006,6 +4006,9 @@ rc_t CC KMain(int argc, char *argv[]) {
 #endif
 
     if (rc == 0)
+        rc = KStsHandlerSetStdOut();
+
+    if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);
     if (rc == 0 && pcount == 0 && pars.jwtCart == NULL && pars.kart == NULL
 #if _DEBUGGING

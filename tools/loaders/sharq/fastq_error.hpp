@@ -58,7 +58,8 @@ SHARQ_ERR_CODES = {
     {200 ,{ "Invalid quality encoding", "Failure to calculate quality score encoding."}},
     {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
     {220 ,{ "Invalid experiment file", "Invalid experiment file."}},
-    {230 ,{ "Internal QC failure", "Internal QC failure."}}
+    {230 ,{ "Internal QC failure", "Internal QC failure."}},
+    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}}
 
 };
 

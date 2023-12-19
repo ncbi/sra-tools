@@ -1423,22 +1423,48 @@ public:
 
             unsigned threashold = this->glen(bm::gap_max_level)-4;
             if (gap_count < threashold) // compressable
-            {
-                unsigned len;
-                bm::gap_word_t tmp_gap_buf[bm::gap_equiv_len * 2];
-                
-                len = bm::bit_to_gap(tmp_gap_buf, block, threashold);
-                BM_ASSERT(len);
-                int level = bm::gap_calc_level(len, this->glen());
-                BM_ASSERT(level >= 0);
-                bm::gap_word_t* gap_blk =
-                         allocate_gap_block(unsigned(level), tmp_gap_buf);
-                top_blocks_[i][j] = (bm::word_t*)BMPTR_SETBIT0(gap_blk);
-                return_tempblock(block);
-            }
+                optimize_gap_convert_bit_block(i, j, block, threashold);
         }
     }
     
+    /**
+        Full Optimize bit-block at i-j position (no checks)
+    */
+    void optimize_bit_block_nocheck(unsigned i, unsigned j)
+    {
+        bm::word_t* block = get_block_ptr(i, j);
+
+        BM_ASSERT(IS_VALID_ADDR(block));
+        BM_ASSERT(!BM_IS_GAP(block));
+
+        unsigned gap_count = bm::bit_block_calc_change(block);
+        if (gap_count == 1) // solid block
+        {
+            top_blocks_[i][j] = (*block) ? FULL_BLOCK_FAKE_ADDR : 0;
+            return_tempblock(block);
+            return;
+        }
+        unsigned threashold = this->glen(bm::gap_max_level)-4;
+        if (gap_count < threashold) // compressable
+            optimize_gap_convert_bit_block(i, j, block, threashold);
+    }
+
+    void optimize_gap_convert_bit_block(unsigned i, unsigned j,
+                                        bm::word_t* block,
+                                        unsigned threashold)
+    {
+        unsigned len;
+        bm::gap_word_t tmp_gap_buf[bm::gap_equiv_len * 2];
+
+        len = bm::bit_to_gap(tmp_gap_buf, block, threashold);
+        BM_ASSERT(len);
+        int level = bm::gap_calc_level(len, this->glen());
+        BM_ASSERT(level >= 0);
+        bm::gap_word_t* gap_blk =
+                 allocate_gap_block(unsigned(level), tmp_gap_buf);
+        top_blocks_[i][j] = (bm::word_t*)BMPTR_SETBIT0(gap_blk);
+        return_tempblock(block);
+    }
 
 
     /**
@@ -1931,6 +1957,32 @@ public:
         top_blocks_ = new_blocks;
         top_block_size_ = top_blocks;
         return top_block_size_;
+    }
+
+    /**
+        \brief shrink unused top blocks array (via reallocation)
+     */
+    void shrink_top_blocks()
+    {
+        if (!top_blocks_)
+            return;
+        unsigned tb_cnt = top_block_size() - 1;
+        for ( ; tb_cnt; --tb_cnt)
+        {
+            if (top_blocks_[tb_cnt])
+                break;
+        } // for
+        if (++tb_cnt < top_block_size_) // shrink is possible
+        {
+            BM_ASSERT(tb_cnt <= top_block_size_);
+            bm::word_t*** new_blocks =
+                (bm::word_t***)alloc_.alloc_ptr(tb_cnt);
+                ::memcpy(&new_blocks[0], &top_blocks_[0],
+                                tb_cnt * sizeof(top_blocks_[0]));
+            alloc_.free_ptr(top_blocks_, top_block_size_);
+            top_blocks_ = new_blocks;
+            top_block_size_ = tb_cnt;
+        }
     }
     
     /** \brief Returns reference on the allocator

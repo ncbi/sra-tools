@@ -71,6 +71,7 @@ public:
     ///@{
 
     basic_bmatrix(size_type rsize,
+                  bool is_dynamic = true,
                   allocation_policy_type ap = allocation_policy_type(),
                   size_type bv_max_size = bm::id_max,
                   const allocator_type&   alloc  = allocator_type());
@@ -305,6 +306,14 @@ public:
      */
     void bit_and_rows(const bvector_type& bv);
 
+    /// Return if matrix is dynamic resizable
+    bool is_dynamic() const BMNOEXCEPT { return is_dynamic_; }
+
+
+    /// Debugging function to check if two matrixes have the same rows created
+    /// @return true - if the same
+    ///
+    bool is_same_structure(const basic_bmatrix<BV>& bbm) const BMNOEXCEPT;
 
     ///@}
 
@@ -323,11 +332,12 @@ protected:
     size_type                bv_size_;
     allocator_type           alloc_;
     allocation_policy_type   ap_;
-    allocator_pool_type*     pool_;
+    allocator_pool_type*     pool_ = 0;
     
-    bvector_type_ptr*        bv_rows_;
-    size_type                rsize_;
-    size_type                null_idx_; ///< Index of the NULL row
+    bvector_type_ptr*        bv_rows_ = 0;
+    size_type                rsize_ = 0;
+    bool                     is_dynamic_ = true; ///< if rsize is dynamic (variable length)
+    size_type                null_idx_ = 0; ///< Index of the NULL row
 };
 
 /**
@@ -369,6 +379,7 @@ public:
     base_sparse_vector();
 
     base_sparse_vector(bm::null_support        null_able,
+                       bool                    is_dynamic,
                        allocation_policy_type  ap = allocation_policy_type(),
                        size_type               bv_max_size = bm::id_max,
                        const allocator_type&   alloc = allocator_type());
@@ -705,18 +716,16 @@ protected:
 
 template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(size_type rsize,
+              bool is_dynamic,
               allocation_policy_type ap,
               size_type bv_max_size,
               const allocator_type&   alloc)
 : bv_size_(bv_max_size),
   alloc_(alloc),
-  ap_(ap),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(ap)
 {
     allocate_rows(rsize);
+    is_dynamic_ = is_dynamic;
 }
 
 //---------------------------------------------------------------------
@@ -733,13 +742,10 @@ template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(const basic_bmatrix<BV>& bbm)
 : bv_size_(bbm.bv_size_),
   alloc_(bbm.alloc_),
-  ap_(bbm.ap_),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(bbm.ap_)
 {
     copy_from(bbm);
+    is_dynamic_ = bbm.is_dynamic_;
 }
 
 //---------------------------------------------------------------------
@@ -748,13 +754,10 @@ template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(basic_bmatrix<BV>&& bbm) BMNOEXCEPT
 : bv_size_(bbm.bv_size_),
   alloc_(bbm.alloc_),
-  ap_(bbm.ap_),
-  pool_(0),
-  bv_rows_(0),
-  rsize_(0),
-  null_idx_(0)
+  ap_(bbm.ap_)
 {
     swap(bbm);
+    is_dynamic_ = bbm.is_dynamic_;
 }
 
 //---------------------------------------------------------------------
@@ -898,6 +901,7 @@ void basic_bmatrix<BV>::allocate_rows(size_type rsize)
             bv_rows_[rsize-1] = bv_rows_[null_idx_];
             bv_rows_[null_idx_] = 0;
             null_idx_ = rsize-1;
+            BM_ASSERT(rsize & 1u);
         }
     }
 }
@@ -929,6 +933,30 @@ void basic_bmatrix<BV>::free_rows() BMNOEXCEPT
     if (bv_rows_)
         alloc_.free_ptr(bv_rows_, unsigned(rsize_));
     bv_rows_ = 0;
+}
+
+//---------------------------------------------------------------------
+
+template<typename BV>
+bool basic_bmatrix<BV>::is_same_structure(
+                        const basic_bmatrix<BV>& bbm) const BMNOEXCEPT
+{
+    BM_ASSERT(this != &bbm);
+    
+    if (rsize_ != bbm.rsize_)
+        return false;
+    if (null_idx_ != bbm.null_idx_)
+        return false;
+    for (size_type i = 0; i < rsize_; ++i)
+    {
+        const bvector_type* bv = bv_rows_[i];
+        const bvector_type* bv_arg = bbm.bv_rows_[i];
+        if (bool(bv) != bool(bv_arg))
+            return false;
+    } // for i
+
+
+    return true;
 }
 
 //---------------------------------------------------------------------
@@ -1026,8 +1054,11 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row)
 {
-    if (row >= rsize_)
-        allocate_rows(row + 8);
+    if (is_dynamic())
+    {
+        if (row >= rsize_)
+            allocate_rows(rsize_ + 8);
+    }
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];
     if (!bv)
@@ -1592,7 +1623,7 @@ void basic_bmatrix<BV>::optimize_block(block_idx_type nb,
 
 template<class Val, class BV, unsigned MAX_SIZE>
 base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector()
-: bmatr_(sv_slices, allocation_policy_type(), bm::id_max, allocator_type())
+: bmatr_(sv_slices, true, allocation_policy_type(), bm::id_max, allocator_type())
 {}
 
 //---------------------------------------------------------------------
@@ -1600,10 +1631,11 @@ base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector()
 template<class Val, class BV, unsigned MAX_SIZE>
 base_sparse_vector<Val, BV, MAX_SIZE>::base_sparse_vector(
         bm::null_support        null_able,
+        bool                    is_dynamic,
         allocation_policy_type  ap,
         size_type               bv_max_size,
         const allocator_type&       alloc)
-: bmatr_(sv_slices, ap, bv_max_size, alloc)
+: bmatr_(sv_slices, is_dynamic, ap, bv_max_size, alloc)
 {
     if (null_able == bm::use_null)
     {

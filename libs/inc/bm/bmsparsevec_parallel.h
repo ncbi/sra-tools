@@ -95,7 +95,8 @@ public:
 };
 
 /**
-    Parallel plan builder for the XOR filter scanner
+    Parallel plan builder for the XOR filter scanner.
+    Parallelization principle here is based on makig a task per 64K bit block (task per NP)
     @ingroup bmtasks
  */
 template<typename BV>
@@ -114,6 +115,9 @@ public:
         typedef typename parent_type::task_vector_type  task_vector_type;
     };
 
+    /**
+        Construct task batch for parallel execution. (Every task is a lambda).
+     */
     void build_plan(task_batch& batch,
                     bm::xor_sim_model<BV>& sim_model,
                     const bv_ref_vector_type& ref_vect,

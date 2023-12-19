@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+### NGS SDK 3.0.10
+**December 19, 2023**
+
+  SRA toolkit release 3.0.10.
+
+
 ### NGS SDK Internal Release 3.0.8
 **September 19, 2023**
 

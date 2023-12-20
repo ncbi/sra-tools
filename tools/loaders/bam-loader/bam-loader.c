@@ -539,6 +539,7 @@ const char* OptHelpParam[] =
     NULL,				/* no colorspace */
     "count",			/* min. match count */
     NULL,				/* no secondary */
+    NULL,				/* no_sort */
     NULL,				/* unsorted */
     NULL,				/* sorted */
     NULL,				/* no verify ref's */

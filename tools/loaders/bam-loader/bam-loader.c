@@ -1282,6 +1282,10 @@ rc_t CC KMain(int argc, char *argv[])
     rc_t rc = 0;
     unsigned load = 0;
 
+    assert(sizeof Options / sizeof Options[0] ==
+        sizeof OptHelpParam / sizeof OptHelpParam[0]
+        && "Options & OptHelpParam have to match");
+
     if (has_help) {
         argc = 2;
         argv[1] = (char*)"--help";

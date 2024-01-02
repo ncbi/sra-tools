@@ -445,7 +445,7 @@ void BufferedPairColWriterWriteUnmapped ( BufferedPairColWriter *self, const ctx
     FUNC_ENTRY ( ctx );
 
     size_t i, j, row_bytes;
-    const size_t pg_size = 256 * 1024;
+    const size_t pg_size = 1024 * 1024;
 
     /* detect first write */
     if ( self -> u . data == NULL )

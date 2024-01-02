@@ -20,6 +20,8 @@ if [ -d $ACC_COPY ]; then
     rm -rf $ACC_COPY
 fi
 
+export NCBI_SETTINGS=/
+
 $VDB_COPY $ACC $ACC_COPY -p
 
 VDB_DIFF="vdb-diff"

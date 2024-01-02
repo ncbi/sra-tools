@@ -43,6 +43,7 @@
 #include <vdb/vdb-priv.h>
 
 #include "vdb-validate.h"
+#include "check-redact.h"
 
 bool exhaustive = false;
 bool md5_required = false;
@@ -144,6 +145,10 @@ static const char *USAGE_DRI[] =
 static const char *USAGE_IND_ONLY[] =
 { "Check index-only with blobs CRC32 (default: no)", NULL };
 
+#define OPTION_CHECK_REDACT "check-redact"
+static const char *USAGE_CHECK_REDACT[] =
+{ "check if redaction of bases has been correctly performed (default: false)", NULL };
+
 static OptDef options [] =
 {                                                    /* needs_value, required */
 /*  { OPTION_MD5     , ALIAS_MD5     , NULL, USAGE_MD5     , 1, true , false }*/
@@ -170,6 +175,8 @@ static OptDef options [] =
   , { OPTION_md5     , ALIAS_md5     , NULL, USAGE_MD5     , 1, true , false }
   , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
   , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
+
+  , { OPTION_CHECK_REDACT, NULL      , NULL, USAGE_CHECK_REDACT, 1, false , false }
 };
 
 /*
@@ -219,6 +226,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
     HelpOptionLine(NULL          , OPTION_NGC           , "path", USAGE_NGC);
 
+    HelpOptionLine(NULL          , OPTION_CHECK_REDACT, NULL, USAGE_CHECK_REDACT);
 /*
 #define NUM_LISTABLE_OPTIONS \
     ( sizeof options / sizeof options [ 0 ] - NUM_SILENT_TRAILING_OPTIONS )
@@ -257,6 +265,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     pb -> sdc_pa_len_thold_in_percent = true;
     pb -> sdc_pa_len_thold.percent = 0.01;
 
+    pb -> check_redact = false;
   {
     rc = ArgsOptionCount(args, OPTION_CNS_CHK, &cnt);
     if (rc != 0) {
@@ -282,6 +291,13 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     exhaustive = cnt != 0;
   }
+  {
+      rc = ArgsOptionCount ( args, OPTION_CHECK_REDACT, & cnt );
+      if ( rc != 0 )
+          return rc;
+      pb -> check_redact = ( cnt != 0 );
+  }
+  
   {
     rc = ArgsOptionCount(args, OPTION_REF_INT, &cnt);
     if (rc != 0) {
@@ -644,8 +660,15 @@ static rc_t main_with_args(Args *const args)
                             }
 
                             rc2 = vdb_validate ( & pb, path );
-                            if ( rc == 0 )
+                            if ( rc == 0 ) {
                                 rc = rc2;
+                            }
+                            if ( pb . check_redact ) {
+                                rc2 = check_redact( path );
+                                if ( rc == 0 ) {
+                                    rc = rc2;
+                                }
+                            }
                         }
                     }
                 }

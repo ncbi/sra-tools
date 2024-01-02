@@ -24,7 +24,7 @@
 
 if ( NOT WIN32 )
 
-ToolsRequired(fasterq-dump)
+ToolsRequired(fasterq-dump sam-factory bam-load kar)
 
     add_test( NAME Test_FasterqDump_Help
         COMMAND ${BINDIR}/fasterq-dump -h
@@ -65,6 +65,12 @@ ToolsRequired(fasterq-dump)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-tsan PROPERTIES WILL_FAIL TRUE)
     endif()
+
+    add_test( NAME Test_Tiny_cSRA
+        COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+            bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()
 #TODO: make run on Windows

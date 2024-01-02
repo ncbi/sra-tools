@@ -1473,7 +1473,8 @@ void bit_in<TDecoder>::bic_decode_u16_rg(bm::gap_word_t* arr, unsigned sz,
                                          bm::gap_word_t lo,
                                          bm::gap_word_t hi) BMNOEXCEPT
 {
-    for (;sz;)
+    BM_ASSERT(sz);
+    do // for (;sz;)
     {
         BM_ASSERT(lo <= hi);
         
@@ -1499,13 +1500,14 @@ void bit_in<TDecoder>::bic_decode_u16_rg(bm::gap_word_t* arr, unsigned sz,
         BM_ASSERT(mid_idx < 65536);
         
         arr[mid_idx] = bm::gap_word_t(val);
-        if (sz == 1)
+        if (sz <= 1)
             return;
+
         bic_decode_u16_rg(arr, mid_idx, lo, bm::gap_word_t(val - 1));
         arr += mid_idx + 1;
         sz  -= mid_idx + 1;
         lo = bm::gap_word_t(val + 1);
-    } // for sz
+    } while (sz); // for sz
 }
 
 // ----------------------------------------------------------------------
@@ -1516,15 +1518,12 @@ void bit_in<TDecoder>::bic_decode_u32_cm(bm::word_t* arr, unsigned sz,
                                          bm::word_t hi) BMNOEXCEPT
 {
     BM_ASSERT(sz);
-    do //for (;sz;)
+    do
     {
         BM_ASSERT(lo <= hi);
-        
-        unsigned val;
-        
         // read the interpolated value
         // x = read(r)+ lo + mid,  where r = (hi - lo - sz + 1);
-        val = hi - lo - sz + 1;
+        unsigned val = hi - lo - sz + 1;
         if (val)
         {
             unsigned logv = bm::bit_scan_reverse32(val+1);
@@ -1543,7 +1542,8 @@ void bit_in<TDecoder>::bic_decode_u32_cm(bm::word_t* arr, unsigned sz,
         unsigned mid_idx = sz >> 1;
         val += lo + mid_idx;
         arr[mid_idx] = val;
-        if (sz == 1)
+
+        if (sz <= 1)
             return;
         
         bic_decode_u32_cm(arr, mid_idx, lo, val-1);
@@ -1563,16 +1563,12 @@ void bit_in<TDecoder>::bic_decode_u16_cm(bm::gap_word_t* arr, unsigned sz,
                                          bm::gap_word_t hi) BMNOEXCEPT
 {
     BM_ASSERT(sz);
-    //for (;sz;)
     do
     {
         BM_ASSERT(lo <= hi);
-        
-        unsigned val;
-        
         // read the interpolated value
         // x = read(r)+ lo + mid,  where r = (hi - lo - sz + 1);
-        val = hi - lo - sz + 1;
+        unsigned val = hi - lo - sz + 1;
         if (val)
         {
             unsigned logv = bm::bit_scan_reverse32(val+1);
@@ -1590,7 +1586,8 @@ void bit_in<TDecoder>::bic_decode_u16_cm(bm::gap_word_t* arr, unsigned sz,
         unsigned mid_idx = sz >> 1;
         val += lo + mid_idx;
         arr[mid_idx] = bm::gap_word_t(val);
-        if (sz == 1)
+
+        if (sz <= 1)
             return;
         
         bic_decode_u16_cm(arr, mid_idx, lo, bm::gap_word_t(val-1));
@@ -1609,19 +1606,17 @@ void bit_in<TDecoder>::bic_decode_u16_cm_bitset(bm::word_t* block, unsigned sz,
                               bm::gap_word_t lo,
                               bm::gap_word_t hi) BMNOEXCEPT
 {
-    for (;sz;)
+    BM_ASSERT(sz);
+    do
     {
         BM_ASSERT(lo <= hi);
-        
-        unsigned val;
-        
         // read the interpolated value
         // x = read(r)+ lo + mid,  where r = (hi - lo - sz + 1);
-        val = hi - lo - sz + 1;
+        unsigned val = hi - lo - sz + 1;
         if (val)
         {
             unsigned logv = bm::bit_scan_reverse32(val+1);
-                
+
             unsigned c = unsigned((1ull << (logv + 1)) - val - 1);
             int64_t half_c = c >> 1; // c / 2;
             int64_t half_r = val >> 1; // r / 2;
@@ -1632,7 +1627,7 @@ void bit_in<TDecoder>::bic_decode_u16_cm_bitset(bm::word_t* block, unsigned sz,
             if (val <= lo1 || val >= hi1)
                 val += (get_bit() << logv);
         }
-        
+
         unsigned mid_idx = sz >> 1;
         val += lo + mid_idx;
         
@@ -1642,15 +1637,15 @@ void bit_in<TDecoder>::bic_decode_u16_cm_bitset(bm::word_t* block, unsigned sz,
             block[nword] |= (1u << (val & bm::set_word_mask));
         }
         
-        if (sz == 1)
+        if (sz <= 1)
             return;
-        
+
         bic_decode_u16_cm_bitset(block, mid_idx, lo, bm::gap_word_t(val-1));
         // tail recursive call:
         //  bic_decode_u32_cm(block, sz - mid_idx - 1, val + 1, hi);
-        sz -= ++mid_idx;// +1;
+        sz -= ++mid_idx;
         lo = bm::gap_word_t(val + 1);
-    } // for sz
+    } while (sz);
 }
 
 // ----------------------------------------------------------------------
@@ -1660,7 +1655,8 @@ void bit_in<TDecoder>::bic_decode_u16_cm_dry(unsigned sz,
                               bm::gap_word_t lo,
                               bm::gap_word_t hi) BMNOEXCEPT
 {
-    for (;sz;)
+    BM_ASSERT(sz);
+    do
     {
         BM_ASSERT(lo <= hi);
         
@@ -1681,7 +1677,7 @@ void bit_in<TDecoder>::bic_decode_u16_cm_dry(unsigned sz,
                 int64_t hi1 = half_r + half_c + 1;
                 r = get_bits(logv);
                 if (r <= lo1 || r >= hi1)
-                    r += (get_bits(1) << logv);
+                    r += (get_bit() << logv);
             }
             val = r;
         }
@@ -1689,15 +1685,15 @@ void bit_in<TDecoder>::bic_decode_u16_cm_dry(unsigned sz,
         unsigned mid_idx = sz >> 1;
         val += lo + mid_idx;
         
-        if (sz == 1)
+        if (sz <= 1)
             return;
         
         bic_decode_u16_cm_dry(mid_idx, lo, bm::gap_word_t(val-1));
         // tail recursive call:
         //  bic_decode_u32_cm_dry(sz - mid_idx - 1, val + 1, hi);
-        sz  -= mid_idx + 1;
+        sz -= mid_idx + 1;
         lo = bm::gap_word_t(val + 1);
-    } // for sz
+    } while (sz); // for sz
 }
 
 
@@ -1708,7 +1704,8 @@ void bit_in<TDecoder>::bic_decode_u16_rg_bitset(bm::word_t* block, unsigned sz,
                                                 bm::gap_word_t lo,
                                                 bm::gap_word_t hi) BMNOEXCEPT
 {
-    for (;sz;)
+    BM_ASSERT(sz);
+    do //for (;sz;)
     {
         BM_ASSERT(lo <= hi);
         
@@ -1745,7 +1742,7 @@ void bit_in<TDecoder>::bic_decode_u16_rg_bitset(bm::word_t* block, unsigned sz,
         //bic_decode_u16_bitset(block, sz - mid_idx - 1, bm::gap_word_t(val + 1), hi);
         sz  -= mid_idx + 1;
         lo = bm::gap_word_t(val + 1);
-    } // for sz
+    } while(sz); // for sz
 }
 
 // ----------------------------------------------------------------------
@@ -1916,28 +1913,20 @@ ret:
 template<class TDecoder>
 unsigned bit_in<TDecoder>::get_bit() BMNOEXCEPT
 {
-    const unsigned maskFF = ~0u;
-    unsigned value = 0;
-    unsigned free_bits = unsigned((sizeof(accum_) * 8) - used_bits_);
-    if (1 <= free_bits)
+    const unsigned mask = (~0u) >> (32 - 1); // 100000...
+    unsigned value = accum_ & mask;
+    if (unsigned free_bits = unsigned(32u - used_bits_); free_bits)
     {
-    take_accum:
-        value = accum_ & (maskFF >> (32 - 1));
-        accum_ >>= 1;
-        used_bits_ += 1;
-        return value;
+        accum_ >>= 1; ++used_bits_;
     }
-    if (used_bits_ == (sizeof(accum_) * 8))
+    else
     {
-        accum_ = src_.get_32();
-        used_bits_ = 0;
-        goto take_accum;
+        BM_ASSERT(used_bits_ == (sizeof(accum_) * 8));
+        unsigned a = src_.get_32();
+        value = a & mask;
+        used_bits_ = 1;
+        accum_ = (a >> 1);
     }
-    value = accum_;
-    accum_ = src_.get_32();
-    used_bits_ = 1 - free_bits;
-    value |= ((accum_ & (maskFF >> (32 - used_bits_))) << free_bits);
-    accum_ >>= used_bits_;
     return value;
 }
 

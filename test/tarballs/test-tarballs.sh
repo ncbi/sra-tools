@@ -55,7 +55,6 @@ NGSVERS="${3:-$DEF_VERS}"
 
 echo "Testing sra-tools tarballs, working directory = $WORKDIR"
 
-
 case $(uname) in
 Linux)
     python -mplatform | grep -q Ubuntu && OS=ubuntu64 || OS=centos_linux64
@@ -67,6 +66,9 @@ Linux)
         echo wget "$1"
         wget -q --no-check-certificate "$1"
     }
+Distributor=`lsb_release -i | grep CentOS 2> /dev/null`
+if [ "$Distributor" = "" ] ; then OS="ubuntu64";  fi
+echo "OS=$OS"
     uname=linux
     ;;
 Darwin)
@@ -78,6 +80,11 @@ Darwin)
         echo curl "$1"
         curl --fail --silent --insecure --remote-name "$1"
     }
+    case $(uname -m) in
+arm64)
+    OS=mac-arm64
+    ;;
+esac
     uname=mac
     ;;
 esac
@@ -88,12 +95,12 @@ HOMEDIR=$(dirname $(realpath $0))
 SDK_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/${VERS}/"
 TK_TARGET="sratoolkit.${VERS}-${OS}"
 
-rm -rv ${WORKDIR}
+rm -frv ${WORKDIR}
 mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}
 
-df -h .
+#df -h .
 get "${SDK_URL}${TK_TARGET}.tar.gz" || exit 1
 gunzip -f "${TK_TARGET}.tar.gz" || exit 2
 TK_PACKAGE=$(tar tf "${TK_TARGET}.tar" | head -n 1)

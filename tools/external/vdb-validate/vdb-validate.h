@@ -46,6 +46,7 @@ struct vdb_validate_params
     bool index_chk;
     bool consist_check;
     bool exhaustive;
+    bool check_redact;
 
     // data integrity checks parameters
     bool sdc_enabled;

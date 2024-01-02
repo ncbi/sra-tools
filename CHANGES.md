@@ -1,6 +1,21 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.10
+**December 19, 2023**
+
+  **cloud, ngs-tools, sra-tools**: accept AWS credentials in CSV format; warn when credentials file cannot be loaded; don't load credentials if user doesn't agree to pay  
+  **cloud, ngs-tools, sra-tools**: fixed support of IMDSv2 to allow instance identity on Amazon Linux 2023  
+  **fasterq-dump**: does not emit warning when used on a not-kar'ed accession  
+  **fasterq-dump**: handles tiny accession correctly  
+  **kns, ngs-tools, sra-tools, vfs**: print NCBI_PHID after error in names resolving to simplify troubleshooting  
+  **ncbi-vdb, ngs-tools, sra-tools**: added support for Arm64  
+  **ngs-tools, sra-tools, vdb, vfs**: avoids multiple calls to resolve the same accession  
+  **prefetch**: prints to stdout  
+  **vdb-dump**: added support for new platforms  
+  **vdb-validate**: optional check for correct redaction added  
+
+
 ## SRA Toolkit 3.0.8
 **September 19, 2023**
 

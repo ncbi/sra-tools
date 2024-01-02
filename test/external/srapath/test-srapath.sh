@@ -29,3 +29,19 @@ if [ "$res" != "0" ];
 fi
 
 echo vdbcache test is finished
+
+# ncbi_phid in error message:
+output=$(NCBI_SETTINGS=../LIBS-GUID.mkfg ${bin_dir}/${srapath} qq 2>&1)
+
+res=$?
+if [ "$res" == "0" ];
+	then echo "error test FAILED, res=$res output=$output" && exit 1;
+fi
+
+grep -q "ncbi_phid=" <<< "$output" > /dev/null
+res=$?
+if [ "$res" != "0" ];
+	then echo "error test FAILED (no "ncbi_phid" found), res=$res output=$output" && exit 1;
+fi
+
+echo error test is finished

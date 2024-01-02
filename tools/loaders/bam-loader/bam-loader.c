@@ -539,6 +539,7 @@ const char* OptHelpParam[] =
     NULL,				/* no colorspace */
     "count",			/* min. match count */
     NULL,				/* no secondary */
+    NULL,				/* no_sort */
     NULL,				/* unsorted */
     NULL,				/* sorted */
     NULL,				/* no verify ref's */
@@ -1280,6 +1281,10 @@ rc_t CC KMain(int argc, char *argv[])
     int arglast = 0;
     rc_t rc = 0;
     unsigned load = 0;
+
+    assert(sizeof Options / sizeof Options[0] ==
+        sizeof OptHelpParam / sizeof OptHelpParam[0]
+        && "Options & OptHelpParam have to match");
 
     if (has_help) {
         argc = 2;

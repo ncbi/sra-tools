@@ -111,11 +111,30 @@ public:
         CreateColumns(cols);
     }
     bool need_optimize{false};  ///< Flag to indicate if metadata need to be optimized (compressed)
-    size_t memory_used{0};      ///< Used memory in bytes
+    atomic<size_t> memory_used{0};      ///< Used memory in bytes
 
     static constexpr std::array<int, 2> E_PRIM_ID = {metadata_t::e_primaryId1, metadata_t::e_primaryId2};
     static constexpr std::array<int, 2> E_FRAG_LEN = {metadata_t::e_fragment_len1, metadata_t::e_fragment_len2};
     static constexpr std::array<int, 2> E_ALN_COUNT = {metadata_t::e_alignmentCount1, metadata_t::e_alignmentCount2};
+
+    size_t estimated_size(size_t spot_count) {
+        size_t sz = 0;
+        for (auto& col : m_Columns) {
+            std::visit([&sz, spot_count](auto&& c) {
+                using T = std::decay_t<decltype(c)>;
+                if constexpr (std::is_same<u16_t, T>::value) {
+                    sz += spot_count * 2;
+                } else if constexpr (std::is_same<u32_t, T>::value) {
+                    sz += spot_count * 4;
+                } else if constexpr (std::is_same<u64_t, T>::value) {
+                    sz += spot_count * 8;
+                } else if constexpr (std::is_same<bit_t, T>::value) {
+                    sz += spot_count/8;
+                }
+            }, col);        
+        }
+        return sz;
+    }
 
 };
 
@@ -143,7 +162,7 @@ struct spot_batch
     tf::Future<void> m_pack_job;         ///< Pack job future
     atomic<bool> m_data_ready{false};    ///< Flag to indicate the end of the pack job
     bool m_use_scanner{false};           ///< Flag to indicate which search to use (scanner or spot_map)
-    size_t m_memory_used = 0;            ///< Memory used by metadata (for diagnostics) 
+    atomic<size_t> m_memory_used = 0;            ///< Memory used by metadata (for diagnostics) 
     unique_ptr<metadata_t> m_metadata;   ///< Pointer to metadata
     bool m_data_saved{false};
 
@@ -193,6 +212,7 @@ struct spot_assembly
     const unsigned m_group_id;           ///< unique spot assembly (or reporting)
     unique_ptr<array_map_t> m_spot_map;  ///< Current search map
     unique_ptr<metadata_t> m_metadata;   ///< Current metdata
+    atomic<size_t> m_key_size{0};
 
     vector<unique_ptr<spot_batch>> m_batches; ///< List of search batches
     size_t m_offset = 0;                 ///< Current data offset  
@@ -424,6 +444,7 @@ void spot_assembly::pack_batch()
         new_batch.m_data->optimize(TB);
         new_batch.m_data->calc_stat(&st1);
         new_batch.m_memory_used = st1.memory_used;
+        m_key_size = 0;
         svector_u32::statistics st2;
         new_batch.m_index->optimize(TB, bm::bvector<>::opt_compress, &st2);
         new_batch.m_memory_used += st2.memory_used;
@@ -439,6 +460,7 @@ void spot_assembly::pack_batch()
         new_batch.m_scanner.reset(new spot_batch::scanner_t);
         new_batch.m_scanner->bind(*new_batch.m_data, true);
         new_batch.m_data_ready = true;
+
         spdlog::info("{} Batch done in : {:.3}", batch_idx, sw1); 
         
     });
@@ -446,10 +468,12 @@ void spot_assembly::pack_batch()
 
 size_t spot_assembly::memory_used() 
 {
-    size_t m = 0;
+    size_t m = m_key_size;
+    m += 90 * 1024 * 1024; // 90 MB reserved for spot_map
+    m += m_metadata->estimated_size(m_curr_row);
     for (auto& b : m_batches) {
         m += b->m_memory_used;
-        m += b->m_metadata->memory_used;
+        m += b->m_metadata->memory_used.load() > 0 ? b->m_metadata->memory_used.load() : b->m_metadata->estimated_size(b->m_batch_size);
     }
     return m;
 }
@@ -566,6 +590,7 @@ const spot_assembly::spot_rec_t& spot_assembly::find(const char* name, int namel
     } 
     if (m_rec.wasInserted) {
         m_spot_map->insert_ks_hash(m_key_filter->get_name_hash(), name, namelen, m_curr_row); 
+        m_key_size += namelen;
         m_rec.row_id = m_curr_row;
         m_rec.pos = m_curr_row + m_offset;
         m_rec.metadata = m_metadata.get();

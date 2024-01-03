@@ -43,6 +43,8 @@ typedef struct globals
     char const *schemaIncludePath;
 
     char const *refXRefPath;
+    
+    char const *telemetryPath;
 
     char const *QualQuantizer;
 
@@ -94,6 +96,7 @@ typedef struct globals
     bool hasExtraLogging;       ///< Additional logging enabled
 
     size_t minBatchSize; ///< Minimum batch size for spot assembly
+    uint32_t LOADER_MEM_LIMIT_GB; ///< Farm job memory limit in GB (via LOADER_MEM_LIMIT_GB env varirable)
 } Globals;
 
 extern Globals G;

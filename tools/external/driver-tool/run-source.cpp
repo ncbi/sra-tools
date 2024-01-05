@@ -411,7 +411,6 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
         auto const path = cmdline.pathForArgument(arg);
         auto const dir_base = path.split();
         auto const filename = std::string(dir_base.second);
-        auto const hasDirName = !dir_base.first.empty();
 
         result[name]["name"] = name;
 
@@ -425,45 +424,37 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             return;
         LOG(9) << "Examining path: " << name << std::endl;
 
-        try {
-            path.makeCurrentDirectory();
-
-            i.second["local"] = name;
-            LOG(9) << name << " is a directory." << std::endl;
-
+        // Try to use `path` as a directory
+        if (path.makeCurrentDirectory()) {
             auto const path = FilePath::cwd(); // canonical path
             i.second["path"].assign(path);
+            i.second["local"] = name;
+            LOG(9) << name << " is a directory." << std::endl;
 
             if (isaRun && accession.extension().empty()) // accession directories don't have extensions
                 getADInfo(i.second, path, accession, wantFullQuality);
             else
                 LOG(3) << name << " is a directory, but doesn't look like an SRA Accession Directory." << std::endl;
-
             cwd.makeCurrentDirectory();
             return;
         }
-        catch (std::system_error const &e) {
-            auto const what = std::string(e.what());
-            if (what.find("chdir") == std::string::npos || what.find(name) == std::string::npos)
-                throw;
+        else {
             LOG(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
         }
 
-        if (hasDirName) {
-            LOG(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
-            try {
-                auto const dir = dir_base.first.copy();
+        // Try to use the parent directory of `path`
+        if (!dir_base.first.empty()) {
+            auto const dir = dir_base.first;
+            LOG(9) << name << " has a directory '" << std::string(dir) << "'." << std::endl;
 
-                dir.makeCurrentDirectory();
-                {
-                    auto const path = FilePath::cwd(); // canonical path
-                    if (getLocalFilePath(i.second, path, filename, wantFullQuality))
-                        i.second["local"] = name;
-                }
+            if (dir.makeCurrentDirectory()) {
+                auto const path = FilePath::cwd(); // canonical path
+                if (getLocalFilePath(i.second, path, filename, wantFullQuality))
+                    i.second["local"] = name;
                 cwd.makeCurrentDirectory();
             }
-            catch (std::system_error const &e) {
-                LOG(1) << std::string(dir_base.first) << " is a directory, but can't chdir to it: " << e.what() << std::endl;
+            else {
+                LOG(1) << std::string(dir) << " is a directory, but can't chdir to it." << std::endl;
             }
             return;
         }

@@ -298,6 +298,25 @@ TEST_CASE( NotIsSame_File )
     REQUIRE( !fp1.isSameFileSystemObject(fp2) );
 }
 
+TEST_CASE( ChangeDirectoryToFile )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 = fp.append("CMakeLists.txt");
+
+    try {
+        fp1.makeCurrentDirectory();
+        fp.makeCurrentDirectory();
+    }
+    catch (std::system_error const &e) {
+        auto const what = std::string(e.what());
+        if (what.find("chdir") == std::string::npos)
+            throw;
+    }
+}
+
 #if WINDOWS
 static wchar_t **s_argv;
 #else

@@ -306,15 +306,8 @@ TEST_CASE( ChangeDirectoryToFile )
     FilePath fp = FilePath::cwd();
     FilePath fp1 = fp.append("CMakeLists.txt");
 
-    try {
-        fp1.makeCurrentDirectory();
-        fp.makeCurrentDirectory();
-    }
-    catch (std::system_error const &e) {
-        auto const what = std::string(e.what());
-        if (what.find("chdir") == std::string::npos)
-            throw;
-    }
+    // cd to a file should return false
+    REQUIRE( !fp1.makeCurrentDirectory() );
 }
 
 #if WINDOWS

@@ -10,6 +10,8 @@ TEMPDIR=.
 rm -rf actual/
 mkdir -p actual/
 
+export NCBI_SETTINGS=/
+
 	output=$(./runtestcase.sh \
 	       "${bin_dir}/${vdb_validate} db/sdc_len_mismatch.csra" no_sdc_checks 0)
 	res=$?

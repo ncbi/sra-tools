@@ -50,6 +50,7 @@ else
 fi
 
 echo "running $CASEID"
+export NCBI_SETTINGS=/
 
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*

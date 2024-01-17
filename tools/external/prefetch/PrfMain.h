@@ -150,7 +150,7 @@ typedef struct PrfMain {
     struct String *ascpMaxRate;
     const char *ascpParams; /* do not free! */
 
-    bool stripQuals;     /* this will download file without quality columns */
+//  bool stripQuals;     /* this will download file without quality columns */
     bool eliminateQuals; /* this will download cache file with eliminated
                             quality columns which could filled later */
 
@@ -200,6 +200,7 @@ rc_t PrfMainFini(PrfMain *self);
 #define STS_DBG  2
 #define STS_FIN  3
 
+#define ELIM_QUALS_OPTION "eliminate-quals"
 #define KART_OPTION "cart"
 #define MINSZ_OPTION "min-size"
 #define NGC_OPTION "ngc"

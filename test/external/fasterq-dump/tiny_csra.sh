@@ -24,8 +24,8 @@ fi
 
 BAMLOAD="${DIRTOTEST}/bam-load"
 if [[ ! -x $BAMLOAD ]]; then
-    echo "${BAMLOAD} not found - exiting..."
-    exit 3
+    echo "${BAMLOAD} not found - exiting(skipped)..."
+    exit 0
 fi
 
 KAR="${DIRTOTEST}/kar"

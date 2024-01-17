@@ -49,6 +49,8 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 
 printf "running $CASEID: "
 
+export NCBI_SETTINGS=/
+
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then

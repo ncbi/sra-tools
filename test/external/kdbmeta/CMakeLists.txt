@@ -26,7 +26,7 @@ if ( NOT WIN32 )
     ToolsRequired(kdbmeta)
 
     add_test( NAME Test_Kdbmeta
-          COMMAND bash -c "${DIRTOTEST}/kdbmeta SRR053325 > /dev/null"
+          COMMAND bash -c "NCBI_SETTINGS=/ ${DIRTOTEST}/kdbmeta SRR053325 > /dev/null"
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     if( RUN_SANITIZER_TESTS )

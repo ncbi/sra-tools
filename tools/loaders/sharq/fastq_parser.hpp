@@ -570,13 +570,17 @@ public:
      * collect all reads from all readers and build spot-assembly 
     */
     template<typename ScoreValidator, typename ErrorChecker>
-    void first_pass(ErrorChecker&& error_checker);
+    void first_pass(str_sv_type& read_names, ErrorChecker&& error_checker);
+
+    template<typename T>
+    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index);    
+
     /**
      * @brief second step of spot-assembly mode
      * process spots using spot-assembly
     */
-    template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
-    void second_pass(ErrorChecker&& error_checker);
+    template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker, typename T>
+    void second_pass(ErrorChecker&& error_checker, const vector<T>& read_index);
     
     /**
      * @brief sort/uniq spot to remove duplicate reads
@@ -701,7 +705,7 @@ private:
 
     struct spot_assembly_metrics_t {
         size_t number_of_far_reads = 0;
-        map<int, size_t> reads_stats; // number of reads, number of spots
+        map<uint32_t, size_t> reads_stats; // number of reads, number of spots
     };
 
     /**
@@ -1263,7 +1267,7 @@ int s_find_duplicates(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& 
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "Collation check. Duplicate spot '{}' at index {}", terms[i], i);
+            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at index {}", terms[i], i);
             error_checker(e);
         }
     }
@@ -1279,7 +1283,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     if (sz == 0)
         return;
     static thread_local bm::sparse_vector_scanner<str_sv_type> scanner;
-
+    spdlog::stopwatch sw;
     bm::sparse_vector_scanner<str_sv_type>::pipeline<bm::agg_opt_only_counts> pipe(m_spot_names);
     pipe.options().batch_size = 0;
     for (const auto& term : terms)
@@ -1289,10 +1293,11 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
+            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
             error_checker(e);
         }
     }
+    spdlog::info("check_duplicate_spot_names time: {} size: {}", sw, sz);
 }
 
 
@@ -1693,12 +1698,17 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             size_t reads_processed = 0;
             size_t spots_processed = 0;
             size_t spot_name_sz = 0;
+            size_t file_size = 0;
             set<string> deflines_types;
             set<int> platforms;
 
             f["file_path"] = fn;
-            auto file_size = fs::file_size(fn);
-            f["file_size"] = file_size;
+            try {
+                file_size = fs::file_size(fn);
+                f["file_size"] = file_size;
+            } catch(...) {
+                // ignore file size errors (stdin)               
+            }
             if (re2::RE2::PartialMatch(fn, re_10x_I))
                 has_I_file = true;
             else if (re2::RE2::PartialMatch(fn, re_10x_R))
@@ -1807,7 +1817,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             f["spots_processed"] = spots_processed;
             f["lines_processed"] = reader.line_number();
             double bytes_read = reader.tellg();
-            if (bytes_read && spots_processed) {
+            if (bytes_read && spots_processed && file_size) {
                 double fsize = file_size;
                 double bytes_per_spot = bytes_read/spots_processed;
                 estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
@@ -2190,12 +2200,22 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
  */
 template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker>
-void fastq_parser<TWriter>::first_pass(ErrorChecker&& error_checker)
+void fastq_parser<TWriter>::first_pass(str_sv_type& read_names, ErrorChecker&& error_checker)
 {
+#if defined(__SAVE_FIRST_PASS__) 
+    if (file_exists("read_names.sv")) {
+        spdlog::info("Restoring read names");
+        vector<char> buffer;
+        bm::sparse_vector_deserializer<str_sv_type> deserializer;
+        bm::sparse_vector_serial_layout<str_sv_type> lay;
+        bm::read_dump_file("read_names.sv", buffer);
+        deserializer.deserialize(read_names, (const unsigned char*)&buffer[0]);
+        return;
+    }
+#endif        
     spdlog::stopwatch sw;
     spdlog::info("Parsing from {} files", m_readers.size());
 
-    str_sv_type read_names;
     auto read_names_bi = read_names.get_back_inserter();
     for_each_read<ScoreValidator, ErrorChecker>(error_checker, [&](size_t row_id, CFastqRead& read) {
         read_names_bi = read.Spot();
@@ -2208,13 +2228,18 @@ void fastq_parser<TWriter>::first_pass(ErrorChecker&& error_checker)
     read_names.optimize(TB, bm::bvector<>::opt_compress, &stats);
     read_names.freeze();
     spdlog::info("Remapping took {:.3}", sw);       
-    sw.reset();
-    auto num_rows = read_names.size();
-    spdlog::info("num_row: {:L}, read_names mem: {:L}, sort_index mem: {:L}, total_mem: {:L}", num_rows, stats.memory_used, num_rows * sizeof(uint32_t), stats.memory_used + (num_rows * 2 * sizeof(uint32_t)));       
+    spdlog::info("num_row: {:L}, read_names mem: {:L}",  read_names.size(), stats.memory_used);   
+#if defined(__SAVE_FIRST_PASS__)
+    serialize_vec("read_names.sv", read_names);
+#endif    
+}
 
-    if (num_rows > numeric_limits<uint32_t>::max())
-        throw fastq_error("Number of reads {:L} exceeds the limit {:L}", num_rows, numeric_limits<uint32_t>::max());
-    m_spot_assembly.assign_spot_id(read_names);
+template<typename TWriter>
+template<typename T>
+void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& read_index)
+{
+    spdlog::stopwatch sw;
+    m_spot_assembly.assign_spot_id(read_names, read_index);
     m_telemetry.assembly_metrics.number_of_far_reads = m_spot_assembly.m_total_spots - m_spot_assembly.m_hot_spot_ids.count();
     spdlog::info("Building took {:.3}, far reads: {:L}", sw, m_telemetry.assembly_metrics.number_of_far_reads);
 
@@ -2484,8 +2509,8 @@ void fastq_parser<TWriter>::write_spot_thread()
 #if defined(_PARALLEL_PARSE_)
 
 template<typename TWriter>
-template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
-void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
+template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker, typename T>
+void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vector<T>& read_index)
 {
     size_t readCount = 0, spotCount = 0;
     spdlog::stopwatch sw;
@@ -2507,7 +2532,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
     spot_read_t spot_read;
     for_each_read<ScoreValidator, ErrorChecker>(error_checker, [&](size_t row_id, CFastqRead& read) {
         try {
-            read.m_SpotId = m_spot_assembly.m_read_index[row_id];
+            read.m_SpotId = read_index[row_id];
             spot_read.read = std::move(read);
             spot_read.is_last = m_spot_assembly.is_last_spot(row_id);
             ++readCount;
@@ -2530,11 +2555,11 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
     }
 
     // Second pass stats should match the first pass
-    assert(m_spot_assembly.m_total_spots == spotCount && m_spot_assembly.m_read_index.size() == readCount);
+    assert(m_spot_assembly.m_total_spots == spotCount && read_index.size() == readCount);
     if (m_spot_assembly.m_total_spots != spotCount)
         throw fastq_error("Invalid assembly: Spot counts do not match {} != {}", m_spot_assembly.m_total_spots, spotCount);
-    if (m_spot_assembly.m_read_index.size() != readCount)
-        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", m_spot_assembly.m_read_index.size(), readCount);        
+    if (read_index.size() != readCount)
+        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);        
 
     if (m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
@@ -2542,8 +2567,8 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
 }
 #else
 template<typename TWriter>
-template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker>
-void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
+template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker, typename T>
+void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vector<T>& read_index)
 {
     size_t readCount = 0;
     vector<fastq_read> assembled_spot;
@@ -2554,7 +2579,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
 
     for_each_read<ScoreValidator, ErrorChecker>(error_checker, [&](size_t row_id, CFastqRead& read) {
         try {
-            auto spot_id = m_spot_assembly.m_read_index[row_id];
+            auto spot_id = read_index[row_id];
             if (m_spot_assembly.is_last_spot(row_id)) {
                 m_spot_assembly. template get_spot<ScoreValidator, is_nanopore>(spot_id, assembled_spot);
                 spot = std::move(read.Spot());
@@ -2577,11 +2602,11 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker)
     });
 
     // Second pass stats should match the first pass
-    assert(m_spot_assembly.m_total_spots == spotCount && m_spot_assembly.m_read_index.size() == readCount);
+    assert(m_spot_assembly.m_total_spots == spotCount && read_index.size() == readCount);
     if (m_spot_assembly.m_total_spots != spotCount)
         throw fastq_error("Invalid assembly: Spot counts do not match {} != {}", m_spot_assembly.m_total_spots, spotCount);
-    if (m_spot_assembly.m_read_index.size() != readCount)
-        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", m_spot_assembly.m_read_index.size(), readCount);        
+    if (read_index.size() != readCount)
+        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);        
 
     if (m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);

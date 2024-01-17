@@ -141,19 +141,6 @@ static bool on_set_location_error( Dlg &dlg, ESetRootState s ) {
 static std::string public_location_start_dir( vdbconf_model * model ) {
     std::string res = model -> get_public_location();
     return res;
-    if ( !model -> does_path_exist( res ) ) {
-        res = model -> get_user_default_dir();
-    }
-    if ( !model -> does_path_exist( res ) ) {
-        res = model -> get_home_dir() + "/ncbi";
-    }
-    if ( !model -> does_path_exist( res ) ) {
-        res = model -> get_home_dir();
-    }
-    if ( !model -> does_path_exist( res ) ) {
-        res = model -> get_current_dir();
-    }
-    return res;
 }
 
 static bool pick_public_location( Dlg &dlg, vdbconf_model * model ) {

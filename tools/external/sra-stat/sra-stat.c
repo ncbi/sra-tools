@@ -1091,6 +1091,7 @@ typedef struct Loader {
     char vers[256];
 } Loader;
 typedef struct SraMeta {
+    bool isDb;
     uint32_t metaVersion;
     int32_t tblVersion;
     time_t loadTimestamp;
@@ -1945,14 +1946,17 @@ rc_t readTxtAttr(const KMDataNode* self, const char* name, const char* attrName,
 }
 
 static
-rc_t get_load_info(const KMetadata* meta, SraMeta* info)
+rc_t get_load_info(const KMetadata* dbMeta,
+    const KMetadata* tblMeta, SraMeta* info)
 {
     rc_t rc = 0;
     const KMDataNode* node = NULL;
-    assert(meta && info);
+    const KMetadata* meta = dbMeta != NULL ? dbMeta : tblMeta;
+    assert(info);
     memset(info, 0, sizeof *info);
     info->metaVersion = 99;
     info->tblVersion = -1;
+    info->isDb = dbMeta != NULL;
 
     if (rc == 0) {
         rc = KMetadataVersion(meta, &info->metaVersion);
@@ -3059,7 +3063,8 @@ rc_t print_results(const Ctx* ctx)
                 ctx->sizes->size));
         }
         if (ctx->pb->printMeta && ctx->info->tblVersion >= 0) {
-            OUTMSG(("  <Table vers=\"%d\">\n    <Meta vers=\"%d\">\n",
+            OUTMSG(("  <%s vers=\"%d\">\n    <Meta vers=\"%d\">\n",
+                ctx->info->isDb ? "Database" : "Table",
                 ctx->info->tblVersion, ctx->info->metaVersion));
             if (ctx->info->formatter.name[0] || ctx->info->formatter.vers[0] ||
                 ctx->info->loader.date[0] || ctx->info->loader.name[0] ||
@@ -3097,7 +3102,8 @@ rc_t print_results(const Ctx* ctx)
                 OUTMSG(("      <LOAD timestamp=\"%lX\">%s</LOAD>\n",
                     ctx->info->loadTimestamp, buf));
             }
-            OUTMSG(("    </Meta>\n  </Table>\n"));
+            OUTMSG(("    </Meta>\n  <%s>\n",
+                ctx->info->isDb ? "Database" : "Table"));
         }
         if (rc == 0 && !ctx->pb->quick) {
             rc2 = BasesPrint(&ctx->total->bases_count,
@@ -4395,6 +4401,7 @@ rc_t run(srastat_parms* pb)
             SraStatsTotal total;
             const KTable* ktbl = NULL;
             const KMetadata* meta = NULL;
+            const KMetadata* dbMeta = NULL;
 
             BSTree tr;
             Ctx ctx;
@@ -4414,6 +4421,10 @@ rc_t run(srastat_parms* pb)
                 rc = KTableOpenMetadataRead(ktbl, &meta);
                 DISP_RC(rc, "While calling KTableOpenMetadataRead");
             }
+            if (db != NULL && rc == 0) {
+                rc = VDatabaseOpenMetadataRead(db, &dbMeta);
+                DISP_RC(rc, "While calling VDatabaseOpenMetadataRead");
+            }
             if (rc == 0) {
                 rc = get_stats_meta(meta, &stats, pb->quick);
                 if (rc == 0) {
@@ -4428,9 +4439,9 @@ rc_t run(srastat_parms* pb)
             if (rc == 0) {
                 rc = get_size(&sizes, vtbl);
             }
-            if (rc == 0 && pb->printMeta) {
-                rc = get_load_info(meta, &info);
-            }
+            if (rc == 0 && pb->printMeta)
+                rc = get_load_info(dbMeta, meta, &info);
+
             if (rc == 0 && !pb->quick) {
                 rc = sra_stat(pb, &tr, &total, &ctx, vtbl);
             }
@@ -4478,6 +4489,7 @@ rc_t run(srastat_parms* pb)
                 stats.spotGroup = NULL;
             }
             CtxRelease(&ctx);
+            RELEASE(KMetadata, dbMeta);
             RELEASE(KMetadata, meta);
         }
         RELEASE(VTable, vtbl);

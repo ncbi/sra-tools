@@ -3102,7 +3102,7 @@ rc_t print_results(const Ctx* ctx)
                 OUTMSG(("      <LOAD timestamp=\"%lX\">%s</LOAD>\n",
                     ctx->info->loadTimestamp, buf));
             }
-            OUTMSG(("    </Meta>\n  <%s>\n",
+            OUTMSG(("    </Meta>\n  </%s>\n",
                 ctx->info->isDb ? "Database" : "Table"));
         }
         if (rc == 0 && !ctx->pb->quick) {

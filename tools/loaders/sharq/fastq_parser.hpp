@@ -237,8 +237,10 @@ struct data_input_metrics_t {
     size_t rejected_read_count = 0;
     size_t duplicate_reads_count = 0;
     size_t duplicate_reads_len = 0;
+    size_t duplicate_spots_edited = 0;
     size_t subsequence_reads_count = 0;
     size_t subsequence_reads_len = 0;
+    size_t subsequence_spots_edited = 0;
     size_t qual_scores_added = 0;
     size_t qual_scores_removed = 0;
     array<size_t, 256> base_counts{};
@@ -544,6 +546,15 @@ public:
      */
     void set_experiment_file(const string& experiment_file);
 
+    
+    /**
+     * @brief Set flag to remove subsequences 
+     *
+     * @param dedup
+     */
+
+    void set_dedup(bool dedup) { m_dedup = dedup; }
+
     /**
      * @brief read from a group of readers, assembles the spot and send it to the writer
      *
@@ -590,7 +601,7 @@ public:
     /**
      * @brief remove subsequences from reads
     */
-    void removeSubsequences(const string& spot_name,vector<fastq_read>& reads);
+    void removeSubsequences(vector<fastq_read>& reads);
 
     /**
      * removes duplicate reads and assigns readType
@@ -749,6 +760,7 @@ private:
     str_sv_type::back_insert_iterator m_spot_names_bi; ///< Internal back_inserter for spot_names collection
     vector<char>         m_read_types;                 ///< ReadTypes 
     int                  m_read_type_sz{0};            ///< ReadTypes size
+    bool                 m_dedup{false};               ///< Remove duplicate subsequence 
 
     spot_assembly_t m_spot_assembly;
     std::shared_ptr<spdlog::logger> m_logger;
@@ -1938,10 +1950,12 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         if (m_telemetry.input_metrics.duplicate_reads_count) {
             im["duplicate_reads"] = m_telemetry.input_metrics.duplicate_reads_count;
             im["duplicate_reads_len"] = m_telemetry.input_metrics.duplicate_reads_len;
+            im["spots_with_duplicate_reads"] = m_telemetry.input_metrics.duplicate_spots_edited;            
         }
         if (m_telemetry.input_metrics.subsequence_reads_count) {
-            im["subsequence_reads"] = m_telemetry.input_metrics.subsequence_reads_count;
-            im["subsequence_reads_len"] = m_telemetry.input_metrics.subsequence_reads_len;
+            im["subseq_reads_removed"] = m_telemetry.input_metrics.subsequence_reads_count;
+            im["subseq_reads_len"] = m_telemetry.input_metrics.subsequence_reads_len;
+            im["spots_with_subseq_reads"] = m_telemetry.input_metrics.subsequence_spots_edited;
         }
         if (m_telemetry.input_metrics.qual_scores_added) 
             im["qual_scores_added"] = m_telemetry.input_metrics.qual_scores_added;
@@ -2295,14 +2309,17 @@ void fastq_parser<TWriter>::save_spot_thread()
 
 
 template<typename TWriter>
-void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fastq_read>& reads) 
+void fastq_parser<TWriter>::removeSubsequences(vector<fastq_read>& reads) 
 {
     int sz = reads.size();
+    if (sz == 1)
+        return;
+    size_t orig_count = m_telemetry.input_metrics.subsequence_reads_count;
     for(int i = 0; i < sz; i++) {
         auto seq_sz = reads[i].Sequence().size(); 
+        auto& readNum = reads[i].ReadNum();
         for(int j = 0; j < sz; j++) {
-            if(i != j && seq_sz < reads[j].Sequence().size() && reads[j].Sequence().find(reads[i].Sequence()) != string::npos) 
-            {
+            if(i != j && readNum == reads[j].ReadNum() && seq_sz < reads[j].Sequence().size() && reads[j].Sequence().find(reads[i].Sequence()) != string::npos) {
                 vector<uint8_t> qual_scores1;
                 reads[i].GetQualScores(qual_scores1);
                 vector<uint8_t> qual_scores2;
@@ -2323,6 +2340,9 @@ void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fa
                 }
             }
         }
+    }
+    if (m_telemetry.input_metrics.subsequence_reads_count > orig_count) {
+        ++m_telemetry.input_metrics.subsequence_spots_edited;
     }
 }
 
@@ -2370,8 +2390,10 @@ void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vecto
     if (duplicate_reads) {
         m_telemetry.input_metrics.duplicate_reads_count += duplicate_reads;
         assembled_spot.erase(new_end, assembled_spot.end());
+        ++m_telemetry.input_metrics.duplicate_spots_edited;
     }
-    //removeSubsequences(spot_name, assembled_spot);
+    if (m_dedup)
+        removeSubsequences(assembled_spot);
 
 }
 

@@ -69,6 +69,22 @@ if [ "$res" != "0" ];
 	then echo "quick_bases test FAILED, res=$res output=$output" && exit 1;
 fi
 
+echo check SOFTWARE node for a table
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${bin_dir}/${sra_stat} --quick -x --meta SRR053325 > actual/SRR053325
+output=$(diff actual/SRR053325 expected/SRR053325-meta)
+res=$?
+if [ "$res" != "0" ];
+	then echo "table SOFTWARE test FAILED, res=$res output=$output" && exit 1;
+fi
+
+echo check SOFTWARE node for a DB
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${bin_dir}/${sra_stat} --quick -x --meta SRR19599626 > actual/SRR19599626
+output=$(diff actual/SRR19599626 expected/SRR19599626-meta)
+res=$?
+if [ "$res" != "0" ];
+        then echo "DB SOFTWARE test FAILED, res=$res output=$output" && exit 1;
+fi
+
 rm actual/*
 echo quick_bases test is finished
 

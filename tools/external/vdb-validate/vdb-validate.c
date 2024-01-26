@@ -421,7 +421,7 @@ rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
         if (blob_crc_required)
             rc = RC ( rcExe, *pathType == kptDatabase ? rcDatabase : rcTable, rcValidating, rcChecksum, rcNotFound );
         else
-            (void)LOGMSG(klogInfo, "checksums missing");
+            (void)LOGMSG(klogWarn, "checksums missing");
     }
         
     if (rc == 0 && ctx.num_columns == 0 && !s_IndexOnly)

@@ -490,6 +490,9 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0)// && item->mane->force != eForceNo)
         rc = KServiceResolve(service, true, true);
 
+    if (rc == 0 && item->mane->eliminateQuals)
+        rc = KServiceSetQuality(service, "Z");
+
     if ( rc == 0 ) {
         rc_t r2 = 0;
         const char * quality = NULL;
@@ -527,16 +530,17 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if ( rc == 0 )
         l = KSrvResponseLength  (resolved->response );
 
-    if ( rc == 0 && l > 0 )
+    if ( rc == 0 && l > 0 ) {
         rc = ResolvedReset(resolved);
-        /* rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
-    if ( rc == 0 && l > 0 )
-        rc = KSrvRespObjMakeIterator ( obj, & it );
-    if (rc == 0 && l > 0) {
-        RELEASE(KSrvRespObjIterator, resolved->respIt);
-        resolved->respIt = it;
-        rc = KSrvRespObjIteratorNextFile(it, &file);
-    }*/
+        if (item->mane->eliminateQuals && GetRCState(rc) == rcNotFound) {
+            STSMSG(STAT_ALWAYS, (
+                "Requested SRA Lite files with simplified base quality scores "
+                "is not available."));
+            STSMSG(STAT_ALWAYS, ("Remove --" ELIM_QUALS_OPTION
+                " option to prefetch SRA Normalized Format "
+                "files with full base quality scores if available."));
+        }
+    }
 
     if ( rc == 0 && l > 0 ) {
         KSrvRespFileIterator * fi = NULL;
@@ -1298,7 +1302,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     assert(self && mane && pof);
 
-    assert(!mane->eliminateQuals);
+//  assert(!mane->eliminateQuals);
 
     if (mane->dryRun)
         lvl = STAT_USR;
@@ -1324,7 +1328,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     assert ( src . addr );
 
-    if (rc == 0 && !mane->dryRun && mane->stripQuals) {
+ /* if (rc == 0 && !mane->dryRun && mane->stripQuals) {
         if (in == NULL) {
             rc = _KFileOpenRemote(&in, mane->kns, path, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
@@ -1332,7 +1336,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                     "'$(path)'", "path=%S", & src));
         }
 
-        if (mane->stripQuals) {
+//      if (mane->stripQuals) {
             const KFile * kfile = NULL;
 
             rc = KSraFileNoQuals(in, &kfile);
@@ -1341,7 +1345,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 in = kfile;
             }
         }
-    }
+    } */
 
     if (rc == 0)
         STSMSG(lvl, ("%S -> %s", &src, pof->tmpName));
@@ -1497,7 +1501,7 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
     const VPathStr * remote = NULL;
 
     assert(self && mane);
-    assert(!mane->stripQuals);
+//  assert(!mane->stripQuals);
 
     remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
                                                : & self -> remoteHttps;
@@ -1763,16 +1767,11 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                 STSMSG(STAT_ALWAYS, (" Downloading via fasp..."));
                 if (mane->forceAscpFail)
                     rc = 1;
-                else if (mane->eliminateQuals) {
-                    LOGMSG(klogErr, "Cannot eliminate qualities "
-                        "during fasp download");
-                    rc = 1;
-                }
-                else if (mane->eliminateQuals) {
+/*              else if (mane->eliminateQuals) {
                     LOGMSG(klogErr, "Cannot remove QUALITY columns "
                         "during FASP download");
                     rc = 1;
-                }
+                } */
                 else
                     rd = PrfMainDownloadAscp(self, mane, pof->tmpName, path);
                 if (rd == 0)
@@ -1794,11 +1793,11 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                 https = false;
             STSMSG(STAT_ALWAYS,
                 (" Downloading via %s...", https ? "HTTPS" : "HTTP"));
-            if (mane->eliminateQuals)
-                rd = PrfMainDownloadCacheFile(self, mane,
-                    pof->tmpName, mane->eliminateQuals && !isDependency);
-            else
-                rd = PrfMainDownloadHttpFile(self, mane, path, pof);
+/*          if (mane->eliminateQuals)
+                rd = PrfMainDownloadCacheFile(self, mane, */
+//                  pof->tmpName, mane->eliminateQuals && !isDependency);
+//          else
+            rd = PrfMainDownloadHttpFile(self, mane, path, pof);
             if (rd == 0) {
                 STSMSG(STAT_ALWAYS, (" %s download succeed",
                     https ? "HTTPS" : "HTTP"));
@@ -4004,6 +4003,9 @@ rc_t CC KMain(int argc, char *argv[]) {
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
 #endif
+
+    if (rc == 0)
+        rc = KStsHandlerSetStdOut();
 
     if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);

@@ -34,6 +34,7 @@
 
 #include <vector>
 #include <string>
+#include <system_error>
 #include "util.hpp"
 
 #if USE_WIDE_API
@@ -119,9 +120,16 @@ public:
 
     static FilePath cwd();
 
-    /// Make this the current working directory.
-    void makeCurrentDirectory() const {
-        changeDirectory();
+    /// Try to make this the current working directory.
+    /// Returns: true if successful.
+    bool makeCurrentDirectory() const {
+        try {
+            changeDirectory();
+            return true;
+        }
+        catch (std::system_error const &e) {
+            return false;
+        }
     }
 
     static FilePath fullPathToExecutable(char const *const *argv, char const *const *envp, char const *const *extra = nullptr);

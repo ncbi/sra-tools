@@ -36,6 +36,11 @@ if ( NOT WIN32 )
 	add_test( NAME Test_Vdb_validate
 		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_Vdb_validate_redact
+        COMMAND bash -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${VDB_INCDIR}'"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME Test_Vdb_validate-asan
 			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-asan

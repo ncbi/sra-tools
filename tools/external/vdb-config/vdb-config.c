@@ -525,8 +525,6 @@ typedef struct Params {
 
     const char *setValue;
 
-    const char *ngc;
-
     bool modeSetNode;
     bool modeConfigure;
     bool ignoreProtected;
@@ -1081,7 +1079,6 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                     && !prm->modeSetNode
                     && !prm->preferNoQuality
                     && !prm->disableTelemetry
-                    && prm->ngc == NULL
                     && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
                 /* show all by default */
             {
@@ -1784,159 +1781,6 @@ static rc_t _VFSManagerSystem2PosixPath(const VFSManager *self,
     return rc;
 }
 
-static rc_t DefaultPepoLocation(const KConfig *cfg,
-    uint32_t id, char *buffer, size_t bsize)
-{
-    rc_t rc = 0;
-    char home[PATH_MAX] = "";
-    size_t written = 0;
-    assert(buffer && bsize);
-    rc = KConfig_Get_Default_User_Path(cfg, home, sizeof home, &written);
-    if (rc == 0 && written > 0) {
-        rc = string_printf(buffer, bsize, &written, "%s/dbGaP-%u", home, id);
-        if (rc == 0) {
-            return rc;
-        }
-    }
-
-    rc = KConfig_Get_Home(cfg, home, sizeof home, &written);
-    if (rc == 0 && written > 0) {
-        rc = string_printf(buffer, bsize, &written,
-            "%s/ncbi/dbGaP-%u", home, id);
-        if (rc == 0) {
-            return rc;
-        }
-    }
-
-    {
-        VFSManager *vmgr = NULL;
-        rc = VFSManagerMake(&vmgr);
-        if (rc == 0) {
-            const char *home = getenv("HOME");
-            if (home == NULL) {
-                home = getenv("USERPROFILE");
-            }
-            if (home == NULL) {
-#define TODO 1
-                rc = TODO;
-            }
-            else {
-                size_t num_writ = 0;
-                char posix[PATH_MAX] = "";
-                rc = _VFSManagerSystem2PosixPath(vmgr, home, posix);
-                if (rc == 0) {
-                    rc = string_printf(buffer, bsize, &num_writ,
-                        "%s/ncbi/dbGaP-%u", posix, id);
-                    if (rc == 0) {
-                        return rc;
-                    }
-                }
-            }
-        }
-        RELEASE(VFSManager, vmgr);
-    }
-
-    return rc;
-}
-
-static rc_t DoImportNgc(KConfig *cfg, Params *prm,
-    const char **newRepoParentPath, uint32_t *result_flags)
-{
-    rc_t rc = 0;
-    KDirectory *dir = NULL;
-    const KFile *src = NULL;
-    const KNgcObj *ngc = NULL;
-    static char buffer[PATH_MAX] = "";
-    const char *root = NULL;
-
-    assert(prm);
-    if (rc == 0) {
-        rc = KDirectoryNativeDir(&dir);
-    }
-    if (rc == 0) {
-        rc = KDirectoryOpenFileRead(dir, &src, "%s", prm->ngc);
-    }
-    if (rc == 0) {
-        rc = KNgcObjMakeFromFile(&ngc, src);
-    }
-    RELEASE(KFile, src);
-
-    if (rc == 0) {
-        uint32_t id = 0;
-        rc = KNgcObjGetProjectId(ngc, &id);
-        if (rc == 0) {
-            const char *p = NULL;
-            rc = ParamsGetNextParam(prm, &p);
-            if (rc == 0 && p != NULL) {
-                rc = KDirectoryResolvePath(dir, true, buffer, sizeof buffer, p);
-                if (rc == 0) {
-                    root = buffer;
-                }
-            }
-            else {
-                rc = DefaultPepoLocation(cfg, id, buffer, sizeof buffer);
-                if (rc == 0) {
-                    root = buffer;
-                }
-            }
-        }
-    }
-    RELEASE(KDirectory, dir);
-    if (rc == 0) {
-        rc = KConfigImportNgc ( cfg, prm -> ngc, root, newRepoParentPath );
-    }
-    RELEASE(KNgcObj, ngc);
-    return rc;
-}
-
-static rc_t ImportNgc(KConfig *cfg, Params *prm) {
-    const char *newRepoParentPath = NULL;
-    uint32_t result_flags = 0;
-    rc_t rc = 0;
-    assert(prm);
-    rc = DoImportNgc(cfg, prm, &newRepoParentPath, &result_flags);
-    DISP_RC2(rc, "cannot import ngc file", prm->ngc);
-    if ( rc == 0 ) {
-        rc = KConfigCommit(cfg);
-    }
-    if (rc == 0) {
-#if WINDOWS
-        char ngcPath[PATH_MAX] = "";
-        char system[MAX_PATH] = "";
-#endif          
-        KDirectory *wd = NULL;
-        const char *ngc = prm->ngc;
-        rc_t rc = KDirectoryNativeDir(&wd);
-#if WINDOWS
-        if (rc == 0) {
-            rc = KDirectoryPosixStringToSystemString(wd,
-                system, sizeof system, "%s", newRepoParentPath);
-            if (rc == 0) {
-                newRepoParentPath = system;
-            }
-            rc = KDirectoryPosixStringToSystemString(wd,
-                ngcPath, sizeof ngcPath, "%s", ngc);
-            if (rc == 0) {
-                ngc = ngcPath;
-            }
-        }
-#endif          
-        if (wd) {
-            if (KDirectoryPathType(wd, newRepoParentPath)
-                == kptNotFound)
-            {
-                KDirectoryCreateDir(wd, 0775,
-                    kcmCreate | kcmParents, newRepoParentPath);
-            }
-        }
-
-        OUTMSG ( ( "%s was imported.\nRepository directory is: '%s'.\n",
-            ngc, newRepoParentPath ) );
-        RELEASE(KDirectory, wd);
-    }
-    return rc;
-}
-
 static
 rc_t CloudSetReportIdentity(KConfig * cfg, EState value, bool * set) {
     rc_t rc = 0;
@@ -2313,9 +2157,7 @@ rc_t CC KMain(int argc, char* argv[]) {
         RELEASE ( KDirectory, n );
 
         if ( ! configured ) {
-            if (prm.ngc)
-                rc = ImportNgc(cfg, &prm);
-            else if (prm.modeSetNode) {
+            if (prm.modeSetNode) {
                 rc_t rc3 = SetNode(cfg, &prm);
                 if (rc3 != 0 && rc == 0)
                     rc = rc3;

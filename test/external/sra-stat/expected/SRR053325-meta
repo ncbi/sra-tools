@@ -1,0 +1,24 @@
+<Run accession="SRR053325" spot_count="1" base_count="270" base_count_bio="258">
+  <Member member_name="AVP24_435_36" spot_count="1" base_count="270" base_count_bio="258"/>
+  <Size value="31558" units="bytes"/>
+  <Table vers="2">
+    <Meta vers="2">
+      <SOFTWARE>
+        <formatter name="SFF" vers="2.9.1"/>
+        <loader date="Jun 15 2018" name="sff-load.2.9.1" vers="2.9.1"/>
+      </SOFTWARE>
+      <LOAD timestamp="5D1630A4">Fri 2019-06-28 11:22:12 EDT</LOAD>
+    </Meta>
+  </Table>
+  <QualityCount>
+    <Quality value="25" count="2"/>
+    <Quality value="29" count="4"/>
+    <Quality value="31" count="12"/>
+    <Quality value="32" count="7"/>
+    <Quality value="33" count="2"/>
+    <Quality value="36" count="5"/>
+    <Quality value="37" count="193"/>
+    <Quality value="38" count="13"/>
+    <Quality value="40" count="32"/>
+  </QualityCount>
+</Run>

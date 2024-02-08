@@ -382,6 +382,14 @@ std::string vdbconf_model::get_public_location( void ) const
     return res;
 }
 
+bool vdbconf_model::set_public_location_direct( const std::string& path )
+{
+    std::string tmp( native_to_internal( path ) );
+    rc_t rc = KConfig_Set_User_Public_Cache_Location( _config.Get(), tmp.c_str() );
+    bool res = 0 == rc;
+    if ( res ) { _config.Updated(); }
+    return res;
+}
 
 std::string vdbconf_model::get_current_dir( void ) const
 {

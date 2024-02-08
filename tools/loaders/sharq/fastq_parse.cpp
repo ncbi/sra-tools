@@ -55,7 +55,7 @@
 namespace fs = std::experimental::filesystem;
 #else
 #include <filesystem>
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 #endif
 
 using json = nlohmann::json;
@@ -137,6 +137,7 @@ private:
     size_t mHotReadsThreshold{10000000};      ///< Threshold for hot reads
     uint8_t m_platform_code{0};         ///< Platform code set from the parameters
     set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
+    size_t mMaxSpotsInLinearMode = 1200000000; ///< Max spot number for linear (non-spot assembly) mode
 };
 
 
@@ -151,7 +152,7 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 
     for (size_t i = 0; i < batch.size(); ++i) {
-        out[i].push_back(move(batch[i]));
+        out[i].push_back(std::move(batch[i]));
     }
 }
 
@@ -215,6 +216,10 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mQuality = -1;
         app.add_option("--quality,-q", mQuality, "Interpretation of ascii quality")
             ->check(CLI::IsMember({0, 33, 64}));
+
+        app.add_option("--max-spots", mMaxSpotsInLinearMode, "Maximum spot number for non spot-assembly mode (default: 1,200,000,000)")
+            //->default_val(1200000000)
+            ->check(CLI::PositiveNumber);
 
         mDigest = 0;
         app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
@@ -651,7 +656,8 @@ int CFastqParseApp::xRun()
     size_t total_spots = 0;
     for (auto& group : data["groups"]) 
         total_spots += group["estimated_spots"].get<size_t>();
-
+    if (total_spots > mMaxSpotsInLinearMode)
+        throw fastq_error(250, "SRAE-70: Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
     spot_name_check name_checker(total_spots);
 
     fastq_parser<fastq_writer> parser(m_writer);
@@ -710,7 +716,8 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     mErrorCount = 0;
     parser.set_readers(group, false);
     spdlog::stopwatch sw;
-    parser.template first_pass<ScoreValidator>(err_checker);
+    str_sv_type read_names;
+    parser.template first_pass<ScoreValidator>(read_names, err_checker);
     if (mNoTimeStamp == false)
         mReport["timing"]["first_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
     sw.reset();        
@@ -718,10 +725,31 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     //Reset readers
     mErrorCount = 0;
     parser.set_readers(group);
-    if (is_nanopore)
-        parser.template second_pass<ScoreValidator, true>(err_checker);
-    else
-        parser.template second_pass<ScoreValidator, false>(err_checker);
+
+    size_t num_rows = read_names.size();
+    if (num_rows > numeric_limits<uint32_t>::max()) {
+        spdlog::info("Using 64-bit spot ids");
+        vector<uint64_t> read_index(num_rows);
+        parser.assign_spot_id(read_names, read_index);
+        read_names.clear();
+
+
+        if (is_nanopore)
+            parser.template second_pass<ScoreValidator, true>(err_checker, read_index);
+        else
+            parser.template second_pass<ScoreValidator, false>(err_checker, read_index);
+
+    } else {
+        spdlog::info("Using 32-bit spot ids");
+        vector<uint32_t> read_index(num_rows);
+        parser.assign_spot_id(read_names, read_index);
+        read_names.clear();
+
+        if (is_nanopore)
+            parser.template second_pass<ScoreValidator, true>(err_checker, read_index);
+        else
+            parser.template second_pass<ScoreValidator, false>(err_checker, read_index);
+    }
 
     if (mNoTimeStamp == false)
         mReport["timing"]["second_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;

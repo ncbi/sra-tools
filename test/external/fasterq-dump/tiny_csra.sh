@@ -24,8 +24,8 @@ fi
 
 BAMLOAD="${DIRTOTEST}/bam-load"
 if [[ ! -x $BAMLOAD ]]; then
-    echo "${BAMLOAD} not found - exiting..."
-    exit 3
+    echo "${BAMLOAD} not found - exiting(skipped)..."
+    exit 0
 fi
 
 KAR="${DIRTOTEST}/kar"
@@ -92,9 +92,9 @@ rm -rf "${BAM_LOAD_CONFIG}" "${BAM_LOAD_SAM}" "${BAM_LOAD_REF}"
 
 #run kar to transform the tiny-csra-directory into a tiny-csra-file
 KAR_OUTPUT="TINY_CSRA.ACC"
-rm -rf "${KAR_OUTPUT}"
+rm -rf "${KAR_OUTPUT}" "${KAR_OUTPUT}.md5"
 #=======================================================
-${KAR} -c ${KAR_OUTPUT} -d ${BAM_LOAD_OUTDIR}
+${KAR} --force -c ${KAR_OUTPUT} -d ${BAM_LOAD_OUTDIR}
 #=======================================================
 if [[ ! -f $KAR_OUTPUT ]]; then
     echo "${KAR_OUTPUT} was not created by kar - exiting..."
@@ -114,12 +114,12 @@ if [[ ! -f $FASTQ_OUTPUT ]]; then
 fi
 
 #now we do not need the tiny-csra-file any more
-rm -rf "${KAR_OUTPUT}"
+rm -rf "${KAR_OUTPUT}" "${KAR_OUTPUT}.md5"
 
 #for now let us disable the line-counting, because wc has different outputs in linux vs mac ( whitespace! )
 #the test is already successful if fasterq-dump does not exit with a none-zer return-code
 #we arrive here if it returns zero, because of 'set -e' at the top of this script
-rm -rf $FASTQ_OUTPUT
+rm -rf "${FASTQ_OUTPUT}"
 exit 0
 
 #INES=`wc -l <$FASTQ_OUTPUT`

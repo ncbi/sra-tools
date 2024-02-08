@@ -407,18 +407,6 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
     string name(repoNode + "/root");
 
     rc_t rc = 0;
-    /* create all nodes but root;
-    bool toFix = true;
-    if (fix)
-        toFix = !NodeExists(name);
-    if (toFix)
-        rc = UpdateNode(name, (root + "/public").c_str());
-
-    {
-        rc_t r2 = UpdateNode(repoNode + "/cache-enabled", "true");
-        if (r2 != 0 && rc == 0)
-            rc = r2;
-    } */
 
     {
         string name ( repoNode + "/apps/file/volumes/flat" );

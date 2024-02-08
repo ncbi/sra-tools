@@ -27,7 +27,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 #include <klib/rc.h>
 #include <klib/debug.h>
@@ -44,6 +43,10 @@
 #include <stddef.h>
 #include "copycat-priv.h"
 #include "debug.h"
+
+// need strtok_r
+#define _GNU_SOURCE
+#include <string.h>
 
 static const uint8_t defline_allowed_chars[256] =
 {

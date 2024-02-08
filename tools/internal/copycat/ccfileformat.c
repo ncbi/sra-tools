@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <string.h>
 #include <klib/rc.h>
 #include <klib/debug.h>
 #include <klib/log.h>
@@ -44,9 +45,7 @@
 #include "copycat-priv.h"
 #include "debug.h"
 
-// need strtok_r
-#define _GNU_SOURCE
-#include <string.h>
+extern char *strtok_r(char *, const char *, char **);
 
 static const uint8_t defline_allowed_chars[256] =
 {

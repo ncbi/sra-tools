@@ -254,7 +254,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
                 break;
             case ccfqfltQualityValues:
                 /* Handling case when there are no quality values but single 0x85 instead */
-                if((newline-line)==1 && (u_int8_t)*line==0x85)
+                if((newline-line)==1 && (uint8_t)*line==0x85)
                 {
                     curLineType = ccfqfltIdentifier;
                     seqCount++;
@@ -266,7 +266,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
                     {
                         if(*c < 0x21 || *c > 0x7e)
                         {
-                            DEBUG_STATUS(("%s: wrong quality value '0x%02x'\n",__func__,(u_int8_t)*c));
+                            DEBUG_STATUS(("%s: wrong quality value '0x%02x'\n",__func__,(uint8_t)*c));
                             return false;
                         }
                     }

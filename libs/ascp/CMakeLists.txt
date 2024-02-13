@@ -23,12 +23,16 @@
 # ===========================================================================
 
 set ( UNIX_SRC unix/connect.c )
+# Aspera can be installed and run with linux compat
+set ( BSD_SRC ${UNIX_SRC} bsd/ascp-path.c )
 set ( LINUX_SRC ${UNIX_SRC} linux/ascp-path.c )
 set ( MAC_SRC ${UNIX_SRC} mac/ascp-path.c )
 set ( WIN_SRC win/connect.c win/ascp-path.c )
 
 if ( "windows" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC ${WIN_SRC} )
+elseif( "bsd" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${BSD_SRC} )
 elseif( "linux" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC ${LINUX_SRC} )
 elseif( "mac" STREQUAL ${OS} )

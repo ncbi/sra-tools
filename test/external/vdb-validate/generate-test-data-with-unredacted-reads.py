@@ -98,7 +98,7 @@ def generate_output( output, vdb_inc_dir, vdb_wr_lib ) :
 if __name__ == '__main__':
     #check if we are running on linux/mac
     platform = sys.platform
-    if platform != 'linux' and platform != 'darwin':
+    if platform != 'linux' and platform != 'darwin' and platform != 'freebsd14':
         print( f"wrong platform: {platform}" )
         sys.exit( 0 )
 

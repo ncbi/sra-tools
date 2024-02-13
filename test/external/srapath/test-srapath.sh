@@ -1,4 +1,4 @@
-#!/bin/bash
+# bash
 
 bin_dir=$1
 srapath=$2

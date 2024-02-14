@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 bin_dir=$1
 
 echo "Testing ${bin_dir}/vdb-config... "
 
-output=$(PATH="${bin_dir}:${PATH}" && ./test-vdb-config.pl)
+output=$(PATH="${bin_dir}:${PATH}" && perl test-vdb-config.pl)
 
 res=$?
 if [ "$res" != "0" ];

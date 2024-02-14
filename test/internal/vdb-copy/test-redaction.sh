@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # test-redaction.sh <DIRTOTEST> <VDB_BINDIR> <VDB_INCDIR>
 # DIRTOTEST is the path where vdb-copy and vdb-dump are.
@@ -36,6 +36,9 @@ if [ ! -x "${VDB_DUMP}" ]; then
     exit 3
 fi
 #echo "using ${VDB_DUMP}"
+
+which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
+which python3 || exit 0
 
 SCRATCH=$(mktemp -d) || exit 1
 (

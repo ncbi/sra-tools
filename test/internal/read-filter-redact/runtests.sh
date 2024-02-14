@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 bin_dir=$1
 read_filter_redact=$2

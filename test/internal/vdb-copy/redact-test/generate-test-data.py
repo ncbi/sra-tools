@@ -3,7 +3,8 @@ import sys
 
 if __name__ != '__main__':
     sys.exit(0)
-if sys.platform != 'linux' and sys.platform != 'darwin':
+if sys.platform != 'linux' and sys.platform != 'darwin' and sys.platform != 'freebsd14':
+    print( f"wrong platform: {sys.platform}" )
     sys.exit(0)
 
 import os

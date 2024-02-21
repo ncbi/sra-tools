@@ -24,11 +24,13 @@
  *
  */
 
+#define __USE_POSIX
+#include <string.h>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <string.h>
 #include <klib/rc.h>
 #include <klib/debug.h>
 #include <klib/log.h>

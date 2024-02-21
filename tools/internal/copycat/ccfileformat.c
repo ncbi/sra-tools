@@ -47,8 +47,6 @@
 #include "copycat-priv.h"
 #include "debug.h"
 
-extern char *strtok_r(char *, const char *, char **);
-
 static const uint8_t defline_allowed_chars[256] =
 {
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,

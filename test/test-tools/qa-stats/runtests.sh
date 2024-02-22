@@ -6,6 +6,8 @@ DIRTOTEST=$(cd ${DIRTOTEST}; pwd) || exit 1
 SOURCEDIR=${2:-${DIRTOTEST}}
 SOURCEDIR=$(cd ${SOURCEDIR}; pwd) || exit 1
 
+which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
+which python3 || exit 0
 PYTHON=$(which python3)
 PERL=$(which perl)
 STATSTOOL="${DIRTOTEST}/qa-stats"

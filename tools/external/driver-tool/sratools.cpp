@@ -420,6 +420,7 @@ static int main(CommandLine const &argv)
     enableLogging(argv.toolName.c_str());
 #endif
     LOG(7) << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
+    // std::cerr << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
 
     config = new Config();
     struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
@@ -576,6 +577,16 @@ static int main(CommandLine const &argv)
 }
 
 } // namespace sratools
+
+// BSD is defined when compiling on Mac
+// Use the MAC case below, not this one
+#if BSD && !MAC
+int main(int argc, char *argv[], char *envp[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, nullptr);
+    return sratools::main(invocation);
+}
+#endif
 
 #if MAC
 int main(int argc, char *argv[], char *envp[], char *apple[])

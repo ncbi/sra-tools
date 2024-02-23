@@ -18,6 +18,16 @@ using data in the INSDC Sequence Read Archives.
 ----
 _March 5, 2024_: **SRA Toolkit Release 3.1.0**
 
+Using prefetch --eliminate-quals will now dowload SRA Lite data or report that a Lite version is not available.
+
+Reduced frequency of global timeouts for cloud users.
+
+vdb-validate will report an error if data (blob) checksums are missing.
+
+Added support for AlmaLinux.
+
+Fixed hanging on macOS and BSD. 
+
 ----
 _December 19, 2023_: **SRA Toolkit Release 3.0.10**
 

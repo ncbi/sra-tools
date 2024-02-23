@@ -36,7 +36,7 @@
 class FlagStat {
     struct Counter {
         uint64_t value;
-        Element() : value(0) {};
+        Counter() : value(0) {};
         void updateIf(bool b) {
             value += b ? 1 : 0;
         }

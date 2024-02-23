@@ -97,6 +97,10 @@ extern "C" {
 }
 #endif
 
+#include "flag-stat.hpp"
+
+#include <inttypes.h>
+
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -1824,6 +1828,67 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
+class FLAG_Counter {
+    FlagStat flagStat;
+    std::map<uint16_t, uint64_t> nonCanonicalFlags;
+public:
+    void add(uint16_t flags) {
+        if (!flagStat.add(flags))
+            nonCanonicalFlags[flags] += 1;
+    }
+    void report() const
+    {
+        uint64_t counts[16];
+        auto first = true;
+        
+        flagStat.rawCounts(counts);
+        for (int i = 0; i < 16; ++i) {
+            if (counts[i] == 0) continue;
+            if (first) {
+                (void)LOGMSG(klogInfo, "Raw SAM FLAG counts:");
+                first = false;
+            }
+            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
+                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
+                                     , FlagStat::flagBitSymbolicName(i)
+                                     , counts[i]
+                                     , FlagStat::flagBitDescription(i)));
+        }
+        first = true;
+        
+        flagStat.canonicalCounts(counts);
+        for (int i = 0; i < 16; ++i) {
+            if (counts[i] == 0) continue;
+            if (first) {
+                (void)LOGMSG(klogInfo, "Canonicalized SAM FLAG counts:");
+                first = false;
+            }
+            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
+                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
+                                     , FlagStat::flagBitSymbolicName(i)
+                                     , counts[i]
+                                     , FlagStat::flagBitDescription(i)));
+        }
+        if (!nonCanonicalFlags.empty()) {
+            (void)LOGMSG(klogInfo, "Non-canonical SAM FLAG counts:");
+            for (auto &&[value, count] : nonCanonicalFlags) {
+                std::string desc;
+                
+                for (int i = 0; i < 16; ++i) {
+                    if ((value & (1 << i)) == 0) continue;
+                    if (!desc.empty())
+                        desc.append(1, ' ');
+                    desc.append(FlagStat::flagBitSymbolicName(i));
+                }
+                (void)PLOGMSG(klogInfo, (klogInfo, "FLAG value $(flag): $(count) ($(desc))"
+                                         , "flag=%u,count=%" PRIu64 ",desc=%s"
+                                         , (unsigned)value, count
+                                         , desc.c_str()));
+            }
+        }
+    }
+};
+
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                         /* data outputs */
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -1868,6 +1933,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer qualBuffer;
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
+    FLAG_Counter flagStat;
 
     /* setting up buffers */
     memset(&data, 0, sizeof(data));
@@ -3438,7 +3504,9 @@ WRITE_ALIGNMENT:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
-
+    
+    flagStat.report();
+        
     BAM_FileRelease(bam);
 #ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);

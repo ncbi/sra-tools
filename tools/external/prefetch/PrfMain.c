@@ -459,8 +459,8 @@ static const char* STRIP_QUALS_USAGE[] =
 #endif
 
 static const char* ELIM_QUALS_USAGE[] =
-{ "Force download of SRA Lite files with simplified base quality scores. "
-  "Fail if not available.", NULL };
+{ "Download SRA Lite files with simplified base quality scores, "
+  "or fail if not available.", NULL };
 
 #define CART_OPTION "perm"
 static const char* CART_USAGE[] = { "PATH to jwt cart file.", NULL };

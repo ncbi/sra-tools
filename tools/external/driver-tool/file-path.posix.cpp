@@ -198,7 +198,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
 // is /usr/local, but this can be overridden by the user building
 // the port.  The port can replace /usr/local using sed if that's the
 // case.
-#if BSD
+#if BSD  && ! MAC
     char full_path[PATH_MAX];
     snprintf(full_path, PATH_MAX, "/usr/local/bin/%s", argv[0]);
     path = full_path;

@@ -35,6 +35,11 @@ if ( NOT WIN32 )
 
 	GenerateExecutableWithDefs( SlowTest_Prefetch "test-quality" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
+	add_test( NAME Test_Prefetch_In_PATH
+		COMMAND
+			${CMAKE_COMMAND} -E env PATH=${DIRTOTEST}:/bin bash -c "prefetch -h > /dev/null"
+	)
+
 	add_test( NAME Test_Prefetch_urls_and_accs
 		COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,12 +73,12 @@ if ( NOT WIN32 )
 		add_test( NAME SlowTest_Prefetch_dflt-asan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "sh runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}" prefetch-asan
+				bash -c "runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}" prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 		add_test( NAME SlowTest_Prefetch_dflt-tsan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "sh runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}" prefetch-tsan
+				bash -c "runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}" prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 

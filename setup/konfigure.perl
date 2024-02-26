@@ -231,7 +231,7 @@ if ($OS eq 'linux') {
 
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
-unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i || $MARCH eq 'amd64') {    
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i || $MARCH eq 'amd64') {
     println "configure: error: unsupported architecture '$OSTYPE':'$MARCH'";
     exit 1;
 }
@@ -1798,6 +1798,7 @@ sub check_compiler {
             }
 
             unlink 'a.out';
+            unlink '-.o';
 
             return if ( ! $ok && ( $i == $#l ) );
 

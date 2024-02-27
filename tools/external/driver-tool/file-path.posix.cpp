@@ -190,16 +190,18 @@ static char const *find_executable_path(char const *const *const extra, char con
 }
 #endif
 
-static const char *getExecutablePath(char *epath, const char *const *const argv) {
+#if BSD  && ! MAC
+static const char *getExecutablePath(char *epath, const char *const *const argv)
+{
     const char *comm = NULL;
-    int ok = 0;
+    bool ok = false;
 
     assert(argv);
 
     comm = argv[0];
     if (*comm == '/' || *comm == '.') {
         if (realpath(comm, epath))
-            ok = 1;
+            ok = true;
     } else {
         char *sp = NULL;
         char *xpath = strdup(getenv("PATH"));
@@ -210,7 +212,7 @@ static const char *getExecutablePath(char *epath, const char *const *const argv)
             snprintf(epath, PATH_MAX, "%s/%s", path, comm);
 
             if (!stat(epath, &st) && (st.st_mode & S_IXUSR)) {
-                ok = 1;
+                ok = true;
                 break;
             }
 
@@ -222,6 +224,7 @@ static const char *getExecutablePath(char *epath, const char *const *const argv)
 
     return ok ? epath : NULL;
 }
+#endif
 
 FilePath FilePath::fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra)
 {

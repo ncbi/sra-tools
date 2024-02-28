@@ -1881,12 +1881,12 @@ public:
         if (!flagStat.add(flags))
             nonCanonicalFlags[flags] += 1;
     }
-    void report() const
-    {
-        reportRaw();
+    void report() const {
         reportCanonicalized();
-        if (!nonCanonicalFlags.empty())
+        if (!nonCanonicalFlags.empty()) {
+            reportRaw();
             reportNonCanonical();
+        }
     }
 };
 
@@ -2159,6 +2159,7 @@ MIXED_BASE_AND_COLOR:
                 isNotColorSpace = true;
         }
         BAM_AlignmentGetFlags(rec, &flags);
+        flagStat.add(flags);
 
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
         aligned = originally_aligned;

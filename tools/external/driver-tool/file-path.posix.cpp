@@ -228,6 +228,7 @@ static const char *getExecutablePath(char const *const *const extra, char *epath
         for (auto cur = extra; extra && *cur; ++cur) {
             if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
                 return (*cur) + 16; // Usually, this is the value.
+            }
         }
         return (extra && extra[0]) ? extra[0] : argv[0];
     }

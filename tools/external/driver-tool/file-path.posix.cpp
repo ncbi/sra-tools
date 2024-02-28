@@ -178,8 +178,9 @@ FilePath from_realpath(char const *path)
     throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
 }
 
-#if MAC | BSD
-static char const *find_executable_path(char const *const *const extra, char const *const argv0)
+#if MAC
+static char const *find_executable_path(char const *const *const extra,
+    char const *const argv0)
 {
     for (auto cur = extra; extra && *cur; ++cur) {
         if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
@@ -188,49 +189,48 @@ static char const *find_executable_path(char const *const *const extra, char con
     }
     return (extra && extra[0]) ? extra[0] : argv0;
 }
-#endif
-
-#if BSD  && ! MAC
-static const char *getExecutablePath(char const *const *const extra, char *epath, const char *const *const argv)
+#elif BSD
+static const char *find_executable_path(char const *const *const extra,
+    char const *const argv0, char *epath)
 {
-    const char *comm = NULL;
-    bool ok = false;
-
-    assert(argv);
-
-    comm = argv[0];
-    if (*comm == '/' || *comm == '.') {
-        if (realpath(comm, epath))
-            ok = true;
-    } else {
-        char *sp = NULL;
-        char *xpath = strdup(getenv("PATH"));
-        char *path = strtok_r(xpath, ":", &sp);
-        struct stat st;
-
-        while (xpath != NULL && path) {
-            snprintf(epath, PATH_MAX, "%s/%s", path, comm);
-
-            if (!stat(epath, &st) && (st.st_mode & S_IXUSR)) {
-                ok = true;
-                break;
-            }
-
-            path = strtok_r(NULL, ":", &sp);
+    for (auto cur = extra; extra && *cur; ++cur) {
+        if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
+            return (*cur) + 16; // Usually, this is the value.
         }
-
-        free(xpath);
     }
 
-    if (ok)
-        return epath;
+    if (extra && extra[0])
+        return extra[0];
+    
     else {
-        for (auto cur = extra; extra && *cur; ++cur) {
-            if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
-                return (*cur) + 16; // Usually, this is the value.
+        const char *comm = NULL;
+        bool ok = false;
+
+        comm = argv0;
+        if (*comm == '/' || *comm == '.') {
+            if (realpath(comm, epath))
+                ok = true;
+        } else {
+            char *sp = NULL;
+            char *xpath = strdup(getenv("PATH"));
+            char *path = strtok_r(xpath, ":", &sp);
+            struct stat st;
+
+            while (xpath != NULL && path) {
+                snprintf(epath, PATH_MAX, "%s/%s", path, comm);
+
+                if (!stat(epath, &st) && (st.st_mode & S_IXUSR)) {
+                    ok = true;
+                    break;
+                }
+
+                path = strtok_r(NULL, ":", &sp);
             }
+
+            free(xpath);
         }
-        return (extra && extra[0]) ? extra[0] : argv[0];
+
+        return ok ? epath : argv0;
     }
 }
 #endif
@@ -243,9 +243,9 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
 // is /usr/local, but this can be overridden by the user building
 // the port.  The port can replace /usr/local using sed if that's the
 // case.
-#if BSD  && ! MAC
+#if BSD && ! MAC
     char full_path[PATH_MAX];
-    path = getExecutablePath(extra, full_path, argv);
+    path = find_executable_path(extra, argv[0], full_path);
 #elif LINUX
     path = "/proc/self/exe";
 #elif MAC

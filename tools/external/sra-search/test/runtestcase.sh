@@ -91,6 +91,11 @@ ACTUAL_STDERR=$TEMPDIR/$CASEID.stderr
 
 echo -n "running test case $CASEID... "
 
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p $TEMPDIR
 if [ "$?" != "0" ] ; then
     echo "failed"

@@ -31,4 +31,10 @@
 #
 # return code: as returned by $1 > grep $2
 
+EXE="${1%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
 $1 | grep $2

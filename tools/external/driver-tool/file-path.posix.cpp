@@ -191,7 +191,7 @@ static char const *find_executable_path(char const *const *const extra, char con
 #endif
 
 #if BSD  && ! MAC
-static const char *getExecutablePath(char *epath, const char *const *const argv)
+static const char *getExecutablePath(char const *const *const extra, char *epath, const char *const *const argv)
 {
     const char *comm = NULL;
     bool ok = false;
@@ -222,7 +222,15 @@ static const char *getExecutablePath(char *epath, const char *const *const argv)
         free(xpath);
     }
 
-    return ok ? epath : NULL;
+    if (ok)
+        return epath;
+    else {
+        for (auto cur = extra; extra && *cur; ++cur) {
+            if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
+                return (*cur) + 16; // Usually, this is the value.
+        }
+        return (extra && extra[0]) ? extra[0] : argv[0];
+    }
 }
 #endif
 
@@ -236,7 +244,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
 // case.
 #if BSD  && ! MAC
     char full_path[PATH_MAX];
-    path = getExecutablePath(full_path, argv);
+    path = getExecutablePath(extra, full_path, argv);
 #elif LINUX
     path = "/proc/self/exe";
 #elif MAC

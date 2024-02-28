@@ -1831,6 +1831,51 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
 class FLAG_Counter {
     FlagStat flagStat;
     std::map<uint16_t, uint64_t> nonCanonicalFlags;
+    
+    static void report(char const *const label, uint64_t const *const counts) {
+        auto first = true;
+        for (int i = 0; i < 16; ++i) {
+            if (counts[i] == 0) continue;
+            if (first) {
+                (void)PLOGMSG(klogInfo, (klogInfo, "$(label) SAM FLAG counts:", "label=%s", label));
+                first = false;
+            }
+            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
+                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
+                                     , FlagStat::flagBitSymbolicName(i)
+                                     , counts[i]
+                                     , FlagStat::flagBitDescription(i)));
+        }
+    }
+    void reportRaw() const {
+        uint64_t counts[16];
+        
+        flagStat.rawCounts(counts);
+        report("Raw", counts);
+    }
+    void reportCanonicalized() const {
+        uint64_t counts[16];
+        
+        flagStat.canonicalCounts(counts);
+        report("Canonicalized", counts);
+    }
+    void reportNonCanonical() const {
+        (void)LOGMSG(klogInfo, "Non-canonical SAM FLAG counts:");
+        for (auto &&[value, count] : nonCanonicalFlags) {
+            std::string desc;
+            
+            for (int i = 0; i < 16; ++i) {
+                if ((value & (1 << i)) == 0) continue;
+                if (!desc.empty())
+                    desc.append(1, ' ');
+                desc.append(FlagStat::flagBitSymbolicName(i));
+            }
+            (void)PLOGMSG(klogInfo, (klogInfo, "FLAG value $(flag): $(count) ($(desc))"
+                                     , "flag=%u,count=%" PRIu64 ",desc=%s"
+                                     , (unsigned)value, count
+                                     , desc.c_str()));
+        }
+    }
 public:
     void add(uint16_t flags) {
         if (!flagStat.add(flags))
@@ -1838,54 +1883,10 @@ public:
     }
     void report() const
     {
-        uint64_t counts[16];
-        auto first = true;
-        
-        flagStat.rawCounts(counts);
-        for (int i = 0; i < 16; ++i) {
-            if (counts[i] == 0) continue;
-            if (first) {
-                (void)LOGMSG(klogInfo, "Raw SAM FLAG counts:");
-                first = false;
-            }
-            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
-                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
-                                     , FlagStat::flagBitSymbolicName(i)
-                                     , counts[i]
-                                     , FlagStat::flagBitDescription(i)));
-        }
-        first = true;
-        
-        flagStat.canonicalCounts(counts);
-        for (int i = 0; i < 16; ++i) {
-            if (counts[i] == 0) continue;
-            if (first) {
-                (void)LOGMSG(klogInfo, "Canonicalized SAM FLAG counts:");
-                first = false;
-            }
-            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
-                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
-                                     , FlagStat::flagBitSymbolicName(i)
-                                     , counts[i]
-                                     , FlagStat::flagBitDescription(i)));
-        }
-        if (!nonCanonicalFlags.empty()) {
-            (void)LOGMSG(klogInfo, "Non-canonical SAM FLAG counts:");
-            for (auto &&[value, count] : nonCanonicalFlags) {
-                std::string desc;
-                
-                for (int i = 0; i < 16; ++i) {
-                    if ((value & (1 << i)) == 0) continue;
-                    if (!desc.empty())
-                        desc.append(1, ' ');
-                    desc.append(FlagStat::flagBitSymbolicName(i));
-                }
-                (void)PLOGMSG(klogInfo, (klogInfo, "FLAG value $(flag): $(count) ($(desc))"
-                                         , "flag=%u,count=%" PRIu64 ",desc=%s"
-                                         , (unsigned)value, count
-                                         , desc.c_str()));
-            }
-        }
+        reportRaw();
+        reportCanonicalized();
+        if (!nonCanonicalFlags.empty())
+            reportNonCanonical();
     }
 };
 

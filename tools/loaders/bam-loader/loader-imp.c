@@ -1843,8 +1843,9 @@ class FLAG_Counter {
                     (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG counts ($(label)):", "label=%s", label));
                 first = false;
             }
-            (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG $(flag): $(count) ($(desc))"
-                                     , "flag=%s,count=%" PRIu64 ",desc=%s"
+            (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG bit $(bflag) 0x$(flag) $(sflag): $(count) ($(desc))"
+                                     , "bflag=%i,flag=%04X,sflag=%s,count=%" PRIu64 ",desc=%s"
+                                     , i + 1, i
                                      , FlagStat::flagBitSymbolicName(i)
                                      , counts[i]
                                      , FlagStat::flagBitDescription(i)));
@@ -1874,7 +1875,7 @@ class FLAG_Counter {
                 desc.append(FlagStat::flagBitSymbolicName(i));
             }
             (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG value $(flag): $(count) ($(desc))"
-                                     , "flag=%u,count=%" PRIu64 ",desc=%s"
+                                     , "flag=%04X,count=%" PRIu64 ",desc=%s"
                                      , (unsigned)value, count
                                      , desc.c_str()));
         }

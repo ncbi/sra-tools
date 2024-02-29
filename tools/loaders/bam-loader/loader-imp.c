@@ -1837,7 +1837,10 @@ class FLAG_Counter {
         for (int i = 0; i < 16; ++i) {
             if (counts[i] == 0) continue;
             if (first) {
-                (void)PLOGMSG(klogInfo, (klogInfo, "$(label) SAM FLAG counts:", "label=%s", label));
+                if (label == nullptr)
+                    (void)LOGMSG(klogInfo, "SAM FLAG counts:");
+                else
+                    (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG counts ($(label)):", "label=%s", label));
                 first = false;
             }
             (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
@@ -1847,17 +1850,17 @@ class FLAG_Counter {
                                      , FlagStat::flagBitDescription(i)));
         }
     }
-    void reportRaw() const {
+    void reportRaw(bool showLabel = true) const {
         uint64_t counts[16];
         
         flagStat.rawCounts(counts);
-        report("Raw", counts);
+        report(showLabel ? "Raw" : nullptr, counts);
     }
-    void reportCanonicalized() const {
+    void reportCanonicalized(bool showLabel = true) const {
         uint64_t counts[16];
         
         flagStat.canonicalCounts(counts);
-        report("Canonicalized", counts);
+        report(showLabel ? "Canonicalized" : nullptr, counts);
     }
     void reportNonCanonical() const {
         (void)LOGMSG(klogInfo, "Non-canonical SAM FLAG counts:");
@@ -1877,14 +1880,16 @@ class FLAG_Counter {
         }
     }
 public:
-    void add(uint16_t flags) {
+    void add(uint16_t const flags) {
         if (!flagStat.add(flags))
             nonCanonicalFlags[flags] += 1;
     }
     void report() const {
-        reportCanonicalized();
-        if (!nonCanonicalFlags.empty()) {
+        if (nonCanonicalFlags.empty())
+            reportCanonicalized(false);
+        else {
             reportRaw();
+            reportCanonicalized();
             reportNonCanonical();
         }
     }

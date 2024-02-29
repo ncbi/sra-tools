@@ -29,7 +29,6 @@
  *  Generate SAM FLAG bits counts.
  */
 
-#include <array>
 #include <utility>
 #include <cstdint>
 
@@ -44,14 +43,14 @@ class FlagStat {
         operator uint64_t() const { return value; }
     };
     struct BitsCounter {
-        std::array<Counter, 16> counter;
+        Counter counter[16];
         
         void add(uint16_t bits) {
-            for (auto i = 0; i < 16 && bits != 0; ++i, bits >>= 1)
+            for (int i = 0; i < 16 && bits != 0; ++i, bits >>= 1)
                 counter[i].updateIf(bits & 1);
         }
-        void copy(uint64_t counts[16]) const {
-            for (auto i = 0; i < 16; ++i)
+        void copy(uint64_t *const counts) const {
+            for (int i = 0; i < 16; ++i)
                 counts[i] = counter[i];
         }
     };
@@ -61,27 +60,29 @@ public:
     /// @brief Add the set bits to the counter.
     /// returns true if flag bits were canonically set.
     bool add(uint16_t const bits) {
-        uint16_t unmask = 0xF000;
-        if ((bits & 0x001) == 0) {
-            unmask |= 0x002 | 0x008 | 0x020 | 0x040 | 0x080; 
-        }
-        if ((bits & 0x004) != 0) {
-            unmask |= 0x800 | 0x100 | 0x002;
-        }
-        uint16_t const mask = ~unmask;
+        // these bits are unassigned for not-paired-end tech
+        uint16_t const singleReadMask = 0x002 | 0x008 | 0x020 | 0x040 | 0x080;
+        // these bits are unassigned for unaligned records
+        uint16_t const unalignedMask  = 0x002 | 0x100 | 0x800;
+        auto const isSingleRead = (bits & 0x001) == 0;
+        auto const isUnaligned  = (bits & 0x004) != 0;
+        uint16_t const mask = (isSingleRead ? singleReadMask : 0)
+                            | (isUnaligned  ? unalignedMask : 0)
+                            | 0xF000; // these bits are unassigned
+        uint16_t const cbits = bits & ~mask;
 
         raw.add(bits);
-        canonical.add(bits & mask);
+        canonical.add(cbits);
 
-        return (bits & mask) == bits;
+        return cbits == bits;
     }
     void rawCounts(uint64_t counts[16]) const {
-        raw.copy(counts);
+        raw.copy(&counts[0]);
     }
     void canonicalCounts(uint64_t counts[16]) const {
-        canonical.copy(counts);
+        canonical.copy(&counts[0]);
     }
-    static char const *flagBitSymbolicName(uint16_t bitNumber) {
+    static char const *flagBitSymbolicName(int const bitNumber) {
         static char const *const values[] = {
             "MULTIPLE_READS",
             "PROPERLY_ALIGNED",
@@ -99,12 +100,12 @@ public:
             "BIT_13_UNUSED",
             "BIT_14_UNUSED",
             "BIT_15_UNUSED",
-            "INVALID_FLAG_BIT"
         };
-        auto constexpr const N = sizeof(values)/sizeof(values[0]) - 1;
-        return (size_t)bitNumber < N ? values[bitNumber] : values[N];
+        auto constexpr const N = unsigned(sizeof(values)/sizeof(values[0]));
+        assert(0 <= bitNumber && bitNumber < N);
+        return (bitNumber < N) ? values[bitNumber] : "INVALID_FLAG_BIT";
     }
-    static char const *flagBitDescription(uint16_t bitNumber) {
+    static char const *flagBitDescription(int const bitNumber) {
         static char const *const values[] = {
             "template having multiple segments in sequencing",
             "each segment properly aligned according to the aligner",
@@ -119,7 +120,8 @@ public:
             "PCR or optical duplicate",
             "supplementary alignment"
         };
-        auto constexpr const N = sizeof(values)/sizeof(values[0]);
-        return (size_t)bitNumber < N ? values[bitNumber] : flagBitSymbolicName(bitNumber);
+        auto constexpr const N = unsigned(sizeof(values)/sizeof(values[0]));
+        assert(0 <= bitNumber);
+        return (bitNumber < N) ? values[bitNumber] : flagBitSymbolicName(bitNumber);
     }
 };

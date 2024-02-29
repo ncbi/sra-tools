@@ -1843,7 +1843,7 @@ class FLAG_Counter {
                     (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG counts ($(label)):", "label=%s", label));
                 first = false;
             }
-            (void)PLOGMSG(klogInfo, (klogInfo, "Flag $(flag): $(count) ($(desc))"
+            (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG $(flag): $(count) ($(desc))"
                                      , "flag=%s,count=%" PRIu64 ",desc=%s"
                                      , FlagStat::flagBitSymbolicName(i)
                                      , counts[i]
@@ -1863,7 +1863,7 @@ class FLAG_Counter {
         report(showLabel ? "Canonicalized" : nullptr, counts);
     }
     void reportNonCanonical() const {
-        (void)LOGMSG(klogInfo, "Non-canonical SAM FLAG counts:");
+        (void)LOGMSG(klogInfo, "SAM FLAG value counts:");
         for (auto &&[value, count] : nonCanonicalFlags) {
             std::string desc;
             
@@ -1873,7 +1873,7 @@ class FLAG_Counter {
                     desc.append(1, ' ');
                 desc.append(FlagStat::flagBitSymbolicName(i));
             }
-            (void)PLOGMSG(klogInfo, (klogInfo, "FLAG value $(flag): $(count) ($(desc))"
+            (void)PLOGMSG(klogInfo, (klogInfo, "SAM FLAG value $(flag): $(count) ($(desc))"
                                      , "flag=%u,count=%" PRIu64 ",desc=%s"
                                      , (unsigned)value, count
                                      , desc.c_str()));

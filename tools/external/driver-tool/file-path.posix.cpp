@@ -166,109 +166,112 @@ void FilePath::changeDirectory() const {
     throw std::system_error(errno, std::system_category(), std::string("chdir: ") + path);
 }
 
-FilePath from_realpath(char const *path)
+// In Darwin, `main` takes 4 parameters, the last one being this `apple` array.
+static char const *searchExtra(char const *const *const extra)
 {
-    auto const real = realpath(path, nullptr);
-    if (real)
-    {
-        FilePath ret(real);
-        free(real);
-        return ret;
+    // In modern Darwin, some element of the `apple` array
+    // (usually the first) will be
+    // `executable_path=<path/to/exe>`
+    for (auto cur = extra; *cur; ++cur) {
+        if (strncmp(*cur, "executable_path=", 16) == 0)
+            return (*cur) + 16;
     }
-    throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
+    // In older Darwin, the first element of the `apple` array
+    // will be `<path/to/exe>`
+    return *extra;
 }
 
-#if MAC
-static char const *find_executable_path(char const *const *const extra,
-    char const *const argv0)
+static FilePath realPathToExecutable(char const *path)
 {
-    for (auto cur = extra; extra && *cur; ++cur) {
-        if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
-            return (*cur) + 16; // Usually, this is the value.
-        }
+    auto rp = realpath(path, nullptr);
+    if (rp) {
+        auto && result = FilePath(rp);
+        free(rp);
+        return result;
     }
-    return (extra && extra[0]) ? extra[0] : argv0;
+    LOG(3) << "unable to get real path to executable " << path << std::endl;
+    throw std::runtime_error("not found");
 }
-#elif BSD
-static const char *find_executable_path(char const *const *const extra,
-    char const *const argv0, char *epath)
+
+static FilePath realPathToExecutable(std::string const &path)
 {
-    for (auto cur = extra; extra && *cur; ++cur) {
-        if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
-            return (*cur) + 16; // Usually, this is the value.
-        }
-    }
-
-    if (extra && extra[0])
-        return extra[0];
-    
-    else {
-        const char *comm = NULL;
-        bool ok = false;
-
-        comm = argv0;
-        if (*comm == '/' || *comm == '.') {
-            if (realpath(comm, epath))
-                ok = true;
-        } else {
-            char *sp = NULL;
-            char *xpath = strdup(getenv("PATH"));
-            char *path = strtok_r(xpath, ":", &sp);
-            struct stat st;
-
-            while (xpath != NULL && path) {
-                snprintf(epath, PATH_MAX, "%s/%s", path, comm);
-
-                if (!stat(epath, &st) && (st.st_mode & S_IXUSR)) {
-                    ok = true;
-                    break;
-                }
-
-                path = strtok_r(NULL, ":", &sp);
-            }
-
-            free(xpath);
-        }
-
-        return ok ? epath : argv0;
-    }
+    return realPathToExecutable(path.c_str());
 }
-#endif
 
+static FilePath realPathToExecutable(FilePath const &path)
+{
+    return realPathToExecutable(std::string(path));
+}
+
+/// Find full real path to the current executable.
+///
+/// First tries any platform specific means,
+/// then tries `argv[0]` if it is not a bare name,
+/// else searches `PATH` environment variable.
+/// Finallly, it returns `argv[0]`, which will probably not be useful.
+///
+/// Platform specific means:
+/// Linux has `/proc/self/exe`.
+/// Darwin has an extra parameter to `main`.
 FilePath FilePath::fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra)
 {
-    char const *path;
-// Assume sra-tools is installed by FreeBSD ports.  FreeBSD users
-// don't often install software by other means.  Default prefix
-// is /usr/local, but this can be overridden by the user building
-// the port.  The port can replace /usr/local using sed if that's the
-// case.
-#if BSD && ! MAC
-    char full_path[PATH_MAX];
-    path = find_executable_path(extra, argv[0], full_path);
-#elif LINUX
-    path = "/proc/self/exe";
-#elif MAC
-    path = find_executable_path(extra, argv[0]);
-#else
-    path = argv[0];
-#endif
     try {
-        return from_realpath(path);
+#if LINUX
+        return realPathToExecutable("/proc/self/exe");
+#elif MAC
+        if (extra) {
+            auto const found = searchExtra(extra);
+            if (found)
+                return realPathToExecutable(found);
+        }
+#endif
+        char const *last = nullptr;
+        for (auto cur = argv[0]; *cur; ++cur) {
+            if (*cur == '/')
+                last = cur;
+        }
+        if (last && *last)
+            return realPathToExecutable(argv[0]);
     }
-    catch (std::system_error const &e) {
-        LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
+    catch (std::runtime_error) {}
+
+    // search PATH
+    FilePath const baseName(argv[0]);
+
+    auto const PATH = getenv("PATH");
+    for (auto path = PATH; PATH && *path; ++path) {
+        auto cur = path;
+        while (*path && *path != ':')
+            ++path;
+        assert(*path == '\0' || *path == ':');
+        
+        try {
+            return realPathToExecutable(FilePath(std::string{cur, path}).append(baseName));
+        }
+        catch (std::runtime_error) {}
     }
-    return FilePath(argv[0]);
+    
+    LOG(2) << "unable to get real path to executable " << argv[0] << std::endl;
+    return baseName;
+}
+
+static struct stat stat(std::string const &path)
+{
+    struct stat st{};
+    if (stat(path.c_str(), &st) == 0)
+        return st;
+    throw std::system_error(errno, std::system_category(), std::string("stat: ") + path);
+}
+
+static bool isSameFileSystemObject(struct stat const &st1, struct stat const &st2)
+{
+    return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
 }
 
 bool FilePath::isSameFileSystemObject(FilePath const &other) const
 {
-    struct stat st1, st2;
-
-    if (stat(path.c_str(), &st1) == 0 && stat(other.path.c_str(), &st2) == 0)
-        return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
-
+    try { return isSameFileSystemObject(stat(*this), stat(other)); }
+    catch (std::system_error const &e) { (void)e; }
     return false;
 }
 

@@ -1,0 +1,31 @@
+<Run accession="SRR19599626" spot_count="4027999" base_count="1208399700" base_count_bio="1208399700" cmp_base_count="1208399700">
+  <Member member_name="TAATGCGC" spot_count="4027999" base_count="1208399700" base_count_bio="1208399700" cmp_base_count="1208399700"/>
+  <Size value="374126495" units="bytes"/>
+  <Database vers="2">
+    <Meta vers="2">
+      <SOFTWARE>
+        <formatter name="FASTQ" vers="2.9.7"/>
+        <loader date="Jan 25 2022" name="latf-load.2.9.7" vers="2.9.7"/>
+      </SOFTWARE>
+      <LOAD timestamp="62A22723">Thu 2022-06-09 13:00:19 EDT</LOAD>
+    </Meta>
+  </Database>
+  <AlignInfo>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="2" count="24483"/>
+    <Quality value="11" count="21191972"/>
+    <Quality value="25" count="42224574"/>
+    <Quality value="37" count="1144958671"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="4027999"/>
+          <Elements count="1208399700"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+</Run>

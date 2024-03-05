@@ -52,14 +52,15 @@ SHARQ_ERR_CODES = {
     {140 ,{ "Read {}: quality score contains unexpected character '{}'", "Quality score contains unexpected characters."}},
     {150 ,{ "Read {}: invalid readtType '{}'", "Unexpected '--readTypes' parameter values."}},
     {160 ,{ "Read {}: invalid sequence characters", "Sequence contains non-alphabetical character."}},
-    {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
+    {170 ,{ "SRAE-75: Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
     {190 ,{ "Unsupported interleaved file with orphans", "Unsupported interleaved file with orphans."}},
     {200 ,{ "Invalid quality encoding", "Failure to calculate quality score encoding."}},
     {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}},
     {220 ,{ "Invalid experiment file", "Invalid experiment file."}},
     {230 ,{ "Internal QC failure", "Internal QC failure."}},
-    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}}
+    {240 ,{ "Invalid platfrom code", "Invalid platfrom code."}},
+    {250 ,{ "SRAE-70: Estimated number of spots exceeds the limit for this mode. Re-run with --spot-assembly parameter", "SRAE-70: Estimated number of spots excceds the limit for this mode. Re-run with --spot-assembly parameter."}},
 
 };
 

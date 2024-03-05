@@ -298,6 +298,33 @@ TEST_CASE( NotIsSame_File )
     REQUIRE( !fp1.isSameFileSystemObject(fp2) );
 }
 
+TEST_CASE( ChangeDirectoryToParentAndBackAgain )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 = fp.split().first;
+
+    // cd to the parent should return true
+    REQUIRE( fp1.makeCurrentDirectory() );
+
+    // cd back should return true
+    REQUIRE( fp.makeCurrentDirectory() );
+}
+
+TEST_CASE( ChangeDirectoryToFile )
+{
+    if (!cwd_is_source_dir)
+        throw test_skipped("not in source directory");
+
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 = fp.append("CMakeLists.txt");
+
+    // cd to a file should return false
+    REQUIRE( !fp1.makeCurrentDirectory() );
+}
+
 #if WINDOWS
 static wchar_t **s_argv;
 #else

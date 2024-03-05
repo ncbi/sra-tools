@@ -458,9 +458,9 @@ static const char* STRIP_QUALS_USAGE[] =
 { "Remove QUALITY column from all tables.", NULL };
 #endif
 
-#define ELIM_QUALS_OPTION "eliminate-quals"
 static const char* ELIM_QUALS_USAGE[] =
-{ "Don't download QUALITY column.", NULL };
+{ "Download SRA Lite files with simplified base quality scores, "
+  "or fail if not available.", NULL };
 
 #define CART_OPTION "perm"
 static const char* CART_USAGE[] = { "PATH to jwt cart file.", NULL };
@@ -1040,7 +1040,7 @@ option_name = TYPE_OPTION;
         }
 
         if (pcount > 0) {
-            self->stripQuals = true;
+//          self->stripQuals = true;
         }
 #endif
 
@@ -1056,7 +1056,7 @@ option_name = TYPE_OPTION;
         }
 
 #if ALLOW_STRIP_QUALS
-        if (self->stripQuals && self->eliminateQuals) {
+//      if (self->stripQuals && self->eliminateQuals) {
             rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
             LOGERR(klogErr, rc, "Cannot specify both --" STRIP_QUALS_OPTION
                 "and --" ELIM_QUALS_OPTION);

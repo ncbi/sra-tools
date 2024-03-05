@@ -165,6 +165,7 @@ static char const option_spot_batch_size[] = "batch-size";
 static char const option_threads[] = "threads";
 static char const option_extra_logging[] = "extra-logging";
 static char const option_min_batch_size[] = "min-batch-size";
+static char const option_telemetry[] = "telemetry";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -194,6 +195,8 @@ static char const option_min_batch_size[] = "min-batch-size";
 #define OPTION_THREADS option_threads
 #define OPTION_EXTRA_LOGGING option_extra_logging
 #define OPTION_MIN_BATCH_SIZE option_min_batch_size
+#define OPTION_TELEMETRY option_telemetry
+
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -519,6 +522,7 @@ OptDef Options[] =
     { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
     { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false },
     { OPTION_MIN_BATCH_SIZE, NULL, NULL, min_batch_size_usage, 1, true,  false },
+    { OPTION_TELEMETRY, NULL, NULL, number_of_threads, 1, true, false },
 };
 
 const char* OptHelpParam[] =
@@ -539,6 +543,7 @@ const char* OptHelpParam[] =
     NULL,				/* no colorspace */
     "count",			/* min. match count */
     NULL,				/* no secondary */
+    NULL,				/* no_sort */
     NULL,				/* unsorted */
     NULL,				/* sorted */
     NULL,				/* no verify ref's */
@@ -560,7 +565,8 @@ const char* OptHelpParam[] =
     NULL,				/* search batch size */
     NULL,				/* threads */
     NULL,				/* extra logging */
-    "count"			    /* min cache size */
+    "count",     	    /* min cache size */
+    "file-name"			/* telemetry file name */    
 };
 
 rc_t UsageSummary (char const * progname)
@@ -1150,6 +1156,24 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             }
         }
+        G.telemetryPath = nullptr;
+        rc = ArgsOptionCount (args, OPTION_TELEMETRY, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = getArgValue(args, OPTION_TELEMETRY, 0, &G.telemetryPath);
+            if (rc)
+                break;
+        }
+        else if (pcount > 1)
+        {
+            rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcExcessive);
+            OUTMSG (("Single input parameter required\n"));
+            MiniUsage (args);
+            break;
+        }
+
 
         rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);
         break;
@@ -1186,6 +1210,7 @@ static void cleanupGlobal(void)
     free((void *)G.headerText);
     free((void *)G.QualQuantizer);
     free((void *)G.schemaPath);
+    free((void *)G.telemetryPath);
 }
 
 static int find_arg(char const *const *const query, int const first, int const argc, char **const argv)
@@ -1281,6 +1306,10 @@ rc_t CC KMain(int argc, char *argv[])
     rc_t rc = 0;
     unsigned load = 0;
 
+    assert(sizeof Options / sizeof Options[0] ==
+        sizeof OptHelpParam / sizeof OptHelpParam[0]
+        && "Options & OptHelpParam have to match");
+
     if (has_help) {
         argc = 2;
         argv[1] = (char*)"--help";
@@ -1309,6 +1338,13 @@ rc_t CC KMain(int argc, char *argv[])
     G.searchBatchSize = DEFAULT_BATCH_SIZE;
     G.numThreads = 8;
     G.minBatchSize = DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE;
+    if (char* env = getenv("LOADER_MEM_LIMIT_GB")) {
+        G.LOADER_MEM_LIMIT_GB = atoi(env);
+        (void)PLOGMSG(klogInfo, (klogInfo, "LOADER_MEM_LIMIT_GB=$(cnt)", "cnt=%u", G.LOADER_MEM_LIMIT_GB));
+    } else {
+        G.LOADER_MEM_LIMIT_GB = 0;
+    }
+
     set_pid();
 
     for (arglast = 1; arglast < argc; ++arglast) {

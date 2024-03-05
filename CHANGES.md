@@ -1,6 +1,18 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.1.0
+**March 5, 2024**
+
+  **cloud, kns, ngs-tools, sra-tools**: don't change global network timeouts when checking cloud location  
+  **kdb, kdbmeta, sra-tools**: removed confusing warning in Windows debug build   
+  **kns, ngs-tools, sra-tools**: fixed hanging on Mac and BSD when data access is unreliable  
+  **prefetch**: use of --eliminate-quals enforces download of SRA Lite files  
+  **sra-stat**: fixed load metadata for databases  
+  **sra-tools, sratools**: fixed an error on Windows when using a file path  
+  **vdb-validate**: will warn about missing checksums  
+
+
 ## SRA Toolkit 3.0.10
 **December 19, 2023**
 

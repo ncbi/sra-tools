@@ -178,7 +178,8 @@ class vdbconf_model
         // ----------------------------------------------------------------
 
         std::string get_public_location( void ) const;
-
+        bool set_public_location_direct( const std::string &path ); // VDB-5302 Dec. 13th 2023
+        
         ESetRootState set_public_location( bool flushOld, std::string &path, bool reuseNew );
         void unset_public_repo_location( void );
 

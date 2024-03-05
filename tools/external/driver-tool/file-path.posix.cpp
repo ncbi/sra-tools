@@ -255,23 +255,13 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
     return baseName;
 }
 
-static struct stat stat(std::string const &path)
-{
-    struct stat st{};
-    if (stat(path.c_str(), &st) == 0)
-        return st;
-    throw std::system_error(errno, std::system_category(), std::string("stat: ") + path);
-}
-
-static bool isSameFileSystemObject(struct stat const &st1, struct stat const &st2)
-{
-    return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
-}
-
 bool FilePath::isSameFileSystemObject(FilePath const &other) const
 {
-    try { return isSameFileSystemObject(stat(*this), stat(other)); }
-    catch (std::system_error const &e) { (void)e; }
+    struct stat st1, st2;
+
+    if (stat(path.c_str(), &st1) == 0 && stat(other.path.c_str(), &st2) == 0)
+        return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
+
     return false;
 }
 

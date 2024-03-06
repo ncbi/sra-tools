@@ -29,7 +29,7 @@ if ( NOT WIN32 )
 
     ToolsRequired( align-cache vdb-validate )
     add_test( NAME Test_Align_Cache
-          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache
+          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${DIRTOTEST} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     if( RUN_SANITIZER_TESTS )
         add_test( NAME Test_Align_Cache-asan

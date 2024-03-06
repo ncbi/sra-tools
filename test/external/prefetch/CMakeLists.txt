@@ -83,7 +83,7 @@ if ( NOT WIN32 )
 	endif()
 
 	add_test( NAME SlowTest_Prefetch_1GB
-		COMMAND perl ncbi1GB.pl ${BINDIR} prefetch
+		COMMAND perl ncbi1GB.pl ${DIRTOTEST} prefetch
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME SlowTest_Prefetch_1GB-asan
@@ -95,7 +95,7 @@ if ( NOT WIN32 )
 	endif()
 
 	add_test( NAME SlowTest_Prefetch_vdbcache
-		COMMAND perl vdbcache.pl ${BINDIR} prefetch
+		COMMAND perl vdbcache.pl ${DIRTOTEST} prefetch
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME SlowTest_Prefetch_vdbcache-asan

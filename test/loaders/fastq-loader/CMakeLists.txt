@@ -54,7 +54,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash runtestcase.sh "${BINDIR}/vdb-dump ${DumpParams}" "${BINDIR}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
+                bash runtestcase.sh "${DIRTOTEST}/vdb-dump ${DumpParams}" "${DIRTOTEST}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )

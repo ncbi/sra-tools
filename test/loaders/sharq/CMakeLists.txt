@@ -116,7 +116,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -177,7 +177,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
         add_test( NAME Test_${TestName}
             COMMAND
-                "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
+                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         endmacro()

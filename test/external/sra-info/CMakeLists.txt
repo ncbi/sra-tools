@@ -60,7 +60,7 @@ if ( NOT WIN32 )
 ## queries:
 function( AddQueryTest test_name test_id args )
     add_test( NAME ${test_name}
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info ${args}" "." ${test_id}
+        COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info ${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endfunction()
 
@@ -110,12 +110,12 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR00012
 
 # # multiple queries
 # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
-# COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
+# COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
 # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # # the default set of queries
 # add_test( NAME Test_Sra_Info_Default.8.0
-#     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
+#     COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123" "." "9.0"
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # schema, Default format

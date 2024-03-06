@@ -34,7 +34,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${BINDIR}/bam-load -o out.sra test.sam"
+                bash -c "${DIRTOTEST}/bam-load -o out.sra test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
@@ -45,7 +45,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${BINDIR}/bam-load -o out.sra --min-batch-size 999999 test.sam"
+                bash -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size 999999 test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_MinBatchSize PROPERTIES FIXTURES_REQUIRED BamTest )
@@ -55,7 +55,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${BINDIR}/bam-load -o out.sra --min-batch-size notanumber test.sam"
+                bash -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size notanumber test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_MinBatchSize_Bad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )

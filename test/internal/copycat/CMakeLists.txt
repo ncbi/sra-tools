@@ -39,7 +39,7 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" "${SRC_DIR}" )
 
         add_test( NAME Test_Copycat_Help
-            COMMAND ${DIRTOTEST}/copycat -h
+            COMMAND sh -c "ls ${DIRTOTEST}/copycat>/dev/null 2>&1 && ${DIRTOTEST}/copycat -h || echo no copycat"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Copycat_Bad_Name

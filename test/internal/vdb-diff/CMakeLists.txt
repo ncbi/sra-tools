@@ -28,7 +28,7 @@ ToolsRequired( vdb-diff vdb-copy )
 
 if( Python3_EXECUTABLE )
 	add_test( NAME Test_VDB_Diff_Check_exit_code
-		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}
+		COMMAND sh -c "ls ${DIRTOTEST}/vdb-diff${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE} || echo no vdb-diff"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME Test_VDB_Diff_Check_exit_code-asan

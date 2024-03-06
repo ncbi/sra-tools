@@ -42,7 +42,7 @@ if( Python3_EXECUTABLE )
 
 	if ( NOT WIN32 )
 		add_test( NAME Test_VDB_Copy_On_Short_Accession
-			COMMAND bash -c "./copy_and_compare.sh ${DIRTOTEST} SRR000123"
+			COMMAND bash -c "./copy_and_compare.sh ${DIRTOTEST} SRR000123 ${BINDIR}"
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 		add_test( NAME Test_VDB_Copy_Should_Fail_On_Invalid_Accession

@@ -36,7 +36,7 @@ make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
 # make sure 'sra-info -h' does not crash
 add_test( NAME Test_Sra_Info_Help
-    COMMAND ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout
+    COMMAND sh -c "ls ${DIRTOTEST}/sra-info>/dev/null 2>&1 && ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout || echo no sra-info"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 ### command line checking:

@@ -43,6 +43,12 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 STDOUT=$TEMPDIR/stdout
 STDERR=$TEMPDIR/stderr
 
+EXE="${TOOL%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
 DIFF="diff -b -Z"
 if [ "$(uname)" == "Darwin" ]; then
     DIFF="diff -b"

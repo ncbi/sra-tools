@@ -110,6 +110,8 @@ else
     CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT"
 fi
 
+export NCBI_SETTINGS=/
+
 #echo $CMD
 eval $CMD
 rc="$?"

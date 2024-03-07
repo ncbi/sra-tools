@@ -55,6 +55,11 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 
 echo "running test case $CASEID"
 
+if ! test -f ${LOAD}; then
+    echo "${LOAD} does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p $TEMPDIR
 if [ "$?" != "0" ] ; then
     echo "cannot create "

@@ -24,19 +24,22 @@
 # ===========================================================================
 #echo "$0 $*"
 
-# $1 - command line for the tool
-# $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $3 - test case ID
+#
+# run a command line test that is expected to fail
+#
+# $1 - pathname of the tool; OK (return 0) if does not exist
+# $2 - command line arguments
+# $3 - work directory
+# $4 - test case ID
 #
 # return codes:
-# 0 - passed
-# 1 - coud not create temp dir
-# 2 - non-0 return code from the tool
-# 3 - outputs differ
+# 0 - failed as expected or the executable does not exist
+# 2 - succeeded (i.e. the test fails)
 
 TOOL=$1
-WORKDIR=$2
-CASEID=$3
+ARGS=$2
+WORKDIR=$3
+CASEID=$4
 RC=0
 
 TEMPDIR=$WORKDIR/actual/$CASEID
@@ -49,14 +52,6 @@ if ! test -f $EXE; then
     exit 0
 fi
 
-DIFF="diff -b -Z"
-if [ "$(uname)" = "Darwin" ] ; then
-    DIFF="diff -b"
-fi
-if [ "$(uname)" = "FreeBSD" ] ; then
-    DIFF="diff -b"
-fi
-
 echo "running $CASEID"
 export NCBI_SETTINGS=/
 
@@ -65,25 +60,16 @@ rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
     exit 1
 fi
-CMD="$TOOL 1>$STDOUT 2>$STDERR"
+CMD="$TOOL $ARGS 1>$STDOUT 2>$STDERR"
 echo $CMD
 eval $CMD
 rc="$?"
-if [ "$rc" != "$RC" ] ; then
-    echo "$TOOL returned $rc, expected $RC"
+if [ "$rc" = "0" ] ; then
+    echo "$TOOL returned $rc, did not fail as expected"
     echo "command executed:"
     echo $CMD
     cat $STDERR
     exit 2
-fi
-
-$DIFF $WORKDIR/expected/$CASEID.stdout $STDOUT >$TEMPDIR/diff
-rc="$?"
-if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/diff
-    echo "command executed:"
-    echo $CMD
-    exit 3
 fi
 
 rm -rf $TEMPDIR

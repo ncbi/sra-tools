@@ -40,21 +40,20 @@ add_test( NAME Test_Sra_Info_Help
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 ### command line checking:
-function( AddCmdlineFailureTest test_name )
+function( AddCmdlineFailureTest test_name args )
     add_test( NAME ${test_name}
-        COMMAND ${DIRTOTEST}/sra-info ${ARGN}
+        COMMAND "./runfailtest.sh" "${DIRTOTEST}/sra-info" "${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties(${test_name} PROPERTIES WILL_FAIL TRUE)
 endfunction()
 
 # fails without parameters
-AddCmdlineFailureTest( Test_Sra_Info_NoParam )
+AddCmdlineFailureTest( Test_Sra_Info_NoParam "" )
 
 # fails with more than 1 parameter
-AddCmdlineFailureTest( Test_Sra_Info_MultipleParams SRR000123 SRR0001234 )
+AddCmdlineFailureTest( Test_Sra_Info_MultipleParams "SRR000123 SRR0001234" )
 # --limit has to be positive
-AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative --spot-layout DRR032985 --limit -1 )
-AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero --spot-layout DRR032985 --limit 0 )
+AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative "--spot-layout DRR032985 --limit -1" )
+AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero "--spot-layout DRR032985 --limit 0" )
 
 if ( NOT WIN32 )
 ## queries:

@@ -29,7 +29,7 @@ ToolsRequired( vdb-diff vdb-copy )
 if( Python3_EXECUTABLE )
     if( WIN32 )
 	  add_test( NAME Test_VDB_Diff_Check_exit_code
-		COMMAND "${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}"
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     else()
 	  add_test( NAME Test_VDB_Diff_Check_exit_code

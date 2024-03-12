@@ -296,31 +296,25 @@ data_sources::QualityPreference data_sources::qualityPreference() {
     return result;
 }
 
-static bool setIfExists(Dictionary &result, std::string const &key, std::string const &name)
+static bool setIfExists(Dictionary &result, std::string const &key, FilePath const &cwd, std::string const &name)
 {
-    if (FilePath(name.c_str()).exists()) {
-        result[key] = name;
+    auto const full = cwd.append(name);
+    if (full.exists()) {
+        LOG(9) << name << " exists: setting '" << key << "' = '" << (std::string)full << "'." << std::endl;
+        result[key].assign(full);
         return true;
     }
-    return false;
-}
-
-static bool cwdSetIfExists(Dictionary &result, std::string const &key, FilePath const &cwd, std::string const &name)
-{
-    if (FilePath::exists(name)) {
-        result[key].assign(cwd.append(name));
-        return true;
-    }
+    LOG(9) << name << " does not exist." << std::endl;
     return false;
 }
 
 /// \brief Adds extensions to name and checks for existence.
 /// \note The invariant is `result["path"]` is set to the name of the file system object if it exists.
 /// \returns true if it is a file system object.
-static bool tryWithSraExtensions(Dictionary &result, std::string const &name, bool const wantFullQuality)
+static bool tryWithSraExtensions(Dictionary &result, FilePath const &cwd, std::string const &name, bool const wantFullQuality)
 {
     for (auto ext : Accession::extensionsFor(wantFullQuality)) {
-        if (setIfExists(result, "path", name + ext))
+        if (setIfExists(result, "path", cwd, name + ext))
             return true;
     }
     return false;
@@ -335,22 +329,22 @@ static void lookForCacheFileIn(FilePath const &directory, Dictionary &result, bo
     auto temp = base;
 
     // try acc.ext.vdbcache
-    if (cwdSetIfExists(result, key, directory, base + suffix))
+    if (setIfExists(result, key, directory, base + suffix))
         return;
 
     for (auto sep = temp.find_last_of("."); sep != temp.npos; sep = temp.find_last_of(".")) {
         temp = temp.substr(0, sep);
 
         // try acc.vdbcache.ext
-        if (cwdSetIfExists(result, key, directory, temp + suffix + base.substr(sep)))
+        if (setIfExists(result, key, directory, temp + suffix + base.substr(sep)))
             return;
 
         // try acc.vdbcache
-        if (cwdSetIfExists(result, key, directory, temp + suffix))
+        if (setIfExists(result, key, directory, temp + suffix))
             return;
     }
     // try accession.vdbcache
-    cwdSetIfExists(result, key, directory, accession.accession() + suffix);
+    setIfExists(result, key, directory, accession.accession() + suffix);
 
     (void)(wantFullQuality);
 }
@@ -359,18 +353,18 @@ static void lookForCacheFileIn(FilePath const &directory, Dictionary &result, bo
 /// \returns true if name is a file system object.
 static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::string const &name, bool const wantFullQuality)
 {
-    if (!setIfExists(result, "path", name) && !tryWithSraExtensions(result, name, wantFullQuality))
+    if (!setIfExists(result, "path", cwd, name) && !tryWithSraExtensions(result, cwd, name, wantFullQuality))
         return false;
 
     auto const &filename = result["path"]; // might have extension added
     LOG(9) << name << " is " << filename << " in directory " << (std::string)cwd << "." << std::endl;
 
-    auto const accession = Accession(filename.c_str());
+    auto const accession = Accession(name.c_str());
     auto const exts = accession.sraExtensions();
 
     LOG(9) << filename << " has " << exts.size() << " sra extensions." << std::endl;
     if (exts.size() == 1) {
-        result[LocalKey::filePath] = result["path"];
+        result[LocalKey::filePath] = filename;
         result[LocalKey::qualityType] = exts.front().first > 0 ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
         lookForCacheFileIn(cwd, result, wantFullQuality, accession);
         return true;

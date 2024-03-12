@@ -113,6 +113,7 @@ private:
 
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
+    bool mDedup{false};                 ///< Eliminate reads that are substrings of other reads
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
     vector<char> mReadTypes;            ///< ReadType parameter value
     using TInputFiles = vector<string>;
@@ -261,6 +262,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         string hash_file;
         opt->add_option("--hash", hash_file, "Check hash file");
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
+        opt->add_flag("--dedup", mDedup, "Eliminate reads that are substrings of other reads");
         opt->add_flag("--debug", mDebug, "Debug mode");
 
         CLI11_PARSE(app, argc, argv);
@@ -304,6 +306,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         else        
             mReport["version"] = SHARQ_VERSION;
 
+        if (mSpotAssembly == false && mDedup == true)
+            throw fastq_error(12, "Subsequence deduplication is only supported in spot assembly mode");
 
         xSetupOutput();
 
@@ -490,7 +494,7 @@ void CFastqParseApp::xProcessDigest(json& data)
                 throw fastq_error(190); // "Unsupported interleaved file with orphans"
         }
 
-        if (mHasReadPairs || mSpotAssembly == false ) {
+        if (mHasReadPairs || mSpotAssembly == false) {
             if (!mReadTypes.empty()) {
                 if ((int)mReadTypes.size() != group_reads)
                     throw fastq_error(30, "readTypes number should match the number of reads {} != {}", mReadTypes.size(), group_reads);
@@ -715,6 +719,7 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     bool is_nanopore = platform == SRA_PLATFORM_OXFORD_NANOPORE;
     mErrorCount = 0;
     parser.set_readers(group, false);
+    parser.set_dedup(mDedup);
     spdlog::stopwatch sw;
     str_sv_type read_names;
     parser.template first_pass<ScoreValidator>(read_names, err_checker);

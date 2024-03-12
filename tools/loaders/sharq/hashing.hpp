@@ -163,7 +163,7 @@ namespace hashing {
 
     bool fnv_murmur_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
     {
-        return _fnv_murmur_hash(buckets, value, sz) == buckets.size();
+        return (size_t)_fnv_murmur_hash(buckets, value, sz) == buckets.size();
     }
 
     bool sha1_hash(hash_bucket_type& buckets, const char* value, size_t sz) 

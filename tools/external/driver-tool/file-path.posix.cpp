@@ -167,18 +167,18 @@ void FilePath::changeDirectory() const {
 }
 
 // In Darwin, `main` takes 4 parameters, the last one being this `apple` array.
-static char const *searchExtra(char const *const *const extra)
+static char const *searchExtra(char const *const *const apple)
 {
     // In modern Darwin, some element of the `apple` array
     // (usually the first) will be
     // `executable_path=<path/to/exe>`
-    for (auto cur = extra; *cur; ++cur) {
+    for (auto cur = apple; *cur; ++cur) {
         if (strncmp(*cur, "executable_path=", 16) == 0)
             return (*cur) + 16;
     }
     // In older Darwin, the first element of the `apple` array
     // will be `<path/to/exe>`
-    return *extra;
+    return *apple;
 }
 
 static FilePath realPathToExecutable(char const *path)

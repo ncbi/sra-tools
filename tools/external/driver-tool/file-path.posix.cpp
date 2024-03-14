@@ -234,7 +234,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
         if (last && *last)
             return realPathToExecutable(argv[0]);
     }
-    catch (std::runtime_error) {}
+    catch (std::runtime_error const &e) { (void)e; }
 
     // search PATH
     FilePath const baseName(argv[0]);
@@ -249,7 +249,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
         try {
             return realPathToExecutable(FilePath(std::string{cur, path}).append(baseName));
         }
-        catch (std::runtime_error) {}
+        catch (std::runtime_error const &e) { (void)e; }
     }
     
     LOG(2) << "unable to get real path to executable " << argv[0] << std::endl;

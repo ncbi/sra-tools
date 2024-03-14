@@ -37,12 +37,6 @@
 #include "constants.hpp"
 #include "file-path.hpp"
 
-enum struct PrintMode {
-    pretty,
-    oneline,
-    json
-};
-
 static inline void debugPrintEnvVar(char const *const name, bool const continueline = false)
 {
     auto const value = EnvironmentVariables::get(name);

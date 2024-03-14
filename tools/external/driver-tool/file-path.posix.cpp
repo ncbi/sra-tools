@@ -187,7 +187,8 @@ static FilePath realPathToExecutable(char const *path)
     if (rp) {
         auto && result = FilePath(rp);
         free(rp);
-        return result;
+        if (result.executable())
+            return result;
     }
     LOG(3) << "unable to get real path to executable " << path << std::endl;
     throw std::runtime_error("not found");

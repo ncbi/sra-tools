@@ -206,10 +206,11 @@ static FilePath realPathToExecutable(FilePath const &path)
 
 /// Find full real path to the current executable.
 ///
-/// First tries any platform specific means,
-/// then tries `argv[0]` if it is not a bare name,
-/// else searches `PATH` environment variable.
-/// Finallly, it returns `argv[0]`, which will probably not be useful.
+/// 1. Try any platform specific means.
+/// 2. Try `argv[0]` if it is not a bare name.
+/// 3. Try a default install location.
+/// 4. Search `PATH` environment variable.
+/// 5. Return `argv[0]` as is, which will probably not be useful.
 ///
 /// Platform specific means:
 /// Linux has `/proc/self/exe`.
@@ -232,11 +233,22 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
             if (*cur == '/')
                 return realPathToExecutable(argv[0]);
         }
+        // `argv[0]` is a bare name.
     }
     catch (std::runtime_error const &e) { (void)e; }
 
     // search PATH
     FilePath const baseName(argv[0]);
+
+    // Try the default install location.
+    // On FreeBSD, assume sra-tools is installed by ports. The default
+    // prefix is /usr/local. This can be overridden by the user.
+    // In which case, the port can replace /usr/local, e.g. using sed.
+    static auto const defaultLocation = "/usr/local/bin";
+    try {
+        return realPathToExecutable(FilePath(defaultLocation).append(baseName));
+    }
+    catch (std::runtime_error const &e) { (void)e; }
 
     auto const PATH = getenv("PATH");
     for (auto path = PATH; PATH && *path; ++path) {
@@ -250,7 +262,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
         }
         catch (std::runtime_error const &e) { (void)e; }
     }
-    
+
     LOG(2) << "unable to get real path to executable " << argv[0] << std::endl;
     return baseName;
 }

@@ -226,13 +226,12 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
                 return realPathToExecutable(found);
         }
 #endif
-        char const *last = nullptr;
+        // If there is any path separator, then the shell must have used
+        // that path to locate the executable.
         for (auto cur = argv[0]; *cur; ++cur) {
             if (*cur == '/')
-                last = cur;
+                return realPathToExecutable(argv[0]);
         }
-        if (last && *last)
-            return realPathToExecutable(argv[0]);
     }
     catch (std::runtime_error const &e) { (void)e; }
 

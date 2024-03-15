@@ -204,7 +204,7 @@ static FilePath realPathToExecutable(FilePath const &path)
     return realPathToExecutable(std::string(path));
 }
 
-static FilePath realPathToExecutable(char const *pathList, FilePath const &baseName)
+static FilePath realPathToExecutableInList(char const *pathList, FilePath const &baseName)
 {
     for (auto path = pathList; pathList && *path; ++path) {
         auto cur = path;
@@ -258,7 +258,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
     // search PATH
     FilePath const baseName(argv[0]);
 
-    try { return realPathToExecutable(getenv("PATH")); }
+    try { return realPathToExecutableInList(getenv("PATH"), baseName); }
     catch (std::runtime_error const &e) { (void)e; }
     
     // Try the default install location.
@@ -271,14 +271,14 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
 
 #ifdef PREFIX_PATH
 
-    try { return realPathToExecutable(PREFIX_PATH); }
+    try { return realPathToExecutableInList(PREFIX_PATH, baseName); }
     catch (std::runtime_error const &e) { (void)e; }
     
 #endif
 
 #ifdef BUILD_PATH
 
-    try { return realPathToExecutable(BUILD_PATH); }
+    try { return realPathToExecutableInList(BUILD_PATH, baseName); }
     catch (std::runtime_error const &e) { (void)e; }
     
 #endif

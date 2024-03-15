@@ -271,7 +271,10 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
 
 #ifdef PREFIX_PATH
 
-    try { return realPathToExecutableInList(PREFIX_PATH, baseName); }
+    try { 
+        auto const binBase = FilePath("bin").append(baseName);
+        return realPathToExecutableInList(PREFIX_PATH, binBase);
+    }
     catch (std::runtime_error const &e) { (void)e; }
     
 #endif

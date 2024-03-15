@@ -190,7 +190,7 @@ static FilePath realPathToExecutable(char const *path)
         if (result.executable())
             return result;
     }
-    LOG(3) << "unable to get real path to executable " << path << std::endl;
+    LOG(9) << "unable to get real path to executable " << path << std::endl;
     throw std::runtime_error("not found");
 }
 
@@ -204,13 +204,31 @@ static FilePath realPathToExecutable(FilePath const &path)
     return realPathToExecutable(std::string(path));
 }
 
+static FilePath realPathToExecutable(char const *pathList, FilePath const &baseName)
+{
+    for (auto path = pathList; pathList && *path; ++path) {
+        auto cur = path;
+        while (*path && *path != ':')
+            ++path;
+        assert(*path == '\0' || *path == ':');
+
+        try {
+            return realPathToExecutable(FilePath(std::string{cur, path}).append(baseName));
+        }
+        catch (std::runtime_error const &e) { (void)e; }
+    }
+    LOG(8) << "no " << baseName << " in " << pathList << std::endl;
+    throw std::runtime_error("not found");
+}
+
 /// Find full real path to the current executable.
 ///
 /// 1. Try any platform specific means.
 /// 2. Try `argv[0]` if it is not a bare name.
-/// 3. Try a default install location.
-/// 4. Search `PATH` environment variable.
-/// 5. Return `argv[0]` as is, which will probably not be useful.
+/// 3. Search `PATH` environment variable.
+/// 4. Try some default install location(s).
+/// 5. Try the build output directory.
+/// 6. Return `argv[0]` as is, which will probably not be useful.
 ///
 /// Platform specific means:
 /// Linux has `/proc/self/exe`.
@@ -240,28 +258,30 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
     // search PATH
     FilePath const baseName(argv[0]);
 
+    try { return realPathToExecutable(getenv("PATH")); }
+    catch (std::runtime_error const &e) { (void)e; }
+    
     // Try the default install location.
     // On FreeBSD, assume sra-tools is installed by ports. The default
     // prefix is /usr/local. This can be overridden by the user.
     // In which case, the port can replace /usr/local, e.g. using sed.
-    static auto const defaultLocation = "/usr/local/bin";
-    try {
-        return realPathToExecutable(FilePath(defaultLocation).append(baseName));
-    }
+    static auto const defaultLocation = "/usr/local" "/bin";
+    try { return realPathToExecutable(FilePath(defaultLocation).append(baseName)); }
     catch (std::runtime_error const &e) { (void)e; }
 
-    auto const PATH = getenv("PATH");
-    for (auto path = PATH; PATH && *path; ++path) {
-        auto cur = path;
-        while (*path && *path != ':')
-            ++path;
-        assert(*path == '\0' || *path == ':');
-        
-        try {
-            return realPathToExecutable(FilePath(std::string{cur, path}).append(baseName));
-        }
-        catch (std::runtime_error const &e) { (void)e; }
-    }
+#ifdef PREFIX_PATH
+
+    try { return realPathToExecutable(PREFIX_PATH); }
+    catch (std::runtime_error const &e) { (void)e; }
+    
+#endif
+
+#ifdef BUILD_PATH
+
+    try { return realPathToExecutable(BUILD_PATH); }
+    catch (std::runtime_error const &e) { (void)e; }
+    
+#endif
 
     LOG(2) << "unable to get real path to executable " << argv[0] << std::endl;
     return baseName;

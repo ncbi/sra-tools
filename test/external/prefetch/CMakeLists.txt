@@ -37,7 +37,7 @@ if ( NOT WIN32 )
 
 	add_test( NAME Test_Prefetch_In_PATH
 		COMMAND
-			${CMAKE_COMMAND} -E env PATH=${DIRTOTEST}:/bin bash -c "prefetch -h > /dev/null"
+			${CMAKE_COMMAND} -E env PATH=${DIRTOTEST}:/bin sh -c "prefetch -h > /dev/null"
 	)
 
 	add_test( NAME Test_Prefetch_urls_and_accs

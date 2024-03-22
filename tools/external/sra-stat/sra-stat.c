@@ -314,6 +314,7 @@ typedef struct srastat_parms {
     bool progress;     /* show progress */
     bool quick; /* quick mode: stats from meta */
     bool skip_alignment; /* not to print alignment info */
+    bool print_locinfo; /* print info about a local run */
     bool repair; /* generate instructions for metadata repair tool */
     bool report; /* report all fields examined for mismatch */
     bool skip_members; /* not to print spot_group statistics */
@@ -1922,9 +1923,12 @@ static rc_t get_arc_info(const srastat_parms * pb, ArcInfo *arc_info,
 
     KDirectory * dir = NULL;
     
-    assert(pb);
+    assert(pb && arc_info);
 
     memset(arc_info, 0, sizeof(*arc_info));
+
+    if (!pb->print_arcinfo && !pb->print_locinfo)
+        return rc;
 
     rc = KDirectoryNativeDir(&dir);
 
@@ -3054,8 +3058,9 @@ rc_t print_results(const Ctx* ctx)
         assert(ctx->arc_info);
 
         OUTMSG(("<Run accession=\"%s\"", ctx->pb->table_path));
-        if (ctx->arc_info->i[eArcInfoCrnt].tag != NULL)
-            OUTMSG((" path=\"%s\"", ctx->arc_info->i[eArcInfoCrnt].tag));
+        if (ctx->pb->print_locinfo)
+            if (ctx->arc_info->i[eArcInfoCrnt].tag != NULL)
+                OUTMSG((" path=\"%s\"", ctx->arc_info->i[eArcInfoCrnt].tag));
         if (!ctx->pb->quick || ! ctx->meta_stats->found) {
             OUTMSG((" read_length=\"%s\"",
                 ctx->pb->variableReadLength ? "variable" : "fixed"));
@@ -3088,14 +3093,17 @@ rc_t print_results(const Ctx* ctx)
             
             if (rc == 0) {
                 const ArcInfo* a = ctx->arc_info;
-                char b[1024] = "";
-                size_t k = 0;
-                rc = make_time(a->timestamp, b, sizeof b, &k);
-                if (rc == 0) {
-                    OUTMSG((" date=\"%.*s\"", (int)k, b));
-                    if (a->i[eArcInfoCrnt].size > 0)
-                        OUTMSG((" size=\"%lu\" md5=\"%s\"",
-                            a->i[eArcInfoCrnt].size, a->i[eArcInfoCrnt].md5));
+                if (a->timestamp != 0) {
+                    char b[1024] = "";
+                    size_t k = 0;
+                    rc = make_time(a->timestamp, b, sizeof b, &k);
+                    if (rc == 0 && ctx->pb->print_locinfo) {
+                        OUTMSG((" date=\"%.*s\"", (int)k, b));
+                        if (a->i[eArcInfoCrnt].size > 0)
+                            OUTMSG((" size=\"%lu\" md5=\"%s\"",
+                                a->i[eArcInfoCrnt].size,
+                                a->i[eArcInfoCrnt].md5));
+                    }
                 }
             }
         }
@@ -4646,6 +4654,11 @@ static const char * align_usage[] = { "Print alignment info, default is on."
 static const char * arcinfo_usage[] = { "Output archive info, default is off."
                                                                     , NULL };
 
+#define ALIAS_LOCINFO    "l"
+#define OPTION_LOCINFO   "local-info"
+static const char * locinfo_usage[] = {
+    "Print the date, path, size and md5 of local run." , NULL };
+
 #define ALIAS_MEMBR    NULL
 #define OPTION_MEMBR   "member-stats"
 static const char * membr_usage[] = { "Print member stats, default is on."
@@ -4676,8 +4689,8 @@ static const char *progress_usage[] = { "Show the percentage of completion."
 
 #define ALIAS_INFO NULL
 #define OPTION_INFO "info"
-static const char *info_usage[] = { "Print report "
-"for all fields examined for mismatch even if the old value is correct.", NULL };
+static const char *info_usage[] = { "Print report for "
+"all fields examined for mismatch even if the old value is correct.", NULL };
 
 #define ALIAS_SPT_D    "d"
 #define OPTION_SPT_D   "spot-desc"
@@ -4705,10 +4718,11 @@ static const char * test_usage[] = {
 #define OPTION_XML     "xml"
 static const char * xml_usage[] = { "Output as XML, default is text.", NULL };
 
-OptDef Options[] = {
+OptDef Options[] = { /*                            maxCount needValue required*/
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
     , { OPTION_ARCINFO , ALIAS_ARCINFO , NULL, arcinfo_usage , 0, false, false }
     , { OPTION_INFO    , ALIAS_INFO    , NULL, info_usage    , 1, false, false }
+    , { OPTION_LOCINFO , ALIAS_LOCINFO , NULL, locinfo_usage , 1, false, false }
     , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
     , { OPTION_META    , ALIAS_META    , NULL, meta_usage    , 1, false, false }
     , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true , false }
@@ -4762,6 +4776,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_ARCINFO , OPTION_ARCINFO , NULL      , arcinfo_usage);
     HelpOptionLine(ALIAS_STATS   , OPTION_STATS   , NULL      , stats_usage);
     HelpOptionLine(ALIAS_ALIGN   , OPTION_ALIGN   , "on | off", align_usage);
+    HelpOptionLine(ALIAS_LOCINFO , OPTION_LOCINFO , NULL      , locinfo_usage);
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
     HelpOptionLine(ALIAS_NGC     , OPTION_NGC     , "path"    , ngc_usage);
     XMLLogger_Usage();
@@ -4939,16 +4954,17 @@ rc_t CC KMain ( int argc, char *argv [] )
                 pb.print_arcinfo = pcount > 0;
             }
 
-            {
-                const char* v = NULL;
+            const char * v = NULL;
 
+            {
                 rc = ArgsOptionCount (args, OPTION_ALIGN, &pcount);
                 if (rc != 0) {
                     break;
                 }
 
                 if (pcount > 0) {
-                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0, (const void **)&v);
+                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0,
+                        (const void **)&v);
                     if (rc != 0) {
                         break;
                     }
@@ -4956,8 +4972,16 @@ rc_t CC KMain ( int argc, char *argv [] )
                         pb.skip_alignment = true;
                     }
                 }
+            }
+            {
+                rc = ArgsOptionCount (args, OPTION_LOCINFO, &pcount);
+                if (rc != 0)
+                    break;
 
-
+                if (pcount > 0)
+                    pb.print_locinfo = true;
+            }
+            {
                 rc = ArgsOptionCount (args, OPTION_STATS, &pcount);
                 if (rc != 0) {
                     break;

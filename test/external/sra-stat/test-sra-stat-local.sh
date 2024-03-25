@@ -27,6 +27,11 @@
 bin_dir=$1
 sra_stat=$2
 
+MD5SUM='md5sum -b'
+if [ `uname -s` == 'Darwin' ]; then
+    MD5SUM='/sbin/md5 -q'
+fi
+
 echo Testing $sra_stat from $bin_dir
 
 rm -rf actual
@@ -78,7 +83,7 @@ md5=`sed -n 's/.*md5="\([^"]*\).*/\1/p'   $xml`
 
 a_size=`ls    -l $run                                 | cut -d' ' -f5`
 a_date=`ls    -l $run --time-style=+%Y-%m-%dT%H:%M:%S | cut -d' ' -f6`
-a_md5=`md5sum -b $run                                 | cut -d' ' -f1`
+a_md5=`$MD5SUM   $run                                 | cut -d' ' -f1`
 a_path=`realpath $run`
 
 if [ "$a_size" != "$size" ]; then

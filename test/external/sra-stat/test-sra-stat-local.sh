@@ -28,9 +28,11 @@ bin_dir=$1
 sra_stat=$2
 
 MD5SUM='md5sum -b'
+PATH=realpath
 TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
 if [ `uname -s` == 'Darwin' ]; then
     MD5SUM='/sbin/md5 -q'
+    PATH='readlink -f'
     TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
 fi
 
@@ -83,10 +85,10 @@ date=`sed -n 's/.*date="\([^"]*\).*/\1/p' $xml`
 path=`sed -n 's/.*path="\([^"]*\).*/\1/p' $xml`
 md5=`sed -n 's/.*md5="\([^"]*\).*/\1/p'   $xml`
 
-a_size=`ls    -l $run | cut -d' ' -f5`
-a_date=`$TIME    $run | cut -d' ' -f6`
-a_md5=`$MD5SUM   $run | cut -d' ' -f1`
-a_path=`realpath $run`
+a_size=`ls  -l $run | cut -d' ' -f5`
+a_date=`$TIME  $run | cut -d' ' -f6`
+a_md5=`$MD5SUM $run | cut -d' ' -f1`
+a_path=`$PATH  $run`
 
 if [ "$a_size" != "$size" ]; then
     echo "size no match" 
@@ -123,8 +125,8 @@ grep md5  $xml && echo "md5  found" && exit 1
 date=`sed -n 's/.*date="\([^"]*\).*/\1/p' $xml`
 path=`sed -n 's/.*path="\([^"]*\).*/\1/p' $xml`
 
-a_date=`$TIME    $run/lock | cut -d' ' -f6`
-a_path=`realpath $run`
+a_date=`$TIME $run/lock | cut -d' ' -f6`
+a_path=`$PATH $run`
 
 if [ "$a_date" != "$date" ]; then
     echo "date no match"
@@ -152,7 +154,7 @@ date=`sed -n 's/.*date="\([^"]*\).*/\1/p' $xml`
 path=`sed -n 's/.*path="\([^"]*\).*/\1/p' $xml`
 
 a_date=`$TIME -d $run | cut -d' ' -f6`
-a_path=`realpath $run`
+a_path=`$PATH    $run`
 
 if [ "$a_date" != "$date" ]; then
     echo "date no match"

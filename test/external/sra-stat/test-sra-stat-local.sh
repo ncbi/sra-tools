@@ -31,11 +31,13 @@ LL='ls -l'
 MD5SUM='md5sum -b'
 RSLV=realpath
 TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
+DTIME="$TIME -d"
 if [ `uname -s` == 'Darwin' ]; then
     LL='stat -F'
     MD5SUM='/sbin/md5 -q'
     RSLV='readlink -f'
     TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
+    DTIME="$TIME"
 fi
 
 echo Testing $sra_stat from $bin_dir
@@ -155,8 +157,8 @@ grep md5  $xml && echo "md5  found" && exit 1
 date=`sed -n 's/.*date="\([^"]*\).*/\1/p' $xml`
 path=`sed -n 's/.*path="\([^"]*\).*/\1/p' $xml`
 
-a_date=`$TIME -d $run | cut -d' ' -f6`
-a_path=`$RSLV    $run`
+a_date=`$DTIME $run | cut -d' ' -f6`
+a_path=`$RSLV  $run`
 
 if [ "$a_date" != "$date" ]; then
     echo "date no match"

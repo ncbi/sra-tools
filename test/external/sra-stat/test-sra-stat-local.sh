@@ -27,10 +27,12 @@
 bin_dir=$1
 sra_stat=$2
 
+LL='ls -l'
 MD5SUM='md5sum -b'
 RSLV=realpath
 TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
 if [ `uname -s` == 'Darwin' ]; then
+    LL='stat -F'
     MD5SUM='/sbin/md5 -q'
     RSLV='readlink -f'
     TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
@@ -85,7 +87,7 @@ date=`sed -n 's/.*date="\([^"]*\).*/\1/p' $xml`
 path=`sed -n 's/.*path="\([^"]*\).*/\1/p' $xml`
 md5=`sed -n 's/.*md5="\([^"]*\).*/\1/p'   $xml`
 
-a_size=`ls  -l $run | cut -d' ' -f5`
+a_size=`$LL    $run | cut -d' ' -f5`
 a_date=`$TIME  $run | cut -d' ' -f6`
 a_md5=`$MD5SUM $run | cut -d' ' -f1`
 a_path=`$RSLV  $run`

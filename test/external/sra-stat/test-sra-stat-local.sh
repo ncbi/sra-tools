@@ -31,7 +31,7 @@ MD5SUM='md5sum -b'
 TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
 if [ `uname -s` == 'Darwin' ]; then
     MD5SUM='/sbin/md5 -q'
-    TIME=stat -f %Sm -t %Y-%m-%dT%H:%M:%S
+    TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
 fi
 
 echo Testing $sra_stat from $bin_dir

@@ -10,7 +10,7 @@ REPO=ncbi/sra-tools
 TAG=${DOCKER_ARCH}-${VERSION}
 
 .DEFAULT: build
-.PHONY: build push manifest clean test help
+.PHONY: build buildx push manifest clean test help
 
 help:
 	@ echo "targets are: build, test, push, manifest, and clean"
@@ -39,3 +39,13 @@ clean:
 	docker image rm ${REPO}:${TAG}
 	docker manifest rm ${REPO}:latest
 	docker manifest rm ${REPO}:${VERSION}
+
+buildx:
+	docker buildx build \
+	    --platform=linux/amd64,linux/arm64 \
+	    --build-arg VDB_BRANCH=${BRANCH} \
+	    --tag ${REPO}:${VERSION} \
+	    --file Dockerfile.build-alpine \
+	    --pull \
+	    --push \
+	    .

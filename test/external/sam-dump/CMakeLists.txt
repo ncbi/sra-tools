@@ -22,7 +22,8 @@
 #
 # ===========================================================================
 
-if ( "linux" STREQUAL ${OS} )
+# the following tests invoke other tools, make sure those tools are present
+if ( "linux" STREQUAL ${OS} AND BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS AND BUILD_TOOLS_INTERNAL )
 
     ToolsRequired(sam-dump sam-factory bam-load kar)
 

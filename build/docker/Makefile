@@ -45,6 +45,7 @@ buildx:
 	    --platform=linux/amd64,linux/arm64 \
 	    --build-arg VDB_BRANCH=${BRANCH} \
 	    --tag ${REPO}:${VERSION} \
+	    --tag ${REPO}:latest \
 	    --file Dockerfile.build-alpine \
 	    --pull \
 	    --push \

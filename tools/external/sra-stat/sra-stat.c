@@ -314,6 +314,7 @@ typedef struct srastat_parms {
     bool progress;     /* show progress */
     bool quick; /* quick mode: stats from meta */
     bool skip_alignment; /* not to print alignment info */
+    bool print_locinfo; /* print info about a local run */
     bool repair; /* generate instructions for metadata repair tool */
     bool report; /* report all fields examined for mismatch */
     bool skip_members; /* not to print spot_group statistics */
@@ -1098,22 +1099,30 @@ typedef struct SraMeta {
     Formatter formatter;
     Loader loader;
 } SraMeta;
+
+typedef struct {
+    const char* tag;
+    uint64_t size;
+    char md5[32 + 1];
+} TArcInfo;
 typedef struct ArcInfo {
     KTime_t timestamp;
-    struct {
-        const char* tag;
-        uint64_t size;
-        char md5[32 + 1];
-    } i[2];
+    TArcInfo i[3]; /* 0 - sra
+                      1 - sralite
+                      2 - current ( eArcInfoCrnt ) */
 } ArcInfo;
+#define eArcInfoCrnt 2
+
 typedef struct Quality {
     uint32_t value;
     uint64_t count;
 } Quality;
+
 typedef struct Count {
     EMetaState state;
     uint64_t value;
 } Count;
+
 typedef struct Counts {
     char* tableName;
     EMetaState tableState;
@@ -1771,96 +1780,184 @@ rc_t CC fileSizeVisitor(const KDirectory* dir,
     return rc;
 }
 
-static rc_t GetTableModDate(const VDBManager *mgr,
-    KTime_t *mtime, const char *spec)
+static rc_t GetTableModDate(const srastat_parms * pb, const KDirectory * dir,
+    const VDBManager *mgr, KTime_t *mtime, char * aPath, size_t sz)
 {
     VFSManager *vfs = NULL;
     VResolver  *resolver = NULL;
     VPath *accession = NULL;
     const VPath *tblpath = NULL;
     const KDBManager *kmgr = NULL;
-    char aPath[4096] = "";
+    const char *spec = NULL;
     const char *path = aPath;
+
     rc_t rc = VFSManagerMake(&vfs);
     DISP_RC(rc, "VFSManagerMake");
-    assert(mtime);
+
+    assert(pb && mtime);
+
     *mtime = 0;
+    spec = pb->table_path;
+
     if (rc == 0) {
         rc = VFSManagerGetResolver(vfs, &resolver);
         DISP_RC(rc, "VFSManagerGetResolver");
     }
+
     if (rc == 0) {
         rc = VFSManagerMakePath(vfs, &accession, spec);
         DISP_RC(rc, "VFSManagerMakePath");
     }
+
     if (rc == 0) {
         assert(accession);
+
         if (VPathIsAccessionOrOID(accession)) {
             rc = VResolverLocal(resolver, accession, &tblpath);
-            DISP_RC(rc, "VResolverLocal");
-            if (rc == 0) {
-                //size_t size;
-                rc = VPathReadPath(tblpath, aPath, sizeof aPath, NULL);//& size)
+            if (rc != 0) {
+                if (pb->print_arcinfo)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "'$(acc)' cannot be found locally", "acc=%s", spec));
+            }
+            else {
+                rc = VPathReadPath(tblpath, aPath, sz, NULL);
                 path = aPath;
             }
         }
         else {
-            path = spec;
+            rc = KDirectoryResolvePath_v1(dir, true, aPath, sz, spec);
+            if (rc == 0)
+                path = aPath;
+            else {
+                path = spec;
+                rc = 0;
+            }
         }
     }
+
     if (rc == 0) {
         rc = VDBManagerGetKDBManagerRead(mgr, &kmgr);
         DISP_RC(rc, "VDBManagerGetKDBManagerRead");
     }
+
     if (rc == 0) {
         rc = KDBManagerGetTableModDate(kmgr, mtime, "%s", path);
     }
+
     RELEASE(KDBManager, kmgr);
     RELEASE(VPath, tblpath);
     RELEASE(VPath, accession);
     RELEASE(VResolver, resolver);
     RELEASE(VFSManager, vfs);
+
     return rc;
 }
 
-static rc_t get_arc_info(const char *path, ArcInfo *arc_info,
+static rc_t sizeAndMd5(const KFile * kfile, TArcInfo * arc_info) {
+    rc_t rc = 0;
+
+    uint64_t pos = 0;
+    uint8_t buffer[256 * 1024];
+    size_t num_read = 0;
+
+    MD5State md5;
+    MD5StateInit(&md5);
+
+    assert(arc_info);
+
+    do {
+        rc = KFileRead(kfile, pos, buffer, sizeof buffer, &num_read);
+        if (rc == 0) {
+            MD5StateAppend(&md5, buffer, num_read);
+            pos += num_read;
+        }
+        rc = Quitting();
+        if (rc != 0)
+            LOGMSG(klogWarn, "Interrupted");
+    } while (rc == 0 && num_read != 0);
+
+    if (rc == 0)
+        rc = KFileSize(kfile, &arc_info->size);
+
+    if (rc == 0) {
+        size_t x = 0;
+        uint8_t digest[16];
+        MD5StateFinish(&md5, digest);
+        for (pos = 0, x = 0; rc == 0 && pos < sizeof(digest); pos++) {
+            rc = string_printf(&arc_info->md5[x],
+                sizeof arc_info->md5 - x, &num_read, "%02x", digest[pos]);
+            x += num_read;
+        }
+    }
+
+    return rc;
+}
+
+static rc_t get_arc_info_crnt(const KDirectory * dir,
+    const char * path, TArcInfo * arc_info)
+{
+    rc_t rc = 0;
+
+    assert(arc_info);
+
+    if ((KDirectoryPathType(dir, "%s", path) & ~kptAlias) == kptFile) {
+        const KFile * f = NULL;
+        rc = KDirectoryOpenFileRead(dir, &f, "%s", path);
+
+        if (rc == 0)
+            rc = sizeAndMd5(f, arc_info);
+
+        RELEASE(KFile, f);
+    }
+
+    return rc;
+}
+
+static rc_t get_arc_info(const srastat_parms * pb, ArcInfo *arc_info,
     const VDBManager *vmgr, const VTable *vtbl)
 {
     rc_t rc = 0;
+
+    static char aPath[4096] = "";
+    const char *path = aPath;
+
+    KDirectory * dir = NULL;
+    
+    assert(pb && arc_info);
+
     memset(arc_info, 0, sizeof(*arc_info));
 
-    if ((rc = GetTableModDate(vmgr, &arc_info->timestamp, path)) == 0 ) {
+    if (!pb->print_arcinfo && !pb->print_locinfo)
+        return rc;
+
+    rc = KDirectoryNativeDir(&dir);
+
+    if (rc == 0)
+        rc = GetTableModDate(pb, dir,
+            vmgr, &arc_info->timestamp, aPath, sizeof aPath);
+
+    if (rc == 0) {
+        if (aPath[0] == '\0')
+            path = arc_info->i[eArcInfoCrnt].tag = pb->table_path;
+        else
+            path = arc_info->i[eArcInfoCrnt].tag = aPath;
+        rc = get_arc_info_crnt(dir, path, arc_info->i + eArcInfoCrnt);
+    }
+    else if (!pb->print_arcinfo)
+        rc = 0;
+
+    RELEASE(KDirectory, dir);
+
+    if (!pb->print_arcinfo)
+        return rc;
+
+    if (rc == 0 ) {
         uint32_t i;
-        for(i = 0; i < sizeof(arc_info->i) / sizeof(arc_info->i[0]); i++) {
+        for (i = 0; i < 2; ++i) {
             const KFile* kfile;
             arc_info->i[i].tag = i == 0 ? "sra" : "lite.sra";
             if ((rc = VTableMakeSingleFileArchive(vtbl, &kfile, i == 1)) == 0) {
-                MD5State md5;
-                uint64_t pos = 0;
-                uint8_t buffer[256 * 1024];
-                size_t num_read = 0, x;
-
-                MD5StateInit(&md5);
-                do {
-                    if( (rc = KFileRead(kfile, pos, buffer, sizeof(buffer), &num_read)) == 0 ) {
-                        MD5StateAppend(&md5, buffer, num_read);
-                        pos += num_read;
-                    }
-                    rc = Quitting();
-                    if (rc != 0) {
-                        LOGMSG(klogWarn, "Interrupted");
-                    }
-                } while(rc == 0 && num_read != 0);
-                if (rc == 0 &&
-                    (rc = KFileSize(kfile, &arc_info->i[i].size)) == 0)
-                {
-                    uint8_t digest[16];
-                    MD5StateFinish(&md5, digest);
-                    for(pos = 0, x = 0; rc == 0 && pos < sizeof(digest); pos++) {
-                        rc = string_printf(&arc_info->i[i].md5[x], sizeof(arc_info->i[i].md5) - x, &num_read, "%02x", digest[pos]);
-                        x += num_read;
-                    }
-                }
+                rc = sizeAndMd5(kfile, arc_info->i + i);
                 KFileRelease(kfile);
             }
         }
@@ -2767,6 +2864,18 @@ static uint32_t _NumberOfObservedSpotGroups(const BSTree* t, SSGMatcher* sg) {
     return sg->spotGroupN;
 }
 
+static rc_t make_time(KTime_t timestamp, char * t, size_t sz, size_t * out) {
+    time_t ts = timestamp;
+    struct tm * tm = localtime(&ts);
+    if (tm == NULL)
+        return RC(rcExe, rcData, rcReading, rcParam, rcInvalid);
+    else {
+        assert(out);
+        *out = strftime(t, sz, "%Y-%m-%dT%H:%M:%S", tm);
+        return 0;
+    }
+}
+
 static
 rc_t print_results(const Ctx* ctx)
 {
@@ -2946,11 +3055,17 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->pb->xml) {
+        assert(ctx->arc_info);
+
         OUTMSG(("<Run accession=\"%s\"", ctx->pb->table_path));
+        if (ctx->pb->print_locinfo)
+            if (ctx->arc_info->i[eArcInfoCrnt].tag != NULL)
+                OUTMSG((" path=\"%s\"", ctx->arc_info->i[eArcInfoCrnt].tag));
         if (!ctx->pb->quick || ! ctx->meta_stats->found) {
             OUTMSG((" read_length=\"%s\"",
                 ctx->pb->variableReadLength ? "variable" : "fixed"));
         }
+
         if (ctx->pb->quick) {
             OUTMSG((" spot_count=\"%ld\" base_count=\"%ld\"",
                 ctx->meta_stats->table.spot_count, ctx->meta_stats->table.BASE_COUNT));
@@ -2975,9 +3090,27 @@ rc_t print_results(const Ctx* ctx)
             if (ctx->total->total_cmp_len > 0) {
                 OUTMSG((" cmp_base_count=\"%ld\"", ctx->total->total_cmp_len));
             }
+            
+            if (rc == 0) {
+                const ArcInfo* a = ctx->arc_info;
+                if (a->timestamp != 0) {
+                    char b[1024] = "";
+                    size_t k = 0;
+                    rc = make_time(a->timestamp, b, sizeof b, &k);
+                    if (rc == 0 && ctx->pb->print_locinfo) {
+                        OUTMSG((" date=\"%.*s\"", (int)k, b));
+                        if (a->i[eArcInfoCrnt].size > 0)
+                            OUTMSG((" size=\"%lu\" md5=\"%s\"",
+                                a->i[eArcInfoCrnt].size,
+                                a->i[eArcInfoCrnt].md5));
+                    }
+                }
+            }
         }
+
         OUTMSG((">\n"));
     }
+
     else if (ctx->pb->skip_members) {
         if (ctx->pb->quick) {
             OUTMSG(("%s||%ld:%ld:%ld|:|:|:\n",
@@ -3115,32 +3248,32 @@ rc_t print_results(const Ctx* ctx)
         if (rc == 0 && ctx->pb->statistics) {
             rc = SraStatsTotalPrintStatistics(ctx->total, "  ", ctx->pb->test);
         }
+
         if (rc == 0 && ctx->pb->print_arcinfo) {
             const ArcInfo* a = ctx->arc_info;
             uint32_t i;
-            char b[1024];
-            time_t ts = a->timestamp;
-            struct tm* tm = localtime(&ts);
-
-            if( tm == NULL ) {
-                rc = RC(rcExe, rcData, rcReading, rcParam, rcInvalid);
-            }
-            else {
-                size_t k = strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S", tm);
+            char b[1024] = "";
+            size_t k = 0;
+            rc = make_time(a->timestamp, b, sizeof b, &k);
+            if (rc == 0) {
                 OUTMSG(("  <Archive timestamp=\"%.*s\"", ( int ) k, b));
-                for(i = 0; i < sizeof(a->i) / sizeof(a->i[0]); i++) {
+                for (i = 0; i < 2; ++i) {
                     OUTMSG((" size.%s=\"%lu\" md5.%s=\"%s\"",
                         a->i[i].tag, a->i[i].size, a->i[i].tag, a->i[i].md5));
                 }
-                OUTMSG((" />\n"));
+                OUTMSG(("/>\n"));
             }
         }
+
         if (rc == 0)
         {   rc = QualityStatsPrint(&ctx->quality, "  "); }
+
         if (rc == 0)
         {   rc = TableCountsPrint(&ctx->tables, "  "); }
+
         if ( rc == 0 )
             rc = CtxPrintCHANGES ( ctx, "  " );
+
         if ( rc == 0 && ctx -> n90 > 0 )
             OUTMSG ( ("  <AssemblyStatistics "
                 "n50=\"%lu\" l50=\"%lu\" n90=\"%lu\" l90=\"%lu\" "
@@ -4436,32 +4569,39 @@ rc_t run(srastat_parms* pb)
                 }
                 rc = 0;
             }
+
             if (rc == 0) {
                 rc = get_size(&sizes, vtbl);
             }
+
             if (rc == 0 && pb->printMeta)
                 rc = get_load_info(dbMeta, meta, &info);
 
             if (rc == 0 && !pb->quick) {
                 rc = sra_stat(pb, &tr, &total, &ctx, vtbl);
             }
-            if (rc == 0 && pb->print_arcinfo ) {
-                rc = get_arc_info(pb->table_path, &arc_info, vmgr, vtbl);
+
+            if (rc == 0) {
+                rc = get_arc_info(pb, &arc_info, vmgr, vtbl);
             }
+
             if (rc == 0) {
                 rc = QualityStatsRead(&ctx.quality, meta);
                 if (rc == 0) {
                     QualityStatsSort(&ctx.quality);
                 }
             }
+
             if (rc == 0) {
                 rc = TableCountsRead(&ctx.tables, db);
                 if (rc == 0) {
                     TableCountsSort(&ctx.tables);
                 }
             }
+
             if ( rc == 0 )
                 rc = CalculateNL ( db, & ctx );
+
             if (rc == 0) {
                 if ( db == NULL )
                     ctx . meta = meta;
@@ -4514,6 +4654,11 @@ static const char * align_usage[] = { "Print alignment info, default is on."
 static const char * arcinfo_usage[] = { "Output archive info, default is off."
                                                                     , NULL };
 
+#define ALIAS_LOCINFO    "l"
+#define OPTION_LOCINFO   "local-info"
+static const char * locinfo_usage[] = {
+    "Print the date, path, size and md5 of local run." , NULL };
+
 #define ALIAS_MEMBR    NULL
 #define OPTION_MEMBR   "member-stats"
 static const char * membr_usage[] = { "Print member stats, default is on."
@@ -4544,8 +4689,8 @@ static const char *progress_usage[] = { "Show the percentage of completion."
 
 #define ALIAS_INFO NULL
 #define OPTION_INFO "info"
-static const char *info_usage[] = { "Print report "
-"for all fields examined for mismatch even if the old value is correct.", NULL };
+static const char *info_usage[] = { "Print report for "
+"all fields examined for mismatch even if the old value is correct.", NULL };
 
 #define ALIAS_SPT_D    "d"
 #define OPTION_SPT_D   "spot-desc"
@@ -4573,10 +4718,11 @@ static const char * test_usage[] = {
 #define OPTION_XML     "xml"
 static const char * xml_usage[] = { "Output as XML, default is text.", NULL };
 
-OptDef Options[] = {
+OptDef Options[] = { /*                            maxCount needValue required*/
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
     , { OPTION_ARCINFO , ALIAS_ARCINFO , NULL, arcinfo_usage , 0, false, false }
     , { OPTION_INFO    , ALIAS_INFO    , NULL, info_usage    , 1, false, false }
+    , { OPTION_LOCINFO , ALIAS_LOCINFO , NULL, locinfo_usage , 1, false, false }
     , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
     , { OPTION_META    , ALIAS_META    , NULL, meta_usage    , 1, false, false }
     , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true , false }
@@ -4630,6 +4776,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_ARCINFO , OPTION_ARCINFO , NULL      , arcinfo_usage);
     HelpOptionLine(ALIAS_STATS   , OPTION_STATS   , NULL      , stats_usage);
     HelpOptionLine(ALIAS_ALIGN   , OPTION_ALIGN   , "on | off", align_usage);
+    HelpOptionLine(ALIAS_LOCINFO , OPTION_LOCINFO , NULL      , locinfo_usage);
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
     HelpOptionLine(ALIAS_NGC     , OPTION_NGC     , "path"    , ngc_usage);
     XMLLogger_Usage();
@@ -4807,16 +4954,17 @@ rc_t CC KMain ( int argc, char *argv [] )
                 pb.print_arcinfo = pcount > 0;
             }
 
-            {
-                const char* v = NULL;
+            const char * v = NULL;
 
+            {
                 rc = ArgsOptionCount (args, OPTION_ALIGN, &pcount);
                 if (rc != 0) {
                     break;
                 }
 
                 if (pcount > 0) {
-                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0, (const void **)&v);
+                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0,
+                        (const void **)&v);
                     if (rc != 0) {
                         break;
                     }
@@ -4824,8 +4972,16 @@ rc_t CC KMain ( int argc, char *argv [] )
                         pb.skip_alignment = true;
                     }
                 }
+            }
+            {
+                rc = ArgsOptionCount (args, OPTION_LOCINFO, &pcount);
+                if (rc != 0)
+                    break;
 
-
+                if (pcount > 0)
+                    pb.print_locinfo = true;
+            }
+            {
                 rc = ArgsOptionCount (args, OPTION_STATS, &pcount);
                 if (rc != 0) {
                     break;

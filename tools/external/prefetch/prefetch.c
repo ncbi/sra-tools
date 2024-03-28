@@ -3538,6 +3538,9 @@ rc_t CC UsageSummary(const char *progname) {
         "  %s [options] <SRA accession> [...]\n"
         "  Download SRA files and their dependencies\n"
         "\n"
+        "  %s [options] --perm <JWT cart file> <SRA accession> [...]\n"
+        "  Download SRA files and their dependencies from JWT cart\n"
+        "\n"
         "  %s [options] --cart <kart file>\n"
         "  Download cart file\n"
         "\n"
@@ -4009,11 +4012,14 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);
-    if (rc == 0 && pcount == 0 && pars.jwtCart == NULL && pars.kart == NULL
+    if (rc == 0 && pcount == 0 && pars.kart == NULL
 #if _DEBUGGING
         && pars.textkart == NULL
 #endif
         )
+    /* ACC is required when:
+       - no JWT cart is provided;
+       - when JWT cart is provided. */
     {
         rc = UsageSummary(UsageDefaultName);
         insufficient = true;

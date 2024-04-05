@@ -3554,7 +3554,7 @@ rc_t CC UsageSummary(const char *progname) {
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
         "\n"
-        , progname, progname, progname, progname, progname));
+        , progname, progname, progname, progname, progname, progname));
 }
 
 /*********** Iterator *********************************************************/

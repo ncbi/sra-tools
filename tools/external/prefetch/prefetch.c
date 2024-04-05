@@ -762,7 +762,7 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             rc = VPathStrInit(&resolved->path, vcache);
     }
 
-  /* RELEASE(VPath, vcache); */
+    RELEASE(VPath, vcache);
 
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));

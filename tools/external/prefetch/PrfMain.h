@@ -168,6 +168,8 @@ typedef struct PrfMain {
 #if _DEBUGGING
     const char * textkart;
 #endif
+
+    ETernary fullQuality; // Current preference
 } PrfMain;
 
 bool _StringIsXYZ(const struct String *self, const char **withoutScheme,
@@ -196,9 +198,10 @@ rc_t PrfMainFini(PrfMain *self);
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
-#define STS_INFO 1
-#define STS_DBG  2
-#define STS_FIN  3
+#define STS_TOP  1
+#define STS_INFO 2
+#define STS_DBG  3
+#define STS_FIN  4
 
 #define ELIM_QUALS_OPTION "eliminate-quals"
 #define KART_OPTION "cart"

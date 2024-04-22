@@ -993,7 +993,7 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force) {
     }
 
     if (rc == 0 && self->pos > 0)
-        STSMSG(STAT_ALWAYS, ("   Continue download of '%s%s' from %lu",
+        STSMSG(STS_TOP, ("   Continue download of '%s%s' from %lu",
             self->_name, self->_vdbcache ? ".vdbcache" : "", self->pos));
 
 #ifdef DEBUGGING

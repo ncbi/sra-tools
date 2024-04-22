@@ -212,7 +212,7 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
 
     if (rc == 0) {
         if (self->_sleepTO > 0) {
-            STSMSG(2, ("Sleeping %us...", self->_sleepTO));
+            STSMSG(STS_DBG, ("Sleeping %us...", self->_sleepTO));
 #ifndef TESTING_FAILURES
             KSleep(self->_sleepTO);
 #endif

@@ -251,7 +251,7 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
         else if (rc ==
             SILENT_RC(rcKFG, rcEncryptionKey, rcRetrieving, rcItem, rcNotFound))
         {
-            STSMSG(STAT_ALWAYS,
+            STSMSG(STS_TOP,
                 ("Cannot open encrypted file '%s'", resolved->name));
             isDb = false;
             rc = 0;
@@ -518,6 +518,8 @@ static rc_t PrfMainProcessArgs(PrfMain *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
     assert(self);
+
+    KStsLevelSet(STAT_USR);
 
     rc = ArgsMakeAndHandle2(&self->args, argc, argv,
         Parameters, sizeof Parameters / sizeof Parameters[0],

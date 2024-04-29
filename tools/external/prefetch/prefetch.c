@@ -457,12 +457,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 case 'Z':
                     item->mane->fullQuality = eFalse;
                     msg = "Current preference is set to retrieve SRA Lite"
-                        " files with simplified base quality scores.";
+                        " files with simplified base quality scores";
                     break;
                 case 'R':
                     item->mane->fullQuality = eTrue;
                     msg = "Current preference is set to retrieve SRA Normalized"
-                        " Format files with full base quality scores.";
+                        " Format files with full base quality scores";
                     break;
                 }
                 if (msg != NULL)
@@ -1731,21 +1731,21 @@ static void LogQuality(VQuality q, ETernary fullQuality) {
     || (q == eQualFull && fullQuality == eTrue))
    {
        string_printf(msg, sizeof msg, NULL,
-           "SRA %s file is being retrieved.",
+           " SRA %s file is being retrieved",
            q == eQualNo ? "Lite" : "Normalized Format");
    }
    else if ((q == eQualNo && fullQuality == eTrue)
          || (q == eQualFull && fullQuality == eFalse))
    {
        string_printf(msg, sizeof msg, NULL,
-           "SRA %s file is being retrieved "
-               "due to current file availability.",
+           " SRA %s file is being retrieved "
+               "due to current file availability",
            q == eQualNo ? "Lite" : "Normalized Format");
    }
    else
        string_printf(msg, sizeof msg, NULL,
-           "SRA %s file is being retrieved, if this is different from your"
-               " preference, it may be due to current file availability.",
+           " SRA %s file is being retrieved, if this is different from your"
+               " preference, it may be due to current file availability",
            q == eQualNo ? "Lite" : "Normalized Format");
    STSMSG(STS_TOP, (msg));
 }
@@ -1945,9 +1945,9 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                             item->number, name));
                     }
                     else
-                        STSMSG(STS_TOP, (
-                            "%d) failed to download '%s.vdbcache': %R",
-                            item->number, name, r2));
+                        PLOGERR(klogInt, (klogInt, r2,
+                            "$(n)) failed to download '$(a).vdbcache'",
+                            "n=%d,a=%s", item->number, name));
                     RELEASE(VPath, vdbcache);
                 }
             }
@@ -2910,8 +2910,9 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                OUTMSG(
-                    ("%d) failed to download '%s': %R\n", n, name, rc));
+                PLOGERR(klogInt, (klogInt, rc,
+                    "$(n)) failed to download '$(a)'",
+                    "n=%d,a=%s", n, name));
             }
         }
     }
@@ -3086,8 +3087,12 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
     }
 
     self->number = n;
+    {
+        char * name = ItemName(self);
+        STSMSG(STS_TOP, ("%d) Resolving '%s'...", self->number, name));
+        free(name);
+    }
 
-    STSMSG(STS_TOP, ("%d) Resolving '%s'...", self->number, self->desc));
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entering ItemResolve...", __func__));
 #endif

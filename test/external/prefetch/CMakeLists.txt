@@ -83,6 +83,18 @@ if ( NOT WIN32 )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
+	add_test( NAME Test_Prefetch_outs
+		COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch 0  # 1234
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_Prefetch_outs-asan
+            COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch-asan
+		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_Prefetch_outs-tsan
+            COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch-tsan
+		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+
 	add_test( NAME SlowTest_Prefetch_1GB
 		COMMAND perl ncbi1GB.pl ${DIRTOTEST} prefetch  # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

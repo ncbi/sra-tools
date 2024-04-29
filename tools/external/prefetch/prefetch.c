@@ -478,14 +478,13 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if ( rc == 0 && l > 0 ) {
         rc = ResolvedReset(resolved);
-        if (item->mane->eliminateQuals && GetRCState(rc) == rcNotFound) {
-            OUTMSG((
+        if (item->mane->eliminateQuals && GetRCState(rc) == rcNotFound)
+            LOGERR(klogErr, rc,
                 "Requested SRA Lite files with simplified base quality scores "
-                "is not available.\n"));
-            OUTMSG(("Remove --" ELIM_QUALS_OPTION
+                "is not available. "
+                "Remove --" ELIM_QUALS_OPTION
                 " option to prefetch SRA Normalized Format "
-                "files with full base quality scores if available.\n"));
-        }
+                "files with full base quality scores if available.");
     }
 
     if ( rc == 0 && l > 0 ) {
@@ -497,9 +496,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
         CONST_STRING(&fasp, "fasp");
         CONST_STRING(&http, "http");
         CONST_STRING(&https, "https");
-
-/*      RELEASE(KSrvRespFile, resolved->respFile);
-        resolved->respFile = file;*/
 
         if (rc == 0)
             rc = KSrvRespFileMakeIterator ( resolved->respFile, & fi );
@@ -608,18 +604,6 @@ static rc_t VPathStrFini(VPathStr *self) {
 
     return rc;
 }
-
-/*static
-rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len)
-{
-    String s;
-    assert(self);
-    if (len == 0)
-        len = string_size(str);
-    StringInit(&s, str, len, (uint32_t)len);
-    VPathStrFini(self);
-    return StringCopy(&self->str, &s);
-}*/
 
 static rc_t VPathStrInit(VPathStr *self, const VPath * path) {
     rc_t rc = VPathStrFini(self);

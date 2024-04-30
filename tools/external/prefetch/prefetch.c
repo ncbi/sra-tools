@@ -1063,19 +1063,21 @@ static rc_t ResolvedLocal(const Resolved *self,
 
 static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
     KClientHttpRequest * req, uint64_t size, progressbar * pb, rc_t * rwr,
-    rc_t * rw)
+    rc_t * rw, uint32_t * aCode )
 {
     int i = 0;
 
     rc_t rc = 0, r2 = 0;
     KClientHttpResult * rslt = NULL;
     KStream * s = NULL;
+    int32_t retCode = -1;
 
     assert(self);
     assert(rw);
     assert(rwr);
     assert(pof);
-    assert(pof->cache);
+    assert(pof->cache && aCode);
+    *aCode = 0;
 
     for (i = 0; i < 3; ++i) {
         rc = KClientHttpRequestGET(req, &rslt);
@@ -1086,8 +1088,13 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
             rc = KClientHttpResultStatus(rslt, &code, NULL, 0, NULL);
             if (rc != 0)
                 break;
-            else if (code != 200)
+            else if (code != 200) {
+                if (retCode == -1)
+                    retCode = code;
+                else if (retCode != code)
+                    retCode = 0;
                 break;
+            }
             rc = KClientHttpResultGetInputStream(rslt, &s);
             DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
                 pof->cache->addr);
@@ -1100,6 +1107,9 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
         else /* retry 3 times to call GET if returned KStream is NULL */
             RELEASE(KClientHttpResult, rslt);
     }
+
+    if (retCode > 0)
+        *aCode = retCode;
 
     if (s == NULL) {
         *rw = RC(rcExe, rcFile, rcCopying, rcTransfer, rcNull);
@@ -1219,6 +1229,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     rc_t rc = 0, rw = 0, r2 = 0, rwr = 0;
     const KFile *in = NULL;
     uint64_t size = 0;
+    uint32_t code = 0;
 
     progressbar * pb = NULL;
 
@@ -1341,7 +1352,8 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             if (payRequired)
                 KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
 
-            rc = PrfMainDownloadStream(mane, pof, kns_req, size, pb, &rwr, &rw);
+            rc = PrfMainDownloadStream(mane, pof, kns_req, size, pb, &rwr, &rw,
+                &code);
         }
 
         RELEASE ( KClientHttpRequest, kns_req );
@@ -1366,7 +1378,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 &src, !self->isUri);
         if (rc == 0) {
             PrfRetrierInit(&retrier, mane, path,
-                &src, self->isUri, &in, size, pof->pos);
+                &src, self->isUri, &in, size, pof->pos, code);
             rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
         }
     }

@@ -149,6 +149,12 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t aRc, uint64_t pos) {
         if (self->_403 >= 0)
             ++self->_403;
     }
+    else if (self->_code == 500
+        && rc == SILENT_RC(rcNS, rcFile, rcReading, rcError, rcExists))
+    {
+        if (self->_403 >= 0)
+            ++self->_403;
+    }
     else
         self->_403 = -1;
 

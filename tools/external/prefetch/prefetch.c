@@ -1166,8 +1166,7 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
 }
 
 static rc_t PrfMainDownloadFile(const PrfMain * self, PrfOutFile * pof,
-    const KFile * in, uint64_t size, progressbar * pb, rc_t * rwr,
-    PrfRetrier * retrier)
+    uint64_t size, progressbar * pb, rc_t * rwr, PrfRetrier * retrier)
 {
     rc_t rc = 0, r2 = 0;
 #ifdef TESTING_FAILURES
@@ -1186,8 +1185,9 @@ static rc_t PrfMainDownloadFile(const PrfMain * self, PrfOutFile * pof,
         if (rc != 0)
             break;
 
+        assert(retrier->_f);
         rc = KFileRead(
-            in, pof->pos, self->buffer, retrier->curSize, &num_read);
+            *retrier->_f, pof->pos, self->buffer, retrier->curSize, &num_read);
 #ifdef TESTING_FAILURES
         if (!already&&rc == 0)rc = testRc; else already = true;
 #endif
@@ -1379,7 +1379,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         if (rc == 0) {
             PrfRetrierInit(&retrier, mane, path,
                 &src, self->isUri, &in, size, pof->pos, code);
-            rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
+            rc = PrfMainDownloadFile(mane, pof, size, pb, &rwr, &retrier);
         }
     }
 

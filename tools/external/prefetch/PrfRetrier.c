@@ -50,7 +50,7 @@ void PrfRetrierReset(PrfRetrier * self, uint64_t pos) {
     }
 }
 
-void PrfRetrierInit(PrfRetrier * self, const PrfMain * mane,
+void PrfRetrierInit(PrfRetrier * self, const struct PrfMain * mane,
     const struct VPath * path, const struct String * src, bool isUri,
     const struct KFile ** f, size_t size, uint64_t pos, uint32_t code)
 {

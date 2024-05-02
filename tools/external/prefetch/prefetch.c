@@ -1128,13 +1128,10 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
         if (pof->pos > 0 && *rw == 0) *rw = 1;
 #endif
         if (*rw != 0 || num_read == 0) {
-            if (pof->pos > 0) {
-                if (KStsLevelGet() > 0)
-                    DISP_RC2(*rw, "Cannot KStreamRead: "
-                        "switching to KFileRead...", pof->cache->addr);
-            }
-            else
-                DISP_RC2(*rw, "Cannot KStreamRead", pof->cache->addr);
+            if (KStsLevelGet() > 0 && *rw != 0)
+                PLOGERR(klogInt, (klogInt, *rw,
+                    "Failed to stream '$(arg)': reading as file...",
+                    "arg=%s", pof->_name));
             break;
         }
 
@@ -1150,6 +1147,7 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
             rc = *rwr;
 
         if (rc == 0) {
+            pof->info.pos = pof->pos;
             pof->pos += num_writ;
             if (pb != NULL)
                 update_progressbar(pb, 100 * 100 * pof->pos / size);
@@ -1174,9 +1172,14 @@ static rc_t PrfMainDownloadFile(const PrfMain * self, PrfOutFile * pof,
     rc_t testRc = 1;
 #endif
 
-    assert(self);
+    assert(self && pof);
     assert(retrier);
     assert(rwr);
+
+    if (pof->info.info == ePIStreamed) {
+        pof->info.info = ePIFiled;
+        pof->info.pos = pof->pos;
+    }
 
     while (rc == 0) {
         size_t num_read = 0, num_writ = 0;
@@ -2010,14 +2013,16 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         EValidate size = eVinit;
         EValidate md5 = eVinit;
         bool encrypted = false;
+        const char * log = PrfOutFileMkLog(&pof);
         rv = POFValidate(
             &pof, vremote, vcache, mane->validate, &size, &md5, &encrypted);
         if (rv != 0)
-            LOGERR(klogInt, rc, "failed to verify");
+            PLOGERR(
+                klogInt, (klogInt, rv, "failed to verify: $(L)", "L=%s", log));
         else {
             if (size == eVyes && md5 == eVyes)
-                STSMSG(STS_TOP, (" '%s%s' is valid",
-                    name, vdbcache == NULL ? "" : ".vdbcache"));
+                STSMSG(STS_TOP, (" '%s%s' is valid: %s",
+                    name, vdbcache == NULL ? "" : ".vdbcache", log));
             else if (size == eVyes && encrypted)
                 STSMSG(STS_TOP, (" size of '%s%s' is correct",
                     name, vdbcache == NULL ? "" : ".vdbcache"));

@@ -457,9 +457,10 @@ mkdir  tmp || exit 484
 
 #pwd
 COMMAND\
-="cd tmp&&NCBI_SETTINGS=k $PREFETCH SRR619505 -fy"
+="cd tmp&&NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR619505 -fy"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=k $PREFETCH SRR619505 -fy > /dev/null        || exit 460
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR619505 -fy > /dev/null \
+                                                                     || exit 460
 cd ${work_dir}                                                       || exit 461
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 462
 rm -r tmp/S*                                                         || exit 463
@@ -467,7 +468,8 @@ rm -r tmp/S*                                                         || exit 463
 echo '/repository/site/disabled = "true"'                 >> tmp/k   || exit 468
 #echo '/libs/vdb/quality = "ZR"'                          >> tmp/k   || exit 465
 #if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-#cd tmp && NCBI_SETTINGS=k $PREFETCH SRR619505 -fy       > /dev/null || exit 468
+#cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR619505 -fy > /dev/null \
+#                                                                    || exit 468
 #cd ${work_dir}                                                      || exit 469
 #ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null|| exit 470
 #rm -r tmp/[NS]*                                                     || exit 471
@@ -482,16 +484,18 @@ printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k||exit 479
 #cat tmp/k
 
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=k $PREFETCH SRR619505 -fy        > /dev/null || exit 485
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR619505 -fy > /dev/null \
+                                                                     || exit 485
 cd ${work_dir}                                                       || exit 486
 ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null || exit 487
 rm -r tmp/[rS]*                                                      || exit 488
 
 echo prefetch run with AAAB01 WGS refseq to cache
 COMMAND\
-="cd tmp&&NCBI_SETTINGS=k $PREFETCH SRR353827 -fy"
+="cd tmp&&NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=k $PREFETCH SRR353827 -fy        > /dev/null || exit 495
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy > /dev/null \
+                                                                     || exit 495
 cd ${work_dir}                                                       || exit 496
 ls tmp/SRR353827/SRR353827.sralite tmp/wgs/AAAB01        > /dev/null || exit 497
 rm -r tmp/[Sw]*                                                      || exit 498
@@ -499,30 +503,31 @@ rm -r tmp/[Sw]*                                                      || exit 498
 echo prefetch run with AAAB01 WGS refseq to AD
 echo '/tools/prefetch/download_to_cache = "false"'          >> tmp/k || exit 501
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=k $PREFETCH SRR353827 -fy        > /dev/null || exit 503
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy > /dev/null \
+                                                                     || exit 503
 ls SRR353827/SRR353827.sralite SRR353827/AAAB01          > /dev/null || exit 504
 rm -r SRR353827                                                      || exit 505
 
 COMMAND\
-="NCBI_SETTINGS=k $PREFETCH SRR353827 -Sn"
+="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -Sn"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=k   $PREFETCH SRR353827 -Sn                > /dev/null || exit 510
+NCBI_SETTINGS=/ VDB_CONFIG=k   $PREFETCH SRR353827 -Sn   > /dev/null || exit 510
 
 COMMAND\
-="NCBI_SETTINGS=k ${bin_dir}/align-info SRR353827|grep -q 'false,remote::http'"
+="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info SRR353827|grep -q 'false,remote::http'"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=k   ${bin_dir}/align-info SRR353827 \
+NCBI_SETTINGS=/ VDB_CONFIG=k   ${bin_dir}/align-info SRR353827 \
 	                                  | grep -q 'false,remote::http' || exit 516
 
 COMMAND\
-="NCBI_SETTINGS=k $PREFETCH SRR353827"
+="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=k   $PREFETCH SRR353827                    > /dev/null || exit 521
+NCBI_SETTINGS=/ VDB_CONFIG=k   $PREFETCH SRR353827       > /dev/null || exit 521
 
 COMMAND\
-="NCBI_SETTINGS=k ${bin_dir}/align-info SRR353827|grep -qv 'false,remote::http'"
+="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info SRR353827|grep -qv 'false,remote::http'"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=k   ${bin_dir}/align-info SRR353827 \
+NCBI_SETTINGS=/ VDB_CONFIG=k   ${bin_dir}/align-info SRR353827 \
 	                                 | grep -qv 'false,remote::http' || exit 527
 
 cd ${work_dir}                                                       || exit 529
@@ -548,15 +553,16 @@ printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k \
 
 echo '      ... prefetching...'
 COMMAND\
-="cd tmp&&NCBI_SETTINGS=k $PREFETCH ERR3091357"
+="cd tmp&&NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=k $PREFETCH ERR3091357           > /dev/null || exit 554
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357 > /dev/null \
+                                                                     || exit 554
 
 echo '      ... align-infoing...'
 COMMAND\
-="NCBI_SETTINGS=k ${bin_dir}/align-info ERR3091357|grep -qv 'false,remote::http'"
+="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357|grep -qv 'false,remote::http'"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=k   ${bin_dir}/align-info ERR3091357 \
+NCBI_SETTINGS=/ VDB_CONFIG=k   ${bin_dir}/align-info ERR3091357 \
 	                                 | grep -qv 'false,remote::http' || exit 561
 ls ERR3091357/ERR3091357.sralite wgs/JTFH01 refseq/KN707955.1 \
                                                          > /dev/null || exit 563
@@ -570,10 +576,10 @@ rm   -frv tmp/*                                                      || exit 570
 mkdir -p  tmp                                                        || exit 571
 echo '/repository/site/disabled = "true"' > tmp/k                    || exit 572
 COMMAND\
-="cd tmp&&PATH=${bin_dir}:${PATH} NCBI_SETTINGS=k perl ../test-resume.pl $VERBOSE"
+="cd tmp&&PATH=${bin_dir}:${PATH} NCBI_SETTINGS=/ VDB_CONFIG=k perl ../test-resume.pl $VERBOSE"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
 cd tmp && PATH=${bin_dir}:${PATH} \
-                               NCBI_SETTINGS=k perl ../test-resume.pl $VERBOSE \
+                  NCBI_SETTINGS=/ VDB_CONFIG=k perl ../test-resume.pl $VERBOSE \
                                                             && cd .. || exit 573
 
 rm    -r  tmp                                                        || exit 580
@@ -598,9 +604,9 @@ echo we can use AD as dir/...
 mkdir -p tmp                                                         || exit 599
 
 COMMAND\
-="cd tmp&&PATH=$bin_dir:$PATH NCBI_SETTINGS=k perl ../use-AD-as-dir.pl $VERBOSE"
+="cd tmp&&PATH=$bin_dir:$PATH NCBI_SETTINGS=/ VDB_CONFIG=k perl ../use-AD-as-dir.pl $VERBOSE"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && PATH=$bin_dir:$PATH NCBI_SETTINGS=k perl ../use-AD-as-dir.pl $VERBOSE\
+cd tmp && PATH=$bin_dir:$PATH NCBI_SETTINGS=/ VDB_CONFIG=k perl ../use-AD-as-dir.pl $VERBOSE\
                                                                      || exit 605
 cd ${work_dir}                                                       || exit 606
 rm -r tmp                                                            || exit 607
@@ -622,9 +628,9 @@ echo Testing quality
 rm -fr tmp                                                           || exit 623
 mkdir -p tmp                                                         || exit 624
 COMMAND\
-="cd tmp&& PATH=$bin_dir:$TESTBINDIR:$PATH NCBI_SETTINGS=k perl ../test-quality.pl $VERBOSE"
+="cd tmp&& PATH=$bin_dir:$TESTBINDIR:$PATH NCBI_SETTINGS=/ VDB_CONFIG=k perl ../test-quality.pl $VERBOSE"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp  && PATH=$bin_dir:$TESTBINDIR:$PATH NCBI_SETTINGS=k \
+cd tmp  && PATH=$bin_dir:$TESTBINDIR:$PATH NCBI_SETTINGS=/ VDB_CONFIG=k \
                                               perl ../test-quality.pl $VERBOSE \
                                                                      || exit 631
 cd ${work_dir}                                                       || exit 632

@@ -16,7 +16,7 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ----
-_May 14, 2024_: **SRA Toolkit Release 3.1.1**
+_May 21, 2024_: **SRA Toolkit Release 3.1.1**
 
 Improved prefetch error and information messages for users.
 

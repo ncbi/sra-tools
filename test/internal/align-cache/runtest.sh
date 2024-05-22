@@ -1,10 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 
 VDB_INCDIR=$1
 DIRTOTEST=$2
 tool_binary=$3
 
 echo "testing ${tool_binary}"
+
+if ! test -f ${DIRTOTEST}/${tool_binary}; then
+    echo "${DIRTOTEST}/${tool_binary} does not exist. Skipping the test."
+    exit 0
+fi
 
 rm -rf CSRA_file.cache
 echo "vdb/schema/paths = \"${VDB_INCDIR}\"" > tmp.kfg

@@ -311,10 +311,6 @@ FilePath CommandLine::getToolPath() const {
     return tries.back();
 }
 
-#if WINDOWS
-#else
-#endif
-
 std::ostream &operator<< (std::ostream &os, CommandLine const &obj)
 {
     auto const effVers = Version(

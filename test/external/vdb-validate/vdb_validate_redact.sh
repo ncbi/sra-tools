@@ -10,6 +10,9 @@ VDB_LIBDIR="$2"
 #the python-script the produces the test-data needs that
 VDB_INCDIR="$3"
 
+which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
+which python3 || exit 0
+
 #make sure that we have vdb-validate ( the tool to be tested )
 TOOL="$SRA_BINDIR/vdb-validate"
 if [ ! -x "$TOOL" ]; then

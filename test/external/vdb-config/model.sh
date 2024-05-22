@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 test_bin=$1
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+# bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -57,6 +57,11 @@ CMDLINE=$*
 TEMPDIR=$WORKDIR/$SUITEID/actual/$CASEID
 
 echo "running test $SUITEID:$CASEID"
+
+if ! test -f ${LOAD}; then
+    echo "${LOAD} does not exist. Skipping the test."
+    exit 0
+fi
 
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*

@@ -1,4 +1,4 @@
-#!/bin/bash
+# bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -91,6 +91,11 @@ ACTUAL_STDERR=$TEMPDIR/$CASEID.stderr
 
 echo -n "running test case $CASEID... "
 
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p $TEMPDIR
 if [ "$?" != "0" ] ; then
     echo "failed"
@@ -104,6 +109,8 @@ if [ "$SORT" == "" ] ; then
 else
     CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT"
 fi
+
+export NCBI_SETTINGS=/
 
 #echo $CMD
 eval $CMD

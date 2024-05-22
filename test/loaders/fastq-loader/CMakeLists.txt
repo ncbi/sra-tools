@@ -54,7 +54,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                "./runtestcase.sh" "${BINDIR}/vdb-dump ${DumpParams}" "${BINDIR}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
+                bash runtestcase.sh "${DIRTOTEST}/vdb-dump ${DumpParams}" "${DIRTOTEST}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
@@ -63,7 +63,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    "./runtestcase.sh" "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
+                    bash runtestcase.sh "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
@@ -72,7 +72,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    "./runtestcase.sh" "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
+                    bash runtestcase.sh "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_FastqLoader_${TestName}-tsan PROPERTIES FIXTURES_REQUIRED LatfTest )

@@ -15,7 +15,7 @@
 #  Although all reasonable efforts have been taken to ensure the accuracy
 #  and reliability of the software and data, the NLM and the U.S.
 #  Government do not and cannot warrant the performance or results that
-#  may be obtained by using this software or data. The NLM and the U.S.
+#  may be obtained by using this >oftware or data. The NLM and the U.S.
 #  Government disclaim all warranties, express or implied, including
 #  warranties of performance, merchantability or fitness for any particular
 #  purpose.
@@ -26,6 +26,10 @@
 
 use strict;
 use Cwd qw(cwd);
+
+my ($verbose) = @ARGV;
+$verbose = 0 unless ($verbose);
+
 my ($O, $cmd);
 my $ACC = 'ERR2950949';
 
@@ -36,14 +40,12 @@ my $DEBUG = '';
 
 my $PRF_DEBUG = ''; # '-vv';
 
-my $VERBOSE = 0;
+my $VERBOSE = $verbose + 0;
 #$VERBOSE = 1; # print what's executed'
 #$VERBOSE = 2; # print commands
 #$VERBOSE = 3; # print command output
 
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'               >  k`;
-
-`rm -r ERR2950949`;
+`rm -fr ERR2950949`;
 
 if ($ALL) {
 ########## use site repository (if exists) from default configuration ##########
@@ -67,7 +69,7 @@ die if ($?);
 }
 
 ########## use remote repository ##########
-`echo '/repository/site/disabled = "true"' >> k`;
+`echo '/repository/site/disabled = "true"' > k`;
 
 if ($ALL) {
 print "########################################################\n" if($VERBOSE);
@@ -129,7 +131,6 @@ print $O if ($VERBOSE > 2);
 
 ########## prefetch to user repository ##########
 my $cwd = cwd();
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'               >  k`;
 `echo '/repository/site/disabled = "true"'                                >> k`;
 `echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"'>> k`;
 `echo '/repository/user/main/public/apps/sra/volumes/sraFlat = "sra"     '>> k`;

@@ -114,6 +114,8 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 
         DriverToolTestNoScriptParams( no_sdl )
         DriverToolTestNoScriptParams( bogus )
+        DriverToolTestNoScriptParams( test-path )
+        DriverToolTestNoScriptParams( test-no-path )
         DriverToolTestNoScriptParams( testing )
         DriverToolTestNoScriptParams( vdbcache )
 

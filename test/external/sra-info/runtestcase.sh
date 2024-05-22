@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -43,10 +43,18 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 STDOUT=$TEMPDIR/stdout
 STDERR=$TEMPDIR/stderr
 
-if [ "$(uname)" == "Darwin" ]; then
+EXE="${TOOL%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
+DIFF="diff -b -Z"
+if [ "$(uname)" = "Darwin" ] ; then
     DIFF="diff -b"
-else
-    DIFF="diff -b -Z"
+fi
+if [ "$(uname)" = "FreeBSD" ] ; then
+    DIFF="diff -b"
 fi
 
 echo "running $CASEID"

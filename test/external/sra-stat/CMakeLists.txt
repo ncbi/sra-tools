@@ -43,6 +43,10 @@ if ( NOT WIN32 )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
+    add_test( NAME Test_Sra_stat_local
+		COMMAND test-sra-stat-local.sh ${DIRTOTEST} sra-stat
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 	if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
 	    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
 	    add_test(NAME LatfLoadTestSetup COMMAND

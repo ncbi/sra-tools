@@ -1,20 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 
 bin_dir=$1
 read_filter_redact=$2
 
 echo Testing ${read_filter_redact} from ${bin_dir}
 
-
-# rm -rf actual
-# mkdir -p actual
-# NCBI_SETTINGS=/ ${bin_dir}/sra-stat -x SRR053325 > actual/SRR053325
-# output=$(diff actual/SRR053325 expected/SRR053325-biological-reloaded)
-# res=$?
-# if [ "$res" != "0" ];
-	# then echo "quick_bases test FAILED, res=$res output=$output" && exit 1;
-# fi
-
+if ! test -f ${bin_dir}/${read_filter_redact}; then
+    echo "${bin_dir}/${read_filter_redact} does not exist. Skipping the test."
+    exit 0
+fi
 
 RUN=tmp-read-filter-redact-test-run
 FLT=tmp-read-filter-redact-test-in

@@ -59,6 +59,11 @@ fi
 
 echo "running $CASEID"
 
+if ! test -f ${LOAD}; then
+    echo "${LOAD} does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then

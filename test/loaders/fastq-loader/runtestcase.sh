@@ -1,4 +1,4 @@
-#!/bin/bash
+# bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -45,10 +45,12 @@ RC=$5
 
 TEMPDIR=$WORKDIR/actual/$CASEID
 
+DIFF="diff -b -Z"
 if [ "$(uname)" == "Darwin" ]; then
     DIFF="diff -b"
-else
-    DIFF="diff -b -Z"
+fi
+if [ "$(uname)" == "FreeBSD" ]; then
+    DIFF="diff -b"
 fi
 
 echo "running $CASEID"

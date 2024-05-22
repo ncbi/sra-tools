@@ -20,13 +20,17 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# =============================================================================$
 
-($DIRTOTEST, $PREFETCH) = @ARGV;
+($DIRTOTEST, $PREFETCH, $verbose) = @ARGV;
+my $VERBOSE = $verbose + 0;
+#$VERBOSE = 1; # print what's executed'
+#$VERBOSE = 2; # print commands
+#$VERBOSE = 3; # print command output
 
 `which ascp 2> /dev/null`;
 unless ($?) {
-    unless (`hostname` eq "iebdev21\n") {
+    unless (`hostname`  =~ /v21/) {
         $FOUND = 1;
 
         print "FASP download: ncbi/1GB\n";
@@ -37,20 +41,18 @@ unless ($?) {
         `mkdir -p tmp`; die if $?;
         chdir 'tmp'  or die;
 
-        `echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > t.kfg`;
-        die if $?;
-
         `rm -f 1GB`; die if $?;
 
-        $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
+        $CMD = "NCBI_SETTINGS=/ " .
                "$DIRTOTEST/$PREFETCH fasp://anonftp\@ftp.ncbi.nlm.nih.gov:1GB";
-        print "$CMD\n" if $VERBOSE;
-        `$CMD 2> /dev/null`; die 'Is there DIRTOTEST?' if $?;
+        print "$CMD\n" if $VERBOSE > 1;
+        $O = `$CMD`; die 'Is there DIRTOTEST?' if $?;
+        print $O if $VERBOSE > 2;
         `rm 1GB`; die if $?;
 
         chdir $CWD or die;
 
-        `rm -r tmp`; die if $?;
+        `rmdir tmp`; die if $?;
     }
 }
 

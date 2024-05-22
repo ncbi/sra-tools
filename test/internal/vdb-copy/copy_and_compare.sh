@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 TOOL_PATH="$1"
@@ -20,19 +20,23 @@ if [ -d $ACC_COPY ]; then
     rm -rf $ACC_COPY
 fi
 
-export NCBI_SETTINGS=/
-
-$VDB_COPY $ACC $ACC_COPY -p
+BIN_PATH="$3"
 
 VDB_DIFF="vdb-diff"
-if [ ! -x $VDB_DIFF ]; then
+if [ ! -x $VDB_DIFF ]; then          # try vdb-diff from DIRTOTEST
     VDB_DIFF="${TOOL_PATH}/$VDB_DIFF"
 fi
-
+if [ ! -x $VDB_DIFF ]; then          # try vdb-diff from BINDIR
+    VDB_DIFF="${BIN_PATH}/vdb-diff"
+fi
 if [ ! -x $VDB_DIFF ]; then
     echo "cannot find executable for vdb-diff"
     exit 3
 fi
+
+export NCBI_SETTINGS=/
+
+$VDB_COPY $ACC $ACC_COPY -p
 
 $VDB_DIFF $ACC $ACC_COPY -pc
 

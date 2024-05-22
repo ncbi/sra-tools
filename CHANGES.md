@@ -1,6 +1,18 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.1.1
+**May 21, 2024**
+
+  **kns, prefetch**: improved reaction to problems with data  
+  **ncbi-vdb, sra-tools**: added build rules for BSD  
+  **prefetch**: improved information messages  
+  **prefetch**: prints an error message when no response from names resolver  
+  **prefetch**: reduced output when using --quiet  
+  **prefetch**: tracking of corrupt downloads improved  
+  **sra-stat**: allows information about local file  
+
+
 ## SRA Toolkit 3.1.0
 **March 5, 2024**
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 bin_dir=$1
 test_name=$2

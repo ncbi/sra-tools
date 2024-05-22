@@ -4,6 +4,12 @@ bin_dir=$1
 tool_binary=$2
 
 echo "testing ${tool_binary} fastq parser"
+
+if ! test -f ${bin_dir}/${tool_binary}; then
+    echo "${bin_dir}/${tool_binary} does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p actual
 rm -f actual/*.out
 

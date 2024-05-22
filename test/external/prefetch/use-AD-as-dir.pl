@@ -22,19 +22,21 @@
 #
 # ==============================================================================
 
+my ($VERBOSE) = @ARGV;
+
 $D = ''; # '-+VFS';
 
 $a = 'SRR053325';
 
 `rm -fr $a` ; die if $?;
 
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp.kfg`;
-die if $?;
-
-$c = "NCBI_SETTINGS=/ VDB_CONFIG=. prefetch $a $D"; # print "$c\n";
-$o = `$c` ; die if $?; # print "$o";
+$c = "NCBI_SETTINGS=/ prefetch $a $D";
+print "$c\n" if $VERBOSE;
+$o = `$c` ; die if $?;
+print $o if $VERBOSE;
 die unless -f "$a/$a.sra";
 
-$o = `NCBI_SETTINGS=/ VDB_CONFIG=. vdb-dump -R1 -CREAD $a/` ; die if $?; # print "$o";
-
-`rm -r $a tmp.kfg` ; die if $?;
+$c = "NCBI_SETTINGS=/ vdb-dump -R1 -CREAD $a/";
+print "$c\n" if $VERBOSE;
+$o = `$c` ; die if $?;
+print $o if $VERBOSE;

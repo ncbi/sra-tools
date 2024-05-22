@@ -231,7 +231,7 @@ if ($OS eq 'linux') {
 
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
-unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i) {    
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i || $MARCH eq 'amd64') {
     println "configure: error: unsupported architecture '$OSTYPE':'$MARCH'";
     exit 1;
 }
@@ -316,7 +316,7 @@ print "checking for supported architecture... " unless ($AUTORUN);
 
 my $BITS;
 
-if ($MARCH =~ /x86_64/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i) {
+if ($MARCH =~ /x86_64/i || $MARCH =~ /arm64/i || $MARCH =~ /aarch64/i || $MARCH eq 'amd64') {
     $BITS = 64;
 } elsif ($MARCH eq 'fat86') {
     $BITS = '32_64';
@@ -353,7 +353,7 @@ if ($OSTYPE =~ /linux/i) {
         }
     }
     $PYTHON = 'python';
-} elsif ($OSTYPE =~ /darwin/i) {
+} elsif ($OSTYPE =~ /darwin/i || $OSTYPE =~ /freebsd/i) {
     $LPFX = 'lib';
     $OBJX = 'o';
     $LOBX = 'pic.o';
@@ -1798,6 +1798,7 @@ sub check_compiler {
             }
 
             unlink 'a.out';
+            unlink '-.o';
 
             return if ( ! $ok && ( $i == $#l ) );
 

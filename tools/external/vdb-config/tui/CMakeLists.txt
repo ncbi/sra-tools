@@ -24,15 +24,26 @@
 
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/.. )
 
-if ( "windows" STREQUAL ${OS} )
-    set ( OS_SPECIFIC_SRC win/systui.c )
+set ( UNIX_SRC unix/systui.c )
+set ( BSD_SRC bsd/systui.c )
+set ( LINUX_SRC linux/systui.c )
+set ( MAC_SRC bsd/systui.c )
+set ( WIN_SRC win/systui.c )
+
+if( "bsd" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${BSD_SRC} )
+    #include_directories( unix )
 elseif( "linux" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC linux/systui.c )
     if ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
         set_source_files_properties( linux/systui.c PROPERTIES COMPILE_FLAGS -D_XOPEN_SOURCE=700 )
     endif()
 elseif( "mac" STREQUAL ${OS} )
-    set ( OS_SPECIFIC_SRC bsd/systui.c )
+    set ( OS_SPECIFIC_SRC ${MAC_SRC} )
+    #include_directories( unix )
+elseif ( "windows" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${WIN_SRC} )
+    #include_directories( win )
 endif()
 
 set( SRC

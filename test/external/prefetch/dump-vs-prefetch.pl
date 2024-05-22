@@ -22,14 +22,22 @@
 #
 # ==============================================================================
 
+my ($VERBOSE) = @ARGV;
+
 #print `vdb-config -on repository`; die if $?;
 $VFS = "-+VFS";
 $VFS = '';
 
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp.kfg`;
-die if $?;
+`rm -fr SRR619505`; die if $?;
 
-`NCBI_SETTINGS=tmp.kfg vdb-dump -CREAD -R1 SRR619505 $VFS`; die if $?;
-`NCBI_SETTINGS=tmp.kfg prefetch            SRR619505 $VFS`; die if $?;
+$c = "NCBI_VDB_NO_ETC_NCBI_KFG=1 NCBI_SETTINGS=/ "
+   . "vdb-dump -CREAD -R1 SRR619505 $VFS";
+print "$c\n" if $VERBOSE;
+$o = `$c`; die if $?;
+print $o if $VERBOSE;
 
-`rm -r tmp.kfg` ; die if $?;
+$c = "NCBI_VDB_NO_ETC_NCBI_KFG=1 NCBI_SETTINGS=/ "
+   . "prefetch            SRR619505 $VFS";
+print "$c\n" if $VERBOSE;
+$o = `$c`; die if $?;
+print $o if $VERBOSE;

@@ -25,7 +25,7 @@
 if ( NOT WIN32)
 
     #TODO: simplify
-    set ( CMD ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
+    set ( CMD bash ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
                 ${DIRTOTEST}/general-loader
                 ${DIRTOTEST}/vdb-dump ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -36,7 +36,7 @@ if ( NOT WIN32)
     add_dependencies ( bio-end-makeinputs general-writer )
     target_link_libraries ( bio-end-makeinputs general-writer )
 
-    set ( CMD ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
+    set ( CMD bash ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
                 ${DIRTOTEST}/general-loader ${DIRTOTEST}/vdb-dump ${CMAKE_CURRENT_SOURCE_DIR} )
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bio-end/input)

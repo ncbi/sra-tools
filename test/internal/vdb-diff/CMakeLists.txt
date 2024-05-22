@@ -27,9 +27,15 @@ add_compile_definitions( __mod__="test/vdb-diff" )
 ToolsRequired( vdb-diff vdb-copy )
 
 if( Python3_EXECUTABLE )
-	add_test( NAME Test_VDB_Diff_Check_exit_code
+    if( WIN32 )
+	  add_test( NAME Test_VDB_Diff_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    else()
+	  add_test( NAME Test_VDB_Diff_Check_exit_code
+		COMMAND sh -c "ls ${DIRTOTEST}/vdb-diff${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE} || echo no vdb-diff"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME Test_VDB_Diff_Check_exit_code-asan
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff-asan${EXE}

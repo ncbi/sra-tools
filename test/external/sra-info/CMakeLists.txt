@@ -35,32 +35,57 @@ ToolsRequired(sra-info)
 make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
 # make sure 'sra-info -h' does not crash
-add_test( NAME Test_Sra_Info_Help
+if ( WIN32 )
+  add_test( NAME Test_Sra_Info_Help
     COMMAND ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+else ()
+  add_test( NAME Test_Sra_Info_Help
+    COMMAND sh -c "ls ${DIRTOTEST}/sra-info>/dev/null 2>&1 && ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout || echo no sra-info"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endif()
 
 ### command line checking:
-function( AddCmdlineFailureTest test_name )
+if ( WIN32 )
+  function( AddCmdlineFailureTest test_name )
     add_test( NAME ${test_name}
         COMMAND ${DIRTOTEST}/sra-info ${ARGN}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(${test_name} PROPERTIES WILL_FAIL TRUE)
-endfunction()
+  endfunction()
+else ()
+  function( AddCmdlineFailureTest test_name args )
+    add_test( NAME ${test_name}
+        COMMAND "./runfailtest.sh" "${DIRTOTEST}/sra-info" "${args}" "." ${test_id}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+  endfunction()
+endif()
 
 # fails without parameters
-AddCmdlineFailureTest( Test_Sra_Info_NoParam )
+if ( WIN32 )
+    AddCmdlineFailureTest( Test_Sra_Info_NoParam )
+else ()
+    AddCmdlineFailureTest( Test_Sra_Info_NoParam "" )
+endif()
 
-# fails with more than 1 parameter
-AddCmdlineFailureTest( Test_Sra_Info_MultipleParams SRR000123 SRR0001234 )
-# --limit has to be positive
-AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative --spot-layout DRR032985 --limit -1 )
-AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero --spot-layout DRR032985 --limit 0 )
-
+if ( WIN32 )
+    # fails with more than 1 parameter
+    AddCmdlineFailureTest( Test_Sra_Info_MultipleParams SRR000123 SRR0001234 )
+    # --limit has to be positive
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative --spot-layout DRR032985 --limit -1 )
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero --spot-layout DRR032985 --limit 0 )
+else ()
+    # fails with more than 1 parameter
+    AddCmdlineFailureTest( Test_Sra_Info_MultipleParams "SRR000123 SRR0001234" )
+    # --limit has to be positive
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Negative "--spot-layout DRR032985 --limit -1" )
+    AddCmdlineFailureTest( Test_Sra_Info_Limit_Zero "--spot-layout DRR032985 --limit 0" )
+endif()
 if ( NOT WIN32 )
 ## queries:
 function( AddQueryTest test_name test_id args )
     add_test( NAME ${test_name}
-        COMMAND "./runtestcase.sh" "${BINDIR}/sra-info ${args}" "." ${test_id}
+        COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info ${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endfunction()
 
@@ -110,12 +135,12 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR00012
 
 # # multiple queries
 # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
-# COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
+# COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
 # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # # the default set of queries
 # add_test( NAME Test_Sra_Info_Default.8.0
-#     COMMAND "./runtestcase.sh" "${BINDIR}/sra-info SRR000123" "." "9.0"
+#     COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123" "." "9.0"
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # schema, Default format

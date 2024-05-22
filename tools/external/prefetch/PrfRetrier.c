@@ -23,6 +23,7 @@
 
 #include <kfs/file.h> /* KFileRelease */
 
+#include <klib/rc.h> /* SILENT_RC */
 #include <klib/time.h> /* KSleep */
 #include <klib/status.h> /* KStsLevelGet */
 
@@ -49,9 +50,9 @@ void PrfRetrierReset(PrfRetrier * self, uint64_t pos) {
     }
 }
 
-void PrfRetrierInit(PrfRetrier * self, const PrfMain * mane,
+void PrfRetrierInit(PrfRetrier * self, const struct PrfMain * mane,
     const struct VPath * path, const struct String * src, bool isUri,
-    const struct KFile ** f, size_t size, uint64_t pos)
+    const struct KFile ** f, size_t size, uint64_t pos, uint32_t code)
 {
     assert(self && f && *f && src);
 
@@ -63,6 +64,7 @@ void PrfRetrierInit(PrfRetrier * self, const PrfMain * mane,
     self->_src = src;
     self->_size = size;
     self->_isUri = isUri;
+    self->_code = code;
 
     self->curSize = self->_bsize;
     self->_f = f;
@@ -122,7 +124,8 @@ static bool PrfRetrierIncSleepTO(PrfRetrier * self) {
         return true;
 }
 
-rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
+rc_t PrfRetrierAgain(PrfRetrier * self, rc_t aRc, uint64_t pos) {
+    rc_t rc = aRc;
     bool retry = true;
 
     static bool INITED = false;
@@ -139,6 +142,21 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
     }
 
     assert(self);
+
+    if (self->_code == 403
+        && rc == SILENT_RC(rcNS, rcFile, rcReading, rcData, rcUnauthorized))
+    {
+        if (self->_403 >= 0)
+            ++self->_403;
+    }
+    else if (self->_code == 500
+        && rc == SILENT_RC(rcNS, rcFile, rcReading, rcError, rcExists))
+    {
+        if (self->_403 >= 0)
+            ++self->_403;
+    }
+    else
+        self->_403 = -1;
 
     if (D_T == 0)
         retry = false;
@@ -171,11 +189,18 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
 
     if (retry) {
         KStsLevel lvl = KStsLevelGet();
-        if (lvl > 0) {
-            if (lvl == 1)
+        if (lvl > 1) {
+            if (lvl == 2) {
+              assert(self->_src);
+              if (self->_src->size < 99)
                 PLOGERR(klogErr, (klogErr, rc,
                     "Cannot KFileRead: retrying '$(name)'...",
                     "name=%S", self->_src));
+              else
+                  PLOGERR(klogErr, (klogErr, rc,
+                      "Cannot KFileRead: retrying '$(name)'...",
+                      "name=%.*s...", 99, self->_src->addr));
+            }
             else
                 switch (self->_state) {
                 case eRSJustRetry:
@@ -212,10 +237,14 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
 
     if (rc == 0) {
         if (self->_sleepTO > 0) {
-            STSMSG(2, ("Sleeping %us...", self->_sleepTO));
+            if (self->_403 > 0) // We keep receiving 403: break retry loop
+                rc = aRc;
+            else {
+                STSMSG(STS_DBG, ("Sleeping %us...", self->_sleepTO));
 #ifndef TESTING_FAILURES
-            KSleep(self->_sleepTO);
+                KSleep(self->_sleepTO);
 #endif
+            }
         }
 
         if (++self->_state == eRSMax)

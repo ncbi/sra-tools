@@ -24,6 +24,7 @@
 *
 */
 
+#include <kfg/config.h> /* KConfigDisableUserSettings */
 #include <ktst/unit_test.hpp>
 
 #include "VdbSearchFixture.hpp"
@@ -294,5 +295,6 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
 int
 main( int argc, char *argv [] )
 {
+    KConfigDisableUserSettings();
     return SraSearchTestSuite(argc, argv);
 }

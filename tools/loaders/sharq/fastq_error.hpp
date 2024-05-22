@@ -36,6 +36,7 @@ SHARQ_ERR_CODES = {
     {0   ,{ "Runtime error.", "Runtime error."}},
     {10  ,{ "Invalid command line parameters, inconsistent number of read pairs", "Number of comma-separated files in all readNPairFiles parameters is expected to be the same."}},
     {11  ,{ "Inconsistent file sets: first group ({}), second group ({})", "Input files are clustered into groups. Number of files in each groups is expected to be the same."}},
+    {12  ,{ "Subsequence deduplication is only supported in spot assembly mode", "Subsequence deduplication is only supported in spot assembly mode."}},
     {20  ,{ "No readTypes provided", "'--readTypes' parameter is expected if readNPairFiles parameters are present."}},
     {30  ,{ "readTypes number should match the number of reads", "'--readTypes' number should match the number the number of reads."}},
     {40  ,{ "File '{}' does not exists", "Failure to find input file passed in the parameters."}},

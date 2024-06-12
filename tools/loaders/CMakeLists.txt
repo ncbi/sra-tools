@@ -22,6 +22,7 @@
 #
 # ===========================================================================
 
+add_subdirectory( compute-coverage )
 add_subdirectory( bam-loader )
 add_subdirectory( kar )
 add_subdirectory( sra-sort )
@@ -32,7 +33,6 @@ endif()
 add_subdirectory( sra-load )
 add_subdirectory( pacbio-load )
 add_subdirectory( cg-load )
-add_subdirectory( compute-coverage )
 add_subdirectory( dump_ref_fasta )
 if( NOT WIN32 )
 	add_subdirectory( general-loader )

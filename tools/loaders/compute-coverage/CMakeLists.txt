@@ -24,6 +24,10 @@
 
 #set(CMAKE_VERBOSE_MAKEFILE on)
 
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+endif ()
+
 include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
 
 add_executable        ( compute-coverage compute-coverage.cpp )

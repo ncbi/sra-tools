@@ -24,9 +24,9 @@
 
 #set(CMAKE_VERBOSE_MAKEFILE on)
 
-if (WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
-endif ()
+#if (WIN32)
+ #   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+#endif ()
 
 include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
 
@@ -36,6 +36,7 @@ target_link_libraries ( compute-coverage
     tk-version
     kapp
     ${COMMON_LIBS_READ}
+    ${COMMON_LINK_LIBRARIES}
 )
 
 add_executable        ( compute-coverage-ngs compute-coverage-ngs.cpp )

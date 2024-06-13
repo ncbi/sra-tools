@@ -23,7 +23,7 @@
 # ===========================================================================
 
 TOP ?= $(abspath ../../..)
-MODULE = tools/loaders/compute-coverage
+MODULE = tools/internal/compute-coverage
 
-BUILD_TOOLS_LOADERS = ON
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

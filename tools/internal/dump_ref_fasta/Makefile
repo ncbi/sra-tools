@@ -23,7 +23,7 @@
 # ===========================================================================
 
 TOP ?= $(abspath ../../..)
-MODULE = tools/loaders/dump_ref_fasta
+MODULE = tools/internal/dump_ref_fasta
 
-BUILD_TOOLS_LOADERS = ON
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

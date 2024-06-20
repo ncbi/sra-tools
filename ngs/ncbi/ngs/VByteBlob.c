@@ -30,7 +30,7 @@
 #include <kfc/xc.h>
 
 #include <vdb/blob-priv.h>
-#include <vdb/page-map-priv.h>
+#include <kdb/page-map-priv.h>
 
 /* Calculate the biggest available contiguous data portion of the blob:
 *  starts at rowId, ends before a repeated value or at the end of the blob

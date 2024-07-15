@@ -566,7 +566,7 @@ const char* OptHelpParam[] =
     NULL,				/* threads */
     NULL,				/* extra logging */
     "count",     	    /* min cache size */
-    "file-name"			/* telemetry file name */    
+    "file-name"			/* telemetry file name */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -1138,6 +1138,13 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             G.numThreads = strtoul(value, &dummy, 0);
             if (G.numThreads == 0)
                 G.numThreads = 8;
+            if (G.numThreads < 3)
+            {
+                rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcIncorrect);
+                OUTMSG (("threads: bad value (must be 3 or greater)\n"));
+                MiniUsage (args);
+                break;
+            }
         }
 
         rc = ArgsOptionCount (args, OPTION_MIN_BATCH_SIZE, &pcount);

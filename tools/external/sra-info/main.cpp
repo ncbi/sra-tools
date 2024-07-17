@@ -44,27 +44,29 @@ using namespace std;
 #define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = nullptr; } while (false)
 
-#define OPTION_PLATFORM     "platform"
-#define OPTION_FORMAT       "format"
-#define OPTION_ISALIGNED    "is-aligned"
-#define OPTION_QUALITY      "quality"
-#define OPTION_SCHEMAVERS   "schema"
-#define OPTION_SPOTLAYOUT   "spot-layout"
-#define OPTION_LIMIT        "limit"
+#define OPTION_CONTENTS     "contents"
 #define OPTION_DETAIL       "detail"
-#define OPTION_SEQUENCE     "sequence"
+#define OPTION_ISALIGNED    "is-aligned"
+#define OPTION_FORMAT       "format"
+#define OPTION_LIMIT        "limit"
+#define OPTION_PLATFORM     "platform"
+#define OPTION_QUALITY      "quality"
 #define OPTION_ROWS         "rows"
+#define OPTION_SCHEMAVERS   "schema"
+#define OPTION_SEQUENCE     "sequence"
+#define OPTION_SPOTLAYOUT   "spot-layout"
 
-#define ALIAS_PLATFORM      "P"
-#define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
-#define ALIAS_QUALITY       "Q"
 #define ALIAS_SCHEMAVERS    "C"
-#define ALIAS_SPOTLAYOUT    "S"
-#define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
-#define ALIAS_SEQUENCE      "s"
+#define ALIAS_FORMAT        "f"
+#define ALIAS_LIMIT         "l"
+#define ALIAS_PLATFORM      "P"
+#define ALIAS_QUALITY       "Q"
 #define ALIAS_ROWS          "R"
+#define ALIAS_SPOTLAYOUT    "S"
+#define ALIAS_SEQUENCE      "s"
+#define ALIAS_CONTENTS      "T"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
@@ -77,6 +79,7 @@ static const char * limit_usage[]       = { "limit output to <N> elements, e.g. 
 static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
 static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
+static const char * contents_usage[]    = { "list the contents of the run: databases, tables, columns etc.", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -90,6 +93,7 @@ OptDef InfoOptions[] =
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
     { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
     { OPTION_ROWS,          ALIAS_ROWS,         nullptr, rows_usage,        1, true,    false, nullptr },
+    { OPTION_CONTENTS,      ALIAS_CONTENTS,     nullptr, contents_usage,    1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";

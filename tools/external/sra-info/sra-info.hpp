@@ -32,6 +32,7 @@
 
 #include <vdb.hpp>
 #include <insdc/sra.h>
+#include <kdb/manager.h>
 
 class SraInfo
 {
@@ -82,6 +83,8 @@ public:
     bool HasPhysicalQualities() const;
 
     const VDB::SchemaInfo GetSchemaInfo() const;
+
+    KDBContents GetContents() const;
 
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;

@@ -496,6 +496,14 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
     REQUIRE( info.HasPhysicalQualities() );
 }
 
+// Contents
+FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    KDBContents cnt = info.GetContents();
+}
+
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>

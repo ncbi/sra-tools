@@ -3,7 +3,7 @@
 # test-redaction.sh <DIRTOTEST> <VDB_BINDIR> <VDB_INCDIR>
 # DIRTOTEST is the path where vdb-copy and vdb-dump are.
 # VDB_BINDIR is the path where the ncbi-wvdb library is.
-# VDB_INCDIR 
+# VDB_INCDIR
 
 SCRIPT_PATH=$(dirname "${0}")
 SCRIPT_PATH=$(cd "${SCRIPT_PATH}"; pwd)
@@ -49,7 +49,7 @@ SCRATCH=$(mktemp -d) || exit 1
         exit $?
 
     cd ${SCRATCH} || exit 1
-    
+
     # Verify that redaction is needed. NB. this should exit 3 if awk does not exit 3.
     "${VDB_DUMP}" -f tab 'test-data' -C"READ_FILTER,(INSDC:dna:text)READ" | \
         awk 'BEGIN{ FS="\t" } $1~/REDACTED/ && $2~/[^N]/ {exit 3}' && exit 3;

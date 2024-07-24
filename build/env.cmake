@@ -566,6 +566,9 @@ endfunction()
 #
 function(MakeLinksExe target install_via_driver)
 
+    # always link as c++
+    set_target_properties(${target} PROPERTIES LINKER_LANGUAGE CXX)
+
     if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
         target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
     endif()

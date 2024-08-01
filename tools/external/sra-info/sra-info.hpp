@@ -27,6 +27,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 #include <set>
 #include <exception>
 
@@ -84,7 +85,8 @@ public:
 
     const VDB::SchemaInfo GetSchemaInfo() const;
 
-    KDBContents GetContents() const;
+    typedef std::unique_ptr< KDBContents, std::function<void(KDBContents*)> > Contents;
+    Contents GetContents() const; // TODO: unique_ptr with KDBContentsWhack as deleter
 
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;

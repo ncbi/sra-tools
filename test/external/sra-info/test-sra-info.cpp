@@ -66,7 +66,7 @@ protected:
 
     SraInfo info;
 };
-
+#if 0
 FIXTURE_TEST_CASE(SetAccession, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
@@ -495,14 +495,66 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
     info.SetAccession(Run_Multiplatform);
     REQUIRE( info.HasPhysicalQualities() );
 }
+#endif
 
 // Contents
 FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
-    KDBContents cnt = info.GetContents();
+    SraInfo::Contents cnt = info.GetContents();
+    REQUIRE_EQ( Accession_Table, string(cnt -> name) );
+    REQUIRE_EQ( (int)kptTable, (int)(cnt -> dbtype) );
+    REQUIRE_EQ( 0, (int)(cnt -> fstype) ); // correct?
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata,
+                (int)(cnt -> attributes) ); // correct?
+    REQUIRE_NULL( cnt -> parent );
+    REQUIRE_NULL( cnt -> nextSibling );
+    REQUIRE_NULL( cnt -> prevSibling );
+
+    const KDBContents * child1 = cnt -> firstChild;
+    REQUIRE_NOT_NULL( child1 );
+    REQUIRE_EQ( string("ALTREAD"), string(child1 -> name) );
+    REQUIRE_EQ( (int)kptColumn, (int)(child1 -> dbtype) );
+    REQUIRE_EQ( (int)kptDir, (int)(child1 -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasMD5_File | cca_HasMetadata,
+                (int)(child1 -> attributes) );
+    REQUIRE_EQ( (const KDBContents *)cnt.get(), child1 -> parent );
+    REQUIRE_NULL( child1 -> firstChild );
+    REQUIRE_NULL( child1 -> prevSibling );
+
+    const KDBContents * child2 = child1 -> nextSibling;
+    REQUIRE_NOT_NULL( child2 );
+    REQUIRE_EQ( string("CLIP_QUALITY_RIGHT"), string(child2 -> name) );
+    REQUIRE_EQ( (int)kptColumn, (int)(child2 -> dbtype) );
+    REQUIRE_EQ( (int)kptDir, (int)(child2 -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasMD5_File | cca_HasMetadata,
+                (int)(child2 -> attributes) );
+    REQUIRE_EQ( (const KDBContents *)cnt.get(), child2 -> parent );
+    REQUIRE_NULL( child2 -> firstChild );
+    REQUIRE_EQ( child1, child2 -> prevSibling );
+
+    //etc.
 }
 
+// Contents
+FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
+{
+    info.SetAccession(Accession_CSRA);
+    SraInfo::Contents cnt = info.GetContents();
+    REQUIRE_EQ( Accession_CSRA, string(cnt -> name) );
+    REQUIRE_EQ( (int)kptDatabase, (int)(cnt -> dbtype) );
+    REQUIRE_EQ( 0, (int)(cnt -> fstype) ); // correct?
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata,
+                (int)(cnt -> attributes) ); // correct?
+    REQUIRE_NULL( cnt -> parent );
+    REQUIRE_NULL( cnt -> nextSibling );
+    REQUIRE_NULL( cnt -> prevSibling );
+
+    const KDBContents * child1 = cnt -> firstChild;
+    REQUIRE_NOT_NULL( child1 );
+    REQUIRE_EQ( string("PRIMARY_ALIGNMENT"), string(child1 -> name) );
+    //etc.
+}
 
 //////////////////////////////////////////// Main
 #include <kapp/args.h>

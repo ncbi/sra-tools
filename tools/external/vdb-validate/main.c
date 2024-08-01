@@ -150,7 +150,7 @@ static const char *USAGE_CHECK_REDACT[] =
 { "check if redaction of bases has been correctly performed (default: false)", NULL };
 
 #define OPTION_REQUIRE_BLOB_CRC "require-blob-checksums"
-static const char *const USAGE_REQUIRE_BLOB_CRC[] = 
+static const char *USAGE_REQUIRE_BLOB_CRC[] = 
 { "Require blob checksums (default: no)", NULL };
 
 static OptDef options [] =

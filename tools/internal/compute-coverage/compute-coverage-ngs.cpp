@@ -130,7 +130,7 @@ int run ( int argc, char const * argv [] ) {
             }
 
             int64_t q [ 5 ];
-            for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i )
+            for ( unsigned i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i )
                 q [ i ] = -1;
 
             for ( TVector::size_type i = 1, c = 0;
@@ -153,14 +153,14 @@ int run ( int argc, char const * argv [] ) {
             }
 
             cout << ri . getCanonicalName ();
-            for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i ) {
+            for ( unsigned i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i ) {
                 if ( q [ i ] == -1 )
                     break;
                 cout <<  "\t" << q [ i ];
             }
             if ( TESTING ) {
                 cout <<  "\t" << pos << "|" << num << "|" << max;
-                for ( int i = 1; i <= max; ++ i )
+                for ( unsigned i = 1; i <= max; ++ i )
                     cout <<  "|" << rc [ i ];
             }
             cout << endl;

@@ -135,6 +135,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED,   nullptr, isaligned_usage );
     HelpOptionLine ( ALIAS_SCHEMAVERS,  OPTION_SCHEMAVERS,  nullptr, schema_vers_usage );
     HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
+    HelpOptionLine ( ALIAS_CONTENTS,    OPTION_CONTENTS,    nullptr, contents_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
@@ -216,6 +217,7 @@ typedef class {
     bool quality;
     bool schema;
     bool spots;
+    bool contents;
     int count;
 
 public:
@@ -224,6 +226,7 @@ public:
     void doQuality(void) { ++count; quality = true; }
     void doSchema(void) { ++count; schema = true; }
     void doSpots(void) { ++count; spots = true; }
+    void doContents(void) { ++count; contents = true; }
 
     int queries(void) const { return count; }
 
@@ -232,6 +235,7 @@ public:
     bool needQuality(void) const { return quality; }
     bool needSchema(void) const { return schema; }
     bool needSpots(void) const { return spots; }
+    bool needContents(void) const { return contents; }
 } Query;
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -312,6 +316,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                     DISP_RC( rc, "ArgsOptionCount() failed" );
                     if ( opt_count > 0 )
                         q.doSpots();
+
+                    rc = ArgsOptionCount( args, OPTION_CONTENTS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doContents();
                 }
 
                 if (q.queries() > 1) {
@@ -393,6 +402,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                     }
 
                     Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus, topRows ), detail ) );
+                }
+
+                if ( q.needContents() )
+                {
+                    Output( formatter.format( * info.GetContents().get() ) );
                 }
 
                 Output( formatter.end() );

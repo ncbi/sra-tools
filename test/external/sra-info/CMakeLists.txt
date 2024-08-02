@@ -163,6 +163,6 @@ AddQueryTest( Test_Sra_Info_ACPQS_Xml 10.2 "input/MultiPlatform.sra -ACPQS -fxml
 
 # query for contents
 AddQueryTest( Test_Sra_Info_Contents_Shorthand 11.0 "-T SRR000123" )
-AddQueryTest( Test_Sra_Info_Contents-Default 11.1 "--contents SRR000123" )
+AddQueryTest( Test_Sra_Info_Contents_Default 11.1 "--contents SRR000123" )
 
 endif()

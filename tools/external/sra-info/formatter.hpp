@@ -53,6 +53,7 @@ public:
     std::string format( const std::string &, const std::string & = "") const;
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
     std::string format( const VDB::SchemaInfo & ) const;
+    std::string format( const KDBContents & ) const;
 
 private:
     std::string formatJsonSeparator( void ) const;

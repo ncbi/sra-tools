@@ -111,7 +111,7 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         return JoinPlatforms( platforms, "," );
     case XML:
         // XML, each value in a tag, one per line
-        return " <PLATFORMS>\n" + 
+        return " <PLATFORMS>\n" +
             JoinPlatforms( platforms, "\n", "  <platform>", "</platform>" )
             + "\n </PLATFORMS>";
     case Json:
@@ -629,6 +629,49 @@ string Formatter::format(const VDB::SchemaInfo & info) const
 
     default:
         throw VDB::Error( "unsupported formatting option for schema" );
+    }
+
+    return out;
+}
+
+string
+Formatter::format( const KDBContents & cont ) const
+{
+    string out;
+
+    switch ( fmt )
+    {
+    case Default:
+    {
+        out = string(cont.name) + ":\n";
+        string type = "??";
+        switch ( cont.dbtype )
+        {
+        case kptTable:      type = "table"; break;
+        case kptDatabase:   type = "database"; break;
+        }
+        out += type + ", ";
+        type = "??";
+        switch ( cont.fstype )
+        {
+        case kptFile:   type = "file"; break;
+        case kptDir:    type = "database"; break;
+        }
+        out += type + "\n";
+        //spot_length
+        // platform
+        // reads
+        // barcode_rule
+        // quality_type
+        // quality_offset
+
+        break;
+    }
+
+    case Json:
+    case XML:
+    default:
+        throw VDB::Error( "unsupported formatting option for contents" );
     }
 
     return out;

@@ -58,6 +58,7 @@ public:
 private:
     std::string formatJsonSeparator( void ) const;
     void expectSingleQuery( const std::string & error ) const;
+    std::string FormatContentNodeDefault( const std::string & ident, const KDBContents & cont ) const;
 
     Format fmt;
     uint32_t limit;

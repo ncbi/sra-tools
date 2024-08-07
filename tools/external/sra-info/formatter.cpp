@@ -634,6 +634,106 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     return out;
 }
 
+static const string Indent = string( 4, ' ' );
+
+string
+Formatter::FormatContentNodeDefault( const string & indent, const KDBContents & cont ) const
+{
+    string out;
+
+    out = string(cont.name) + ":\n";
+    string type = "??";
+    switch ( cont.dbtype )
+    {
+    case kptTable:      type = "table"; break;
+    case kptDatabase:   type = "database"; break;
+    case kptColumn:     type = "column"; break;
+    case kptFile:       type = "file"; break;
+    default: type = to_string( cont.dbtype ); break;
+    }
+    out += indent + type;
+    type.clear();
+    switch ( cont.fstype )
+    {
+    case kptFile:   type = ", file"; break;
+    case kptDir:    type = ", directory"; break;
+    default: break;
+    }
+    out += type + "\n";
+    if ( cont.attributes & cca_HasMetadata )
+    {
+        out += indent + "has metadata\n";
+    }
+    if ( cont.attributes & cca_HasMD5_File )
+    {
+        out += indent + "has MD5 file\n";
+    }
+    if ( cont.attributes & cca_HasLock )
+    {
+        out += indent + "has lock\n";
+    }
+    if ( cont.attributes & cca_HasSealed )
+    {
+        out += indent + "is sealed\n";
+    }
+    if ( cont.attributes & cca_HasErrors )
+    {
+        out += indent + "has errors\n";
+    }
+    switch ( cont.dbtype )
+    {
+    case kptTable:
+        if ( cont.attributes & cta_HasColumns )
+        {
+            out += indent + "has columns\n";
+        }
+        if ( cont.attributes & cta_HasIndices )
+        {
+            out += indent + "has indices\n";
+        }
+        break;
+    case kptDatabase:
+        if ( cont.attributes & cda_HasTables )
+        {
+            out += indent + "has tables\n";
+        }
+        if ( cont.attributes & cda_HasDatabases )
+        {
+            out += indent + "has databases\n";
+        }
+        break;
+    case kptColumn:
+        if ( cont.attributes & cca_HasChecksum_CRC )
+        {
+            out += indent + "has CRC checksum\n";
+        }
+        if ( cont.attributes & cca_HasChecksum_MD5 )
+        {
+            out += indent + "has MD5 checksum\n";
+        }
+        if ( cont.attributes & cca_ReversedByteOrder )
+        {
+            out += indent + "has reverse byte order\n";
+        }
+        if ( cont.attributes & cca_IsStatic )
+        {
+            out += indent + "is static\n";
+        }
+        break;
+    }
+
+    if ( cont.firstChild != nullptr )
+    {
+        out += FormatContentNodeDefault( indent + Indent, * cont.firstChild );
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        out += FormatContentNodeDefault( indent, * cont.nextSibling );
+    }
+
+    return out;
+}
+
 string
 Formatter::format( const KDBContents & cont ) const
 {
@@ -643,28 +743,7 @@ Formatter::format( const KDBContents & cont ) const
     {
     case Default:
     {
-        out = string(cont.name) + ":\n";
-        string type = "??";
-        switch ( cont.dbtype )
-        {
-        case kptTable:      type = "table"; break;
-        case kptDatabase:   type = "database"; break;
-        }
-        out += type + ", ";
-        type = "??";
-        switch ( cont.fstype )
-        {
-        case kptFile:   type = "file"; break;
-        case kptDir:    type = "database"; break;
-        }
-        out += type + "\n";
-        //spot_length
-        // platform
-        // reads
-        // barcode_rule
-        // quality_type
-        // quality_offset
-
+        out = FormatContentNodeDefault( Indent, cont );
         break;
     }
 

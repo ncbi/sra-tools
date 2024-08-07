@@ -634,21 +634,21 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     return out;
 }
 
-static const string Indent = string( 4, ' ' );
+static const string IndentUnit = string( 4, ' ' );
 
 string
-Formatter::FormatContentNodeDefault( const string & indent, const KDBContents & cont ) const
+Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents & cont ) const
 {
-    string out;
+    string out = p_indent + string(cont.name) + ":\n";
+    string indent = p_indent + IndentUnit;
 
-    out = string(cont.name) + ":\n";
-    string type = "??";
+    string type;
     switch ( cont.dbtype )
     {
     case kptTable:      type = "table"; break;
     case kptDatabase:   type = "database"; break;
     case kptColumn:     type = "column"; break;
-    case kptFile:       type = "file"; break;
+    case kptIndex:      type = "index"; break;
     default: type = to_string( cont.dbtype ); break;
     }
     out += indent + type;
@@ -720,15 +720,33 @@ Formatter::FormatContentNodeDefault( const string & indent, const KDBContents & 
             out += indent + "is static\n";
         }
         break;
+    case kptIndex:
+        if ( cont.attributes & cia_HasChecksum_MD5 )
+        {
+            out += indent + "has MD5 checksum\n";
+        }
+        if ( cont.attributes & cia_IsTextIndex )
+        {
+            out += indent + "is on text\n";
+        }
+        if ( cont.attributes & cia_IsIdIndex )
+        {
+            out += indent + "is on ID\n";
+        }
+        if ( cont.attributes & cia_IsIdIndex )
+        {
+            out += indent + "has reverse byte order\n";
+        }
+        break;
     }
 
     if ( cont.firstChild != nullptr )
     {
-        out += FormatContentNodeDefault( indent + Indent, * cont.firstChild );
+        out += FormatContentNodeDefault( indent, * cont.firstChild );
     }
     if ( cont.nextSibling != nullptr )
     {
-        out += FormatContentNodeDefault( indent, * cont.nextSibling );
+        out += FormatContentNodeDefault( p_indent, * cont.nextSibling );
     }
 
     return out;
@@ -743,7 +761,7 @@ Formatter::format( const KDBContents & cont ) const
     {
     case Default:
     {
-        out = FormatContentNodeDefault( Indent, cont );
+        out = FormatContentNodeDefault( IndentUnit, cont );
         break;
     }
 

@@ -504,9 +504,9 @@ FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
     SraInfo::Contents cnt = info.GetContents();
     REQUIRE_EQ( Accession_Table, string(cnt -> name) );
     REQUIRE_EQ( (int)kptTable, (int)(cnt -> dbtype) );
-    REQUIRE_EQ( 0, (int)(cnt -> fstype) ); // correct?
-    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata,
-                (int)(cnt -> attributes) ); // correct?
+    REQUIRE_EQ( 0, (int)(cnt -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata | cta_HasIndices,
+                (int)(cnt -> attributes) );
     REQUIRE_NULL( cnt -> parent );
     REQUIRE_NULL( cnt -> nextSibling );
     REQUIRE_NULL( cnt -> prevSibling );

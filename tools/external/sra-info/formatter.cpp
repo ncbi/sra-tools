@@ -636,6 +636,103 @@ string Formatter::format(const VDB::SchemaInfo & info) const
 
 static const string IndentUnit = string( 4, ' ' );
 
+static
+string
+formatJsonNamed( const string & name, const string & value )
+{
+    return "\"" + name + "\":\"" + value + "\"";
+}
+
+static
+string
+formatJsonBool( const string & name, bool value )
+{
+    return "\"" + name + "\":" + (value? "true":"false") ;
+}
+
+static
+string
+formatContentFlagJson( const string & indent, const string & name, bool value )
+{
+    return ",\n" + indent + formatJsonBool( name, value );
+}
+
+static
+string
+formatContentNamedJson( const string & indent, const string & name, const string & value )
+{
+    return ",\n" + indent + formatJsonNamed( name, value );
+}
+
+string
+Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & cont ) const
+{
+    string out = p_indent + R"("name":")"+string(cont.name) + "\"";
+    string type;
+    switch ( cont.dbtype )
+    {
+    case kptTable:      type = "table"; break;
+    case kptDatabase:   type = "database"; break;
+    case kptColumn:     type = "column"; break;
+    case kptIndex:      type = "index"; break;
+    default: type = to_string( cont.dbtype ); break;
+    }
+    out += formatContentNamedJson( p_indent, "dbtype", type );
+
+    type.clear();
+    switch ( cont.fstype )
+    {
+    case kptFile:   type = "file"; break;
+    case kptDir:    type = "directory"; break;
+    default: break;
+    }
+    if ( ! type.empty() )
+    {
+        out += formatContentNamedJson( p_indent, "fstype", type );
+    }
+
+    out += formatContentFlagJson( p_indent, "hasMetadata", cont.attributes & cca_HasMetadata );
+    out += formatContentFlagJson( p_indent, "hasMD5_File", cont.attributes & cca_HasMD5_File );
+    out += formatContentFlagJson( p_indent, "isLocked", cont.attributes & cca_HasLock );
+    out += formatContentFlagJson( p_indent, "isSealed", cont.attributes & cca_HasSealed );
+    out += formatContentFlagJson( p_indent, "hasErrors", cont.attributes & cca_HasErrors );
+    switch ( cont.dbtype )
+    {
+    case kptTable:
+        out += formatContentFlagJson( p_indent, "hasColumns", cont.attributes & cta_HasColumns );
+        out += formatContentFlagJson( p_indent, "hasIndices", cont.attributes & cta_HasIndices );
+        break;
+    case kptDatabase:
+        out += formatContentFlagJson( p_indent, "hasTables", cont.attributes & cda_HasTables );
+        out += formatContentFlagJson( p_indent, "hasDatabases", cont.attributes & cda_HasDatabases );
+        break;
+    case kptColumn:
+        out += formatContentFlagJson( p_indent, "hasChecksum_CRC", cont.attributes & cca_HasChecksum_CRC );
+        out += formatContentFlagJson( p_indent, "hasChecksum_MD5", cont.attributes & cca_HasChecksum_MD5 );
+        out += formatContentFlagJson( p_indent, "reversedByteOrder", cont.attributes & cca_ReversedByteOrder );
+        out += formatContentFlagJson( p_indent, "isStatic", cont.attributes & cca_IsStatic );
+        break;
+    case kptIndex:
+        out += formatContentFlagJson( p_indent, "hasChecksum_MD5", cont.attributes & cia_HasChecksum_MD5 );
+        out += formatContentFlagJson( p_indent, "isTextIndex", cont.attributes & cia_IsTextIndex );
+        out += formatContentFlagJson( p_indent, "isIdIndex", cont.attributes & cia_IsIdIndex );
+        out += formatContentFlagJson( p_indent, "reverseByteOrder", cont.attributes & cia_ReversedByteOrder );
+        break;
+    }
+
+    if ( cont.firstChild != nullptr )
+    {
+        const string in = p_indent + IndentUnit;
+        out += ",\n" + p_indent + R"("children":[{)" + "\n" + FormatContentNodeJson( in, * cont.firstChild ) + "\n" + in + "}\n" + p_indent + "]";
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        out += "\n" + p_indent + "},\n" + p_indent + "{\n" + FormatContentNodeJson( p_indent, * cont.nextSibling );
+    }
+
+    return out;
+}
+
 string
 Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents & cont ) const
 {
@@ -660,83 +757,32 @@ Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents 
     default: break;
     }
     out += type + "\n";
-    if ( cont.attributes & cca_HasMetadata )
-    {
-        out += indent + "has metadata\n";
-    }
-    if ( cont.attributes & cca_HasMD5_File )
-    {
-        out += indent + "has MD5 file\n";
-    }
-    if ( cont.attributes & cca_HasLock )
-    {
-        out += indent + "has lock\n";
-    }
-    if ( cont.attributes & cca_HasSealed )
-    {
-        out += indent + "is sealed\n";
-    }
-    if ( cont.attributes & cca_HasErrors )
-    {
-        out += indent + "has errors\n";
-    }
+    if ( cont.attributes & cca_HasMetadata )    out += indent + "has metadata\n";
+    if ( cont.attributes & cca_HasMD5_File )    out += indent + "has MD5 file\n";
+    if ( cont.attributes & cca_HasLock )        out += indent + "is locked\n";
+    if ( cont.attributes & cca_HasSealed )      out += indent + "is sealed\n";
+    if ( cont.attributes & cca_HasErrors )      out += indent + "has errors\n";
     switch ( cont.dbtype )
     {
     case kptTable:
-        if ( cont.attributes & cta_HasColumns )
-        {
-            out += indent + "has columns\n";
-        }
-        if ( cont.attributes & cta_HasIndices )
-        {
-            out += indent + "has indices\n";
-        }
+        if ( cont.attributes & cta_HasColumns ) out += indent + "has columns\n";
+        if ( cont.attributes & cta_HasIndices ) out += indent + "has indices\n";
         break;
     case kptDatabase:
-        if ( cont.attributes & cda_HasTables )
-        {
-            out += indent + "has tables\n";
-        }
-        if ( cont.attributes & cda_HasDatabases )
-        {
-            out += indent + "has databases\n";
-        }
+        if ( cont.attributes & cda_HasTables )      out += indent + "has tables\n";
+        if ( cont.attributes & cda_HasDatabases )   out += indent + "has databases\n";
         break;
     case kptColumn:
-        if ( cont.attributes & cca_HasChecksum_CRC )
-        {
-            out += indent + "has CRC checksum\n";
-        }
-        if ( cont.attributes & cca_HasChecksum_MD5 )
-        {
-            out += indent + "has MD5 checksum\n";
-        }
-        if ( cont.attributes & cca_ReversedByteOrder )
-        {
-            out += indent + "has reverse byte order\n";
-        }
-        if ( cont.attributes & cca_IsStatic )
-        {
-            out += indent + "is static\n";
-        }
+        if ( cont.attributes & cca_HasChecksum_CRC )    out += indent + "has CRC checksum\n";
+        if ( cont.attributes & cca_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
+        if ( cont.attributes & cca_ReversedByteOrder )  out += indent + "has reverse byte order\n";
+        if ( cont.attributes & cca_IsStatic )           out += indent + "is static\n";
         break;
     case kptIndex:
-        if ( cont.attributes & cia_HasChecksum_MD5 )
-        {
-            out += indent + "has MD5 checksum\n";
-        }
-        if ( cont.attributes & cia_IsTextIndex )
-        {
-            out += indent + "is on text\n";
-        }
-        if ( cont.attributes & cia_IsIdIndex )
-        {
-            out += indent + "is on ID\n";
-        }
-        if ( cont.attributes & cia_IsIdIndex )
-        {
-            out += indent + "has reverse byte order\n";
-        }
+        if ( cont.attributes & cia_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
+        if ( cont.attributes & cia_IsTextIndex )        out += indent + "is on text\n";
+        if ( cont.attributes & cia_IsIdIndex )          out += indent + "is on ID\n";
+        if ( cont.attributes & cia_IsIdIndex )          out += indent + "has reverse byte order\n";
         break;
     }
 
@@ -761,11 +807,14 @@ Formatter::format( const KDBContents & cont ) const
     {
     case Default:
     {
-        out = FormatContentNodeDefault( IndentUnit, cont );
+        out = FormatContentNodeDefault( string(), cont );
         break;
     }
-
     case Json:
+    {
+        out = FormatContentNodeJson( IndentUnit, cont );
+        break;
+    }
     case XML:
     default:
         throw VDB::Error( "unsupported formatting option for contents" );

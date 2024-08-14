@@ -1,57 +1,46 @@
-SRR000123:
-    table
+SRR000123:table
     has metadata
     has MD5 file
     is locked
     has columns
     has indices
-    ALTREAD:
-        column, directory
+    ALTREAD:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    CLIP_QUALITY_RIGHT:
-        column, directory
+    CLIP_QUALITY_RIGHT:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    POSITION:
-        column, directory
+    POSITION:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    QUALITY:
-        column, directory
+    QUALITY:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    READ:
-        column, directory
+    READ:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    READ_LEN:
-        column, directory
+    READ_LEN:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    SIGNAL:
-        column, directory
+    SIGNAL:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    X:
-        column, directory
+    X:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    Y:
-        column, directory
+    Y:column, directory
         has metadata
         has MD5 file
         has CRC checksum
-    skey:
-        index, file
+    skey:index, file
         has MD5 checksum
         is on text
 

@@ -86,7 +86,7 @@ public:
     const VDB::SchemaInfo GetSchemaInfo() const;
 
     typedef std::unique_ptr< KDBContents, std::function<void(KDBContents*)> > Contents;
-    Contents GetContents() const; // TODO: unique_ptr with KDBContentsWhack as deleter
+    Contents GetContents() const;
 
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;

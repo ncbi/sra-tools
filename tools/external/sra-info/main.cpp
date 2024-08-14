@@ -367,23 +367,24 @@ rc_t CC KMain ( int argc, char *argv [] )
                         "QUALITY" ) );
                 }
 
+                SraInfo::Detail detail = SraInfo::Verbose;
+
+                // detail level
+                rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                if ( opt_count > 0 )
+                {
+                    switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
+                    {
+                    case 0: detail = SraInfo::Short; break;
+                    case 1: detail = SraInfo::Abbreviated; break;
+                    case 2: detail = SraInfo::Full; break;
+                    default: break; // anything higher than 2 is Verbose
+                    }
+                }
+
                 if ( q.needSpots() )
                 {
-                    SraInfo::Detail detail = SraInfo::Verbose;
-
-                    // detail level
-                    rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
-                    DISP_RC( rc, "ArgsOptionCount() failed" );
-                    if ( opt_count > 0 )
-                    {
-                        switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
-                        {
-                        case 0: detail = SraInfo::Short; break;
-                        case 1: detail = SraInfo::Abbreviated; break;
-                        case 2: detail = SraInfo::Full; break;
-                        default: break; // anything higher than 2 is Verbose
-                        }
-                    }
 
                     bool useConsensus = true;
                     rc = ArgsOptionCount( args, OPTION_SEQUENCE, &opt_count );
@@ -406,7 +407,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 if ( q.needContents() )
                 {
-                    Output( formatter.format( * info.GetContents().get() ) );
+                    Output( formatter.format( * info.GetContents().get(), detail ) );
                 }
 
                 Output( formatter.end() );

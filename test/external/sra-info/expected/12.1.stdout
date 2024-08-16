@@ -1,33 +1,6 @@
-SRR341576:database
-    PRIMARY_ALIGNMENT:table
-        GLOBAL_REF_START:column
-        HAS_MISMATCH:column
-        HAS_REF_OFFSET:column
-        MAPQ:column
-        MISMATCH:column
-        REF_LEN:column
-        REF_OFFSET:column
-        REF_ORIENTATION:column
-        SEQ_READ_ID:column
-        SEQ_SPOT_ID:column
-    REFERENCE:table
-        CGRAPH_HIGH:column
-        CGRAPH_INDELS:column
-        CGRAPH_LOW:column
-        CGRAPH_MISMATCHES:column
-        CIRCULAR:column
-        CS_KEY:column
-        PRIMARY_ALIGNMENT_IDS:column
-        SEQ_ID:column
-        SEQ_LEN:column
-        SEQ_START:column
-        i_name:index
-    SEQUENCE:table
-        ALIGNMENT_COUNT:column
-        CMP_ALTREAD:column
-        CMP_READ:column
-        PRIMARY_ALIGNMENT_ID:column
-        QUALITY:column
-        RD_FILTER:column
-        READ_TYPE:column
-
+SRR341576:
+    database
+    3 tables (include nested databases)
+    25 columns with checksums (= both CRC and MD5)
+    0 columns without checksums
+    1 indices

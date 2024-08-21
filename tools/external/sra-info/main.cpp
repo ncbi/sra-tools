@@ -76,7 +76,7 @@ static const char * schema_vers_usage[] = {
     "print schema version and dependencies", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
-static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
+static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be zero or greater; default 3", nullptr };
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
 static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
 static const char * contents_usage[]    = { "list the contents of the run: databases, tables, columns etc.", nullptr };
@@ -379,6 +379,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     case 0: detail = SraInfo::Short; break;
                     case 1: detail = SraInfo::Abbreviated; break;
                     case 2: detail = SraInfo::Full; break;
+                    case 3: detail = SraInfo::Verbose; break;
                     default: break; // anything higher than 2 is Verbose
                     }
                 }

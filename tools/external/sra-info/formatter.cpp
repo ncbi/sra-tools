@@ -664,8 +664,66 @@ formatContentNamedJson( const string & indent, const string & name, const string
     return ",\n" + indent + formatJsonNamed( name, value );
 }
 
+void
+Formatter::CountContents( const KDBContents & cont, unsigned int& tables, unsigned int& withChecksums, unsigned int& withoutChecksums, unsigned int& indices ) const
+{
+    switch ( cont.dbtype )
+    {
+    case kptTable:
+        tables ++;
+        break;
+    case kptDatabase:
+        break;
+    case kptColumn:
+        if ( ( cont.attributes & cca_HasChecksum_CRC ) &&
+             ( cont.attributes & cca_HasChecksum_MD5 ) )
+        {
+            withChecksums ++;
+        }
+        else
+        {
+            withoutChecksums ++;
+        }
+        break;
+    case kptIndex:
+        indices ++;
+        break;
+    default:
+        break;
+    }
+    if ( cont.firstChild != nullptr )
+    {
+        CountContents( * cont.firstChild, tables, withChecksums, withoutChecksums, indices );
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        CountContents( * cont.nextSibling, tables, withChecksums, withoutChecksums, indices );
+    }
+}
+
 string
-Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail ) const
+Formatter::FormatContentRootJson( const string & p_indent, const KDBContents & cont ) const
+{
+    string out;
+
+    unsigned int tables = 0;
+    unsigned int withChecksums = 0;
+    unsigned int withoutChecksums = 0;
+    unsigned int indices = 0;
+    CountContents( cont, tables, withChecksums, withoutChecksums, indices );
+    if ( cont.dbtype == kptDatabase )
+    {
+        out += formatContentNamedJson( p_indent, "tables", to_string(tables) );
+    }
+    out += formatContentNamedJson( p_indent, "withChecksums", to_string(withChecksums) );
+    out += formatContentNamedJson( p_indent, "withoutChecksums", to_string(withoutChecksums) );
+    out += formatContentNamedJson( p_indent, "indices", to_string(indices) );
+
+    return out;
+}
+
+string
+Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail, bool root ) const
 {
     string out = p_indent + R"("name":")"+string(cont.name) + "\"";
     string type;
@@ -679,8 +737,23 @@ Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & c
     }
     out += formatContentNamedJson( p_indent, "dbtype", type );
 
-    if ( detail >= SraInfo::Full)
+    switch ( detail )
     {
+    case SraInfo::Short:
+        out += FormatContentRootJson( p_indent, cont );
+        return out; // not displaying children/siblings
+
+    case SraInfo::Abbreviated:
+        if ( root )
+        {
+            out += FormatContentRootJson( p_indent, cont );
+        }
+
+        break;
+
+    case SraInfo::Full:
+    case SraInfo::Verbose:
+    default:
         type.clear();
         switch ( cont.fstype )
         {
@@ -691,6 +764,11 @@ Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & c
         if ( ! type.empty() )
         {
             out += formatContentNamedJson( p_indent, "fstype", type );
+        }
+
+        if ( root )
+        {
+            out += FormatContentRootJson( p_indent, cont );
         }
 
         out += formatContentFlagJson( p_indent, "hasMetadata", cont.attributes & cca_HasMetadata );
@@ -726,18 +804,39 @@ Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & c
     if ( cont.firstChild != nullptr )
     {
         const string in = p_indent + IndentUnit;
-        out += ",\n" + p_indent + R"("children":[{)" + "\n" + FormatContentNodeJson( in, * cont.firstChild, detail ) + "\n" + in + "}\n" + p_indent + "]";
+        out += ",\n" + p_indent + R"("children":[{)" + "\n" + FormatContentNodeJson( in, * cont.firstChild, detail, false ) + "\n" + in + "}\n" + p_indent + "]";
     }
     if ( cont.nextSibling != nullptr )
     {
-        out += "\n" + p_indent + "},\n" + p_indent + "{\n" + FormatContentNodeJson( p_indent, * cont.nextSibling, detail );
+        out += "\n" + p_indent + "},\n" + p_indent + "{\n" + FormatContentNodeJson( p_indent, * cont.nextSibling, detail, false );
     }
 
     return out;
 }
 
 string
-Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail ) const
+Formatter::FormatContentRootDefault( const string & indent, const KDBContents & cont ) const
+{
+    string out;
+
+    unsigned int tables = 0;
+    unsigned int withChecksums = 0;
+    unsigned int withoutChecksums = 0;
+    unsigned int indices = 0;
+    CountContents( cont, tables, withChecksums, withoutChecksums, indices );
+    if ( cont.dbtype == kptDatabase )
+    {
+        out += indent + to_string(tables) + (tables == 1 ? " table" : " tables") + "\n";
+    }
+    out += indent + to_string(withChecksums) + (withChecksums == 1 ? " column":" columns") + " with checksums\n";
+    out += indent + to_string(withoutChecksums) + (withoutChecksums == 1 ? " column":" columns") + " without checksums\n";
+    out += indent + to_string(indices) + (indices == 1 ? " index" : " indices") + "\n";
+
+    return out;
+}
+
+string
+Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail, bool root ) const
 {
     string out = p_indent + string(cont.name) + ":";
     string indent = p_indent + IndentUnit;
@@ -754,66 +853,79 @@ Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents 
     switch ( detail )
     {
     case SraInfo::Short:
+        {
+            out += "\n" + indent + type + "\n";
+            out += FormatContentRootDefault( indent, cont );
+        }
+        return out; // not visiting children/siblings
+
     case SraInfo::Abbreviated:
-        out += type + "\n";
+        {
+            out += type + "\n";
+            if ( root )
+            {
+                out += FormatContentRootDefault( indent, cont );
+            }
+        }
         break;
+
     case SraInfo::Full:
     case SraInfo::Verbose:
     default:
         out += type;
-        if ( detail >= SraInfo::Full )
+        type.clear();
+        switch ( cont.fstype )
         {
-            type.clear();
-            switch ( cont.fstype )
-            {
-            case kptFile:   type = ", file"; break;
-            case kptDir:    type = ", directory"; break;
-            default: break;
-            }
-            out += type;
+        case kptFile:   type = ", file"; break;
+        case kptDir:    type = ", directory"; break;
+        default: break;
         }
-        out += "\n";
-        if ( detail >= SraInfo::Full )
+        out += type + "\n";
+
+        if ( root )
         {
-            if ( cont.attributes & cca_HasMetadata )    out += indent + "has metadata\n";
-            if ( cont.attributes & cca_HasMD5_File )    out += indent + "has MD5 file\n";
-            if ( cont.attributes & cca_HasLock )        out += indent + "is locked\n";
-            if ( cont.attributes & cca_HasSealed )      out += indent + "is sealed\n";
-            if ( cont.attributes & cca_HasErrors )      out += indent + "has errors\n";
-            switch ( cont.dbtype )
-            {
-            case kptTable:
-                if ( cont.attributes & cta_HasColumns ) out += indent + "has columns\n";
-                if ( cont.attributes & cta_HasIndices ) out += indent + "has indices\n";
-                break;
-            case kptDatabase:
-                if ( cont.attributes & cda_HasTables )      out += indent + "has tables\n";
-                if ( cont.attributes & cda_HasDatabases )   out += indent + "has databases\n";
-                break;
-            case kptColumn:
-                if ( cont.attributes & cca_HasChecksum_CRC )    out += indent + "has CRC checksum\n";
-                if ( cont.attributes & cca_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
-                if ( cont.attributes & cca_ReversedByteOrder )  out += indent + "has reverse byte order\n";
-                if ( cont.attributes & cca_IsStatic )           out += indent + "is static\n";
-                break;
-            case kptIndex:
-                if ( cont.attributes & cia_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
-                if ( cont.attributes & cia_IsTextIndex )        out += indent + "is on text\n";
-                if ( cont.attributes & cia_IsIdIndex )          out += indent + "is on ID\n";
-                if ( cont.attributes & cia_IsIdIndex )          out += indent + "has reverse byte order\n";
-                break;
-            }
+            out += FormatContentRootDefault( indent, cont );
+        }
+
+        if ( cont.attributes & cca_HasMetadata )    out += indent + "has metadata\n";
+        if ( cont.attributes & cca_HasMD5_File )    out += indent + "has MD5 file\n";
+        if ( cont.attributes & cca_HasLock )        out += indent + "is locked\n";
+        if ( cont.attributes & cca_HasSealed )      out += indent + "is sealed\n";
+        if ( cont.attributes & cca_HasErrors )      out += indent + "has errors\n";
+        switch ( cont.dbtype )
+        {
+        case kptTable:
+            if ( cont.attributes & cta_HasColumns ) out += indent + "has columns\n";
+            if ( cont.attributes & cta_HasIndices ) out += indent + "has indices\n";
+            break;
+        case kptDatabase:
+            if ( cont.attributes & cda_HasTables )      out += indent + "has tables\n";
+            if ( cont.attributes & cda_HasDatabases )   out += indent + "has databases\n";
+            break;
+        case kptColumn:
+            if ( cont.attributes & cca_HasChecksum_CRC )    out += indent + "has CRC checksum\n";
+            if ( cont.attributes & cca_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
+            if ( cont.attributes & cca_ReversedByteOrder )  out += indent + "has reverse byte order\n";
+            if ( cont.attributes & cca_IsStatic )           out += indent + "is static\n";
+            break;
+        case kptIndex:
+            if ( cont.attributes & cia_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
+            if ( cont.attributes & cia_IsTextIndex )        out += indent + "is on text\n";
+            if ( cont.attributes & cia_IsIdIndex )          out += indent + "is on ID\n";
+            if ( cont.attributes & cia_IsIdIndex )          out += indent + "has reverse byte order\n";
             break;
         }
+
+        break;
     }
 
     if ( cont.firstChild != nullptr )
     {
-        out += FormatContentNodeDefault( indent, * cont.firstChild, detail );
+        out += FormatContentNodeDefault( indent, * cont.firstChild, detail, false );
     }
     if ( cont.nextSibling != nullptr )
     {
-        out += FormatContentNodeDefault( p_indent, * cont.nextSibling, detail );
+        out += FormatContentNodeDefault( p_indent, * cont.nextSibling, detail, false );
     }
 
     return out;
@@ -828,12 +940,12 @@ Formatter::format( const KDBContents & cont, SraInfo::Detail detail ) const
     {
     case Default:
     {
-        out = FormatContentNodeDefault( string(), cont, detail );
+        out = FormatContentNodeDefault( string(), cont, detail, true );
         break;
     }
     case Json:
     {
-        out = FormatContentNodeJson( IndentUnit, cont, detail );
+        out = FormatContentNodeJson( IndentUnit, cont, detail, true );
         break;
     }
     case XML:

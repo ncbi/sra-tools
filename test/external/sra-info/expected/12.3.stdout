@@ -1,130 +1,136 @@
-SRR341576:database
-    has metadata
-    has MD5 file
-    is locked
-    has tables
-    PRIMARY_ALIGNMENT:table, directory
-        has metadata
-        has MD5 file
-        has columns
-        GLOBAL_REF_START:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        HAS_MISMATCH:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        HAS_REF_OFFSET:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        MAPQ:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        MISMATCH:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        REF_LEN:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        REF_OFFSET:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        REF_ORIENTATION:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        SEQ_READ_ID:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        SEQ_SPOT_ID:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-    REFERENCE:table, directory
-        has metadata
-        has MD5 file
-        has columns
-        has indices
-        CGRAPH_HIGH:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CGRAPH_INDELS:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CGRAPH_LOW:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CGRAPH_MISMATCHES:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CIRCULAR:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CS_KEY:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        PRIMARY_ALIGNMENT_IDS:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        SEQ_ID:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        SEQ_LEN:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        SEQ_START:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        i_name:index, file
-            has MD5 checksum
-            is on text
-    SEQUENCE:table, directory
-        has metadata
-        has MD5 file
-        has columns
-        ALIGNMENT_COUNT:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CMP_ALTREAD:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        CMP_READ:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        PRIMARY_ALIGNMENT_ID:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        QUALITY:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        RD_FILTER:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-        READ_TYPE:column, directory
-            has metadata
-            has MD5 file
-            has CRC checksum
-
+{
+    "name":"SRR341576",
+    "dbtype":"database",
+    "tables":"3",
+    "withChecksums":"0",
+    "withoutChecksums":"27",
+    "indices":"1",
+    "children":[{
+        "name":"PRIMARY_ALIGNMENT",
+        "dbtype":"table",
+        "children":[{
+            "name":"GLOBAL_REF_START",
+            "dbtype":"column"
+            },
+            {
+            "name":"HAS_MISMATCH",
+            "dbtype":"column"
+            },
+            {
+            "name":"HAS_REF_OFFSET",
+            "dbtype":"column"
+            },
+            {
+            "name":"MAPQ",
+            "dbtype":"column"
+            },
+            {
+            "name":"MISMATCH",
+            "dbtype":"column"
+            },
+            {
+            "name":"REF_LEN",
+            "dbtype":"column"
+            },
+            {
+            "name":"REF_OFFSET",
+            "dbtype":"column"
+            },
+            {
+            "name":"REF_ORIENTATION",
+            "dbtype":"column"
+            },
+            {
+            "name":"SEQ_READ_ID",
+            "dbtype":"column"
+            },
+            {
+            "name":"SEQ_SPOT_ID",
+            "dbtype":"column"
+            }
+        ]
+        },
+        {
+        "name":"REFERENCE",
+        "dbtype":"table",
+        "children":[{
+            "name":"CGRAPH_HIGH",
+            "dbtype":"column"
+            },
+            {
+            "name":"CGRAPH_INDELS",
+            "dbtype":"column"
+            },
+            {
+            "name":"CGRAPH_LOW",
+            "dbtype":"column"
+            },
+            {
+            "name":"CGRAPH_MISMATCHES",
+            "dbtype":"column"
+            },
+            {
+            "name":"CIRCULAR",
+            "dbtype":"column"
+            },
+            {
+            "name":"CS_KEY",
+            "dbtype":"column"
+            },
+            {
+            "name":"PRIMARY_ALIGNMENT_IDS",
+            "dbtype":"column"
+            },
+            {
+            "name":"SEQ_ID",
+            "dbtype":"column"
+            },
+            {
+            "name":"SEQ_LEN",
+            "dbtype":"column"
+            },
+            {
+            "name":"SEQ_START",
+            "dbtype":"column"
+            },
+            {
+            "name":"i_name",
+            "dbtype":"index"
+            }
+        ]
+        },
+        {
+        "name":"SEQUENCE",
+        "dbtype":"table",
+        "children":[{
+            "name":"ALIGNMENT_COUNT",
+            "dbtype":"column"
+            },
+            {
+            "name":"CMP_ALTREAD",
+            "dbtype":"column"
+            },
+            {
+            "name":"CMP_READ",
+            "dbtype":"column"
+            },
+            {
+            "name":"PRIMARY_ALIGNMENT_ID",
+            "dbtype":"column"
+            },
+            {
+            "name":"QUALITY",
+            "dbtype":"column"
+            },
+            {
+            "name":"RD_FILTER",
+            "dbtype":"column"
+            },
+            {
+            "name":"READ_TYPE",
+            "dbtype":"column"
+            }
+        ]
+        }
+    ]
+}

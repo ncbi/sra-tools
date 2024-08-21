@@ -1,6 +1,8 @@
-SRR341576:
-    database
-    3 tables (include nested databases)
-    25 columns with checksums (= both CRC and MD5)
-    0 columns without checksums
-    1 indices
+{
+    "name":"SRR341576",
+    "dbtype":"database",
+    "tables":"3",
+    "withChecksums":"0",
+    "withoutChecksums":"27",
+    "indices":"1"
+}

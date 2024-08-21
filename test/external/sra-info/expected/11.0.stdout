@@ -1,4 +1,7 @@
 SRR000123:table
+    0 columns with checksums
+    9 columns without checksums
+    1 index
     has metadata
     has MD5 file
     is locked

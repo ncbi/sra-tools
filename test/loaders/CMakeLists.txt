@@ -26,5 +26,7 @@ add_subdirectory(bam-load)
 add_subdirectory(fastq-loader)
 add_subdirectory(kar)
 add_subdirectory(loader)
-add_subdirectory(sharq)
+if (TARGET sharq)
+    add_subdirectory(sharq)
+endif()
 add_subdirectory(sra-sort) # TODO: it's not clear if the test itself was running, now it's not.

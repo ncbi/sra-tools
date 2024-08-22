@@ -675,7 +675,7 @@ Formatter::CountContents( const KDBContents & cont, unsigned int& tables, unsign
     case kptDatabase:
         break;
     case kptColumn:
-        if ( ( cont.attributes & cca_HasChecksum_CRC ) &&
+        if ( ( cont.attributes & cca_HasChecksum_CRC ) ||
              ( cont.attributes & cca_HasChecksum_MD5 ) )
         {
             withChecksums ++;

@@ -1,7 +1,7 @@
 SRR341576:database
     3 tables
-    0 columns with checksums
-    27 columns without checksums
+    27 columns with checksums
+    0 columns without checksums
     1 index
     PRIMARY_ALIGNMENT:table
         GLOBAL_REF_START:column

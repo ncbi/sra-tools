@@ -2,8 +2,8 @@
     "name":"SRR341576",
     "dbtype":"database",
     "tables":"3",
-    "withChecksums":"27",
-    "withoutChecksums":"0",
+    "columnsWithChecksums":"27",
+    "columnsWithoutChecksums":"0",
     "indices":"1",
     "children":[{
         "name":"PRIMARY_ALIGNMENT",

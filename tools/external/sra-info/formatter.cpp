@@ -715,8 +715,8 @@ Formatter::FormatContentRootJson( const string & p_indent, const KDBContents & c
     {
         out += formatContentNamedJson( p_indent, "tables", to_string(tables) );
     }
-    out += formatContentNamedJson( p_indent, "withChecksums", to_string(withChecksums) );
-    out += formatContentNamedJson( p_indent, "withoutChecksums", to_string(withoutChecksums) );
+    out += formatContentNamedJson( p_indent, "columnsWithChecksums", to_string(withChecksums) );
+    out += formatContentNamedJson( p_indent, "columnsWithoutChecksums", to_string(withoutChecksums) );
     out += formatContentNamedJson( p_indent, "indices", to_string(indices) );
 
     return out;

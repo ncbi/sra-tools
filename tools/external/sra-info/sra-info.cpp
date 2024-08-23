@@ -27,7 +27,7 @@
 #include "sra-info.hpp"
 
 #include <kdb/manager.h>
-#include <../libs/kdb/rdbmgr.h>
+#include <kdb/kdb-priv.h>
 
 #include <algorithm>
 #include <map>
@@ -420,7 +420,7 @@ SraInfo::GetContents() const
     }
 
     const KDBContents * ret;
-    rc = KDBRManagerPathContents( kdb, & ret, m_accession.c_str() );
+    rc = KDBManagerPathContents( kdb, & ret, m_accession.c_str() );
     KDBManagerRelease( kdb );
     if ( rc != 0 )
     {

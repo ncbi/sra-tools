@@ -790,6 +790,9 @@ endfunction()
 
 function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )
     add_executable( ${target_name} ${sources} )
+    # always link as c++
+    set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE CXX)
+
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
     endif()

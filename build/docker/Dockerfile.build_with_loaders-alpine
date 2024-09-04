@@ -41,8 +41,7 @@ LABEL \
  vcs-url="https://github.com/ncbi/sra-tools/" \
  description="NCBI SRA Toolkit including loaders"
 
-RUN apk add --no-cache libstdc++ libgcc
-RUN apk add libbz2 
+RUN apk add --no-cache libbz2 libgcc libstdc++
 COPY --from=build /usr/local/bin /usr/local/bin
 
 # very basic smoke test to check if runnable

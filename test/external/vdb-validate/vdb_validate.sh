@@ -38,7 +38,8 @@ output=$(./runtestcase.sh \
 	    "${bin_dir}/${vdb_validate} db/sdc_len_mismatch.csra" no_sdc_checks 0)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} no_sdc_checks FAILED, res=$res output=$output" \
+      && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -46,7 +47,8 @@ output=$(./runtestcase.sh \
 	                                sdc_tmp_mismatch 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+   then echo "${vdb_validate} sdc_tmp_mismatch FAILED, res=$res output=$output"\
+     && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -54,7 +56,8 @@ output=$(./runtestcase.sh \
 	                                sdc_pa_longer_1 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} sdc_pa_longer_1 FAILED, res=$res output=$output"\
+      && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -62,7 +65,8 @@ output=$(./runtestcase.sh \
               --sdc:plen_thold 50%" sdc_pa_longer_2 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} sdc_pa_longer_2 FAILED, res=$res output=$output"\
+      && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -70,7 +74,8 @@ output=$(./runtestcase.sh \
               --sdc:plen_thold 51%" sdc_pa_longer_3 0)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} sdc_pa_longer_3 FAILED, res=$res output=$output"\
+      && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -78,7 +83,8 @@ output=$(./runtestcase.sh \
             --sdc:plen_thold 1%" sdc_len_mismatch_1 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+ then echo "${vdb_validate} sdc_len_mismatch_1 FAILED, res=$res output=$output"\
+   && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -86,7 +92,8 @@ output=$(./runtestcase.sh \
           --sdc:plen_thold 100%" sdc_len_mismatch_2 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+ then echo "${vdb_validate} sdc_len_mismatch_2 FAILED, res=$res output=$output"\
+   && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -94,7 +101,9 @@ output=$(./runtestcase.sh \
           --sdc:seq-rows 100%" sdc_seq_cmp_read_len_corrupt 3)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo \
+ "${vdb_validate} sdc_seq_cmp_read_len_corrupt FAILED, res=$res output=$output"\
+        && exit 1;
 fi
 
 output=$(./runtestcase.sh \
@@ -102,27 +111,38 @@ output=$(./runtestcase.sh \
           --sdc:seq-rows 100%" sdc_seq_cmp_read_len_fixed 0)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo \
+   "${vdb_validate} sdc_seq_cmp_read_len_fixed FAILED, res=$res output=$output"\
+        && exit 1;
 fi
 
 output=$(./runtestcase.sh \
         "${bin_dir}/${vdb_validate} db/blob-row-gap.kar" ROW_GAP 0)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} ROW_GAP FAILED, res=$res output=$output" \
+      && exit 1;
 fi
 
 output=$(./runtestcase.sh \
         "${bin_dir}/${vdb_validate} db/SRR053990 -Cyes" CONSISTENCY 0)
 res=$?
 if [ "$res" != "0" ];
-	then echo "${vdb_validate} FAILED, res=$res output=$output" && exit 1;
+	then echo "${vdb_validate} CONSISTENCY FAILED, res=$res output=$output" \
+    && exit 1;
 fi
 
-if [ "${TEST_DATA}" != "" ]; then ./runtestcase.sh \
-	"${bin_dir}/${vdb_validate} \
+if [ "${TEST_DATA}" != "" ]; then
+    output=$(./runtestcase.sh \
+	    "${bin_dir}/${vdb_validate} \
 	            ${TEST_DATA}/SRR1207586-READ_LEN-vs-READ-mismatch \
-	            -Cyes" READ_LEN 3 ; fi
+	            -Cyes" READ_LEN 3)
+    res=$?
+    if [ "$res" != "0" ];
+	    then echo "${vdb_validate} READ_LEN FAILED, res=$res output=$output" \
+          && exit 1;
+    fi
+fi
 
 # verify failure verifying ancient no-schema run
 if ${bin_dir}/${vdb_validate} db/SRR053325-no-schema 2> actual/noschema; \

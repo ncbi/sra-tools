@@ -71,7 +71,8 @@ using namespace std;
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
 static const char * isaligned_usage[]   = { "is data aligned", nullptr };
-static const char * quality_usage[] = { "are quality scores stored or generated", nullptr };
+static const char * quality_usage[]     = { "are quality scores STORED,"
+                                          , "were REMOVED, or never were (NONE)", nullptr };
 static const char * schema_vers_usage[] = {
     "print schema version and dependencies", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
@@ -362,8 +363,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( q.needQuality() )
                 {
                     Output( formatter.format(
-                        info.HasPhysicalQualities()
-                            ? "STORED" : "GENERATED",
+                        info.QualityDescription(),
                         "QUALITY" ) );
                 }
 

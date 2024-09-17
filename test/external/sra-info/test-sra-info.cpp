@@ -501,7 +501,7 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
 FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
-    SraInfo::Contents cnt = info.GetContents();
+    SraInfo::Contents const &cnt = info.GetContents();
     REQUIRE_EQ( Accession_Table, string(cnt -> name) );
     REQUIRE_EQ( (int)kptTable, (int)(cnt -> dbtype) );
     REQUIRE_EQ( 0, (int)(cnt -> fstype) );
@@ -540,7 +540,7 @@ FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
 FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
 {
     info.SetAccession(Accession_CSRA);
-    SraInfo::Contents cnt = info.GetContents();
+    SraInfo::Contents const &cnt = info.GetContents();
     REQUIRE_EQ( Accession_CSRA, string(cnt -> name) );
     REQUIRE_EQ( (int)kptDatabase, (int)(cnt -> dbtype) );
     REQUIRE_EQ( 0, (int)(cnt -> fstype) ); // correct?

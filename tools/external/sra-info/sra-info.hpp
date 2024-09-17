@@ -86,13 +86,23 @@ public:
     const VDB::SchemaInfo GetSchemaInfo() const;
 
     typedef std::unique_ptr< KDBContents, std::function<void(KDBContents*)> > Contents;
-    Contents GetContents() const;
+    Contents const &GetContents() const;
+
+    bool HasLiteMetadata() const;
+
+    char const *QualityDescription() const;
 
 private:
-    VDB::Table openSequenceTable( const std::string & accession ) const;
-    VDB::Schema openSchema( const std::string & accession ) const;
+    bool isDatabase() const;
+    bool isTable() const;
+    bool hasTable(std::string const &name) const;
+    VDB::MetadataCollection topLevelMetadataCollection() const;
+    Contents getContents() const;
+    VDB::Table openSequenceTable(bool useConsensus = false) const;
+    VDB::Schema openSchema() const;
 
 private:
     VDB::Manager m_mgr;
     std::string m_accession;
+    Contents contents;
 };

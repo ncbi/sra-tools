@@ -1,0 +1,6 @@
+SRR000123:
+    table
+    8 columns with checksums
+    1 column without checksums
+    1 index
+

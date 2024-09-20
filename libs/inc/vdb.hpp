@@ -40,6 +40,8 @@
 #include <klib/vector.h> /* VectorForEach */
 
 #include <kdb/manager.h>
+#include <kdb/meta.h>
+#include <kdb/namelist.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
 #include <vdb/manager.h>
@@ -397,6 +399,171 @@ namespace VDB {
         }
     };
 
+    class NameList {
+        KNamelist *o;
+
+        NameList(KNamelist *const o_) : o(o_) {}
+        NameList(KNamelist const *const o_) : o(const_cast<KNamelist *>(o_)) {}
+    public:
+        ~NameList() { KNamelistRelease(o); }
+        NameList(NameList const &other) : o(other.o) { KNamelistAddRef(o); }
+        NameList &operator =(NameList const &other) {
+            KNamelistAddRef(other.o);
+            KNamelistRelease(o);
+            o = other.o;
+            return *this;
+        }
+        template <typename P, typename FUNC>
+        NameList(P p, FUNC && func) : o(nullptr) {
+            auto const rc = func(p, &o);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        unsigned count() const {
+            uint32_t result = 0;
+            auto const rc = KNamelistCount(o, &result);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return result;
+        }
+        std::string operator [](unsigned index) const {
+            char const *result = nullptr;
+            auto const rc = KNamelistGet(o, index, &result);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return std::string{ result };
+        }
+        bool contains(char const *value) const {
+            return KNamelistContains(o, value);
+        }
+        bool contains(std::string const &value) const {
+            return contains(value.c_str());
+        }
+
+        operator std::vector< std::string >() const {
+            auto const count = this->count();
+            std::vector< std::string > result;
+            result.reserve(count);
+            for (unsigned i = 0; i < count; ++i)
+                result.emplace_back(this->operator[](i));
+            return result;
+        }
+    };
+
+    class Metadata {
+        friend class MetadataCollection;
+        KMDataNode *o;
+
+        Metadata(KMDataNode *const o_) : o(o_) {}
+    public:
+        ~Metadata() { KMDataNodeRelease(o); }
+        Metadata(Metadata const &other) : o(other.o) { KMDataNodeAddRef(o); }
+        Metadata &operator =(Metadata const &other) {
+            KMDataNodeAddRef(other.o);
+            KMDataNodeRelease(o);
+            o = other.o;
+            return *this;
+        }
+
+        /// @brief Get child node.
+        Metadata childNode(char const *name) const {
+            KMDataNode const *child = nullptr;
+            auto const rc = KMDataNodeOpenNodeRead(o, &child, "%s", name);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Metadata{ const_cast<KMDataNode *>(child) };
+        }
+
+        /// @brief Get child node.
+        Metadata childNode(std::string const &name) const {
+            KMDataNode const *child = nullptr;
+            auto const rc = KMDataNodeOpenNodeRead(o, &child, "%.*s", (int)name.size(), name.data());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Metadata{ const_cast<KMDataNode *>(child) };
+        }
+
+        /// @brief Get child node.
+        Metadata operator [](char const *childName) const {
+            return childNode(childName);
+        }
+
+        /// @brief Get child node.
+        Metadata operator [](std::string const &childName) const {
+            return childNode(childName);
+        }
+
+        std::string value() const {
+            std::string result(256, 0);
+            do {
+                size_t actual = 0;
+                size_t remain = 0;
+                auto const rc = KMDataNodeRead(o, 0, &result[0], result.size(), &actual, &remain);
+                if (rc) throw Error(rc, __FILE__, __LINE__);
+                result.resize(actual + remain, '\0');
+                if (remain == 0)
+                    return result;
+            } while (1);
+        }
+
+        /// @brief Get value of attribute.
+        std::string attributeValue(std::string const &attributeName) const {
+            size_t size = 0;
+            KMDataNodeReadAttr(o, attributeName.c_str(), nullptr, 0, &size);
+
+            auto result = std::string(size + 1, '\0');
+            auto const rc = KMDataNodeReadAttr(o, attributeName.c_str(), &result[0], result.size(), &size);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            result.resize(size);
+            return result;
+        }
+
+        /// @brief Get list of child nodes.
+        NameList children() const {
+            return NameList(o, KMDataNodeListChildren);
+        }
+
+        /// @brief Get list of attributes.
+        NameList attributes() const {
+            return NameList(o, KMDataNodeListAttr);
+        }
+    };
+
+    /// @brief aka KMetadata, i.e. the root of a metadata tree.
+    class MetadataCollection {
+        friend class Table;
+        friend class Database;
+        KMetadata *o;
+
+        MetadataCollection(KMetadata *const o_) : o(o_) {}
+        MetadataCollection(KMetadata const *const o_) : o(const_cast<KMetadata *>(o_)) {}
+    public:
+        ~MetadataCollection() { KMetadataRelease(o); }
+        MetadataCollection(MetadataCollection const &other) : o(other.o) { KMetadataAddRef(o); }
+        MetadataCollection &operator =(MetadataCollection const &other) {
+            KMetadataAddRef(other.o);
+            KMetadataRelease(o);
+            o = other.o;
+            return *this;
+        }
+        Metadata root() const {
+            KMDataNode const *node = nullptr;
+            auto const rc = KMetadataOpenNodeRead(o, &node, "");
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Metadata{ const_cast< KMDataNode * >(node) };
+        }
+        Metadata childNode(char const *name) const {
+            KMDataNode const *node = nullptr;
+            auto const rc = KMetadataOpenNodeRead(o, &node, "%s", name);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Metadata{ const_cast<KMDataNode *>(node) };
+        }
+        Metadata childNode(std::string const &name) const {
+            return childNode(name.c_str());
+        }
+        Metadata operator [](char const *nodeName) const {
+            return childNode(nodeName);
+        }
+        Metadata operator [](std::string const &nodeName) const {
+            return childNode(nodeName);
+        }
+    };
+
     class Table {
         friend class Database;
         friend class Manager;
@@ -500,36 +667,17 @@ namespace VDB {
             return listColumns( VTableListReadableColumns );
         }
 
+        MetadataCollection metadata() const {
+            KMetadata const *meta = nullptr;
+            auto const rc = VTableOpenMetadataRead(o, &meta);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return MetadataCollection{ const_cast< KMetadata * >(meta) };
+        }
+
     private:
         ColumnNames listColumns(  rc_t CC listfn ( struct VTable const *self, struct KNamelist **names ) ) const
         {
-            KNamelist *names;
-            rc_t rc = listfn ( o, & names );
-            if (rc)
-            {
-                throw Error(rc, __FILE__, __LINE__);
-            }
-            uint32_t count;
-            rc = KNamelistCount ( names, &count );
-            if (rc)
-            {
-                KNamelistRelease ( names );
-                throw Error(rc, __FILE__, __LINE__);
-            }
-            ColumnNames ret;
-            for ( uint32_t i = 0; i < count; ++i )
-            {
-                const char * name;
-                rc = KNamelistGet ( names, i, & name );
-                if (rc)
-                {
-                    KNamelistRelease ( names );
-                    throw Error(rc, __FILE__, __LINE__);
-                }
-                ret.push_back( name );
-            }
-            KNamelistRelease ( names );
-            return ret;
+            return NameList(o, listfn);
         }
 
 
@@ -569,6 +717,13 @@ namespace VDB {
             if (rc != 0)
                 throw Error(rc, __FILE__, __LINE__);
             return Schema(const_cast<VSchema *>(schema));
+        }
+
+        MetadataCollection metadata() const {
+            KMetadata const *meta = nullptr;
+            auto const rc = VDatabaseOpenMetadataRead(o, &meta);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return MetadataCollection{ const_cast< KMetadata * >(meta) };
         }
     };
 
@@ -635,6 +790,7 @@ namespace VDB {
             ptPrereleaseTable,
             ptInvalid
         } PathType;
+        
         PathType pathType( const std::string & path ) const
         {
             switch ( VDBManagerPathType( o, "%s", path.c_str() ) & ~ kptAlias )

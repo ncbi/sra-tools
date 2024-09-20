@@ -264,7 +264,7 @@ int run ( int argc, char const *argv[] )
         int n = 0;
         bool local_only = false;
 
-        unsigned int i = 1;
+        int i = 1;
         while ( i < argc )
         {
             const String arg = argv [ i ];

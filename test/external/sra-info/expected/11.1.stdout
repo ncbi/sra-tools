@@ -1,0 +1,134 @@
+SRR341576:database
+    3 tables
+    27 columns with checksums
+    0 columns without checksums
+    1 index
+    has metadata
+    has MD5 file
+    is locked
+    has tables
+    PRIMARY_ALIGNMENT:table, directory
+        has metadata
+        has MD5 file
+        has columns
+        GLOBAL_REF_START:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        HAS_MISMATCH:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        HAS_REF_OFFSET:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        MAPQ:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        MISMATCH:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        REF_LEN:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        REF_OFFSET:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        REF_ORIENTATION:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        SEQ_READ_ID:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        SEQ_SPOT_ID:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+    REFERENCE:table, directory
+        has metadata
+        has MD5 file
+        has columns
+        has indices
+        CGRAPH_HIGH:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CGRAPH_INDELS:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CGRAPH_LOW:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CGRAPH_MISMATCHES:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CIRCULAR:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CS_KEY:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        PRIMARY_ALIGNMENT_IDS:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        SEQ_ID:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        SEQ_LEN:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        SEQ_START:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        i_name:index, file
+            has MD5 checksum
+            is on text
+    SEQUENCE:table, directory
+        has metadata
+        has MD5 file
+        has columns
+        ALIGNMENT_COUNT:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CMP_ALTREAD:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        CMP_READ:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        PRIMARY_ALIGNMENT_ID:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        QUALITY:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        RD_FILTER:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+        READ_TYPE:column, directory
+            has metadata
+            has MD5 file
+            has CRC checksum
+

@@ -535,11 +535,10 @@ rm -r tmp                                                            || exit 530
 
 
 echo lots_wgs:
-echo  Verifying ${prefetch} of run with with a lot of WGS references...
+echo  Verifying ${prefetch} of run with a lot of WGS references to user repo...
 rm -fr tmp                                                           || exit 535
 mkdir  tmp                                                           || exit 536
 
-#pwd
 echo '/repository/site/disabled = "true"'                    > tmp/k || exit 539
 echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' \
                                                             >> tmp/k || exit 541
@@ -549,25 +548,59 @@ echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k \
                                                                      || exit 545
 printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k \
                                                                      || exit 547
-#cat tmp/k
+echo cd tmp
+cd tmp                                                               || exit 553
 
-echo '      ... prefetching...'
+echo '      ...prefetching...'
 COMMAND\
-="cd tmp&&NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
+="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357 > /dev/null \
+NCBI_SETTINGS=/   VDB_CONFIG=k $PREFETCH ERR3091357 > /dev/null \
                                                                      || exit 554
 
-echo '      ... align-infoing...'
+echo '      ...align-infoing...'
 COMMAND\
-="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357|grep -qv 'false,remote::http'"
+="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357|grep 'false,remote::http'"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
 NCBI_SETTINGS=/ VDB_CONFIG=k   ${bin_dir}/align-info ERR3091357 \
-	                                 | grep -qv 'false,remote::http' || exit 561
+	                                     | grep 'false,remote::http' && exit 561
 ls ERR3091357/ERR3091357.sralite wgs/JTFH01 refseq/KN707955.1 \
                                                          > /dev/null || exit 563
+echo cd $work_dir
 cd ${work_dir}                                                       || exit 564
 rm -r tmp                                                            || exit 565
+
+echo  Verifying ${prefetch} of a run with with a lot of WGS references to AD...
+rm -fr tmp                                                           || exit 566
+mkdir  tmp                                                           || exit 567
+
+echo '/repository/site/disabled = "true"'                    > tmp/k || exit 581
+echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' \
+                                                            >> tmp/k || exit 583
+echo cd tmp
+cd tmp                                                               || exit 585
+
+echo '      ...prefetching...'
+COMMAND="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
+if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
+NCBI_SETTINGS=/          VDB_CONFIG=k $PREFETCH ERR3091357 >/dev/null|| exit 590
+
+echo '      ...align-infoing...'
+COMMAND\
+="NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357 | grep http"
+if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
+NCBI_SETTINGS=/   VDB_CONFIG=k ${bin_dir}/align-info ERR3091357 | grep http\
+                                                                     && exit 597
+ls ERR3091357/ERR3091357.sralite ERR3091357/JTFH01 ERR3091357/KN707955.1 \
+                                                         > /dev/null || exit 601
+echo cd $work_dir
+cd ${work_dir}                                                       || exit 603
+COMMAND\
+="NCBI_SETTINGS=/ VDB_CONFIG=tmp/k $bin_dir/align-info tmp/ERR3091357|grep http"
+if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
+NCBI_SETTINGS=/   VDB_CONFIG=tmp/k $bin_dir/align-info tmp/ERR3091357|grep http\
+                                                                     && exit 9
+rm -r tmp                                                            || exit 569
 
 
 echo resume:

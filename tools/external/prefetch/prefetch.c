@@ -3072,10 +3072,19 @@ static
 rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
 {
     static int n = 0;
+    static rc_t dbgRc = 0xffffffff;
 
     rc_t rc = 0;
-
+    char * itemName = NULL;
     assert(self);
+    itemName = ItemName(self);
+
+    if (dbgRc == 0xffffffff) {
+        if (getenv("VDB5693") != NULL)
+            dbgRc = SILENT_RC(rcVFS, rcQuery, rcResolving, rcName, rcNotFound);
+        else
+            dbgRc = 0;
+    }
 
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
@@ -3088,24 +3097,25 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
     }
 
     self->number = n;
-    {
-        char * name = ItemName(self);
-        STSMSG(STS_TOP, ("%d) Resolving '%s'...", self->number, name));
-        free(name);
-    }
+    STSMSG(STS_TOP, ("%d) Resolving '%s'...", self->number, itemName));
 
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entering ItemResolve...", __func__));
 #endif
     rc = ItemResolve(self, row);
+    if (dbgRc != 0)
+        rc = dbgRc;
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: ...ItemResolve done with %R", __func__, rc));
 #endif
     if (rc != 0) {
         STSMSG(STS_TOP,
-            ("%d) Failed to resolve '%s'...", self->number, self->desc));
+            ("%d) Failed to resolve '%s'...", self->number, itemName));
+        free(itemName);
         return rc;
     }
+    free(itemName);
+    itemName = NULL;
 
     if (self->resolved.type == eRunTypeList)
         return ItemPrintSized(self, row, self->resolved.remoteSz);

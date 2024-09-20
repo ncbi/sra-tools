@@ -26,8 +26,12 @@
 
 #include "sra-info.hpp"
 
+#include <kdb/manager.h>
+#include <kdb/kdb-priv.h>
+
 #include <algorithm>
 #include <map>
+#include <stdexcept>
 
 using namespace std;
 
@@ -43,47 +47,54 @@ void
 SraInfo::SetAccession( const std::string& p_accession )
 {
     m_accession = p_accession;
+    contents = getContents();
+    switch (contents->dbtype) {
+    case kptDatabase:
+    case kptTable:
+        break;
+    case kptPrereleaseTbl:
+        throw VDB::Error( (m_accession + ": obsolete file type").c_str(), __FILE__, __LINE__);
+    default:
+        throw VDB::Error( (m_accession + ": unsupported file type").c_str(), __FILE__, __LINE__);
+    }
+}
+
+bool SraInfo::isDatabase() const {
+    return contents && contents->dbtype == kptDatabase;
+}
+
+bool SraInfo::isTable() const {
+    return contents && contents->dbtype == kptTable;
+}
+
+bool SraInfo::hasTable(std::string const &name) const {
+    if (!isDatabase()) return false;
+
+    for (auto i = contents->firstChild; i != nullptr; i = i->nextSibling) {
+        if (i->dbtype == kptTable && name == i->name)
+            return true;
+    }
+    return false;
 }
 
 VDB::Table
-SraInfo::openSequenceTable( const string & accession ) const
+SraInfo::openSequenceTable(bool useConsensus) const
 {
-    switch ( m_mgr.pathType( accession ) )
-    {
-        case VDB::Manager::ptDatabase :
-            return m_mgr.openDatabase(accession)["SEQUENCE"];
+    if (useConsensus && hasTable("CONSENSUS"))
+        return m_mgr.openDatabase(m_accession)["CONSENSUS"];
 
-        case VDB::Manager::ptTable :
-            return m_mgr.openTable(accession);
+    if (isDatabase())
+        return m_mgr.openDatabase(m_accession)["SEQUENCE"];
 
-        case VDB::Manager::ptPrereleaseTable :
-            throw VDB::Error( (accession + ": VDB::Manager::pathType(): unsupported path type").c_str(), __FILE__, __LINE__);
-
-        default :
-            throw VDB::Error( (accession + ": VDB::Manager::pathType(): returned invalid data").c_str(), __FILE__, __LINE__);
-    }
+    return m_mgr.openTable(m_accession);
 }
 
-VDB::Schema SraInfo::openSchema( const string & accession) const
+VDB::Schema SraInfo::openSchema() const
 {
-    switch ( m_mgr.pathType( accession ) )
-    {
-    case VDB::Manager::ptDatabase :
-        return m_mgr.openDatabase(accession).openSchema();
-
-    case VDB::Manager::ptTable :
-        return m_mgr.openTable(accession).openSchema();
-
-    case VDB::Manager::ptPrereleaseTable :
-        throw VDB::Error( (accession
-            + ": VDB::Manager::pathType(): unsupported path type").c_str(),
-            __FILE__, __LINE__);
-
-    default :
-        throw VDB::Error( (accession
-            + ": VDB::Manager::pathType(): returned invalid data").c_str(),
-            __FILE__, __LINE__);
-    }
+    if (isDatabase())
+        return m_mgr.openDatabase(m_accession).openSchema();
+    else
+        return m_mgr.openTable(m_accession).openSchema();
 }
 
 static
@@ -104,7 +115,7 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table table = openSequenceTable();
     try
     {
         VDB::Cursor cursor = table.read( { "PLATFORM" } );
@@ -124,16 +135,12 @@ SraInfo::GetPlatforms() const
     }
     catch(const VDB::Error & e)
     {
-        rc_t rc = e.getRc();
-        if ( rc != 0 )
-        {   // if the column is not found, return UNDEFINED
-            if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
-            {
-                ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
-                return ret;
-            }
-        }
-        throw;
+        auto const rc = e.getRc();
+        // if the column is not found, it is not an error
+        if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
+            ;
+        else
+            throw; // unlikely
     }
 
     if ( ret.size() == 0 )
@@ -254,25 +261,7 @@ SraInfo::GetSpotLayouts(
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
-    VDB::Table table;
-    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
-    {
-        const char * CONSENSUS_TABLE = "CONSENSUS";
-        VDB::Database db = m_mgr.openDatabase( m_accession );
-        if ( db.hasTable( CONSENSUS_TABLE ) )
-        {
-            table = m_mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
-        }
-        else
-        {
-            table = m_mgr.openDatabase( m_accession )["SEQUENCE"];
-        }
-    }
-    else
-    {
-        table = openSequenceTable( m_accession );
-    }
-
+    auto const table = openSequenceTable(useConsensus);
     VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
     {
@@ -363,45 +352,90 @@ SraInfo::GetSpotLayouts(
 
 bool
 SraInfo::IsAligned() const
-{
-    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
-    {   // aligned if there is a non-empty alignment table
-        VDB::Database db = m_mgr.openDatabase(m_accession);
-        const string PrimaryAlignmentTable = "PRIMARY_ALIGNMENT";
-        if (db.hasTable(PrimaryAlignmentTable))
-        {
-            VDB::Table alignment = db[PrimaryAlignmentTable];
-            VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
-            return cursor.rowRange().first > 0;
-        }
-    }
-    return false;
+{ // is a database and has a primary alignment table with at least one row.
+    auto const PrimaryAlignmentTable = std::string{"PRIMARY_ALIGNMENT"};
+    return isDatabase() && hasTable(PrimaryAlignmentTable) 
+        && m_mgr.openDatabase(m_accession)[PrimaryAlignmentTable]
+            .read({"ALIGNMENT_COUNT"})
+            .rowRange().first > 0;
 }
 
 bool
 SraInfo::HasPhysicalQualities() const
-{   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
-    VDB::Table table = openSequenceTable( m_accession );
-    const string QualityColumn = "QUALITY";
-    VDB::Table::ColumnNames readable = table.readableColumns();
-    if ( find( readable.begin(), readable.end(), QualityColumn ) != readable.end() )
-    {
-        const string OriginalQualityColumn = "ORIGINAL_QUALITY";
-        VDB::Table::ColumnNames physical = table.physicalColumns();
-        if ( find( physical.begin(), physical.end(), OriginalQualityColumn ) != physical.end() )
-        {
-            return true;
+{
+    KDBContents const *seqTblNode = contents.get();
+    if (isDatabase()) {
+        seqTblNode = nullptr;
+        for (auto i = contents->firstChild; i; i = i->nextSibling) {
+            if (i->dbtype == kptTable && strcmp(i->name, "SEQUENCE") == 0) {
+                seqTblNode = i;
+                break;
+            }
         }
-        if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
-        {
+        if (seqTblNode == nullptr)
+            return false;
+    }
+    for (auto i = seqTblNode->firstChild; i; i = i->nextSibling) {
+        if (i->dbtype != kptColumn) continue;
+        if (strcmp(i->name, "ORIGINAL_QUALITY") == 0 || strcmp(i->name, "QUALITY") == 0)
             return true;
-        }
     }
     return false;
 }
 
 const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
-    VDB::Schema schema(openSchema(m_accession));
-    VDB::SchemaInfo info(schema.GetInfo());
-    return info;
+    return openSchema().GetInfo();
+}
+
+SraInfo::Contents const &
+SraInfo::GetContents() const 
+{
+    return contents;
+}
+
+SraInfo::Contents
+SraInfo::getContents() const
+{
+    const KDBManager * kdb;
+    rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
+    if ( rc != 0 )
+    {
+        throw VDB::Error( "KDBManagerMakeRead() failed", __FILE__, __LINE__);
+    }
+
+    const KDBContents * ret;
+    rc = KDBManagerPathContents( kdb, & ret, m_accession.c_str() );
+    KDBManagerRelease( kdb );
+    if ( rc != 0 )
+    {
+        KDBContentsWhack( ret );
+        throw VDB::Error( (m_accession + ": not a valid VDB object").c_str(), __FILE__, __LINE__);
+    }
+    return Contents(const_cast<KDBContents *>( ret ), []( KDBContents *c ) { KDBContentsWhack( c ); }  );
+}
+
+VDB::MetadataCollection SraInfo::topLevelMetadataCollection() const
+{
+    if (isDatabase())
+        return m_mgr.openDatabase(m_accession).metadata();
+    else
+        return m_mgr.openTable(m_accession).metadata();
+}
+
+static bool isLiteMetadata(VDB::MetadataCollection const &meta) {
+    try {
+        return meta.childNode("SOFTWARE/delite").attributeValue("name") == "delite";
+    }
+    catch (VDB::Error const &rc) { ((void)(rc)); }
+    return false;
+}
+
+bool SraInfo::HasLiteMetadata() const {
+    return isLiteMetadata(topLevelMetadataCollection());
+}
+
+char const *SraInfo::QualityDescription() const {
+    return HasPhysicalQualities() ? "STORED"
+         : HasLiteMetadata() ? "REMOVED"
+         : "NONE";
 }

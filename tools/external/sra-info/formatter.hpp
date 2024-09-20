@@ -53,10 +53,18 @@ public:
     std::string format( const std::string &, const std::string & = "") const;
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
     std::string format( const VDB::SchemaInfo & ) const;
+    std::string format( const KDBContents &, SraInfo::Detail ) const;
 
 private:
     std::string formatJsonSeparator( void ) const;
     void expectSingleQuery( const std::string & error ) const;
+
+    std::string FormatContentNodeDefault( const std::string & ident, const KDBContents & cont, SraInfo::Detail, bool root ) const;
+    std::string FormatContentNodeJson( const std::string & ident, const KDBContents & cont, SraInfo::Detail, bool root ) const;
+    std::string FormatContentRootDefault( const std::string & p_indent, const KDBContents & cont ) const;
+    std::string FormatContentRootJson( const std::string & indent, const KDBContents & cont ) const;
+
+    void CountContents( const KDBContents & cont, unsigned int& tables, unsigned int& withChecksums, unsigned int& withoutChecksums, unsigned int& indices ) const;
 
     Format fmt;
     uint32_t limit;

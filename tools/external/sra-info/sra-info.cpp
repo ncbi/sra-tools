@@ -41,60 +41,95 @@ using namespace std;
 
 SraInfo::SraInfo()
 {
+    m_type = VDB::Manager::ptInvalid;
+    m_u.db = nullptr;
+}
+
+void SraInfo::releaseDataObject() {
+    switch (m_type) {
+    case VDB::Manager::ptDatabase:
+        delete m_u.db;
+        break;
+    case VDB::Manager::ptTable:
+    case VDB::Manager::ptPrereleaseTable:
+        delete m_u.tbl;
+        break;
+    default:
+        assert(m_u.db == nullptr);
+        break;
+    }
+    m_type = VDB::Manager::ptInvalid;
+    m_u.db = nullptr;
+}
+
+SraInfo::~SraInfo() {
+    releaseDataObject();
 }
 
 void
 SraInfo::SetAccession( const std::string& p_accession )
 {
+    releaseDataObject();
     m_accession = p_accession;
-    contents = getContents();
-    switch (contents->dbtype) {
-    case kptDatabase:
-    case kptTable:
+    m_type = m_mgr.pathType(m_accession);
+    if (m_type == VDB::Manager::ptTable) {
+        m_u.tbl = new VDB::Table { m_mgr.openTable(m_accession) };
+        try {
+            m_schemaType = m_u.tbl->metadata().childNode("schema").attributeValue("name");
+        }
+        catch (...) {
+            m_type = VDB::Manager::ptPrereleaseTable;
+            delete m_u.tbl;
+            m_u.tbl = nullptr;
+        }
+    }
+    switch (m_type) {
+    case VDB::Manager::ptDatabase:
+        assert(m_u.db == nullptr);
+        m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
         break;
-    case kptPrereleaseTbl:
-        throw VDB::Error( (m_accession + ": obsolete file type").c_str(), __FILE__, __LINE__);
+    case VDB::Manager::ptTable:
+        assert(m_u.tbl != nullptr);
+        break;
+    case VDB::Manager::ptPrereleaseTable :
+        throw VDB::Error( (m_accession + ": obsolete data type").c_str(), __FILE__, __LINE__);
     default:
-        throw VDB::Error( (m_accession + ": unsupported file type").c_str(), __FILE__, __LINE__);
+        throw VDB::Error( (m_accession + ": unknown data type").c_str(), __FILE__, __LINE__);
     }
 }
 
 bool SraInfo::isDatabase() const {
-    return contents && contents->dbtype == kptDatabase;
+    return m_type == VDB::Manager::ptDatabase;
 }
 
 bool SraInfo::isTable() const {
-    return contents && contents->dbtype == kptTable;
+    return m_type == VDB::Manager::ptTable;
 }
 
 bool SraInfo::hasTable(std::string const &name) const {
     if (!isDatabase()) return false;
 
-    for (auto i = contents->firstChild; i != nullptr; i = i->nextSibling) {
-        if (i->dbtype == kptTable && name == i->name)
-            return true;
-    }
-    return false;
+    return m_u.db->hasTable(name);
 }
 
 VDB::Table
 SraInfo::openSequenceTable(bool useConsensus) const
 {
-    if (useConsensus && hasTable("CONSENSUS"))
-        return m_mgr.openDatabase(m_accession)["CONSENSUS"];
-
-    if (isDatabase())
-        return m_mgr.openDatabase(m_accession)["SEQUENCE"];
-
-    return m_mgr.openTable(m_accession);
+    if (isDatabase()) {
+        auto const &db = *m_u.db;
+        return (useConsensus && db.hasTable("CONSENSUS"))
+            ? db["CONSENSUS"]
+            : db["SEQUENCE"];
+    }
+    return *m_u.tbl;
 }
 
 VDB::Schema SraInfo::openSchema() const
 {
     if (isDatabase())
-        return m_mgr.openDatabase(m_accession).openSchema();
+        return m_u.db->openSchema();
     else
-        return m_mgr.openTable(m_accession).openSchema();
+        return m_u.tbl->openSchema();
 }
 
 static
@@ -261,7 +296,7 @@ SraInfo::GetSpotLayouts(
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
-    auto const table = openSequenceTable(useConsensus);
+    auto const &table = openSequenceTable(useConsensus);
     VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
     {
@@ -354,31 +389,30 @@ bool
 SraInfo::IsAligned() const
 { // is a database and has a primary alignment table with at least one row.
     auto const PrimaryAlignmentTable = std::string{"PRIMARY_ALIGNMENT"};
-    return isDatabase() && hasTable(PrimaryAlignmentTable) 
-        && m_mgr.openDatabase(m_accession)[PrimaryAlignmentTable]
+    return isDatabase() && m_u.db->hasTable(PrimaryAlignmentTable)
+        && (*m_u.db)[PrimaryAlignmentTable]
             .read({"ALIGNMENT_COUNT"})
             .rowRange().first > 0;
 }
 
 bool
 SraInfo::HasPhysicalQualities() const
-{
-    KDBContents const *seqTblNode = contents.get();
-    if (isDatabase()) {
-        seqTblNode = nullptr;
-        for (auto i = contents->firstChild; i; i = i->nextSibling) {
-            if (i->dbtype == kptTable && strcmp(i->name, "SEQUENCE") == 0) {
-                seqTblNode = i;
-                break;
-            }
-        }
-        if (seqTblNode == nullptr)
-            return false;
-    }
-    for (auto i = seqTblNode->firstChild; i; i = i->nextSibling) {
-        if (i->dbtype != kptColumn) continue;
-        if (strcmp(i->name, "ORIGINAL_QUALITY") == 0 || strcmp(i->name, "QUALITY") == 0)
+{   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
+    VDB::Table const &table = openSequenceTable();
+    const string QualityColumn = "QUALITY";
+    VDB::Table::ColumnNames readable = table.readableColumns();
+    if ( find( readable.begin(), readable.end(), QualityColumn ) != readable.end() )
+    {
+        const string OriginalQualityColumn = "ORIGINAL_QUALITY";
+        VDB::Table::ColumnNames physical = table.physicalColumns();
+        if ( find( physical.begin(), physical.end(), OriginalQualityColumn ) != physical.end() )
+        {
             return true;
+        }
+        if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -387,14 +421,8 @@ const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
     return openSchema().GetInfo();
 }
 
-SraInfo::Contents const &
-SraInfo::GetContents() const 
-{
-    return contents;
-}
-
 SraInfo::Contents
-SraInfo::getContents() const
+SraInfo::GetContents() const 
 {
     const KDBManager * kdb;
     rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
@@ -417,9 +445,9 @@ SraInfo::getContents() const
 VDB::MetadataCollection SraInfo::topLevelMetadataCollection() const
 {
     if (isDatabase())
-        return m_mgr.openDatabase(m_accession).metadata();
+        return m_u.db->metadata();
     else
-        return m_mgr.openTable(m_accession).metadata();
+        return m_u.tbl->metadata();
 }
 
 static bool isLiteMetadata(VDB::MetadataCollection const &meta) {

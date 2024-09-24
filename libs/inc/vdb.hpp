@@ -679,8 +679,6 @@ namespace VDB {
         {
             return NameList(o, listfn);
         }
-
-
     };
 
     class Database {
@@ -694,10 +692,10 @@ namespace VDB {
 
         Table operator [](std::string const &name) const
         {
-            VTable *p = 0;
-            auto const rc = VDatabaseOpenTableRead(o, (VTable const **)&p, "%s", name.c_str());
+            VTable const *p = 0;
+            auto const rc = VDatabaseOpenTableRead(o, &p, "%s", name.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table(p);
+            return Table { const_cast<VTable *>(p) };
         }
 
         bool hasTable( const std::string & table ) const

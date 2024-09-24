@@ -212,7 +212,7 @@ GetNonNegativeNumber( Args * args, const char * option )
     }
 }
 
-typedef class {
+typedef class Query {
     bool aligned;
     bool platforms;
     bool quality;

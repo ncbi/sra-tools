@@ -766,17 +766,17 @@ namespace VDB {
 
         Database openDatabase(std::string const &path) const
         {
-            VDatabase *p = 0;
-            auto const rc = VDBManagerOpenDBRead(o, (VDatabase const **)&p, 0, "%s", path.c_str());
+            VDatabase const *p = 0;
+            auto const rc = VDBManagerOpenDBRead(o, &p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Database{ p };
+            return Database{ const_cast<VDatabase *>(p) };
         }
         Table openTable(std::string const &path) const
         {
-            VTable *p = 0;
-            auto const rc = VDBManagerOpenTableRead(o, (VTable const **)&p, 0, "%s", path.c_str());
+            VTable const *p = 0;
+            auto const rc = VDBManagerOpenTableRead(o, &p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table{ p };
+            return Table{ const_cast<VTable *>(p) };
         }
 
         typedef enum {

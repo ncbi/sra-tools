@@ -362,8 +362,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( q.needQuality() )
                 {
                     Output( formatter.format(
-                        info.HasPhysicalQualities()
-                            ? "STORED" : "GENERATED",
+                        info.QualityDescription(),
                         "QUALITY" ) );
                 }
 

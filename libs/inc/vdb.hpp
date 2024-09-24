@@ -40,6 +40,8 @@
 #include <klib/vector.h> /* VectorForEach */
 
 #include <kdb/manager.h>
+#include <kdb/meta.h>
+#include <kdb/namelist.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
 #include <vdb/manager.h>
@@ -672,33 +674,7 @@ namespace VDB {
     private:
         ColumnNames listColumns(  rc_t CC listfn ( struct VTable const *self, struct KNamelist **names ) ) const
         {
-            KNamelist *names;
-            rc_t rc = listfn ( o, & names );
-            if (rc)
-            {
-                throw Error(rc, __FILE__, __LINE__);
-            }
-            uint32_t count;
-            rc = KNamelistCount ( names, &count );
-            if (rc)
-            {
-                KNamelistRelease ( names );
-                throw Error(rc, __FILE__, __LINE__);
-            }
-            ColumnNames ret;
-            for ( uint32_t i = 0; i < count; ++i )
-            {
-                const char * name;
-                rc = KNamelistGet ( names, i, & name );
-                if (rc)
-                {
-                    KNamelistRelease ( names );
-                    throw Error(rc, __FILE__, __LINE__);
-                }
-                ret.push_back( name );
-            }
-            KNamelistRelease ( names );
-            return ret;
+            return NameList{ o, listfn };
         }
     };
 

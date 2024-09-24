@@ -112,7 +112,7 @@ bool SraInfo::hasTable(std::string const &name) const {
 }
 
 VDB::Table
-SraInfo::openSequenceTable( const string & accession ) const
+SraInfo::openSequenceTable(bool useConsensus) const
 {
     if (isDatabase()) {
         auto const &db = *m_u.db;
@@ -123,7 +123,7 @@ SraInfo::openSequenceTable( const string & accession ) const
     return *m_u.tbl;
 }
 
-VDB::Schema SraInfo::openSchema( const string & accession) const
+VDB::Schema SraInfo::openSchema() const
 {
     if (isDatabase())
         return m_u.db->openSchema();
@@ -149,7 +149,7 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table table = openSequenceTable();
     try
     {
         VDB::Cursor cursor = table.read( { "PLATFORM" } );
@@ -415,7 +415,6 @@ SraInfo::HasPhysicalQualities() const
         if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
         {
             return true;
-        }
         }
     }
     return false;

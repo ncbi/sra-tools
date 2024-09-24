@@ -237,13 +237,13 @@ namespace VDB {
 
         void parseText(size_t const length, char const text[], char const *const name = 0)
         {
-            rc_t const rc = VSchemaParseText(o, name, text, length);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            auto const rc = VSchemaParseText(o, name, text, length);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
         }
         void addIncludePath(char const *const path)
         {
             auto const rc = VSchemaAddIncludePath(o, "%s", path);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
         }
         Schema(VSchema *const o_) : o(o_) {}
     public:
@@ -269,8 +269,8 @@ namespace VDB {
 
         friend std::ostream &operator <<(std::ostream &strm, Schema const &s)
         {
-            rc_t const rc = VSchemaDump(s.o, sdmPrint, 0, dumpToStream, (void *)&strm);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            auto const rc = VSchemaDump(s.o, sdmPrint, 0, dumpToStream, (void *)&strm);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return strm;
         }
     };
@@ -325,8 +325,8 @@ namespace VDB {
         bool isStaticColumn( unsigned int col_idx ) const /* 0-based index in the column array used to construct this object */
         {
             bool ret;
-            rc_t rc = VCursorIsStaticColumn ( o, cid[col_idx], & ret );
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            auto const rc = VCursorIsStaticColumn ( o, cid[col_idx], & ret );
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return ret;
         }
 
@@ -334,8 +334,8 @@ namespace VDB {
         {
             uint64_t count = 0;
             int64_t first = 0;
-            rc_t rc = VCursorIdRange(o, 0, &first, &count);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            auto const rc = VCursorIdRange(o, 0, &first, &count);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return std::make_pair(first, first + count);
         }
         RawData read(RowID row, unsigned int col_idx) const {
@@ -344,8 +344,8 @@ namespace VDB {
             uint32_t count = 0;
             uint32_t boff = 0;
             uint32_t elem_bits = 0;
-            rc_t rc = VCursorCellDataDirect(o, row, cid[col_idx], &elem_bits, &base, &boff, &count);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            auto const rc = VCursorCellDataDirect(o, row, cid[col_idx], &elem_bits, &base, &boff, &count);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
 
             out.data = base;
             out.elem_bits = elem_bits;
@@ -416,18 +416,18 @@ namespace VDB {
         template <typename P, typename FUNC>
         NameList(P p, FUNC && func) : o(nullptr) {
             auto const rc = func(p, &o);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
         }
         unsigned count() const {
             uint32_t result = 0;
             auto const rc = KNamelistCount(o, &result);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return result;
         }
         std::string operator [](unsigned index) const {
             char const *result = nullptr;
             auto const rc = KNamelistGet(o, index, &result);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return std::string{ result };
         }
         bool contains(char const *value) const {
@@ -455,10 +455,13 @@ namespace VDB {
     public:
         ~Metadata() { KMDataNodeRelease(o); }
         Metadata(Metadata const &other) : o(other.o) { KMDataNodeAddRef(o); }
-        Metadata &operator =(Metadata const &other) {
-            KMDataNodeAddRef(other.o);
-            KMDataNodeRelease(o);
-            o = other.o;
+        Metadata &operator =(Metadata const &other)
+        {
+            if (o != other.o) {
+                KMDataNodeAddRef(other.o);
+                KMDataNodeRelease(o);
+                o = other.o;
+            }
             return *this;
         }
 
@@ -466,7 +469,7 @@ namespace VDB {
         Metadata childNode(char const *name) const {
             KMDataNode const *child = nullptr;
             auto const rc = KMDataNodeOpenNodeRead(o, &child, "%s", name);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return Metadata{ const_cast<KMDataNode *>(child) };
         }
 
@@ -474,7 +477,7 @@ namespace VDB {
         Metadata childNode(std::string const &name) const {
             KMDataNode const *child = nullptr;
             auto const rc = KMDataNodeOpenNodeRead(o, &child, "%.*s", (int)name.size(), name.data());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return Metadata{ const_cast<KMDataNode *>(child) };
         }
 
@@ -494,7 +497,7 @@ namespace VDB {
                 size_t actual = 0;
                 size_t remain = 0;
                 auto const rc = KMDataNodeRead(o, 0, &result[0], result.size(), &actual, &remain);
-                if (rc) throw Error(rc, __FILE__, __LINE__);
+                if (rc) throw Error{ rc, __FILE__, __LINE__ };
                 result.resize(actual + remain, '\0');
                 if (remain == 0)
                     return result;
@@ -508,19 +511,19 @@ namespace VDB {
 
             auto result = std::string(size + 1, '\0');
             auto const rc = KMDataNodeReadAttr(o, attributeName.c_str(), &result[0], result.size(), &size);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             result.resize(size);
             return result;
         }
 
         /// @brief Get list of child nodes.
         NameList children() const {
-            return NameList(o, KMDataNodeListChildren);
+            return NameList{ o, KMDataNodeListChildren };
         }
 
         /// @brief Get list of attributes.
         NameList attributes() const {
-            return NameList(o, KMDataNodeListAttr);
+            return NameList{ o, KMDataNodeListAttr };
         }
     };
 
@@ -588,10 +591,10 @@ namespace VDB {
 
         Cursor read(unsigned const N, char const *const fields[]) const
         {
-            unsigned n = 0;
             VCursor const *curs = 0;
             auto rc = VTableCreateCursorRead(o, &curs);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) 
+                throw Error{ rc, __FILE__, __LINE__ };
 
             std::vector<unsigned int> columns;
             for (unsigned i = 0; i < N; ++i) {
@@ -601,30 +604,25 @@ namespace VDB {
                 if (rc)
                 {
                     VCursorRelease( curs );
-                    throw Error(rc, __FILE__, __LINE__);
+                    throw Error{ rc, __FILE__, __LINE__ };
                 }
                 columns.push_back( cid );
-                ++n;
             }
             rc = VCursorOpen(curs);
             if (rc)
             {
                 VCursorRelease( curs );
-                throw Error(rc, __FILE__, __LINE__);
+                throw Error{ rc, __FILE__, __LINE__ };
             }
-            return Cursor(const_cast<VCursor *>(curs), columns);
+            return Cursor{ const_cast<VCursor *>(curs), columns };
         }
 
         Cursor read(std::initializer_list<char const *> const &fields) const
         {
-            unsigned n = 0;
             VCursor const *curs = 0;
             auto rc = VTableCreateCursorRead(o, &curs);
             if (rc)
-            {
-                VCursorRelease( curs );
-                throw Error(rc, __FILE__, __LINE__);
-            }
+                throw Error{ rc, __FILE__, __LINE__ };
 
             std::vector<unsigned int> columns;
             for (auto && field : fields) {
@@ -634,18 +632,17 @@ namespace VDB {
                 if (rc)
                 {
                     VCursorRelease( curs );
-                    throw Error(rc, __FILE__, __LINE__);
+                    throw Error{ rc, __FILE__, __LINE__ };
                 }
                 columns.push_back( cid );
-                ++n;
             }
             rc = VCursorOpen(curs);
             if (rc)
             {
                 VCursorRelease( curs );
-                throw Error(rc, __FILE__, __LINE__);
+                throw Error{ rc, __FILE__, __LINE__ };
             }
-            return Cursor(const_cast<VCursor *>(curs), columns);
+            return Cursor{ const_cast<VCursor *>(curs), columns };
         }
 
         Schema openSchema( void ) const
@@ -653,7 +650,7 @@ namespace VDB {
             const VSchema *schema = NULL;
             rc_t rc = VTableOpenSchema( o, &schema );
             if (rc != 0)
-                throw Error(rc, __FILE__, __LINE__);
+                throw Error{ rc, __FILE__, __LINE__ };
             return Schema(const_cast<VSchema *>(schema));
         }
 
@@ -670,7 +667,7 @@ namespace VDB {
         MetadataCollection metadata() const {
             KMetadata const *meta = nullptr;
             auto const rc = VTableOpenMetadataRead(o, &meta);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return MetadataCollection{ const_cast< KMetadata * >(meta) };
         }
 
@@ -694,7 +691,7 @@ namespace VDB {
         {
             VTable const *p = 0;
             auto const rc = VDatabaseOpenTableRead(o, &p, "%s", name.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return Table { const_cast<VTable *>(p) };
         }
 
@@ -702,7 +699,7 @@ namespace VDB {
         {
             KNamelist *names;
             rc_t rc = VDatabaseListTbl ( o, & names );
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             bool ret = KNamelistContains( names, table.c_str() );
             KNamelistRelease( names );
             return ret;
@@ -713,15 +710,15 @@ namespace VDB {
             const VSchema *schema = NULL;
             rc_t rc = VDatabaseOpenSchema( o, &schema );
             if (rc != 0)
-                throw Error(rc, __FILE__, __LINE__);
-            return Schema(const_cast<VSchema *>(schema));
+                throw Error{ rc, __FILE__, __LINE__ };
+            return Schema { const_cast<VSchema *>(schema) };
         }
 
         MetadataCollection metadata() const {
             KMetadata const *meta = nullptr;
             auto const rc = VDatabaseOpenMetadataRead(o, &meta);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return MetadataCollection{ const_cast< KMetadata * >(meta) };
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
+            return MetadataCollection { const_cast< KMetadata * >(meta) };
         }
     };
 
@@ -731,7 +728,7 @@ namespace VDB {
         static VDBManager const *makeManager() {
             VDBManager const *o;
             auto const rc = VDBManagerMakeRead(&o, 0);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return o;
         }
     public:
@@ -743,9 +740,9 @@ namespace VDB {
         {
             VSchema *p = 0;
             auto const rc = VDBManagerMakeSchema(o, &p);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
 
-            Schema rslt(p);
+            auto rslt = Schema{ p };
             if (includePath)
                 rslt.addIncludePath(includePath);
             rslt.parseText(size, text);
@@ -772,14 +769,14 @@ namespace VDB {
             VDatabase *p = 0;
             auto const rc = VDBManagerOpenDBRead(o, (VDatabase const **)&p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Database(p);
+            return Database{ p };
         }
         Table openTable(std::string const &path) const
         {
             VTable *p = 0;
             auto const rc = VDBManagerOpenTableRead(o, (VTable const **)&p, 0, "%s", path.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table(p);
+            return Table{ p };
         }
 
         typedef enum {

@@ -31,7 +31,6 @@
 
 #include <algorithm>
 #include <map>
-#include <stdexcept>
 
 using namespace std;
 
@@ -113,7 +112,7 @@ bool SraInfo::hasTable(std::string const &name) const {
 }
 
 VDB::Table
-SraInfo::openSequenceTable(bool useConsensus) const
+SraInfo::openSequenceTable( const string & accession ) const
 {
     if (isDatabase()) {
         auto const &db = *m_u.db;
@@ -124,7 +123,7 @@ SraInfo::openSequenceTable(bool useConsensus) const
     return *m_u.tbl;
 }
 
-VDB::Schema SraInfo::openSchema() const
+VDB::Schema SraInfo::openSchema( const string & accession) const
 {
     if (isDatabase())
         return m_u.db->openSchema();
@@ -150,7 +149,7 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    VDB::Table table = openSequenceTable();
+    VDB::Table table = openSequenceTable( m_accession );
     try
     {
         VDB::Cursor cursor = table.read( { "PLATFORM" } );
@@ -170,12 +169,16 @@ SraInfo::GetPlatforms() const
     }
     catch(const VDB::Error & e)
     {
-        auto const rc = e.getRc();
-        // if the column is not found, it is not an error
-        if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
-            ;
-        else
-            throw; // unlikely
+        rc_t rc = e.getRc();
+        if ( rc != 0 )
+        {   // if the column is not found, return UNDEFINED
+            if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
+            {
+                ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
+                return ret;
+            }
+        }
+        throw;
     }
 
     if ( ret.size() == 0 )
@@ -412,6 +415,7 @@ SraInfo::HasPhysicalQualities() const
         if ( find( physical.begin(), physical.end(), QualityColumn ) != physical.end() )
         {
             return true;
+        }
         }
     }
     return false;

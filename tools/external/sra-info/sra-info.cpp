@@ -71,6 +71,7 @@ SraInfo::SetAccession( const std::string& p_accession )
     releaseDataObject();
     m_accession = p_accession;
     m_type = m_mgr.pathType(m_accession);
+    m_schemaType = "";
     if (m_type == VDB::Manager::ptTable) {
         m_u.tbl = new VDB::Table { m_mgr.openTable(m_accession) };
         try {
@@ -86,6 +87,7 @@ SraInfo::SetAccession( const std::string& p_accession )
     case VDB::Manager::ptDatabase:
         assert(m_u.db == nullptr);
         m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
+        m_schemaType = m_u.db->metadata().childNode("schema").attributeValue("name");
         break;
     case VDB::Manager::ptTable:
         assert(m_u.tbl != nullptr);

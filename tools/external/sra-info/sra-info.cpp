@@ -71,25 +71,25 @@ SraInfo::SetAccession( const std::string& p_accession )
     releaseDataObject();
     m_accession = p_accession;
     m_type = m_mgr.pathType(m_accession);
-    try {
-        switch (m_type) {
-        case VDB::Manager::ptDatabase:
-            m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
-            return;
-        case VDB::Manager::ptTable:
+    switch (m_type) {
+    case VDB::Manager::ptDatabase:
+        m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
+        return;
+    case VDB::Manager::ptTable:
+        try {
             m_u.tbl = new VDB::Table { m_mgr.openTable(m_accession) };
             return;
-        case VDB::Manager::ptPrereleaseTable :
-            break;
-        default:
-            throw VDB::Error( (m_accession + ": unknown data type").c_str() );
         }
+        catch (VDB::Error const &err) {
+            if ((int)err.getRc() != 1434782232) // if not "schema not found while opening table within virtual database module"
+                throw;
+        }
+        // fall through
+    case VDB::Manager::ptPrereleaseTable :
+        throw VDB::Error( (m_accession + ": obsolete data type").c_str() );
+    default:
+        throw VDB::Error( (m_accession + ": unknown data type").c_str() );
     }
-    catch (VDB::Error const &err) {
-        if ((int)err.getRc() != 1434782232)
-            throw;
-    }
-    throw VDB::Error( (m_accession + ": obsolete data type").c_str() );
 }
 
 bool SraInfo::isDatabase() const {

@@ -768,14 +768,14 @@ namespace VDB {
         {
             VDatabase const *p = 0;
             auto const rc = VDBManagerOpenDBRead(o, &p, 0, "%s", path.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return Database{ const_cast<VDatabase *>(p) };
         }
         Table openTable(std::string const &path) const
         {
             VTable const *p = 0;
             auto const rc = VDBManagerOpenTableRead(o, &p, 0, "%s", path.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
+            if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return Table{ const_cast<VTable *>(p) };
         }
 

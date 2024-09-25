@@ -142,6 +142,15 @@ if [ "${TEST_DATA}" != "" ]; then
 	    then echo "${vdb_validate} READ_LEN FAILED, res=$res output=$output" \
           && exit 1;
     fi
+
+    output=$(./runtestcase.sh \
+	    "${bin_dir}/${vdb_validate} \
+	            ${TEST_DATA}/SRR26020762-corrupt.sralite" no_crc 3)
+    res=$?
+    if [ "$res" != "0" ];
+	    then echo "${vdb_validate} no_crc FAILED, res=$res output=$output" \
+          && exit 1;
+    fi
 fi
 
 # verify failure verifying ancient no-schema run

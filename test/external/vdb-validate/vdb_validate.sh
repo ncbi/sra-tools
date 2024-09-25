@@ -133,6 +133,15 @@ if [ "$res" != "0" ];
 fi
 
 output=$(./runtestcase.sh \
+        "${bin_dir}/${vdb_validate} db/SRR053990 -Cyes -Bno" CONSISTENCY 0)
+res=$?
+if [ "$res" != "0" ];
+	then echo \
+     "${vdb_validate} CONSISTENCY without crc FAILED, res=$res output=$output" \
+    && exit 1;
+fi
+
+output=$(./runtestcase.sh \
         "${bin_dir}/${vdb_validate} db/SRR053990 -Cyes -Byes" \
         CONSISTENCY_and_CRC 0)
 res=$?

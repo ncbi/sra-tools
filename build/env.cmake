@@ -560,24 +560,24 @@ function(ExportShared lib install)
     endif()
 endfunction()
 
+include(CheckCXXSourceRuns)
+
 #
 # Ensure static linking against C/C++ runtime.
 # Create versioned names and symlinks for an executable.
 #
 
 # check for the presence of static C/C++ runtime libraries
-execute_process(COMMAND  echo "int main(int argc, char *argv[]) { return argc - 1; }" | ${CMAKE_C_COMPILER}  -o /dev/null -static-libgcc -xc - 2>/dev/null
-                RESULT_VARIABLE rc_C OUTPUT_QUIET ERROR_QUIET )
-execute_process(COMMAND  echo "int main(int argc, char *argv[]) { return argc - 1; }" | ${CMAKE_CXX_COMPILER}  -o /dev/null -static-libstdc++ -xc++ -  2>/dev/null
-                RESULT_VARIABLE rc_CXX OUTPUT_QUIET ERROR_QUIET )
+check_cxx_source_runs("int main(int argc, char *argv[]) { return 0; }" HAVE_STATIC_LIBGCC)
+check_cxx_source_runs("int main(int argc, char *argv[]) { return 0; }" HAVE_STATIC_LIBSTDCXX)
 
 function(MakeLinksExe target install_via_driver)
 
     if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
-        if ( rc_C EQUAL 0 )
+        if ( HAVE_STATIC_LIBGCC )
             target_link_options( ${target} PRIVATE -static-libgcc )
         endif()
-        if ( rc_CXX EQUAL 0 )
+        if ( HAVE_STATIC_LIBSTDCXX )
             target_link_options( ${target} PRIVATE -static-libstdc++ )
         endif()
     endif()

@@ -568,7 +568,9 @@ include(CheckCXXSourceRuns)
 #
 
 # check for the presence of static C/C++ runtime libraries
+set(CMAKE_REQUIRED_LINK_OPTIONS -static-libgcc)
 check_cxx_source_runs("int main(int argc, char *argv[]) { return 0; }" HAVE_STATIC_LIBGCC)
+set(CMAKE_REQUIRED_LINK_OPTIONS -static-libstdc++)
 check_cxx_source_runs("int main(int argc, char *argv[]) { return 0; }" HAVE_STATIC_LIBSTDCXX)
 
 function(MakeLinksExe target install_via_driver)

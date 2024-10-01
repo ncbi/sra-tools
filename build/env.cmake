@@ -112,6 +112,7 @@ endif ()
 if( "arm64" STREQUAL "${ARCH}" )
     # for bitmagic SIMD
     add_compile_definitions(BMNEONOPT)
+    add_compile_definitions(__arm64__)
 endif()
 
 # create variables based entirely upon OS

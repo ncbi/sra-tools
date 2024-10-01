@@ -33,7 +33,7 @@ AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
 if ( NOT WIN32 )
 	ToolsRequired(vdb-validate prefetch)
 
-	add_test( NAME Test_Vdb_validate
+	add_test( NAME Test_Vdb_validate_dflt
 		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 

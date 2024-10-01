@@ -91,7 +91,7 @@ static const char *USAGE_MD5[] = { "Check components md5s if present, "
 #define ALIAS_blob_crc  "b"
 #define OPTION_blob_crc "blob-crc"
 static const char *USAGE_BLOB_CRC[] =
-{ "Check blobs CRC32 (default: yes)", NULL };
+{ "Check blobs CRC32 (default: no)", NULL };
 
 #define ALIAS_BLOB_CRC  "B"
 #define OPTION_BLOB_CRC "BLOB-CRC"
@@ -264,8 +264,9 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
 
     pb -> md5_chk = true;
     pb->consist_check = false;
-    ref_int_check = pb -> blob_crc
+    ref_int_check
         = pb -> md5_chk_explicit = md5_required = true;
+    pb -> blob_crc = false;
     pb -> sdc_sec_rows_in_percent = false;
     pb -> sdc_sec_rows.number = 100000;
     pb -> sdc_seq_rows_in_percent = false;
@@ -368,8 +369,8 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
             return rc;
         }
         assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            pb -> blob_crc = false;
+        if (dummy[0] == 'y') {
+            pb -> blob_crc = true;
         }
     }
   }

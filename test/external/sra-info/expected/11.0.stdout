@@ -1,0 +1,49 @@
+SRR000123:table
+    9 columns with checksums
+    0 columns without checksums
+    1 index
+    has metadata
+    has MD5 file
+    is locked
+    has columns
+    has indices
+    ALTREAD:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    CLIP_QUALITY_RIGHT:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    POSITION:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    QUALITY:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    READ:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    READ_LEN:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    SIGNAL:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    X:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    Y:column, directory
+        has metadata
+        has MD5 file
+        has CRC checksum
+    skey:index, file
+        has MD5 checksum
+        is on text
+

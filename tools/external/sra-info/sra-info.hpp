@@ -27,11 +27,13 @@
 #pragma once
 
 #include <string>
+#include <functional>
 #include <set>
 #include <exception>
 
 #include <vdb.hpp>
 #include <insdc/sra.h>
+#include <kdb/manager.h>
 
 class SraInfo
 {
@@ -82,6 +84,9 @@ public:
     bool HasPhysicalQualities() const;
 
     const VDB::SchemaInfo GetSchemaInfo() const;
+
+    typedef std::unique_ptr< KDBContents, std::function<void(KDBContents*)> > Contents;
+    Contents GetContents() const;
 
 private:
     VDB::Table openSequenceTable( const std::string & accession ) const;

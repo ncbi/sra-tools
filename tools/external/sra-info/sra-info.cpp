@@ -26,6 +26,9 @@
 
 #include "sra-info.hpp"
 
+#include <kdb/manager.h>
+#include <kdb/kdb-priv.h>
+
 #include <algorithm>
 #include <map>
 
@@ -404,4 +407,25 @@ const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
     VDB::Schema schema(openSchema(m_accession));
     VDB::SchemaInfo info(schema.GetInfo());
     return info;
+}
+
+SraInfo::Contents
+SraInfo::GetContents() const
+{
+    const KDBManager * kdb;
+    rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
+    if ( rc != 0 )
+    {
+        throw VDB::Error( "KDBManagerMakeRead() failed", __FILE__, __LINE__);
+    }
+
+    const KDBContents * ret;
+    rc = KDBManagerPathContents( kdb, & ret, m_accession.c_str() );
+    KDBManagerRelease( kdb );
+    if ( rc != 0 )
+    {
+        KDBContentsWhack( ret );
+        throw VDB::Error( (m_accession + ": not a valid VDB object").c_str(), __FILE__, __LINE__);
+    }
+    return Contents(const_cast<KDBContents *>( ret ), []( KDBContents *c ) { KDBContentsWhack( c ); }  );
 }

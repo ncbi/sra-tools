@@ -1,0 +1,36 @@
+The purpose of this test is to verify that the newest version of the hdf5-library can still
+be used by pac-bioload.
+
+This test uses the newest Fedora distribution ( it has the newest version of the hdf5-library
+included in its package manager ) as well as docker to perform the test.
+
+You need:
+1) docker installed on your machine
+2) docker to be configured to be usable by your user-account
+3) internet access to github and docker-hub
+4) a valid HDF5-submission from a Pacbio machine accessible from your machine
+
+Before you can run the script "test_using_docker_and_hdf5_submission.sh", edit this script.
+You have to edit lines 22, 38, and 40.
+
+In line 22 you have to replace "VDB-5712" with "engineering" in case the branch VDB-5712
+does not exist any more on github.
+
+In line 38 you have to replace "/mnt/data/SRA/ACC/PACBIO/HDF5_SRC" with the location of
+your Pacbio submission.
+
+In line 40 you have to replace "m130621_024744_42150_c100527702550000001823082709281355_s1_p0.1.bax.h5"
+with the filename of a valid Pacbio submission.
+
+Most Pacbio-submissions come in the form of multiple files. There is a small "package descriptor"
+file that lists the actual data files. If you use this smaller one, all of the data files will be
+loaded, which will take longer. For a shorter test, use just one of the data files.
+
+The script will create a docker-image based on Fedora-latest. It will install all neccessary
+development tools, 3rd-party libraries, and the source-code of the SRA-toolkit from docker-hub,
+github, and the fedora-repository. After that it will compile the whole SRA-toolkit.
+This is tested for Fedora-latest in September 2024. It may be neccessary to adjust package names
+in the future in case building of the image fails. At the end it will start a docker-container
+and let it run pacbio-load on the Pacbio submission you provided in lines 38 and 40 of the script.
+The load should end with a success message. The script removes the docker-container after use
+but not the image. You might want to remove the image manually since it is large.

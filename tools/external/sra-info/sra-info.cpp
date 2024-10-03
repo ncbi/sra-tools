@@ -71,6 +71,7 @@ SraInfo::SetAccession( const std::string& p_accession )
     releaseDataObject();
     m_accession = p_accession;
     m_type = m_mgr.pathType(m_accession);
+
     switch (m_type) {
     case VDB::Manager::ptDatabase:
         m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
@@ -430,7 +431,7 @@ SraInfo::GetContents() const
     }
 
     const KDBContents * ret;
-    rc = KDBManagerPathContents( kdb, & ret, m_accession.c_str() );
+    rc = KDBManagerPathContents( kdb, & ret, lod_Full, m_accession.c_str() );
     KDBManagerRelease( kdb );
     if ( rc != 0 )
     {

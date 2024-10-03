@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 #
@@ -95,7 +95,7 @@ a_md5=`$MD5SUM $run | cut -d' ' -f1`
 a_path=`$RSLV  $run`
 
 if [ "$a_size" != "$size" ]; then
-    echo "size no match" 
+    echo "size no match"
     exit 1
 fi
 

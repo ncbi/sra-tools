@@ -27,7 +27,7 @@ if( NOT WIN32 )
     ToolsRequired(bam-load)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(BamTestSetup PROPERTIES FIXTURES_SETUP BamTest)
 
     add_test( NAME Test_BamLoader_1
@@ -80,6 +80,6 @@ if( NOT WIN32 )
         )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
-    
+
     AddExecutableTest( Test_BamLoader_platform sam-platform.cpp "" "" )
 endif()

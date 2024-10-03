@@ -39,7 +39,7 @@ if ( NOT WIN32 )
 
     if ( "linux" STREQUAL ${OS} )
             add_test( NAME Test_sra_sort_meta_copy
-                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${VDB_INCDIR} ${BINDIR}
+                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} "${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}" ${BINDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 

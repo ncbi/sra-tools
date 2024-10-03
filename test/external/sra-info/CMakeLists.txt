@@ -109,6 +109,11 @@ AddQueryTest( Test_Sra_Info_IsAligned_Yes   5.2 "--is-aligned ERR334733" )
 # quality
 AddQueryTest( Test_Sra_Info_Quality_Physical        6.1 "--quality ./input/MultiPlatform.sra" )
 AddQueryTest( Test_Sra_Info_Quality_Physical_Refseq 6.2 "-Q NC_000001.10" )
+AddQueryTest( Test_Sra_Info_Quality_delite          6.3 "-Q SRR000123" )
+set_tests_properties( Test_Sra_Info_Quality_delite 
+    PROPERTIES 
+        ENVIRONMENT_MODIFICATION "NCBI_VDB_QUALITY=set:Z"
+)
 
 # spot layout
 AddQueryTest( Test_Sra_Info_SpotLayout_Default  7.1 "--spot-layout SRR000123" )

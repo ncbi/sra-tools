@@ -1,28 +1,28 @@
-/*==============================================================================
-*
-*                            PUBLIC DOMAIN NOTICE
-*               National Center for Biotechnology Information
-*
-*  This software/database is a "United States Government Work" under the
-*  terms of the United States Copyright Act.  It was written as part of
-*  the author's official duties as a United States Government employee and
-*  thus cannot be copyrighted.  This software/database is freely available
-*  to the public for use. The National Library of Medicine and the U.S.
-*  Government have not placed any restriction on its use or reproduction.
-*
-*  Although all reasonable efforts have been taken to ensure the accuracy
-*  and reliability of the software and data, the NLM and the U.S.
-*  Government do not and cannot warrant the performance or results that
-*  may be obtained by using this software or data. The NLM and the U.S.
-*  Government disclaim all warranties, express or implied, including
-*  warranties of performance, merchantability or fitness for any particular
-*  purpose.
-*
-*  Please cite the author in any work or product based on this material.
-*
-* ===========================================================================
-*
-*/
+/* ===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ */
 
 #include "sra-info.hpp"
 
@@ -40,53 +40,90 @@ using namespace std;
 
 SraInfo::SraInfo()
 {
+    m_type = VDB::Manager::ptInvalid;
+    m_u.db = nullptr;
+}
+
+void SraInfo::releaseDataObject() {
+    switch (m_type) {
+    case VDB::Manager::ptDatabase:
+        delete m_u.db;
+        break;
+    case VDB::Manager::ptTable:
+    case VDB::Manager::ptPrereleaseTable:
+        delete m_u.tbl;
+        break;
+    default:
+        assert(m_u.db == nullptr);
+        break;
+    }
+    m_type = VDB::Manager::ptInvalid;
+    m_u.db = nullptr;
+}
+
+SraInfo::~SraInfo() {
+    releaseDataObject();
 }
 
 void
 SraInfo::SetAccession( const std::string& p_accession )
 {
+    releaseDataObject();
     m_accession = p_accession;
+    m_type = m_mgr.pathType(m_accession);
+    switch (m_type) {
+    case VDB::Manager::ptDatabase:
+        m_u.db = new VDB::Database{ m_mgr.openDatabase(m_accession) };
+        return;
+    case VDB::Manager::ptTable:
+        try {
+            m_u.tbl = new VDB::Table { m_mgr.openTable(m_accession) };
+            return;
+        }
+        catch (VDB::Error const &err) {
+            if ((int)err.getRc() != 1434782232) // if not "schema not found while opening table within virtual database module"
+                throw;
+        }
+        // fall through
+    case VDB::Manager::ptPrereleaseTable :
+        throw VDB::Error( (m_accession + ": obsolete data type").c_str() );
+    default:
+        throw VDB::Error( (m_accession + ": unknown data type").c_str() );
+    }
+}
+
+bool SraInfo::isDatabase() const {
+    return m_type == VDB::Manager::ptDatabase;
+}
+
+bool SraInfo::isTable() const {
+    return m_type == VDB::Manager::ptTable;
+}
+
+bool SraInfo::hasTable(std::string const &name) const {
+    if (!isDatabase()) return false;
+
+    return m_u.db->hasTable(name);
 }
 
 VDB::Table
-SraInfo::openSequenceTable( const string & accession ) const
+SraInfo::openSequenceTable(bool useConsensus) const
 {
-    switch ( m_mgr.pathType( accession ) )
-    {
-        case VDB::Manager::ptDatabase :
-            return m_mgr.openDatabase(accession)["SEQUENCE"];
-
-        case VDB::Manager::ptTable :
-            return m_mgr.openTable(accession);
-
-        case VDB::Manager::ptPrereleaseTable :
-            throw VDB::Error( (accession + ": VDB::Manager::pathType(): unsupported path type").c_str(), __FILE__, __LINE__);
-
-        default :
-            throw VDB::Error( (accession + ": VDB::Manager::pathType(): returned invalid data").c_str(), __FILE__, __LINE__);
+    if (isDatabase()) {
+        auto const &db = *m_u.db;
+        return (useConsensus && db.hasTable("CONSENSUS"))
+            ? db["CONSENSUS"]
+            : db["SEQUENCE"];
     }
+    return *m_u.tbl;
 }
 
-VDB::Schema SraInfo::openSchema( const string & accession) const
+VDB::Schema SraInfo::openSchema() const
 {
-    switch ( m_mgr.pathType( accession ) )
-    {
-    case VDB::Manager::ptDatabase :
-        return m_mgr.openDatabase(accession).openSchema();
-
-    case VDB::Manager::ptTable :
-        return m_mgr.openTable(accession).openSchema();
-
-    case VDB::Manager::ptPrereleaseTable :
-        throw VDB::Error( (accession
-            + ": VDB::Manager::pathType(): unsupported path type").c_str(),
-            __FILE__, __LINE__);
-
-    default :
-        throw VDB::Error( (accession
-            + ": VDB::Manager::pathType(): returned invalid data").c_str(),
-            __FILE__, __LINE__);
-    }
+    if (isDatabase())
+        return m_u.db->openSchema();
+    else
+        return m_u.tbl->openSchema();
 }
 
 static
@@ -107,7 +144,7 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table table = openSequenceTable();
     try
     {
         VDB::Cursor cursor = table.read( { "PLATFORM" } );
@@ -257,25 +294,7 @@ SraInfo::GetSpotLayouts(
     map< ReadStructures, size_t > rs_map;
     SpotLayouts ret;
 
-    VDB::Table table;
-    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase && useConsensus )
-    {
-        const char * CONSENSUS_TABLE = "CONSENSUS";
-        VDB::Database db = m_mgr.openDatabase( m_accession );
-        if ( db.hasTable( CONSENSUS_TABLE ) )
-        {
-            table = m_mgr.openDatabase( m_accession )[CONSENSUS_TABLE];
-        }
-        else
-        {
-            table = m_mgr.openDatabase( m_accession )["SEQUENCE"];
-        }
-    }
-    else
-    {
-        table = openSequenceTable( m_accession );
-    }
-
+    auto const &table = openSequenceTable(useConsensus);
     VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
     {
@@ -366,25 +385,18 @@ SraInfo::GetSpotLayouts(
 
 bool
 SraInfo::IsAligned() const
-{
-    if ( m_mgr.pathType( m_accession ) == VDB::Manager::ptDatabase )
-    {   // aligned if there is a non-empty alignment table
-        VDB::Database db = m_mgr.openDatabase(m_accession);
-        const string PrimaryAlignmentTable = "PRIMARY_ALIGNMENT";
-        if (db.hasTable(PrimaryAlignmentTable))
-        {
-            VDB::Table alignment = db[PrimaryAlignmentTable];
-            VDB::Cursor cursor = alignment.read( { "ALIGNMENT_COUNT" } );
-            return cursor.rowRange().first > 0;
-        }
-    }
-    return false;
+{ // is a database and has a primary alignment table with at least one row.
+    auto const PrimaryAlignmentTable = std::string{"PRIMARY_ALIGNMENT"};
+    return isDatabase() && m_u.db->hasTable(PrimaryAlignmentTable)
+        && (*m_u.db)[PrimaryAlignmentTable]
+            .read({"ALIGNMENT_COUNT"})
+            .rowRange().first > 0;
 }
 
 bool
 SraInfo::HasPhysicalQualities() const
 {   // QUALITY column is readable, either QUALITY or ORIGINAL_QUALITY is physical
-    VDB::Table table = openSequenceTable( m_accession );
+    VDB::Table const &table = openSequenceTable();
     const string QualityColumn = "QUALITY";
     VDB::Table::ColumnNames readable = table.readableColumns();
     if ( find( readable.begin(), readable.end(), QualityColumn ) != readable.end() )
@@ -404,13 +416,11 @@ SraInfo::HasPhysicalQualities() const
 }
 
 const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
-    VDB::Schema schema(openSchema(m_accession));
-    VDB::SchemaInfo info(schema.GetInfo());
-    return info;
+    return openSchema().GetInfo();
 }
 
 SraInfo::Contents
-SraInfo::GetContents() const
+SraInfo::GetContents() const 
 {
     const KDBManager * kdb;
     rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
@@ -428,4 +438,30 @@ SraInfo::GetContents() const
         throw VDB::Error( (m_accession + ": not a valid VDB object").c_str(), __FILE__, __LINE__);
     }
     return Contents(const_cast<KDBContents *>( ret ), []( KDBContents *c ) { KDBContentsWhack( c ); }  );
+}
+
+VDB::MetadataCollection SraInfo::topLevelMetadataCollection() const
+{
+    if (isDatabase())
+        return m_u.db->metadata();
+    else
+        return m_u.tbl->metadata();
+}
+
+static bool isLiteMetadata(VDB::MetadataCollection const &meta) {
+    try {
+        return meta.childNode("SOFTWARE/delite").attributeValue("name") == "delite";
+    }
+    catch (VDB::Error const &rc) { ((void)(rc)); }
+    return false;
+}
+
+bool SraInfo::HasLiteMetadata() const {
+    return isLiteMetadata(topLevelMetadataCollection());
+}
+
+char const *SraInfo::QualityDescription() const {
+    return HasPhysicalQualities() ? "STORED"
+         : HasLiteMetadata() ? "REMOVED"
+         : "NONE";
 }

@@ -1,0 +1,297 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI 454 Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+include 'ncbi/clip.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* dynamic_read_desc
+ *  uses inputs to determine read type and segmentation
+ *
+ *  "edit_distance" [ CONST, OPTIONAL ] - a tolerance figure for
+ *  linker matching, where 0 requires exact match, 5 is default.
+ *
+ *  "spot" [ DATA ] - bases for entire spot
+ *
+ *  "key" [ DATA, CONTROL ] - bases for key sequence. for version 1,
+ *  the first base following key is taken as biological start
+ *
+ *  "linker" [ DATA, CONTROL, OPTIONAL ] - if present, is used to separate
+ *  all bases following "key" into mate pair biological reads
+ *
+ *  returns a trio for each identified read, with read type, start and length
+ */
+typeset NCBI:SRA:_454_:drdparam_set { ascii, U8, INSDC:2na:packed };
+extern function
+U32 [ 3 ] NCBI:SRA:_454_:dynamic_read_desc #1 < * U32 edit_distance >
+    ( NCBI:SRA:_454_:drdparam_set spot, NCBI:SRA:_454_:drdparam_set key
+      * NCBI:SRA:_454_:drdparam_set linker );
+
+const U32 NCBI:SRA:_454_:dyn_read_type  = 0;
+const U32 NCBI:SRA:_454_:dyn_read_start = 1;
+const U32 NCBI:SRA:_454_:dyn_read_len   = 2;
+
+
+/* tokenize_spot_name
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:_454_:tokenize_spot_name #1 ( ascii name );
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:_454_:common
+ *  Roche 454 SRA Platform
+ *
+ * history:
+ *  1.0.1 - explictly base upon sra #1.0.1
+ *  1.0.2 - bring in clip processing from external table
+ *  1.0.3 - base explicitly upon sra #1.0.2, clip #1.0.1
+ *  1.0.4 - base explicitly upon sra #1.0.3, clip #1.0.2
+ *  1.0.5 - base explicitly upon sra #1.0.4
+ */
+table NCBI:SRA:_454_:common #1.0.5 = INSDC:SRA:tbl:sra #1.0.4, NCBI:SRA:tbl:clip #1.0.2
+{
+    /* PLATFORM
+     *  platform name is always 454
+     */
+    ascii platform_name
+        = < ascii > echo < "454" > ();
+
+    /* 454 TECHNICAL SEQUENCES
+     */
+    column INSDC:dna:text FLOW_CHARS = out_flow_chars;
+    INSDC:dna:text in_flow_chars
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn.', 'ACGTNN' > ( FLOW_CHARS );
+    column INSDC:dna:text KEY_SEQUENCE = out_key_sequence;
+    INSDC:dna:text in_key_sequence
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn.', 'ACGTNN' > ( KEY_SEQUENCE );
+    column INSDC:dna:text LINKER_SEQUENCE = out_linker_sequence;
+    INSDC:dna:text in_linker_sequence
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn.', 'ACGTNN' > ( LINKER_SEQUENCE );
+
+    // binary technical sequences
+    INSDC:x2na:bin out_flow_bin
+        = < INSDC:dna:text, INSDC:x2na:bin > map < INSDC:x2na:map:CHARSET, INSDC:x2na:map:BINSET > ( out_flow_chars );
+    INSDC:x2na:bin out_key_bin
+        = < INSDC:dna:text, INSDC:x2na:bin > map < INSDC:x2na:map:CHARSET, INSDC:x2na:map:BINSET > ( out_key_sequence );
+    INSDC:x2na:bin out_linker_bin
+        = < INSDC:dna:text, INSDC:x2na:bin > map < INSDC:x2na:map:CHARSET, INSDC:x2na:map:BINSET > ( out_linker_sequence );
+
+    /* SIGNAL
+     *  single channel integer
+     */
+    column NCBI:isamp1 SIGNAL = out_signal;
+    NCBI:isamp1 out_signal = .SIGNAL;
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  out_cs_key
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  base_count
+	 *  spot_count
+	 *  max_spot_id
+	 *  min_spot_id
+	 *  in_stats_bin
+	 *  bio_base_count
+	 */
+
+	/* NCBI:tbl:n_encoding inherited productions
+	 *  read_unpack
+	 */
+
+	/* NCBI:SRA:_454_:common productions
+	 *  .SIGNAL
+	 *  .CLIP_ADAPTER_LEFT
+	 *  .CLIP_QUALITY_LEFT
+	 *  .CLIP_ADAPTER_RIGHT
+	 *  .CLIP_QUALITY_RIGHT
+	 *  out_flow_chars
+	 *  out_key_sequence
+	 *  out_linker_sequence
+	 */
+};
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:_454_:tbl:v2
+ *  Roche 454 SRA Platform
+ *
+ * history:
+ *  1.0.1 - explictly base upon sra #1.0.1 and related changes
+ *  1.0.2 - respond to change to 454:common base table #1.0.2
+ */
+
+// encodings are declared to have their own version
+// so that they may be changed over time independently
+physical INSDC:coord:one NCBI:SRA:_454_:encoding:CLIP #2
+{
+    decode { return ( INSDC:coord:one ) iunzip ( @ ); }
+    encode { return izip ( @ ); }
+}
+
+physical NCBI:isamp1 NCBI:SRA:_454_:encoding:SIGNAL #2
+{
+    decode { return ( NCBI:isamp1 ) iunzip ( @ ); }
+    encode { return izip ( @ ); }
+}
+
+physical INSDC:position:one NCBI:SRA:_454_:encoding:POSITION #2
+{
+    decode
+    {
+        I32 pos_1st_deriv = iunzip ( @ );
+        return ( INSDC:position:one ) < I32 > integral ( pos_1st_deriv );
+    }
+    encode
+    {
+        I32 pos_1st_deriv = < I32 > deriv ( @ );
+        return izip ( pos_1st_deriv );
+    }
+}
+
+/* normalized v2 table
+ *
+ * history:
+ *  1.0.6 - base upon updated ancestry
+ *  1.0.7 - base upon updated ancestry
+ *  1.0.8 - base upon sra_nopos #2.1.4, common #1.0.5
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:_454_:tbl:v2 #2
+    = NCBI:SRA:tbl:sra_nopos #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:_454_:common #1.0.5
+{
+    /* NAME tokenizing and coordinates
+     *  most work happens in skeyname table
+     *  we still obtain REGION from name
+     */
+    readonly column INSDC:coord:val REGION = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:T > ( _out_name, out_spot_name_tok );
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:_454_:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:_454_:tokenize_spot_name ( NAME );
+
+    // special sequences
+    INSDC:dna:text out_flow_chars
+        = .FLOW_CHARS
+        | < INSDC:dna:text > echo < 'TACG' > ( .SIGNAL )
+        | < INSDC:dna:text > echo < 'TACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACG' > ();
+
+    physical column < INSDC:dna:text > zip_encoding
+        .FLOW_CHARS = in_flow_chars;
+
+    INSDC:dna:text out_key_sequence
+        = .KEY_SEQUENCE
+        | < INSDC:dna:text > echo < 'TCAG' > ();
+
+    physical column < INSDC:dna:text > zip_encoding
+        .KEY_SEQUENCE = in_key_sequence;
+
+    INSDC:dna:text out_linker_sequence = .LINKER_SEQUENCE;
+    physical column < INSDC:dna:text > zip_encoding
+        .LINKER_SEQUENCE = in_linker_sequence;
+
+// linker needs to be representable by its own table
+// either in metadata or somewhere else
+
+    // position stored as normal 1-based coordinate
+    INSDC:position:one out_position = .POSITION;
+    physical column NCBI:SRA:_454_:encoding:POSITION #2
+        .POSITION = POSITION;
+
+    // clips
+    physical column NCBI:SRA:_454_:encoding:CLIP #2
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column NCBI:SRA:_454_:encoding:CLIP #2
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column NCBI:SRA:_454_:encoding:CLIP #2
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column NCBI:SRA:_454_:encoding:CLIP #2
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+
+    // signal
+    physical column NCBI:SRA:_454_:encoding:SIGNAL #2
+        .SIGNAL = SIGNAL;
+};
+
+database NCBI:SRA:_454_:db #1
+{
+    table NCBI:SRA:_454_:tbl:v2 #2 SEQUENCE;
+};

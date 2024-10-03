@@ -6,9 +6,12 @@ SRA_BINDIR="$1"
 #the python-script the produces the test-data needs that
 VDB_LIBDIR="$2"
 
-#the include directory where the schemas can be found
+#the include directories for schema lookup
 #the python-script the produces the test-data needs that
 VDB_INCDIR="$3"
+
+#the directory containing the vdb.py module
+VDB_PYDIR="$4"
 
 which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
 which python3 || exit 0
@@ -27,7 +30,7 @@ TESTDATA="test-data"
 GENERATOR="generate-test-data-with-unredacted-reads.py"
 
 # the script with the 3 parameters that are neccessary for the script
-CMD="python3 $GENERATOR $TESTDATA $VDB_INCDIR $VDB_LIBDIR"
+CMD="python3 $GENERATOR $TESTDATA $VDB_INCDIR $VDB_LIBDIR $VDB_PYDIR"
 eval "$CMD"
 
 #now we should have the test-data ( as a directory ):

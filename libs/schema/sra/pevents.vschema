@@ -1,0 +1,91 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Likelihood & Event schema
+ */
+version 1;
+include 'vdb/vdb.vschema';
+
+typedef U8 INSDC:phred;
+typedef ascii INSDC:event:text;
+const INSDC:event:text INSDC:event:CHARSET = "ACGT0123B+-";
+const INSDC:event:text INSDC:event:ACCEPTSET = "ACGTacgt0123B+-";
+
+extern function < U32 dim >
+U32 NCBI:SRA:sort_order #1.0 ( F32[dim] likelihoods );
+
+extern function < U32 dim >
+F32 NCBI:SRA:reorder #1.0 ( U32 sort_order, F32[dim] likelihoods );
+
+extern function < U32 dim >
+F32 NCBI:SRA:restore_order #1.0 ( U32 sort_order, F32[dim] likelihoods );
+
+extern function < U32 sdim, U32 rdim >
+INSDC:phred[rdim] NCBI:SRA:likelihood_to_phred #1.0 ( F32 like_scale, F32[sdim] likelihoods );
+
+extern function < U32 sdim, U32 rdim >
+F32[rdim] NCBI:SRA:phred_to_likelihood #1.0 ( F32 like_scale, F32[sdim] phred );
+
+table NCBI:SRA:tbl:pevents #1.0
+{
+    // event labels - single character events
+    extern column
+        INSDC:event:text PEVENTS = .PEVENTS;
+
+    physical column < INSDC:event:text >
+        zip_encoding #1.0 .PEVENTS = PEVENTS;
+
+    // likelihoods
+    extern default column
+        F32[4] LIKELIHOODS = likelihoods;
+    extern readonly column
+        INSDC:phred[4] LIKELIHOODS = phred;
+
+    U32 sort_encode = NCBI:SRA:sort_order < 4 > ( LIKELIHOODS );
+
+    physical column < U32 >
+        zip_encoding #1.0 < Z_RLE > .SORT_ORDER = sort_encode;
+
+    F32 reorder = NCBI:SRA:reorder < 4 > ( sort_encode, LIKELIHOODS );
+    F32 like_scale = vdb:fixed_vec_sum < F32, 4 > ( reorder );
+
+    physical column < F32 >
+        fzip_encoding #1.0 < 4 > .SCALE = like_scale;
+
+    INSDC:phred cut_phred = NCBI:SRA:likelihood_to_phred #1.0 < 4, 3 > ( like_scale, reorder );
+
+    physical column < INSDC:phred >
+        zip_encoding #1.0 < 5 > .PHRED = cut_phred;
+
+    // normalization scaling factors
+    extern readonly column
+        F32 LIKELIHOOD_NORM = .SCALE;
+
+    // phred scores
+    extern readonly column
+        INSDC:phred[4] PHRED = phred;
+};

@@ -1,0 +1,418 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Illumina Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ */
+
+typedef INSDC:quality:log_odds NCBI:qual4 [ 4 ];
+typedef NCBI:qual4 NCBI:SRA:rotated_qual4, NCBI:SRA:swapped_qual4;
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* tokenize_spot_name
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:Illumina:tokenize_spot_name #1 ( ascii name );
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:Illumina:qual4
+ *  4-channel log-odds-ish quality
+ */
+
+/* history:
+ *  1.0.1 - base explicitly upon updated ancestry
+ */
+table NCBI:SRA:Illumina:qual4_nocol #1.0.1
+    = INSDC:tbl:sequence #1.0.1
+    , NCBI:tbl:log_odds_quality_nocol #1.0.1
+{
+    /* QUALITY
+     *  4-channel quality column
+     */
+    readonly column NCBI:qual4 QUALITY = out_qual4;
+
+    NCBI:qual4 out_qual4
+        = < NCBI:qual4 > NCBI:SRA:swap ( out_qual4_swapped, read_unpack )
+        | < NCBI:qual4 > NCBI:SRA:rotate < false > ( out_qual4_rotated, read_unpack );
+
+
+    /* single-channel output
+     *  convert 4-channel log-odds to single channel
+     *  must retain n-encoding, which was intended to be the 4-channel pattern
+     *  ( -5, -5, -5, -5 ) and a base of 'A'
+     */
+
+    // first, extract quality for called base
+    INSDC:quality:log_odds out_qual1_ch0
+        = < INSDC:quality:log_odds> cut < 0 > ( out_qual4_swapped )
+        | < INSDC:quality:log_odds> cut < 0 > ( out_qual4_rotated );
+
+    // clip it to -5 and above
+    INSDC:quality:log_odds out_qual1_clip
+        = < INSDC:quality:log_odds > clip < -5, 127 > ( out_qual1_ch0 );
+
+    // convert 4 channel to single 32-bit value
+    U32 out_qual4_32
+        = redimension ( out_qual4_swapped )
+        | redimension ( out_qual4_rotated );
+
+    // detect ( -5, -5, -5, -5 ) and introduce a -6 value into log-odds
+    // this is treated as an 'N', but still not ready
+    INSDC:quality:log_odds out_qual1_fives
+        = < U32, INSDC:quality:log_odds > map < 0xFBFBFBFB, -6 > ( out_qual4_32, out_qual1_clip );
+
+    // now slam zeros into anything that doesn't correspond to an A
+    // essentially this leaves all of the A qualities. any having -6 are really N.
+    INSDC:quality:log_odds out_qual1_n
+        = < U8, INSDC:quality:log_odds > map < [ 1, 2, 3 ], [ 0, 0, 0 ] > ( read_unpack, out_qual1_fives );
+
+    // finally, produce log-odds with n-encoded as -6
+    INSDC:quality:log_odds out_qual_log_odds
+        = < INSDC:quality:log_odds, INSDC:quality:log_odds > map < -6, -6 > ( out_qual1_n, out_qual1_clip );
+
+
+	/* NCBI:tbl:n_encoding inherited productions
+	 *  read_unpack
+	 */
+
+	/* NCBI:SRA:Illumina:qual4_nocol productions
+	 *  out_qual4_rotated
+	 *  out_qual4_swapped
+	 */
+};
+
+
+/* 4-channel log-odds compression
+ */
+
+// encoded type - a single byte code for 4-channel pattern
+typedef B8 NCBI:SRA:encoded_qual4;
+
+// decoding function
+extern function
+NCBI:SRA:swapped_qual4 NCBI:SRA:qual4_decode #1 ( NCBI:SRA:encoded_qual4 in );
+
+// encoding function
+extern function
+NCBI:SRA:encoded_qual4 NCBI:SRA:qual4_encode #1 ( NCBI:SRA:swapped_qual4 in );
+
+// compression rules
+physical NCBI:SRA:swapped_qual4 NCBI:SRA:qual4_encoding #1
+{
+    encode
+    {
+        // produce codes
+        NCBI:SRA:encoded_qual4 encoded = NCBI:SRA:qual4_encode ( @ );
+
+        // gzip
+        return zip < Z_RLE, Z_BEST_SPEED > ( encoded );
+    }
+
+    decode
+    {
+        // gunzip
+        NCBI:SRA:encoded_qual4 unzipped = unzip ( @ );
+
+        // inflate to swapped
+        return NCBI:SRA:qual4_decode ( unzipped );
+    }
+}
+
+/* history:
+ *  1.0.1 - base upon updated qual4_nocol
+ */
+table NCBI:SRA:Illumina:qual4 #1.0.1 = NCBI:SRA:Illumina:qual4_nocol #1.0.1
+{
+    // read directly as swapped, n-encoded log_odds
+    NCBI:SRA:swapped_qual4 out_qual4_swapped = .QUALITY;
+
+	/* NCBI:tbl:n_encoding inherited virtual productions
+	 *  read_unpack
+	 */
+};
+
+/* history:
+ *  2.0.2 - base upon updated ancestry
+ *  2.0.3 - base upon updated ancestry
+ *  2.0.4 - base upon updated ancestry
+ *  2.1.0 - base upon updated ancestry, added in_qual_log_odds
+ *  3.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:Illumina:qual4 #3
+    = NCBI:tbl:base_space #3
+    , NCBI:tbl:log_odds_quality_nocol #2.1.0
+{
+    /* QUALITY
+     *  4-channel log-odds
+     */
+    extern column NCBI:qual4 QUALITY = out_qual4;
+
+    NCBI:SRA:swapped_qual4 in_qual4
+        = ( NCBI:SRA:swapped_qual4 ) < NCBI:qual4 > NCBI:SRA:swap ( QUALITY, in_x2na_bin )
+        | ( NCBI:SRA:swapped_qual4 ) < NCBI:qual4 > NCBI:SRA:swap ( QUALITY, in_2na_bin );
+
+    NCBI:qual4 out_qual4
+        = < NCBI:SRA:swapped_qual4 > NCBI:SRA:swap ( .QUALITY, out_x2na_bin );
+
+    physical column NCBI:SRA:qual4_encoding .QUALITY = in_qual4;
+
+    // feed to compressed statistics
+    NCBI:qual4 in_stats_qual = in_qual4;
+
+    // single channel
+    INSDC:quality:log_odds in_qual_log_odds
+        = < INSDC:quality:log_odds > cut < 0 > ( in_qual4 );
+    INSDC:quality:log_odds out_qual_log_odds
+        = < INSDC:quality:log_odds > cut < 0 > ( .QUALITY );
+};
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:Illumina
+ *  Illumina SRA Platform
+ */
+
+
+/* NCBI:SRA:Illumina:common #1
+ *  basic table interface based upon Illumina's pipelines
+ *
+ * history:
+ *  1.0.1 - explictly base upon sra #1.0.1
+ *  1.0.2 - base explicitly upon sra #1.0.2
+ *  1.0.3 - base explicitly upon sra #1.0.3
+ *  1.0.4 - base explicitly upon sra #1.0.4
+ */
+table NCBI:SRA:Illumina:common #1.0.4 = INSDC:SRA:tbl:sra #1.0.4
+{
+    // platform name is always 'ILLUMINA'
+    ascii platform_name
+        = < ascii > echo < "ILLUMINA" > ();
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero bio_start = NCBI:SRA:bio_start ( out_read_start, out_read_type );
+    INSDC:coord:zero trim_start = bio_start;
+    U32 trim_left = ( U32 ) trim_start;
+    INSDC:coord:len trim_len = (INSDC:coord:len) < U32 > diff ( spot_len, trim_left );
+
+    /* COORDINATES
+     *  in addition to X and Y,
+     *  Illumina has LANE and TILE
+     */
+    readonly column INSDC:coord:val LANE = out_lane_coord;
+    readonly column INSDC:coord:val TILE = out_tile_coord;
+};
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:Illumina:tbl:v2 #2
+ *  normalized v2 table
+ *  still has variants based upon quality type
+ *
+ * history:
+ *  1.0.1 - explictly base upon sra #1.0.1 and related tables
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+
+physical NCBI:SRA:swapped_fsamp4 NCBI:SRA:Illumina:encoding:SIGNAL #2
+{
+    decode { return NCBI:SRA:fsamp4:decode #2 ( @ ); }
+    encode { return NCBI:SRA:fsamp4:encode #2 < 14, 10 > ( @ ); }
+}
+
+physical NCBI:fsamp4 NCBI:SRA:Illumina:encoding:NOISE #2
+{
+    decode
+    {
+        F32 dcmp = funzip ( @ );
+        return redimension ( dcmp );
+    }
+    encode
+    {
+	F32 ncmp = redimension ( @ );
+        return fzip < 10 > ( ncmp );
+    }
+}
+
+physical NCBI:SRA:swapped_fsamp4 NCBI:SRA:Illumina:encoding:INTENSITY #2
+{
+    decode { return NCBI:SRA:fsamp4:decode #2 ( @ ); }
+    encode { return NCBI:SRA:fsamp4:encode #2 < 14, 10 > ( @ ); }
+}
+
+// v2 base table
+table NCBI:SRA:Illumina:tbl:v2 #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:SRA:Illumina:common #1.0.4
+{
+    /* NAME tokenizing and coordinates
+     *  most work happens in skeyname table
+     *  we still obtain LANE and TILE from name
+     */
+    INSDC:coord:val out_lane_coord = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:L > ( _out_name, out_spot_name_tok );
+    INSDC:coord:val out_tile_coord = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:T > ( _out_name, out_spot_name_tok );
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:Illumina:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:Illumina:tokenize_spot_name ( NAME );
+
+    /* SIGNAL
+     *  optional, no longer archived
+     */
+    extern column NCBI:fsamp4 SIGNAL
+    {
+        read = out_signal;
+        validate = < NCBI:fsamp4 > no_compare #1 ( in_signal, out_signal );
+    }
+    NCBI:fsamp4 in_signal = SIGNAL;
+    NCBI:fsamp4 out_signal
+        = < NCBI:SRA:swapped_fsamp4 > NCBI:SRA:swap ( .SIGNAL, out_x2na_bin );
+
+    physical column NCBI:SRA:Illumina:encoding:SIGNAL #2 .SIGNAL
+        = ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_signal, in_x2na_bin )
+        | ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_signal, in_2na_bin );
+
+    /* NOISE
+     *  optional, no longer archived
+     */
+    extern column NCBI:fsamp4 NOISE
+    {
+        read = out_noise;
+        validate = < NCBI:fsamp4 > no_compare #1 ( in_noise, out_noise );
+    }
+    NCBI:fsamp4 in_noise = NOISE;
+    NCBI:fsamp4 out_noise = .NOISE;
+
+    physical column NCBI:SRA:Illumina:encoding:NOISE #2 .NOISE = in_noise;
+
+    /* INTENSITY
+     *  optional, no longer archived
+     */
+    extern column NCBI:fsamp4 INTENSITY
+    {
+        read = out_intensity;
+        validate = < NCBI:fsamp4 > no_compare #1 ( in_intensity, out_intensity );
+    }
+    NCBI:fsamp4 in_intensity = INTENSITY;
+    NCBI:fsamp4 out_intensity
+        = < NCBI:fsamp4 > NCBI:SRA:denormalize ( out_norm_intensity, out_x2na_bin );
+    NCBI:fsamp4 out_norm_intensity
+        = ( NCBI:fsamp4 ) < NCBI:SRA:swapped_fsamp4 > NCBI:SRA:swap ( .INTENSITY, out_x2na_bin );
+    NCBI:fsamp4 in_norm_intensity
+        = < NCBI:fsamp4 > NCBI:SRA:normalize ( in_intensity, in_x2na_bin )
+        | < NCBI:fsamp4 > NCBI:SRA:normalize ( in_intensity, in_2na_bin );
+    physical column NCBI:SRA:Illumina:encoding:INTENSITY #2 .INTENSITY
+        = ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_norm_intensity, in_x2na_bin )
+        | ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_norm_intensity, in_2na_bin );
+
+	/* INSDC:tbl:sequence inherited virtual productions
+	 *  out_qual_phred
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  static_fixed_spot_len
+	 */
+};
+
+/* 4-channel log-odds qualities
+ *
+ * history:
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  1.1.0 - updated ancestry
+ *  1.1.1 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:Illumina:tbl:q4:v2 #2
+    = NCBI:SRA:Illumina:tbl:v2 #2
+    , NCBI:SRA:Illumina:qual4 #3
+{
+	/* INSDC:SRA:tbl:spotdesc inherited virtual productions
+	 *  static_fixed_spot_len
+	 */
+};
+
+/* 1-channel log-odds qualities
+ *
+ * history:
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  1.1.0 - updated ancestry
+ *  1.1.1 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:Illumina:tbl:q1:v2 #2
+    = NCBI:SRA:Illumina:tbl:v2 #2
+    , NCBI:tbl:log_odds_quality #2.1.0
+{
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  static_fixed_spot_len
+	 */
+};
+
+/* phred qualities
+ *
+ * history:
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  1.0.5 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:Illumina:tbl:phred:v2 #2
+    = NCBI:SRA:Illumina:tbl:v2 #2
+    , NCBI:tbl:phred_quality #2.0.6
+{
+	/* INSDC:SRA:tbl:spotdesc inherited virtual productions
+	 *  static_fixed_spot_len
+	 */
+};

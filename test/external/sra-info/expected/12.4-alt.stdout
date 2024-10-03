@@ -97,7 +97,7 @@ SRR341576:database
             has MD5 file
             has CRC checksum
         i_name:index, file
-            has MD5 checksum
+            has MD5 file
             is on text
     SEQUENCE:table, directory
         has metadata

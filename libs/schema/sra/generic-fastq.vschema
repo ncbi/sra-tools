@@ -1,0 +1,297 @@
+/*===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ */
+
+/*==========================================================================
+ * NCBI Generic Fastq Sequence Read Archive schema
+ */
+version 1;
+
+include 'insdc/sra.vschema';
+include 'ncbi/sra.vschema';
+include 'ncbi/clip.vschema';
+include 'sra/illumina.vschema';
+include 'ncbi/spotname.vschema';
+
+/* tokenize_spot_name - currently ascii only capability */
+
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:GenericFastq:tokenize_spot_name #1 ( ascii name );
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:sequence
+ *  Generic Fastq SRA Platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:GenericFastq:sequence #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:tbl:clip #1.0.2
+{
+    ascii platform_name
+        = < ascii > echo < "UNDEFINED" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+
+	/* ascii only spot name tokenizer */
+
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( NAME );
+
+    /* clips */
+
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+}
+
+database NCBI:SRA:GenericFastq:db #2
+{
+    table NCBI:SRA:GenericFastq:sequence #2.0 SEQUENCE;
+};
+
+/*--------------------------------------------------------------------------
+ * Illumina db defined based on sra/illumina.vschema
+ */
+database NCBI:SRA:Illumina:db #2
+{
+    table NCBI:SRA:Illumina:tbl:phred:v2 #2 SEQUENCE;
+};
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:sequence_no_name
+ *  Generic Fastq SRA Platform (without name)
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:GenericFastq:sequence_no_name #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:tbl:clip #1.0.2
+{
+    ascii platform_name
+        = < ascii > echo < "UNDEFINED" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+
+    /* clips */
+
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+}
+
+database NCBI:SRA:GenericFastqNoNames:db #2
+{
+    table NCBI:SRA:GenericFastq:sequence_no_name #2.0 SEQUENCE;
+};
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:sequence_log_odds
+ *  Generic Fastq SRA Platform (for log_odds)
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:GenericFastq:sequence_log_odds #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:log_odds_quality #2.1.0
+    , NCBI:SRA:tbl:clip #1.0.2
+{
+    ascii platform_name
+        = < ascii > echo < "UNDEFINED" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+
+	/* ascii only spot name tokenizer */
+
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( NAME );
+
+    /* clips */
+
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+}
+
+database NCBI:SRA:GenericFastqLogOdds:db #2
+{
+    table NCBI:SRA:GenericFastq:sequence_log_odds #2 SEQUENCE;
+};
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:sequence_nanopore
+ *  Oxford Nanopore SRA Platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:GenericFastq:sequence_nanopore #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+{
+    ascii platform_name
+        = < ascii > echo < "OXFORD_NANOPORE" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_OXFORD_NANOPORE > ();
+
+	/* ascii only spot name tokenizer */
+
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( NAME );
+
+	/* channel and read number columns */
+
+    extern column < U32 > izip_encoding #1 CHANNEL;
+    extern column < U32 > izip_encoding #1 READ_NUMBER;
+}
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:consensus_nanopore
+ *  Oxford Nanopore SRA Platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:GenericFastq:consensus_nanopore #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+{
+    ascii platform_name
+        = < ascii > echo < "OXFORD_NANOPORE" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_OXFORD_NANOPORE > ();
+
+	/* ascii only spot name tokenizer */
+
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( NAME );
+
+	/* channel and read number columns */
+
+    extern column < U32 > izip_encoding #1 CHANNEL;
+    extern column < U32 > izip_encoding #1 READ_NUMBER;
+}
+
+database NCBI:SRA:GenericFastqNanopore:db #2
+{
+    table NCBI:SRA:GenericFastq:sequence_nanopore #2.0 SEQUENCE;
+    table NCBI:SRA:GenericFastq:consensus_nanopore #2.0 CONSENSUS;
+};
+
+database NCBI:SRA:GenericFastqNanoporeConsensusOnly:db #2
+{
+    table NCBI:SRA:GenericFastq:consensus_nanopore #2.0 CONSENSUS;
+};
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:GenericFastq:absolid
+ *  Generic fastq for AB Solid platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ */
+table NCBI:SRA:GenericFastq:absolid #1.0.1
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:color_space #2.1.0
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:tbl:clip #1.0.2
+{
+    ascii platform_name
+        = < ascii > echo < "UNDEFINED" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+
+	/* ascii only spot name tokenizer */
+
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:GenericFastq:tokenize_spot_name ( NAME );
+
+    /* clips */
+
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+}
+
+database NCBI:SRA:GenericFastqAbsolid:db #1.0.1
+{
+    table NCBI:SRA:GenericFastq:absolid #1.0.1 SEQUENCE;
+};

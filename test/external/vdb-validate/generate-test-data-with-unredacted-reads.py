@@ -10,7 +10,7 @@ def make_vdb_wr_lib( path ) :
     if os.path.exists( res ) :
         return res
     return os.path.join( vdb_lib_dir, r'libncbi-wvdb.dylib' )
-    
+
 def randomRead( length : int ):
     y = []
     while len( y ) <= length:
@@ -71,11 +71,13 @@ def write_row( curs, cols, good, length, name ) :
     curs.CommitRow()
     curs.CloseRow()
 
-def generate_output( output, vdb_inc_dir, vdb_wr_lib ) :
+def generate_output( output, vdb_inc_dirs, vdb_wr_lib ) :
     mgr = manager( OpenMode.Write, vdb_wr_lib )
     print( f"info: VDBManager: {mgr.Version()} from {vdb_wr_lib}" )
     schema = mgr.MakeSchema()
-    schema.AddIncludePath( vdb_inc_dir )
+    includes = vdb_inc_dirs.split(":")
+    for incl in includes:
+        schema.AddIncludePath( incl )
     schema.ParseFile( 'sra/generic-fastq.vschema' )
     db = mgr.CreateDB( schema, 'NCBI:SRA:GenericFastq:db', output )
     tbl = db.CreateTable( 'SEQUENCE' )
@@ -102,22 +104,23 @@ if __name__ == '__main__':
         print( f"wrong platform: {platform}" )
         sys.exit( 0 )
 
-    #we need 3 parameters:
-    if len( sys.argv ) < 4 :
-        print( "we need 3 parameters: output schema-include-path, vdb-library-dir" )
+    #we need 4 parameters:
+    if len( sys.argv ) != 5 :
+        print( "we need 4 parameters: output, schema-include-paths, vdb-library-dir, vdb.py dir" )
         sys.exit( 1 )
-        
+
     #output defaults to 'test-data'
-    
+
     output      = sys.argv[ 1 ]
-    vdb_inc_dir = sys.argv[ 2 ]
+    vdb_inc_dirs = sys.argv[ 2 ]
     vdb_lib_dir = sys.argv[ 3 ]
-    py_vdb_dir  = make_py_vdb_dir( vdb_inc_dir )
+    py_vdb_dir  = sys.argv[ 4 ]
     vdb_wr_lib  = make_vdb_wr_lib( vdb_lib_dir )
 
-    if not os.path.exists( vdb_inc_dir ) :
-        print( f"{vdb_inc_dir} does not exist!" )
-        sys.exit( 1 )
+    # can be a ':'-separated list of directories
+    # if not os.path.exists( vdb_inc_dirs ) :
+    #     print( f"{vdb_inc_dirs} does not exist!" )
+    #     sys.exit( 1 )
 
     if not os.path.exists( vdb_lib_dir ) :
         print( f"{vdb_lib_dir} does not exist!" )
@@ -130,15 +133,15 @@ if __name__ == '__main__':
     if not os.path.exists( py_vdb_dir ) :
         print( f"{py_vdb_dir} does not exist!" )
         sys.exit( 1 )
-        
+
     print( f"output      = {output}" )
-    print( f"vdb_inc_dir = {vdb_inc_dir}" )
-    print( f"py_vdb_dir  = {py_vdb_dir}" )    
+    print( f"vdb_inc_dirs = {vdb_inc_dirs}" )
+    print( f"py_vdb_dir  = {py_vdb_dir}" )
     print( f"vdb_wr_lib  = {vdb_wr_lib}" )
-    
+
     saveSysPath = sys.path
     sys.path.append( py_vdb_dir )
     from vdb import *
     sys.path = saveSysPath
 
-    generate_output( output, vdb_inc_dir, vdb_wr_lib )
+    generate_output( output, vdb_inc_dirs, vdb_wr_lib )

@@ -1,0 +1,539 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * INSDC Sequence Read Archive schema
+ */
+version 1;
+
+include 'insdc/seq.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ */
+
+/* spotid_t
+ *  unique id given to every spot
+ */
+typedef U32 INSDC:SRA:spotid_t;
+
+
+/* spot_ids_found
+ */
+typedef U64 INSDC:SRA:spot_ids_found [ 4 ];
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+
+/* format_spot_name
+ *  given a name format string, X, and Y
+ *  produce a reconstructed spot name string
+ *
+ *  "name_fmt" [ DATA ] - name format string ( see format explanation below )
+ *
+ *  "X" [ DATA ] - X coordinate for spot
+ *
+ *  "Y" [ DATA ] - Y coordinate for spot
+ *
+ *  "spot_name" [ DATA, OPTIONAL ] - potential source of unformatted names
+ *
+ * SYNOPSIS:
+ *  "name_fmt" may have any ASCII characters
+ *  the special character '$' is an escape symbol
+ *  when followed by a recognized format character,
+ *  both the '$' and its format character will be
+ *  replaced with a numeral generated from X and/or Y.
+ *
+ *  when "spot_name" is present and the "name_fmt" row is empty,
+ *  output is taken verbatim from "spot_name"
+ */
+function
+ascii INSDC:SRA:format_spot_name #1 ( ascii name_fmt , I32 X , I32 Y * ascii spot_name );
+
+function
+ascii INSDC:SRA:format_spot_name_no_coord #1 ( ascii name_fmt  * ascii spot_name );
+
+/* spot2read_filter
+ *  takes input from whole-spot filter bits
+ *  produces older-style array of per-read filter bits
+ *  based upon dimension and possibly type of "out_read_type"
+ */
+function INSDC:SRA:read_filter
+    INSDC:SRA:spot2read_filter #1 ( INSDC:SRA:spot_filter out_spot_filter, INSDC:SRA:xread_type out_read_type );
+
+/* read2spot_filter
+ *  takes input older-style array of per-read filter bits
+ *  produces whole-spot filter bits
+ *
+ *  Rules are: (listed in order of precedence)
+ *    1) REJECT, if any reads are REJECT
+ *    2) REDACTED,        ''      REDACTED
+ *    3) CRITERIA,        ''      CRITERIA
+ *    4) else PASS
+ *
+ */
+function INSDC:SRA:spot_filter
+    INSDC:SRA:read2spot_filter #1 ( INSDC:SRA:read_filter out_read_filter );
+
+/*--------------------------------------------------------------------------
+ * spotcoord
+ *  spot coordinate table
+ *  gives X and Y and potentially other common coordinates
+ */
+table INSDC:SRA:tbl:spotcoord #1
+{
+    /* X, Y
+     *  32 ( or 16 ) bit coordinates within plate region
+     *  the coordinate system ( zero or one-based ) is unspecified
+     */
+    extern default column INSDC:coord:val X = out_x_coord;
+    extern default column INSDC:coord:val Y = out_y_coord;
+
+    // backward compatibility for 16-bit unsigned coordinates
+    extern readonly column U16 X = cast ( x_clip_U16 );
+    extern readonly column U16 Y = cast ( y_clip_U16 );
+
+    // clip signed 32-bit coordinates to unsigned 16-bit
+    INSDC:coord:val x_clip_U16
+        = < INSDC:coord:val > clip < 0, 0xFFFF > ( out_x_coord );
+    INSDC:coord:val y_clip_U16
+        = < INSDC:coord:val > clip < 0, 0xFFFF > ( out_y_coord );
+
+
+	/* INSDC:SRA:tbl:spotcoord virtual productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 */
+};
+
+
+/*--------------------------------------------------------------------------
+ * spotname
+ *  spot name table
+ *  the name column is normally indexed
+ *
+ * history:
+ *  1.0.1 - split X and Y into spotcoord table
+ *  1.1.0 - added ability to get name from TRACE_NAME
+ */
+table INSDC:SRA:tbl:spotname #1.1 = INSDC:SRA:tbl:spotcoord #1
+{
+    /* NAME
+     *  external name for spot
+     */
+    extern column ascii NAME = _out_name;
+
+
+    /* SPOT_IDS_FOUND
+     *  lookup by NAME column
+     */
+    readonly column INSDC:SRA:spot_ids_found SPOT_IDS_FOUND
+        =  spot_ids_found;
+
+
+    /* default rules */
+
+    // assemble NAME column output in order of preference
+    ascii _out_name
+        = INSDC:SRA:format_spot_name ( out_name_fmt, out_x_coord, out_y_coord, out_spot_name )
+        | INSDC:SRA:format_spot_name ( out_name_fmt, out_x_coord, out_y_coord )
+        | INSDC:SRA:format_spot_name_no_coord (out_name_fmt)
+        | out_spot_name
+        | out_trace_name
+        ;
+
+
+	/* INSDC:SRA:tbl:spotcoord inherited virtual productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 */
+
+	/* INSDC:SRA:tbl:spotname virtual productions
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+};
+
+
+/*--------------------------------------------------------------------------
+ * spotdesc
+ *  spot descriptor table
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sequence #1.0.1
+ *  1.0.2 - added alternate taps for in_read_type and in_read_len
+ *  1.1.0 - added SPOT_FILTER
+ */
+table INSDC:SRA:tbl:spotdesc #1.0.2 = INSDC:tbl:sequence #1.0.1
+{
+    /* NREADS
+     *  describes the number of reads within spot
+     */
+    extern column U8 NREADS = out_nreads;
+
+
+    /* SPOT_LEN
+     *  length of sequence
+     * FIXED_SPOT_LEN
+     *  non-zero if sequence length is fixed throughout table
+     */
+    readonly column INSDC:coord:len SPOT_LEN = spot_len;
+    readonly column INSDC:coord:len FIXED_SPOT_LEN = fixed_spot_len;
+
+
+    /* TRIM_START
+     * TRIM_LEN
+     *  define the spot segment after applying trimming
+     *  trimming may be based upon technical segments and read quality
+     */
+    readonly column INSDC:coord:zero TRIM_START
+        = trim_start
+        | < INSDC:coord:zero> echo < 0 > ();
+    readonly column INSDC:coord:one TRIM_START
+        = ( INSDC:coord:one ) < I32 > sum < 1 > ( trim_start )
+        | < INSDC:coord:one> echo < 1 > ();
+    readonly column INSDC:coord:len TRIM_LEN
+        = trim_len
+        | spot_len;
+
+
+    /* LABEL
+     * LABEL_START, LABEL_LEN
+     *  column pair for writing read labels
+     *  the label text for all reads is concatenated to form the LABEL row
+     *  starting coordinates and lengths delineate labels by read
+     *
+     * NB - row length for LABEL_START/LEN === NREADS,
+     *      row length for LABEL === SUM ( LABEL_LEN [ n ] ) for NREADS
+     */
+    extern column ascii LABEL = out_label;
+    extern column INSDC:coord:zero LABEL_START = out_label_start;
+    extern column INSDC:coord:len LABEL_LEN = out_label_len;
+
+    // 16-bit versions
+    readonly column U16 LABEL_START = cast ( out_label_start );
+    readonly column U16 LABEL_LEN = cast ( out_label_len );
+
+
+    /* READ_TYPE
+     *  binary values giving type of a read
+     *
+     * NB - row length === NREADS
+     */
+    extern default column INSDC:SRA:xread_type READ_TYPE = out_read_type;
+
+    INSDC:SRA:xread_type in_read_type
+        = READ_TYPE
+        | _alt_in_read_type;
+
+    readonly column INSDC:SRA:read_type READ_TYPE
+        = out_read_type
+        | < INSDC:SRA:xread_type, INSDC:SRA:read_type > map < [ 0,1,2,3,4,5,6,7 ], [ 0,1,0,1,0,1,0,1 ] > ( out_read_type );
+
+
+    /* READ_START
+     * READ_LEN
+     *  define starting coordinates and length of read segments
+     *
+     * NB - row length === NREADS
+     */
+    extern default column INSDC:coord:zero READ_START
+        = out_read_start;
+    extern column INSDC:coord:one READ_START
+        = ( INSDC:coord:one ) < I32 > sum < 1 > ( out_read_start );
+    extern column INSDC:coord:len READ_LEN = out_read_len;
+
+    // 16-bit versions
+    readonly column U16 READ_START = cast ( out_read_start );
+    readonly column U16 READ_LEN = cast ( out_read_len );
+
+    INSDC:coord:zero in_read_start
+        = READ_START
+        ;
+
+    INSDC:coord:len in_read_len
+        = READ_LEN
+        | _alt_in_read_len;
+
+
+    /* READ_FILTER
+     *  bits indicate usability of sequence
+     *  always available
+     */
+    extern column INSDC:SRA:read_filter READ_FILTER
+        = out_rd_filter
+        | INSDC:SRA:spot2read_filter ( out_spot_filter, out_read_type )
+        | < INSDC:SRA:read_filter > echo < SRA_READ_FILTER_PASS > ( out_read_type )
+        ;
+
+    // only available if READ_FILTER is being written
+    INSDC:SRA:read_filter in_read_filter
+        = READ_FILTER
+        ;
+
+    // RD_FILTER - only available if physical column is present
+    extern readonly column INSDC:SRA:read_filter RD_FILTER
+        = out_rd_filter
+        ;
+
+    /* SPOT_FILTER
+     *  like READ_FILTER, but applies to entire spot
+     */
+    INSDC:SRA:spot_filter in_spot_filter_0
+        = SPOT_FILTER
+        | INSDC:SRA:read2spot_filter ( in_read_filter )
+        | < INSDC:SRA:spot_filter > echo < SRA_SPOT_FILTER_PASS > ()
+        ;
+
+    extern column INSDC:SRA:spot_filter SPOT_FILTER
+        = out_spot_filter
+        | INSDC:SRA:read2spot_filter ( out_rd_filter )
+        | < INSDC:SRA:spot_filter > echo < SRA_SPOT_FILTER_PASS > ()
+        ;
+
+
+    /* spot_len is used internally */
+    INSDC:coord:len spot_len
+        = base_space_spot_len
+        | color_space_spot_len
+        | align_spot_len;
+    INSDC:coord:len fixed_spot_len
+        = static_fixed_spot_len
+        | base_space_fixed_spot_len
+        | color_space_fixed_spot_len;
+
+
+	/* INSDC:tbl:sequence inherited virtual productions
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+};
+
+/*--------------------------------------------------------------------------
+ * stats
+ *  run and spot-group statistics
+ *
+ * history:
+ *  1.1.0 - added CMP_BASE_COUNT
+ */
+table INSDC:SRA:tbl:stats #1.1
+{
+    readonly column INSDC:SRA:spotid_t MIN_SPOT_ID
+        = min_spot_id
+        | < INSDC:SRA:spotid_t > echo < 1 > ();
+    readonly column INSDC:SRA:spotid_t MAX_SPOT_ID
+        = max_spot_id
+        | cast ( spot_count );
+    readonly column U64
+        SPOT_COUNT = spot_count;
+    readonly column U64
+        BASE_COUNT = base_count;
+    readonly column U64
+        BIO_BASE_COUNT = bio_base_count;
+    readonly column U64 CMP_BASE_COUNT
+        = cmp_base_count
+        | base_count;
+
+    U8 stats_dummy = in_stats_bin;
+
+	/* INSDC:SRA:tbl:stats productions
+	 *  base_count
+	 *  spot_count
+	 *  max_spot_id
+	 *  min_spot_id
+     *  in_stats_bin
+	 *  bio_base_count
+	 *  cmp_base_count
+	 */
+};
+
+/*--------------------------------------------------------------------------
+ * sra
+ *  the INSDC SRA table
+ *
+ * history:
+ *  1.0.1 - base explicitly upon spotname #1.0.1
+ *  1.0.2 - base explicitly upon sequence #1.0.1, spotdesc #1.0.1
+ *  1.0.3 - base upon spotdesc #1.0.2
+ *  1.0.4 - base upon spotname #1.1
+ */
+
+// platform constants from <insdc/sra.h>
+typedef U8 INSDC:SRA:platform_id;
+const INSDC:SRA:platform_id SRA_PLATFORM_UNDEFINED          = 0;
+const INSDC:SRA:platform_id SRA_PLATFORM_454                = 1;
+const INSDC:SRA:platform_id SRA_PLATFORM_ILLUMINA           = 2;
+const INSDC:SRA:platform_id SRA_PLATFORM_ABSOLID            = 3;
+const INSDC:SRA:platform_id SRA_PLATFORM_COMPLETE_GENOMICS  = 4;
+const INSDC:SRA:platform_id SRA_PLATFORM_HELICOS            = 5;
+const INSDC:SRA:platform_id SRA_PLATFORM_PACBIO_SMRT        = 6;
+const INSDC:SRA:platform_id SRA_PLATFORM_ION_TORRENT        = 7;
+const INSDC:SRA:platform_id SRA_PLATFORM_CAPILLARY          = 8;
+const INSDC:SRA:platform_id SRA_PLATFORM_OXFORD_NANOPORE    = 9;
+const INSDC:SRA:platform_id SRA_PLATFORM_ELEMENT_BIO        = 10;
+const INSDC:SRA:platform_id SRA_PLATFORM_TAPESTRI           = 11;
+const INSDC:SRA:platform_id SRA_PLATFORM_VELA_DIAG          = 12;
+const INSDC:SRA:platform_id SRA_PLATFORM_GENAPSYS           = 13;
+const INSDC:SRA:platform_id SRA_PLATFORM_ULTIMA             = 14;
+const INSDC:SRA:platform_id SRA_PLATFORM_GENEMIND           = 15;
+const INSDC:SRA:platform_id SRA_PLATFORM_BGISEQ             = 16;
+const INSDC:SRA:platform_id SRA_PLATFORM_DNBSEQ             = 17;
+const INSDC:SRA:platform_id SRA_PLATFORM_SINGULAR_GENOMICS  = 18;
+
+table INSDC:SRA:tbl:sra #1.0.4 =
+    INSDC:tbl:sequence #1.0.1,
+    INSDC:SRA:tbl:spotname #1.1,
+    INSDC:SRA:tbl:spotdesc #1.0.2,
+    INSDC:SRA:tbl:stats #1.1.0
+{
+    /* PLATFORM
+     *  platform description
+     *  one version returns a constant defined above
+     *  while the other returns a textual representation
+     */
+    extern column INSDC:SRA:platform_id PLATFORM
+        = .PLATFORM
+        | out_platform
+        ;
+    readonly column  ascii PLATFORM
+        = platform_name
+        ;
+
+    physical column < INSDC:SRA:platform_id > zip_encoding .PLATFORM
+        = PLATFORM
+        ;
+
+
+    /* SPOT_ID
+     *  reports spot id of current row
+     */
+    extern column INSDC:SRA:spotid_t SPOT_ID
+        = < INSDC:SRA:spotid_t > add_row_id ( .SPOT_ID )
+        | cast ( rowid_64 )
+        ;
+    I64 rowid_64 = row_id ();
+
+    physical column < INSDC:SRA:spotid_t > izip_encoding .SPOT_ID
+        = < INSDC:SRA:spotid_t > sub_row_id ( SPOT_ID )
+        ;
+
+
+    /* SPOT_GROUP
+     *  a name denoting group membership, ''
+     *  used for "barcode" support
+     */
+    extern column ascii SPOT_GROUP
+        = out_spot_group
+        | .SPOT_GROUP
+        | < ascii > echo < '' > ()
+        ;
+
+    ascii in_spot_group = SPOT_GROUP;
+
+    physical column
+    < ascii > zip_encoding <  Z_DEFAULT_STRATEGY, Z_BEST_SPEED > .SPOT_GROUP
+        = in_spot_group
+        ;
+
+	/* INSDC:tbl:sequence inherited virtual productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotcoord inherited virtual productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited virtual productions
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  base_count
+	 *  spot_count
+	 *  max_spot_id
+	 *  min_spot_id
+     *  in_stats_bin
+	 *  bio_base_count
+	 */
+
+	/* INSDC:SRA:tbl:sra productions
+	 *  out_platform
+	 *  platform_name
+	 */
+};

@@ -1,0 +1,180 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * seq-graph style named annotations
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ * constants
+ */
+
+// example usage of data type:
+typedef utf8 NCBI:SeqGraph:sid;
+typedef utf8 NCBI:SeqGraph:name;
+typedef U32 NCBI:SeqGraph:len;
+typedef U32 NCBI:SeqGraph:scale;
+typedef I64 NCBI:SeqGraph:value;
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:start;
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_q0;   // min
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_q10;  // 10th quantile
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_q50;  // median
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_q90;  // 90th quantile
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_q100; // max
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_zoom_q0;   // min zoomed to 100bp segment
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_zoom_q10;  // 10th quantile zoomed to 100bp segment
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_zoom_q50;  // median zoomed to 100bp segment
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_zoom_q90;  // 90th quantile zoomed to 100bp segment
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_zoom_q100; // max zoomed to 100bp segment
+typedef NCBI:SeqGraph:value NCBI:SeqGraph:gr_num_switches; // number of value switches in graph
+
+
+/*-------------------------------------------------------------------------- 
+ * tables
+ */
+table NCBI:SeqGraph:tbl:seqgraph #1.0
+{
+    /* SID
+     * Sequence id (Accession.version).
+     * Indexed.
+     */
+    extern column NCBI:SeqGraph:sid SID
+        = ( NCBI:SeqGraph:sid ) idx:text:project #1.0 < 'sid' > ( .SID );
+    physical column < NCBI:SeqGraph:sid > zip_encoding .SID
+        = ( NCBI:SeqGraph:sid ) idx:text:insert #1.0 < 'sid' > ( SID );
+
+    /* NAME
+     * Sequence name (which resolves into SID using assembly information)
+     * Indexed.
+     */
+    extern column NCBI:SeqGraph:name NAME
+        = ( NCBI:SeqGraph:name ) idx:text:project #1.0 < 'name' > ( .NAME );
+    physical column < NCBI:SeqGraph:name > zip_encoding .NAME
+        = ( NCBI:SeqGraph:name ) idx:text:insert #1.0 < 'name' > ( NAME );
+
+    /* START
+     * Sequence offset for the segment saved in this row. 
+     * In most cases this can be calculated from row id and LEN below.
+     */
+    extern column < NCBI:SeqGraph:start > izip_encoding START;
+
+    /* LEN
+     *  MAX_SEQ_LEN is used in our refseq schema
+     *  CHUNK_SIZE might be preferred
+     *  Mostly a constant ( = 5000), except for the last row for each sequence.
+     */
+    extern column < NCBI:SeqGraph:len > izip_encoding LEN;
+
+    /* SCALE
+     * Scaling factor for graph values.
+     * Mostly needed in order to store values as integers when actual values
+     * are real with a certain precision.
+     */
+    extern column < NCBI:SeqGraph:scale > izip_encoding SCALE;
+
+    /* GRAPH
+     * intensity values
+     */
+    extern column < NCBI:SeqGraph:value > izip_encoding GRAPH;
+
+
+    /* GR_Q0
+     * Minimal value for the row
+     */
+    extern column < NCBI:SeqGraph:gr_q0 > izip_encoding GR_Q0;
+
+
+    /* GR_Q10
+     * 10th quantile value for the row 
+     */
+    extern column < NCBI:SeqGraph:gr_q10 > izip_encoding GR_Q10;
+
+
+    /* GR_Q50
+     * Median value for the row 
+     */
+    extern column < NCBI:SeqGraph:gr_q50 > izip_encoding GR_Q50;
+
+
+    /* GR_Q90
+     * 90th quantile value for the row  
+     */
+    extern column < NCBI:SeqGraph:gr_q90 > izip_encoding GR_Q90;
+
+
+    /* GR_Q100
+     * Maximal value for the row
+     */
+    extern column < NCBI:SeqGraph:gr_q100 > izip_encoding GR_Q100;
+
+    /* GR_ZOOM_Q0
+     * Minimal values for 100bp segments of the graph chunk
+     */
+    extern column < NCBI:SeqGraph:gr_zoom_q0 > izip_encoding GR_ZOOM_Q0;
+
+
+    /* GR_ZOOM_Q10
+     * 10th quantile values for 100bp segments of the graph chunk
+     */
+    extern column < NCBI:SeqGraph:gr_zoom_q10 > izip_encoding GR_ZOOM_Q10;
+
+
+    /* GR_ZOOM_Q50
+     * Median values for 100bp segments of the graph chunk 
+     */
+    extern column < NCBI:SeqGraph:gr_zoom_q50 > izip_encoding GR_ZOOM_Q50;
+
+
+    /* GR_ZOOM_Q90
+     * 90th quantile values for 100bp segments of the graph chunk 
+     */
+    extern column < NCBI:SeqGraph:gr_zoom_q90 > izip_encoding GR_ZOOM_Q90;
+
+
+    /* GR_ZOOM_Q100
+     * Maximal values for 100bp segments of the graph chunk 
+     */
+    extern column < NCBI:SeqGraph:gr_zoom_q100 > izip_encoding GR_ZOOM_Q100;
+
+    /* NUM_SWITCHES
+     * Number of value switches within the graph. Helps client make the decision how better to
+     * represent the graph in ASN.1 (Seq-graph or Seq-table).
+     */
+    extern column < NCBI:SeqGraph:gr_num_switches > izip_encoding NUM_SWITCHES;
+};
+
+
+database NCBI:SeqGraph:database:kmergraph #1.0
+{
+    table NCBI:SeqGraph:tbl:seqgraph #1.0 LEFT;
+    table NCBI:SeqGraph:tbl:seqgraph #1.0 RIGHT;
+    table NCBI:SeqGraph:tbl:seqgraph #1.0 SUM;
+}

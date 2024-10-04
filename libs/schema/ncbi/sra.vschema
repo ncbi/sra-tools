@@ -1,0 +1,774 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Sequence Read Archive schema
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/seq.vschema';
+include 'ncbi/spotname.vschema';
+include 'insdc/sra.vschema';
+include 'ncbi/stats.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ */
+
+
+/* Segment - DEPRECATED
+ *  a ( start, len ) pair where start is a zero-based, unsigned coordinate
+ */
+typedef U16 NCBI:SRA:Segment [ 2 ];
+
+
+/* SpotDesc - DEPRECATED
+ *   uint16_t spot_len;
+ *   uint16_t fixed_len;
+ *   uint16_t signal_len;
+ *   uint16_t clip_qual_right;
+ *   uint8_t num_reads;
+ *   uint8_t align [ 7 ];
+ */
+typedef B8 NCBI:SRA:SpotDesc [ 16 ];
+
+
+/* ReadDesc - DEPRECATED
+ *   SRASegment { uint16_t start, len; } seg;
+ *   uint8_t type;
+ *   char cs_key;
+ *   char label [ 74 ];
+ */
+typedef B8 NCBI:SRA:ReadDesc [ 80 ];
+
+
+// some types have been moved to INSDC
+alias INSDC:SRA:platform_id NCBI:SRA:platform_id;
+alias INSDC:SRA:read_type NCBI:SRA:read_type;
+alias INSDC:SRA:read_filter NCBI:SRA:read_filter;
+
+typedef NCBI:fsamp4 NCBI:SRA:rotated_fsamp4, NCBI:SRA:swapped_fsamp4;
+
+// 16-bit POSITION type
+typedef U16 NCBI:SRA:pos16;
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* bio_start
+ *  searches through read_type vector
+ *  returns the 0-based starting coordinate of first biological read
+ *
+ *  "read_start" [ DATA ] - vector of read start coordinates
+ *
+ *  "read_type" [ DATA ] - vector of read types
+ */
+extern function INSDC:coord:zero
+    NCBI:SRA:bio_start #1 ( INSDC:coord:zero read_start, INSDC:SRA:xread_type read_type );
+
+
+/* bio_end
+ *  searcehes through read_type vector
+ *  returns the 0 based ending coording (either inclusive or exclusive) of last
+ *  biological read
+ *
+ *  "read_start" [ DATA ] - vector of read start coordinates
+ *
+ *  "read_type" [ DATA ] - vector of read types
+ *
+ *  "read_len" [ DATA ] - vector of read lengths
+ */
+extern function INSDC:coord:zero
+    NCBI:SRA:bio_end #1 < bool inclusive > ( INSDC:coord:zero read_start, INSDC:SRA:xread_type read_type, INSDC:coord:len read_len );
+
+
+/* fix_read_seg
+ */
+extern function INSDC:coord:len [ 2 ]
+    NCBI:SRA:fix_read_seg #1 ( U16 [ 2 ] rd_seg, INSDC:coord:len spot_len );
+
+
+/* make_spot_desc
+ *  assembles several bits of information together into a "C" structure
+ *
+ *  "spot_len" [ DATA ] - computed spot length value
+ *
+ *  "fixed_len" [ DATA, DFLT ZERO ] - the stated fixed length of all spots
+ *  or zero if not fixed length
+ *
+ *  "sig_len" [ DATA, DFLT ZERO ] - the length of signal/intensity data
+ *  or zero if not present
+ *
+ *  "trim_start" [ DATA ] - the first base included in the trim segment
+ *
+ *  "trim_len" [ DATA ] - the length of the trim segment
+ *
+ *  "num_reads" [ DATA ] - 1..n value
+ */
+extern function NCBI:SRA:SpotDesc NCBI:SRA:make_spot_desc #1 ( INSDC:coord:len spot_len,
+    INSDC:coord:len fixed_len,  INSDC:coord:len sig_len, INSDC:coord:zero trim_start,
+    INSDC:coord:len trim_len, U8 num_reads );
+
+
+/* make_read_desc
+ *  assembles several bits of information together into a "C" structure
+ *  in theory resultant segments may intersect other read segments or leave holes in spot.
+ *
+ *  "num_reads" [ DATA ] - value indicating the resulting row-length of output
+ *
+ *  "read_start" [ DATA ] - ordered starting coordinates for each read
+ *  not required to be sequential.
+ *
+ *  "read_len" [ DATA ] - ordered lengths of each read. may be zero when
+ *  read has been described but is not identified in spot.
+ *
+ *  "read_type" [ DATA ] - ordered type id describing each read
+ *
+ *  "read_filt" [ DATA ] - ordered read filters
+ *
+ *  "cs_key" [ DATA ] - ordered color-space keys
+ *
+ *  "label_start" [ DATA ] - ordered starting coordinates for each label
+ *  "label_len" [ DATA ] - ordered lengths of each label
+ *
+ *  "label" [ DATA ] - complete sequence of label characters, possibly empty
+ *  individual read labels are identified as {start,len} pairs
+ */
+extern function NCBI:SRA:ReadDesc NCBI:SRA:make_read_desc #1 ( U8 num_reads,
+    INSDC:coord:zero read_start, INSDC:coord:len read_len, INSDC:SRA:xread_type read_type,
+    INSDC:SRA:read_filter read_filt, INSDC:dna:text cs_key,
+    INSDC:coord:zero label_start, INSDC:coord:len label_len, ascii label );
+
+
+/* rotate
+ *  rotate a quadruple by called base
+ *  now normally replaced by swap
+ *
+ *  "T" [ TYPE ] - element type of quadruple to be rotated
+ *
+ *  "encoding" [ CONST ] - when true, rotate input left until corresponding
+ *  element is in slot 0. when false, rotate input right to restore original
+ *  order.
+ *
+ *  "in" [ DATA ] - data to be rotated, qualities, signal, intensities...
+ *
+ *  "called" [ DATA ] - {0..3} or {0..4} binary representation of called bases or colors
+ */
+extern function < type T >
+T NCBI:SRA:rotate #1 < bool encoding > ( T in, U8 called );
+
+
+/* swap
+ *  swap element 0 and the called element
+ *  used to ensure that the called element is in slot 0
+ *
+ *  "T" [ TYPE ] - element type of quadruple to be swapped
+ *
+ *  "in" [ DATA ] - data to be swapped, qualities, signal, intensities...
+ *
+ *  "called" [ DATA ] - {0..3} or {0..4} binary representation of called bases or colors
+ */
+extern function < type T >
+T NCBI:SRA:swap #1 ( T in, U8 called );
+
+
+/* normalize
+ * denormalize
+ *
+ *  "T" [ TYPE ] - element type of quadruple to be [de]normalized
+ *
+ *  "intensity" [ DATA ] - intensity data
+ *
+ *  "called" [ DATA ] - {0..3} or {0..4} binary representation of called bases or colors
+ */
+extern function < type T >
+T NCBI:SRA:normalize #1 ( T intensity, U8 called );
+
+extern function < type T >
+T NCBI:SRA:denormalize #1 ( T intensity, U8 called );
+
+
+/* make_position
+ *  return a synthesized position row with 1-1 correspondence
+ *
+ *  "T" [ TYPE ] - position type being generated
+ *
+ *  "start" [ CONST ] - either 0 or 1, depending upon the coordinate system
+ *
+ *  "bases" [ DATA ] - the actual row of bases. the output row
+ *  will be the same length, but with synthesized data
+ */
+extern function < type T >
+T NCBI:SRA:make_position #1 < T start > ( any bases );
+
+/* fsamp4 compression
+ *  performs compression individually
+ *  on called channel and alternate channels
+ */
+function NCBI:SRA:swapped_fsamp4 NCBI:SRA:fsamp4:decode #2 ( merged_fmt in )
+{
+    fzip_fmt cmp0 = split < 0 > ( in );
+    fzip_fmt cmp123 = split < 1 > ( in );
+    F32 ch0 = funzip ( cmp0 );
+    F32 ch123a = funzip ( cmp123 );
+    F32[3] ch123 = redimension ( ch123a );
+    return ( NCBI:SRA:swapped_fsamp4 ) < F32 > paste ( ch0, ch123 );
+}
+
+function merged_fmt NCBI:SRA:fsamp4:encode #2 < U32 called, U32 alt > ( NCBI:SRA:swapped_fsamp4 in )
+{
+    F32 ch0 = < F32 > cut < 0 > ( in );
+    F32[3] ch123 = < F32 > cut < 1, 2, 3 > ( in );
+    fzip_fmt cmp0 = fzip < called > ( ch0 );
+    F32 ch123a = redimension ( ch123 );
+    fzip_fmt cmp123 = fzip < alt > ( ch123a );
+    return merge ( cmp0, cmp123 );
+}
+
+
+/*--------------------------------------------------------------------------
+ * spotdesc
+ *  NCBI implementation productions
+ */
+
+/* history:
+ *  1.0.1 - base explicitly upon sequence #1.0.1, spotdesc #1.0.1
+ *  1.0.2 - spotdesc #1.0.2
+ */
+table NCBI:SRA:tbl:spotdesc_nocol #1.1 = INSDC:tbl:sequence #1.0.1, INSDC:SRA:tbl:spotdesc #1.0.2
+{
+    /* LABEL_SEG
+     */
+    readonly column NCBI:SRA:Segment LABEL_SEG
+        = out_label_seg
+        | cast ( out_label_seg32 )
+        | cast ( _out_label_seg32 );
+    U32 _out_label_startU32 = ( U32 ) out_label_start;
+    U32 [ 2 ] _out_label_seg32 = < U32 > paste ( _out_label_startU32, out_label_len );
+
+
+    /* READ_SEG
+     */
+    readonly column NCBI:SRA:Segment READ_SEG
+        = out_read_seg
+        | cast ( out_read_seg32 )
+        | cast ( _out_read_seg32 );
+    U32 _out_read_startU32 = ( U32 ) out_read_start;
+    U32 [ 2 ] _out_read_seg32 = < U32 > paste ( _out_read_startU32, out_read_len );
+
+
+    /* READ_DESC
+     */
+    readonly column NCBI:SRA:ReadDesc READ_DESC
+        = NCBI:SRA:make_read_desc ( out_nreads, out_read_start, out_read_len,
+              out_read_type, _out_rd_filter, out_cs_key, _out_label_start, _out_label_len, _out_label );
+    INSDC:SRA:read_filter _out_rd_filter
+        = out_rd_filter
+        | < INSDC:SRA:read_filter > echo < SRA_READ_FILTER_PASS > ( out_read_start );
+    ascii _out_label
+        = out_label
+        | < ascii > echo < '' > ();
+    INSDC:coord:zero _out_label_start
+        = out_label_start
+        | < INSDC:coord:zero > echo < 0 > ( out_read_start );
+    INSDC:coord:len _out_label_len
+        = out_label_len
+        | < INSDC:coord:len > echo < 0 > ( out_read_start );
+
+    /* SPOT_DESC
+     */
+    readonly column NCBI:SRA:SpotDesc SPOT_DESC
+        = NCBI:SRA:make_spot_desc ( spot_len, fixed_spot_len, signal_len,
+              trim_start, trim_len, out_nreads );
+
+    /* SIGNAL_LEN
+     *  normally the same as spot length when present,
+     *  but in some cases ( e.g. 454 ) it may be different
+     */
+    readonly column INSDC:coord:len SIGNAL_LEN
+        = signal_len;
+    readonly column U16 SIGNAL_LEN
+        = cast ( signal_len );
+
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 *  out_read_seg32
+	 *  out_label_seg32
+	 */
+};
+
+/* history:
+ *  1.0.1 - base explicitly upon spotdesc_nocol #1.0.1
+ *  1.0.2 - base explicitly upon spotdesc_nocol #1.0.2
+ *  1.1 - base explicitly upon spotdesc_nocol #1.1
+ */
+table NCBI:SRA:tbl:spotdesc_nophys #1.1 = NCBI:SRA:tbl:spotdesc_nocol #1.1
+{
+    // resolve virtual productions
+    U8 out_nreads = .NREADS;
+    ascii out_label = .LABEL;
+    INSDC:SRA:xread_type out_read_type = .READ_TYPE;
+    INSDC:SRA:read_filter out_rd_filter  = .RD_FILTER;
+    INSDC:SRA:spot_filter out_spot_filter = .SPOT_FILTER;
+
+    INSDC:coord:zero out_label_start
+        = .LABEL_START
+        | ( INSDC:coord:zero ) < U32 > cut < 0 > ( out_label_seg32 );
+    INSDC:coord:len out_label_len
+        = .LABEL_LEN
+        | ( INSDC:coord:len ) < U32 > cut < 1 > ( out_label_seg32 );
+    U32 [ 2 ] out_label_seg32
+        = cast ( .LABEL_SEG );
+
+    INSDC:coord:zero out_read_start
+        = .READ_START
+        | ( INSDC:coord:zero ) < U32 > cut < 0 > ( out_read_seg32 );
+    INSDC:coord:len out_read_len
+        = .READ_LEN
+        | ( INSDC:coord:len ) < U32 > cut < 1 > ( out_read_seg32 );
+    U32 [ 2 ] out_read_seg32
+        = NCBI:SRA:fix_read_seg ( .READ_SEG, spot_len );
+
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  trim_start
+	 *  out_read_type
+	 *  static_fixed_spot_len
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nophys productions
+	 *  .LABEL
+	 *  .NREADS
+	 *  .READ_LEN
+	 *  .READ_SEG
+	 *  .LABEL_LEN
+	 *  .LABEL_SEG
+	 *  .RD_FILTER
+	 *  .READ_TYPE
+	 *  .READ_START
+	 *  .LABEL_START
+	 */
+}
+
+/* history:
+ *  1.0.1 - base explicitly upon spotdesc_nophys #1.0.1
+ *  1.0.2 - base explicitly upon spotdesc_nophys #1.0.2
+ *  1.1 - base explicitly upon spotdesc_nophys #1.1
+ */
+table NCBI:SRA:tbl:spotdesc #1.1 = NCBI:SRA:tbl:spotdesc_nophys #1.1
+{
+    // physical column encodings
+    // TBD - this has to be looked at, where dynamic segmentation is involved
+    physical column < U8 > zip_encoding .NREADS = NREADS;
+    physical column < ascii > zip_encoding .LABEL = LABEL;
+    physical column < INSDC:coord:zero > izip_encoding .LABEL_START = LABEL_START;
+    physical column < INSDC:coord:len > izip_encoding .LABEL_LEN = LABEL_LEN;
+    physical column < INSDC:coord:zero > izip_encoding .READ_START = in_read_start;
+    physical column < INSDC:coord:len > izip_encoding .READ_LEN = in_read_len;
+    physical column < INSDC:SRA:xread_type > zip_encoding .READ_TYPE = in_read_type;
+    physical column < INSDC:SRA:read_filter > zip_encoding .RD_FILTER = in_read_filter;
+    physical column < INSDC:SRA:spot_filter > zip_encoding .SPOT_FILTER = in_spot_filter;
+
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  trim_start
+	 *  out_read_type
+	 *  static_fixed_spot_len
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 */
+};
+
+
+/*--------------------------------------------------------------------------
+ * pos
+ *  synthetic POSITION column on read
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sequence #1.0.1
+ */
+
+table NCBI:SRA:tbl:pos #1.0.1 = INSDC:tbl:sequence #1.0.1
+{
+    INSDC:position:one out_position
+        = < INSDC:position:one > NCBI:SRA:make_position < 1 > ( out_2na_packed )
+        | < INSDC:position:one > NCBI:SRA:make_position < 1 > ( out_2cs_packed );
+    NCBI:SRA:pos16 out_position16
+        = < NCBI:SRA:pos16 > NCBI:SRA:make_position < 1 > ( out_2na_packed )
+        | < NCBI:SRA:pos16 > NCBI:SRA:make_position < 1 > ( out_2cs_packed );
+};
+
+
+/*--------------------------------------------------------------------------
+ * sra
+ *  the NCBI SRA table
+ */
+
+/* history:
+ *  1.0.1 - base explicitly upon sra #1.0.1
+ *  1.0.2 - base explicitly upon sra #1.0.2, spotdesc_nocol #1.0.1
+ *  1.0.3 - base explicitly upon sra #1.0.3, spotdesc_nocol #1.0.2
+ *  1.0.4 - base explicitly upon sra #1.0.4
+ */
+table NCBI:SRA:tbl:sra_nopos #1.0.4
+     = INSDC:SRA:tbl:sra #1.0.4
+     , NCBI:SRA:tbl:spotdesc_nocol #1.1
+{
+    // v1 declares the POSITION column for all tables
+    // but leaves all physical columns unstated
+
+    /* POSITION
+     *  1-based coordinates
+     *  describes a base's position on signal
+     */
+    column INSDC:position:one POSITION = out_position;
+    readonly column NCBI:SRA:pos16 POSITION = out_position16;
+
+    // zero-based coordinates available upon request
+    readonly column INSDC:position:zero POSITION
+        = ( INSDC:position:zero ) < I32 > diff < 1 > ( out_position );
+
+    // statistics
+    U64 base_count
+        = < U64 > meta:value < "BASE_COUNT" > ();
+    U64 spot_count
+        = < U64 > meta:value < ".seq/spot" > ()
+        | < U64 > meta:value < ".seq" > () ;
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  max_spot_id
+	 *  min_spot_id
+	 *  in_stats_bin
+	 *  bio_base_count
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 *  platform_name
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 *  out_read_seg32
+	 *  out_label_seg32
+	 */
+
+	/* NCBI:SRA:tbl:sra_nopos productions
+	 *  out_position
+	 *  out_position16
+	 */
+};
+
+/* history:
+ *  1.0.1 - base explicitly upon sra #1.0.1
+ *  1.0.2 - base explicitly upon sra_nopos #1.0.2, pos #1.0.1
+ *  1.0.3 - base explicitly upon sra_nopos #1.0.3
+ *  1.0.4 - base explicitly upon sra_nopos #1.0.4
+ */
+table NCBI:SRA:tbl:sra #1.0.4 = NCBI:SRA:tbl:sra_nopos #1.0.4, NCBI:SRA:tbl:pos #1.0.1
+{
+    // the POSITION column is synthesized for all contemporary platforms but 454
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  out_label
+	 *  out_nreads
+	 *  trim_start
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  max_spot_id
+	 *  min_spot_id
+	 *  in_stats_bin
+	 *  bio_base_count
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 *  platform_name
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 *  out_read_seg32
+	 *  out_label_seg32
+	 */
+};
+
+
+/* v2 consolidates many of the auxiliary columns into a single treatment
+ * left out are reads, qualities and platform-specific columns
+ *
+ * history:
+ *  2.1.2 - base upon sra #1.0.3, spotdesc #1.0.2, stats #1.1.2
+ *  2.1.4 - base upon sra #1.0.4, skeyname #3.0.2, stats #1.2.1
+ */
+table NCBI:SRA:tbl:sra_nopos #2.1.4
+    = INSDC:SRA:tbl:sra #1.0.4
+    , NCBI:SRA:tbl:skeyname #3.1
+    , NCBI:SRA:tbl:spotdesc #1.1
+    , NCBI:SRA:tbl:stats #1.2.1
+{
+    // this is already specified in INSDC:SRA:tbl:sra #1
+    // but putting it here will quiet down outputs
+    INSDC:SRA:platform_id out_platform = .PLATFORM;
+
+    column INSDC:position:one POSITION
+        = out_position;
+    readonly column NCBI:SRA:pos16 POSITION
+        = cast ( _clip_position );
+    INSDC:position:one _clip_position
+        = < INSDC:position:one > clip < 0, 0xFFFF > ( out_position );
+    readonly column INSDC:position:zero POSITION
+        = ( INSDC:position:zero ) < I32 > diff < 1 > ( out_position );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  trim_start
+	 *  out_read_type
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  in_stats_bin
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 *  platform_name
+	 */
+
+	/* NCBI:SRA:tbl:skeyname inherited productions
+	 *  in_spot_name_tok
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited productions
+	 *  out_read_seg
+	 *  out_label_seg
+	 */
+
+	/* NCBI:SRA:tbl:sra_nopos productions
+	 *  out_position
+	 */
+};
+
+/* most platforms don't have a native POSITION
+ * mix in "pos" table to synthesize it
+ *
+ * history:
+ *  2.1.2 - base upon sra#1.0.3, spotdesc #1.0.2, stats #1.1.2
+ *  2.1.4 - base upon sra #1.0.4, skeyname #3.0.2, stats #1.2.1
+ */
+table NCBI:SRA:tbl:sra #2.1.4
+    = INSDC:SRA:tbl:sra #1.0.4
+    , NCBI:SRA:tbl:skeyname #3.1
+    , NCBI:SRA:tbl:spotdesc #1.1
+    , NCBI:SRA:tbl:stats #1.2.1
+    , NCBI:SRA:tbl:pos #1.0.1
+{
+    readonly column INSDC:position:one POSITION
+        = out_position;
+    readonly column NCBI:SRA:pos16 POSITION
+        = out_position16;
+    readonly column INSDC:position:zero POSITION
+        = ( INSDC:position:zero ) < I32 > diff < 1 > ( out_position );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  trim_start
+	 *  out_read_type
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  in_stats_bin
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 *  platform_name
+	 */
+
+	/* NCBI:SRA:tbl:skeyname inherited productions
+	 *  in_spot_name_tok
+	 */
+};

@@ -1,0 +1,834 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/sra.vschema';
+include 'ncbi/seq.vschema';
+include 'ncbi/stats.vschema';
+include 'insdc/insdc.vschema';
+include 'insdc/sra.vschema';
+include 'ncbi/clip.vschema';
+include 'sra/454.vschema';
+
+typedef U16 NCBI:usamp1;
+typedef NCBI:usamp1 NCBI:usamp4 [ 4 ];
+
+physical NCBI:usamp4 NCBI:usamp4_encoding #1.0
+{
+    encode
+    {
+        // split into 4 separate streams
+        NCBI:usamp1 ch0 = < NCBI:usamp1 > cut #1 < 0 > ( @ );
+        NCBI:usamp1 ch1 = < NCBI:usamp1 > cut #1 < 1 > ( @ );
+        NCBI:usamp1 ch2 = < NCBI:usamp1 > cut #1 < 2 > ( @ );
+        NCBI:usamp1 ch3 = < NCBI:usamp1 > cut #1 < 3 > ( @ );
+
+	I32 ich0 = cast ( ch0 );
+	I32 ich1 = cast ( ch1 );
+	I32 ich2 = cast ( ch2 );
+	I32 ich3 = cast ( ch3 );
+
+	I32 ch0d1 = < I32 > deriv ( ich0 );
+	I32 ch1d1 = < I32 > deriv ( ich1 );
+	I32 ch2d1 = < I32 > deriv ( ich2 );
+	I32 ch3d1 = < I32 > deriv ( ich3 );
+
+        // compress each stream separately
+        izip_fmt cmp0 = izip ( ch0d1 );
+        izip_fmt cmp1 = izip ( ch1d1 );
+        izip_fmt cmp2 = izip ( ch2d1 );
+        izip_fmt cmp3 = izip ( ch3d1 );
+
+        // merge them into a single blob
+        return merge #1 ( cmp0, cmp1, cmp2, cmp3 );
+    }
+
+    decode
+    {
+        // split compressed blob into 4 pieces
+        izip_fmt cmp0 = split < 0 > ( @ );
+        izip_fmt cmp1 = split < 1 > ( @ );
+        izip_fmt cmp2 = split < 2 > ( @ );
+        izip_fmt cmp3 = split < 3 > ( @ );
+
+        // decompress each piece separately
+        I32 ch0d1 = iunzip ( cmp0 );
+        I32 ch1d1 = iunzip ( cmp1 );
+        I32 ch2d1 = iunzip ( cmp2 );
+        I32 ch3d1 = iunzip ( cmp3 );
+
+	I32 ich0 = < I32 > integral ( ch0d1 );
+	I32 ich1 = < I32 > integral ( ch1d1 );
+	I32 ich2 = < I32 > integral ( ch2d1 );
+	I32 ich3 = < I32 > integral ( ch3d1 );
+
+	U16 ch0 = cast ( ich0 );
+	U16 ch1 = cast ( ich1 );
+	U16 ch2 = cast ( ich2 );
+	U16 ch3 = cast ( ich3 );
+
+        // interleave into single stream
+        return ( NCBI:usamp4 ) < U16 > paste #1 ( ch0, ch1, ch2, ch3 );
+    }
+}
+
+table NCBI:sra:tbl:trace #1                     // declare the table
+    = NCBI:SRA:tbl:sra_nopos #2.1.4             // inherit interface AND implementation for (original) SRA model
+    , NCBI:tbl:base_space #3                    // columns for storing and compressing READ as dna
+    , NCBI:tbl:phred_quality #2.0.6             // columns for storing and compressing QUALITY as phred
+    , NCBI:SRA:tbl:stats #1.2.1                 // accumulate statistics upon writing
+    , NCBI:SRA:tbl:clip #1.0.2                  // clips 
+{
+    /* PLATFORM
+     *  platform name is generically called "capillary"
+     */
+    ascii platform_name
+        = < ascii > echo < "CAPILLARY" > ();
+
+    /*
+    // NEEDED:
+    //  out_signal   (i.e. trace)
+    //  trim_len
+    //  trim_start
+    //  out_spot_group
+    //  in_spot_name_tok
+    //  out_position (i.e. peak)
+    */
+
+    // *
+    // position
+    // position stored as normal 1-based coordinate
+    INSDC:position:one out_position = .POSITION;
+    physical column NCBI:SRA:_454_:encoding:POSITION #2
+        .POSITION = POSITION;
+
+    // *
+    // clip_quality_left
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+
+    // *
+    // clip_quality_right
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+
+    // *
+    // clip_vector_left
+    extern column < U32 > izip_encoding CLIP_VECTOR_LEFT;
+
+    // *
+    // clip_vector_right
+    extern column < U32 > izip_encoding CLIP_VECTOR_RIGHT;
+
+    // *
+    // trace_name
+    //  name of the submission.
+    extern column ascii TRACE_NAME = out_trace_name;
+    ascii in_trace_name = TRACE_NAME;
+    physical column < ascii > zip_encoding .TRACE_NAME = in_trace_name;
+    ascii out_trace_name = .TRACE_NAME;
+
+    // *
+    // ti
+    extern column < U64 > izip_encoding TI;
+    readonly column U32 ti = cast ( TI );
+
+    // *
+    // replaced_by
+    extern column < U64 > izip_encoding REPLACED_BY;
+    readonly column U32 replaced_by = cast ( REPLACED_BY );
+
+    // *
+    // submission_id
+    // Field is dictionary from SubmissionType
+    // U16 -> ASCII. Has 15 names like: NEWTRACELESS, TRACELESS, etc
+    // Should be canonized
+    extern column < ascii > zip_encoding SUBMISSION_ID;
+
+    // *
+    // submission_type
+    extern column < ascii > zip_encoding SUBMISSION_TYPE;
+
+    // *
+    // chip_design_id
+    // Was added, cuz that value could be added
+    // Mirrored feature_id_file_name
+    extern column < ascii > zip_encoding CHIP_DESIGN_ID;
+
+    // *
+    // center_name
+    // Field is dictionary from Center
+    // U16 -> ASCII. Has 184 names like: 454MSC, ABC, ABI, AGI, etc
+    extern column < ascii > zip_encoding CENTER_NAME;
+
+    // *
+    // trace_max_value
+    extern column < U16 > izip_encoding TRACE_MAX_VALUE;
+
+    // *
+    // trace_format
+    // Field is dictionary from Format
+    // U16 -> ASCII. Has 5 values: SCF, ZTR, AB1, ABI, SFF
+    extern column < ascii > zip_encoding TRACE_FORMAT;
+
+    // *
+    // source_type
+    // Field is dictionary from Source
+    // U8 -> ASCII. Has 7 values: G, GENOMIC, N, NON GENOMIC, S,
+    //                            SYNTHETIC, VIRAL RNA
+    extern column < ascii > zip_encoding SOURCE_TYPE;
+
+    // *
+    // trace_direction
+    // Field is dictionary from Direction
+    // U8 -> ASCII. Has 6 values: F, FORWARD, N, R, REVERSE, UNKNOWN
+    extern column < ascii > zip_encoding TRACE_DIRECTION;
+
+    // *
+    // trace_end
+    // Field is dictionary from EndId
+    // U8 -> ASCII. Has 6 values: F, FORWARD, N, R, REVERSE, UNKNOWN
+    extern column < ascii > zip_encoding TRACE_END;
+
+    // *
+    // primer
+    extern column < ascii > zip_encoding PRIMER;
+
+    // *
+    // strategy
+    // Field is dictionary from Strategy (?) ( wrong size )
+    // U8 -> ASCII. Has 38 values like: AFLP, BARCODE, CCS, CDNA, etc
+    extern column < ascii > zip_encoding STRATEGY;
+
+    // *
+    // trace_type_code
+    // Field is dictionary from  BlastDump (?)
+    // There are 17 tinyints like: FINISHING, RANDOM, WGS, etc
+    extern column < ascii > zip_encoding TRACE_TYPE_CODE;
+
+    // *
+    // program_id
+    // Field is dictionary from Program
+    // U16 -> ASCII
+    // There are 1193 values, which looks quite unique, no decriptions
+    extern column < ascii > zip_encoding PROGRAM_ID;
+
+    // *
+    // template_id
+    extern column < ascii > zip_encoding TEMPLATE_ID;
+
+    // *
+    // chemistry
+    // Field is dictionary from Chemistry
+    // U16 -> ASCII. Has 60 values, and one of them with id = 4 is ""
+    extern column < ascii > zip_encoding CHEMISTRY;
+
+    // *
+    // chemistry_type
+    // Field is dictionary from ChemistryType
+    // U16 -> ASCII
+    // Has 3 chemistry types, and 6 names:
+    // 1 { T, TERM, TERMINATOR }, 2 { UNKNOWN }, 3 { P, PRIMER }
+    extern column < ascii > zip_encoding CHEMISTRY_TYPE;
+
+    // *
+    // flow_chars
+    column INSDC:dna:text FLOW_CHARS = out_flow_chars;
+    INSDC:dna:text in_flow_chars
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn.', 'ACGTNN' > ( FLOW_CHARS );
+    physical column < INSDC:dna:text > zip_encoding
+        .FLOW_CHARS = in_flow_chars;
+    INSDC:dna:text out_flow_chars
+        = .FLOW_CHARS;                                                                                                      
+
+    // *
+    // key_sequence
+    column INSDC:dna:text KEY_SEQUENCE = out_key_sequence;
+    INSDC:dna:text in_key_sequence
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn.', 'ACGTNN' > ( KEY_SEQUENCE );
+    physical column < INSDC:dna:text > zip_encoding
+        .KEY_SEQUENCE = in_key_sequence;
+    INSDC:dna:text out_key_sequence
+        = .KEY_SEQUENCE;                   
+
+    // *
+    // signal - actual TRACE data
+    column NCBI:usamp4_encoding SIGNAL;
+    //column NCBI:usamp4 SIGNAL;
+    NCBI:usamp4 out_signal = .SIGNAL;
+
+    // *
+    // attempt
+    extern column < U8 > zip_encoding ATTEMPT;
+
+    // *
+    // svector_code
+    // Field is dictionary from SeqVector
+    // U16 -> ASCII. Has 230 values like: POT, M13, PUC, POTW13, etc
+    extern column < ascii > zip_encoding SVECTOR_CODE;
+
+    // *
+    // svector_accession
+    // Field is dictionary from SeqVectorAcc
+    // U16 -> ASCII. Has 8 values like: AF399742, L08752, etc
+    extern column < ascii > zip_encoding SVECTOR_ACCESSION;
+
+    // *
+    // cvector_code
+    // Field is dictionary from CloneVector
+    // U16 -> ASCII. Has 125 values like: PBACE3.6, PT7T3PAC, PPAC4, etc
+    extern column < ascii > zip_encoding CVECTOR_CODE;
+
+    // *
+    // cvector_accession
+    // Field is dictionary from CloneVectorAcc
+    // U16 -> ASCII. Has 16 values like: U80929, U13871, U75992, etc
+    extern column < ascii > zip_encoding CVECTOR_ACCESSION;
+
+    // *
+    // insert_size
+    extern column < U32 > izip_encoding INSERT_SIZE;
+
+    // *
+    // insert_stdev
+    extern column < U32 > izip_encoding INSERT_STDEV;
+
+    // *
+    // iteration - it did exists some tiome ago
+    extern column < U16 > izip_encoding ITERATION;
+
+    // *
+    // plate_id
+    // Field is dictionary from Plate
+    // U32 -> ASCII. Has 7M values like: ML1B-A1156, ML1B-A1158, etc
+    extern column < ascii > zip_encoding PLATE_ID;
+
+    // *
+    // species_code
+    // Field is dictionary from Species
+    // U32 -> ASCII. Has 12K values like: "ARTIFICIAL SEQUENCE",
+    // "SYNTHETIC", "SYNTHETIC CONSTRUCT", etc
+    extern column < ascii > zip_encoding SPECIES_CODE;
+
+    // *
+    // organism_name_OLD
+    extern column < ascii > zip_encoding ORGANISM_NAME_OLD;
+
+    // *
+    // clone_id
+    extern column < ascii > zip_encoding CLONE_ID;
+
+    // *
+    // chromosome
+    // Field is dictionary from Chromosome
+    // U8 -> ASCII. Has 171 value like: NA, 11, 7, 12, 14, etc
+    extern column < ascii > zip_encoding CHROMOSOME;
+
+    // *
+    // library_id
+    // Field is dictionary from Library
+    // U16 -> ASCII. Has 11K values like: CH230, RP1, RP11, etc
+    extern column < ascii > zip_encoding LIBRARY_ID;
+
+    // *
+    // accession
+    extern column < ascii > zip_encoding ACCESSION;
+
+    // *
+    // run_machine_id
+    // Field is dictionary from Machine
+    // U16 -> ASCII. Has 2K values like: 194, 137, 130, 300, etc
+    extern column < ascii > zip_encoding RUN_MACHINE_ID;
+
+    // *
+    // run_machine_type
+    // Field is dictionary from MachineType
+    // U16 -> ASCII. Has 160 values like: 194, 137, 130, 300, etc
+    extern column < ascii > zip_encoding RUN_MACHINE_TYPE;
+
+    // *
+    // run_lane
+    extern column < U16 > izip_encoding RUN_LANE;
+
+    // *
+    // run_date
+    // smalldatetime
+    extern column < U64 > izip_encoding RUN_DATE;
+
+    // *
+    // load_date
+    // smalldatetime
+    extern column < U64 > izip_encoding LOAD_DATE;
+
+    // *
+    // control_flags
+    extern column < U16 > izip_encoding CONTROL_FLAGS;
+
+    // *
+    // status
+    extern column < U8 > izip_encoding STATUS;
+
+    // *
+    // seq_lib_id
+    // Field is dictionary from SeqLibrary
+    // U32 -> ASCII. Has 700K values like: 33802, RATBN2.5.2L, etc
+    extern column < ascii > zip_encoding SEQ_LIB_ID;
+
+    // *
+    // run_group_id
+    // Field is dictionary from RunGroup
+    // U32 -> ASCII. Has 5M values like: 2000-01-24-GEA-D, etc
+    extern column < ascii > zip_encoding RUN_GROUP_ID;
+
+    // *
+    // update_date
+    // smalldatetime
+    extern column < U64 > izip_encoding UPDATE_DATE;
+
+    // *
+    // clone_id_list
+    extern column < ascii > zip_encoding CLONE_ID_LIST;
+
+    // *
+    // extended_data
+    extern column < ascii > zip_encoding EXTENDED_DATA;
+
+    // *
+    // comments
+    extern column < ascii > zip_encoding COMMENTS;
+
+    // *
+    // center_project
+    // Field is dictionary from Project
+    // U32 -> ASCII. Has 2M values like: 30153, 31491, 31489, etc
+    extern column < ascii > zip_encoding CENTER_PROJECT;
+
+    // *
+    // prep_group_id
+    // Field is dictionary from PrepGroup
+    // U32 -> ASCII. Has 3M values like: 6AUG03.842PMAB1, etc
+    extern column < ascii > zip_encoding PREP_GROUP_ID;
+
+    // *
+    // pmid
+    extern column < U32 > izip_encoding PMID;
+
+    // *
+    // pick_group_id
+    // Field is dictionary from PickGroup
+    // U32 -> ASCII. Has 1.5M values like: 893877, 895133, etc
+    extern column < ascii > zip_encoding PICK_GROUP_ID;
+
+    // *
+    // bases_20
+    extern column < U16 > izip_encoding BASES_20;
+
+    // *
+    // bases_40
+    extern column < U16 > izip_encoding BASES_40;
+
+    // *
+    // bases_60
+    extern column < U16 > izip_encoding BASES_60;
+
+    // *
+    // strain
+    // Field is dictionary from Strain
+    // U32 -> ASCII. Has 1.2K values like: KT, SRS30216, LB400, etc
+    extern column < ascii > zip_encoding STRAIN;
+
+    // *
+    // amplification_forward
+    // Field is dictionary from AmplificationForward
+    // U32 -> ASCII. Has 400K values like: GACGACGAAGACGAAGAAGG, etc
+    extern column < ascii > zip_encoding AMPLIFICATION_FORWARD;
+
+    // *
+    // amplification_reverse
+    // Field is dictionary from AmplificationReverse
+    // U32 -> ASCII. Has 400K values like: AACTCGCTCCAATGAGGAAA, etc
+    extern column < ascii > zip_encoding AMPLIFICATION_REVERSE;
+
+    // *
+    // amplification_size
+    extern column < U32 > izip_encoding AMPLIFICATION_SIZE;
+
+    // *
+    // assembly_id
+    // Field is dictionary from AssemblyId
+    // U32 -> ASCII. Has 2 values: "NCBI BUILD 34", and
+    // "HUMAN BUILD 33, APRIL 2003 FREEZE".
+    extern column < ascii > zip_encoding ASSEMBLY_ID;
+
+    // *
+    // chromosome_region
+    // Field is dictionary from ChromosomeRegion
+    // U32 -> ASCII. Has 5K values like: "7:26665793-2716579226"
+    extern column < ascii > zip_encoding CHROMOSOME_REGION;
+
+    // *
+    // hi_filter_size
+    // Field is dictionary from HiFilterSize
+    // U32 -> ASCII. Has 6 values like: "0.1 KD-MICRONS", "0.22", etc
+    extern column < ascii > zip_encoding HI_FILTER_SIZE;
+
+    // *
+    // lo_filter_size
+    // Field is dictionary from LoFilterSize
+    // U32 -> ASCII. Has 7 values like: "0.0 MICRONS", "0.002", etc
+    extern column < ascii > zip_encoding LO_FILTER_SIZE;
+
+    // *
+    // environment_type
+    // Field is dictionary from EnvironmentType
+    // U32 -> ASCII. Has 52 values like: "BEACH SAND",
+    // "HUMAN STOOL", "NORTH ATLANTIC DEEP WATER", etc
+    extern column < ascii > zip_encoding ENVIRONMENT_TYPE;
+
+    // *
+    // host_condition
+    // Field is dictionary from HostCondition
+    // U32 -> ASCII. Has only one value: "HEALTHY"
+    extern column < ascii > zip_encoding HOST_CONDITION;
+
+    // *
+    // host_id
+    // Field is dictionary from HostIdentifier
+    // U32 -> ASCII. Has 69 values like: 01DBA0010, 01DBA0011, etc
+    extern column < ascii > zip_encoding HOST_ID;
+
+    // *
+    // host_location
+    // Field is dictionary from HostLocation
+    // U32 -> ASCII. Contains 30 values like: "BELOW CUTICLE", "BONE",
+    // "CECUM", "CORPUS", etc
+    extern column < ascii > zip_encoding HOST_LOCATION;
+
+    // *
+    // host_species
+    // Field is dictionary from HostSpecies
+    // U32 -> ASCII. Has 11 values like: "ALVINELA POMPEJANA EPIBIONT"
+    // "ESCHRICHTIUS ROBUSTUS", "HOMO NEANDERTHALENSIS", etc
+    extern column < ascii > zip_encoding HOST_SPECIES;
+
+    // *
+    // individual_id
+    // Field is dictionary from IndividualId
+    // U32 -> ASCII. Has 3M values like: "JDH LADY MANSO 62/4",
+    // "WA-DEL RC BLCKSTR MARTHA-ET (HO-USA 13907649)", etc
+    extern column < ascii > zip_encoding INDIVIDUAL_ID;
+
+    // *
+    // transposon_acc
+    // Field is dictionary from TransposonAcc
+    // U32 -> ASCII. Has 4 values: "N/A", "NGB00024.2", "", "BD291493"
+    extern column < ascii > zip_encoding TRANSPOSON_ACC;
+
+    // *
+    // transposon_code
+    // Field is dictionary from TransposonCode
+    // U32 -> ASCII. Has 8 values like: AT-2, EZ-TN, EZ-TN5, etc
+    extern column < ascii > zip_encoding TRANSPOSON_CODE;
+
+    // *
+    // collection_date
+    // smalldatetime
+    extern column < U64 > izip_encoding COLLECTION_DATE;
+
+    // *
+    // depth
+    extern column F64 DEPTH;
+
+    // *
+    // elevation
+    extern column F64 ELEVATION;
+
+    // *
+    // latitude
+    extern column F64 LATITUDE;
+
+    // *
+    // longitude
+    extern column F64 LONGITUDE;
+
+    // *
+    // ph
+    extern column F64 PH;
+
+    // *
+    // salinity
+    extern column F64 SALINITY;
+
+    // *
+    // temperature
+    extern column F64 TEMPERATURE;
+
+    // *
+    // population_id
+    // Field is dictionary from Population
+    // U32 -> ASCII. Has 10 values like: "AFRICAN", "CAUCASIAN", etc
+    extern column < ascii > zip_encoding POPULATION_ID;
+
+    // *
+    // place_name
+    // Field is dictionary from PlaceName
+    // U32 -> ASCII. Has 82 values like: "HYDROSTATION S, BERMUDA (UK)"
+    extern column < ascii > zip_encoding PLACE_NAME;
+
+    // *
+    // well_id
+    // Field is dictionary from Well
+    // U32 -> ASCII. Has 300K values like: C6, G9, H2, B5, C11, etc
+    extern column < ascii > zip_encoding WELL_ID;
+
+    // *
+    // gene_name
+    // Field is dictionary from GeneName
+    // U32 -> ASCII. Has 30K values like: COI, HIF1A, PRKCB1, etc
+    extern column < ascii > zip_encoding GENE_NAME;
+
+    // *
+    // reference_accession
+    // Field is dictionary from ReferenceAccession
+    // U32 -> ASCII. Has 6K names like: NT_039520.1, NT_039268.1, etc
+    extern column < ascii > zip_encoding REFERENCE_ACCESSION;
+
+    // *
+    // reference_offset
+    extern column < U32 > izip_encoding REFERENCE_OFFSET;
+
+    // *
+    // insert_flank_left
+    // Field is dictionary from InsertFlankLeft
+    // U32 -> ASCII. Has 266 values like: AATACGACTCACTATAGGGCGAATTCGAGCTCGGTACCCGGGGATCCCAC", etc
+    extern column < ascii > zip_encoding INSERT_FLANK_LEFT;
+
+    // *
+    // insert_flank_right
+    // Field is dictionary from InsertFlankRight
+    // U32 -> ASCII. Has 221 values like: GTGGGATCCTCTAGAGTCGACCTGCAGGCATGCAAGCTTGAGTATTCTAT, etc
+    extern column < ascii > zip_encoding INSERT_FLANK_RIGHT;
+
+    // *
+    // reference_acc_min
+    extern column < U32 > izip_encoding REFERENCE_ACC_MIN;
+
+    // *
+    // reference_acc_max
+    extern column < U32 > izip_encoding REFERENCE_ACC_MAX;
+
+    // *
+    // feature_id_file_name
+    // Field is dictionary from FeatureIdFile
+    // U32 -> ASCII. Has 4k values like: PSC.CHRN_077.DES33, etc
+    extern column < ascii > zip_encoding FEATURE_ID_FILE_NAME;
+
+    // *
+    // feature_signal_file_name
+    // Field is dictionary from FeatureSignalFile
+    // U32 -> ASCII. Has only one value: N/A ... lol
+    extern column < ascii > zip_encoding FEATURE_SIGNAL_FILE_NAME;
+
+    // *
+    // ncbi_project_id
+    // Field is dictionary from ProjectContent
+    // U32 - as is ... there are 188 values
+    extern column < U32 > izip_encoding NCBI_PROJECT_ID;
+
+    // *
+    // project_name
+    // Field is dictionary from ProjectName
+    // U32 -> ASCII. Has 29 values like: "ARALL", "BARCODE", etc
+    extern column < ascii > zip_encoding PROJECT_NAME;
+
+    // *
+    // primer_code
+    // Field is dictionary from PrimerCode
+    // U32 -> ASCII. Has 95K values like: "M13 FORWARD", etc
+    extern column < ascii > zip_encoding PRIMER_CODE;
+
+    // *
+    // taxid
+    // Field is dictionary from TaxonomyTree
+    // U32 -> ASCII. Has 4K values like: "Bacteria", "Pelobacter", etc
+    extern column < ascii > zip_encoding TAXID;
+
+    // *
+    // anonymized_id
+    // Field is dictionary from AnonymizedId
+    // U32 -> ASCII. Has 15M values like: 10685146475, 10690251308, etc
+    extern column < ascii > zip_encoding ANONYMIZED_ID;
+
+    // *
+    // reference_set_max
+    extern column < U32 > izip_encoding REFERENCE_SET_MAX;
+
+    // *
+    // reference_set_min
+    extern column < U32 > izip_encoding REFERENCE_SET_MIN;
+
+    // *
+    // organism_name
+    // Field is dictionary from OrganismName
+    // U32 -> ASCII. Has 170K names like: "THUNNUS ATLANTICUS", etc
+    extern column < ascii > zip_encoding ORGANISM_NAME;
+
+	/* INSDC:tbl:sequence inherited virtual productions
+	 *  bool cs_native;
+	 *  virtual in_cs_key = 0;
+	 *  INSDC:dna:text out_cs_key;
+	 *  virtual out_signal = 0;                ##
+	 *  INSDC:dna:text in_dna_text;
+	 *  INSDC:2cs:bin out_2cs_bin;
+	 *  INSDC:2na:bin out_2na_bin;
+	 *  INSDC:4na:bin out_4na_bin;
+	 *  INSDC:dna:text out_dna_text;
+	 *  INSDC:x2cs:bin out_x2cs_bin;
+	 *  INSDC:x2na:bin out_x2na_bin;
+	 *  virtual in_color_text = 0;
+	 *  INSDC:2cs:packed out_2cs_packed;
+	 *  INSDC:2na:packed out_2na_packed;
+	 *  INSDC:4na:packed out_4na_packed;
+	 *  INSDC:color:text out_color_text;
+	 *  INSDC:quality:phred out_qual_phred;
+	 *  U8 out_color_matrix;
+	 *  virtual out_qual_text_phred_33 = 0;
+	 *  virtual out_qual_text_phred_64 = 0;
+	 */
+
+	/* INSDC:SRA:tbl:spotcoord inherited virtual productions
+	 *  INSDC:coord:val out_x_coord;
+	 *  INSDC:coord:val out_y_coord;
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited virtual productions
+	 *  ascii out_name_fmt;
+	 *  ascii out_spot_name;
+	 *  INSDC:SRA:spot_ids_found spot_ids_found;
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited virtual productions
+	 *  virtual trim_len = 0;                   ##
+	 *  ascii out_label;
+	 *  U8 out_nreads;
+	 *  virtual trim_start = 0;                 ##
+	 *  INSDC:coord:len out_read_len;
+	 *  INSDC:coord:len out_label_len;
+	 *  INSDC:SRA:read_filter out_rd_filter;
+	 *  INSDC:SRA:xread_type out_read_type;
+	 *  virtual align_spot_len = 0;
+	 *  INSDC:coord:zero out_read_start;
+	 *  INSDC:coord:zero out_label_start;
+	 *  virtual _alt_in_read_len = 0;
+	 *  virtual _alt_in_read_type = 0;
+	 *  INSDC:coord:len base_space_spot_len;
+	 *  virtual color_space_spot_len = 0;
+	 *  virtual static_fixed_spot_len = 0;
+	 *  INSDC:coord:len base_space_fixed_spot_len;
+	 *  virtual color_space_fixed_spot_len = 0;
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited virtual productions
+	 *  U64 base_count;
+	 *  U64 spot_count;
+	 *  INSDC:SRA:spotid_t max_spot_id;
+	 *  INSDC:SRA:spotid_t min_spot_id;
+	 *  U8 in_stats_bin;
+	 *  U64 bio_base_count;
+	 *  U64 cmp_base_count;
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited virtual productions
+	 *  INSDC:SRA:platform_id out_platform;
+	 *  ascii platform_name;
+	 *  virtual out_spot_group = 0;              ## ?
+	 */
+
+	/* NCBI:tbl:dcmp_base_space inherited virtual productions
+	 *  virtual out_dcmp_2na_bin = 0;
+	 *  virtual out_dcmp_4na_bin = 0;
+	 *  virtual out_dcmp_x2na_bin = 0;
+	 *  virtual out_dcmp_2na_packed = 0;
+	 */
+
+	/* NCBI:tbl:base_space_common inherited virtual productions
+	 *  virtual .CS_KEY = 0;
+	 */
+
+	/* NCBI:SRA:tbl:spotcoord inherited virtual productions
+	 *  virtual in_l_coord = 0;                  ## these could ONLY be needed if
+	 *  virtual in_t_coord = 0;                  #  we have coordinates in the name
+	 *  virtual in_x_coord = 0;                  #  and if we parse and store the name
+	 *  virtual in_y_coord = 0;
+	 *  INSDC:coord:val in_name_l_coord;
+	 *  INSDC:coord:val in_name_t_coord;
+	 *  INSDC:coord:val in_name_x_coord;
+	 *  INSDC:coord:val in_name_y_coord;
+	 */
+
+	/* NCBI:SRA:tbl:skeyname inherited virtual productions
+	 *  virtual in_spot_name_tok = 0;
+	 */
+
+	/* NCBI:SRA:tbl:stats inherited virtual productions
+	 *  virtual in_spot_len = 0;
+	 *  INSDC:quality:phred in_qual_phred;
+	 *  INSDC:quality:phred in_stats_qual;
+	 *  virtual in_cmp_stats_bin = 0;
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nocol inherited virtual productions
+	 *  virtual out_read_seg = 0;
+	 *  virtual out_label_seg = 0;
+	 *  U32 [ 2 ] out_read_seg32;
+	 *  U32 [ 2 ] out_label_seg32;
+	 */
+
+	/* NCBI:SRA:tbl:spotdesc_nophys inherited virtual productions
+	 *  physical < ascii > zip_encoding #1 .LABEL;
+	 *  physical < U8 > zip_encoding #1 .NREADS;
+	 *  physical < INSDC:coord:len > izip_encoding #1 .READ_LEN;
+	 *  virtual .READ_SEG = 0;
+	 *  physical < INSDC:coord:len > izip_encoding #1 .LABEL_LEN;
+	 *  virtual .LABEL_SEG = 0;
+	 *  physical < INSDC:SRA:read_filter > zip_encoding #1 .RD_FILTER;
+	 *  physical < INSDC:SRA:xread_type > zip_encoding #1 .READ_TYPE;
+	 *  physical < INSDC:coord:zero > izip_encoding #1 .READ_START;
+	 *  physical < INSDC:coord:zero > izip_encoding #1 .LABEL_START;
+	 */
+
+	/* NCBI:SRA:tbl:sra_nopos inherited virtual productions
+	 *  virtual out_position = 0;                 ##
+	 */
+}
+
+database NCBI:sra:db:trace #1
+{
+    table NCBI:sra:tbl:trace #1 SEQUENCE;
+}
+

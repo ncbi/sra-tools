@@ -463,7 +463,7 @@ char const * spot_batch_size[] =
 static
 char const * number_of_threads[] =
 {
-    "number of threads (default: 8)",
+    "number of threads (3 or greater; can be 0, means default: 8)",
     NULL
 };
 
@@ -1135,16 +1135,18 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             rc = ArgsOptionValue (args, OPTION_THREADS, 0, (const void **)&value);
             if (rc)
                 break;
-            G.numThreads = strtoul(value, &dummy, 0);
-            if (G.numThreads == 0)
-                G.numThreads = 8;
-            if (G.numThreads < 3)
+
+            char* p;
+            G.numThreads = strtoul(value, &p, 0);
+            if ( * p != 0 || ( G.numThreads < 3 && G.numThreads != 0 ) )
             {
                 rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcIncorrect);
-                OUTMSG (("threads: bad value (must be 3 or greater)\n"));
+                OUTMSG (("threads: bad value (must be an integer >=3, or 0)\n"));
                 MiniUsage (args);
                 break;
             }
+            if (G.numThreads == 0)
+                G.numThreads = 8;
         }
 
         rc = ArgsOptionCount (args, OPTION_MIN_BATCH_SIZE, &pcount);

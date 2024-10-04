@@ -70,6 +70,15 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_FewerThan3Threads PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
+
+    add_test( NAME Test_BamLoader_ThreadsBad
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${DIRTOTEST}/bam-load -o out.sra --threads=N test.sam"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_ThreadsBad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
     #####################
 
     if( RUN_SANITIZER_TESTS )

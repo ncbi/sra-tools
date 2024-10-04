@@ -321,11 +321,10 @@
             "dbtype":"index",
             "fstype":"file",
             "hasMetadata":false,
-            "hasMD5_File":false,
+            "hasMD5_File":true,
             "isLocked":false,
             "isSealed":false,
             "hasErrors":false,
-            "hasChecksum_MD5":true,
             "isTextIndex":true,
             "isIdIndex":false,
             "reverseByteOrder":false

@@ -211,7 +211,7 @@ GetNonNegativeNumber( Args * args, const char * option )
     }
 }
 
-typedef class {
+typedef class Query {
     bool aligned;
     bool platforms;
     bool quality;
@@ -362,8 +362,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( q.needQuality() )
                 {
                     Output( formatter.format(
-                        info.HasPhysicalQualities()
-                            ? "STORED" : "GENERATED",
+                        info.QualityDescription(),
                         "QUALITY" ) );
                 }
 

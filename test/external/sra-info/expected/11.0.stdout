@@ -44,6 +44,6 @@ SRR000123:table
         has MD5 file
         has CRC checksum
     skey:index, file
-        has MD5 checksum
+        has MD5 file
         is on text
 

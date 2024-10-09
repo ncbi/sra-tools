@@ -481,6 +481,13 @@ char const * min_batch_size_usage[] =
     NULL
 };
 
+static
+char const * telemetry_usage[] =
+{
+    "Path and Name of the telemetry file.",
+    NULL
+};
+
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */
@@ -522,7 +529,7 @@ OptDef Options[] =
     { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
     { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false },
     { OPTION_MIN_BATCH_SIZE, NULL, NULL, min_batch_size_usage, 1, true,  false },
-    { OPTION_TELEMETRY, NULL, NULL, number_of_threads, 1, true, false },
+    { OPTION_TELEMETRY, NULL, NULL, telemetry_usage, 1, true, false },
 };
 
 const char* OptHelpParam[] =

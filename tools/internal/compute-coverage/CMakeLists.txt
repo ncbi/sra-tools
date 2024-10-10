@@ -46,3 +46,6 @@ target_link_libraries ( compute-coverage-ngs
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}
 )
+
+MakeLinksExe ( compute-coverage     false )
+MakeLinksExe ( compute-coverage-ngs false )

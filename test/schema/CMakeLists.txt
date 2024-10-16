@@ -22,37 +22,22 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+if (Python3_EXECUTABLE)
+    add_test( NAME Test_SCHEMA_454_db
+        COMMAND ${Python3_EXECUTABLE} test_VDB-5250.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_SCHEMA_454_db
+        PROPERTIES
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+    )
 
-if ( NOT SINGLE_CONFIG )
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-else()
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
+    add_test( NAME Test_SCHEMA_IonTorrent_db
+        COMMAND ${Python3_EXECUTABLE} test_VDB-5251.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_SCHEMA_IonTorrent_db
+        PROPERTIES
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+    )
 endif()
-
-add_subdirectory( vdb )
-add_subdirectory( schema )
-add_subdirectory( external )
-if( BUILD_TOOLS_LOADERS )
-	add_subdirectory( loaders )
-endif()
-if( BUILD_TOOLS_INTERNAL )
-	add_subdirectory( internal )
-endif()
-if( BUILD_TOOLS_TEST_TOOLS )
-	add_subdirectory( test-tools )
-endif()
-
-#add_subdirectory( ngs ) # moved to test/external
-#add_subdirectory( align ) # moved to test/internal
-#add_subdirectory( test_sanitizers ) # move to test/internal
-
-add_subdirectory( scripts ) # move to test/internal
-
-# add_subdirectory(samline) # command line tool; move to tools/internal
-
-# add_subdirectory(tarballs) # called directly from TeamCity

@@ -22,37 +22,9 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+default: runtests
 
-if ( NOT SINGLE_CONFIG )
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-else()
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
-endif()
+TOP ?= $(abspath ../..)
+MODULE = test/schema
 
-add_subdirectory( vdb )
-add_subdirectory( schema )
-add_subdirectory( external )
-if( BUILD_TOOLS_LOADERS )
-	add_subdirectory( loaders )
-endif()
-if( BUILD_TOOLS_INTERNAL )
-	add_subdirectory( internal )
-endif()
-if( BUILD_TOOLS_TEST_TOOLS )
-	add_subdirectory( test-tools )
-endif()
-
-#add_subdirectory( ngs ) # moved to test/external
-#add_subdirectory( align ) # moved to test/internal
-#add_subdirectory( test_sanitizers ) # move to test/internal
-
-add_subdirectory( scripts ) # move to test/internal
-
-# add_subdirectory(samline) # command line tool; move to tools/internal
-
-# add_subdirectory(tarballs) # called directly from TeamCity
+include $(TOP)/build/Makefile.env

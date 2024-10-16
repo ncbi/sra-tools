@@ -48,6 +48,7 @@ if( LibXml2_FOUND )
 			${COMMON_LIBS_WRITE}
 			kxml
 			${LIBXML2_LIBRARIES}
+            ksrch
 		)
 
 	else()
@@ -57,6 +58,7 @@ if( LibXml2_FOUND )
 			${COMMON_LIBS_WRITE}
 			kxml
 			xml2
+            ksrch
 		)
 	endif()
 

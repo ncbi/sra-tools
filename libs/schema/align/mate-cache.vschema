@@ -1,0 +1,99 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * VDB mate-cache types, functions and tables
+ */
+version 1;
+
+include 'insdc/insdc.vschema';
+include 'vdb/vdb.vschema';
+include 'insdc/sra.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * data types
+ */
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+
+/*--------------------------------------------------------------------------
+ * tables
+ */
+
+table NCBI:align:tbl:mate_cache #1.1
+{
+    /* SAM_FLAGS
+     */
+    extern column < U32 > izip_encoding SAM_FLAGS_CACHE;
+
+    /* SAM_QUALITY
+     */
+    extern column < INSDC:quality:text:phred_33 > zip_encoding SAM_QUALITY_CACHE;
+
+    /* TEMPLATE_LEN
+     */
+    extern column < I32 > izip_encoding TEMPLATE_LEN_CACHE;
+
+    /* MATE_ALIGN_ID
+     */
+    extern column < I64 > izip_encoding MATE_ALIGN_ID_CACHE;
+
+    /* MATE_REF_NAME
+     */
+    extern column < ascii > zip_encoding MATE_REF_NAME_CACHE;
+
+    /* MATE_REF_POS
+     */
+    extern column < INSDC:coord:zero > izip_encoding MATE_REF_POS_CACHE;
+
+    /* ALIGNMENT_COUNT
+     */
+    extern column < U8 > izip_encoding ALIGNMENT_COUNT_CACHE;
+
+    /* RD_FILTER
+     */
+    extern column < INSDC:SRA:read_filter > zip_encoding RD_FILTER_CACHE;
+    readonly column INSDC:SRA:read_filter READ_FILTER_CACHE = .RD_FILTER_CACHE;
+
+    /* SPOT_GROUP
+     */
+    extern column < ascii > zip_encoding SPOT_GROUP_CACHE;
+    readonly column ascii SEQ_SPOT_GROUP_CACHE = .SPOT_GROUP_CACHE;
+};
+
+/*--------------------------------------------------------------------------
+ * databases
+ */
+
+database NCBI:align:db:mate_cache #1
+{
+    table NCBI:align:tbl:mate_cache #1.1 PRIMARY_ALIGNMENT;
+};

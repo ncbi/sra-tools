@@ -1,0 +1,87 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Helicos Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* tokenize_spot_name
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:Helicos:tokenize_spot_name #1 ( ascii name );
+
+
+/* Helicos:tbl
+ *
+ * history:
+ *  1.0.1 - explictly base upon ancestry
+ *  1.0.2 - base explicitly upon latest ancestry
+ *  1.0.3 - base explicitly upon latest ancestry
+ *  1.0.4 - base explicitly upon latest ancestry
+ *  1.0.5 - base explicitly upon latest ancestry
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:Helicos:tbl:v2 #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0
+{
+    ascii platform_name
+        = < ascii > echo < "HELICOS" > ();
+
+    /* NAME tokenizing and coordinates
+     *  most work happens in skeyname table
+     *  we still obtain REGION from name
+     */
+
+    readonly column INSDC:coord:val CHANNEL = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:L > ( _out_name, out_spot_name_tok );
+    readonly column INSDC:coord:val FIELD = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:T > ( _out_name, out_spot_name_tok );
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:Helicos:tokenize_spot_name ( _out_name );
+
+    readonly column INSDC:coord:val CAMERA = out_x_coord;
+    readonly column INSDC:coord:val POS = out_y_coord;
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:Helicos:tokenize_spot_name ( NAME );
+
+    INSDC:coord:zero trim_start
+        = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len trim_len = spot_len;
+};

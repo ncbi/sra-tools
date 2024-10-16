@@ -1,0 +1,303 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * Sequence schema
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/seq.vschema';
+
+
+/* cmp_base_space
+ *  table representing compressed reads in base space,
+ *  where the bases are only stored for unaligned reads
+ */
+table NCBI:align:tbl:cmp_base_space #1
+    = INSDC:tbl:sequence #1.0.1
+    , NCBI:tbl:dcmp_base_space #1
+{
+    /* CMP_READ
+     *  read compressed against a reference sequence
+     */
+
+    // default is IUPAC character representation
+    extern default column INSDC:dna:text CMP_READ
+    {
+        read = out_cmp_dna_text;
+        validate = < INSDC:dna:text > compare ( in_cmp_dna_text, out_cmp_dna_text );
+    }
+
+    // 4na representation
+    extern column INSDC:4na:bin CMP_READ = out_cmp_4na_bin;
+    extern column INSDC:4na:packed CMP_READ = out_cmp_4na_packed;
+
+    // x2na representation - 2na with ambiguity
+    extern column INSDC:x2na:bin CMP_READ = out_cmp_x2na_bin;
+
+    // 2na representation - 2na with no ambiguity
+    extern column INSDC:2na:bin CMP_READ = out_cmp_2na_bin;
+    extern column INSDC:2na:packed CMP_READ = out_cmp_2na_packed;
+
+
+    /* input processing rules
+     */
+
+    // compressed input text
+    INSDC:dna:text in_cmp_dnarna_text
+        = < INSDC:dna:text, INSDC:dna:text > map < '.acmgrsvtwyhkdbnu','NACMGRSVTWYHKDBNU' > ( CMP_READ );
+    INSDC:dna:text in_cmp_dna_text = NCBI:SRA:setRnaFlag ( in_cmp_dnarna_text ); // change U to T
+
+    // compressed input 4na bin
+    INSDC:4na:bin in_cmp_4na_bin
+        = < INSDC:4na:bin > range_validate < 0, 15 > ( CMP_READ )
+        | ( INSDC:4na:bin ) unpack ( in_cmp_4na_packed )
+        | < INSDC:dna:text, INSDC:4na:bin > map < INSDC:4na:map:CHARSET, INSDC:4na:map:BINSET > ( in_cmp_dna_text )
+        | < INSDC:x2na:bin, INSDC:4na:bin > map < INSDC:x2na:map:BINSET, [ 1, 2, 4, 8, 15 ] > ( in_cmp_x2na_bin );
+
+    // compressed input 4na packed
+    INSDC:4na:packed in_cmp_4na_packed = CMP_READ;
+
+    // compressed input x2na bin
+    INSDC:x2na:bin in_cmp_x2na_bin
+        = < INSDC:x2na:bin > range_validate < 0, 4 > ( CMP_READ )
+        | < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( in_cmp_4na_bin );
+
+    // compressed input 2na bin
+    INSDC:2na:bin in_cmp_2na_bin
+        = < INSDC:2na:bin > range_validate < 0, 3 > ( CMP_READ )
+        | ( INSDC:2na:bin ) unpack ( in_cmp_2na_packed )
+        | INSDC:SEQ:rand_4na_2na ( in_cmp_4na_bin );
+
+    // compressed input 2na packed
+    INSDC:2na:packed in_cmp_2na_packed = CMP_READ;
+
+    // input 4na alt-read ( ambiguities )
+    INSDC:4na:bin in_cmp_alt_4na_bin
+        = < INSDC:4na:bin, INSDC:4na:bin > map < INSDC:4na:map:BINSET, [ 15,0,0,3,0,5,6,7,0,9,10,11,12,13,14,15 ] > ( in_cmp_4na_bin );
+
+    // preparing a feed into stats column
+    U8 in_cmp_stats_bin = in_cmp_2na_bin;
+
+
+    /* physical columns
+     */
+
+    physical column INSDC:2na:packed .CMP_READ
+        = in_cmp_2na_packed
+        | ( INSDC:2na:packed ) pack ( in_cmp_2na_bin );
+
+    physical column < INSDC:4na:bin > zip_encoding .CMP_ALTREAD
+        = < INSDC:4na:bin > trim < 0, 0 > ( in_cmp_alt_4na_bin );
+
+
+    /* output processing rules
+     */
+
+    // output 2na packed
+    INSDC:2na:packed out_cmp_2na_packed = .CMP_READ;
+
+    // unambiguous unpacked 2na
+    INSDC:2na:bin out_cmp_2na_bin
+        = ( INSDC:2na:bin ) unpack ( out_cmp_2na_packed );
+
+    // output x2na bin
+    INSDC:x2na:bin out_cmp_x2na_bin
+        = < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( out_cmp_4na_bin );
+
+    // output 2na->4na bin
+    INSDC:4na:bin out_cmp_2na_4na_bin
+        = < INSDC:2na:bin, INSDC:4na:bin > map < INSDC:2na:map:BINSET, [ 1, 2, 4, 8 ] > ( out_cmp_2na_bin );
+
+    // output 4na bin
+    INSDC:4na:bin out_cmp_4na_bin
+        = < INSDC:4na:bin > bit_or < ALIGN_RIGHT > ( out_cmp_2na_4na_bin, .CMP_ALTREAD )
+        | out_cmp_2na_4na_bin;
+
+    // synthesized packed 4na
+    INSDC:4na:packed out_cmp_4na_packed
+        = ( INSDC:4na:packed ) pack ( out_cmp_4na_bin );
+
+    // output text
+    INSDC:dna:text out_cmp_dnarna_text
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_cmp_4na_bin );
+    INSDC:dna:text out_cmp_dna_text
+        = NCBI:SRA:useRnaFlag ( out_cmp_dnarna_text );
+
+
+    /* decompressed sequences
+     *   source is out_dcmp_4na_bin - a virtual production
+     */
+
+    // synthesize x2na_bin, 2na_bin and 2na_packed
+    INSDC:x2na:bin out_dcmp_x2na_bin
+        = < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( out_dcmp_4na_bin );
+    INSDC:2na:bin out_dcmp_2na_bin
+        = < INSDC:x2na:bin, INSDC:2na:bin > map < [ 0,1,2,3,4 ], [ 0,1,2,3,0 ] > ( out_dcmp_x2na_bin );
+    INSDC:2na:packed out_dcmp_2na_packed
+        = ( INSDC:2na:packed ) pack ( out_dcmp_2na_bin );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  out_cs_key
+	 *  out_signal
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_color_matrix
+	 */
+
+	/* NCBI:tbl:dcmp_base_space inherited productions
+	 *  out_dcmp_4na_bin
+	 */
+}
+
+
+/* cmp_color_space
+ *  table representing compressed reads in color space,
+ *  where the colors are only stored for unaligned reads
+ */
+table NCBI:align:tbl:cmp_color_space #1 =
+    INSDC:tbl:sequence #1.0.1, NCBI:tbl:dcmp_color_space #1
+{
+    /* CMP_CSREAD
+     *  read compressed against a reference sequence
+     */
+
+    // default is IUPAC character representation
+    extern default column INSDC:color:text CMP_CSREAD = out_cmp_color_text;
+
+    // x2cs representation - 2cs with ambiguity
+    extern column INSDC:x2cs:bin CMP_CSREAD = out_cmp_x2cs_bin;
+
+    // 2cs representation - 2cs with no ambiguity
+    extern column INSDC:2cs:bin CMP_CSREAD = out_cmp_2cs_bin;
+    extern column INSDC:2cs:packed CMP_CSREAD = out_cmp_2cs_packed;
+
+
+    /* input processing rules
+     */
+
+    // compressed input text
+    INSDC:color:text in_cmp_color_text = CMP_CSREAD;
+
+    // compressed input x2cs bin
+    INSDC:x2cs:bin in_cmp_x2cs_bin
+        = < INSDC:x2cs:bin > range_validate < 0, 4 > ( CMP_CSREAD )
+        | < INSDC:color:text, INSDC:x2cs:bin > map < INSDC:x2cs:map:CHARSET, INSDC:x2cs:map:BINSET > ( in_cmp_color_text );
+
+    // compressed input 2cs bin
+    INSDC:2cs:bin in_cmp_2cs_bin
+        = < INSDC:2cs:bin > range_validate < 0, 3 > ( CMP_CSREAD )
+        | ( INSDC:2cs:bin ) unpack ( in_cmp_2cs_packed )
+        | < INSDC:x2cs:bin, INSDC:2cs:bin > map < INSDC:x2cs:map:BINSET, [ 0, 1, 2, 3, 0 ] > ( in_cmp_x2cs_bin );
+
+    // compressed input 2cs packed
+    INSDC:2cs:packed in_cmp_2cs_packed = CMP_CSREAD;
+
+    // compressed input x2cs alt-read ( ambiguities )
+    INSDC:x2cs:bin in_cmp_alt_x2cs_bin
+        = < INSDC:x2cs:bin, INSDC:x2cs:bin > map < INSDC:x2cs:map:BINSET, [ 0, 0, 0, 0, 4 ] > ( in_cmp_x2cs_bin );
+
+    // preparing a feed into stats column
+    U8 in_cmp_stats_bin = in_cmp_2cs_bin;
+
+
+    /* physical columns
+     */
+
+    physical column INSDC:2cs:packed .CMP_CSREAD
+        = in_cmp_2cs_packed
+        | ( INSDC:2cs:packed ) pack ( in_cmp_2cs_bin );
+
+    physical column < INSDC:x2cs:bin > zip_encoding .CMP_ALTCSREAD
+        = < INSDC:x2cs:bin > trim < 0, 0 > ( in_cmp_alt_x2cs_bin );
+
+
+    /* output processing rules
+     */
+
+    // compressed output 2cs packed
+    INSDC:2cs:packed out_cmp_2cs_packed = .CMP_CSREAD;
+
+    // unambiguous unpacked 2cs
+    INSDC:2cs:bin out_cmp_2cs_bin
+        = ( INSDC:2cs:bin ) unpack ( out_cmp_2cs_packed );
+
+    // unpacked 2cs with ambiguity
+    INSDC:x2cs:bin out_cmp_x2cs_bin
+        = ( INSDC:x2cs:bin ) < U8 > bit_or < ALIGN_RIGHT > ( out_cmp_2cs_bin, .CMP_ALTCSREAD )
+        | ( INSDC:x2cs:bin ) out_cmp_2cs_bin;
+
+    // output text
+    INSDC:color:text out_cmp_color_text
+        = < INSDC:x2cs:bin, INSDC:color:text > map <  INSDC:x2cs:map:BINSET, INSDC:x2cs:map:CHARSET > ( out_cmp_x2cs_bin );
+
+
+    /* decompressed sequences
+     *   sources are out_dcmp_x2cs_bin - virtual production
+     */
+
+    // synthesize 2cs_bin and 2cs_packed
+    INSDC:2cs:bin out_dcmp_2cs_bin
+        = < INSDC:x2cs:bin, INSDC:2cs:bin > map < [ 0,1,2,3,4 ], [ 0,1,2,3,0 ] > ( out_dcmp_x2cs_bin );
+    INSDC:2cs:packed out_dcmp_2cs_packed
+        = ( INSDC:2cs:packed ) pack ( out_dcmp_2cs_bin );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  out_cs_key
+	 *  out_signal
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 *  out_qual_text_phred_33
+	 *  out_qual_text_phred_64
+	 */
+
+	/* NCBI:tbl:dcmp_color_space inherited productions
+	 *  out_dcmp_x2cs_bin
+	 */
+}

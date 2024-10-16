@@ -26,7 +26,7 @@ if( NOT WIN32 )
     ToolsRequired(latf-load vdb-dump)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
     set( LIBS )

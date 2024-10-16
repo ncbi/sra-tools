@@ -18,6 +18,7 @@ set( LIBS
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}
+    ksrch
 )
 
 GenerateExecutableWithDefs( sra-search "${SRC}" "__mod__=\"tools/sra-search\"" "${CMAKE_SOURCE_DIR}/libs/inc;${CMAKE_SOURCE_DIR}/ngs" "${LIBS}" )

@@ -1,0 +1,1355 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * VDB Alignment types, functions and tables
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/seq.vschema';
+include 'ncbi/sra.vschema';
+include 'ncbi/stats.vschema';
+include 'align/seq.vschema';
+include 'align/qstat.vschema';
+include 'sra/abi.vschema';
+include 'align/mate-cache.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * data types
+ */
+
+/* ploidy
+ *  the number of sets of chromosomes in a cell
+ */
+typedef U32 NCBI:align:ploidy;
+
+/* ro_type
+ *  the type of event causing ref-offset
+ */
+typedef U8 NCBI:align:ro_type;
+
+const NCBI:align:ro_type NCBI:align:ro_normal            = 0; // normal ref-offset
+const NCBI:align:ro_type NCBI:align:ro_soft_clip         = 1; // soft-clipping
+const NCBI:align:ro_type NCBI:align:ro_intron_plus       = 2; // intron on positive strand
+const NCBI:align:ro_type NCBI:align:ro_intron_minus      = 3; // intron on negative strand
+const NCBI:align:ro_type NCBI:align:ro_intron_unknown    = 4; // intron strand not specified
+const NCBI:align:ro_type NCBI:align:ro_complete_genomics = 5; //
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+
+/* cigar
+ *  construct "cigar" alignment string or length arrays
+ *
+ * "ctype" [ CONST ] - select variant of format
+ *   0 => both matches and mismatches represented as M
+ *   1 => matches represented as '=' mismatches as 'X'
+ *
+ *  "has_mismatch" [ DATA ] - a boolean for each base in aligned sequence
+ *   where a value of false means the base aligned to the reference
+ *
+ *  "has_ref_offset" [ DATA ] - a boolean for each base in the aligned sequence
+ *   where a value of true means there is a corresponding offset to position on reference
+ *
+ *  "ref_offset" [ DATA ] - a packed sequence of signed offsets to aligned position
+ *   one entry for every true in "has_ref_offset"
+ *
+ *  "read_len" [ DATA ] - v2: elem_count defines PLOIDY and values are an actual length of reads in spot
+ */
+extern function
+ascii NCBI:align:cigar #1 < U8 ctype > ( bool has_mismatch, bool has_ref_offset,
+    I32 ref_offset, * INSDC:coord:len ref_len ) = ALIGN:cigar;
+
+/* history:
+ *  2.1 - added "ref_offset_type" optional parameter
+ *  NB - reverting to 2.0 due to linker bug in older code
+ */
+extern function < type T >
+T NCBI:align:cigar #2.0 < U8 ctype > ( bool has_mismatch, bool has_ref_offset,
+        I32 ref_offset, INSDC:coord:len read_len, * INSDC:coord:len ref_len, NCBI:align:ro_type ref_offset_type )
+    = ALIGN:cigar_2;
+
+extern function U32 NCBI:align:edit_distance #1
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset );
+
+extern function U32 NCBI:align:edit_distance #2
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset, INSDC:coord:len ref_len, *INSDC:coord:len read_len)
+  = NCBI:align:edit_distance_2;
+
+extern function U32 NCBI:align:edit_distance #3
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset, NCBI:align:ro_type ref_offset_type, INSDC:coord:len read_len)
+  = NCBI:align:edit_distance_3;
+
+/* rna_orientation
+ *  reads column REF_OFFSET_TYPE
+ *  returns '+' if has:
+ *      at least one NCBI:align:ro_intron_plus
+ *      none of NCBI:align:ro_intron_minus
+ *  returns '-' if has:
+ *      at least one NCBI:align:ro_intron_minus
+ *      none of NCBI:align:ro_intron_plus
+ *  returns empty string otherwise
+ */
+extern function
+ascii NCBI:align:rna_orientation #1 ( NCBI:align:ro_type ref_offset_type );
+
+/* project_from_sequence
+ *  projects column from SEQUENCE
+ *
+ *  "T" [ TYPE ]
+ *
+ *  "col" [ CONST ]
+ *  "use_read_len" [ CONST ] whether subset by read_len or by read_id only
+ *
+ *  "seq_spot_id" [ DATA ]
+ *
+ *  "seq_read_id" [ DATA ]
+ */
+extern function < type T >
+T NCBI:align:project_from_sequence #1 < ascii col> ( I64 seq_spot_id, INSDC:coord:one seq_read_id )
+    = ALIGN:project_from_sequence;
+
+
+/* align_restore_read
+ *  restores read by applying alignment-based difference to ref_read
+ *
+ *  "ref_read" [ DATA ]
+ *
+ *  "has_mismatch" [ DATA ] and "mismatch" [ DATA ]
+ *
+ *  "has_ref_offset" [ DATA ] and "ref_offset" [ DATA ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:align_restore_read #1 ( INSDC:4na:bin ref_read, bool has_mismatch,
+        INSDC:4na:bin mismatch, bool has_ref_offset, I32 ref_offset * INSDC:coord:len read_len)
+    = ALIGN:align_restore_read;
+
+
+/* raw_restore_read
+ *  restores read by applying alignment-based difference to align_read
+ *
+ *  "align_read" [ DATA ]
+ *
+ *  "ref_orientation" [ DATA ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:raw_restore_read #1 ( INSDC:4na:bin align_read, bool ref_orientation )
+    = ALIGN:raw_restore_read;
+
+
+/* raw_restore_qual
+ *  restores quality by applying alignment-based difference to align_qual
+ *
+ *  "align_qual" [ DATA ]
+ *
+ *  "ref_orientation" [ DATA ]
+ */
+extern function
+INSDC:quality:phred NCBI:align:raw_restore_qual #1 ( INSDC:quality:phred align_qual, bool ref_orientation );
+
+
+/* ref_sub_select
+ *  projects reference from sequence
+ *
+ *  "id" [ DATA ]
+ *
+ *  "start" [ DATA ] and "len" [ DATA ]
+ *
+ *  "ref_ploidy" [ DATA, OPTIONAL ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:ref_sub_select #1 ( I64 id, INSDC:coord:zero start,
+        INSDC:coord:len len * U32 ref_ploidy)
+    = ALIGN:ref_sub_select;
+
+
+/* ref_restore_read
+ *  restores read from central storage
+ *
+ *  "cmp_rd" [ DATA ]
+ *
+ *  "seq_id" [ DATA ]
+ *
+ *  "seq_start" [ DATA ] and "seq_len" [ DATA ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:ref_restore_read #1 ( INSDC:4na:bin cmp_rd, ascii seq_id,
+        INSDC:coord:one seq_start, INSDC:coord:len seq_len)
+    = ALIGN:ref_restore_read;
+
+
+/* seq_restore_read
+ *  projects read from align_deflate table to SEQUENCE
+ *
+ *  "cmp_rd" [ DATA ]
+ *
+ *  "align_id" [ DATA ]
+ *
+ *  "read_len" [ DATA ]
+ *
+ *  "rd_type" [ DATA ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:seq_restore_read #1 ( INSDC:4na:bin cmp_rd, I64 align_id,
+        INSDC:coord:len read_len, INSDC:SRA:xread_type rd_type )
+    = ALIGN:seq_restore_read;
+
+
+/* seq_restore_linkage_group
+ *  projects LINKAGE_GROUP from PRIMARY_ALIGNMENT table to SEQUENCE
+ *
+ *  "cmp_linkage_group" [ DATA ]
+ *
+ *  "align_id" [ DATA ]
+ */
+extern function
+ascii NCBI:align:seq_restore_linkage_group #1 ( ascii cmp_linkage_group,
+                                                I64 align_id )
+    = ALIGN:seq_restore_linkage_group;
+
+
+/* generate_has_mismatch
+ *  generates has mismatch by doing actual compare of reference and subject,
+ *  *ref_offsets move comparisons reference-wise
+ *
+ *  "reference" [ DATA ]
+ *
+ *  "subject" [ DATA ]
+ *
+ *  "has_ref_offset" [ DATA ]
+ *
+ *  "ref_offset" [ DATA ]
+ */
+extern function
+bool NCBI:align:generate_has_mismatch #1 ( INSDC:4na:bin reference,
+       INSDC:4na:bin subject, bool has_ref_offset, I32 ref_offset)
+    = ALIGN:generate_has_mismatch;
+
+
+/* generate_mismatch
+ *
+ *  "reference" [ DATA ]
+ *
+ *  "subject" [ DATA ]
+ *
+ *  "has_ref_offset" [ DATA ]
+ *
+ *  "ref_offset" [ DATA ]
+ */
+extern function
+INSDC:4na:bin NCBI:align:generate_mismatch #1 ( INSDC:4na:bin reference,
+        INSDC:4na:bin subject, bool has_ref_offset, I32 ref_offset )
+        = ALIGN:generate_mismatch;
+
+
+/* ref_pos
+ *  retrieves the alignment's positions on the reference
+ *  one per PLOIDY
+ *
+ *  "ref_id" [ DATA ]
+ *
+ *  "ref_start" [ DATA ] - one per PLOIDY
+ */
+extern function
+INSDC:coord:zero NCBI:align:ref_pos #1 ( I64 ref_id, INSDC:coord:zero ref_start );
+
+
+/* ref_name
+ *  retrieve the name from the reference
+ *
+ *  "ref_id" [ DATA ]
+ */
+extern function
+ascii NCBI:align:ref_name #1 ( I64 ref_id );
+
+
+/* ref_seq_id
+ *  retrieve the seq_id from the reference
+ *
+ *  "ref_id" [ DATA ]
+ */
+extern function
+ascii NCBI:align:ref_seq_id #1 ( I64 ref_id );
+
+
+/* local_ref_id
+ *  convert global ref_start into ref_id
+ */
+extern function
+I64 NCBI:align:local_ref_id #1 ( U64 global_ref_start );
+
+
+/* global_ref_id
+ *  convert global ref_start into ref_id
+ */
+extern function
+INSDC:coord:zero NCBI:align:local_ref_start #1 ( U64 global_ref_start );
+
+/* not_my_row
+ *  removes current row_id from the list
+ */
+extern function I64 NCBI:align:not_my_row #1 ( I64 list );
+
+/* template_len
+ *  compute template length, i.e. the distance from the left-most to the
+ *  right-most matching reference position
+ */
+extern function I32 NCBI:align:template_len #1 (
+    INSDC:coord:zero pos, INSDC:coord:zero mate_pos,
+    INSDC:coord:len  reflen, INSDC:coord:len mate_reflen,
+    ascii ref_name, ascii mate_ref_name, INSDC:coord:one read_id);
+
+/* get_sam_flags
+ *  compute the flags that would be in a SAM file
+ *
+ * version 1 works with full Alignment databases.
+ * version 2 works with Alignment databases that have had SEQUENCE removed.
+ */
+extern function U32 NCBI:align:get_sam_flags #1 (
+    INSDC:coord:len read_len, INSDC:coord:one read_id, I32 template_len,
+    bool strand, bool mate_strand, bool is_secondary, * INSDC:SRA:read_filter filter);
+
+extern function U32 NCBI:align:get_sam_flags #2 (
+    I64 mate_id, INSDC:coord:one read_id, I32 template_len,
+    bool strand, bool mate_strand, bool is_secondary, * INSDC:SRA:read_filter filter)
+  = NCBI:align:get_sam_flags_2;
+
+/* get_left_soft_clip
+ *  compute the length of the soft clip on the left edge of the alignment
+ */
+extern function INSDC:coord:len NCBI:align:get_left_soft_clip #1
+    ( bool has_ref_offset, I32 ref_offset );
+
+extern function INSDC:coord:len NCBI:align:get_left_soft_clip #2
+    ( bool has_ref_offset, I32 ref_offset, INSDC:coord:len read_len )
+   = NCBI:align:get_left_soft_clip_2;
+
+/* get_right_soft_clip
+ *  compute the length of the soft clip on the right edge of the alignment
+ */
+extern function INSDC:coord:len NCBI:align:get_right_soft_clip #1
+    ( bool has_mismatch, INSDC:coord:len left_clip * bool has_ref_offset );
+
+extern function INSDC:coord:len NCBI:align:get_right_soft_clip #2
+    ( bool has_mismatch, INSDC:coord:len left_clip, bool has_ref_offset, I32 ref_offset )
+   = NCBI:align:get_right_soft_clip_2;
+
+extern function INSDC:coord:len NCBI:align:get_right_soft_clip #3
+    ( bool has_ref_offset, I32 ref_offset, INSDC:coord:len ref_len )
+   = NCBI:align:get_right_soft_clip_3;
+
+extern function INSDC:coord:len NCBI:align:get_right_soft_clip #4
+    ( bool has_ref_offset, I32 ref_offset, INSDC:coord:len read_len, INSDC:coord:len ref_len )
+   = NCBI:align:get_right_soft_clip_4;
+
+extern function INSDC:coord:len NCBI:align:get_right_soft_clip #5
+    ( bool has_ref_offset, I32 ref_offset, NCBI:align:ro_type ref_offset_type, INSDC:coord:len read_len )
+   = NCBI:align:get_right_soft_clip_5;
+
+/* get_clipped_cigar
+ *  compute the CIGAR string with the soft clipping removed
+ */
+extern function ascii NCBI:align:get_clipped_cigar #1 ( ascii cigar );
+
+extern function < type T >
+T NCBI:align:get_clipped_cigar #2 ( ascii cigar, INSDC:coord:len cigar_len ) = NCBI:align:get_clipped_cigar_2;
+
+/* get_clipped_ref_offset
+ *  compute the reference offsets with the soft clipping removed
+ */
+extern function I32 NCBI:align:get_clipped_ref_offset #1
+    ( bool has_ref_offset, I32 ref_offset );
+
+/* clip
+ *  remove the soft clipped bases (or qualities, or has_mismatch, or cetera)
+ *  works with things whose lengths are the same as SEQUENCE.READ
+ */
+extern function < type T > T NCBI:align:clip #1
+    ( T object, INSDC:coord:len left_clip, INSDC:coord:len right_clip);
+
+extern function < type T > T NCBI:align:clip #2
+    ( T object, INSDC:coord:len read_len, INSDC:coord:len left_clip, INSDC:coord:len right_clip)
+   = NCBI:align:clip_2;
+
+/* get_ref_len
+ *  compute reference length from alignment information
+ */
+extern function INSDC:coord:len NCBI:align:get_ref_len #1
+    ( bool has_ref_offset, I32 ref_offset, * INSDC:coord:len right_clip );
+
+extern function INSDC:coord:len NCBI:align:get_ref_len_2 #2
+    ( bool has_ref_offset, I32 ref_offset)
+  = NCBI:align:get_ref_len_2;
+
+
+/* get_mismatch_read
+ *  generate the READ with matching bases replaced with '='
+ */
+extern function ascii NCBI:align:get_mismatch_read #1
+    ( bool has_mismatch, INSDC:dna:text mismatch );
+
+/* get_ref_mismatch
+ * shows mismatch positions in reference space
+ */
+function bool NCBI:align:get_ref_mismatch #1
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset,
+      INSDC:coord:len ref_len );
+
+/* get_ref_insert
+ * shows positions of inserts in reference space
+ * i.e. an insert occurs between each pair of true's
+ */
+function bool NCBI:align:get_ref_insert #1
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset,
+      INSDC:coord:len ref_len );
+
+/* get_ref_delete
+ * shows positions of deleted bases in reference space
+ */
+function bool NCBI:align:get_ref_delete #1
+    ( bool has_mismatch, bool has_ref_offset, I32 ref_offset,
+      INSDC:coord:len ref_len );
+
+extern function INSDC:quality:phred NCBI:align:compress_quality #1
+    ( INSDC:quality:phred quality, bool preserved );
+
+extern function INSDC:quality:phred NCBI:align:decompress_quality #1
+    < INSDC:quality:phred restored_qual_value >
+    ( INSDC:quality:phred cmp_quality, bool preserved );
+
+/* make_cmp_read_start
+ *
+ */
+extern function INSDC:coord:zero NCBI:align:make_read_start #1
+    (INSDC:coord:len read_len);
+
+/* make_cmp_read_desc
+ *  determines whether an element of "operand" is aligned
+ *  by looking at the corresponding element of "align_id"
+ *
+ *  zeros out unaligned elements of operand, unless "invert" is true,
+ *  in which case it zeros out aligned elements.
+ *
+ *  "T" [ TYPE ] - type of operand
+ *
+ *  "invert" [ CONST ] - if true, invert the logic of which elements
+ *  to zero out.
+ *
+ *  "operand" [ DATA ] - uncompressed data
+ *
+ *  "align_id" [ DATA ] - indication of alignment
+ */
+extern function < type T >
+T NCBI:align:make_cmp_read_desc #1 <bool invert>(T operand, I64 align_id);
+
+/* seq_construct_read
+ *  assembles read from aligned and unaligned parts
+ */
+extern function < type T >
+T NCBI:align:seq_construct_read #1 (
+    T aligned, INSDC:coord:len aligned_read_len,
+    T unaligned, INSDC:coord:len unaligned_read_len );
+
+extern function I64 NCBI:align:get_mate_align_id #1 ( I64 spot_id );
+
+/*--------------------------------------------------------------------------
+ * tables
+ */
+
+
+/* ref_block_cmn
+ *  common implementation ancestor for reference block
+ */
+table NCBI:align:tbl:ref_block_cmn #1.0.0
+{
+    readonly column ascii REF_TABLE
+        = < ascii > meta:read < "CONFIG/REF_TABLE" > ()
+        | < ascii > echo < 'REFERENCE' > ();
+
+    // REF_ID is rowid in Reference Table REF_TABLE
+    extern column I64 REF_ID
+        = out_ref_id;
+
+    // this is a redefinition of REF_START
+    // REF_START is the offset within REFERENCE.READ
+    extern column INSDC:coord:zero REF_START
+        = out_ref_start;
+
+    // global REF_START
+    extern column U64 GLOBAL_REF_START
+        = out_global_ref_start;
+
+    // REF_LEN the length of a read projection on reference
+    INSDC:coord:len out_ref_len_internal
+        = NCBI:align:get_ref_len_2 ( out_has_ref_offset, out_ref_offset )
+        | NCBI:align:get_ref_len   ( out_has_ref_offset, out_ref_offset );
+
+    INSDC:coord:len out_ref_len
+        = .REF_LEN
+/*      | NCBI:align:get_ref_len ( out_has_ref_offset, out_ref_offset, out_right_clip ) */
+        | out_ref_len_internal;
+
+    physical column < INSDC:coord:len > izip_encoding .REF_LEN = REF_LEN;
+    extern column INSDC:coord:len REF_LEN = out_ref_len;
+
+    // REF_ORIENTATION - relative orientation of original raw read to the reference
+    // false -> same orientation, true -> opposite orientation
+    // alignment and reference are always in the same orientation
+    extern column bool_encoding REF_ORIENTATION;
+
+    // REF_PLOIDY
+    extern column < U32 > izip_encoding REF_PLOIDY;
+
+    /* REF_POS
+     *  per PLOIDY
+     */
+    readonly column INSDC:coord:zero REF_POS
+        = NCBI:align:ref_pos ( out_ref_id, out_ref_start );
+
+    /* REF_NAME
+     *  the name of the reference
+     */
+    readonly column ascii REF_NAME
+        = NCBI:align:ref_name ( out_ref_id );
+
+    /* REF_SEQ_ID
+     */
+    readonly column ascii REF_SEQ_ID
+        = NCBI:align:ref_seq_id ( out_ref_id )
+        | < ascii > echo < '' > ();
+};
+
+
+/* global_ref_block
+ *  reference block favoring global ref-start
+ */
+table NCBI:align:tbl:global_ref_block #1.0.0
+    = NCBI:align:tbl:ref_block_cmn #1.0.0
+{
+    U64 out_global_ref_start = .GLOBAL_REF_START;
+    physical < U64 > izip_encoding .GLOBAL_REF_START = GLOBAL_REF_START;
+
+    I64 out_ref_id = NCBI:align:local_ref_id ( .GLOBAL_REF_START );
+    INSDC:coord:zero out_ref_start = NCBI:align:local_ref_start ( .GLOBAL_REF_START );
+};
+
+
+/* local_ref_block
+ *  reference block favoring local ref-start
+ */
+table NCBI:align:tbl:local_ref_block #1.0.0
+    = NCBI:align:tbl:ref_block_cmn #1.0.0
+{
+    I64 out_ref_id = .REF_ID;
+    physical < I64 > izip_encoding .REF_ID = REF_ID;
+
+    INSDC:coord:zero out_ref_start = .REF_START;
+    physical < INSDC:coord:zero > izip_encoding .REF_START = REF_START;
+};
+
+
+/* align_cmn
+ *  common interface and implementation for alignment object
+ *
+ * History:
+ *  2.1.0 - added REF_OFFSET_TYPE and RNA_ORIENTATION columns
+ *          updated all cigar calculations
+ *  2.1.1 - update ancestry
+ */
+table NCBI:align:tbl:align_cmn #2.1.1
+    = NCBI:tbl:base_space_common #1.0.3
+    , NCBI:SRA:tbl:stats #1.2.1
+    , NCBI:align:tbl:ref_block_cmn #1.0.0
+{
+    bool is_secondary = out_is_secondary;
+// temporary key
+    extern column < U32 > izip_encoding TMP_KEY_ID;
+
+    extern column <ascii> zip_encoding LINKAGE_GROUP;
+
+
+/* Raw Sequence Block */
+    // Points to sequence table, which may contain more information about the raw sequence.
+    // row id in SEQUENCE table; 0 if not linked
+    extern column < I64 > izip_encoding SEQ_SPOT_ID;
+
+    // read number in SEQUENCE table; { SEQ_SPOT_ID, SEQ_READ_ID } is the unique link to the sequence
+    extern column < INSDC:coord:one > izip_encoding SEQ_READ_ID;
+
+
+/* Soft-Clipped data block */
+
+    readonly column INSDC:coord:len LEFT_SOFT_CLIP
+        = NCBI:align:get_left_soft_clip ( HAS_REF_OFFSET, REF_OFFSET, out_read_len );
+
+    INSDC:coord:len out_right_clip
+        = NCBI:align:get_right_soft_clip #5 ( out_has_ref_offset, out_ref_offset, out_ro_type, out_read_len )
+        | NCBI:align:get_right_soft_clip #4 ( out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len )
+        | NCBI:align:get_right_soft_clip #3 ( out_has_ref_offset, out_ref_offset, out_ref_len )
+        | NCBI:align:get_right_soft_clip #2 ( out_has_mismatch, LEFT_SOFT_CLIP, out_has_ref_offset, out_ref_offset );
+    readonly column INSDC:coord:len RIGHT_SOFT_CLIP = out_right_clip;
+
+    readonly column ascii CLIPPED_CIGAR_LONG
+        = < ascii > NCBI:align:get_clipped_cigar ( CIGAR_LONG, CIGAR_LONG_LEN );
+
+    readonly column INSDC:coord:len CLIPPED_CIGAR_LONG_LEN
+        = < INSDC:coord:len > NCBI:align:get_clipped_cigar ( CIGAR_LONG, CIGAR_LONG_LEN );
+
+    readonly column ascii CLIPPED_CIGAR_SHORT
+        = < ascii > NCBI:align:get_clipped_cigar ( CIGAR_SHORT, CIGAR_SHORT_LEN );
+
+    readonly column INSDC:coord:len CLIPPED_CIGAR_SHORT_LEN
+        = < INSDC:coord:len > NCBI:align:get_clipped_cigar ( CIGAR_SHORT, CIGAR_SHORT_LEN );
+
+    bool out_clipped_has_mismatch
+        = < bool > NCBI:align:clip (out_has_mismatch, out_read_len, LEFT_SOFT_CLIP, RIGHT_SOFT_CLIP);
+
+    readonly column ascii CLIPPED_HAS_MISMATCH
+        = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_clipped_has_mismatch );
+
+    readonly column bool CLIPPED_HAS_MISMATCH = out_clipped_has_mismatch;
+
+    bool out_clipped_has_ref_offset
+        = < bool > NCBI:align:clip (HAS_REF_OFFSET, out_read_len, LEFT_SOFT_CLIP, RIGHT_SOFT_CLIP);
+
+    readonly column ascii CLIPPED_HAS_REF_OFFSET
+        = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_clipped_has_ref_offset );
+
+    readonly column bool CLIPPED_HAS_REF_OFFSET = out_clipped_has_ref_offset;
+
+    // TBD cannot be computed right unless HAS_MISMATCH and! READ_LEN is used
+    readonly column INSDC:dna:text CLIPPED_MISMATCH
+        = < INSDC:dna:text > NCBI:align:clip #1 ( out_mismatch_dna_text, LEFT_SOFT_CLIP, RIGHT_SOFT_CLIP);
+
+    readonly column I32 CLIPPED_REF_OFFSET
+        = NCBI:align:get_clipped_ref_offset ( HAS_REF_OFFSET, REF_OFFSET );
+
+    readonly column INSDC:quality:phred CLIPPED_QUALITY
+        = < INSDC:quality:phred > NCBI:align:clip (out_qual_phred, out_read_len, LEFT_SOFT_CLIP, RIGHT_SOFT_CLIP);
+
+    readonly column INSDC:dna:text CLIPPED_READ
+        = < INSDC:dna:text > NCBI:align:clip (READ, out_read_len, LEFT_SOFT_CLIP, RIGHT_SOFT_CLIP);
+
+/* Sequence Block */
+
+    extern column < NCBI:align:ploidy > izip_encoding PLOIDY;
+
+    // Number of reads per spot; corresponds to the number of alternative alignments
+    // all alternative alignments are computed against the same reference region
+    U32 out_nreads
+        = .PLOIDY
+        | < U32 > echo < 1 > ();
+
+    // READ_START and READ_LEN are position and length of the sequence
+    physical < INSDC:coord:zero > izip_encoding .READ_START = READ_START;
+    INSDC:coord:zero out_read_start
+        = .READ_START
+        | < INSDC:coord:zero > echo < 0 > ();
+
+    physical < INSDC:coord:len > izip_encoding .READ_LEN = READ_LEN;
+
+    INSDC:coord:len align_spot_len = ( INSDC:coord:len ) row_len ( out_has_ref_offset );
+    INSDC:coord:len out_read_len
+        = .READ_LEN
+        | align_spot_len;
+
+    // associated qualities
+    extern column INSDC:quality:phred CMP_QUALITY
+        = .CMP_QUALITY
+        | out_cmp_quality;
+    physical column < INSDC:quality:phred > zip_encoding .CMP_QUALITY = CMP_QUALITY;
+
+    INSDC:quality:phred out_raw_qual = < INSDC:quality:phred >
+        NCBI:align:project_from_sequence < '( INSDC:quality:phred ) QUALITY'> ( .SEQ_SPOT_ID, .SEQ_READ_ID );
+    INSDC:quality:phred out_qual_phred
+        = NCBI:align:raw_restore_qual ( out_raw_qual, .REF_ORIENTATION )
+        | < INSDC:quality:phred > echo < 30 > ( out_4na_bin );
+    readonly column INSDC:quality:text:phred_33 SAM_QUALITY = QUALITY ;
+
+    // project read group and name
+    ascii out_spot_group = < ascii > simple_sub_select < 'SEQUENCE','SPOT_GROUP'> (.SEQ_SPOT_ID);
+
+
+    INSDC:SRA:spotid_t tmp_seq_spot_id
+        = cast ( .SEQ_SPOT_ID )
+        ;
+    physical <ascii> zip_encoding .SEQ_NAME = SEQ_NAME;
+    extern column ascii SEQ_NAME
+        = .SEQ_NAME
+        | < ascii > simple_sub_select < 'SEQUENCE','NAME'> (.SEQ_SPOT_ID)
+        | sprintf < "%u" > ( tmp_seq_spot_id );
+
+    // compute sam flags
+    /* blows up parser: starts at schema-tbl.c:2138
+    readonly column U32 SAM_FLAGS = NCBI:align:get_sam_flags(MATE_ALIGN_ID,
+        .SEQ_READ_ID, out_template_len, REF_ORIENTATION,
+        out_mate_ref_orientation, is_secondary);
+    */
+    INSDC:coord:len projected_read_len
+        = < INSDC:coord:len > simple_sub_select < 'SEQUENCE', 'READ_LEN' > ( .SEQ_SPOT_ID );
+
+    readonly column U32 SAM_FLAGS
+        = NCBI:align:get_sam_flags #1 (projected_read_len,
+            .SEQ_READ_ID, out_template_len, REF_ORIENTATION,
+            out_mate_ref_orientation, is_secondary, out_rd_filter)
+        | NCBI:align:get_sam_flags #2 (out_mate_align_id,
+            .SEQ_READ_ID, out_template_len, REF_ORIENTATION,
+            out_mate_ref_orientation, is_secondary, out_rd_filter);
+
+    ascii out_name_fmt = < ascii > echo < '$R' > ();
+
+    INSDC:coord:zero trim_start
+        = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len trim_len
+        = align_spot_len;
+
+    ascii out_label
+        = .LABEL
+        | < ascii > echo < "ploidy1" > ();
+    INSDC:coord:zero out_label_start
+        = .LABEL_START
+        | < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len out_label_len
+        = .LABEL_LEN
+        | < INSDC:coord:len > echo < 7 > ();
+
+    physical < INSDC:SRA:read_filter > zip_encoding .RD_FILTER = READ_FILTER;
+    INSDC:SRA:read_filter out_rd_filter
+        = .RD_FILTER
+        | < INSDC:SRA:read_filter > NCBI:align:project_from_sequence < 'READ_FILTER' > ( .SEQ_SPOT_ID, .SEQ_READ_ID )
+        | < INSDC:SRA:read_filter > echo < SRA_READ_FILTER_PASS > ( out_read_len );
+
+    INSDC:SRA:platform_id out_platform
+        = .PLATFORM
+        | < INSDC:SRA:platform_id > simple_sub_select < 'SEQUENCE','PLATFORM'> (.SEQ_SPOT_ID)
+        | < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+
+    U8 out_alignment_count = <U8> NCBI:align:project_from_sequence < 'ALIGNMENT_COUNT' > ( .SEQ_SPOT_ID, .SEQ_READ_ID );
+
+    /* out_read_type
+     *  set to SRA_READ_TYPE_FORWARD + SRA_READ_TYPE_BIOLOGICAL
+     *  which has a constant value of 3
+     */
+    INSDC:SRA:xread_type out_read_type
+        = < INSDC:SRA:xread_type > echo < 3 > ( out_read_len );
+
+    // stats inputs
+    bool in_stats_bin = HAS_REF_OFFSET;
+
+    INSDC:coord:len _alt_in_read_len
+        = READ_LEN
+        | ( INSDC:coord:len ) row_len #1 ( HAS_REF_OFFSET );
+
+    INSDC:SRA:xread_type _alt_in_read_type
+        = READ_TYPE
+        | < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > (_alt_in_read_len);
+
+    readonly column ascii MISMATCH_READ
+        = NCBI:align:get_mismatch_read ( out_has_mismatch, out_mismatch_dna_text );
+
+/* Alignment block */
+
+    // MAPQ - single value quality of the mapping; the scale is submitter specific
+    extern column < I32 > izip_encoding MAPQ;
+
+    extern column INSDC:coord:zero MATE_REF_POS = out_mate_ref_pos;
+    extern column INSDC:coord:len MATE_REF_LEN = out_mate_ref_len;
+    extern column I64 MATE_REF_ID = out_mate_ref_id;
+    extern column I32 TEMPLATE_LEN = out_template_len;
+    extern column bool MATE_REF_ORIENTATION = out_mate_ref_orientation;
+    readonly column ascii MATE_REF_NAME = NCBI:align:ref_name ( out_mate_ref_id );
+    readonly column ascii MATE_REF_SEQ_ID = NCBI:align:ref_seq_id( out_mate_ref_id );
+    readonly column U8 ALIGNMENT_COUNT  = out_alignment_count;
+
+
+/********************************
+* Columns representing CIGARs
+********************************/
+
+
+    // one value per base i.e. length is same as sum of READ_LEN
+    // partitioned by READ_START and READ_LEN into alternative alignments
+    // flags the shifts in reference position preceeding the base
+    // if sequence of a partitioned read starts with a ref_offset and one or more mismatches
+    // then it represents a left soft clip
+    // any run of mismatches at the end represents a right soft clip
+
+    readonly column ascii HAS_REF_OFFSET =  < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_has_ref_offset );
+    extern column bool_encoding HAS_REF_OFFSET;
+    bool out_has_ref_offset = .HAS_REF_OFFSET;
+
+    // has number of elements equal to number of true elements in HAS_REF_OFFSET
+    extern column < I32 > izip_encoding REF_OFFSET;
+    I32 out_ref_offset = .REF_OFFSET;
+
+    // the type of offset recorded in REF_OFFSET
+    extern column < NCBI:align:ro_type > izip_encoding REF_OFFSET_TYPE;
+    NCBI:align:ro_type out_ro_type = .REF_OFFSET_TYPE;
+
+    // DISPLAY Columns
+
+    readonly column I64 ALIGN_ID = row_id ();
+
+    // get projection of the reference
+    readonly column INSDC:dna:text REF_READ
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( REF_READ );
+
+    readonly column INSDC:4na:bin REF_READ
+        = NCBI:align:ref_sub_select (out_ref_id, out_ref_start, out_ref_len, .REF_PLOIDY)
+        | NCBI:align:ref_sub_select (out_ref_id, out_ref_start, out_ref_len );
+
+    INSDC:4na:bin ref_read_internal
+        = NCBI:align:ref_sub_select (out_ref_id, out_ref_start, out_ref_len_internal, .REF_PLOIDY)
+        | NCBI:align:ref_sub_select (out_ref_id, out_ref_start, out_ref_len_internal);
+
+    // text forms of reads
+    INSDC:dna:text out_dna_text
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_4na_bin );
+    readonly column INSDC:dna:text RAW_READ
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_raw_read );
+    readonly column INSDC:4na:bin RAW_READ
+        = out_raw_read;
+
+    // CIGARs
+    readonly column ascii CIGAR_LONG
+        = < ascii > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len, out_ro_type)
+        | < ascii > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len)
+        | < ascii > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len)
+        ;
+    readonly column INSDC:coord:len CIGAR_LONG_LEN
+        = < INSDC:coord:len > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len, out_ro_type)
+        | < INSDC:coord:len > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len)
+        | < INSDC:coord:len > NCBI:align:cigar #2 < 1 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len)
+        ;
+    readonly column ascii CIGAR_SHORT
+        = < ascii > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len, out_ro_type)
+        | < ascii > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len)
+        | < ascii > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len)
+        ;
+    readonly column INSDC:coord:len CIGAR_SHORT_LEN
+        = < INSDC:coord:len > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len, out_ro_type)
+        | < INSDC:coord:len > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len, out_ref_len)
+        | < INSDC:coord:len > NCBI:align:cigar #2 < 0 > (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_read_len)
+        ;
+
+    readonly column ascii RNA_ORIENTATION
+        = NCBI:align:rna_orientation ( out_ro_type )
+        ;
+
+    readonly column U32 EDIT_DISTANCE
+        = NCBI:align:edit_distance #3 (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ro_type, out_read_len)
+        | NCBI:align:edit_distance #2 (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ref_len, out_read_len)
+        | NCBI:align:edit_distance #2 (out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ref_len)
+        | NCBI:align:edit_distance #1 (out_has_mismatch, out_has_ref_offset, out_ref_offset);
+
+    readonly column ascii HAS_MISMATCH = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_has_mismatch );
+
+    // needed for backward compatibility
+    readonly column ascii SEQ_SPOT_GROUP = out_spot_group;
+
+
+/* These columns are purely informational. */
+    bool out_ref_mismatch = NCBI:align:get_ref_mismatch ( out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ref_len );
+    readonly column ascii REF_MISMATCH = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_ref_mismatch );
+    readonly column bool REF_MISMATCH = out_ref_mismatch;
+
+    bool out_ref_insert = NCBI:align:get_ref_insert ( out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ref_len );
+    readonly column ascii REF_INSERT = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_ref_insert );
+    readonly column bool REF_INSERT = out_ref_insert;
+
+    bool out_ref_delete = NCBI:align:get_ref_delete ( out_has_mismatch, out_has_ref_offset, out_ref_offset, out_ref_len );
+    readonly column ascii REF_DELETE = < U8 , ascii > map < [ 0 , 1 ] , '01'  > ( out_ref_delete );
+    readonly column bool REF_DELETE = out_ref_delete;
+
+};
+
+
+/* align_full
+ *  aligns externally stored sequence against reference
+ *  alignment transcript is calculated
+ *
+ * History:
+ *  1.1.0 - respond to changes in base table
+ *  1.1.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_full #1.1.1
+    = NCBI:align:tbl:align_cmn #2.1.1
+{
+    bool out_is_secondary = <bool> echo < true > ();
+    // restore reads to its raw form (orientation is restored)
+
+    INSDC:4na:bin out_raw_read
+        = < INSDC:4na:bin > simple_sub_select  < 'PRIMARY_ALIGNMENT', '( INSDC:4na:bin ) RAW_READ' > (.PRIMARY_ALIGNMENT_ID)
+        | < INSDC:4na:bin > NCBI:align:project_from_sequence < '( INSDC:4na:bin ) READ'> ( .SEQ_SPOT_ID, .SEQ_READ_ID );
+
+    INSDC:4na:bin out_4na_bin
+	    = NCBI:align:align_restore_read ( ref_read_internal, out_has_mismatch, tmp_out_mismatch_4na_bin, out_has_ref_offset, out_ref_offset, .READ_LEN )
+	    | NCBI:align:align_restore_read ( ref_read_internal, out_has_mismatch, tmp_out_mismatch_4na_bin, out_has_ref_offset, out_ref_offset )
+    	    | NCBI:align:raw_restore_read ( out_raw_read, .REF_ORIENTATION );
+
+
+    // flags mismatches with the reference
+    // produced by actual comparison of REF_READ and READ
+    // TMP_HAS_MISMATCH is a hack to speed up retrieval during coverage recalculation
+    column bool_encoding TMP_HAS_MISMATCH;
+    bool out_has_mismatch
+        = .TMP_HAS_MISMATCH
+	| NCBI:align:generate_has_mismatch ( REF_READ, READ, out_has_ref_offset, out_ref_offset );
+    readonly column bool HAS_MISMATCH = out_has_mismatch;
+
+    INSDC:4na:bin out_mismatch_4na_bin
+        = NCBI:align:generate_mismatch ( REF_READ, READ, out_has_ref_offset, out_ref_offset );
+
+    INSDC:4na:bin tmp_out_mismatch_4na_bin =  < INSDC:dna:text, INSDC:4na:bin > map < INSDC:4na:map:CHARSET, INSDC:4na:map:BINSET > ( .TMP_MISMATCH );
+
+    // temporary column for reference coverage calculation
+    column < INSDC:dna:text> zip_encoding TMP_MISMATCH;
+
+    INSDC:dna:text out_mismatch_dna_text
+        = .TMP_MISMATCH
+        | < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_mismatch_4na_bin );
+
+    readonly column INSDC:dna:text MISMATCH = out_mismatch_dna_text;
+    readonly column INSDC:4na:bin MISMATCH = out_mismatch_4na_bin;
+
+    physical column < INSDC:coord:zero > izip_encoding .MATE_REF_POS = MATE_REF_POS;
+    INSDC:coord:zero out_mate_ref_pos = .MATE_REF_POS
+                                      | < INSDC:coord:zero > simple_sub_select < '','REF_POS'> (MATE_ALIGN_ID);
+
+    physical column < I64 > izip_encoding .MATE_REF_ID = MATE_REF_ID;
+    I64 out_mate_ref_id = .MATE_REF_ID
+                        | < I64 > simple_sub_select < '','REF_ID'> (MATE_ALIGN_ID);
+
+    INSDC:coord:len out_mate_ref_len = < INSDC:coord:len > simple_sub_select < '','REF_LEN'> (MATE_ALIGN_ID);
+    physical column < I32 > izip_encoding .TEMPLATE_LEN = TEMPLATE_LEN;
+    I32 out_template_len = .TEMPLATE_LEN
+            | NCBI:align:template_len(REF_POS,out_mate_ref_pos,out_ref_len,out_mate_ref_len,REF_NAME,MATE_REF_NAME,SEQ_READ_ID);
+
+    physical column < bool > izip_encoding .MATE_REF_ORIENTATION = MATE_REF_ORIENTATION;
+    bool out_mate_ref_orientation = .MATE_REF_ORIENTATION
+                                  | < bool >  simple_sub_select < '','REF_ORIENTATION'> (MATE_ALIGN_ID);
+
+    I64 out_mate_align_id = .MATE_ALIGN_ID;
+    physical column <I64> izip_encoding .MATE_ALIGN_ID = MATE_ALIGN_ID;
+    extern column I64 MATE_ALIGN_ID = out_mate_align_id;
+
+    physical column < I64 > izip_encoding .PRIMARY_ALIGNMENT_ID = PRIMARY_ALIGNMENT_ID;
+
+    I32 read_idx = <I32> cast (.SEQ_READ_ID);
+    extern column I64 PRIMARY_ALIGNMENT_ID
+        = .PRIMARY_ALIGNMENT_ID
+        | <I64> simple_sub_select < 'SEQUENCE','PRIMARY_ALIGNMENT_ID' > (.SEQ_SPOT_ID,.SEQ_READ_ID);
+
+};
+
+
+/* compressed_by_reference
+ *  aligns internally represented sequence against reference
+ *  alignment transcript is stored
+ *  original sequence is reconstructed
+ *
+ * History:
+ *  1.2.0 - respond to changes in base table
+ *  1.2.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:compressed_by_reference #1.2.1
+    = NCBI:align:tbl:align_cmn #2.1.1
+{
+    bool out_is_secondary = <bool> echo < false > ();
+
+    // one value per base i.e. length is same as sum of READ_LEN
+    // partitioned by READ_START and READ_LEN into alternative alignments
+    // flags mismatches with the reference
+    extern default column bool_encoding HAS_MISMATCH;
+    bool out_has_mismatch = .HAS_MISMATCH;
+
+    // has number of elements equal to number of true elements in HAS_MISMATCH
+    extern column INSDC:dna:text MISMATCH
+    {
+        read = out_mismatch_dna_text;
+        validate = < INSDC:dna:text > compare ( in_mismatch_dna_text, out_mismatch_dna_text );
+    }
+
+    INSDC:dna:text in_mismatch_dna_text
+        = < INSDC:dna:text, INSDC:dna:text > map < '.acmgrsvtwyhkdbn','NACMGRSVTWYHKDBN' > ( MISMATCH );
+
+    INSDC:4na:bin in_mismatch_4na_bin
+        = < INSDC:dna:text, INSDC:4na:bin > map < INSDC:4na:map:CHARSET, INSDC:4na:map:BINSET > ( in_mismatch_dna_text );
+
+    extern column < ascii > zip_encoding ALIGN_GROUP;
+
+    physical column < INSDC:4na:bin > zip_encoding .MISMATCH = in_mismatch_4na_bin;
+
+    INSDC:4na:bin out_mismatch_4na_bin = .MISMATCH;
+    INSDC:dna:text out_mismatch_dna_text
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_mismatch_4na_bin );
+
+    I64 out_mate_align_id
+        = .MATE_ALIGN_ID
+        | NCBI:align:get_mate_align_id (.SEQ_SPOT_ID);
+
+    physical column <I64> izip_encoding .MATE_ALIGN_ID = MATE_ALIGN_ID;
+    extern column I64 MATE_ALIGN_ID = out_mate_align_id;
+
+    // restore reads from alignment columns and the reference
+    // optional .READ_LEN size defines PLOIDY
+    INSDC:4na:bin out_4na_bin
+	    = NCBI:align:align_restore_read ( ref_read_internal, out_has_mismatch, .MISMATCH, out_has_ref_offset, out_ref_offset, .READ_LEN )
+	    | NCBI:align:align_restore_read ( ref_read_internal, out_has_mismatch, .MISMATCH, out_has_ref_offset, out_ref_offset );
+
+    // restore reads to its raw form (orientation is restored)
+    INSDC:4na:bin out_raw_read = NCBI:align:raw_restore_read (out_4na_bin,.REF_ORIENTATION);
+
+    I64	primary_align_pair =  < I64 > simple_sub_select < 'SEQUENCE','PRIMARY_ALIGNMENT_ID'> (.SEQ_SPOT_ID);
+    I64 out_mate_ref_id = < I64 > simple_sub_select < '','REF_ID'> (MATE_ALIGN_ID);
+    bool  out_mate_ref_orientation = < bool >  simple_sub_select < '','REF_ORIENTATION'> (MATE_ALIGN_ID);
+    INSDC:coord:zero out_mate_ref_pos = < INSDC:coord:zero > simple_sub_select < '','REF_POS'> (MATE_ALIGN_ID);
+    INSDC:coord:len out_mate_ref_len = < INSDC:coord:len > simple_sub_select < '','REF_LEN'> (MATE_ALIGN_ID);
+    readonly column U32   MATE_EDIT_DISTANCE   = < U32 >   simple_sub_select < '','EDIT_DISTANCE'> (MATE_ALIGN_ID);
+    readonly column ascii MATE_CIGAR_LONG      = < ascii > simple_sub_select < '','CIGAR_LONG'> (MATE_ALIGN_ID);
+    readonly column ascii MATE_CIGAR_SHORT     = < ascii > simple_sub_select < '','CIGAR_SHORT'> (MATE_ALIGN_ID);
+    readonly column INSDC:coord:len MATE_CIGAR_LONG_LEN  = < INSDC:coord:len > simple_sub_select < '','CIGAR_LONG_LEN'> (MATE_ALIGN_ID);
+    readonly column INSDC:coord:len MATE_CIGAR_SHORT_LEN = < INSDC:coord:len > simple_sub_select < '','CIGAR_SHORT_LEN'> (MATE_ALIGN_ID);
+
+    I32 out_template_len = NCBI:align:template_len (REF_POS,out_mate_ref_pos,out_ref_len,out_mate_ref_len,REF_NAME,MATE_REF_NAME,SEQ_READ_ID);
+};
+
+
+/* align_sorted
+ *  deflated alignment data sorted against reference
+ *
+ * History:
+ *  1.2.0 - respond to changes in base table
+ *  1.2.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_sorted #1.2.1
+    = NCBI:align:tbl:compressed_by_reference #1.2.1
+    , NCBI:align:tbl:global_ref_block #1.0.0
+{
+    // 128K
+    column default limit = 131072;
+};
+
+
+/* align_unsorted
+ *  deflated alignment unsorted data
+ *
+ * History:
+ *  1.2.0 - respond to changes in base table
+ *  1.2.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_unsorted #1.2.1
+    = NCBI:align:tbl:compressed_by_reference #1.2.1
+    , NCBI:align:tbl:local_ref_block #1.0.0
+{
+    // 128K
+    column default limit = 131072;
+};
+
+
+/* align_mate_sorted
+ *
+ * History:
+ *  1.1.0 - respond to changes in base table
+ *  1.1.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_mate_sorted #1.1.1
+    = NCBI:align:tbl:align_full #1.1.1
+    , NCBI:align:tbl:global_ref_block #1.0.0
+{
+    // 128K
+    column default limit = 131072;
+};
+
+
+/* align_mate_unsorted
+ *
+ * History:
+ *  1.1.0 - respond to changes in base table
+ *  1.1.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_mate_unsorted #1.1.1
+    = NCBI:align:tbl:align_full #1.1.1
+    , NCBI:align:tbl:local_ref_block #1.0.0
+{
+    // 128K
+    column default limit = 131072;
+};
+
+/* align_allele
+ *  alleles coverage extension
+ *
+ * History:
+ *  1.2.0 - respond to changes in base table
+ *  1.2.1 - respond to changes in base table
+ */
+table NCBI:align:tbl:align_allele #1.2.1
+    = NCBI:align:tbl:align_unsorted #1.2.1
+{
+    extern column < I64 > izip_encoding EVIDENCE_ALIGNMENT_IDS;
+
+    /*
+    INSDC:quality:phred out_qual_phred
+        = < INSDC:quality:phred > echo < 30 > ( out_4na_bin );
+    */
+};
+
+/*--------------------------------------------------------------------------
+ * seq
+ *  alignment sequence table
+ *
+ * history:
+ *  1.1.1 - respond to changes in base table
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+physical
+I64 NCBI:align:sorted:alignment_id_encoding #1.0
+{
+    decode
+    {
+        I64 outliers_removed = iunzip ( @ );
+        return < I64 > outlier_decode < 0 > ( outliers_removed );
+    }
+
+    encode
+    {
+        I64 outliers_removed = < I64 > outlier_encode < 0 > ( @ );
+        return izip ( outliers_removed );
+    }
+}
+
+ table NCBI:align:tbl:seq #2 =
+    NCBI:tbl:base_space #3,
+    NCBI:tbl:phred_quality #2.0,
+    NCBI:align:tbl:cmp_base_space #1,
+    NCBI:SRA:tbl:spotdesc #1.1,
+    NCBI:SRA:tbl:stats #1.2.1
+{
+    // 128K
+    column default limit = 131072;
+
+    // gets primary record in alignment table (size of column is NREADS)
+    // if sorted - should used special encoding
+    extern column <I64> izip_encoding PRIMARY_ALIGNMENT_ID;
+
+    INSDC:coord:zero trim_start = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len trim_len = _spot_len;
+
+    // size is NREADS
+    extern column < U8 > zip_encoding ALIGNMENT_COUNT;
+
+    // unparsed read name
+    extern column < ascii > zip_encoding RAW_NAME;
+
+    // auto-generate name from row-id
+    ascii out_name_fmt = .RAW_NAME | < ascii > echo < '$R' > ();
+
+    // temparary column
+    extern column < U64 > izip_encoding TMP_KEY_ID;
+
+    // restored  READ
+    INSDC:4na:bin out_dcmp_4na_bin
+        = NCBI:align:seq_restore_read (out_cmp_4na_bin, .PRIMARY_ALIGNMENT_ID, .READ_LEN, .READ_TYPE);
+
+    extern column < U64 > izip_encoding TI;
+
+    extern column <ascii> zip_encoding CMP_LINKAGE_GROUP;
+
+    // restored LINKAGE_GROUP
+    readonly column ascii LINKAGE_GROUP = NCBI:align:seq_restore_linkage_group(.CMP_LINKAGE_GROUP, .PRIMARY_ALIGNMENT_ID)
+                                        | .CMP_LINKAGE_GROUP;
+
+};
+
+/***********************************
+* Reference table - to store reference sequences
+* Sequences are divided in chunks. Two sequences never share a chunk.
+* SEQ_LEN     - real size of a chunk should never exceed MAX_SEQ_LEN when it is set
+* READ        - inherited from NCBI:tbl:base_space
+* CMP_READ,CMP_ALTREAD - are inherited from NCBI:align:tbl:cmp_base_space
+* SEQ_ID,SEQ_START,SEQ_LEN are inherited from  NCBI:align:tbl:seqloc
+* .skey contains NAME of the chunk - it corresponds to actual name used in BAM (chr1,chr2, etc....)
+*
+* SEQ_START,SEQ_LEN,MAX_SEQ_LEN,SEQID and rowlen(READ) operate the following way
+* - SEQ_LEN < MAX_SEQ_LEN - should only happen on the last chunk of the sequence
+* - .READ is absent - there should be a retrieval from external services by SEQ_ID,SEQ_START,SEQ_LEN
+* - rowlen(.READ) = 0  && SEQ_START==0 (used as flag) -  the sequence is SEQ_LEN repetition of 'N'
+* - rowlen(.READ) = 0  && SEQ_START >= 1 - the sequence have to be fetched from external sources
+* - 0 < rowlen(.READ)< SEQ_LEN -- the sequence have to be filled with 'N's
+ *
+ * history:
+ *  2.0.1 - respond to changes in base table
+ *  3.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+***********************************/
+table NCBI:align:tbl:reference #3 =
+    NCBI:align:tbl:cmp_base_space #1,
+    NCBI:tbl:base_space #3,
+    NCBI:tbl:seqloc #1,
+    NCBI:SRA:tbl:stats #1.2.1
+{
+    INSDC:quality:phred out_qual_phred
+        = < INSDC:quality:phred > echo < 30 > ( out_dcmp_4na_bin );
+
+    //  MAX_SEQ_LEN - should be a constant == static column
+    extern column < U32 > izip_encoding MAX_SEQ_LEN;
+
+    // indicates if sequence has circular structure
+    // copied from refSeq
+    extern column bool_encoding CIRCULAR;
+
+    // make CS_KEY writable
+    INSDC:dna:text in_cs_key
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn', 'ACGTN' > ( CS_KEY );
+    physical column < INSDC:dna:text > zip_encoding .CS_KEY = in_cs_key;
+
+    U32 in_spot_len = SEQ_LEN;
+
+    INSDC:coord:len _alt_in_read_len
+        = READ_LEN
+        | SEQ_LEN;
+
+    INSDC:SRA:xread_type _alt_in_read_type
+        = READ_TYPE
+        | < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > ();
+
+    // extra columns needed for CS conversion
+    INSDC:coord:zero out_read_start = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len  out_read_len = .SEQ_LEN;
+
+    extern column utf8  NAME = out_spot_name_utf8;
+    physical utf8 .NAME = idx:text:insert #1.0  < 'i_name' > ( NAME );
+
+    utf8 out_spot_name_utf8 = idx:text:project #1.0 < 'i_name' > (.NAME );
+
+    ascii out_spot_name = cast ( out_spot_name_utf8 );
+
+    INSDC:coord:zero trim_start = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len trim_len = base_space_spot_len;
+
+    ascii out_label
+        = < ascii > echo < "reference" > ();
+    INSDC:coord:zero out_label_start
+        = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len out_label_len
+        = < INSDC:coord:len > echo < 9 > ();
+
+    U32 out_nreads
+        = < U32 > echo < 1 > ();
+    INSDC:SRA:xread_type out_read_type
+        = < INSDC:SRA:xread_type > echo < 3 > ();
+    INSDC:SRA:read_filter out_rd_filter
+        = < INSDC:SRA:read_filter > echo < SRA_READ_FILTER_PASS > ();
+
+
+// Columns of computed coverages by alignment
+
+    // TBD: use percentiles instead of min/max?
+    // maximum value clipped at 255 of the coverage density
+    // for a chunk
+    extern column < U8 > izip_encoding CGRAPH_HIGH;
+
+    // minimum value clipped at 255 of the coverage density
+    // for a chunk
+    extern column < U8 > izip_encoding CGRAPH_LOW;
+
+    // count of the number of mismatches in the chunk
+    extern column < U32 > izip_encoding CGRAPH_MISMATCHES;
+
+    // count of the number of inserts and deletes in the chunk
+    extern column < U32 > izip_encoding CGRAPH_INDELS;
+
+    // List of row ids from alignment tables
+    extern column < I64 > izip_encoding PRIMARY_ALIGNMENT_IDS;
+    extern column < I64 > izip_encoding SECONDARY_ALIGNMENT_IDS;
+    extern column < I64 > izip_encoding EVIDENCE_INTERVAL_IDS;
+
+    // both OVERLAP_REF_* columns are array of three elements, matching number of *_IDS columns above.
+    // points back to an offset where the alignments to this chunk start
+    extern column < INSDC:coord:zero > izip_encoding OVERLAP_REF_POS;
+    // indicates the length of the longest tail of the alignmnent to this chunk which start in previous chunks
+    // if value of an element in this col is zero corresponding value of OVERLAP_REF_POS is meaningless
+    extern column < INSDC:coord:len > izip_encoding OVERLAP_REF_LEN;
+
+    // Mechanism to seach for NAME
+    readonly column vdb:row_id_range NAME_RANGE
+        = idx:text:lookup #1.0 < 'i_name', 'QUERY_SEQ_NAME' > ();
+
+    // Fully instantiates READ
+    INSDC:4na:bin out_dcmp_4na_bin
+        = NCBI:align:ref_restore_read (out_cmp_4na_bin, .SEQ_ID, .SEQ_START, .SEQ_LEN);
+}
+
+// THE DATABASES
+database NCBI:align:db:alignment_sorted #2
+{
+    table NCBI:align:tbl:reference #3 REFERENCE;
+    table NCBI:align:tbl:align_sorted #1.2.1 PRIMARY_ALIGNMENT;
+    table NCBI:align:tbl:align_mate_sorted #1.1.1 SECONDARY_ALIGNMENT;
+    table NCBI:align:tbl:seq #2 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};
+
+database NCBI:align:db:alignment_unsorted #2
+{
+    table NCBI:align:tbl:reference #3 REFERENCE;
+    table NCBI:align:tbl:align_unsorted #1.2.1 PRIMARY_ALIGNMENT;
+    table NCBI:align:tbl:align_mate_unsorted #1.1.1 SECONDARY_ALIGNMENT;
+    table NCBI:align:tbl:seq #2 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};
+
+database NCBI:align:db:alignment_evidence #2
+{
+    table NCBI:align:tbl:reference #3 REFERENCE;
+    table NCBI:align:tbl:align_unsorted #1.2.1 PRIMARY_ALIGNMENT;
+    table NCBI:align:tbl:align_mate_unsorted #1.1.1 SECONDARY_ALIGNMENT;
+    table NCBI:align:tbl:align_allele #1.2.1 EVIDENCE_INTERVAL;
+    table NCBI:align:tbl:align_mate_unsorted #1.1.1 EVIDENCE_ALIGNMENT;
+    table NCBI:align:tbl:seq #2 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};
+
+database NCBI:align:db:alignment_evidence_sorted #2
+{
+    table NCBI:align:tbl:reference #3 REFERENCE;
+    table NCBI:align:tbl:align_sorted #1.2.1 PRIMARY_ALIGNMENT;
+    table NCBI:align:tbl:align_mate_sorted #1.1.1 SECONDARY_ALIGNMENT;
+    table NCBI:align:tbl:align_allele #1.2.1 EVIDENCE_INTERVAL;
+    table NCBI:align:tbl:align_mate_unsorted #1.1.1 EVIDENCE_ALIGNMENT;
+    table NCBI:align:tbl:seq #2 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};
+
+database NCBI:align:db:unaligned #2
+{
+    table NCBI:align:tbl:seq #2 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};

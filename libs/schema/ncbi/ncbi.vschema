@@ -1,0 +1,194 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * VDB Schema intrinsic types and functions
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'insdc/insdc.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * data types
+ */
+
+// N-encoded phred has values limited to 1..63 and 0 used for N
+typedef INSDC:quality:phred NCBI:quality:n_encoded:phred;
+// N-encoded log-odds has values limite to -5..40 and -6 for N
+typedef INSDC:quality:log_odds NCBI:quality:n_encoded:log_odds;
+
+// these types have been restated
+alias INSDC:dna:text INSDC:fasta;
+alias INSDC:2na:packed INSDC:dna:2na;
+alias INSDC:2na:packed NCBI:2na;
+alias INSDC:2cs:packed INSDC:color:2cs;
+alias INSDC:2cs:packed NCBI:2cs;
+alias INSDC:quality:phred NCBI:qual1;
+alias NCBI:quality:n_encoded:phred NCBI:SRA:enc_qual1;
+
+// 16-bit integer sample data
+typedef I16 NCBI:isamp1, NCBI:isamp4 [ 4 ];
+
+// 32-bit floating point sample data
+typedef F32 NCBI:fsamp1, NCBI:fsamp4 [ 4 ];
+
+// ASN.1
+typedef B8 NCBI:asn:binary;
+typedef ascii NCBI:asn:text;
+
+// GenInfo id - 64 bit because we are almost out of 32 bit ids
+typedef U64 NCBI:gi;
+
+// Taxonomy id
+typedef U32 NCBI:taxid;
+
+// Genbank status
+typedef U32 NCBI:gb_state;
+
+
+/*--------------------------------------------------------------------------
+ * formats
+ *  many of these formats are older than the current corresponding vdb fmts
+ */
+
+fmtdef merged_t;
+fmtdef fp_encoded_t;
+fmtdef rl_encoded_t;
+fmtdef NCBI:zlib_encoded_t;
+fmtdef NCBI:fp_encoded_t;
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+
+/* merge
+ * split
+ *  the original versions of these functions
+ *  used a slightly different format giving them
+ *  a different signature from their vdb counterparts.
+ *
+ *  here to maintain backward compatibility for
+ *  column schema functions
+ */
+extern function
+merged_t NCBI:merge #1.0 ( any in, ... );
+
+extern function
+any NCBI:split #1.0 < U32 idx > ( merged_t in )
+    = vdb:split;
+
+
+/* cut
+ * paste
+ *  these have no compiler type-checking
+ */
+extern function
+any NCBI:cut #1.0 < U32 idx, ... > ( any in )
+    = vdb:cut;
+
+extern function
+any NCBI:paste #1.0 ( any in, ... )
+    = vdb:paste;
+
+
+/* pack
+ * unpack
+ *  wildcard typed
+ */
+extern function
+any NCBI:pack #1.0 < U32 from, U32 to > ( any in );
+
+extern function
+any NCBI:unpack #1.0 < U32 from, U32 to > ( any in );
+
+
+/* fp_decode
+ *  OBSOLETE
+ *  here to handle anything encoded with fp_encode
+ */
+extern function
+any NCBI:fp_decode #1.0 ( fp_encoded_t in );
+
+
+/* fp_extend
+ *  OBSOLETE
+ *  here to handle anything encoded with fp_truncate
+ */
+extern function
+any NCBI:fp_extend #1.0 < U32 bits > ( NCBI:fp_encoded_t in );
+
+
+/* run_length_encode
+ * run_length_decode
+ */
+extern function
+rl_encoded_t NCBI:run_length_encode #1.0 ( any in )
+    = vdb:rlencode;
+
+extern function
+any NCBI:run_length_decode #1.0 ( rl_encoded_t in )
+    = vdb:rldecode;
+
+
+/* zlib
+ * unzip
+ *  variation on the formatting
+ */
+extern function
+NCBI:zlib_encoded_t NCBI:zlib #1.0 < * I32 strategy, I32 level > ( any in )
+    = vdb:zip;
+
+extern function
+any NCBI:unzip #1.0 ( NCBI:zlib_encoded_t in );
+
+
+/* zlib_huffman_compress
+ *  invokes zlib in huffman + rle mode
+ */
+schema function
+NCBI:zlib_encoded_t NCBI:zlib_huffman_compress #1.0 ( any in )
+{
+    // named as Huffman, but apply RLE as well
+    return NCBI:zlib < Z_RLE > ( in );
+}
+
+/* zlib_compress
+ *  standard zlib
+ */
+schema function
+NCBI:zlib_encoded_t NCBI:zlib_compress #1.0 ( any in )
+{
+    return NCBI:zlib < Z_DEFAULT_STRATEGY > ( in );
+}
+
+/* zlib_decompress
+ *  alternate name for unzip
+ */
+alias NCBI:unzip NCBI:zlib_decompress;

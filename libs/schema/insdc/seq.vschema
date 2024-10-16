@@ -1,0 +1,216 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * Sequence schema
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'insdc/insdc.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * rand_4na_2na
+ *  converts 4na to 2na
+ *
+ *  substitutes a random base for ambiguities
+ *  from the bases allowed in the 4na.
+ *
+ *       A | C | G | T
+ *    =================
+ *    N    |   |   |     # any base may be substituted
+ *    A  * |   |   |     # always A
+ *    C    | * |   |     # always C
+ *    M  * | * |   |     # A or C
+ *    G    |   | * |     # always G
+ *    R  * |   | * |     # A or G
+ *    S    | * | * |     # C or G
+ *    V  * | * | * |     # A, C or G
+ *    T    |   |   | *   # always T
+ *    W  * |   |   | *   # A or T
+ *    Y    | * |   | *   # C or T
+ *    H  * | * |   | *   # A, C or T
+ *    K    |   | * | *   # G or T
+ *    D  * |   | * | *   # A, G or T
+ *    B    | * | * | *   # C, G or T
+ *    N  * | * | * | *   # any base may be substituted
+ */
+extern function
+    INSDC:2na:bin INSDC:SEQ:rand_4na_2na #1 ( INSDC:4na:bin rd_bin );
+
+
+/*--------------------------------------------------------------------------
+ * sequence
+ *  basic sequence table
+ *
+ * history:
+ *  1.0.1 - introduced text-mode QUALITY columns
+ */
+table INSDC:tbl:sequence #1.0.1
+{
+    /* READ
+     *  native or converted DNA sequence
+     */
+
+    // default is IUPAC character representation
+    extern default column INSDC:dna:text READ
+    {
+        read = out_dna_text;
+        validate = < INSDC:dna:text > compare ( in_dna_text, out_dna_text );
+    }
+
+    // 4na representation - unpacked and packed
+    extern column INSDC:4na:bin READ = out_4na_bin;
+    extern column INSDC:4na:packed READ = out_4na_packed;
+
+    // x2na representation - 2na with ambiguity
+    extern column INSDC:x2na:bin READ = out_x2na_bin;
+
+    // 2na representation - 2na with no ambiguity - unpacked and packed
+    extern column INSDC:2na:bin READ = out_2na_bin;
+    extern column INSDC:2na:packed READ = out_2na_packed;
+
+
+    /* CSREAD
+     *  native or converted color-space sequence
+     */
+
+    // default is ASCII character representation
+    extern default column INSDC:color:text CSREAD
+    {
+        read = out_color_text;
+        validate = < INSDC:color:text > compare ( in_color_text, out_color_text );
+    }
+
+    // x2cs representation - 2cs with ambiguity
+    extern column INSDC:x2cs:bin CSREAD = out_x2cs_bin;
+
+    // 2cs representation - 2cs with no ambiguity - unpacked and packed
+    extern column INSDC:2cs:bin CSREAD = out_2cs_bin;
+    extern column INSDC:2cs:packed CSREAD = out_2cs_packed;
+
+    /* CS_NATIVE
+     *  is color-space the native sequence space
+     */
+    readonly column bool CS_NATIVE = cs_native;
+
+    /* CS_KEY
+     *  leading call given in base-space
+     */
+    extern column INSDC:dna:text CS_KEY
+    {
+        read = out_cs_key;
+        validate = < INSDC:dna:text > compare ( in_cs_key, out_cs_key );
+    }
+
+    /* COLOR_MATRIX
+     *  matrix used for color-space conversions
+     */
+    extern column U8 COLOR_MATRIX = out_color_matrix;
+
+
+    /* QUALITY
+     *  base or color call qualities
+     */
+
+    // PHRED is default
+    extern default column INSDC:quality:phred QUALITY
+    {
+        read = out_qual_phred;
+        validate = < INSDC:quality:phred > compare ( in_qual_phred, phys_qual_phred );
+    }
+
+    // textual encodings
+    extern column INSDC:quality:text:phred_33 QUALITY
+        = out_qual_text_phred_33
+        | ( INSDC:quality:text:phred_33 ) < B8 > sum < 33 > ( out_qual_phred )
+        ;
+    extern column INSDC:quality:text:phred_64 QUALITY
+        = out_qual_text_phred_64
+        | ( INSDC:quality:text:phred_64 ) < B8 > sum < 64 > ( out_qual_phred )
+        ;
+
+
+    /* SIGNAL
+     *  signal and intensity information is unspecified
+     */
+    INSDC:coord:len signal_len
+        = ( INSDC:coord:len ) row_len ( out_signal )
+        | < INSDC:coord:len > echo < 0 > ()
+        ;
+
+
+	/* INSDC:tbl:sequence virtual productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+};
+
+
+/*--------------------------------------------------------------------------
+ * protein
+ *  basic protein sequence table
+ */
+table INSDC:tbl:protein #1
+{
+    /* PROTEIN
+     *  native or converted protein sequence
+     */
+
+    // default is IUPAC character representation
+    extern default column INSDC:protein:text PROTEIN
+    {
+        read = out_protein_text;
+        validate = < INSDC:protein:text > compare ( in_protein_text, out_protein_text );
+    }
+
+    // aa representation
+    extern column INSDC:aa:bin PROTEIN = out_aa_bin;
+
+
+	/* INSDC:tbl:protein productions
+	 *  out_aa_bin
+	 *  in_protein_text
+	 *  out_protein_text
+	 */
+};

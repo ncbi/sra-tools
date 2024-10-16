@@ -1,0 +1,135 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Sequence Read Archive schema
+ */
+version 1;
+
+include 'insdc/sra.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ */
+typeset NCBI:SRA:stats:qual_type
+{
+    INSDC:quality:phred,
+    INSDC:quality:log_odds,
+    INSDC:quality:log_odds [ 4 ]
+};
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/*
+   trigger to build meta statistics: spot count, base count, etc.
+ */
+extern function U8 NCBI:SRA:stats_trigger #1
+    ( U8 read_bin, U32 read_len, INSDC:SRA:xread_type read_type * ascii spot_group );
+
+/* trigger to build meta statistics from compressed reads
+ *
+ * cmp_stats_trigger takes spot length from quality
+ * cmpf_stats_trigger takes spot length from an explicit spot length input
+ * cmpb_stats_trigger only computes CMP_BASE_COUNT
+ */
+extern function
+U8 NCBI:SRA:cmp_stats_trigger #1 ( B8 cmp_read_bin, NCBI:SRA:stats:qual_type qual_bin,
+    U32 read_len, INSDC:SRA:xread_type read_type * ascii spot_group );
+
+extern function
+U8 NCBI:SRA:cmpf_stats_trigger #1 ( B8 cmp_read_bin, U32 spot_len,
+    U32 read_len, INSDC:SRA:xread_type read_type * ascii spot_group );
+
+extern function
+U8 NCBI:SRA:cmpb_stats_trigger #1 ( B8 cmp_read_bin * ascii spot_group );
+
+extern function
+U8 NCBI:SRA:readlen_stats_trigger #1 ( U32 read_len, INSDC:SRA:xread_type read_type );
+
+
+/* trigger to build phred_quality statistics in meta
+ */
+extern function
+U8 NCBI:SRA:phred_stats_trigger #1 ( INSDC:quality:phred qual_bin );
+
+/*--------------------------------------------------------------------------
+ * table
+ */
+
+/* stats
+ *  holds sequence statistics
+ *
+ * history:
+ *  1.0.1 - explicitly interit from sra #1.0.1
+ *  1.1.0 - incorporate stats from compressed read
+ *  1.1.1 - sra #1.0.2
+ *  1.1.2 - sra #1.0.3 + cmp_base_count or to base_count
+ *  1.2.1 - sra #1.0.4 and readlen_stats trigger
+ */
+table NCBI:SRA:tbl:stats #1.2.1 = INSDC:SRA:tbl:stats #1.1, INSDC:SRA:tbl:sra #1.0.4
+{
+    INSDC:SRA:spotid_t min_spot_id
+        = < INSDC:SRA:spotid_t > meta:value < "STATS/TABLE/SPOT_MIN" > ();
+
+    INSDC:SRA:spotid_t max_spot_id
+        = < INSDC:SRA:spotid_t > meta:value < "STATS/TABLE/SPOT_MAX" > ();
+
+    U64 spot_count
+        = < U64 > meta:value < "STATS/TABLE/SPOT_COUNT" > ();
+
+    U64 base_count
+        = < U64 > meta:value < "STATS/TABLE/BASE_COUNT" > ();
+
+    U64 bio_base_count
+        = < U64 > meta:value < "STATS/TABLE/BIO_BASE_COUNT" > ();
+
+    U64 cmp_base_count
+        = < U64 > meta:value < "STATS/TABLE/CMP_BASE_COUNT" > () | base_count;
+
+    trigger meta_stats
+        = NCBI:SRA:stats_trigger ( in_stats_bin, in_read_len, in_read_type, in_spot_group )
+        | NCBI:SRA:stats_trigger ( in_stats_bin, in_read_len, in_read_type )
+        | NCBI:SRA:cmp_stats_trigger ( in_cmp_stats_bin, in_stats_qual, in_read_len, in_read_type, in_spot_group )
+        | NCBI:SRA:cmp_stats_trigger ( in_cmp_stats_bin, in_stats_qual, in_read_len, in_read_type )
+        | NCBI:SRA:cmpf_stats_trigger ( in_cmp_stats_bin, in_spot_len, in_read_len, in_read_type, in_spot_group )
+        | NCBI:SRA:cmpf_stats_trigger ( in_cmp_stats_bin, in_spot_len, in_read_len, in_read_type )
+        | NCBI:SRA:cmpb_stats_trigger ( in_cmp_stats_bin, in_spot_group )
+        | NCBI:SRA:cmpb_stats_trigger ( in_cmp_stats_bin )
+        ;
+
+    trigger readlen_stats
+        = NCBI:SRA:readlen_stats_trigger ( in_read_len, in_read_type );
+    trigger qual_stats
+        = NCBI:SRA:phred_stats_trigger #1 ( in_qual_phred );
+
+	/* INSDC:SRA:tbl:stats inherited virtual productions
+	 *  in_stats_bin
+	 */
+};

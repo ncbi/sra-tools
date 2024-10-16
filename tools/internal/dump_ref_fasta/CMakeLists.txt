@@ -32,4 +32,8 @@ target_link_libraries ( dump-ref-fasta
     ${COMMON_LINK_LIBRARIES}
 )
 
-add_subdirectory ( test )
+MakeLinksExe ( dump-ref-fasta false )
+
+if ( NOT TOOLS_ONLY )
+    add_subdirectory ( test )
+endif()

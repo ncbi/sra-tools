@@ -793,7 +793,6 @@ Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & c
             out += formatContentFlagJson( p_indent, "isStatic", cont.attributes & cca_IsStatic );
             break;
         case kptIndex:
-            out += formatContentFlagJson( p_indent, "hasChecksum_MD5", cont.attributes & cia_HasChecksum_MD5 );
             out += formatContentFlagJson( p_indent, "isTextIndex", cont.attributes & cia_IsTextIndex );
             out += formatContentFlagJson( p_indent, "isIdIndex", cont.attributes & cia_IsIdIndex );
             out += formatContentFlagJson( p_indent, "reverseByteOrder", cont.attributes & cia_ReversedByteOrder );
@@ -909,7 +908,6 @@ Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents 
             if ( cont.attributes & cca_IsStatic )           out += indent + "is static\n";
             break;
         case kptIndex:
-            if ( cont.attributes & cia_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
             if ( cont.attributes & cia_IsTextIndex )        out += indent + "is on text\n";
             if ( cont.attributes & cia_IsIdIndex )          out += indent + "is on ID\n";
             if ( cont.attributes & cia_IsIdIndex )          out += indent + "has reverse byte order\n";

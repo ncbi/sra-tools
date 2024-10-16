@@ -27,4 +27,5 @@ default: runtests
 TOP ?= $(abspath ../../..)
 MODULE = test/loaders/sharq
 
+BUILD_TOOLS_LOADERS = ON
 include $(TOP)/build/Makefile.env

@@ -45,28 +45,28 @@ if ( NOT WIN32)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME BioEnd-Excl-1
-            COMMAND ${CMD} bio-end excl-1 0 n -I${VDB_INCDIR} -L=debug
+            COMMAND ${CMD} bio-end excl-1 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR} -L=debug
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME BioEnd-Excl-2
-            COMMAND ${CMD} bio-end excl-2 0 n -I${VDB_INCDIR}
+            COMMAND ${CMD} bio-end excl-2 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME BioEnd-Excl-3
-            COMMAND ${CMD} bio-end excl-3 0 n -I${VDB_INCDIR}
+            COMMAND ${CMD} bio-end excl-3 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME BioEnd-Excl-4
-            COMMAND ${CMD} bio-end excl-4 0 n -I${VDB_INCDIR}
+            COMMAND ${CMD} bio-end excl-4 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME BioEnd-Incl-1
-            COMMAND ${CMD} bio-end incl-1 0 n -I${VDB_INCDIR}
+            COMMAND ${CMD} bio-end incl-1 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME IdxText-CI-1
-            COMMAND ${CMD} bio-end excl-1 0 n -I${VDB_INCDIR} # -L=debug
+            COMMAND ${CMD} bio-end excl-1 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR} # -L=debug
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -100,36 +100,36 @@ if ( NOT WIN32)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME IdxText-ci-1
-            COMMAND ${CMD} idx-text ci-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text ci-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-ci-2
-            COMMAND ${CMD} idx-text ci-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text ci-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-ci-3
-            COMMAND ${CMD} idx-text ci-3 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text ci-3 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-ci-4
-            COMMAND ${CMD} idx-text ci-4 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text ci-4 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-ci-5
-            COMMAND ${CMD} idx-text ci-5 0 n -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text ci-5 0 n -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME IdxText-cs-1
-            COMMAND ${CMD} idx-text cs-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text cs-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-cs-2
-            COMMAND ${CMD} idx-text cs-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text cs-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME IdxText-cs-3
-            COMMAND ${CMD} idx-text cs-3 0 n  -I${VDB_INCDIR}
+            COMMAND ${CMD} idx-text cs-3 0 n  -I${SRC_INTERFACES_DIR}:${VDB_INCDIR}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

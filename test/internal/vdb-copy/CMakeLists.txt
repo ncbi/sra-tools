@@ -50,7 +50,7 @@ if( Python3_EXECUTABLE )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_VDB_Copy_Redaction
-            COMMAND bash -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${VDB_INCDIR}'"
+            COMMAND bash -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${SRC_INTERFACES_DIR}:${VDB_INCDIR}' '${VDB_INCDIR}/..'"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 	endif()

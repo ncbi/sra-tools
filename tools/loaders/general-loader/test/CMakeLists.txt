@@ -73,59 +73,59 @@ if ( NOT WIN32)
     #TODO: simplify
     set ( CMD bash runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/vdb-dump ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
-                "/vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n")
+    file( WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
+                "/vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n" )
 
     add_test ( NAME makeinputs
             COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/makeinputs
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME GeneralLoader-1.0-Basic-Unpacked
-            COMMAND ${CMD} 1 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 1 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-1.1-Basic-Packed
-            COMMAND ${CMD} 1packed 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 1packed 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-1.2-TargetDbOverride
-            COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} --target actual/1override/db"
+            COMMAND ${CMD} 1override 0 "--target actual/1override/db"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-1.3-TargetDbOverrideShorthand
-            COMMAND ${CMD} 1override 0 "-I${VDB_INCDIR} -T actual/1override/db"
+            COMMAND ${CMD} 1override 0 "-T actual/1override/db"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME GeneralLoader-2.0-ErrorMessageEvent-Unpacked
-            COMMAND ${CMD} 2 3 "-I${VDB_INCDIR} -L=err"
+            COMMAND ${CMD} 2 3 -L=err
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-2.1-ErrorMessageEvent-Packed
-            COMMAND ${CMD} 2packed 3 "-I${VDB_INCDIR} -L=err"
+            COMMAND ${CMD} 2packed 3 -L=err
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME GeneralLoader-3.0-EmptyDefaultValues-Unpacked
-            COMMAND ${CMD} 3 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 3 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-3.1-EmptyDefaultValues-Packed
-            COMMAND ${CMD} 3 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 3 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME GeneralLoader-4.0-MoveAheadEvent-Unpacked
-            COMMAND ${CMD} 4 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 4 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-4.1-MoveAheadEvent-Packed
-            COMMAND ${CMD} 4packed 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 4packed 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test ( NAME GeneralLoader-5.0-IntegerConversion #packed only
-            COMMAND ${CMD} 5packed 0 -I${VDB_INCDIR}
+            COMMAND ${CMD} 5packed 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -150,11 +150,11 @@ if ( NOT WIN32)
     set ( CMD bash runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/kdbmeta  ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
-            COMMAND ${CMD} 6 0 "-L=info -I${VDB_INCDIR}" SOFTWARE/formatter
+            COMMAND ${CMD} 6 0 -L=info SOFTWARE/formatter
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     add_test ( NAME GeneralLoader-6.1-SoftwareName-Packed
-            COMMAND ${CMD} 6packed 0 "-L=info -I${VDB_INCDIR}" SOFTWARE/formatter
+            COMMAND ${CMD} 6packed 0 -L=info SOFTWARE/formatter
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

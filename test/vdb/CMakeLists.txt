@@ -22,4 +22,5 @@
 #
 # ===========================================================================
 
-AddExecutableTest( test-vdb "test-vdb" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+AddExecutableTest( Test_VDB "test-vdb" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+AddExecutableTest( Test_WVDB "test-wvdb" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )

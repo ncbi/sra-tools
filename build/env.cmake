@@ -423,6 +423,10 @@ endif()
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
 
+# path to schema includes residing in sra-tools
+set( SRC_INTERFACES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs/schema" )
+
+
 # ===========================================================================
 
 # DIRTOTEST is the overridable location of the executables to call from scripted test

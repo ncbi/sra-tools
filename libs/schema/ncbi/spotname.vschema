@@ -1,0 +1,383 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Sequence Read Archive schema
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'insdc/sra.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ */
+
+/* spot_name_token
+ *  a vector describing tokens recognized within a spot name
+ *
+ * COMPONENTS:
+ *  0 - token id
+ *  1 - token starting coordinate
+ *  2 - token length
+ */
+alias text:token NCBI:SRA:spot_name_token;
+
+
+/* token values
+ *
+ *  tokens are produced by a schema-specific tokenizer function
+ *  this function is purposely abstract because it may rely upon
+ *  whatever information it needs to perform its task. the only
+ *  requirement is that it produce these tokens as its output.
+ *
+ *  an empty name input must produce no tokens. in this case,
+ *  there is no name to tokenize or data to produce.
+ *
+ *  a non-empty name must produce 1 or more tokens of output.
+ *  all tokens must be ordered by starting character position.
+ *
+ *  if a name does not conform to any pattern recognized by the
+ *  tokenizer, then the tokenizer emits a single token of "unrecognized"
+ *
+ *  if a name conforms to some pattern but does not have any
+ *  substitution tokens, the tokenizer emits a single token of "recognized"
+ *
+ *  if a name may be tokenized, then the resulting tokens should
+ *  describe only the portions of the string that should be removed
+ *  from the name, e.g. "X" or "Y".
+ *
+ *  the standard coordinates "X".."L" are given in unsigned decimal.
+ *  alternate representations are contained within their respective
+ *  namespaces: "signed", "hex" and "octal".
+ *
+ *  the special coordinate "Q" represents the 454-specific encoding
+ *  of X and Y into base-36, where the formula for Q is:
+ *    Q = 4096 * X + Y
+ *  and ASCII encoding:
+ *    0..25 => "A-Z", 26..35 => "0-9"
+ */
+const U16 NCBI:SRA:name_token:unrecognized =  1;
+const U16 NCBI:SRA:name_token:recognized   =  2;
+const U16 NCBI:SRA:name_token:Q            =  3;
+const U16 NCBI:SRA:name_token:X            =  4;
+const U16 NCBI:SRA:name_token:Y            =  5;
+const U16 NCBI:SRA:name_token:T            =  6;
+const U16 NCBI:SRA:name_token:L            =  7;
+const U16 NCBI:SRA:name_token:signed:X     =  8;
+const U16 NCBI:SRA:name_token:signed:Y     =  9;
+const U16 NCBI:SRA:name_token:signed:T     = 10;
+const U16 NCBI:SRA:name_token:signed:L     = 11;
+const U16 NCBI:SRA:name_token:octal:X      = 12;
+const U16 NCBI:SRA:name_token:octal:Y      = 13;
+const U16 NCBI:SRA:name_token:octal:T      = 14;
+const U16 NCBI:SRA:name_token:octal:L      = 15;
+const U16 NCBI:SRA:name_token:hex:upper:X  = 16;
+const U16 NCBI:SRA:name_token:hex:upper:Y  = 17;
+const U16 NCBI:SRA:name_token:hex:upper:T  = 18;
+const U16 NCBI:SRA:name_token:hex:upper:L  = 19;
+const U16 NCBI:SRA:name_token:hex:lower:X  = 20;
+const U16 NCBI:SRA:name_token:hex:lower:Y  = 21;
+const U16 NCBI:SRA:name_token:hex:lower:T  = 22;
+const U16 NCBI:SRA:name_token:hex:lower:L  = 23;
+
+
+/* token symbols
+ *  when a name matches some pattern and tokens are recognized,
+ *  the tokens are extracted from the name and sent to individual
+ *  columns, and replaced with the symbols below to create a
+ *  formatted name.
+ */
+const ascii NCBI:SRA:name_symbol:Q           = '$Q';
+const ascii NCBI:SRA:name_symbol:X           = '$X';
+const ascii NCBI:SRA:name_symbol:Y           = '$Y';
+const ascii NCBI:SRA:name_symbol:T           = '$T';
+const ascii NCBI:SRA:name_symbol:L           = '$L';
+const ascii NCBI:SRA:name_symbol:octal:X     = '$a';
+const ascii NCBI:SRA:name_symbol:octal:Y     = '$b';
+const ascii NCBI:SRA:name_symbol:octal:T     = '$c';
+const ascii NCBI:SRA:name_symbol:octal:L     = '$d';
+const ascii NCBI:SRA:name_symbol:hex:upper:X = '$e';
+const ascii NCBI:SRA:name_symbol:hex:upper:Y = '$f';
+const ascii NCBI:SRA:name_symbol:hex:upper:T = '$g';
+const ascii NCBI:SRA:name_symbol:hex:upper:L = '$h';
+const ascii NCBI:SRA:name_symbol:hex:lower:X = '$x';
+const ascii NCBI:SRA:name_symbol:hex:lower:Y = '$y';
+const ascii NCBI:SRA:name_symbol:hex:lower:T = '$t';
+const ascii NCBI:SRA:name_symbol:hex:lower:L = '$l';
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* extract_spot_name
+ *  generates input to .SPOT_NAME column
+ *
+ *  on NCBI:SRA:name_token:unrecognized, produces the entire spot name row
+ *  otherwise, produces an empty row
+ *
+ *  "name" [ DATA ] - raw spot names from NAME column
+ *
+ *  "tok" [ DATA ] - delimiting tokens produced by sub-table
+ */
+function ascii
+    NCBI:SRA:extract_spot_name #1 ( ascii name, NCBI:SRA:spot_name_token tok );
+
+
+/* extract_name_fmt
+ *  generates input to .NAME_FMT column and/or updates skey index
+ *
+ *  on NCBI:SRA:name_token:unrecognized, produces an empty row
+ *  otherwise, it creates a temporary "name_fmt" string from name row
+ *
+ *  an attempt is made to insert name_fmt into indicated text index
+ *  ( normally 'skey' ). if the insert succeeds, i.e. associates "name_fmt"
+ *  with a row_id, then the output for the row is empty.
+ *
+ *  if the insert fails due to key duplication, an attempt is made to
+ *  extend the id range of associated rows. depending upon the type of index,
+ *  this may succeed or fail, e.g. if the existing row range for "name_fmt" is
+ *  n..m where m = row_id - 1, the range can be extended to n..row_id and
+ *  the update succeeds. if the index supports discontiguous id ranges, the
+ *  update will also succeed. upon any success updating the index, the output
+ *  row will be empty.
+ *
+ *  finally, if the temporary "name_fmt" cannot be inserted into the index
+ *  nor the existing id range updated, the output for the row will be "name_fmt".
+ *
+ *  "name" [ DATA ] - raw spot names from NAME column
+ *
+ *  "tok" [ DATA ] - delimiting tokens produced by sub-table
+ */
+function ascii
+    NCBI:SRA:extract_name_fmt #1 < ascii idx > ( ascii name, NCBI:SRA:spot_name_token tok );
+
+
+/* extract_name_coord
+ *  generates inputs to .X and .Y and possibly other columns
+ *
+ *  if no tokens match "coord"constant, produces an empty row
+ *  otherwise, produces binary coordinate value
+ *  if multiple tokens match criteria, all values must be equivalent
+ *  because only a single value will be output per row
+ *
+ *  "coord" [ CONST ] - either NCBI:SRA:name_token:X or NCBI:SRA:name_token:Y
+ *  both of these values also match the token NCBI:SRA:name_token:Q and extract
+ *  contents appropriately.
+ *
+ *  "name" [ DATA ] - raw spot names from NAME column
+ *
+ *  "tok" [ DATA ] - delimiting tokens produced by sub-table
+ */
+function INSDC:coord:val
+    NCBI:SRA:extract_name_coord #1 < U16 coord > ( ascii name, NCBI:SRA:spot_name_token tok );
+
+
+/* lookup
+ */
+function INSDC:SRA:spot_ids_found NCBI:SRA:lookup #1.0
+    < ascii index_name, ascii query_by_name, U8 name_fmt_version > ( * ascii name_prefix );
+
+
+/*--------------------------------------------------------------------------
+ * spotcoord
+ *  spot coordinate table implementation
+ */
+table NCBI:SRA:tbl:spotcoord #1 = INSDC:SRA:tbl:spotcoord #1
+{
+    // X and Y stored as I32
+    INSDC:coord:val out_x_coord = .X;
+    INSDC:coord:val out_y_coord = .Y;
+
+    // T and L are usually present but optional
+    INSDC:coord:val out_t_coord = .T;
+    INSDC:coord:val out_l_coord = .L;
+
+    // .X, .Y, .T and .L get either empty coordinate or proper coordinate
+    physical column < INSDC:coord:val > izip_encoding .X
+        = in_x_coord
+        | in_name_x_coord;
+    physical column < INSDC:coord:val > izip_encoding .Y
+        = in_y_coord
+        | in_name_y_coord;
+    physical column < INSDC:coord:val > izip_encoding .T
+        = in_t_coord
+        | in_name_t_coord;
+    physical column < INSDC:coord:val > izip_encoding .L
+        = in_l_coord
+        | in_name_l_coord;
+};
+
+
+/*--------------------------------------------------------------------------
+ * skeyname
+ *  spot name table implementation built upon prefix-tree skey index
+ *
+ * v1 - maintains a 1->1 key=>spot_id relationship
+ *      with unique constraint on key. it does NOT
+ *      implement name_fmt or x_coord or y_coord.
+ *
+ * v2 - maintains a 1->1 key=>spot_id-range relationship
+ *      with unique constraint on key. it does NOT
+ *      implement spot_name. X and Y are stored using
+ *      16-bit unsigned quantities.
+ *
+ * v3 - maintains a flexible naming approach
+ *      retrieves name directly from column if so stored
+ *      synthesizes name from name_fmt, X and Y otherwise
+ *      name_fmt is either retrieved directly from column
+ *      or from skey index. X and Y are stored as 32-bit
+ *      signed quantities.
+ *
+ * history:
+ *  1.0.1 - explicitly account for spotname #1.0.1 ancestry
+ *  2.0.1 - " "
+ *  3.0.1 - moved .X and .Y to spotcoord table
+ *
+ *  1.0.2 - explicitly base upon spotname #1.1
+ */
+table NCBI:SRA:tbl:skeyname #1.0.2 = INSDC:SRA:tbl:spotname #1.1
+{
+    // read the skey entry
+    ascii out_skey = ( ascii ) idx:text:project #1.0 < 'skey' > ();
+
+    // spot_name
+    ascii out_spot_name
+        = rewritten_spot_name
+        | out_skey;
+
+    // search skey entry
+    INSDC:SRA:spot_ids_found spot_ids_found
+        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 1 > ( out_slx_prefix ) 
+        | ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 0 > ();
+
+
+	/* INSDC:SRA:tbl:spotname inherited productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 *  out_name_fmt
+	 */
+
+	/* NCBI:SRA:tbl:skeyname productions
+	 *  out_slx_prefix
+	 *  rewritten_spot_name
+	 */
+};
+
+table NCBI:SRA:tbl:skeyname_nocol #2.0.2 = INSDC:SRA:tbl:spotname #1.1
+{
+    // name_fmt
+    //  perform reverse lookup through index to get key
+    ascii out_name_fmt = ( ascii ) idx:text:project #1.0 < 'skey' > ();
+
+    // search skey entry
+    INSDC:SRA:spot_ids_found spot_ids_found
+        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ( out_slx_prefix ) 
+        | ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ();
+
+    // X and Y stored as U16
+    INSDC:coord:val out_x_coord = cast ( .X );
+    INSDC:coord:val out_y_coord = cast ( .Y );
+
+
+	/* NCBI:SRA:tbl:skeyname_nocol virtual productions
+	 *  out_slx_prefix
+	 */
+};
+
+table NCBI:SRA:tbl:skeyname #2.0.2 = NCBI:SRA:tbl:skeyname_nocol #2.0.2
+{
+    // spot_name_tok comes from a platform-specific tokenizer
+    // and must be of type 'NCBI:SRA:spot_name_token'
+    physical column < INSDC:coord:val > izip_encoding #1 .X
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:X > ( NAME, in_spot_name_tok );
+    physical column < INSDC:coord:val > izip_encoding .Y
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:Y > ( NAME, in_spot_name_tok );
+
+	/* NCBI:SRA:tbl:skeyname_nocol inherited virtual productions
+	 *  out_slx_prefix
+	 */
+
+	/* NCBI:SRA:tbl:skeyname virtual productions
+	 *  in_spot_name_tok
+	 */
+};
+
+table NCBI:SRA:tbl:skeyname #3.1 = INSDC:SRA:tbl:spotname #1.1, NCBI:SRA:tbl:spotcoord #1
+{
+    // spot_name
+    //  retrieve from hard column
+    ascii out_spot_name = .SPOT_NAME
+                        | .RAW_NAME;
+
+    // name_fmt
+    //  retrieve from hard column or reverse lookup through index
+    ascii out_name_fmt = ( ascii ) idx:text:project #1.0 < 'skey' > ( .NAME_FMT );
+
+    INSDC:SRA:spot_ids_found  spot_ids_found
+        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ();
+
+
+    /* encoding rules
+     *  the sub-table will provide a platform-specific parser that
+     *  produces as its output a series of NCBI:SRA:spot_name_token
+     *  for each input row in the virtual production "spot_name_tok"
+     *
+     *  the tokenizer will look for X, Y or Q (combined) coordinates
+     *  within the spot name and issue tokens when found, or in the
+     *  case that none are found, an "unrecognized" token is issued.
+     *
+     *  the tokens are then processed here by common rules
+     */
+
+    // .SPOT_NAME gets either empty strings or unrecognized strings
+    physical column < ascii > zip_encoding .SPOT_NAME
+        = NCBI:SRA:extract_spot_name ( NAME, in_spot_name_tok );
+
+    // .NAME_FMT gets either empty strings or unindexed but recognized strings
+    physical column < ascii > zip_encoding .NAME_FMT
+        = NCBI:SRA:extract_name_fmt < 'skey' > ( NAME, in_spot_name_tok );
+
+    // unparsed spot name
+    extern column < ascii > zip_encoding RAW_NAME;
+
+    // .X, .Y, .T and .L get either empty coordinate or proper coordinate
+    INSDC:coord:val in_name_x_coord
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:X > ( NAME, in_spot_name_tok );
+    INSDC:coord:val in_name_y_coord
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:Y > ( NAME, in_spot_name_tok );
+    INSDC:coord:val in_name_t_coord
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:T > ( NAME, in_spot_name_tok );
+    INSDC:coord:val in_name_l_coord
+        = NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:L > ( NAME, in_spot_name_tok );
+
+
+	/* NCBI:SRA:tbl:skeyname virtual productions
+	 *  in_spot_name_tok
+	 */
+};

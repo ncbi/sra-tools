@@ -1,0 +1,100 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * VDB Reference Sequence types, functions and tables
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/seq.vschema';
+include 'ncbi/sra.vschema';
+include 'ncbi/stats.vschema';
+
+
+extern function U8 NCBI:refseq:stats #2 ( INSDC:4na:bin seq, INSDC:coord:len len )
+    = NCBI:refSeq:stats;
+
+table NCBI:refseq:tbl:reference #2 =
+    NCBI:tbl:base_space #3,
+    NCBI:tbl:phred_quality #2.0.3,
+    NCBI:tbl:seqloc #1.0,
+    NCBI:SRA:tbl:stats #1.1.2
+{
+    // 128K
+    column default limit = 131072;
+
+    extern column U32 MAX_SEQ_LEN;                  /* must be static */
+    extern column < ascii > izip_encoding DEF_LINE; /* remainder of defline after SEQ_ID */
+
+    // trigger upconverts to INSDC:dna:text to get MD5
+    trigger table_stats
+        = NCBI:refseq:stats(in_4na_bin, _alt_in_read_len);
+
+    readonly column U64 TOTAL_SEQ_LEN
+        = < U64 > meta:value < 'STATS/TOTAL_SEQ_LEN', true >();
+
+    readonly column U8[16] MD5
+        = < U8[16] > meta:read < 'STATS/MD5', true >();
+
+    // indicates if sequence has circular structure
+    // should be static
+    extern column bool_encoding CIRCULAR;
+
+    /* columns:
+     *  READ
+     *  QUALITY (optional)
+     *  SEQ_ID
+     *  SEQ_START
+     *  SEQ_LEN
+     *  MAX_SEQ_LEN
+     *  TOTAL_SEQ_LEN
+     *  DEF_LINE
+     */
+
+    // make CS_KEY writable
+    INSDC:dna:text in_cs_key
+        = < INSDC:dna:text, INSDC:dna:text > map < 'acgtn', 'ACGTN' > ( CS_KEY );
+    physical column < INSDC:dna:text > zip_encoding .CS_KEY = in_cs_key;
+    // extra columns needed for CS conversion
+    INSDC:coord:zero out_read_start = < INSDC:coord:zero> echo < 0 > ();
+    INSDC:coord:len  out_read_len =  .SEQ_LEN;
+
+    INSDC:coord:len _alt_in_read_len
+        = READ_LEN
+        | SEQ_LEN;
+
+    INSDC:SRA:xread_type _alt_in_read_type
+        = READ_TYPE
+        | < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > ();
+
+    INSDC:SRA:xread_type out_read_type
+        = .READ_TYPE
+        | < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > ();
+};
+
+// older spelling
+alias NCBI:refseq:tbl:reference NCBI:refSeq:tbl:reference;

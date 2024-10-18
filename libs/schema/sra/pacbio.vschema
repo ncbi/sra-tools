@@ -1,0 +1,315 @@
+/*===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ */
+
+/*==========================================================================
+ * NCBI PacBio Fastq Sequence Read Archive schema
+ */
+version 1;
+
+include 'insdc/sra.vschema';
+include 'ncbi/sra.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:PacBio
+ *  Pacific Biotech SRA Platform
+ *
+ * history:
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ */
+table NCBI:SRA:PacBio:common #1.0.4 = NCBI:SRA:tbl:sra #2.1.4
+{
+}
+
+/* history:
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:PacBio:smrt:fastq #2
+    = NCBI:SRA:PacBio:common #1.0.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0
+{
+    /* PLATFORM
+     *  platform name is always "PACBIO_SMRT"
+     */
+    ascii platform_name
+        = < ascii > echo < "PACBIO_SMRT" > ();
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero bio_start
+        = NCBI:SRA:bio_start ( out_read_start, out_read_type );
+
+    INSDC:coord:zero trim_start = bio_start;
+
+    U32 trim_left = ( U32 ) trim_start;
+    INSDC:coord:len trim_len = ( INSDC:coord:len )
+        < U32 > diff ( spot_len, trim_left );
+}
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:PacBio:smrt:db
+ *  Pacific Biotech SRA Platform
+ */
+table NCBI:SRA:PacBio:smrt:indelsubst #1
+{
+    // probability that the current base is an insertion
+    column < U8 > zip_encoding INSERTION_QV;
+
+    // probability of a deletion error following current base
+    // and identity of deleted base, if it exists
+    column < U8 > zip_encoding DELETION_QV;
+    column < INSDC:dna:text > zip_encoding DELETION_TAG;
+
+    // probability of a substitution error
+    // and most likely alternative base call
+    column < U8 > zip_encoding SUBSTITUTION_QV;
+    column < INSDC:dna:text > zip_encoding SUBSTITUTION_TAG;
+};
+
+typedef U8 PacBio:hole:status;
+const PacBio:hole:status PacBio:hole:SEQUENCING  = 0;
+const PacBio:hole:status PacBio:hole:ANTIHOLE    = 1;
+const PacBio:hole:status PacBio:hole:FIDUCIAL    = 2;
+const PacBio:hole:status PacBio:hole:SUSPECT     = 3;
+const PacBio:hole:status PacBio:hole:ANTIMIRROR  = 4;
+const PacBio:hole:status PacBio:hole:FDZMW       = 5;
+const PacBio:hole:status PacBio:hole:FBZMW       = 6;
+const PacBio:hole:status PacBio:hole:ANTIBEAMLET = 7;
+const PacBio:hole:status PacBio:hole:OUTSIDEFOV  = 8;
+
+/* history:
+ *  1.0.1 - updated ancestry
+ *  1.0.2 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:PacBio:smrt:basecalls #2
+    = INSDC:SRA:tbl:spotcoord #1
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.3
+    , NCBI:SRA:PacBio:smrt:indelsubst #1
+{
+    /* PLATFORM
+     *  platform name is always "PACBIO_SMRT"
+     */
+    ascii platform_name
+        = < ascii > echo < "PACBIO_SMRT" > ();
+
+    // basecalls will be routed to READ column
+    readonly column INSDC:dna:text BASECALL
+        = out_dna_text;
+
+    // quality value for each base
+    readonly column INSDC:quality:phred QUALITY_VALUE
+        = out_qual_phred;
+
+    // zero-based hole number
+    column < U32 > izip_encoding HOLE_NUMBER;
+
+    // hole status
+    column < PacBio:hole:status > zip_encoding HOLE_STATUS;
+
+    // optional column pair to describe hole status
+    // when/if it does not line up with our constants above
+    column < ascii > zip_encoding HOLE_STATUS_VALUE;
+    column < INSDC:coord:len > izip_encoding HOLE_STATUS_VALUE_LEN;
+
+    // hole ( X,Y ) pair will be split and sent to X and Y columns
+    column I16 [ 2 ] HOLE_XY
+        = < I16 > paste ( x_clip_I16, y_clip_I16 );
+    I16 x_clip_I16 = cast ( out_x_coord );
+    I16 y_clip_I16 = cast ( out_y_coord );
+
+    I16 in_x16_coord = < I16 > cut < 0 > ( HOLE_XY );
+    I16 in_y16_coord = < I16 > cut < 1 > ( HOLE_XY );
+
+    INSDC:coord:val in_x_coord = cast ( in_x16_coord );
+    INSDC:coord:val in_y_coord = cast ( in_y16_coord );
+
+    // the number of bases in ZMW
+    readonly column INSDC:coord:len NUM_EVENT
+        = base_space_spot_len;
+};
+
+/* history:
+ *  1.0.1 - updated ancestry
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:PacBio:smrt:sequence #2
+    = NCBI:SRA:PacBio:smrt:basecalls #2
+    , NCBI:SRA:tbl:sra_nopos #2.1.4
+{
+    // pulse information
+    column < U16 > izip_encoding PRE_BASE_FRAMES;
+    column < U16 > izip_encoding WIDTH_IN_FRAMES;
+
+    // spot to pulse map
+    default column INSDC:position:zero PULSE_INDEX
+        = .PULSE_INDEX;
+    readonly column INSDC:position:one PULSE_INDEX
+        = out_position;
+    INSDC:position:one out_position
+        = ( INSDC:position:one ) < INSDC:position:zero > sum < 1 > ( .PULSE_INDEX );
+
+    column NCBI:SRA:pos16 PULSE_INDEX
+        = cast ( .PULSE_INDEX );
+    NCBI:SRA:pos16 in_pulse_index16
+        = PULSE_INDEX;
+
+    INSDC:position:zero in_pulse_index32
+        = PULSE_INDEX
+        | cast ( in_pulse_index16 );
+
+    physical column < INSDC:position:zero > izip_encoding .PULSE_INDEX
+        = in_pulse_index32;
+
+    /* clip quality */
+    extern column < INSDC:coord:zero > izip_encoding CLIP_QUALITY_LEFT;
+    extern column < INSDC:coord:one > izip_encoding CLIP_QUALITY_RIGHT;
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero trim_start
+        = .CLIP_QUALITY_LEFT
+        | NCBI:SRA:bio_start ( out_read_start, out_read_type );
+
+    U32 trim_right
+        = ( U32 ) .CLIP_QUALITY_RIGHT
+        | spot_len;
+
+    U32 trim_left = ( U32 ) trim_start;
+    INSDC:coord:len trim_len = ( INSDC:coord:len )
+        < U32 > diff ( trim_right, trim_left );
+};
+
+/* history:
+ *  1.0.1 - updated ancestry
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:PacBio:smrt:cons #2
+    = NCBI:SRA:PacBio:smrt:basecalls #2
+    , NCBI:SRA:tbl:sra #2.1.4
+{
+    // documented in both hdf5 and xsd as signed...
+    column < I32 > izip_encoding NUM_PASSES;
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero trim_start
+        = NCBI:SRA:bio_start ( out_read_start, out_read_type );
+
+    U32 trim_left = ( U32 ) trim_start;
+    INSDC:coord:len trim_len = ( INSDC:coord:len )
+        < U32 > diff ( spot_len, trim_left );
+};
+
+/* these encoding rules attempt to compress the channels individually,
+   although they may compress fine interleaved as they are... */
+physical
+F32 [ 4 ] NCBI:SRA:PacBio:smrt:F32_4ch_encoding #1.0 < U32 mantissa >
+{
+    decode
+    {
+        fzip_fmt cmp0 = split < 0 > ( @ );
+        fzip_fmt cmp1 = split < 1 > ( @ );
+        fzip_fmt cmp2 = split < 2 > ( @ );
+        fzip_fmt cmp3 = split < 3 > ( @ );
+
+        F32 ch0 = funzip ( cmp0 );
+        F32 ch1 = funzip ( cmp1 );
+        F32 ch2 = funzip ( cmp2 );
+        F32 ch3 = funzip ( cmp3 );
+
+        return < F32 > paste ( ch0, ch1, ch2, ch3 );
+    }
+
+    encode
+    {
+        F32 ch0 = < F32 > cut < 0 > ( @ );
+        F32 ch1 = < F32 > cut < 1 > ( @ );
+        F32 ch2 = < F32 > cut < 2 > ( @ );
+        F32 ch3 = < F32 > cut < 3 > ( @ );
+
+        fzip_fmt cmp0 = fzip < mantissa > ( ch0 );
+        fzip_fmt cmp1 = fzip < mantissa > ( ch1 );
+        fzip_fmt cmp2 = fzip < mantissa > ( ch2 );
+        fzip_fmt cmp3 = fzip < mantissa > ( ch3 );
+
+        return merge ( cmp0, cmp1, cmp2, cmp3 );
+    }
+}
+
+table NCBI:SRA:PacBio:smrt:zmw_metrics #1
+{
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > BASE_FRACTION;
+    column < F32 > fzip_encoding < 24 > BASE_IPD;
+    column < F32 > fzip_encoding < 24 > BASE_RATE;
+    column < F32 > fzip_encoding < 24 > BASE_WIDTH;
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > CHAN_BASE_QV;
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > CHAN_DEL_QV;
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > CHAN_INS_QV;
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > CHAN_SUB_QV;
+    column < F32 > fzip_encoding < 24 > LOCAL_BASE_RATE;
+    column < F32 > fzip_encoding < 24 > DARK_BASE_RATE;
+    column < F32 > fzip_encoding < 24 > HQ_RGN_START_TIME;
+    column < F32 > fzip_encoding < 24 > HQ_RGN_END_TIME;
+    column NCBI:SRA:PacBio:smrt:F32_4ch_encoding < 24 > HQ_RGN_SNR;
+    column < I8 > zip_encoding PRODUCTIVITY;
+    column < F32 > fzip_encoding < 24 > READ_SCORE;
+    column < F32 > fzip_encoding < 24 > READ_BASE_QV;
+    column < F32 > fzip_encoding < 24 > READ_DEL_QV;
+    column < F32 > fzip_encoding < 24 > READ_INS_QV;
+    column < F32 > fzip_encoding < 24 > READ_SUB_QV;
+};
+
+table NCBI:SRA:PacBio:smrt:passes #1
+{
+    column < U8 > zip_encoding ADAPTER_HIT_BEFORE;
+    column < U8 > zip_encoding ADAPTER_HIT_AFTER;
+    column < U8 > zip_encoding PASS_DIRECTION;
+    column < I32 > izip_encoding PASS_NUM_BASES;
+    column < I32 > izip_encoding PASS_START_BASE;
+};
+
+database NCBI:SRA:PacBio:smrt:db #2
+{
+    table NCBI:SRA:PacBio:smrt:sequence #2.0 SEQUENCE;
+    table NCBI:SRA:PacBio:smrt:cons #2.0 CONSENSUS;
+    table NCBI:SRA:PacBio:smrt:passes #1.0 PASSES;
+    table NCBI:SRA:PacBio:smrt:zmw_metrics #1.0 ZMW_METRICS;
+};

@@ -50,7 +50,7 @@ if ( NOT WIN32 )
 	if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
 	    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
 	    add_test(NAME LatfLoadTestSetup COMMAND
-	        bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n' > tmp.kfg"
+	        bash -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n' > tmp.kfg"
 	        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	    set_tests_properties(
 	        LatfLoadTestSetup PROPERTIES FIXTURES_SETUP LatfLoadTest )

@@ -19,7 +19,7 @@ except KeyError:
 py_vdb_path = os.path.join(vdb_path, 'py_vdb')
 #print(py_vdb_path);sys.exit(0)
 
-schema_include_path = os.path.join(vdb_path, 'interfaces')
+schema_include_path = os.environ['VDB_INCLUDE_PATH']
 #print(schema_include_path);sys.exit(0)
 
 saveSysPath = sys.path
@@ -100,8 +100,17 @@ wvdb = findLibrary(r'ncbi-wvdb')
 #print(wvdb);sys.exit(0)
 mgr = manager(OpenMode.Write, wvdb)
 print('info: loaded VDBManager', mgr.Version(), 'from', wvdb)
+
 schema = mgr.MakeSchema()
-schema.AddIncludePath(schema_include_path)
+paths = []
+try:
+    paths = schema_include_path.split(':')
+except:
+    pass
+
+for path in paths:
+    schema.AddIncludePath(path)
+
 schema.ParseFile('sra/generic-fastq.vschema')
 db = mgr.CreateDB(schema, 'NCBI:SRA:GenericFastq:db', output)
 schema = None
@@ -165,7 +174,7 @@ good = all(map(writeTestData, [
     'goodgood75',
     'goodgood50',
     'badbad75'  ,
-    'badbad50'  
+    'badbad50'
 ]))
 
 cols = None

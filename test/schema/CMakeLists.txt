@@ -21,33 +21,23 @@
 #  Please cite the author in any work or product based on this material.
 #
 # ===========================================================================
-add_compile_definitions( __mod__="test/external/vdb-validate" )
 
-# unit tests
+if (Python3_EXECUTABLE)
+    add_test( NAME Test_SCHEMA_454_db
+        COMMAND ${Python3_EXECUTABLE} test_VDB-5250.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_SCHEMA_454_db
+        PROPERTIES
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+    )
 
-AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
-                                "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
-                                "${PROJECT_SOURCE_DIR}/tools/external/vdb-validate" )
-
-
-if ( NOT WIN32 )
-	ToolsRequired(vdb-validate prefetch)
-
-	add_test( NAME Test_Vdb_validate_dflt
-		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    add_test( NAME Test_Vdb_validate_redact
-        COMMAND bash -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_INCDIR}/../py_vdb'"
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-	if( RUN_SANITIZER_TESTS )
-		add_test( NAME Test_Vdb_validate-asan
-			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-		add_test( NAME Test_Vdb_validate-tsan
-			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-tsan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
-
+    add_test( NAME Test_SCHEMA_IonTorrent_db
+        COMMAND ${Python3_EXECUTABLE} test_VDB-5251.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_SCHEMA_IonTorrent_db
+        PROPERTIES
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+    )
 endif()

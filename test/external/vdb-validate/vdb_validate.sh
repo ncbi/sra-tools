@@ -153,6 +153,7 @@ fi
 
 if [ "${TEST_DATA}" != "" ]; then
 	echo ${TEST_DATA}/SRR1207586-READ_LEN-vs-READ-mismatch
+	ls -l ${TEST_DATA}/SRR1207586-READ_LEN-vs-READ-mismatch
 	file ${TEST_DATA}/SRR1207586-READ_LEN-vs-READ-mismatch
     output=$(./runtestcase.sh \
 	    "${bin_dir}/${vdb_validate} \

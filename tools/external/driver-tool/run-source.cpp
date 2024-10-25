@@ -539,7 +539,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
                             if (ngc == nullptr && projectId) {
                                 std::cerr <<
                                     "The data for " << query << " from " << service << "." << region << " is encrypted.\n"
-                                    "To use this data, please get an ngc file from dbGaP for " << projectId << ", and rerun with --ngc <file>." << std::endl;
+                                    "To use this data, please get an ngc file from dbGaP for " << projectId.value() << ", and rerun with --ngc <file>." << std::endl;
                                 encrypted = true;
                                 continue;
                             }

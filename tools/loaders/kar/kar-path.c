@@ -61,7 +61,6 @@ kar_resolve_path (
 {
     rc_t RCt;
     struct VFSManager * Manager;
-    struct VResolver * Resolver;
     struct VPath * Query;
     const struct VPath * Remote;
     const struct VPath * Local;
@@ -69,7 +68,6 @@ kar_resolve_path (
 
     RCt = 0;
     Manager = NULL;
-    Resolver = NULL;
     Query = NULL;
     Remote = NULL;
     Local = NULL;
@@ -90,8 +88,6 @@ kar_resolve_path (
 
     RCt = VFSManagerMake ( & Manager );
     if ( RCt == 0 ) {
-        RCt = VFSManagerGetResolver ( Manager, & Resolver );
-        if ( RCt == 0 ) {
             RCt = VFSManagerMakePath(
                                     Manager,
                                     & Query,
@@ -99,28 +95,13 @@ kar_resolve_path (
                                     AccessionOrPath
                                     );
             if ( RCt == 0 ) {
-/*  JOJOBA: Do we really need to do it here ? Prolly we will need
-            additional argument to programm
-                VResolverRemoteEnable( Resolver, vrAlwaysEnable );
-                VResolverLocalEnable ( Resolver, vrAlwaysEnable );
-*/
-                RCt = VResolverQuery (
-                                    Resolver,
-                                    0, 
-                                    Query,
-                                    & Local,
-                                    & Remote,
-                                    NULL 
-                                    );
+                RCt = VFSManagerResolve(Manager, AccessionOrPath, Path);
                 if ( RCt == 0 ) {
-                        /*  Local path has priority and will be used first.
-                         */
-                    * Path = Local == NULL ? Remote : Local;
                     if ( Path == NULL ) {
                         RCt = RC ( rcExe, rcPath, rcSearching, rcName, rcNotFound );
                     }
                     else {
-                        * IsLocal = Local != NULL;
+                        *IsLocal = !VPathIsRemote(*Path);
                         RCt = VPathMakeString( * Path, & Str );
                         if ( RCt == 0 ) {
                             if ( Str -> size + 1 >= BufSize ) {
@@ -136,8 +117,6 @@ kar_resolve_path (
                                 RetBuf [ Str -> size ] = 0;
                             }
 
-                                /*  Lol, whack is 'free'
-                                 */
                             StringWhack ( Str );
                         }
                     }
@@ -152,9 +131,6 @@ kar_resolve_path (
                 }
 
                 VPathRelease ( Query );
-            }
-
-            VResolverRelease ( Resolver );
         }
 
         VFSManagerRelease ( Manager );

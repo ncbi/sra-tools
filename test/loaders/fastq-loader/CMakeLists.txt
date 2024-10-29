@@ -58,7 +58,7 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET latf-load-asan )
             add_test( NAME Test_FastqLoader_${TestName}-asan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
@@ -67,7 +67,9 @@ if( NOT WIN32 )
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
+        endif()
 
+        if( TARGET latf-load-tsan )
             add_test( NAME Test_FastqLoader_${TestName}-tsan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
@@ -133,13 +135,15 @@ if( NOT WIN32 )
             bash -c "${DIRTOTEST}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET latf-load-asan )
         add_test( NAME Test_FastqLoader_4.1-asan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 bash -c "${DIRTOTEST}/latf-load-asan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+    endif()
+    if( TARGET latf-load-tsan )
         add_test( NAME Test_FastqLoader_4.1-tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}

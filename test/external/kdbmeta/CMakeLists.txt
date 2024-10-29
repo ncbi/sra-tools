@@ -29,11 +29,12 @@ if ( NOT WIN32 )
           COMMAND bash -c "NCBI_SETTINGS=/ ${DIRTOTEST}/kdbmeta SRR053325 > /dev/null"
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET kdbmeta-asan )
         add_test( NAME Test_Kdbmeta-asan
               COMMAND bash -c "${DIRTOTEST}/kdbmeta-asan SRR053325 > /dev/null"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
+    endif()
+    if( TARGET kdbmeta-tsan )
         add_test( NAME Test_Kdbmeta-tsan
               COMMAND bash -c "${DIRTOTEST}/kdbmeta-tsan SRR053325 > /dev/null"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

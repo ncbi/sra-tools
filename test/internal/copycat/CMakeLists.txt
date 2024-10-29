@@ -45,10 +45,12 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         add_test( NAME Test_Copycat_Bad_Name
             COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_Bad_Name-asan
                 COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_Bad_Name-tsan
                 COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -57,10 +59,12 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         add_test( NAME Test_Copycat_IdenticalCopy
             COMMAND ./test-copy.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_IdenticalCopy-asan
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_IdenticalCopy-tsan
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,10 +72,12 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         add_test( NAME Test_Copycat_FastqParser
             COMMAND ./test-fastq.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_FastqParser-asan
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_FastqParser-tsan
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

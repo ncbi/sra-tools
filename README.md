@@ -9,6 +9,10 @@ Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading
 ### Change Log
 Please check the [CHANGES.md](CHANGES.md) file for change history.
 
+SRA Toolkit complies with [NCBI Web Policies](https://www.ncbi.nlm.nih.gov/home/about/policies/)
+
+Please visit our [wiki](https://github.com/ncbi/sra-tools/wiki) for information on using, configuring, and building the toolkit.
+
 ----
 
 ## The SRA Toolkit
@@ -214,11 +218,4 @@ With release 2.9.1 of `sra-tools` we have finally made available the tool `faste
 
 You can get more information about `fasterq-dump` in our Wiki at [https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump](https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump).
 
-----
 
-For additional information on using, configuring, and building the toolkit,
-please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)
-or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
-
-
-SRA Toolkit Development Team

@@ -26,17 +26,6 @@ cmake_minimum_required (VERSION 3.8)
 
 project(rnd2sra)
 
-file( GLOB UTIL_SRC util/*.hpp )
-file( GLOB VDB_SRC vdb/*.hpp )
-file( GLOB TOOL_SRC src/*.hpp )
-
-set( RND2SRA_SRC
-     ${UTIL_SRC}
-     ${VDB_SRC}
-     ${TOOL_SRC}
-     src/rnd2sra.cpp
-)
-
 GenerateExecutableWithDefs( rnd2sra
     src/rnd2sra.cpp
     ""

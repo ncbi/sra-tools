@@ -22,20 +22,25 @@
 #
 # ===========================================================================
 
-add_subdirectory( crc32sum )
-add_subdirectory( test-download )
-add_subdirectory( kdb-index )
-add_subdirectory( pacbio-correct )
-add_subdirectory( schema-replace )
-add_subdirectory( sortreadtest )
-add_subdirectory( rowwritetest )
-add_subdirectory( samview-util )
-add_subdirectory( testld )
-add_subdirectory( txt2kdb )
-add_subdirectory( sam-factory )
-add_subdirectory( sam-analyze )
-add_subdirectory( rnd2sra )
-if( NOT WIN32 )
-    add_subdirectory( pileup-stats )
-    add_subdirectory( qa-stats )
-endif()
+cmake_minimum_required (VERSION 3.8)
+
+project(rnd2sra)
+
+file( GLOB UTIL_SRC util/*.hpp )
+file( GLOB VDB_SRC vdb/*.hpp )
+file( GLOB TOOL_SRC src/*.hpp )
+
+set( RND2SRA_SRC
+     ${UTIL_SRC}
+     ${VDB_SRC}
+     ${TOOL_SRC}
+     src/rnd2sra.cpp
+)
+
+GenerateExecutableWithDefs( rnd2sra
+    src/rnd2sra.cpp
+    ""
+    ""
+    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+
+target_compile_features( rnd2sra PRIVATE cxx_std_17 )

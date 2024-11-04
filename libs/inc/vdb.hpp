@@ -98,9 +98,9 @@ namespace VDB {
         }
         Error(const std::string & msg) 
         : rc(0)
+        , text(msg)
         , file(nullptr)
         , line(0)
-        , text(msg)
         , handled(true)
         {
             std::cerr << msg << std::endl;

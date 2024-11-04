@@ -60,11 +60,22 @@ namespace VDB {
     class Error : public std::exception {
         rc_t rc;
         std::string text;
+        char const *file;
+        int line;
 
     public:
-        Error(rc_t const rc_, char const *file, int line) : rc(rc_) {
-            std::cerr << "RC " << rc << " thrown by " << file << ':' << line << std::endl;
+        bool handled;
 
+        ~Error() {
+            if (!handled)
+                std::cerr << "RC " << rc << " thrown by " << file << ':' << line << std::endl;
+        }
+        Error(rc_t const rc_, char const *file_, int line_)
+        : rc(rc_) 
+        , file(file_)
+        , line(line_)
+        , handled(false)
+        {
             std::stringstream out;
             out << file << ":" << line << ": ";
             if ( rc != 0 )
@@ -73,19 +84,26 @@ namespace VDB {
             }
             text = out.str();
         }
-        Error(const char * msg, char const *file, int line) : rc(0) {
+        Error(const char * msg, char const *file_, int line_) 
+        : rc(0)
+        , file(file_)
+        , line(line_)
+        , handled(true)
+        {
             std::cerr << "'" << msg << "' thrown by " << file << ':' << line << std::endl;
 
             std::stringstream out;
             out << file << ":" << line << ": " << msg;
             text = out.str();
         }
-        Error(const std::string & msg) : rc(0) {
+        Error(const std::string & msg) 
+        : rc(0)
+        , file(nullptr)
+        , line(0)
+        , text(msg)
+        , handled(true)
+        {
             std::cerr << msg << std::endl;
-
-            std::stringstream out;
-            out << msg;
-            text = out.str();
         }
 
         char const *what() const throw()

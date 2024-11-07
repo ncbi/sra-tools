@@ -23,8 +23,10 @@ set( LIBS
 GenerateExecutableWithDefs( sra-search "${SRC}" "__mod__=\"tools/sra-search\"" "${CMAKE_SOURCE_DIR}/libs/inc;${CMAKE_SOURCE_DIR}/ngs" "${LIBS}" )
 
 add_dependencies ( sra-search ngs-vdb ncbi-ngs tk-version )
-if( RUN_SANITIZER_TESTS )
+if( TARGET sra-search-asan )
     add_dependencies ( sra-search-asan ngs-vdb ncbi-ngs tk-version )
+endif()
+if( TARGET sra-search-tsan )
     add_dependencies ( sra-search-tsan ngs-vdb ncbi-ngs tk-version )
 endif()
 MakeLinksExe ( sra-search false )

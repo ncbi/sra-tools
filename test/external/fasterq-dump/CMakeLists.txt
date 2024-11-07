@@ -39,7 +39,7 @@ if ( NOT WIN32 )
             bash test_for_read_id_flat.sh ${DIRTOTEST}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET fasterq-dump-asan )
         add_test( NAME Test_FasterqDump_Help-asan
             COMMAND ${BINDIR}/fasterq-dump-asan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -48,7 +48,9 @@ if ( NOT WIN32 )
             COMMAND ${BINDIR}/fasterq-dump-asan
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-asan PROPERTIES WILL_FAIL TRUE)
+    endif()
 
+    if( TARGET fasterq-dump-tsan )
         add_test( NAME Test_FasterqDump_Help-tsan
             COMMAND ${BINDIR}/fasterq-dump-tsan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

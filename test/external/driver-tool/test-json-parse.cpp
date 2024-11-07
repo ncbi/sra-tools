@@ -456,10 +456,7 @@ static void Unichar_runTests() {
 struct JSONStringTests {
     static JSONString make(char const *cstr, bool isMemberName = false)
     {
-        auto end = cstr;
-        while (*end)
-            ++end;
-        return JSONString(StringView(cstr, end), isMemberName);
+        return JSONString(cstr, isMemberName);
     }
     void testAString() {
         try {
@@ -803,10 +800,7 @@ struct JSONMemberNameConstraintsTests {
 #if PEDANTIC_MEMBER_NAMES
     static JSONString make(char const *cstr)
     {
-        auto end = cstr;
-        while (*end)
-            ++end;
-        return JSONString(StringView(cstr, end), true);
+        return JSONString(cstr, true);
     }
     void testBadMemberNameNumeric() {
         try {

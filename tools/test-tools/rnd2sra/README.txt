@@ -133,3 +133,17 @@ In row number 1 the QUALITY column will be 3 bases longer than the READ column.
 In row number 4 the READ column will be 1 base longer than the QUALITY column.
 These keys can only be used once per INI-file.
 
+The use of MD5-checksums can be controlled:
+----------------------------------------------------------------------------
+product = db
+checksum = MD5
+----------------------------------------------------------------------------
+The default value is "none", which means only CRC32 checksums are used.
+
+The creation of metadata-nodes for base-counts can be supressed:
+----------------------------------------------------------------------------
+product = db
+do_not_write_meta = yes
+----------------------------------------------------------------------------
+The default value is "no".
+

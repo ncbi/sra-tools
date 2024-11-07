@@ -365,7 +365,7 @@ class rnd2sra_ini {
             f_echo_values = f_ini -> get( "echo", "no" ) == "yes";
             f_do_not_write_meta = f_ini -> get( "do_not_write_meta", "no" ) == "yes";
             f_product = Product::make( f_ini -> get( "product", "flat" ) );
-            f_checksum = Checksum::make( f_ini -> get( "checksum", "md5" ) );
+            f_checksum = Checksum::make( f_ini -> get( "checksum", "none" ) );
             f_qual_len_offset = row_offset_pair::make( f_ini -> get( "qual_len_offset", "" ) );
             f_read_len_offset = row_offset_pair::make( f_ini -> get( "read_len_offset", "" ) );
             f_cmp_rd_fault = row_offset_pair::make( f_ini -> get( "cmp_rd_fault", "" ) );

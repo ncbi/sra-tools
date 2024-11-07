@@ -22,44 +22,22 @@
 #
 # ===========================================================================
 
-set( TOOLS_SRC
-	helper
-	arg_helper
-	dflt_defline
-	tool_ctx
-	inspector
-	sbuffer
-	err_msg
-	file_tools
-	var_fmt
-	flex_printer
-	temp_dir
-	progress_thread
-	cleanup_task
-	index
-	lookup_writer
-	lookup_reader
-	locked_file_list
-	locked_value
-	file_printer
-	merge_sorter
-	sorter
-	cmn_iter
-	raw_read_iter
-	special_iter
-	fq_seq_ua_iter
-	fq_seq_csra_iter
-	align_iter
-	simple_fasta_iter
-	db_join
-	tbl_join
-	temp_registry
-	copy_machine
-	multi_writer
-	concatenator
-	ref_inventory
-	fasterq-dump
+# some modules produce a ton of output with DEBUG defined
+remove_definitions(-DDEBUG)
+
+set( SRC
+    agrep-dp.c
+    agrep-myers.c
+    agrep-myersunltd.c
+    agrep-wumanber.c
+    fgrep-aho.c
+    fgrep-boyermoore.c
+    fgrep-dumb.c
+    nucstrstr.c
+    search.c
+    sw-search.c
 )
 
-GenerateExecutableWithDefs( fasterq-dump "${TOOLS_SRC}" "__mod__=\"tools/fasterq-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};ksrch" )
-MakeLinksExe( fasterq-dump true )
+GenerateStaticLibs( ksrch "${SRC}" )
+
+add_compile_definitions (__mod__="libs/search")

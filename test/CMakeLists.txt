@@ -36,6 +36,7 @@ endif()
 
 add_subdirectory( vdb )
 add_subdirectory( schema )
+add_subdirectory( search )
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )
 	add_subdirectory( loaders )

@@ -71,7 +71,8 @@ private:
         return (!str.has_value() || (*str)[0] == '\0' || ((*str)[0] == '0' && (*str)[1] == '\0'));
     }
     static bool get_debug_value() {
-        return !is_falsy(EnvironmentVariables::get("SRATOOLS_DEBUG"));
+        static auto const envvar = EnvironmentVariables::get("SRATOOLS_DEBUG");
+        return !is_falsy(envvar);
     }
     static bool get_trace_value() {
         return !is_falsy(EnvironmentVariables::get("SRATOOLS_TRACE"));

@@ -22,17 +22,9 @@
 #
 # ===========================================================================
 
-set( CMAKE_POSITION_INDEPENDENT_CODE True )
-add_compile_definitions( _LIBRARY )
+TOP ?= $(abspath ../..)
+MODULE = libs/schema
 
-add_subdirectory(kxml)
-add_subdirectory(loader)
-add_subdirectory(vdb-sqlite)
-add_subdirectory(ngs-vdb)
-add_subdirectory(ascp)
-add_subdirectory(diagnose)
-add_subdirectory(schema)
+include $(TOP)/build/Makefile.env
 
-if( NOT WIN32 )
-	add_subdirectory(general-writer)
-endif()
+

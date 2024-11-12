@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "../vdb/VdbObj.hpp"
 #include "values.hpp"
 

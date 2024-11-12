@@ -41,10 +41,12 @@ if ( NOT WIN32 )
         COMMAND bash -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_INCDIR}/../py_vdb'"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET vdb-validate-asan )
 		add_test( NAME Test_Vdb_validate-asan
 			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET vdb-validate-tsan )
 		add_test( NAME Test_Vdb_validate-tsan
 			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

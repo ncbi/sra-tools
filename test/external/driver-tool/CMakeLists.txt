@@ -53,10 +53,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME ${test_name}
                 COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME ${test_name}-asan
                     COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME ${test_name}-tsan
                     COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -73,10 +75,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME Test_Drivertool_Container_${acc}
                 COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME Test_Drivertool_Container_${acc}-asan
                     COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME Test_Drivertool_Container_${acc}-tsan
                     COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -87,10 +91,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME Test_Drivertool_${script_name}
                 COMMAND ${script_name}.sh "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME Test_Drivertool_${script_name}-asan
                     COMMAND ${script_name}.sh "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME Test_Drivertool_${script_name}-tsan
                     COMMAND ${script_name}.sh "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -122,10 +128,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         add_test( NAME Test_Drivertool_2_accessions
             COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET sratools-asan )
             add_test( NAME Test_Drivertool_2_accessions-asan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET sratools-tsan )
             add_test( NAME Test_Drivertool_2_accessions-tsan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

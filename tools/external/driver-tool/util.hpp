@@ -47,6 +47,7 @@
 #include <cstdlib>
 #include <climits>
 #include <vector>
+#include <cassert>
 
 using Dictionary = std::map<std::string, std::string>;
 static inline bool DictionaryHasKey(Dictionary const &dict, std::string const &key)

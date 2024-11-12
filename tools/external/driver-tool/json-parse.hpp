@@ -336,7 +336,7 @@ struct JSONString {
     bool isMemberName;
 #endif
     explicit JSONString(StringView const &value, bool isMemberName = false)
-    : value(value.data() + (isMemberName ? 0 : 1), value.size() - (isMemberName ? 0 : 1))
+    : value(value.data() + (isMemberName ? 0 : 1), value.size() - (isMemberName ? 0 : 2))
 #if PEDANTIC_MEMBER_NAMES
     , isMemberName(isMemberName)
 #endif

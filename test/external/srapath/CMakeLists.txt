@@ -42,12 +42,14 @@ if ( NOT WIN32 )
             ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
             bash -c "./test-srapath.sh ${DIRTOTEST} srapath"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET srapath-asan )
         add_test( NAME Test_Srapath-asan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
                 bash -c "./test-srapath.sh ${DIRTOTEST} srapath-asan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET srapath-tsan )
         add_test( NAME Test_Srapath-tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=../..

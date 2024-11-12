@@ -77,7 +77,7 @@ message(RE2_FOUND=${RE2_FOUND})
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET sharq-asan )
             if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
                 set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
             endif()
@@ -93,6 +93,12 @@ message(RE2_FOUND=${RE2_FOUND})
             target_link_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
             add_test( NAME Test_sharq_parser_asan COMMAND test-sharq-parser-asan WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
             #TODO: Test_regexpr_asan Test_sharq_writer_asan
+        endif()
+
+        if( TARGET sharq-tsan )
+            if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+                set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
+            endif()
 
             # tsan
             set( tsan_defs "-fsanitize=thread" )

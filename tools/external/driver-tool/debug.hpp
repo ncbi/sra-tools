@@ -43,22 +43,22 @@
 /// @brief translate environment variables for controlling debugging features
 struct logging_state {
     static bool is_debug() {
-        static auto const value(get_debug_value());
+        static auto const value{get_debug_value()};
         return value;
     }
     static bool is_trace() {
-        static auto const value(get_trace_value());
+        static auto const value{get_trace_value()};
         return value;
     }
     static int verbosity() {
-        static auto const value(get_verbose_value());
+        static auto const value{get_verbose_value()};
         return value;
     }
     static bool is_verbose(int const level) {
         return level <= verbosity();
     }
     static int testing_level() {
-        static auto const value(get_testing_value());
+        static auto const value{get_testing_value()};
         return value;
     }
     static bool is_dry_run() {
@@ -71,23 +71,26 @@ private:
         return (!str.has_value() || (*str)[0] == '\0' || ((*str)[0] == '0' && (*str)[1] == '\0'));
     }
     static bool get_debug_value() {
-        return !is_falsy(EnvironmentVariables::get("SRATOOLS_DEBUG"));
+        static auto const enVar{EnvironmentVariables::get("SRATOOLS_DEBUG")};
+        return !is_falsy(enVar);
     }
     static bool get_trace_value() {
-        return !is_falsy(EnvironmentVariables::get("SRATOOLS_TRACE"));
+        static auto const enVar{EnvironmentVariables::get("SRATOOLS_TRACE")};
+        return !is_falsy(enVar);
     }
     static int get_verbose_value() {
-        auto const str = EnvironmentVariables::get("SRATOOLS_VERBOSE");
+        static auto const str{EnvironmentVariables::get("SRATOOLS_VERBOSE")};
         if (str.has_value() && (*str)[0] && (*str)[1] == '\0') {
             return std::atoi((*str).c_str());
         }
         return 0;
     }
     static bool get_dry_run() {
-        return !is_falsy(EnvironmentVariables::get("SRATOOLS_DRY_RUN"));
+        static auto const enVar{EnvironmentVariables::get("SRATOOLS_DRY_RUN")};
+        return !is_falsy(enVar);
     }
     static int get_testing_value() {
-        auto const str = EnvironmentVariables::get("SRATOOLS_TESTING");
+        static auto const str{EnvironmentVariables::get("SRATOOLS_TESTING")};
         if (str && (*str)[0]) {
             return std::atoi((*str).c_str());
         }

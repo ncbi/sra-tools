@@ -31,10 +31,12 @@ if( Python3_EXECUTABLE )
 	add_test( NAME Test_VDB_Copy_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET vdb-copy-asan )
 		add_test( NAME Test_VDB_Copy_Check_exit_code-asan
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy-asan${EXE}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET vdb-copy-tsan )
 		add_test( NAME Test_VDB_Copy_Check_exit_code-tsan
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy-tsan${EXE}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

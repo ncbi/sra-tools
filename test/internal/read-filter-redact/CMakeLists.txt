@@ -42,10 +42,12 @@ sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXEC
 	add_test( NAME Test_Read_filter_redact
 		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET read-filter-redact-asan )
 		add_test( NAME Test_Read_filter_redact-asan
 			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET read-filter-redact-tsan )
 		add_test( NAME Test_Read_filter_redact-tsan
 			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

@@ -34,10 +34,12 @@ if ( NOT WIN32 )
 	add_test( NAME Test_Sra_stat_dflt
 		COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET sra-stat-asan )
 		add_test( NAME Test_Sra_stat-asan
 			COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET sra-stat-tsan )
 		add_test( NAME Test_Sra_stat-tsan
 			COMMAND test-sra-stat.sh ${DIRTOTEST} sra-stat-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,10 +70,12 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Sra_stat
 		COMMAND test-sra-stat-slow.sh ${DIRTOTEST} sra-stat
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET sra-stat-asan )
 		add_test( NAME SlowTest_Sra_stat-asan
 			COMMAND test-sra-stat-slow.sh ${DIRTOTEST} sra-stat-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET sra-stat-tsan )
 		add_test( NAME SlowTest_Sra_stat-tsan
 			COMMAND test-sra-stat-slow.sh ${DIRTOTEST} sra-stat-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

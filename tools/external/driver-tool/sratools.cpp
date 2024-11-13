@@ -381,7 +381,10 @@ static bool shouldPreferLiteFormat(bool isSet, bool isFull, std::string const &t
 
 static void printHelp [[noreturn]] (bool requested = false)
 {
-    (requested ? std::cout : std::cerr) << "usage: sratools print-argbits | print-args-json | help" << std::endl;
+    (requested ? std::cout : std::cerr)
+        << "usage: sratools print-argbits | print-args-json | help\n"
+        << "Please see https://github.com/ncbi/sra-tools/wiki/sratools-driver-tool for an explanation of the sratools driver tool."
+        << std::endl;
     exit(requested ? EXIT_SUCCESS : EX_USAGE);
 }
 

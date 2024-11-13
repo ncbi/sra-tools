@@ -70,7 +70,8 @@ TEST_CASE( UseSraFunction )
     VDatabase *     m_db;
 
     REQUIRE_RC ( VDBManagerMakeUpdate ( & m_mgr, NULL ) );
-    REQUIRE_RC( SraLinkSchema( m_mgr ) );
+
+    REQUIRE_RC( SraLinkSchema( m_mgr ) );  // <====== this call links in sra-owned schema functions
 
     string m_databaseName = ScratchDir + "db";
     if ( ! m_databaseName . empty () )
@@ -120,7 +121,7 @@ TEST_CASE( UseSraFunction )
 
         REQUIRE_RC ( VCursorRelease ( cursor ) );
 
-        REQUIRE_EQ( string("hello"), string( buf, rowLen ) );
+        REQUIRE_EQ( string("hello"), string( buf, rowLen ) ); // sra:hello() has been called
     }
 
     VDatabaseRelease ( m_db );

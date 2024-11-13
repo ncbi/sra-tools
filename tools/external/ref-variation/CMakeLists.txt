@@ -41,14 +41,13 @@ endif()
 
 ### ref-variation
 
-GenerateExecutableWithDefs( ref-variation "common.cpp;helper.cpp;ref-variation.cpp" "__mod__=\"tools/ref-variation\"" "" "" )
-# add_dependencies ( ref-variation ngs-vdb )
+GenerateExecutableWithDefs( ref-variation "common.cpp;helper.cpp;ref-variation.cpp" "__mod__=\"tools/ref-variation\"" "" "ksrch" )
 
 MakeLinksExe ( ref-variation false )
 
 ### var-expand
 
-GenerateExecutableWithDefs( var-expand "common.cpp;helper.cpp;var-expand.cpp" "__mod__=\"tools/var-expand\"" "" "" )
+GenerateExecutableWithDefs( var-expand "common.cpp;helper.cpp;var-expand.cpp" "__mod__=\"tools/var-expand\"" "" "ksrch" )
 MakeLinksExe ( var-expand false )
 
 ### common

@@ -47,8 +47,10 @@ if ( NOT WIN32 )
 	add_executable( vdb-dump-makedb makedb )
 	target_link_libraries( vdb-dump-makedb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	add_dependencies(vdb-dump-makedb vdb-dump)
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET vdb-dump-asan )
 		add_dependencies(vdb-dump-makedb vdb-dump-asan)
+	endif()
+	if( TARGET vdb-dump-tsan )
 		add_dependencies(vdb-dump-makedb vdb-dump-tsan)
 	endif()
 
@@ -59,13 +61,15 @@ if ( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    if( RUN_SANITIZER_TESTS )
+	if( TARGET vdb-dump-asan )
         add_test( NAME Test_Vdb_dump_asan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
                 bash -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump-asan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+	endif()
+	if( TARGET vdb-dump-tsan )
         add_test( NAME Test_Vdb_dump_tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/

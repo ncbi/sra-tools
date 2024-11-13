@@ -81,9 +81,10 @@ SraInfo::SetAccession( const std::string& p_accession )
             m_u.tbl = new VDB::Table { m_mgr.openTable(m_accession) };
             return;
         }
-        catch (VDB::Error const &err) {
+        catch (VDB::Error &err) {
             if ((int)err.getRc() != 1434782232) // if not "schema not found while opening table within virtual database module"
                 throw;
+            err.handled = true;
         }
         // fall through
     case VDB::Manager::ptPrereleaseTable :
@@ -163,7 +164,7 @@ SraInfo::GetPlatforms() const
             cursor.foreach( get_platform );
         }
     }
-    catch(const VDB::Error & e)
+    catch(VDB::Error & e)
     {
         rc_t rc = e.getRc();
         if ( rc != 0 )
@@ -171,6 +172,7 @@ SraInfo::GetPlatforms() const
             if ( GetRCObject( rc ) == (enum RCObject)rcColumn && GetRCState( rc ) == rcUndefined )
             {
                 ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
+                e.handled = true;
                 return ret;
             }
         }
@@ -453,7 +455,7 @@ static bool isLiteMetadata(VDB::MetadataCollection const &meta) {
     try {
         return meta.childNode("SOFTWARE/delite").attributeValue("name") == "delite";
     }
-    catch (VDB::Error const &rc) { ((void)(rc)); }
+    catch (VDB::Error &rc) { rc.handled = true; }
     return false;
 }
 

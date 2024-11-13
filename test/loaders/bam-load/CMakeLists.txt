@@ -81,7 +81,7 @@ if( NOT WIN32 )
     set_tests_properties( Test_BamLoader_ThreadsBad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
     #####################
 
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET bam-load-asan )
         add_test( NAME Test_BamLoader_1_asan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
@@ -90,7 +90,9 @@ if( NOT WIN32 )
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_BamLoader_1_asan PROPERTIES FIXTURES_REQUIRED BamTest )
+    endif()
 
+    if( TARGET bam-load-tsan )
         add_test( NAME Test_BamLoader_1_tsan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/

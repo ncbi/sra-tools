@@ -383,144 +383,50 @@ rc_t vdh_print_col_info( dump_context *ctx, const p_col_def col_def, const VSche
     return rc;
 }
 
-rc_t vdh_resolve_remote_accession( const char * accession, char * dst, size_t dst_size ) {
-    VFSManager * vfs_mgr;
-    rc_t rc = VFSManagerMake( &vfs_mgr );
-    dst[ 0 ] = 0;
-    DISP_RC( rc, "VFSManagerMake() failed" );    
-    if ( 0 == rc ) {
-        VResolver * resolver;
-        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        DISP_RC( rc, "VFSManagerGetResolver() failed" );
-        if ( 0 == rc ) {
-            VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
-            DISP_RC( rc, "VFSManagerMakePath() failed" );
-            if ( 0 == rc ) {
-                const VPath * remote = NULL;
-                VResolverRemoteEnable( resolver, vrAlwaysEnable );
-                rc = VResolverQuery ( resolver, 0, vpath, NULL, &remote, NULL );
-                if ( rc == 0 &&  remote != NULL ) {
-                    const String * path;
-                    rc = VPathMakeString( remote, &path );
-                    if ( 0 == rc && NULL != path ) {
-                        string_copy ( dst, dst_size, path -> addr, path -> size );
-                        dst[ path -> size ] = 0;
-                        StringWhack( path );
-                    }
-                    rc = vdh_vpath_release( rc, remote );
-                }
-                rc = vdh_vpath_release( rc, vpath );
-            }
-            {
-                rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc2, "VResolverRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+rc_t vdh_resolve(const char * accession,
+    const VPath ** local, const VPath ** remote, const VPath ** cache)
+{
+    VFSManager * vfs_mgr = NULL;
+    rc_t rc = VFSManagerMake(&vfs_mgr);
+    * local = * remote = * cache = NULL;
+    if (rc == 0)
+        rc = VFSManagerResolveAll(vfs_mgr,
+            accession, local, remote, cache);
+    rc = vdh_vfsmanager_release(rc, vfs_mgr);
+    return rc;
+}
+
+rc_t vdh_set_VPath_to_str(const VPath * path,
+    char * dst, size_t dst_size)
+{
+    rc_t rc = 0;
+    dst[0] = '\0';
+    if (path != NULL) {
+        const String * s;
+        rc = VPathMakeString(path, &s);
+        if (0 == rc && NULL != s) {
+            string_copy(dst, dst_size, s->addr, s->size);
+            dst[s->size] = 0;
+            StringWhack(s);
         }
-        rc = vdh_vfsmanager_release( rc, vfs_mgr );
-    }
-    if ( 0 == rc && vdh_str_starts_with( dst, "ncbi-acc:" ) ) {
-        size_t l = string_size ( dst );
-        memmove( dst, &( dst[ 9 ] ), l - 9 );
-        dst[ l - 9 ] = 0;
     }
     return rc;
 }
 
-rc_t vdh_resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely ) {
-    VFSManager * vfs_mgr;
-    rc_t rc = VFSManagerMake( &vfs_mgr );
-    dst[ 0 ] = 0;
-    DISP_RC( rc, "VFSManagerMake() failed" );
-    if ( 0 == rc ) {
-        VResolver * resolver;
-        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        DISP_RC( rc, "VFSManagerGetResolver() failed" );
-        if ( 0 == rc ) {
-            VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", accession );
-            DISP_RC( rc, "VFSManagerMakePath() failed" );
-            if ( 0 == rc ) {
-                const VPath * local = NULL;
-                const VPath * remote = NULL;
-                if ( remotely ) {
-                    rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
-                } else {
-                    rc = VResolverQuery ( resolver, 0, vpath, &local, NULL, NULL );
-                }
-                if ( 0 == rc && ( NULL != local || NULL != remote ) ) {
-                    const String * path;
-                    if ( NULL != local ) {
-                        rc = VPathMakeString( local, &path );
-                    } else {
-                        rc = VPathMakeString( remote, &path );
-                    }
-                    if ( 0 == rc && NULL != path ) {
-                        string_copy ( dst, dst_size, path -> addr, path -> size );
-                        dst[ path -> size ] = 0;
-                        StringWhack ( path );
-                    }
-                    rc = vdh_vpath_release( rc, local );
-                    rc = vdh_vpath_release( rc, remote );
-                }
-                rc = vdh_vpath_release( rc, vpath );
-            }
-            {
-                rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc2, "VResolverRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+rc_t vdh_set_local_or_remote_to_str(const VPath * local, const VPath * remote,
+    char * dst, size_t dst_size)
+{
+    rc_t rc = 0;
+    const VPath * path = local != NULL ? local : remote;
+    dst[0] = '\0';
+    if (path != NULL) {
+        const String * s;
+        rc = VPathMakeString(path, &s);
+        if (0 == rc && NULL != s) {
+            string_copy(dst, dst_size, s->addr, s->size);
+            dst[s->size] = 0;
+            StringWhack(s);
         }
-        rc = vdh_vfsmanager_release( rc, vfs_mgr );
-    }
-    if ( 0 == rc && vdh_str_starts_with( dst, "ncbi-acc:" ) ) {
-        size_t l = string_size ( dst );
-        memmove( dst, &( dst[ 9 ] ), l - 9 );
-        dst[ l - 9 ] = 0;
-    }
-    return rc;
-}
-
-rc_t vdh_resolve_cache( const char * accession, char * dst, size_t dst_size ) {
-    VFSManager * vfs_mgr;
-    rc_t rc = VFSManagerMake( &vfs_mgr );
-    dst[ 0 ] = 0;
-    DISP_RC( rc, "VFSManagerMake() failed" );
-    if ( 0 == rc ) {
-        VResolver * resolver;
-        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        DISP_RC( rc, "VFSManagerGetResolver() failed" );
-        if ( 0 == rc ) {
-            VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", accession );
-            DISP_RC( rc, "VFSManagerMakePath() failed" );
-            if ( 0 == rc ) {
-                const VPath * local = NULL;
-                const VPath * remote = NULL;
-                const VPath * cache = NULL;
-                rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, &cache );
-                if ( 0 == rc && cache != NULL ) {
-                    const String * path;
-                    rc = VPathMakeString( cache, &path );
-                    if ( 0 == rc && NULL != path ) {
-                        string_copy ( dst, dst_size, path -> addr, path -> size );
-                        dst[ path -> size ] = 0;
-                        StringWhack ( path );
-                    }
-                    rc = vdh_vpath_release( rc, local );
-                    rc = vdh_vpath_release( rc, remote );
-                    rc = vdh_vpath_release( rc, cache );
-                }
-                rc = vdh_vpath_release( rc, vpath );
-            }
-            {
-                rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc2, "VResolverRelease() failed" );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
-        }
-        rc = vdh_vfsmanager_release( rc, vfs_mgr );
     }
     return rc;
 }

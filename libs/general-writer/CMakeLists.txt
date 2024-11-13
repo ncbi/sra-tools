@@ -22,6 +22,8 @@ if( RUN_SANITIZER_TESTS )
 		general-writer-asan
 		${COMMON_LIBS_READ}
 	)
+	target_compile_options( gw-dumper-asan PRIVATE -fsanitize=address )
+	target_link_options( gw-dumper-asan PRIVATE -fsanitize=address )
 
 	add_executable( gw-dumper-tsan gw-dumper.cpp )
 	add_dependencies ( gw-dumper-tsan general-writer-tsan )
@@ -29,6 +31,8 @@ if( RUN_SANITIZER_TESTS )
 		general-writer-tsan
 		${COMMON_LIBS_READ}
 	)
+	target_compile_options( gw-dumper-tsan PRIVATE -fsanitize=thread )
+	target_link_options( gw-dumper-tsan PRIVATE -fsanitize=thread )
 endif()
 
 if ( NOT TOOLS_ONLY )

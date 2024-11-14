@@ -29,7 +29,6 @@
 #include <klib/printf.h> /* string_printf */
 
 #include <assert.h>
-#include <linux/limits.h> /* PATH_MAX */
 #include <stdlib.h> /* getenv */
 
 static int size_of(const char **array) {
@@ -70,8 +69,8 @@ bool ascp_path(const char **cmd, const char **key) {
     }
     else {
         rc_t rc = 0;
-        static char k[PATH_MAX] = "";
-        static char c[PATH_MAX] = "";
+        static char k[4096] = "";
+        static char c[4096] = "";
         if (idx > size + 1) {
             *cmd = *key = NULL;
             idx = 0;
@@ -91,14 +90,14 @@ bool ascp_path(const char **cmd, const char **key) {
                 rc = string_printf(k, sizeof k, &num_writ,
                     "%s/.aspera/connect/etc/asperaweb_id_dsa.putty"  , home);
             }
-            if (rc != 0 || num_writ >= PATH_MAX) {
+            if (rc != 0 || num_writ >= sizeof(k)) {
                 assert(0);
                 k[0] = '\0';
             }
             else {
                 rc = string_printf(c, sizeof c, &num_writ,
                     "%s/.aspera/connect/bin/ascp", home);
-                if (rc != 0 || num_writ >= PATH_MAX) {
+                if (rc != 0 || num_writ >= sizeof(c)) {
                     assert(0);
                     c[0] = '\0';
                 }

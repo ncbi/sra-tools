@@ -144,4 +144,4 @@ if __name__ == '__main__':
     from vdb import *
     sys.path = saveSysPath
 
-    generate_output( output, vdb_inc_dirs, vdb_wr_lib )
+    generate_output( output, vdb_inc_dirs, vdb_lib_dir ) #vdb_wr_lib )

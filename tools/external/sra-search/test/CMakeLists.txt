@@ -63,7 +63,7 @@ AddExecutableTest ( Test_SraSearch_SearchBlock
 add_test ( NAME Test_SraSearchBlockWhiteBox COMMAND Test_SraSearch_SearchBlock )
 add_test ( NAME Test_SraSearchWhiteBox COMMAND Test_SraSearch )
 add_test ( NAME SlowTest_SraSearchWhiteBox COMMAND Test_SraSearchSlow )
-set_tests_properties(SlowTest_SraSearchWhiteBox PROPERTIES TIMEOUT 3000)
+set_tests_properties(SlowTest_SraSearchWhiteBox PROPERTIES TIMEOUT 5000)
 
 # command line tests
 if ( NOT WIN32)

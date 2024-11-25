@@ -34,7 +34,7 @@ if ( RUN_SANITIZER_TESTS AND NOT WIN32 )
 
 	add_test( NAME Test_Sanitizers
 		COMMAND
-			bash -c "./runtests.sh ${TESTBINDIR}"
+			sh -c "./runtests.sh ${TESTBINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	)
 

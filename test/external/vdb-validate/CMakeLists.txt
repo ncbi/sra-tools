@@ -38,7 +38,7 @@ if ( NOT WIN32 )
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Vdb_validate_redact
-        COMMAND bash -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_INCDIR}/../py_vdb'"
+        COMMAND sh -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_INCDIR}/../py_vdb'"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	if( TARGET vdb-validate-asan )

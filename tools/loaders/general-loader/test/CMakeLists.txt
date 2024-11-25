@@ -71,7 +71,7 @@ target_link_libraries ( makeinputs
 
 if ( NOT WIN32)
     #TODO: simplify
-    set ( CMD bash runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/vdb-dump ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD sh runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/vdb-dump ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     file( WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
                 "/vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n" )
@@ -147,7 +147,7 @@ if ( NOT WIN32)
 
     # tests depending on kdbmeta
     #TODO: simplify
-    set ( CMD bash runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/kdbmeta  ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD sh runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/kdbmeta  ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
             COMMAND ${CMD} 6 0 -L=info SOFTWARE/formatter

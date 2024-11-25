@@ -26,7 +26,7 @@ if( NOT WIN32 )
     ToolsRequired(latf-load vdb-dump)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME LatfTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
     set( LIBS )
@@ -54,7 +54,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash runtestcase.sh "${DIRTOTEST}/vdb-dump ${DumpParams}" "${DIRTOTEST}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
+                sh runtestcase.sh "${DIRTOTEST}/vdb-dump ${DumpParams}" "${DIRTOTEST}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
@@ -63,7 +63,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    bash runtestcase.sh "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
+                    sh runtestcase.sh "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
@@ -74,7 +74,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    bash runtestcase.sh "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
+                    sh runtestcase.sh "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_FastqLoader_${TestName}-tsan PROPERTIES FIXTURES_REQUIRED LatfTest )
@@ -132,14 +132,14 @@ if( NOT WIN32 )
     add_test( NAME Test_FastqLoader_4.1
         COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            bash -c "${DIRTOTEST}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+            sh -c "${DIRTOTEST}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     if( TARGET latf-load-asan )
         add_test( NAME Test_FastqLoader_4.1-asan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/latf-load-asan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+                sh -c "${DIRTOTEST}/latf-load-asan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()
@@ -147,7 +147,7 @@ if( NOT WIN32 )
         add_test( NAME Test_FastqLoader_4.1-tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/latf-load-tsan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+                sh -c "${DIRTOTEST}/latf-load-tsan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()

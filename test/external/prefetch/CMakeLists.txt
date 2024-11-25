@@ -72,20 +72,20 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_dflt
 		COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash runtests.sh ${DIRTOTEST} prefetch ${TESTBINDIR}  # 123
+            sh runtests.sh ${DIRTOTEST} prefetch ${TESTBINDIR}  # 123
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_dflt-asan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "runtests.sh ${DIRTOTEST}" prefetch-asan ${TESTBINDIR}
+				sh -c "runtests.sh ${DIRTOTEST}" prefetch-asan ${TESTBINDIR}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_dflt-tsan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "runtests.sh ${DIRTOTEST}" prefetch-tsan ${TESTBINDIR}
+				sh -c "runtests.sh ${DIRTOTEST}" prefetch-tsan ${TESTBINDIR}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 

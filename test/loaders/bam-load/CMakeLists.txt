@@ -27,14 +27,14 @@ if( NOT WIN32 )
     ToolsRequired(bam-load)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME BamTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(BamTestSetup PROPERTIES FIXTURES_SETUP BamTest)
 
     add_test( NAME Test_BamLoader_1
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/bam-load -o out.sra test.sam"
+                sh -c "${DIRTOTEST}/bam-load -o out.sra test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
@@ -45,7 +45,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size 999999 test.sam"
+                sh -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size 999999 test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_MinBatchSize PROPERTIES FIXTURES_REQUIRED BamTest )
@@ -55,7 +55,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size notanumber test.sam"
+                sh -c "${DIRTOTEST}/bam-load -o out.sra --min-batch-size notanumber test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_MinBatchSize_Bad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
@@ -66,7 +66,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/bam-load -o out.sra --threads=2 test.sam"
+                sh -c "${DIRTOTEST}/bam-load -o out.sra --threads=2 test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_FewerThan3Threads PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
@@ -75,7 +75,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${DIRTOTEST}/bam-load -o out.sra --threads=N test.sam"
+                sh -c "${DIRTOTEST}/bam-load -o out.sra --threads=N test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_ThreadsBad PROPERTIES FIXTURES_REQUIRED BamTest WILL_FAIL TRUE )
@@ -86,7 +86,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    bash -c "${BINDIR}/bam-load-asan -o out.sra test.sam"
+                    sh -c "${BINDIR}/bam-load-asan -o out.sra test.sam"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_BamLoader_1_asan PROPERTIES FIXTURES_REQUIRED BamTest )
@@ -97,7 +97,7 @@ if( NOT WIN32 )
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    bash -c "${BINDIR}/bam-load-tsan -o out.sra test.sam"
+                    sh -c "${BINDIR}/bam-load-tsan -o out.sra test.sam"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )

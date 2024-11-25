@@ -28,14 +28,14 @@ if ( NOT WIN32 )
     add_test( NAME Test_Kar
         COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/ NCBI_VDB_QUALITY=R
-            bash -c "./kar-ntest.sh ${DIRTOTEST}/kar ${DIRTOTEST}/prefetch"
+            sh -c "./kar-ntest.sh ${DIRTOTEST}/kar ${DIRTOTEST}/prefetch"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     if( TARGET kar-asan )
         add_test( NAME Test_Kar-asan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-                bash -c "./kar-ntest.sh ${DIRTOTEST}/kar-asan ${DIRTOTEST}/prefetch"
+                sh -c "./kar-ntest.sh ${DIRTOTEST}/kar-asan ${DIRTOTEST}/prefetch"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
@@ -43,7 +43,7 @@ if ( NOT WIN32 )
         add_test( NAME Test_Kar-tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-                bash -c "./kar-ntest.sh ${DIRTOTEST}/kar-tsan ${DIRTOTEST}/prefetch"
+                sh -c "./kar-ntest.sh ${DIRTOTEST}/kar-tsan ${DIRTOTEST}/prefetch"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 

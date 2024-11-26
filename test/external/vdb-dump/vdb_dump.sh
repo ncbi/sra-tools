@@ -1,4 +1,4 @@
-#!bash
+#!/usr/bin/bash
 
 vdb_dump_makedb=$1
 bin_dir=$2

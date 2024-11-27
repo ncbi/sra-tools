@@ -38,3 +38,7 @@ if( NOT WIN32 )
     add_subdirectory( pileup-stats )
     add_subdirectory( qa-stats )
 endif()
+
+if ( LINUX )
+    add_subdirectory( rnd2sra )
+endif()

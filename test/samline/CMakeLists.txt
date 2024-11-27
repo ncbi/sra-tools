@@ -25,7 +25,7 @@
 if( NOT WIN32 )
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    #add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    #add_test(NAME LatfTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # build the 2 helper-tools used in scripted tests:
     add_executable( samline refbases.c cigar.c alig-gen.c )

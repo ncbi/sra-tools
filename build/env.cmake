@@ -732,7 +732,7 @@ if ( SINGLE_CONFIG )
         set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
     endif()
     install( SCRIPT CODE
-        "execute_process( COMMAND /bin/bash -c      \
+        "execute_process( COMMAND /bin/sh -c        \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
                 '${VDB_COPY_DIR}'                   \

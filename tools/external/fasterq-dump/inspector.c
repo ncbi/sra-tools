@@ -429,34 +429,18 @@ static bool insp_starts_with( const char *a, const char *b )
     return res;
 }
 
-static rc_t insp_resolve_accession( const char * acc, char * dst, size_t dst_size, bool remotely )
+static rc_t insp_resolve_accession( const char * acc, char * dst, size_t dst_size, bool * remotely )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
     dst[ 0 ] = 0;
     if ( 0 == rc ) {
-        VResolver * resolver;
-        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        if ( 0 == rc ) {
-            VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", acc );
-            if ( 0 == rc )
-            {
-                const VPath * local = NULL;
-                const VPath * remote = NULL;
-                if ( remotely ) {
-                    rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
-                } else {
-                    rc = VResolverQuery ( resolver, 0, vpath, &local, NULL, NULL );
-                }
-                if ( 0 == rc && ( NULL != local || NULL != remote ) )
-                {
-                    const String * path;
-                    if ( NULL != local ) {
-                        rc = VPathMakeString( local, &path );
-                    } else {
-                        rc = VPathMakeString( remote, &path );
-                    }
+        const VPath * vpath = NULL;
+        rc = VFSManagerResolve(vfs_mgr, acc, &vpath);
+        if ( 0 == rc && ( NULL != vpath ) )
+        {
+                    const String * path = NULL;
+                    rc = VPathMakeString(vpath, &path);
 
                     if ( 0 == rc && NULL != path ) {
                         string_copy ( dst, dst_size, path -> addr, path -> size );
@@ -464,13 +448,15 @@ static rc_t insp_resolve_accession( const char * acc, char * dst, size_t dst_siz
                         StringWhack ( path );
                     }
 
-                    rc = insp_release_VPath( local, rc, "insp_resolve_accession", acc );
-                    rc = insp_release_VPath( remote, rc, "insp_resolve_accession", acc );
-                }
-                rc = insp_release_VPath( vpath, rc, "insp_resolve_accession", acc );
-            }
-            rc = insp_release_VResolver( resolver, rc, "insp_resolve_accession", acc );
+                    if (0 == rc) {
+                        assert(remotely);
+                        *remotely = VPathIsRemote(vpath);
+                    }
+                    rc = insp_release_VPath( vpath, rc,
+                        "insp_resolve_accession", acc );
         }
+        else
+            ErrMsg("cannot find '%s' -> %R", acc, rc);
         rc = insp_release_VFSMgr( vfs_mgr, rc, "insp_resolve_accession", acc );
     }
 
@@ -728,11 +714,14 @@ static rc_t insp_location_and_size( const insp_input_t * input,
                                     insp_output_t * output ) {
     rc_t rc;
     char resolved[ PATH_MAX ];
+    bool remotely = false;
 
     /* try to resolve the path locally first */
-    rc = insp_resolve_accession( input -> accession_path, resolved, sizeof resolved, false ); /* above */
+    rc = insp_resolve_accession( input -> accession_path, resolved, sizeof resolved, &remotely ); /* above */
     if ( 0 == rc )
     {
+      if (!remotely) {
+          /* found locally */
         output -> is_remote = false;
         output -> acc_size = insp_get_file_size( input -> dir, resolved, false );
         if ( 0 == output -> acc_size ) {
@@ -744,17 +733,17 @@ static rc_t insp_location_and_size( const insp_input_t * input,
                 output -> acc_size = insp_get_file_size( input -> dir, p, false );
             }
         }
-    }
-    else
-    {
+      }
+      else
+      {
+        /* found remotely */
         hlp_unread_rc_info( false ); /* get rid of stored rc-messages... */
-        /* try to resolve the path remotely */
-        rc = insp_resolve_accession( input -> accession_path, resolved, sizeof resolved, true ); /* above */
         if ( 0 == rc )
         {
             output -> is_remote = true;
             output -> acc_size = insp_get_file_size( input -> dir, resolved, true );
         }
+      }
     }
     return rc;
 }

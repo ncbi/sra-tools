@@ -22,21 +22,23 @@
 #
 # ===========================================================================
 
+AddExecutableTest( Test_SraSchema_Unit "test-schema.cpp" "sra;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )
+
 if (Python3_EXECUTABLE)
-    add_test( NAME Test_SCHEMA_454_db
+    add_test( NAME Test_SraSchema_454_db
         COMMAND ${Python3_EXECUTABLE} test_VDB-5250.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    set_tests_properties( Test_SCHEMA_454_db
+    set_tests_properties( Test_SraSchema_454_db
         PROPERTIES
         ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
     )
 
-    add_test( NAME Test_SCHEMA_IonTorrent_db
+    add_test( NAME Test_SraSchema_IonTorrent_db
         COMMAND ${Python3_EXECUTABLE} test_VDB-5251.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    set_tests_properties( Test_SCHEMA_IonTorrent_db
+    set_tests_properties( Test_SraSchema_IonTorrent_db
         PROPERTIES
         ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
     )

@@ -22,21 +22,9 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="test/internal/test_sanitizers" )
+TOP ?= $(abspath ../..)
+MODULE = libs/schema
 
-if ( RUN_SANITIZER_TESTS AND NOT WIN32 )
-	add_executable(asan asan.cpp)
-	set(asan_defs "-fsanitize=address")
-	target_compile_options( asan PRIVATE ${asan_defs} )
-	target_link_options( asan PRIVATE ${asan_defs} )
+include $(TOP)/build/Makefile.env
 
-	add_executable(asan_disabled asan.cpp)
-
-	add_test( NAME Test_Sanitizers
-		COMMAND
-			sh -c "./runtests.sh ${TESTBINDIR}"
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	)
-
-endif()
 

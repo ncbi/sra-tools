@@ -2665,7 +2665,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     bool bad = false;
     const String *local = NULL;
     VFSManager *mgr = NULL;
-    VResolver *resolver = NULL;
     const char *path = aPath;
     const String * ad = NULL;
     KPathType pt = kptNotFound;
@@ -2677,14 +2676,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     }
 
     assert(pb);
-
-    rc = VFSManagerGetResolver(mgr, &resolver);
-    if (rc != 0) {
-        LOGERR(klogInt, rc, "Cannot VFSManagerGetResolver");
-    }
-    else {
-        VResolverRemoteEnable(resolver, vrAlwaysDisable);
-    }
 
     /* what type of thing is this path? */
     pt = KDirectoryPathType(pb->wd, "%s", path);
@@ -2699,7 +2690,7 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
                 "VPathMake($(path)) failed", PLOG_S(path), path));
         }
         else {
-            rc = VResolverLocal(resolver, acc, &pLocal);
+            rc = VFSManagerResolveLocal(mgr, path, &pLocal);
             if (rc != 0 && NotFoundByResolver(rc)) {
                 bad = false;
                 PLOGMSG(klogInfo, (klogInfo,
@@ -2747,7 +2738,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
         RELEASE(VPath, path2);
     }
     RELEASE(VFSManager, mgr);
-    RELEASE(VResolver, resolver);
 
     if (rc == 0) {
         switch (pt & ~kptAlias) {

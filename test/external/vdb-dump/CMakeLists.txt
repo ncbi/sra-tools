@@ -57,7 +57,7 @@ if ( NOT WIN32 )
     add_test( NAME Test_Vdb_dump
         COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump"
+            sh -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -65,7 +65,7 @@ if ( NOT WIN32 )
         add_test( NAME Test_Vdb_dump_asan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-                bash -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump-asan"
+                sh -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump-asan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 	endif()
@@ -73,7 +73,7 @@ if ( NOT WIN32 )
         add_test( NAME Test_Vdb_dump_tsan
             COMMAND
                 ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-                bash -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump-tsan"
+                sh -c "./vdb_dump.sh ${TESTBINDIR}/vdb-dump-makedb ${DIRTOTEST} vdb-dump-tsan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()

@@ -54,7 +54,7 @@ if ( Java_FOUND )
                     COMMAND
                       ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                       ${CMAKE_COMMAND} -E env NCBI_VDB_QUALITY=R
-                      bash -c
+                      sh -c
                         "\"${Java_JAVA_EXECUTABLE}\" -Dvdb.log=${LOGLEVEL} -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName} && diff ${CMAKE_CURRENT_SOURCE_DIR}/expected/${TestName} ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName}"
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                     COMMAND_EXPAND_LISTS

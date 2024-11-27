@@ -97,8 +97,11 @@ typedef struct vdb_info_data {
     const char * s_platform;
 
     char path[ 4096 ];
-    char remote_path[ 4096 ];
+    const VPath * localP;
+    char remote_path[4096];
+    const VPath * remoteP;
     char cache[ 1024 ];
+    const VPath * cacheP;
     char schema_name[ 1024 ];
     char species[ 1024 ];
     
@@ -1178,24 +1181,24 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
         }
 
         /* try to resolve the path locally */
-        rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, false ); /* vdb-dump-helper.c */
+        rc1 = vdh_resolve(acc_or_path,
+            &data.localP, &data.remoteP, &data.cacheP);
+        if (0 == rc1)
+            rc1 = vdh_set_local_or_remote_to_str(data.localP, data.remoteP,
+                data.path, sizeof data.path);
         if ( 0 == rc1 ) {
-            data . file_size = get_file_size( data . path, false );
-            /* not a typo, return value ignored - because it can fail and that is OK in this case */
-            vdh_resolve_remote_accession( acc_or_path, data . remote_path, sizeof data . remote_path ); /* vdb-dump-helper.c */
-        } else {
-            /* try to resolve the path remotely */
-            rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, true ); /* vdb-dump-helper.c */
-            if ( 0 == rc1 ) {
-                data . file_size = get_file_size( data . path, true );
-                /* try to find out the cache-file */
-                rc1 = vdh_resolve_cache( acc_or_path, data . cache, sizeof data . cache ); /* vdb-dump-helper.c */
-                if ( 0 == rc1 ) {
-                    /* try to find out cache completeness */
-                    vdh_check_cache_comleteness( data . cache, &data . cache_percent, &( data . bytes_in_cache ) ); /* vdh-dump-helper.c*/
-                }
+            data . file_size = get_file_size( data . path,
+                data.localP == NULL );
+            rc1 = vdh_set_VPath_to_str(data.remoteP,
+                data.remote_path, sizeof data.remote_path);
+            if (0 == rc1) {
+                rc1 = vdh_set_VPath_to_str(data.cacheP,
+                    data.cache, sizeof data.cache);
+                if (0 == rc1 && data.cacheP != NULL)
+                    vdh_check_cache_comleteness(data.cache,
+                        &data.cache_percent, &(data.bytes_in_cache));
             }
-        }
+        } 
         switch ( format ) {
             case df_xml  : rc = vdb_info_print_xml( &data ); break;
             case df_json : rc = vdb_info_print_json( &data ); break;

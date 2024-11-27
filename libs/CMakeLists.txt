@@ -31,6 +31,7 @@ add_subdirectory(vdb-sqlite)
 add_subdirectory(ngs-vdb)
 add_subdirectory(ascp)
 add_subdirectory(diagnose)
+add_subdirectory(schema)
 add_subdirectory(search)
 
 if( NOT WIN32 )

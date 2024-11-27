@@ -2,7 +2,13 @@
 
 #include <cstdlib>
 #include <chrono>
+
+#if GCC_VERSION <= 6
+#else
+#include <experimental/filesystem>
 #include <filesystem>
+#endif
+
 #include <thread>
 #include "../util/values.hpp"
 #include "../util/file_deleter.hpp"

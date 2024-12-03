@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 vdb_dump_makedb=$1
 bin_dir=$2
@@ -46,7 +46,7 @@ function run_test_neg() {
 
 	${bin_dir}/${vdb_dump_binary} $test_args > $output  2>actual/$test_id.stderr
 	local res=$?
-	if [ "$res" == "0" ];
+	if [ "$res" = "0" ];
 		then echo "${vdb_dump_binary} $test_args ($test_name $test_id) unexpectedly succeeded, res=$res output=$output" && exit 1;
 	fi
 

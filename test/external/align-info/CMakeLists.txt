@@ -38,6 +38,7 @@ ToolsRequired(align-info)
           NC_000005.8={\"NCBI-PHID\":\"aHh\",\"result\":[{\"bundle\":\"NC_000005.8\",\"status\":404,\"msg\":\"CannotResolveAccession\"}]}
           NCBI_SETTINGS=/
           NCBI_VDB_NO_ETC_NCBI_KFG=1
+          VDB_CONFIG=
           sh test-refseq-404.sh ${BINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 

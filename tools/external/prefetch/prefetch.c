@@ -326,8 +326,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     const KNSManager * mgr = NULL;
 
-    const VPath **local = NULL;
-
     uint32_t l = 0;
     const char * id = item -> desc;
     KService * service = NULL;
@@ -339,8 +337,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
 #endif
 
     assert(resolved && item && item->mane);
-
-    local = &resolved->local.path;
 
     rc = VResolverGetKNSManager(self, &mgr);
 
@@ -570,11 +566,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if ( rc == 0 && l > 0 ) {
         if ( rc == 0 ) {
             rc = KSrvRespFileGetCache ( resolved->respFile, cache );
-            if ( rc != 0 && NotFoundByResolver(rc) )
-                rc = 0;
-        }
-        if ( rc == 0 ) {
-            rc = KSrvRespFileGetLocal ( resolved->respFile, local );
             if ( rc != 0 && NotFoundByResolver(rc) )
                 rc = 0;
         }
@@ -2243,6 +2234,7 @@ static rc_t ItemSetDependency(Item *self,
             }
         }
     }
+    RELEASE(VPath, cache);
     return rc;
 }
 
@@ -2788,6 +2780,7 @@ static rc_t ItemDownload(Item *item) {
             r = KSrvRespFileGetLocal(self->respFile, & local);
             if (r == 0)
                 rc = VPathStrInit(&self->local, local);
+            RELEASE(VPath, local);
         }
         if (self->existing) { /* the path is a path to an existing local file */
             bool recognized = false;
@@ -2846,7 +2839,6 @@ static rc_t ItemDownload(Item *item) {
             else
                 STSMSG(STS_TOP, ("%d) '%s' is found locally\n", n, name));
             if (self->local.str != NULL) {
-                rc = VPathAddRef(self->local.path);
                 if (rc == 0)
                     rc = VPathStrInit(&self->path, self->local.path);
             }
@@ -3187,8 +3179,13 @@ static rc_t ItemDownloadDependencies(Item *item) {
         }
     }
 
-    if (resolved->path.str != NULL)
+    if (resolved->path.str != NULL) {
+        char * itemName = ItemName(item);
+        STSMSG(STS_TOP, ("%d) Resolving '%s's dependencies...",
+            item->number, itemName));
         rc = PrfMainDependenciesList(item->mane, resolved, &deps);
+        free(itemName);
+    }
 
     /* resolve dependencies (refseqs) */
     if (rc == 0 && deps != NULL) {

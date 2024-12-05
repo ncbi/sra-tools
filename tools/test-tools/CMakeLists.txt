@@ -39,6 +39,4 @@ if( NOT WIN32 )
     add_subdirectory( qa-stats )
 endif()
 
-if ( LINUX )
-    add_subdirectory( rnd2sra )
-endif()
+add_subdirectory( rnd2sra )

@@ -1,19 +1,9 @@
 #pragma once
 
 #include <string>
-#if GCC_VERSION <= 6
-#include <experimental/filesystem>
-#else
-#include <filesystem>
-#endif
+#include "fs_include.hpp"
 
 using namespace std;
-
-#if GCC_VERSION <= 6
-namespace fs = std::experimental::filesystem;
-#else
-namespace fs = std::filesystem;
-#endif
 
 namespace sra_convert {
 

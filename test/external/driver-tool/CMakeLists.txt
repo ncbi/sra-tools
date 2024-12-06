@@ -122,6 +122,7 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         DriverToolTestNoScriptParams( bogus )
         DriverToolTestNoScriptParams( test-path )
         DriverToolTestNoScriptParams( test-no-path )
+        DriverToolTestNoScriptParams( test-opt-bitmap )
         DriverToolTestNoScriptParams( testing )
         DriverToolTestNoScriptParams( vdbcache )
 

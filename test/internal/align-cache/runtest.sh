@@ -19,7 +19,7 @@ res=$?
 if [ "$res" != "0" ];
 	then echo "${tool_binary} FAILED, res=$res output=$output" && exit 1;
 fi
-${DIRTOTEST}/vdb-validate CSRA_file.cache/ 2>&1 \
-| grep --quiet "is consistent" || exit 1
+${DIRTOTEST}/vdb-validate CSRA_file.cache/ 2>&1 | \
+    grep -q "is consistent" || exit 1
 rm tmp.kfg
 rm -rf CSRA_file.cache

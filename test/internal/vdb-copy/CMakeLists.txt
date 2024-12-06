@@ -26,6 +26,10 @@ add_compile_definitions( __mod__="test/internal/vdb-copy" )
 
 ToolsRequired(vdb-copy)
 
+if( NOT DEFINED VDB_SRCDIR )
+    set( VDB_SRCDIR "${VDB_INCDIR}/.." )
+endif()
+
 if( Python3_EXECUTABLE )
 
 	add_test( NAME Test_VDB_Copy_Check_exit_code
@@ -52,7 +56,7 @@ if( Python3_EXECUTABLE )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_VDB_Copy_Redaction
-            COMMAND sh -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${SRC_INTERFACES_DIR}:${VDB_INCDIR}' '${VDB_INCDIR}/..'"
+            COMMAND sh -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${SRC_INTERFACES_DIR}:${VDB_INCDIR}' '${VDB_SRCDIR}'"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 	endif()

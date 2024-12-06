@@ -114,7 +114,7 @@ class KV_Map {
         }
 
         string replace( const string_view src, char key = '$' ) {
-            return replace2( replace1( src ) );
+            return replace2( replace1( src, key ), key );
         }
 
         vector< string > replace( const vector< string >& src, char key = '$' ) {

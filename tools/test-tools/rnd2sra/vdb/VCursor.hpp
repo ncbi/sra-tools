@@ -185,10 +185,10 @@ class VCur : public VDBObj {
 
 /* ----------------------------------------------------------------------------------------------------- */
 
-        bool CellData( uint32_t id, int64_t row, uint32_t *elem_bits,
-                       const void **base, uint32_t *boff, uint32_t *row_len ) {
+        bool CellData( uint32_t id, int64_t row, uint32_t *elem_bits_p,
+                       const void **base_p, uint32_t *boff_p, uint32_t *row_len_p ) {
             if ( !valid_id( id ) ) return false;
-            return set_rc( VCursorCellDataDirect( f_cur, row, columns[ id ], elem_bits, base, boff, row_len ) );
+            return set_rc( VCursorCellDataDirect( f_cur, row, columns[ id ], elem_bits_p, base_p, boff_p, row_len_p ) );
         }
 
         template <typename T> bool read( uint32_t id, int64_t row, T* v ) {
@@ -209,16 +209,16 @@ class VCur : public VDBObj {
 /* ----------------------------------------------------------------------------------------------------- */
 
 #ifdef VDB_WRITE
-        bool SetDefault( uint32_t id, bitsz_t elem_bits, const void * data,
-                         bitsz_t boff, uint64_t row_len ) {
+        bool SetDefault( uint32_t id, bitsz_t elem_bits_p, const void * data_p,
+                         bitsz_t boff_p, uint64_t row_len_p ) {
             if ( !valid_id( id ) ) return false;
-            return set_rc( VCursorDefault( f_cur, columns[ id ], elem_bits, data, boff, row_len ) );
+            return set_rc( VCursorDefault( f_cur, columns[ id ], elem_bits_p, data_p, boff_p, row_len_p ) );
         }
 
-        bool WriteCell( uint32_t id, bitsz_t elem_bits, const void * data,
-                        bitsz_t boff, uint64_t row_len ) {
+        bool WriteCell( uint32_t id, bitsz_t elem_bits_p, const void * data_p,
+                        bitsz_t boff_p, uint64_t row_len_p ) {
             if ( !valid_id( id ) ) return false;
-            return set_rc( VCursorWrite( f_cur, columns[ id ], elem_bits, data, boff, row_len ) );
+            return set_rc( VCursorWrite( f_cur, columns[ id ], elem_bits_p, data_p, boff_p, row_len_p ) );
         }
 
         template <typename T> bool write( uint32_t id, const T* v ) {

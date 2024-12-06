@@ -178,8 +178,8 @@ class VTbl : public VDBObj {
 
         std::string get_type_spec( void ) const {
             char buff[ 64 ];
-            rc_t rc = VTableTypespec( f_tbl, buff, sizeof( buff ) );
-            return 0 == rc ? std::string( buff ) : std::string( "" );
+            rc_t rc1 = VTableTypespec( f_tbl, buff, sizeof( buff ) );
+            return 0 == rc1 ? std::string( buff ) : std::string( "" );
         }
 
         VCurPtr cursor( std::size_t capacity = 0 ) const {

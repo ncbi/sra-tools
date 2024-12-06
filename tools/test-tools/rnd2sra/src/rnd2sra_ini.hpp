@@ -108,13 +108,13 @@ class spot_section {
         }
 
         uint32_t get_bio_base_count( void ) const {
-            if ( f_biotech -> is_bio() ) return f_random_len;
+            if ( f_biotech -> is_bio() ) return (uint32_t)f_random_len;
             return 0;
         }
 
         void randomize( RandomPtr r ) {
             if ( f_len != f_len2 ) {
-                f_random_len = r -> random_u32( f_len, f_len2 );
+                f_random_len = r -> random_u32( (uint32_t)f_len, (uint32_t)f_len2 );
             }
         }
 
@@ -162,14 +162,14 @@ class spot_layout {
             uint32_t idx = 0;
             for ( auto const& section : f_sections ) {
                 values[ idx++ ] = start;
-                start += section -> get_len();
+                start += (uint32_t)section -> get_len();
             }
         }
 
         void populate_read_len( uint32_t* values ) const {
             uint32_t idx = 0;
             for ( auto const& section : f_sections ) {
-                values[ idx++ ] = section -> get_len();
+                values[ idx++ ] = (uint32_t)section -> get_len();
             }
         }
 
@@ -421,7 +421,7 @@ class rnd2sra_ini {
             if ( count == 1 ) {
                 return f_layouts[ 0 ];
             } else if ( count > 1 ) {
-                uint32_t selected = r -> random_u32( 0, count - 1 );
+                uint32_t selected = r -> random_u32( 0, (uint32_t)count - 1 );
                 return f_layouts[ selected ];
             }
             auto layout = spot_layout::make( "T5:B50:T5:B50" );
@@ -435,7 +435,7 @@ class rnd2sra_ini {
             if ( count == 1 ) {
                 return f_spot_groups[ 0 ];
             } else if ( count > 1 ) {
-                uint32_t selected = r -> random_u32( 0, count - 1 );
+                uint32_t selected = r -> random_u32( 0, (uint32_t)count - 1 );
                 return f_spot_groups[ selected ];
             }
             return string();

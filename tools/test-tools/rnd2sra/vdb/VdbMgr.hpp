@@ -109,8 +109,8 @@ class VMgr : public VDBObj {
 
         uint32_t version( void ) const {
             uint32_t v = 0;
-            rc_t rc = ( VDBManagerVersion( f_mgr, &v ) );
-            return 0 == rc ? v : 0;
+            rc_t rc1 = ( VDBManagerVersion( f_mgr, &v ) );
+            return 0 == rc1 ? v : 0;
         }
 
         int PathType( const std::string& path ) const {
@@ -118,20 +118,20 @@ class VMgr : public VDBObj {
         }
 
         bool AddSchemaIncludePath( const std::string& path ) const {
-            rc_t rc = VDBManagerAddSchemaIncludePath( f_mgr, "%s", path.c_str() );
-            return ( 0 == rc );
+            rc_t rc1 = VDBManagerAddSchemaIncludePath( f_mgr, "%s", path.c_str() );
+            return ( 0 == rc1 );
         }
 
         uint32_t GetObjVersion( const std::string& path ) const {
             uint32_t v = 0;
-            rc_t rc = VDBManagerGetObjVersion( f_mgr, &v, path.c_str() );
-            return 0 == rc ? v : 0;
+            rc_t rc1 = VDBManagerGetObjVersion( f_mgr, &v, path.c_str() );
+            return 0 == rc1 ? v : 0;
         }
 
         KTime_t GetObjModDate( const std::string& path ) const {
             KTime_t t = 0;
-            rc_t rc = VDBManagerGetObjModDate( f_mgr, &t, path . c_str() );
-            return 0 == rc ? t : 0;
+            rc_t rc1 = VDBManagerGetObjModDate( f_mgr, &t, path . c_str() );
+            return 0 == rc1 ? t : 0;
         }
 };
 

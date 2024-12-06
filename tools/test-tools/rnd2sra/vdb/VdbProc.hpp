@@ -42,14 +42,14 @@ class ProcMgr : public VDBObj {
 
         uint32_t get_pid( void ) const {
             uint32_t res = 0;
-            rc_t rc = KProcMgrGetPID( mgr, &res );
-            return 0 == rc ? res : 0;
+            rc_t rc1 = KProcMgrGetPID( mgr, &res );
+            return 0 == rc1 ? res : 0;
         }
 
         std::string get_host_name( void ) const {
             char buffer[ 512 ];
-            rc_t rc = KProcMgrGetHostName( mgr, buffer, sizeof buffer );
-            if ( 0 != rc ) { buffer[ 0 ] = 0; }
+            rc_t rc1 = KProcMgrGetHostName( mgr, buffer, sizeof buffer );
+            if ( 0 != rc1 ) { buffer[ 0 ] = 0; }
             return std::string( buffer );
         }
 

@@ -13,12 +13,12 @@ typedef std::shared_ptr< Random > RandomPtr;
 class Random {
     private:
         default_random_engine f_generator;
-        uniform_int_distribution< uint8_t > f_bio_base_distribution;
-        uniform_int_distribution< uint8_t > f_bio_qual_distribution;
-        uniform_int_distribution< int8_t >  f_bio_qual_diff_distribution;
-        uniform_int_distribution< uint8_t >  f_string_distribution;
-        uniform_int_distribution< uint8_t >  f_lower_char_distribution;
-        uniform_int_distribution< uint8_t >  f_upper_char_distribution;
+        uniform_int_distribution< unsigned short > f_bio_base_distribution;
+        uniform_int_distribution< unsigned short > f_bio_qual_distribution;
+        uniform_int_distribution< short >  f_bio_qual_diff_distribution;
+        uniform_int_distribution< unsigned short >  f_string_distribution;
+        uniform_int_distribution< unsigned short >  f_lower_char_distribution;
+        uniform_int_distribution< unsigned short >  f_upper_char_distribution;
 
         char f_bases[ 4 ];
         uint8_t f_last_qual;
@@ -27,9 +27,9 @@ class Random {
             f_bio_base_distribution( 0, 3 ),
             f_bio_qual_distribution( 0, 63 ),
             f_bio_qual_diff_distribution( -5, +5 ),
-            f_string_distribution( (uint8_t)'A', (uint8_t)'z' ),
-            f_lower_char_distribution( (uint8_t)'a', (uint8_t)'z' ),
-            f_upper_char_distribution( (uint8_t)'A', (uint8_t)'Z' )
+            f_string_distribution( (unsigned short)'A', (unsigned short)'z' ),
+            f_lower_char_distribution( (unsigned short)'a', (unsigned short)'z' ),
+            f_upper_char_distribution( (unsigned short)'A', (unsigned short)'Z' )
         { f_bases[ 0 ] = 'A';
           f_bases[ 1 ] = 'C';
           f_bases[ 2 ] = 'G';
@@ -38,11 +38,11 @@ class Random {
         }
 
         uint8_t random_qual( void ) {
-            return f_bio_qual_distribution( f_generator );
+            return (uint8_t)f_bio_qual_distribution( f_generator );
         }
 
         uint8_t random_qual_diff( void ) {
-            int8_t diff = f_bio_qual_diff_distribution( f_generator );
+            int8_t diff = (int8_t)f_bio_qual_diff_distribution( f_generator );
             if ( diff > 0 ) {
                 if ( f_last_qual + diff > 63 ) { diff = -diff; }
             }
@@ -57,15 +57,15 @@ class Random {
         static RandomPtr make( int seed ) { return RandomPtr( new Random( seed ) ); }
 
         char random_char( void ) {
-            return f_string_distribution( f_generator );
+            return (char)f_string_distribution( f_generator );
         }
 
         char random_lower_char( void ) {
-            return f_lower_char_distribution( f_generator );
+            return (char)f_lower_char_distribution( f_generator );
         }
 
         char random_upper_char( void ) {
-            return f_upper_char_distribution( f_generator );
+            return (char)f_upper_char_distribution( f_generator );
         }
 
         string random_string( size_t length ) {
@@ -75,7 +75,7 @@ class Random {
         }
 
         char random_base( void ) {
-            uint8_t x = f_bio_base_distribution( f_generator );
+            uint8_t x = (uint8_t)f_bio_base_distribution( f_generator );
             return f_bases[ x ];
         }
 

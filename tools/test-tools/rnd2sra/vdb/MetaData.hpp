@@ -154,45 +154,45 @@ class MetaNode : public VDBObj {
         }
 
         bool read( int16_t& value ) const {
-            rc_t rc = KMDataNodeReadAsI16( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsI16( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( uint16_t& value ) const {
-            rc_t rc = KMDataNodeReadAsU16( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsU16( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( int32_t& value ) const {
-            rc_t rc = KMDataNodeReadAsI32( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsI32( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( uint32_t& value ) const {
-            rc_t rc = KMDataNodeReadAsU32( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsU32( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( int64_t& value ) const {
-            rc_t rc = KMDataNodeReadAsI64( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsI64( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( uint64_t& value ) const {
-            rc_t rc = KMDataNodeReadAsU64( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsU64( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( double value ) const {
-            rc_t rc = KMDataNodeReadAsF64( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeReadAsF64( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool read( string& value ) const {
             char buffer[ 512 ];
             size_t read;
-            rc_t rc = KMDataNodeReadCString( f_node, buffer, sizeof buffer, &read );
-            if ( 0 == rc ) {
+            rc_t rc1 = KMDataNodeReadCString( f_node, buffer, sizeof buffer, &read );
+            if ( 0 == rc1 ) {
                 value = string( buffer, read );
                 return true;
             }
@@ -209,38 +209,38 @@ class MetaNode : public VDBObj {
         }
 
         bool write( int16_t value ) {
-            rc_t rc = KMDataNodeWriteB16( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB16( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( uint16_t value ) {
-            rc_t rc = KMDataNodeWriteB16( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB16( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( int32_t value ) {
-            rc_t rc = KMDataNodeWriteB32( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB32( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( uint32_t value ) {
-            rc_t rc = KMDataNodeWriteB32( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB32( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( int64_t value ) {
-            rc_t rc = KMDataNodeWriteB64( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB64( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( uint64_t value ) {
-            rc_t rc = KMDataNodeWriteB64( f_node, &value );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteB64( f_node, &value );
+            return ( 0 == rc1 );
         }
 
         bool write( const string& value ) {
-            rc_t rc = KMDataNodeWriteCString( f_node, value . c_str() );
-            return ( 0 == rc );
+            rc_t rc1 = KMDataNodeWriteCString( f_node, value . c_str() );
+            return ( 0 == rc1 );
         }
 #endif
 
@@ -290,29 +290,29 @@ class Meta : public VDBObj {
 
         uint32_t get_version( void ) const {
             uint32_t version;
-            rc_t rc = KMetadataVersion( f_meta, &version );
-            if ( 0 != rc ) { version = 0; }
+            rc_t rc1 = KMetadataVersion( f_meta, &version );
+            if ( 0 != rc1 ) { version = 0; }
             return version;
         }
 
         bool get_byte_order( void ) const {
             bool res;
-            rc_t rc = KMetadataByteOrder( f_meta, &res );
-            if ( 0 != rc ) { res = false; }
+            rc_t rc1 = KMetadataByteOrder( f_meta, &res );
+            if ( 0 != rc1 ) { res = false; }
             return res;
         }
 
         uint32_t get_revision( void ) const {
             uint32_t revision;
-            rc_t rc = KMetadataRevision( f_meta, &revision );
-            if ( 0 != rc ) { revision = 0; }
+            rc_t rc1 = KMetadataRevision( f_meta, &revision );
+            if ( 0 != rc1 ) { revision = 0; }
             return revision;
         }
 
         uint32_t get_max_revision( void ) const {
             uint32_t revision;
-            rc_t rc = KMetadataMaxRevision( f_meta, &revision );
-            if ( 0 != rc ) { revision = 0; }
+            rc_t rc1 = KMetadataMaxRevision( f_meta, &revision );
+            if ( 0 != rc1 ) { revision = 0; }
             return revision;
         }
 

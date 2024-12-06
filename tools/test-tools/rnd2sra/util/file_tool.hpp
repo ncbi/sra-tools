@@ -18,9 +18,19 @@ class FileTool {
                 if ( parent_path . empty() ) return string();
                 if ( !exists( parent_path ) ) return string();
                 fs::path abs_parent_path{ fs::absolute( parent_path ) };
-                return fs::canonical( abs_parent_path );
+                fs::path canonical = fs::canonical( abs_parent_path );
+                return canonical.generic_string();
             }
             return string();
+        }
+
+        static bool exists( const fs::path& path) {
+            bool res = !path.empty();
+            if (res) {
+                fs::path fs_path{ path };
+                res = fs::exists(fs_path);
+            }
+            return res;
         }
 
         static bool exists( const string& path ) {
@@ -51,7 +61,7 @@ class FileTool {
         }
 
         static string current_dir( void ) {
-            return fs::current_path();
+            return fs::current_path().generic_string();
         }
 };
 

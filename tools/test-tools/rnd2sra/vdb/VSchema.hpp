@@ -97,8 +97,8 @@ class VSch : public VDBObj {
 
         std::string print( void ) {
             SchemaPrinter printer;
-            rc_t rc = VSchemaDump( f_schema, sdmPrint, nullptr, SchemaPrinter::callback, &printer );
-            if ( 0 == rc ) {
+            rc_t rc1 = VSchemaDump( f_schema, sdmPrint, nullptr, SchemaPrinter::callback, &printer );
+            if ( 0 == rc1 ) {
                 return printer . s;
             }
             return std::string( "err" );

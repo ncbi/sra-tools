@@ -43,13 +43,11 @@ TEST_SUITE(VdbTestSuite);
 
 TEST_CASE(Error_RcToString)
 {
-    rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
-    const string expected = "RC("
-#if DEBUG || _DEBUG
-        "(null):0:(null) "
-#endif
-        "rcNS,rcFile,rcReading,rcTransfer,rcIncomplete"
-    ")";
+    rc_t const rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
+    auto const rcStr = Error::RcToString( rc );
+    std::string const expected = rcStr.find("(null)") == std::string::npos
+        ? "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)"
+        : "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
     REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)

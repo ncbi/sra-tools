@@ -41,6 +41,12 @@ elif [ "${OS}" = 'Darwin' ]; then
     RSLV='readlink -f'
     TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
     DTIME="$TIME"
+elif [ "${OS}" = 'FreeBSD' ]; then
+    LL='stat -F'
+    MD5SUM='/sbin/md5 -q'
+    RSLV='realpath'
+    TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
+    DTIME="$TIME"
 else
     echo "Skipped; not GNU/Linux"
     exit 2

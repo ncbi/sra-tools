@@ -50,8 +50,10 @@ if ! test -f $EXE; then
 fi
 
 DIFF="diff -b"
-if [ "$(uname -o)" = "GNU/Linux" ] ; then
-    DIFF="diff -b -Z"
+if [ "$(uname -s)" = "Linux" ] ; then
+    if [ "$(uname -o)" = "GNU/Linux" ] ; then
+        DIFF="diff -b -Z"
+    fi
 fi
 
 echo "running $CASEID"

@@ -27,7 +27,7 @@
 bin_dir=$1
 sra_stat=$2
 
-OS=`uname -o`
+OS=$(uname -o 2>/dev/null) || OS=$(uname -s)
 
 if [ "${OS}" = 'GNU/Linux' ]; then
     LL='ls -l'

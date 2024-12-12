@@ -32,9 +32,9 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 
-#include <kapp/main.h>
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
+#include <kapp/vdbapp.h>
 
 #include "formatter.hpp"
 
@@ -238,8 +238,14 @@ public:
     bool needContents(void) const { return contents; }
 } Query;
 
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[])
 {
+    VDB::VdbApp app( argc, argv );
+    if (!app)
+    {
+        return 1;
+    }
+
     Args * args;
     rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );

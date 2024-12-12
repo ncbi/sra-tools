@@ -207,7 +207,6 @@ public:
     void advance() const {
         assert(indarg > 0);
         indarg = 0;
-        ++argind;
     }
     friend std::ostream &operator <<(std::ostream &out, ArgvIterator const &arg) {
         auto const argc = arg.parent->argc;

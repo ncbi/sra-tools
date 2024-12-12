@@ -209,6 +209,17 @@ public:
         indarg = 0;
         ++argind;
     }
+    friend std::ostream &operator <<(std::ostream &out, ArgvIterator const &arg) {
+        auto const argc = arg.parent->argc;
+        auto const argind = arg.argind;
+        auto const indarg = arg.indarg;
+        if (argind == argc)
+            return out << argind << "/" << argc << "(at end)";
+        auto const val = arg.parent->argv[argind];
+        if (indarg > 0)
+            return out << argind << "." << indarg << "/" << argc << " '" << val[indarg] << "'";
+        return out << argind << "/" << argc << " '" << val << "'";
+    }
 };
 
 struct CharIndexElement : public std::pair<char, unsigned>
@@ -332,6 +343,7 @@ struct ParamDefinitions_Common {
 
     Arguments parse(CommandLine const &cmdLine) const {
         Arguments::Container result;
+        TRACE(cmdLine.argc);
         auto iter = ArgvIterator(cmdLine);
 
         result.reserve(cmdLine.argc);
@@ -379,77 +391,103 @@ public:
         auto nextIsArg = 0;
         auto index = -1;
 
+        TRACE(i);
         for ( ; ; ) {
             switch (i.next()) {
             case 0:
+                TRACE(nextIsArg);
                 if (nextIsArg) {
+                    TRACE(index);
                     dst->emplace_back(Argument({&container[index], nullptr, -1}));
+                    TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                     return true;
                 }
                 return false;
             case 1:
+                TRACE(nextIsArg);
                 if (nextIsArg) {
+                    TRACE(index);
                     dst->emplace_back(Argument({&container[index], i.get(), i.index() - 1}));
+                    TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                     return true;
                 }
                 else {
                     auto const arg = i.get();
 
+                    TRACE(arg);
+                    TRACE(i.index());
                     if (arg[0] != '-') {
                         dst->emplace_back(Argument({&ParameterDefinition::argument(), arg, i.index()}));
+                        TRACE_OUT << "added argument: " << dst->back() << std::endl;
                         return true;
                     }
                     if (arg[1] == '-') {
                         auto const f = findLong(arg + 2);
                         if (f.first >= 0) {
                             index = f.first;
+                            TRACE(index);
                             auto const &def = container[index];
+                            TRACE(def);
                             if (f.second && def.hasArgument) {
                                 dst->emplace_back(Argument({&def, f.second, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
                             if (!f.second && !def.hasArgument) {
                                 dst->emplace_back(Argument({&def, nullptr, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
                             if (def.hasArgument) {
+                                TRACE_OUT << "looking for argument" << std::endl;
                                 ++nextIsArg;
                                 continue;
                             }
                         }
+                        TRACE_OUT << "unknown parameter: " << arg << ", index: " << i.index() << std::endl;
                         dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                         return true;
                     }
                 }
+                TRACE_OUT << "parsing short argument" << std::endl;
                 // fallthrough;
             case -1:
                 {
                     auto const arg = i.getChar();
+                    TRACE(arg);
+                    TRACE(nextIsArg);
                     switch (nextIsArg) {
                     case 0:
                         {
                             auto const f = shortIndex.find(*arg);
                             if (f.first != f.second) {
                                 index = f.first->second;
+                                TRACE(index);
                                 auto const &def = container[index];
+                                TRACE(def);
                                 if (def.hasArgument) {
+                                    TRACE_OUT << "looking for argument" << std::endl;
                                     ++nextIsArg;
                                     continue;
                                 }
                                 dst->emplace_back(Argument({&def, arg, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
+                            TRACE_OUT << "unknown parameter: " << arg << ", index: " << i.index() << std::endl;
                             dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                             return true;
                         }
                     case 1:
                         if (*arg == '=') {
+                            TRACE_OUT << "looking for argument" << std::endl;
                             ++nextIsArg;
                             continue;
                         }
                         // fallthrough;
                     case 2:
                         dst->emplace_back(Argument({&container[index], arg, i.index()}));
+                        TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                         i.advance();
                         return true;
                     default:
@@ -580,13 +618,13 @@ Arguments argumentsParsed(CommandLine const &cmdLine)
 
 std::ostream &operator <<(std::ostream &out, Argument const &arg) {
     if (arg.isArgument())
-        return out << arg.argument;
+        return out << arg.argument << " (argv[" << arg.argind << "])";
     if (!arg.def->hasArgument)
-        return out << arg.def->name;
+        return out << "--" << arg.def->name << " (argv[" << arg.argind << "])";
     if (!arg.argument)
-        return out << arg.def->name << " (null)";
+        return out << "--" <<arg.def->name << "=(null)" << " (argv[" << arg.argind << "])";
     else
-        return out << arg.def->name << " " << arg.argument;
+        return out << "--" <<arg.def->name << "=" << arg.argument << " (argv[" << arg.argind << "])";
 }
 
 void printParameterBitmasks(std::ostream &out) {

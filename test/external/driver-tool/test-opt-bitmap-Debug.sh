@@ -14,7 +14,7 @@ output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 	PATH="${bin_dir}:$PATH" \
 	SRATOOLS_TESTING=3 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
-	${sratools} SRR053325 -a -CY \
+	${sratools} SRR053325 -CY -a -+KNS \
                2>&1 | grep VDB_OPT_BITMAP > actual/bitmap.stderr ; \
 	diff expected/bitmap.stderr actual/bitmap.stderr)
 
@@ -29,7 +29,7 @@ output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 	PATH="${bin_dir}:$PATH" \
 	SRATOOLS_TESTING=3 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
-	${sratools} SRR053325 -CY -a \
+	${sratools} SRR053325 -CY -+KNS -a \
                2>&1 | grep VDB_OPT_BITMAP > actual/bitmap.stderr ; \
 	diff expected/bitmap.stderr actual/bitmap.stderr)
 

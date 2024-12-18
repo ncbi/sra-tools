@@ -39,7 +39,7 @@ ToolsRequired(align-info)
           NCBI_SETTINGS=/
           NCBI_VDB_NO_ETC_NCBI_KFG=1
           VDB_CONFIG=
-          sh test-refseq-404.sh ${BINDIR}
+          bash test-refseq-404.sh ${BINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

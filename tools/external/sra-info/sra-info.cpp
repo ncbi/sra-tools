@@ -138,7 +138,7 @@ PlatformToString( const uint32_t id )
         return platform_symbolic_names[ id ];
     }
 
-    return platform_symbolic_names[ SRA_PLATFORM_UNDEFINED ];
+    return "unknown platform";
 }
 
 SraInfo::Platforms
@@ -146,13 +146,23 @@ SraInfo::GetPlatforms() const
 {
     Platforms ret;
 
-    auto const table = openSequenceTable();
+    VDB::Table table = openSequenceTable();
     try
     {
-        table.read({ "PLATFORM" })
-        .foreach([&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values ) {
-            ret.insert( PlatformToString( values[0].valueOr<uint8_t>(SRA_PLATFORM_UNDEFINED) ) );
-        });
+        VDB::Cursor cursor = table.read( { "PLATFORM" } );
+        if ( cursor.isStaticColumn( 0 ) )
+        {
+            VDB::Cursor::RawData rd = cursor.read( 1, 0 );
+            ret.insert( PlatformToString( rd.value<uint8_t>() ) );
+        }
+        else
+        {
+            auto get_platform = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
+            {
+                ret.insert( PlatformToString( values[0].value<uint8_t>() ) );
+            };
+            cursor.foreach( get_platform );
+        }
     }
     catch(VDB::Error & e)
     {
@@ -171,7 +181,7 @@ SraInfo::GetPlatforms() const
 
     if ( ret.size() == 0 )
     {
-        ret.insert( "none provided" );
+        ret.insert( PlatformToString( SRA_PLATFORM_UNDEFINED ) );
     }
     return ret;
 }

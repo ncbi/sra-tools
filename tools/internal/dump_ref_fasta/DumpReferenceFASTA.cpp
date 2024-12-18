@@ -41,6 +41,8 @@
 using namespace ngs;
 using namespace std;
 
+const char UsageDefaultName[] = "dump-ref-fasta";
+
 const String COLON = std::string( ":" );
 const String DASH  = std::string( "-" );
 const String DOT   = std::string( "." );
@@ -181,7 +183,7 @@ class DumpReferenceFASTA
                 if ( line != 0 )
                     cout << '\n';
             }
-            catch ( ErrorMsg x )
+            catch ( const ErrorMsg & x )
             {
                 cerr <<  x.toString() << '\n';
             }
@@ -329,8 +331,6 @@ int run ( int argc, char const *argv[] )
 
 extern "C"
 {
-    const char UsageDefaultName[] = "dump-ref-fasta";
-
     rc_t CC UsageSummary (const char * progname)
     {   // this is not used at this point, see print_help()
         return 0;

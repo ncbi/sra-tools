@@ -39,6 +39,8 @@
 
 using namespace std;
 
+const char UsageDefaultName[] = "sra-search";
+
 struct FragmentId_Less
 {
     bool operator() ( const string& p_a, const string& p_b ) const
@@ -386,8 +388,6 @@ run( int argc, const char *argv [] )
 
 extern "C"
 {
-    const char UsageDefaultName[] = "sra-search";
-
     rc_t CC UsageSummary (const char * progname)
     {   // this is not used at this point, see handle_help()
         return 0;

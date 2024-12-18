@@ -36,8 +36,9 @@
 #include <kapp/args-conv.h>
 #include <kapp/vdbapp.h>
 
-#include "formatter.hpp"
+#include "../../shared/toolkit.vers.h"
 
+#include "formatter.hpp"
 
 using namespace std;
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
@@ -151,7 +152,7 @@ rc_t CC Usage ( const Args * args )
 
     HelpOptionsStandard ();
 
-    HelpVersion ( fullpath, KAppVersion() );
+    HelpVersion ( fullpath, TOOLKIT_VERS );
 
     return rc;
 }

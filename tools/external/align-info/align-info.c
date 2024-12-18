@@ -114,6 +114,8 @@ rc_t CC UsageSummary (const char * progname) {
 
 static const char* param_usage[] = { "Path to the database", NULL };
 
+const char UsageDefaultName[] = "align-info";
+
 rc_t CC Usage(const Args* args) {
     rc_t rc = 0 ;
 
@@ -148,8 +150,6 @@ rc_t CC Usage(const Args* args) {
 
     return rc;
 }
-
-const char UsageDefaultName[] = "align-info";
 
 static rc_t bam_header(const VDatabase* db) {
     rc_t rc = 0;

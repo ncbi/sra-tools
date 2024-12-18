@@ -237,7 +237,7 @@ void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
 
-void data_sources::set_param_bits_env_var(uint64_t bits) const {
+void data_sources::set_param_bits_env_var(uint64_t bits) {
     char buffer[32];
     auto i = sizeof(buffer);
 

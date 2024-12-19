@@ -150,7 +150,7 @@ static const char *USAGE_CHECK_REDACT[] =
 { "check if redaction of bases has been correctly performed (default: false)", NULL };
 
 #define OPTION_REQUIRE_BLOB_CRC "require-blob-checksums"
-static const char *USAGE_REQUIRE_BLOB_CRC[] = 
+static const char *USAGE_REQUIRE_BLOB_CRC[] =
 { "Require blob checksums (default: no)", NULL };
 
 static OptDef options [] =
@@ -312,7 +312,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
           return rc;
       pb -> blob_crc_required = ( cnt != 0 );
   }
-  
+
   {
     rc = ArgsOptionCount(args, OPTION_REF_INT, &cnt);
     if (rc != 0) {
@@ -698,6 +698,9 @@ static rc_t main_with_args(Args *const args)
 
 rc_t CC KMain(int argc, char *argv[])
 {
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     Args *args = NULL;
     rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
                                 options, sizeof(options)/sizeof(options[0]),

@@ -342,6 +342,9 @@ rc_t CC KMain ( int argc, char *argv[] )
     rc_t rc = 0;
     Args * args;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc = ArgsMakeStandardOptions (&args);
     if (rc == 0)
     {

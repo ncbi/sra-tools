@@ -315,6 +315,9 @@ extern "C"
 
     rc_t CC KMain ( int argc, char *argv [] )
     {
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         return run ( argc, (const char**)argv );
     }
 }

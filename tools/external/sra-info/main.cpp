@@ -247,6 +247,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     Args * args;
     rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );

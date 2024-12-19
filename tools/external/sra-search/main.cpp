@@ -388,16 +388,6 @@ run( int argc, const char *argv [] )
 
 extern "C"
 {
-    rc_t CC UsageSummary (const char * progname)
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC Usage ( struct Args const * args )
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
     rc_t CC KMain ( int argc, char *argv [] )
     {
         return run ( argc, (const char**)argv );

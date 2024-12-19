@@ -1314,6 +1314,9 @@ rc_t CC KMain(int argc, char *argv[])
     static const char *help[] = { "--help", "-h", "-?", NULL };
     static const char *vers[] = { "--version", "-V", NULL };
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     bool const has_help = has_arg(help, argc, argv);
     bool const has_vers = has_arg(vers, argc, argv);
     XMLLogger const *logger = NULL;

@@ -481,6 +481,9 @@ rc_t CC KMain(int argc, char* argv[]) {
     Params prm;
     memset(&prm, 0, sizeof prm);
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     do {
         uint32_t pcount = 0;
 

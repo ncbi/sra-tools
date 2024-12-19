@@ -6519,8 +6519,6 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   return rc;
 }
 
-rc_t CC UsageSummary (const char * progname) { return 0; }
-rc_t CC Usage(const Args* args) { return 0; }
 rc_t CC KMain ( int argc, char *argv [] ) {
  int i = smain( argc, argv );
  return i;

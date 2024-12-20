@@ -33,3 +33,11 @@ GenerateExecutableWithDefs( rnd2sra
     "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
 
 target_compile_features( rnd2sra PRIVATE cxx_std_17 )
+
+GenerateExecutableWithDefs( test_rnd2sra
+    src/test_rnd2sra.cpp
+    ""
+    ""
+    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
+
+target_compile_features( test_rnd2sra PRIVATE cxx_std_17 )

@@ -2432,9 +2432,8 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
     {
         rc = run ( &params );
-
-        ArgsWhack ( args );
     }
+    ArgsWhack ( args );
 
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));

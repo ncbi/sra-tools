@@ -95,6 +95,7 @@ AddQueryTest( Test_Sra_Info_Platform_CSRA       1.1 "-P ERR334733" )
 AddQueryTest( Test_Sra_Info_Platform_WGS        1.2 "-P AAAAAA01" )
 AddQueryTest( Test_Sra_Info_Platform_Multiple   2.0 "-P ./input/MultiPlatform_Long.sra"  )
 AddQueryTest( Test_Sra_Info_Platform_Reference  3.0 "-P NC_000001.11" )
+AddQueryTest( Test_Sra_Info_Platform_Missing    4.0 "-P SRR576646" )
 
 # formatting
 AddQueryTest( Test_Sra_Info_Platform_Format_CSV     4.1 "-P ./input/MultiPlatform.sra -f csv" )

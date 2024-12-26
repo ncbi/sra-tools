@@ -300,10 +300,6 @@ rc_t parse_params_int ( Params *p, const Args *args )
 
 rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
 {
-
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     rc_t rc;
 
     p -> members = ( const char ** ) argv;

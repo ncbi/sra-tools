@@ -39,8 +39,8 @@ if( WIN32 )
     )
 endif()
 
-GenerateExecutableWithDefs( vdb-sql "vdb_shell" "" "" "${VDB_SQL_LIB};${COMMON_LINK_LIBRARIES}" )
+GenerateExecutableWithDefs( vdb-sql "vdb_shell" "" "" "kapp;${VDB_SQL_LIB};${COMMON_LINK_LIBRARIES}" )
 MakeLinksExe( vdb-sql false )
 
-GenerateExecutableWithDefs( fastconv "fastconv" "" "" "${COMMON_LINK_LIBRARIES};${VDB_SQL_LIB}" )
+GenerateExecutableWithDefs( fastconv "fastconv" "" "" "kapp;${COMMON_LINK_LIBRARIES};${VDB_SQL_LIB}" )
 MakeLinksExe( fastconv false )

@@ -2097,10 +2097,6 @@ rc_t CC KMain(int argc, char* argv[]) {
     KConfig* cfg = NULL;
     bool configured = false;
 
-
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     if (rc == 0)
         rc = ParamsConstruct(argc, argv, &prm);
 

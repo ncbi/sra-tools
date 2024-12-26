@@ -531,9 +531,6 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     DECLARE_CTX_INFO ();
 
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     /* initialize context */
     Caps caps;
     char cp_src_path [ 4096 ];

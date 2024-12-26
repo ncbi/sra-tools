@@ -2228,9 +2228,6 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc;
     Args * args;
 
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
 #ifdef WITH_VDB_SHELL
     if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
     {

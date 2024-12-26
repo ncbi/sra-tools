@@ -146,9 +146,6 @@ rc_t CC KMain (int argc, char * argv[])
     uint32_t pcount;
     const XMLLogger* xml_logger = NULL;
 
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 2
                                  , Options, sizeof Options / sizeof (OptDef)
                                  , XMLLogger_Args, XMLLogger_ArgsQty);

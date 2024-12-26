@@ -25,13 +25,13 @@
 add_compile_definitions( __mod__="tools/kar" )
 
 # External
-GenerateExecutableWithDefs( kar "kar-path;kar-args;kar" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( kar "kar-path;kar-args;kar" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( kar false )
 
-GenerateExecutableWithDefs( kar+ "kar-path;kar+args;kar+print;kar+util;kar+" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( kar+ "kar-path;kar+args;kar+print;kar+util;kar+" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( kar+ false )
 
-GenerateExecutableWithDefs( kar+meta "kar+util;kar+meta" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( kar+meta "kar+util;kar+meta" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( kar+meta false )
 
 # # ?

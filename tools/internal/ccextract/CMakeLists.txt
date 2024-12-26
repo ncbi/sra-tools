@@ -26,6 +26,7 @@
 if( LibXml2_FOUND )
 	if( SINGLE_CONFIG )
 		set( LIBS
+			kapp
 			${COMMON_LINK_LIBRARIES}
 			kxml
 			${COMMON_LIBS_READ}
@@ -33,6 +34,7 @@ if( LibXml2_FOUND )
 		)
 	else()
 		set( LIBS
+			kapp
 			${COMMON_LINK_LIBRARIES}
 			kxml
 			${COMMON_LIBS_READ}

@@ -909,9 +909,6 @@ rc_t KMain(int argc, char *argv[])
     SRALoaderConfig feInput;
     memset(&feInput, 0, sizeof feInput);
 
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     /* Initialize statics */
     if (rc == 0) {
         rc = KDirectoryNativeDir(&s_Directory);

@@ -3908,9 +3908,6 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     PrfMain pars;
 
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
-
     rc = PrfMainInit(argc, argv, &pars);
 
 #ifdef DBGNG

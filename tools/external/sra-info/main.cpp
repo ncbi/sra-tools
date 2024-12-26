@@ -239,7 +239,11 @@ public:
     bool needContents(void) const { return contents; }
 } Query;
 
+#if WINDOWS && UNICODE
+int wmain(int argc, wchar_t* argv[])
+#else
 int main(int argc, char* argv[])
+#endif
 {
     VDB::VdbApp app( argc, argv );
     if (!app)
@@ -251,7 +255,7 @@ int main(int argc, char* argv[])
     SetUsageSummary( UsageSummary );
 
     Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.GetArgV(),
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );
     DISP_RC( rc, "ArgsMakeAndHandle() failed" );
     if ( rc == 0)

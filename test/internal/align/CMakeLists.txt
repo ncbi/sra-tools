@@ -32,4 +32,4 @@ endif()
 
 include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ )
-AddExecutableTest( SlowTest_Align_estimator "pileup_estimator" "ncbi-ngs-c++;ngs-c++;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+AddExecutableTest( SlowTest_Align_estimator "pileup_estimator" "kapp;ncbi-ngs-c++;ngs-c++;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )

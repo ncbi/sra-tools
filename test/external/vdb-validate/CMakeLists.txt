@@ -30,7 +30,7 @@ if( NOT DEFINED VDB_SRCDIR )
 endif()
 
 AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
-                                "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+                                "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
                                 "${PROJECT_SOURCE_DIR}/tools/external/vdb-validate" )
 
 

@@ -1412,6 +1412,9 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
 rc_t CC KMain( int argc, char *argv [] )
 {
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+        
     rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
     ReportBuildDate( __DATE__ );
     if ( rc != 0 ) {

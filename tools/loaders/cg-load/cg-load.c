@@ -1076,6 +1076,9 @@ rc_t CC KMain( int argc, char* argv[] )
     memset(&params, 0, sizeof(params));
     params.schema = "align/align.vschema";
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     params.argv0 = argv[0];
 
     if( (rc = ArgsMakeAndHandle(&args, argc, argv, 2, MainArgs, MainArgsQty, XMLLogger_Args, XMLLogger_ArgsQty)) == 0 ) {

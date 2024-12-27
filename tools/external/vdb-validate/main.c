@@ -698,6 +698,9 @@ static rc_t main_with_args(Args *const args)
 
 rc_t CC KMain(int argc, char *argv[])
 {
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+        
     Args *args = NULL;
     rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
                                 options, sizeof(options)/sizeof(options[0]),

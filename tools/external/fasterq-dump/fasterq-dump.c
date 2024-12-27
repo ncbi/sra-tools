@@ -847,6 +847,9 @@ rc_t CC KMain ( int argc, char *argv [] ) {
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( 0 != rc ) {
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );

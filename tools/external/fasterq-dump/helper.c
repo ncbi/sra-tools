@@ -335,18 +335,22 @@ const String * hlp_make_string_copy( const char * src )
     return res;
 }
 
+static void hlp_split_at_loc( String * in, String * out_0, String * out_1, char* loc ) {
+    out_0 -> addr = in -> addr;
+    out_0 -> size = ( loc - out_0 -> addr );
+    out_0 -> len  = ( uint32_t ) out_0 -> size;
+    out_1 -> addr = loc + 1;
+    out_1 -> size = in -> len - ( out_0 -> len + 1 );
+    out_1 -> len  = ( uint32_t ) out_1 -> size;
+}
+
 rc_t hlp_split_string( String * in, String * p0, String * p1, uint32_t ch ) {
     rc_t rc = 0;
     char * ch_ptr = string_chr( in -> addr, in -> size, ch );
     if ( NULL == ch_ptr ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
     } else {
-        p0 -> addr = in -> addr;
-        p0 -> size = ( ch_ptr - p0 -> addr );
-        p0 -> len  = ( uint32_t ) p0 -> size;
-        p1 -> addr = ch_ptr + 1;
-        p1 -> size = in -> len - ( p0 -> len + 1 );
-        p1 -> len  = ( uint32_t ) p1 -> size;
+        hlp_split_at_loc( in, p0, p1, ch_ptr );
     }
     return rc;
 }
@@ -357,12 +361,36 @@ rc_t hlp_split_string_r( String * in, String * p0, String * p1, uint32_t ch ) {
     if ( NULL == ch_ptr ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
     } else {
-        p0 -> addr = in -> addr;
-        p0 -> size = ( ch_ptr - p0 -> addr );
-        p0 -> len  = ( uint32_t ) p0 -> size;
-        p1 -> addr = ch_ptr + 1;
-        p1 -> size = in -> len - ( p0 -> len + 1 );
-        p1 -> len  = ( uint32_t ) p1 -> size;
+        hlp_split_at_loc( in, p0, p1, ch_ptr );
+    }
+    return rc;
+}
+
+/* new function to split a path into directory-filename aka stem and extension (Dec 2024) */
+rc_t hlp_split_path_into_stem_and_extension( String *in, String* out_stem, String* out_ext ) {
+    rc_t rc = 0;
+    char * dot_location = string_rchr( in -> addr, in -> size, '.' );
+    if ( NULL == dot_location ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+    } else {
+        char * slash_location = string_rchr( in -> addr, in -> size, '/' );
+        if ( NULL == slash_location ) {
+            /* we do not have a slash -> split at the dot_location */
+            hlp_split_at_loc( in, out_stem, out_ext, dot_location );
+        } else {
+            if ( dot_location < slash_location ) {
+                /* the dot is part of the path - we do not have an extension */
+                out_stem -> addr = in -> addr;
+                out_stem -> size = in -> size;
+                out_stem -> len = in -> len;
+                out_ext -> addr = in -> addr;
+                out_ext -> size = 0;
+                out_ext -> len = 0;
+            } else {
+                /* the dot is for the extension */
+                hlp_split_at_loc( in, out_stem, out_ext, dot_location );
+            }
+        }
     }
     return rc;
 }

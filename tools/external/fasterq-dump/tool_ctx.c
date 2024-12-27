@@ -206,7 +206,11 @@ static rc_t tctx_print( const tool_ctx_t * tool_ctx ) {
 }
 
 static bool tctx_output_exists_whole( const tool_ctx_t * tool_ctx ) {
-    return ft_file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    bool res = ft_file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    if ( !res ) {
+        res = ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    }
+    return res;
 }
 
 static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
@@ -217,6 +221,9 @@ static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) 
                             tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
         res = ft_file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) );
+        if ( !res ) {
+            res = ft_dir_exists( tool_ctx -> dir, "%S", &( s_filename . S ) );
+        }
         release_SBuffer( &s_filename ); /* helper.c */
     }
     return res;
@@ -447,7 +454,7 @@ static rc_t tctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     if ( ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) { /* helper.c */
         /* the given output-filename is an existing directory ! */
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        ErrMsg( "output >%s< already exists", tool_ctx -> output_filename );
     } else {
         rc = tctx_optionally_create_paths_in_output_filename( tool_ctx ); /* above */
     }

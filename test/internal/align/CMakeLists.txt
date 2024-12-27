@@ -26,7 +26,7 @@ add_compile_definitions( __mod__="test/internal/align" )
 
 if( NOT WIN32 )
   if ( NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" ) # Test_Align_samextract hangs on FreeBSD
-    AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
   endif()
 endif()
 

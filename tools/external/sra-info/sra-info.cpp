@@ -288,7 +288,7 @@ SraInfo::GetSpotLayouts(
     SpotLayouts ret;
 
     auto const &table = openSequenceTable(useConsensus);
-    VDB::Cursor cursor = table.read( { "READ_TYPE", "READ_LEN" } );
+    auto const &cursor = table.read( { "READ_TYPE", "READ_LEN", "SPOT_ID" } );
     auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
     {
         vector<INSDC_read_type> types = values[0].asVector<INSDC_read_type>();

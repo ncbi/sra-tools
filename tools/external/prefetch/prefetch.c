@@ -347,6 +347,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
         id = item -> seq_id;
     }
 
+    if (id == NULL)
+        id = resolved->id;
     if ( id == NULL )
         id = resolved -> name;
 
@@ -2133,8 +2135,11 @@ static rc_t ItemInit(Item *self, const char *obj) {
     return 0;
 }
 
-static char* ItemName(const Item *self) {
+static char* ItemName(const Item *self, const char **id) {
     char *c = NULL;
+    const char *dummy = NULL;
+    if (id == NULL)
+        id = &dummy;
     assert(self);
     if (self->desc != NULL)
         return string_dup_measure(self->desc, NULL);
@@ -2144,6 +2149,8 @@ static char* ItemName(const Item *self) {
         rc_t rc = 0;
         const String *elem = NULL;
         assert(self->item);
+        rc = KartItemItemId(self->item, &elem);
+        *id = StringCheck(elem, rc);
         /*
         rc = KartItemItemDesc(self->item, &elem);
         c = StringCheck(elem, rc);
@@ -2156,6 +2163,11 @@ static char* ItemName(const Item *self) {
         if (c != NULL) {
             return c;
         }
+
+        rc = KartItemName(self->item, &elem);
+        c = StringCheck(elem, rc);
+        if (c != NULL)
+            return c;
 
         rc = KartItemItemId(self->item, &elem);
         return StringCheck(elem, rc);
@@ -2500,6 +2512,19 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                         return rc;
                 }
             }
+        
+            if (rc == 0
+                && (
+                    rc3 == RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)
+                    /* 404 */
+                    ||
+                    rc3 == RC(rcNS, rcFile, rcOpening, rcFile, rcUnexpected)
+                    /* Unexpected HTTP status */
+                    )
+                )
+            {
+                rc = rc3;
+            }
         }
     }
 
@@ -2546,7 +2571,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     assert(self && self->mane);
 
     resolved = &self->resolved;
-    resolved->name = ItemName(self);
+    resolved->name = ItemName(self, &resolved->id);
 
     assert(resolved->type != eRunTypeUnknown);
 
@@ -3069,7 +3094,7 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
     rc_t rc = 0;
     char * itemName = NULL;
     assert(self);
-    itemName = ItemName(self);
+    itemName = ItemName(self, NULL);
 
     if (dbgRc == 0xffffffff) {
         if (getenv("VDB5693") != NULL)
@@ -3180,7 +3205,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
     }
 
     if (resolved->path.str != NULL) {
-        char * itemName = ItemName(item);
+        char * itemName = ItemName(item, NULL);
         STSMSG(STS_TOP, ("%d) Resolving '%s's dependencies...",
             item->number, itemName));
         rc = PrfMainDependenciesList(item->mane, resolved, &deps);
@@ -3753,12 +3778,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 if (it.kart != NULL) {
                     STSMSG(STS_TOP, ("Downloading kart file '%s'", realArg));
                     if (type == eRunTypeGetSize)
-                        STSMSG(STS_TOP, ("Checking sizes of kart files..."));
+                        STSMSG(STS_TOP,("Checking the sizes of kart files..."));
                 }
                 else if (self->jwtCart != NULL)
                     STSMSG(STS_TOP, (
                         "Downloading jwt cart file '%s'", self->jwtCart));
-            //    OUTMSG(("\n"));
             }
 
 #ifdef DBGNG

@@ -23,10 +23,12 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-    add_test( NAME Test_qa-stat
+    AddExecutableTest( Test_qa-stats_Input "test-input;../../../tools/test-tools/qa-stats/input.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+
+    add_test( NAME Test_qa-stats
             COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties ( Test_qa-stat
+    set_tests_properties ( Test_qa-stats
         PROPERTIES
             SKIP_REGULAR_EXPRESSION "^Skipped"
     )
@@ -34,8 +36,7 @@ if( NOT WIN32 )
     file(GLOB INPUTS input/*.fast[aq])
     foreach(i ${INPUTS})
         get_filename_component(filename ${i} NAME)
-        message(${filename})
-        add_test( NAME ${i}_fastq
+        add_test( NAME Test_qa_stats_${filename}
             COMMAND bash -c "qa-stats ${i} 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endforeach()

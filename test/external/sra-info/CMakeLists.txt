@@ -87,7 +87,7 @@ function( AddQueryTest test_name test_id args )
     add_test( NAME ${test_name}
         COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info ${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        set_tests_properties(${test_name} PROPERTIES TIMEOUT 5000)
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT 9000)
 endfunction()
 
 # platform

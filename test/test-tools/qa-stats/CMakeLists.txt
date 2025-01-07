@@ -30,4 +30,14 @@ if( NOT WIN32 )
         PROPERTIES
             SKIP_REGULAR_EXPRESSION "^Skipped"
     )
+
+    file(GLOB INPUTS input/*.fast[aq])
+    foreach(i ${INPUTS})
+        get_filename_component(filename ${i} NAME)
+        message(${filename})
+        add_test( NAME ${i}_fastq
+            COMMAND bash -c "qa-stats ${i} 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endforeach()
+
 endif()

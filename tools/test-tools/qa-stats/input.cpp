@@ -790,23 +790,35 @@ struct BasicSource: public Input::Source {
     }
     Input readFASTQ() {
         auto const start = lines;
-        auto const defline = std::string(peek());
-        auto seq = getline();
-        auto nextline = peek();
-        while (defline.front() != nextline.front() && nextline.front() != '+') {
-            seq.append(nextline.data(), nextline.size());
+        auto const defline = std::string{peek()};
+        auto &&defline_start = defline.front();
+        auto nextline = getline();
+        auto seq = nextline;
+        try {
             nextline = getline();
+            while (nextline.front() != defline_start && nextline.front() != '+') {
+                seq.append(nextline.data(), nextline.size());
+                nextline = getline();
+            }
+        }
+        catch (std::ios_base::failure) {
+            goto EndOfFile;
         }
         if (nextline.front() == '+') {
-            auto qual = getline();
-            while (qual.size() < seq.size()) {
-                nextline = getline();
-                qual.append(nextline.data(), nextline.size());
+            try {
+                auto qual = getline();
+                while (qual.size() < seq.size()) {
+                    nextline = getline();
+                    qual.append(nextline.data(), nextline.size());
+                }
+                if (qual.size() != seq.size())
+                    std::cerr << "warning: length of quality != length of sequence in read starting at line " << start << ":\n" << defline << std::endl;
             }
-            if (qual.size() != seq.size())
-                std::cerr << "warning: length of quality != length of sequence in read starting at line " << start << ":\n" << defline << std::endl;
+            catch (std::ios_base::failure) {}
         }
-        return Input{seq};
+    EndOfFile:
+        auto &&read = Read{ 0, (int)seq.length() };
+        return Input{ seq, { read } };
     }
     virtual Input get() {
         auto nrecs = 0;

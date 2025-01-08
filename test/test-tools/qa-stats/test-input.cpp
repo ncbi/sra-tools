@@ -39,8 +39,7 @@ TEST_SUITE(QaStatsInputTestSuite);
 TEST_CASE(Empty)
 {
     string text;
-    Input::Source::StringLiteralType source( {text} );
-    auto i = Input::newSource(source, false );
+    auto i = Input::newSource(Input::Source::StringLiteralType( {text} ), false );
     try
     {
         Input input = i->get();
@@ -60,8 +59,7 @@ TEST_CASE(Fastq)
         "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN\n"
         "+BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540\n"
         "&.<77478889998776776:997974354774779\n";
-    Input::Source::StringLiteralType source( {text} );
-    auto i = Input::newSource(source, false );
+    auto i = Input::newSource(Input::Source::StringLiteralType( {text} ), false );
     Input input = i->get();
     REQUIRE( i->eof() );
 }

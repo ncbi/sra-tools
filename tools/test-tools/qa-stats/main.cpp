@@ -552,7 +552,8 @@ struct App {
         { "progress", "p", "60" },
         { "multithreaded", "t", "1" },
         { "mmap", "m", "1" },
-        { "output", "o", nullptr, true }
+        { "output", "o", nullptr, true },
+        { "fingerprint", "f", false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -578,8 +579,12 @@ struct App {
                 std::cerr << "error: output parameter needs a path" << std::endl;
                 exit(1);
             }
+            if (param == "fingerprint") {
+                use_mmap = std::stoi(value.value()) != 0;
+                continue;
+            }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             std::cerr << "error: Unrecognized parameter " << param << std::endl;

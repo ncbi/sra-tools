@@ -55,13 +55,14 @@ public:
         size_t count = value.length();
         for(size_t i = 0; i < count; ++i)
         {
-            switch (value[i % m_maxReadSize])
+            size_t idx = i % m_maxReadSize;
+            switch ( value[i] )
             {   // do not worry about overflows
-                case 'A': case 'a': ++(a[i]); break;
-                case 'C': case 'c': ++(c[i]); break;
-                case 'G': case 'g': ++(g[i]); break;
-                case 'T': case 't': ++(t[i]); break;
-                default: n[i]++; break;
+                case 'A': case 'a': ++(a[idx]); break;
+                case 'C': case 'c': ++(c[idx]); break;
+                case 'G': case 'g': ++(g[idx]); break;
+                case 'T': case 't': ++(t[idx]); break;
+                default:            ++(n[idx]); break;
             }
         }
         if ( count < m_maxReadSize )
@@ -79,51 +80,40 @@ public:
     {
         std::ostringstream ret;
         ret << "[";
-        std::string comma;
-        for(size_t i = 0; i < m_maxReadSize; ++i)
-        {
-            if ( a[i] != 0 )
-            {
-                ret << comma << R"({"base":"A", "pos":)" << i << R"(, "count":)" << a[i] << "}";
-            }
-            if ( c[i] != 0 )
-            {
-                ret << comma << R"({"base":"C", "pos":)" << i << R"(, "count":)" << c[i] << "}";
-            }
-            if ( g[i] != 0 )
-            {
-                ret << comma << R"({"base":"G", "pos":)" << i << R"(, "count":)" << g[i] << "}";
-            }
-            if ( t[i] != 0 )
-            {
-                ret << comma << R"({"base":"T", "pos":)" << i << R"(, "count":)" << t[i] << "}";
-            }
-            if ( n[i] != 0 )
-            {
-                ret << comma << R"({"base":"N", "pos":)" << i << R"(, "count":)" << n[i] << "}";
-            }
-            if ( ool[i] != 0 )
-            {
-                ret << comma << R"({"base":"OoL", "pos":)" << i << R"(, "count":)" << ool[i] << "}";
-            }
-            if ( i == 0 )
-            {
-                comma = ",";
-            }
-        }
+        vectorToJson( a, "A", ret ); ret << ",";
+        vectorToJson( c, "C", ret ); ret << ",";
+        vectorToJson( g, "G", ret ); ret << ",";
+        vectorToJson( t, "T", ret ); ret << ",";
+        vectorToJson( n, "N", ret ); ret << ",";
+        vectorToJson( ool, "OoL", ret );
         ret << "]";
         return ret.str();
     }
 
 private:
+    typedef std::vector<size_t> BaseAccumulator;
+
+    void vectorToJson( const BaseAccumulator & v, const char * base, std::ostream & out ) const
+    {
+        std::string comma;
+        for(size_t i = 0; i < m_maxReadSize; ++i)
+        {
+            out << comma << R"({"base":")" << base << R"(", "pos":)" << i << R"(, "count":)" << v[i] << "}";
+            if ( i == 0 )
+            {
+                comma = ",";
+            }
+        }
+    }
+
     size_t m_maxReadSize;
 
     // base accumulators:
-    std::vector<size_t> a;
-    std::vector<size_t> c;
-    std::vector<size_t> g;
-    std::vector<size_t> t;
-    std::vector<size_t> n; // everything that is not AGCT
-    std::vector<size_t> ool; // out of read length
+    BaseAccumulator a;
+    BaseAccumulator c;
+    BaseAccumulator g;
+    BaseAccumulator t;
+    BaseAccumulator n; // everything that is not AGCT
+    BaseAccumulator ool; // out of read length
 };
 

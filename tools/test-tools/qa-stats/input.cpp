@@ -938,7 +938,10 @@ struct ThreadedSource : public Input::Source {
     std::queue<Input *> que;
     std::mutex mut;
     std::condition_variable condEmpty, condFull;
+    uint64_t enq = 0;
+    uint64_t deq = 0;
     bool volatile done = false;
+    bool volatile running = false;
     unsigned quemax = 16;
     std::thread th;
 
@@ -948,7 +951,7 @@ struct ThreadedSource : public Input::Source {
         th = std::thread(mainLoop, this);
     }
     ~ThreadedSource() {
-        if (!done) {
+        if (running) {
             done = true;
             std::cerr << "Signaling reader thread to stop ..." << std::endl;
             condFull.notify_one();
@@ -956,7 +959,7 @@ struct ThreadedSource : public Input::Source {
         try { th.join(); } catch (...) {}
     }
     virtual operator bool() const {
-        return eof() ? source : true;
+        return !eof();
     }
     virtual bool eof() const {
         return done && que.empty();
@@ -969,6 +972,10 @@ struct ThreadedSource : public Input::Source {
             if (!que.empty()) {
                 p = que.front();
                 que.pop();
+                ++deq;
+            }
+            else {
+                std::cerr << "Done; dequeued " << deq << " records." << std::endl;
             }
         }
         else {
@@ -977,6 +984,7 @@ struct ThreadedSource : public Input::Source {
                 if (!que.empty()) {
                     p = que.front();
                     que.pop();
+                    ++deq;
                     break;
                 }
                 condEmpty.wait(guard);
@@ -988,11 +996,19 @@ struct ThreadedSource : public Input::Source {
             delete p;
             return result;
         }
-        else
+        else {
+            if (deq != enq) {
+                std::cerr << "Not done; enqueued " << enq << ", dequeued " << deq << " records." << std::endl;
+            }
+            else {
+                std::cerr << "Done; dequeued " << deq << " records." << std::endl;
+            }
             throw std::ios_base::failure("end of file");
+        }
     }
     static void mainLoop(ThreadedSource *self) {
         std::cerr << "Reader thread is running ..." << std::endl;
+        self->running = true;
         for ( ; ; ) {
             try {
                 auto p = new Input(self->source.get());
@@ -1005,6 +1021,7 @@ struct ThreadedSource : public Input::Source {
                     else if (self->quemax < 0x10000)
                         ++self->quemax;
                     self->que.push(p);
+                    ++self->enq;
                 }
                 self->condEmpty.notify_one();
             }
@@ -1012,12 +1029,13 @@ struct ThreadedSource : public Input::Source {
                 self->done = true;
                 self->condEmpty.notify_one();
                 if (self->source.eof())
-                    std::cerr << "Reader thread is done." << std::endl;
+                    std::cerr << "Reader thread is done; enqueued " << self->enq << " records." << std::endl;
                 else
                     std::cerr << "Reader thread caught exception: " << e.what() << std::endl;
                 break;
             }
         }
+        self->running = false;
     }
 };
 

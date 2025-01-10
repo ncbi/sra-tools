@@ -666,9 +666,7 @@ private:
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {
-                if (!source->eof())
-                    throw e;
-                return;
+                ((void)(e));
             }
         }
     }

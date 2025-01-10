@@ -971,8 +971,8 @@ struct ThreadedSource : public Input::Source {
             // the reader thread is not running
             if (!que.empty()) {
                 p = que.front();
+                assert(p != nullptr);
                 que.pop();
-                ++deq;
             }
             else {
                 std::cerr << "Done; dequeued " << deq << " records." << std::endl;
@@ -983,8 +983,8 @@ struct ThreadedSource : public Input::Source {
             while (!done) {
                 if (!que.empty()) {
                     p = que.front();
+                    assert(p != nullptr);
                     que.pop();
-                    ++deq;
                     break;
                 }
                 condEmpty.wait(guard);
@@ -992,8 +992,9 @@ struct ThreadedSource : public Input::Source {
         }
         condFull.notify_one();
         if (p) {
-            Input result(std::move(*p));
+            Input result{std::move(*p)};
             delete p;
+            ++deq;
             return result;
         }
         else {
@@ -1011,7 +1012,7 @@ struct ThreadedSource : public Input::Source {
         self->running = true;
         for ( ; ; ) {
             try {
-                auto p = new Input(self->source.get());
+                auto p = new Input{self->source.get()};
                 {
                     std::unique_lock guard(self->mut);
                     if (self->quemax < self->que.size()) {

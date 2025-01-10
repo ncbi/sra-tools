@@ -518,8 +518,19 @@ public:
         nextReport = now() + (freq = Duration(std::chrono::seconds(seconds)));
     }
     template <typename T>
+    void finalReport(T const &progress, Clock const &now = Reporter::now()) const {
+        auto const elapsed = std::chrono::duration<double>{now - start};
+        if (progress == 0 || elapsed.count() <= 0) {
+            std::cerr << "progress: " << progress << " records" << std::endl;
+        }
+        else {
+            auto const rps = progress / elapsed.count();
+            std::cerr << "progress: " << progress << " records, per second: " << rps << std::endl;
+        }
+    }
+    template <typename T>
     double report(T const &progress, Clock const &now = Reporter::now()) const {
-        std::chrono::duration<double> const elapsed = now - start;
+        auto const elapsed = std::chrono::duration<double>{now - start};
         if (progress == 0 || elapsed.count() < 1)
             return 0;
         auto const rps = progress / elapsed.count();
@@ -627,7 +638,6 @@ private:
         }
         out << '}';
         std::cout << std::endl;
-        reporter.report(processed);
     }
     void gather() {
         auto source = Input::newSource(inputStream(), multithreaded);
@@ -669,6 +679,7 @@ private:
                 ((void)(e));
             }
         }
+        reporter.finalReport(processed);
     }
     Input::Source::Type inputStream() {
         if (arguments.empty())

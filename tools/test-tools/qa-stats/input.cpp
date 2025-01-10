@@ -355,6 +355,7 @@ struct BasicSource: public Input::Source {
     uint8_t *buffer;
     size_t cur = 0, next = 0, block = 0, size = 0, bmax = 0;
     bool isEof = false;
+    bool use_mmap = false;
     int lastReported = 0;
 
     bool shouldReport(int line) {
@@ -368,6 +369,7 @@ struct BasicSource: public Input::Source {
             return false;
 
         if (bmax - size < block) {
+            assert(use_mmap == false);
             auto const temp = realloc(buffer, bmax * 2);
             if (temp == nullptr)
                 throw std::bad_alloc();
@@ -432,10 +434,14 @@ struct BasicSource: public Input::Source {
     ~BasicSource() {
         if (fh > 0)
             close(fh);
+        if (use_mmap) {
+            munmap(buffer, bmax);
+        }
+        else {
+            free(buffer);
+        }
     }
     BasicSource(Input::Source::Type const &src) {
-        bool use_mmap = false;
-
         if (std::holds_alternative<StringLiteralType>(src)) {
             auto const &str = std::get<StringLiteralType>(src).data;
             block = bmax = size = str.size();
@@ -480,6 +486,7 @@ struct BasicSource: public Input::Source {
             std::cerr << "info: could not mmap, was not a file" << std::endl;
         }
 
+        use_mmap = false;
         block = st.st_blksize;
         if (block < 4 * 1024)
             block = 4 * 1024;

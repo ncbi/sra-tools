@@ -801,8 +801,9 @@ struct BasicSource: public Input::Source {
                 nextline = getline();
             }
         }
-        catch (std::ios_base::failure) {
+        catch (std::ios_base::failure const &e) {
             goto EndOfFile;
+            ((void)(e));
         }
         if (nextline.front() == '+') {
             try {
@@ -814,7 +815,9 @@ struct BasicSource: public Input::Source {
                 if (qual.size() != seq.size())
                     std::cerr << "warning: length of quality != length of sequence in read starting at line " << start << ":\n" << defline << std::endl;
             }
-            catch (std::ios_base::failure) {}
+            catch (std::ios_base::failure const &e) {
+                ((void)(e));
+            }
         }
     EndOfFile:
         auto &&read = Read{ 0, (int)seq.length() };

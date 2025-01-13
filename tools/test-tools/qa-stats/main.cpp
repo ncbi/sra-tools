@@ -178,7 +178,7 @@ struct DistanceStats {
                 if (sum == 0) continue;
 
                 out << '{'
-                    << JSON_Member{"wavelength"} << i + 1
+                    << JSON_Member{"length"} << i + 1
                     << JSON_Member{"power"} << double(sum)/total
                 << '}';
             }
@@ -195,7 +195,7 @@ struct DistanceStats {
                 if (sum == 0) continue;
 
                 out << '{'
-                    << JSON_Member{"wavelength"} << i + 1
+                    << JSON_Member{"length"} << i
                     << JSON_Member{"power"} << double(sum)/total
                 << '}';
             }

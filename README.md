@@ -15,12 +15,20 @@ Please visit our [wiki](https://github.com/ncbi/sra-tools/wiki) for information 
 
 ----
 
-## The SRA Toolkit
+## The SRA Toolkit 
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ----
 _January 14, 2025_: **SRA Toolkit Release 3.2.0**
+
+Restored function to list contents of cart files in prefetch.
+
+Prefetch will now print a phid in error message to aid in help desk ticket diagnotics.
+
+Builds will complete on machines without a static C++ library.
+
+CMake now permits building of individual targets.
 
 ----
 _May 21, 2024_: **SRA Toolkit Release 3.1.1**

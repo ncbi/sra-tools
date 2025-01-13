@@ -424,12 +424,16 @@ struct BasicSource: public Input::Source {
         return end != cur ? std::string_view((char *)&buffer[cur], (next - 1) - cur) : std::string_view();
     }
     /// Get next line, skipping empty lines.
-    std::string getline() {
+    std::string getline(bool skipEmpty = true) {
         cur = next;
         auto const curline = peek();
-        if (curline.empty() && isEof)
-            throw std::ios_base::failure("no input");
-        return !curline.empty() ? std::string(curline) : getline();
+        if (curline.empty()) {
+            if (isEof)
+                throw std::ios_base::failure("no input");
+            if (skipEmpty)
+                return getline();
+        }
+        return std::string(curline);
     }
     ~BasicSource() {
         if (fh > 0)
@@ -799,7 +803,7 @@ struct BasicSource: public Input::Source {
         auto const start = lines;
         auto const defline = std::string{peek()};
         auto &&defline_start = defline.front();
-        auto nextline = getline();
+        auto nextline = getline(false);
         auto seq = nextline;
         try {
             nextline = getline();
@@ -814,7 +818,7 @@ struct BasicSource: public Input::Source {
         }
         if (nextline.front() == '+') {
             try {
-                auto qual = getline();
+                auto qual = getline(!seq.empty());
                 while (qual.size() < seq.size()) {
                     nextline = getline();
                     qual.append(nextline.data(), nextline.size());
@@ -1012,9 +1016,9 @@ struct ThreadedSource : public Input::Source {
         self->running = true;
         for ( ; ; ) {
             try {
-                auto p = new Input{self->source.get()};
+                auto p = new Input{ self->source.get() };
                 {
-                    std::unique_lock guard(self->mut);
+                    auto guard = std::unique_lock{ self->mut };
                     if (self->quemax < self->que.size()) {
                         self->quemax -= self->quemax >> 4;
                         do { self->condFull.wait(guard); } while (self->quemax < self->que.size());

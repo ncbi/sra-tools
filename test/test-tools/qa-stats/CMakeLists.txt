@@ -24,7 +24,8 @@
 
 if( NOT WIN32 )
     AddExecutableTest( Test_qa-stats_Input "test-input;../../../tools/test-tools/qa-stats/input.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
-    AddExecutableTest( Test_qa-stats_Fingerprint "test-finger" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Output "test-output;../../../tools/test-tools/qa-stats/output.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Fingerprint "test-finger;../../../tools/test-tools/qa-stats/output.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
 
     add_test( NAME Test_qa-stats
             COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
@@ -42,4 +43,8 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endforeach()
 
-endif()
+    add_test( NAME Test_qa_stats_Finger_1
+    COMMAND bash -c "qa-stats input/1.1.fastq --fingerprint 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    endif()

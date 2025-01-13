@@ -33,6 +33,8 @@
 #include <vector>
 #include <sstream>
 
+#include "output.hpp"
+
 class Fingerprint
 {
 public:
@@ -41,12 +43,12 @@ public:
 public:
     Fingerprint( size_t p_maxReadSize = DefaultMaxReadSize )
     :   m_maxReadSize( p_maxReadSize ),
-        a( p_maxReadSize, 0 ),
-        c( p_maxReadSize, 0 ),
-        g( p_maxReadSize, 0 ),
-        t( p_maxReadSize, 0 ),
-        n( p_maxReadSize, 0 ),
-        ool( p_maxReadSize, 0 )
+        a( "A", p_maxReadSize ),
+        c( "C", p_maxReadSize ),
+        g( "G", p_maxReadSize ),
+        t( "T", p_maxReadSize ),
+        n( "N", p_maxReadSize ),
+        ool( "OoL", p_maxReadSize )
     {
     }
 
@@ -58,11 +60,11 @@ public:
             size_t idx = i % m_maxReadSize;
             switch ( value[i] )
             {   // do not worry about overflows
-                case 'A': case 'a': ++(a[idx]); break;
-                case 'C': case 'c': ++(c[idx]); break;
-                case 'G': case 'g': ++(g[idx]); break;
-                case 'T': case 't': ++(t[idx]); break;
-                default:            ++(n[idx]); break;
+                case 'A': case 'a': ++(a.counts[idx]); break;
+                case 'C': case 'c': ++(c.counts[idx]); break;
+                case 'G': case 'g': ++(g.counts[idx]); break;
+                case 'T': case 't': ++(t.counts[idx]); break;
+                default:            ++(n.counts[idx]); break;
             }
         }
         if ( count < m_maxReadSize )
@@ -70,40 +72,46 @@ public:
             size_t i = count;
             while ( i < m_maxReadSize )
             {
-                ++(ool[i]);
+                ++(ool.counts[i]);
                 ++i;
             }
         }
     };
 
-    std::string toJson() const
+    friend JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
     {
-        std::ostringstream ret;
-        ret << "[";
-        vectorToJson( a, "A", ret ); ret << ",";
-        vectorToJson( c, "C", ret ); ret << ",";
-        vectorToJson( g, "G", ret ); ret << ",";
-        vectorToJson( t, "T", ret ); ret << ",";
-        vectorToJson( n, "N", ret ); ret << ",";
-        vectorToJson( ool, "OoL", ret );
-        ret << "]";
-        return ret.str();
+        out << BaseAccumulator( self.a );
+        out << BaseAccumulator( self.c );
+        out << BaseAccumulator( self.g );
+        out << BaseAccumulator( self.t );
+        out << BaseAccumulator( self.n );
+        out << BaseAccumulator( self.ool );
+        return out;
     }
 
 private:
-    typedef std::vector<size_t> BaseAccumulator;
-
-    void vectorToJson( const BaseAccumulator & v, const char * base, std::ostream & out ) const
+    struct BaseAccumulator
     {
-        std::string comma;
-        for(size_t i = 0; i < m_maxReadSize; ++i)
+        BaseAccumulator( std::string p_base, size_t p_reserve )
+        : base( p_base ), counts( p_reserve, 0 )
         {
-            out << comma << R"({"base":")" << base << R"(", "pos":)" << i << R"(, "count":)" << v[i] << "}";
-            if ( i == 0 )
-            {
-                comma = ",";
-            }
         }
+        std::string base;
+        std::vector<size_t> counts;
+    } ;
+    friend JSON_ostream &operator <<(JSON_ostream &out, BaseAccumulator const &self)
+    {
+        for(size_t i = 0; i < self.counts.size(); ++i)
+        {
+            // if ( i == 0 )
+            //     out << ",";
+            out << '{'
+                << JSON_Member{"base"} << self.base
+                << JSON_Member{"pos"} << i
+                << JSON_Member{"count"} << self.counts[i]
+            << '}';
+        }
+        return out;
     }
 
     size_t m_maxReadSize;

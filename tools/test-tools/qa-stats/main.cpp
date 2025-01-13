@@ -41,6 +41,7 @@
 #include "input.hpp"
 #include "hashing.hpp"
 #include "output.hpp"
+#include "fingerprint.hpp"
 #include <assert.h>
 
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
@@ -452,6 +453,7 @@ struct Stats {
     SpotLayouts layouts;
     DistanceStats spectra;
     ReferenceStats references;
+    Fingerprint fingerprint;
 
     void record(SpotLayout const &desc, Stats *group = nullptr) {
         reads.biological += desc.biological;
@@ -485,12 +487,13 @@ struct Stats {
     }
 
     friend JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-        out << JSON_Member{"reads"}        << '{' << self.reads      << '}';
-        out << JSON_Member{"bases"}        << '[' << self.bases      << ']';
-        out << JSON_Member{"spots"}        << '[' << self.spots      << ']';
-        out << JSON_Member{"spot-layouts"} << '[' << self.layouts    << ']';
-        out << JSON_Member{"spectra"}      << '{' << self.spectra    << '}';
-        out << JSON_Member{"references"}   << '[' << self.references << ']';
+        out << JSON_Member{"reads"}        << '{' << self.reads       << '}';
+        out << JSON_Member{"bases"}        << '[' << self.bases       << ']';
+        out << JSON_Member{"spots"}        << '[' << self.spots       << ']';
+        out << JSON_Member{"spot-layouts"} << '[' << self.layouts     << ']';
+        out << JSON_Member{"spectra"}      << '{' << self.spectra     << '}';
+        out << JSON_Member{"references"}   << '[' << self.references  << ']';
+        out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
 
         return out;
     }
@@ -553,7 +556,7 @@ struct App {
         { "multithreaded", "t", "1" },
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
-        { "fingerprint", "f", false }
+        { "fingerprint", "f", nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -580,7 +583,7 @@ struct App {
                 exit(1);
             }
             if (param == "fingerprint") {
-                use_mmap = std::stoi(value.value()) != 0;
+                fingerprint = true;
                 continue;
             }
             if (param == "help") {
@@ -641,32 +644,39 @@ private:
                 auto const spot = source->get();
                 unsigned naligned = 0;
 
-                if (spotGroup.size() < Input::groups.size())
-                    spotGroup.resize(Input::groups.size(), Stats{});
-
-                auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
-
-                for (auto const &read : spot.reads) {
-                    if (read.type == Input::ReadType::aligned && !read.cigar) {
-                        // This is the sequence record for an aligned read.
-                        // The sequence and alignment details have/will be handled
-                        // by the alignment record.
-                        continue;
-                    }
-                    auto const seq = spot.sequence.substr(read.start, read.length);
-
-                    stats.record(seq, read.type, group);
-                    if (read.type == Input::ReadType::aligned) {
-                        assert(read.reference >= 0);
-                        assert(read.position >= 0);
-                        unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
-                        stats.record(read.reference, read.position, strand, seq, read.cigar, group);
-                        ++naligned;
-                    }
+                if( fingerprint )
+                {
+                    stats.fingerprint.update(spot.sequence );
                 }
-                if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-                    auto const &layout = SpotLayout(spot);
-                    stats.record(layout, group);
+                else
+                {
+                    if (spotGroup.size() < Input::groups.size())
+                        spotGroup.resize(Input::groups.size(), Stats{});
+
+                    auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
+
+                    for (auto const &read : spot.reads) {
+                        if (read.type == Input::ReadType::aligned && !read.cigar) {
+                            // This is the sequence record for an aligned read.
+                            // The sequence and alignment details have/will be handled
+                            // by the alignment record.
+                            continue;
+                        }
+                        auto const seq = spot.sequence.substr(read.start, read.length);
+
+                        stats.record(seq, read.type, group);
+                        if (read.type == Input::ReadType::aligned) {
+                            assert(read.reference >= 0);
+                            assert(read.position >= 0);
+                            unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                            stats.record(read.reference, read.position, strand, seq, read.cigar, group);
+                            ++naligned;
+                        }
+                    }
+                    if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
+                        auto const &layout = SpotLayout(spot);
+                        stats.record(layout, group);
+                    }
                 }
                 reporter.update(++processed);
             }
@@ -687,6 +697,7 @@ private:
     uint64_t processed = 0;
     int multithreaded = 0;
     bool use_mmap = false;
+    bool fingerprint = false;
     std::optional<std::string> output;
 
     Stats stats;

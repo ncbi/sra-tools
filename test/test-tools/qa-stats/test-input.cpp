@@ -39,28 +39,80 @@ TEST_SUITE(QaStatsInputTestSuite);
 TEST_CASE(Empty)
 {
     string text;
-    auto i = Input::newSource(Input::Source::StringLiteralType( {text} ), false );
+    auto i = Input::newSource(Input::Source::StringLiteralType{ text }, false );
     try
     {
-        Input input = i->get();
+        auto input = i->get();
     }
     catch(const ios_base::failure & ex)
     {
-        REQUIRE_EQ( string("no input: iostream error"), string(ex.what()) );
+        REQUIRE_EQ( string{"no input:"}, string{ex.what()}.substr(0, 9) );
     }
 
     REQUIRE( i->eof() );
 }
 
-TEST_CASE(Fastq)
+TEST_CASE(Fastq_1)
 {
-    string text =
+    auto &&source = Input::Source::StringLiteralType{
         "@BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540/1\n"
         "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN\n"
         "+BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540\n"
-        "&.<77478889998776776:997974354774779\n";
-    auto i = Input::newSource(Input::Source::StringLiteralType( {text} ), false );
-    Input input = i->get();
+        "&.<77478889998776776:997974354774779\n"
+    };
+    auto i = Input::newSource( source, false );
+    auto input = i->get();
+    REQUIRE_EQ( string{"GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN"}, input.sequence );
+    try { i->get(); }
+    catch(const ios_base::failure & ex)
+    {
+        REQUIRE_EQ( string{"no input:"}, string{ex.what()}.substr(0, 9) );
+    }
+    REQUIRE( i->eof() );
+}
+
+TEST_CASE(Fastq_2)
+{
+    auto &&source = Input::Source::StringLiteralType{
+        R"###(
+@NB501550:336:H75GGAFXY:2:11101:10137:1038 1:N:0:CTAGGTGA
+NCTATCTAGAATTCCCTACTACTCCC
++
+#AAAAEEEEEEEEEEEEEEEEEEEEE
+)###"
+    };
+    auto i = Input::newSource( source, false );
+    auto input = i->get();
+    REQUIRE_EQ( string{"NCTATCTAGAATTCCCTACTACTCCC"}, input.sequence );
+    try { i->get(); }
+    catch(const ios_base::failure & ex)
+    {
+        REQUIRE_EQ( string{"no input:"}, string{ex.what()}.substr(0, 9) );
+    }
+    REQUIRE( i->eof() );
+}
+
+TEST_CASE(Fastq_File)
+{
+    char const *const expected[] = {
+        "NCTATCTAGAATTCCCTACTACTCCC",
+        "NAGCCGCGTAAGGGAATTAGGCAGCA",
+        "NAATAAGGTAAAGTCACGTCAGTGTT",
+        "NAAGATGTCATCTGTTGTAAGTCCTG",
+        nullptr
+    };
+    auto &&source = Input::Source::FilePathType{"input/001.R1.fastq", false};
+    auto i = Input::newSource( source, false );
+    for (auto e = expected; *e; ++e) {
+        auto const expect = string_view{ *e };
+        auto const input = i->get();
+        REQUIRE_EQ( expect, string_view{ input.sequence } );
+    }
+    try { i->get(); }
+    catch(const ios_base::failure & ex)
+    {
+        REQUIRE_EQ( string{"no input:"}, string{ex.what()}.substr(0, 9) );
+    }
     REQUIRE( i->eof() );
 }
 

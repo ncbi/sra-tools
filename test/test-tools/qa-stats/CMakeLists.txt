@@ -44,7 +44,11 @@ if( NOT WIN32 )
     endforeach()
 
     add_test( NAME Test_qa_stats_Finger_1
-    COMMAND bash -c "qa-stats input/1.1.fastq --fingerprint 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_qa_stats_Finger_2
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     endif()

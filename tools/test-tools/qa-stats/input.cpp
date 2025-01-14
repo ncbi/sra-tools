@@ -266,31 +266,6 @@ static void cleanUpSegments(std::string &sequence, std::vector<int> const &lengt
     return;
 }
 
-static std::string convertFastqQual(std::string const &line, bool *p_changed = nullptr)
-{
-    bool changed;
-    if (p_changed == nullptr)
-        p_changed = &changed;
-
-    *p_changed = false;
-    if (line.end() == std::find_if(line.begin(), line.end(), [](std::string::value_type const &ch) -> bool { return std::isspace(ch); }))
-        return line;
-
-    std::istringstream iss{ line };
-    std::string result;
-
-    result.reserve(line.size() / 3 + 1);
-
-    int qv = 0;
-
-    while (iss >> qv) {
-        result.append(1, (char)('!' + qv));
-    }
-
-    *p_changed = true;
-    return result;
-}
-
 template <typename RR = int, typename WR = int>
 struct RWLock {
     std::mutex mut;
@@ -843,15 +818,10 @@ struct BasicSource: public Input::Source {
         }
         if (nextline.front() == '+') {
             try {
-                bool changed = false;
-                auto qual = convertFastqQual(getline(!seq.empty()), &changed);
+                auto qual = getline(!seq.empty());
 
                 while (qual.size() < seq.size()) {
                     nextline = getline();
-                    if (changed) {
-                        nextline = convertFastqQual(nextline, &changed);
-                        assert(changed);
-                    }
                     qual.append(nextline.data(), nextline.size());
                 }
                 if (qual.size() != seq.size())

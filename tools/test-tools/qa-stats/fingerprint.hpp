@@ -52,7 +52,7 @@ public:
     {
     }
 
-    void update( const std::string & value )
+    void record( const std::string_view & value )
     {
         size_t count = value.length();
         for(size_t i = 0; i < count; ++i)
@@ -103,8 +103,6 @@ private:
     {
         for(size_t i = 0; i < self.counts.size(); ++i)
         {
-            // if ( i == 0 )
-            //     out << ",";
             out << '{'
                 << JSON_Member{"base"} << self.base
                 << JSON_Member{"pos"} << i

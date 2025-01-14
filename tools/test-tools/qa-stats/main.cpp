@@ -479,6 +479,8 @@ struct Stats {
 
         if (group)
             group->record(seq, type);
+
+        fingerprint.record(seq);
     }
     void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar, Stats *group = nullptr) {
         references.record(refId, position, strand, sequence, cigar);
@@ -493,7 +495,8 @@ struct Stats {
         out << JSON_Member{"spot-layouts"} << '[' << self.layouts     << ']';
         out << JSON_Member{"spectra"}      << '{' << self.spectra     << '}';
         out << JSON_Member{"references"}   << '[' << self.references  << ']';
-        out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
+        // fingerprint is only output separately
+        // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
 
         return out;
     }
@@ -618,20 +621,27 @@ private:
     void print(std::ostream &strm) {
         auto out = JSON_ostream(strm);
 
-        out << '{'
-            << JSON_Member{"total"} << '{' << stats << '}';
+        out << '{';
+        if ( fingerprint )
+        {
+            out << JSON_Member{"fingerprint"}  << '[' << stats.fingerprint << ']';
+        }
+        else
+        {
+            out << JSON_Member{"total"} << '{' << stats << '}';
 
-        if (!spotGroup.empty()) {
-            out << JSON_Member{"groups"} << '[';
-            for (auto const &stats : spotGroup) {
-                auto const &group = Input::groups[&stats - &spotGroup[0]];
+            if (!spotGroup.empty()) {
+                out << JSON_Member{"groups"} << '[';
+                for (auto const &stats : spotGroup) {
+                    auto const &group = Input::groups[&stats - &spotGroup[0]];
 
-                out << '{'
-                    << JSON_Member{"group"} << group
-                    << stats
-                << '}';
+                    out << '{'
+                        << JSON_Member{"group"} << group
+                        << stats
+                    << '}';
+                }
+                out << ']';
             }
-            out << ']';
         }
         out << '}';
         std::cout << std::endl;
@@ -644,40 +654,34 @@ private:
                 auto const spot = source->get();
                 unsigned naligned = 0;
 
-                if( fingerprint )
-                {
-                    stats.fingerprint.update(spot.sequence );
-                }
-                else
-                {
-                    if (spotGroup.size() < Input::groups.size())
-                        spotGroup.resize(Input::groups.size(), Stats{});
+                if (spotGroup.size() < Input::groups.size())
+                    spotGroup.resize(Input::groups.size(), Stats{});
 
-                    auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
+                auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
 
-                    for (auto const &read : spot.reads) {
-                        if (read.type == Input::ReadType::aligned && !read.cigar) {
-                            // This is the sequence record for an aligned read.
-                            // The sequence and alignment details have/will be handled
-                            // by the alignment record.
-                            continue;
-                        }
-                        auto const seq = spot.sequence.substr(read.start, read.length);
-
-                        stats.record(seq, read.type, group);
-                        if (read.type == Input::ReadType::aligned) {
-                            assert(read.reference >= 0);
-                            assert(read.position >= 0);
-                            unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
-                            stats.record(read.reference, read.position, strand, seq, read.cigar, group);
-                            ++naligned;
-                        }
+                for (auto const &read : spot.reads) {
+                    if (read.type == Input::ReadType::aligned && !read.cigar) {
+                        // This is the sequence record for an aligned read.
+                        // The sequence and alignment details have/will be handled
+                        // by the alignment record.
+                        continue;
                     }
-                    if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-                        auto const &layout = SpotLayout(spot);
-                        stats.record(layout, group);
+                    auto const seq = spot.sequence.substr(read.start, read.length);
+
+                    stats.record(seq, read.type, group);
+                    if (read.type == Input::ReadType::aligned) {
+                        assert(read.reference >= 0);
+                        assert(read.position >= 0);
+                        unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                        stats.record(read.reference, read.position, strand, seq, read.cigar, group);
+                        ++naligned;
                     }
                 }
+                if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
+                    auto const &layout = SpotLayout(spot);
+                    stats.record(layout, group);
+                }
+
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {

@@ -1,4 +1,4 @@
-# bash
+#/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -45,12 +45,12 @@ SUITEID=$4
 CASEID=$5
 RC=$6
 EXTRA_CHECKER_PRESENT=$7
-if [ "$EXTRA_CHECKER_PRESENT" == "y" ] ; then
-    EXTRA_CHECKER=$8
-    shift 8
-else
+if [ "$EXTRA_CHECKER_PRESENT" != "y" ] ; then
     EXTRA_CHECKER=
     shift 7
+else
+    EXTRA_CHECKER=$8
+    shift 8
 fi
 CMDLINE=$*
 
@@ -83,13 +83,7 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-if [ "$rc" == "0" ] ; then
-    CMD="$DUMP $TEMPDIR/db 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
-    #echo $CMD
-    eval $CMD || exit 3
-    diff $WORKDIR/$SUITEID/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
-    rc="$?"
-else
+if [ "$rc" != "0" ] ; then
     # remove timestamps
     sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
     # remove pathnames
@@ -99,6 +93,12 @@ else
     # remove version number
     sed -i -e 's=latf-load\(\.[0-9]*\)*=latf-load=g' $TEMPDIR/load.stderr
     diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    rc="$?"
+else
+    CMD="$DUMP $TEMPDIR/db 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    #echo $CMD
+    eval $CMD || exit 3
+    diff $WORKDIR/$SUITEID/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 fi
 
@@ -110,7 +110,7 @@ if [ "$rc" != "0" ] ; then
     exit 4
 fi
 
-if [ "$EXTRA_CHECKER_PRESENT" == "y" ] ; then
+if [ "$EXTRA_CHECKER_PRESENT" = "y" ] ; then
     CMD="$EXTRA_CHECKER $CASEID 1>$TEMPDIR/extra_checker.stdout 2>$TEMPDIR/extra_checker.stderr"
     eval $CMD
     rc="$?"

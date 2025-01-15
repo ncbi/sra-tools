@@ -51,7 +51,7 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
         ./runtest.sh ${DIRTOTEST} ${NCBI_VDB_LIBDIR} ${TEMPDIR} ""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET make-read-filter-asan )
         add_test( NAME Test_MakeReadFilter-asan
             COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
@@ -60,6 +60,8 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
             ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} "-asan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+    endif()
+    if( TARGET make-read-filter-tsan )
         add_test( NAME Test_MakeReadFilter-tsan
             COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
@@ -70,6 +72,6 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
         )
     endif()
 
-    else()
+else()
 #TODO: make work on Windows/XCode
 endif()

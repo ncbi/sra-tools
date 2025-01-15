@@ -38,7 +38,7 @@ if [ "$res" == "0" ];
 	then echo "error test FAILED, res=$res output=$output" && exit 1;
 fi
 
-grep -q "ncbi_phid=" <<< "$output" > /dev/null
+echo "${output}" | grep -q "ncbi_phid=" > /dev/null
 res=$?
 if [ "$res" != "0" ];
 	then echo "error test FAILED (no "ncbi_phid" found), res=$res output=$output" && exit 1;

@@ -33,7 +33,7 @@
 #include <kfc/xc.h>
 
 #include <vdb/blob.h>
-#include <vdb/page-map-priv.h>
+#include <kdb/page-map-priv.h>
 
 #include "NGS_Cursor.h"
 #include "CSRA1_Reference.h"

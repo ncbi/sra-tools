@@ -1,0 +1,204 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * VarLoc table
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'insdc/insdc.vschema';
+include 'ncbi/ncbi.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ *  http://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/asn_spec/Variation-inst.html
+ */
+typedef U8 NCBI:var:inst:type;
+const NCBI:var:inst:type NCBI:var:inst:value:unknown          = 0;
+const NCBI:var:inst:type NCBI:var:inst:value:identity         = 1;
+const NCBI:var:inst:type NCBI:var:inst:value:inv              = 2;
+const NCBI:var:inst:type NCBI:var:inst:value:snv              = 3;
+const NCBI:var:inst:type NCBI:var:inst:value:mnp              = 4;
+const NCBI:var:inst:type NCBI:var:inst:value:delins           = 5;
+const NCBI:var:inst:type NCBI:var:inst:value:del              = 6;
+const NCBI:var:inst:type NCBI:var:inst:value:ins              = 7;
+const NCBI:var:inst:type NCBI:var:inst:value:microsatellite   = 8;
+const NCBI:var:inst:type NCBI:var:inst:value:transposon       = 9;
+const NCBI:var:inst:type NCBI:var:inst:value:cnv              = 10;
+const NCBI:var:inst:type NCBI:var:inst:value:direct_copy      = 11;
+const NCBI:var:inst:type NCBI:var:inst:value:rev_direct_copy  = 12;
+const NCBI:var:inst:type NCBI:var:inst:value:inverted_copy    = 13;
+const NCBI:var:inst:type NCBI:var:inst:value:everted_copy     = 14;
+const NCBI:var:inst:type NCBI:var:inst:value:translocation    = 15;
+const NCBI:var:inst:type NCBI:var:inst:value:prot_missense    = 16;
+const NCBI:var:inst:type NCBI:var:inst:value:prot_nonsense    = 17;
+const NCBI:var:inst:type NCBI:var:inst:value:prot_neutral     = 18;
+const NCBI:var:inst:type NCBI:var:inst:value:prot_silent      = 19;
+const NCBI:var:inst:type NCBI:var:inst:value:prot_other       = 20;
+const NCBI:var:inst:type NCBI:var:inst:value:other            = 255;
+
+typedef U8 NCBI:var:source:type;
+const NCBI:var:source:type NCBI:var:source:value:dbSNP        = 1;
+const NCBI:var:source:type NCBI:var:source:value:dbVar        = 2;
+const NCBI:var:source:type NCBI:var:source:value:ClinVar      = 3;
+const NCBI:var:source:type NCBI:var:source:value:other        = 10;
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* tokenize_var_id
+ *   splits into 2 tokens
+ *   0 - prefix
+ *   1 - suffix
+ */
+extern function
+text:token NCBI:var:tokenize_var_id #1 ( ascii var_id );
+
+
+/*--------------------------------------------------------------------------
+ * varloc
+ *  this name is questionable
+ */
+table NCBI:var:tbl:varloc #1
+{
+    /* SQL schema:
+       var_id             varchar(50),
+       parent_var_id      varchar(50) NULL OKAY,
+       var_type           int,
+       var_source         int,
+       gi                 int,
+       pos_from           int,
+       pos_to             int,
+       entrez_id          int,
+       score              int
+    */
+
+    /* VAR_ID
+     *  example: "rs5852452"
+     */
+    extern column ascii VAR_ID = out_var_id;
+
+    // on input, separate into 3 columns
+    ascii in_var_id = VAR_ID;
+    text:token in_var_id_tok = NCBI:var:tokenize_var_id ( in_var_id );
+    ascii in_var_id_prefix = extract_token < 0 > ( in_var_id, in_var_id_tok );
+    ascii in_var_id_suffix_text = extract_token < 1 > ( in_var_id, in_var_id_tok );
+    U32 in_var_id_suffix = strtonum ( in_var_id_suffix_text );
+
+    // prefix column
+    physical column < ascii > zip_encoding .VAR_ID_PREFIX = in_var_id_prefix;
+    physical column < U32 > izip_encoding .VAR_ID_SUFFIX_LEN = row_len ( in_var_id_suffix_text );
+    physical column < U32 > izip_encoding .VAR_ID_SUFFIX = in_var_id_suffix;
+
+    // on output, restore original id
+    U32 out_var_id_suffix = .VAR_ID_SUFFIX;
+    U32 out_var_id_suffix_len = .VAR_ID_SUFFIX_LEN;
+    ascii out_var_id_prefix = .VAR_ID_PREFIX;
+    ascii out_var_id = sprintf < "%s%0*u" > ( out_var_id_prefix, out_var_id_suffix_len, out_var_id_suffix );
+
+    /* PARENT_VAR_ID
+     *  example: "rs5852452"
+     *  may be EMPTY
+     */
+    extern column ascii PARENT_VAR_ID = out_parent_var_id;
+
+    // same treatment as VAR_ID
+    ascii in_parent_var_id = PARENT_VAR_ID;
+    text:token in_parent_var_id_tok = NCBI:var:tokenize_var_id ( in_parent_var_id );
+    ascii in_parent_var_id_prefix = extract_token < 0 > ( in_parent_var_id, in_parent_var_id_tok );
+    ascii in_parent_var_id_suffix_text = extract_token < 1 > ( in_parent_var_id, in_parent_var_id_tok );
+    U32 in_parent_var_id_suffix = strtonum ( in_parent_var_id_suffix_text );
+    physical column < ascii > zip_encoding .PARENT_VAR_ID_PREFIX = in_parent_var_id_prefix;
+    physical column < U32 > izip_encoding .PARENT_VAR_ID_SUFFIX_LEN = row_len ( in_parent_var_id_suffix_text );
+    physical column < U32 > izip_encoding .PARENT_VAR_ID_SUFFIX = in_parent_var_id_suffix;
+    U32 out_parent_var_id_suffix = .PARENT_VAR_ID_SUFFIX;
+    U32 out_parent_var_id_suffix_len = .PARENT_VAR_ID_SUFFIX_LEN;
+    ascii out_parent_var_id_prefix = .PARENT_VAR_ID_PREFIX;
+    ascii out_parent_var_id = sprintf < "%s%.*u" > ( out_parent_var_id_prefix, out_parent_var_id_suffix_len, out_parent_var_id_suffix );
+
+    /* VAR_TYPE
+     */
+    extern column < NCBI:var:inst:type > zip_encoding VAR_TYPE;
+
+    /* VAR_SOURCE
+     */
+    extern column < NCBI:var:source:type > zip_encoding VAR_SOURCE;
+
+    /* GI
+     */
+    extern column < NCBI:gi > izip_encoding GI;
+
+    /* POS_FROM
+     *  starting position
+     */
+    extern column < INSDC:coord:zero > izip_encoding POS_FROM;
+
+    INSDC:coord:zero in_pos_from = POS_FROM;
+    INSDC:coord:zero out_pos_from = .POS_FROM;
+
+    /* POS_TO
+     *  ending position
+     */
+    extern column INSDC:coord:zero POS_TO = out_pos_to;
+
+    INSDC:coord:zero in_pos_to = POS_TO;
+    INSDC:coord:len in_pos_len = ( INSDC:coord:len ) < I32 > diff < -1 > ( in_pos_to, in_pos_from );
+
+    physical column < INSDC:coord:len > izip_encoding .POS_LEN = in_pos_len;
+
+    INSDC:coord:zero out_pos_len = ( INSDC:coord:zero ) .POS_LEN;
+    INSDC:coord:zero out_pos_to = < INSDC:coord:zero > sum < -1 > ( out_pos_from, out_pos_len );
+
+    /* ENTREZ_ID
+     *  do we need this?
+     */
+    extern column < I32 > izip_encoding ENTREZ_ID;
+
+    /* SCORE
+     */
+    extern column < I32 > izip_encoding SCORE;
+};
+
+table NCBI:var:tbl:hitmap #1
+{
+    extern column U32 MAX_SEQ_LEN;    /* must be static                          */
+    extern column bool_encoding HITS; /* places on the reference with variations */
+};
+
+
+/*--------------------------------------------------------------------------
+ * varloc
+ *  contains the varloc table and hit table
+ */
+database NCBI:var:db:varloc #1
+{
+    table NCBI:var:tbl:varloc #1 VARLOC;
+    table NCBI:var:tbl:hitmap #1 HITMAP;
+};

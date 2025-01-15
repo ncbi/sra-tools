@@ -36,10 +36,10 @@ if ( NOT WIN32 )
 
     add_test( NAME Test_FasterDump_Fasta_unsorted_flat_tbl_read_id
         COMMAND
-            bash test_for_read_id_flat.sh ${DIRTOTEST}
+            sh test_for_read_id_flat.sh ${DIRTOTEST}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET fasterq-dump-asan )
         add_test( NAME Test_FasterqDump_Help-asan
             COMMAND ${BINDIR}/fasterq-dump-asan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -48,7 +48,9 @@ if ( NOT WIN32 )
             COMMAND ${BINDIR}/fasterq-dump-asan
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-asan PROPERTIES WILL_FAIL TRUE)
+    endif()
 
+    if( TARGET fasterq-dump-tsan )
         add_test( NAME Test_FasterqDump_Help-tsan
             COMMAND ${BINDIR}/fasterq-dump-tsan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -66,13 +68,13 @@ if ( NOT WIN32 )
         add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
+                sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Tiny_cSRA
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
+                sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     endif()

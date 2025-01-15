@@ -91,7 +91,7 @@ NGS_SRC =                      \
 
 #VARS = -Dvdb.System.loadLibrary=1
 #VARS = -Dvdb.log=FINEST
-#J=/net/pan1/sra-test/local/jdk1.7.0_51/bin/
+#J=/nt/pn1/sratest/local/jdk1.7.0_51/bin/
 #JAVABITS=-d$(BITS)
 
 $(SRCDIR)/NGS.java: \

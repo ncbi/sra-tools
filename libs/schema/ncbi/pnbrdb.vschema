@@ -1,0 +1,98 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+version 1;
+include 'vdb/vdb.vschema';
+
+/* PNBRDB
+ *  the original flat-file pnbrdb structure was divided into two forks:
+ *   1 - "hsp" containing full blastp hsps
+ *   2 - "nbr" containing only pig->pig relationships with max score
+ *
+ *  each fork was organized into bin directories by "query" ( left-hand ) pig
+ *  each bin contained entries for up to 1M query pigs with a numeric
+ *  4 digit 1-based name generated as "( ( qpig - 1 ) / 1024 ) / 1024 + 1".
+ *  this bin approach served as a primitive index.
+ *
+ *  within each bin directory, there are 1024 data files, where each data file
+ *  represented 1024 query pigs. the file name incorporated a 4 digit 1-based
+ *  file id generated as "( ( qpig - 1 ) / 1024 ) % 1024 + 1" making it possible
+ *  to locate any entry by query pig within a 1024 entry neighborhood by using
+ *  filesystem path alone.
+ *
+ *  within each data file, a fixed-size 1024-entry header gave the location of
+ *  entries ordered according to the most common queries.
+ *
+ *  all basic data are contained within the "hsp" fork. the "nbr" fork served
+ *  as a pre-calculated result of the query selecting all unique pig->pig pairs
+ *  with their maximum score value.
+ */
+
+/* The vdb representation of the pnbrdb has two tables
+ *  1. table with one row per qpig (i.e. qpig = row_id) and two columns:
+ *     offset and count. Offset indicates row_id in the second table where the
+ *     hsps for the qpig are stored and count indicates the number of these rows.
+ *  2. table with these coulmns: spig, max_score and blob. The blob contains all
+ *     segments for given (qpig, spig) pair.
+ */
+
+table NCBI:pnbr:table:qpig #1
+{
+    /* OFFSET
+     *  start position of hsps for qpig = row_id in the hsp table.
+     */
+    extern column <U64> izip_encoding OFFSET;
+
+    /* COUNT
+     *  number of hsps for qpig = row_id in the hsp table.
+     */
+    extern column <U64> izip_encoding COUNT;
+};
+
+table NCBI:pnbr:table:hsp #1
+{
+    /* SPIG
+     *  the subject pig column
+     */
+    extern column <U32> izip_encoding SPIG;
+
+    /* MAX_SCORE
+     *  max score between given query pig and subject pig
+     */
+    extern column <I32> izip_encoding MAX_SCORE;
+
+    /* SEGMENTS
+     *  blob for storing hsps for given qpig and spig.
+     */
+    extern column <B8> zip_encoding SEGMENTS;
+};
+
+database NCBI:pnbr:db:pnbr #1
+{
+    table NCBI:pnbr:table:qpig #1 QPIG_REFERENCE;
+    table NCBI:pnbr:table:hsp #1 HSP;
+};
+

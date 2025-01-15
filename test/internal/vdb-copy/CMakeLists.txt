@@ -26,15 +26,21 @@ add_compile_definitions( __mod__="test/internal/vdb-copy" )
 
 ToolsRequired(vdb-copy)
 
+if( NOT DEFINED VDB_SRCDIR )
+    set( VDB_SRCDIR "${VDB_INCDIR}/.." )
+endif()
+
 if( Python3_EXECUTABLE )
 
 	add_test( NAME Test_VDB_Copy_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET vdb-copy-asan )
 		add_test( NAME Test_VDB_Copy_Check_exit_code-asan
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy-asan${EXE}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET vdb-copy-tsan )
 		add_test( NAME Test_VDB_Copy_Check_exit_code-tsan
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy-tsan${EXE}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -42,15 +48,15 @@ if( Python3_EXECUTABLE )
 
 	if ( NOT WIN32 )
 		add_test( NAME Test_VDB_Copy_On_Short_Accession
-			COMMAND bash -c "./copy_and_compare.sh ${DIRTOTEST} SRR000123 ${BINDIR}"
+			COMMAND sh -c "./copy_and_compare.sh ${DIRTOTEST} SRR000123 ${BINDIR}"
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 		add_test( NAME Test_VDB_Copy_Should_Fail_On_Invalid_Accession
-			COMMAND bash -c "./return_code_on_error.sh ${DIRTOTEST}"
+			COMMAND sh -c "./return_code_on_error.sh ${DIRTOTEST}"
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_VDB_Copy_Redaction
-            COMMAND bash -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${VDB_INCDIR}'"
+            COMMAND sh -c "./test-redaction.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${SRC_INTERFACES_DIR}:${VDB_INCDIR}' '${VDB_SRCDIR}'"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 	endif()

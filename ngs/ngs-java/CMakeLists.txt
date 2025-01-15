@@ -144,7 +144,7 @@ if ( Java_FOUND )
         if ( Java_JAR_EXECUTABLE AND NOT (${OS} STREQUAL "windows") )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND
-                bash -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
+                sh -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY ${NGS_JAVADOC_DIR}
             )
@@ -152,7 +152,7 @@ if ( Java_FOUND )
 
             add_custom_target(
                 ngs-src-jar ALL COMMAND
-                bash -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
+                sh -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             )

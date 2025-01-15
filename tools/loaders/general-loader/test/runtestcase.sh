@@ -1,4 +1,4 @@
-# bash
+#!/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -81,7 +81,19 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-if [ "$rc" == "0" ] ; then
+if [ "$rc" != "0" ] ; then
+    echo "Load failed as expected, matching stderr"
+    # remove timestamps
+    sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
+    # remove pathnames
+    sed -i -e 's=/.*/==g' $TEMPDIR/load.stderr
+    # remove source locations
+    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
+    # remove version number
+    sed -i -e 's=general-loader\(\.[0-9]*\)*=general-loader=g' $TEMPDIR/load.stderr
+    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    rc="$?"
+else
     echo "Load succeeded, dumping and matching stdout"
     CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     echo $CMD
@@ -100,25 +112,13 @@ if [ "$rc" == "0" ] ; then
 
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
-else
-    echo "Load failed as expected, matching stderr"
-    # remove timestamps
-    sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
-    # remove pathnames
-    sed -i -e 's=/.*/==g' $TEMPDIR/load.stderr
-    # remove source locations
-    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
-    # remove version number
-    sed -i -e 's=general-loader\(\.[0-9]*\)*=general-loader=g' $TEMPDIR/load.stderr
-    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
-    rc="$?"
 fi
 
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
     echo "Diff failed. Command executed:"
     echo $CMD
-cat $TEMPDIR/load.stderr
+    cat $TEMPDIR/load.stderr
     exit 4
 fi
 

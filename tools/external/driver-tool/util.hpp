@@ -47,6 +47,7 @@
 #include <cstdlib>
 #include <climits>
 #include <vector>
+#include <cassert>
 
 using Dictionary = std::map<std::string, std::string>;
 static inline bool DictionaryHasKey(Dictionary const &dict, std::string const &key)
@@ -180,6 +181,9 @@ public:
     }
     char const &back() const {
         return (*this)[size() - 1];
+    }
+    char const *data() const {
+        return begin_;
     }
     void remove_prefix(size_type n) {
         begin_ += n;

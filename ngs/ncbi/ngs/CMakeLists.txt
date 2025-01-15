@@ -68,9 +68,11 @@ endif()
 
 GenerateStaticLibsWithDefs( ngs "${SRC}" "__mod__=\"ngs/ncbi/ngs\"" "" )
 target_link_libraries( ngs ${COMMON_LIBS_READ} )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ngs-asan ${COMMON_LIBS_READ} )
-	target_link_libraries( ngs-tsan ${COMMON_LIBS_READ} )
+if( TARGET ngs-asan )
+	target_link_libraries( ngs-asan PUBLIC ${COMMON_LIBS_READ} )
+endif()
+if( TARGET ngs-tsan )
+	target_link_libraries( ngs-tsan PUBLIC ${COMMON_LIBS_READ} )
 endif()
 
 

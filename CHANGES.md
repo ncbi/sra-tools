@@ -1,6 +1,23 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.2.0
+**January 14, 2025**
+
+  **align-info, prefetch, vdb, vfs**: prints an error message when unable to resolve an external reference  
+  **bam-load, vdb**: the load process is terminated when background flush terminates with an error  
+  **fastq-dump, kfs**: fixed infinite loop  
+  **kapp, kns, sra-tools**: always use 3 part tool version in User-Agent request header  
+  **kdb, vdb-validate**: will find corruption via the MD5 sums  
+  **kdb, vdb, vdb-dump**: fixed request of vdb-version on AD (Accession-as-Directory)  
+  **ncbi-vdb, ngs-tools, sra-tools**: fixed error message asking to run configure  
+  **sra**: added sequencing platform SINGULAR_GENOMICS  
+  **sra-tools, vfs**: fixed resolving of WGS references in AD when not running in the same directory  
+  **sra-tools, vfs**: fixed VDB version headers to always include patch version  
+  **sra-tools, vfs**: simplified name resolving  
+  **sra-tools, ngs-tools**: SRA Tools were moved from ngs-tools to sra-tools
+
+
 ## SRA Toolkit 3.1.1
 **May 21, 2024**
 

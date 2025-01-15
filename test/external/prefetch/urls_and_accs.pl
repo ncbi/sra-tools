@@ -193,7 +193,7 @@ $REFSEQF = "$SRAF:data/sracloud/traces/refseq/$REFSEQC";
 
 print "prefetch $REFSEQ when there is no kfg\n";
 `rm -f $REFSEQC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQ";
+$CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=1 VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQ";
 print "$CMD\n" if $VERBOSE;
 `$CMD`; die if $?;
 `rm $REFSEQC`; die if $?;

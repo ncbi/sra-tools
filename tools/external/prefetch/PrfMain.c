@@ -384,7 +384,7 @@ static const char* FAIL_ASCP_USAGE[] = {
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-/*static const char*LIST_USAGE[] = {"List the content of a kart file.", NULL};*/
+static const char* LIST_USAGE[] = {"List the content of a kart file.", NULL};
 
 #define LOCN_OPTION "location"
 #define LOCN_ALIAS  NULL
@@ -392,8 +392,8 @@ static const char* LOCN_USAGE[] = { "Location of data.", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
-/*static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers.", NULL }; */
+static const char* NM_L_USAGE[] =
+{ "List the content of a kart file with kart row numbers.", NULL };
 
 #define MINSZ_ALIAS  "N"
 static const char* MINSZ_USAGE[] =
@@ -430,9 +430,8 @@ static const char* ROWS_USAGE[] =
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
-/*static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes.", NULL }; */
-
+static const char* SZ_L_USAGE[] =
+{ "List the content of a kart file with target file sizes.", NULL };
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
 static const char* TRANS_USAGE[] = {
@@ -490,11 +489,9 @@ static OptDef OPTIONS[] = {
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
 ,{ CHECK_NEW_OPTION   , CHECK_NEW_ALIAS   ,NULL,CHECK_NEW_USAGE,1, true ,false }
-/*
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-*/
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
@@ -729,7 +726,7 @@ option_name = VALIDATE_OPTION;
     }
 }
 
-#if 0
+#if 1
 /******* LIST OPTIONS BEGIN ********/
 /* LIST_OPTION */
         rc = ArgsOptionCount(self->args, LIST_OPTION, &pcount);

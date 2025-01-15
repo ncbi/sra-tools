@@ -463,7 +463,7 @@ char const * spot_batch_size[] =
 static
 char const * number_of_threads[] =
 {
-    "number of threads (default: 8)",
+    "number of threads (3 or greater; can be 0, means default: 8)",
     NULL
 };
 
@@ -478,6 +478,13 @@ static
 char const * min_batch_size_usage[] =
 {
     "Set the minimum batch size for spot assembly (default: 10,000,000 spots)",
+    NULL
+};
+
+static
+char const * telemetry_usage[] =
+{
+    "Path and Name of the telemetry file.",
     NULL
 };
 
@@ -522,7 +529,7 @@ OptDef Options[] =
     { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
     { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false },
     { OPTION_MIN_BATCH_SIZE, NULL, NULL, min_batch_size_usage, 1, true,  false },
-    { OPTION_TELEMETRY, NULL, NULL, number_of_threads, 1, true, false },
+    { OPTION_TELEMETRY, NULL, NULL, telemetry_usage, 1, true, false },
 };
 
 const char* OptHelpParam[] =
@@ -566,7 +573,7 @@ const char* OptHelpParam[] =
     NULL,				/* threads */
     NULL,				/* extra logging */
     "count",     	    /* min cache size */
-    "file-name"			/* telemetry file name */    
+    "file-name"			/* telemetry file name */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -1135,7 +1142,16 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             rc = ArgsOptionValue (args, OPTION_THREADS, 0, (const void **)&value);
             if (rc)
                 break;
-            G.numThreads = strtoul(value, &dummy, 0);
+
+            char* p;
+            G.numThreads = strtoul(value, &p, 0);
+            if ( * p != 0 || ( G.numThreads < 3 && G.numThreads != 0 ) )
+            {
+                rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcIncorrect);
+                OUTMSG (("threads: bad value (must be an integer >=3, or 0)\n"));
+                MiniUsage (args);
+                break;
+            }
             if (G.numThreads == 0)
                 G.numThreads = 8;
         }

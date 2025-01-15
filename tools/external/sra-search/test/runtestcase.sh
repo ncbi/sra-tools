@@ -1,4 +1,4 @@
-# bash
+#!/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -56,7 +56,7 @@ RC=0
 ARGS=""
 SORT=""
 
-while [[ $# > 1 ]]
+while [ $# -gt 1 ]
 do
     key="$1"
     case $key in
@@ -104,10 +104,10 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/$CASEID*
 
-if [ "$SORT" == "" ] ; then
-    CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
-else
+if [ "$SORT" != "" ] ; then
     CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT"
+else
+    CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
 fi
 
 export NCBI_SETTINGS=/

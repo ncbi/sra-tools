@@ -237,7 +237,7 @@ void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
 
-void data_sources::set_param_bits_env_var(uint64_t bits) const {
+void data_sources::set_param_bits_env_var(uint64_t bits) {
     char buffer[32];
     auto i = sizeof(buffer);
 
@@ -539,7 +539,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
                             if (ngc == nullptr && projectId) {
                                 std::cerr <<
                                     "The data for " << query << " from " << service << "." << region << " is encrypted.\n"
-                                    "To use this data, please get an ngc file from dbGaP for " << projectId << ", and rerun with --ngc <file>." << std::endl;
+                                    "To use this data, please get an ngc file from dbGaP for " << projectId.value() << ", and rerun with --ngc <file>." << std::endl;
                                 encrypted = true;
                                 continue;
                             }

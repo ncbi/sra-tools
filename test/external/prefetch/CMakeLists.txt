@@ -43,10 +43,12 @@ if ( NOT WIN32 )
 	add_test( NAME Test_Prefetch_urls_and_accs
 		COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME Test_Prefetch_urls_and_accs-asan
 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_urls_and_accs-tsan
 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -56,10 +58,12 @@ if ( NOT WIN32 )
 		COMMAND
                perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME Test_Prefetch_out_dir_and_file-asan
 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_out_dir_and_file-tsan
 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,28 +72,32 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_dflt
 		COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash runtests.sh ${DIRTOTEST} prefetch ${TESTBINDIR}  # 123
+            sh runtests.sh ${DIRTOTEST} prefetch ${TESTBINDIR}  # 123
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_dflt-asan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "runtests.sh ${DIRTOTEST}" prefetch-asan ${TESTBINDIR}
+				sh -c "runtests.sh ${DIRTOTEST}" prefetch-asan ${TESTBINDIR}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_dflt-tsan
 			COMMAND
 				${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-				bash -c "runtests.sh ${DIRTOTEST}" prefetch-tsan ${TESTBINDIR}
+				sh -c "runtests.sh ${DIRTOTEST}" prefetch-tsan ${TESTBINDIR}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
 	add_test( NAME Test_Prefetch_outs
 		COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch 0  # 1234
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME Test_Prefetch_outs-asan
             COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch-asan
 		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_outs-tsan
             COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch-tsan
 		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -98,10 +106,12 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_1GB
 		COMMAND perl ncbi1GB.pl ${DIRTOTEST} prefetch  # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_1GB-asan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_1GB-tsan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -110,10 +120,12 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_vdbcache
 		COMMAND perl vdbcache.pl ${DIRTOTEST} prefetch 0 # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_vdbcache-asan
 			COMMAND perl vdbcache.pl ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_vdbcache-tsan
 			COMMAND perl vdbcache.pl ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

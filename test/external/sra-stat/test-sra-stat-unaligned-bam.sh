@@ -16,7 +16,7 @@ NCBI_SETTINGS=/ ${bin_dir}/${latf_load} \
     -o actual/from-latf-load \
     --platform ILLUMINA \
     --quality PHRED_33 \
-    db/unaligned.fastq 2> actual/latf-load.stderr >actual/latf-load.stdout
+    db/unaligned.fastq -L debug -+VDB -+KFG 2> actual/latf-load.stderr >actual/latf-load.stdout
 res=$?
 if [ "$res" != "0" ];
 	then echo "FAILED to load with latf-load, res=$res" && exit 1;

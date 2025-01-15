@@ -29,14 +29,16 @@ if ( NOT WIN32 )
 
     ToolsRequired( align-cache vdb-validate )
     add_test( NAME Test_Align_Cache
-          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${DIRTOTEST} align-cache
+          COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${DIRTOTEST} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET align-cache-asan )
         add_test( NAME Test_Align_Cache-asan
-              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-asan
+              COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${BINDIR} align-cache-asan
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET align-cache-tsan )
         add_test( NAME Test_Align_Cache-tsan
-              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-tsan
+              COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${BINDIR} align-cache-tsan
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 

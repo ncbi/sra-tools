@@ -803,12 +803,8 @@ rc_t tbl_select ( KDBMetaParms * pb)
     }
 #endif
     if ( read_only ) {
-        if (pb->remote != NULL)
             rc = KDBManagerOpenTableReadVPath ( pb -> mgr,
-                ( const KTable** ) & tbl, pb->remote );
-        else
-            rc = KDBManagerOpenTableRead ( pb -> mgr,
-                ( const KTable** ) & tbl, "%s", pb->targ );
+                ( const KTable** ) & tbl, pb->local);
     }
     if ( rc != 0 )
         PLOGERR ( klogErr,  (klogErr, rc, "failed to open table '$(tbl)'", "tbl=%s", pb->targ ));
@@ -862,9 +858,9 @@ rc_t db_select (KDBMetaParms * pb)
     }
 #endif
     if ( read_only ) {
-        if (pb->remote != NULL)
+        if (VPathIsRemote(pb->local))
             rc = KDBManagerVPathOpenRemoteDBRead ( pb -> mgr,
-                ( const KDatabase** ) & db, pb->remote, pb->cache );
+                ( const KDatabase** ) & db, pb->local, pb->cache );
         else
             rc = KDBManagerOpenDBRead ( pb -> mgr,
                 ( const KDatabase** ) & db, "%s", pb->targ );
@@ -1262,11 +1258,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     else
                     {
                         const VFSManager * vfs = NULL;
-                        VResolver * resolver = NULL;
-                        VPath * query = NULL;
-                        const VPath * local = NULL;
-                        const VPath * remote = NULL;
                         const VPath * cache = NULL;
+                        const VPath * resolved = NULL;
                         char objpath [ 4096 ];
                         bool found = false;
                         uint32_t type;
@@ -1274,24 +1267,18 @@ rc_t CC KMain ( int argc, char *argv [] )
                         rc = KDBManagerGetVFSManager ( mgr,
                             ( VFSManager ** )&vfs );
                         if ( rc == 0 ) {
-                            rc = VFSManagerGetResolver ( vfs, & resolver );
                             if ( rc == 0 ) {
-                                rc = VFSManagerMakePath ( vfs, & query,
-                                    "%s", pc );
-                                if ( rc == 0 )
-                                {
-                                    rc = VResolverQuery ( resolver, 0, query,
-                                        &local, NULL, NULL );
-                                    if (rc == 0)
+                                    rc = VFSManagerResolveWithCache(vfs,
+                                        pc, &resolved, &cache);
+                                    if (rc == 0 && !VPathIsRemote(resolved))
                                     {
-                                        rc = VPathReadPath(local,
+                                        rc = VPathReadPath(resolved,
                                             objpath, sizeof objpath, NULL);
                                         if (rc == 0)
                                             found = true;
                                     }
                                     else if ( GetRCState ( rc ) == rcNotFound )
                                         rc = 0;
-                                }
                             }
                         }
 
@@ -1306,8 +1293,10 @@ rc_t CC KMain ( int argc, char *argv [] )
                         }
 
                         if (found)
-                            type = KDBManagerPathTypeVP(mgr, local);
+                            /* resolved locally */
+                            type = KDBManagerPathTypeVP(mgr, resolved);
                         else
+                            /* check as local path */
                             type = KDBManagerPathType (mgr, "%s", objpath);
                             
                         switch (type)
@@ -1329,12 +1318,12 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                         case kptNotFound:
                           {
-                            if (resolver != NULL) {
-                                rc = VResolverQuery(resolver, 0, query, NULL,
-                                    &remote, &cache);
+                            if (resolved != NULL) {
                                 if (rc == 0) {
-                                    type = KDBManagerPathTypeVP(mgr, remote);
-                                    rc = VPathReadUri(remote, objpath, sizeof objpath, NULL);
+                                    /* resolved remotely */
+                                    type = KDBManagerPathTypeVP(mgr, resolved);
+                                    rc = VPathReadUri(resolved,
+                                        objpath, sizeof objpath, NULL);
                                     if (rc == 0)
                                         found = true;
                                 }
@@ -1379,17 +1368,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                             else
                             {
                                 rc = tool_select (mgr, type,
-                                    local, remote, cache, objpath, &q);
+                                    resolved, 0, cache, objpath, &q);
                                 
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
 
-                        VPathRelease(local);
-                        VPathRelease(remote);
                         VPathRelease(cache);
-                        VPathRelease(query);
-                        VResolverRelease(resolver);
                         VFSManagerRelease(vfs);
                     }
                     KDBManagerRelease (mgr);

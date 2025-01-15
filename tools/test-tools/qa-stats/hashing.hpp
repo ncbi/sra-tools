@@ -37,6 +37,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <functional>
+#include <algorithm>
 
 static inline char complement_base(char base) {
     switch (base) {

@@ -1,0 +1,236 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * INSDC types, constants
+ */
+version 1;
+
+
+/*--------------------------------------------------------------------------
+ * dna
+ *  represented in IUPAC characters
+ */
+typedef ascii INSDC:dna:text;
+
+
+/*--------------------------------------------------------------------------
+ * 4na
+ *  nucleotide data with all possible ambiguity
+ *  does not represent all possible EVENTS
+ *
+ *  text encodings use the IUPAC character set
+ *  legal values: [ACMGRSVTWYHKDBNacmgrsvtwyhkdbn.]
+ *  canonical values: [ACMGRSVTWYHKDBN]
+ *
+ *  binary values are 0..15 => { NACMGRSVTWYHKDBN }
+ *
+ *  4na values use bits for each letter:
+ *
+ *       A | C | G | T
+ *    ==================
+ *    N    |   |   |
+ *    A  * |   |   |
+ *    C    | * |   |
+ *    M  * | * |   |
+ *    G    |   | * |
+ *    R  * |   | * |
+ *    S    | * | * |
+ *    V  * | * | * |
+ *    T    |   |   | *
+ *    W  * |   |   | *
+ *    Y    | * |   | *
+ *    H  * | * |   | *
+ *    K    |   | * | *
+ *    D  * |   | * | *
+ *    B    | * | * | *
+ *    N  * | * | * | *
+ */
+typedef	U8 INSDC:4na:bin;
+typedef	B1 INSDC:4na:packed [ 4 ];
+
+const INSDC:4na:bin INSDC:4na:map:BINSET
+    = [ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 ];
+const INSDC:dna:text INSDC:4na:map:CHARSET
+    = ".ACMGRSVTWYHKDBN";
+const INSDC:dna:text INSDC:4na:accept:CHARSET
+    = ".ACMGRSVTWYHKDBNacmgrsvtwyhkdbn";
+
+/*--------------------------------------------------------------------------
+ * 2na  - nucleotide data A,T,G,C
+ * x2na - nucleotide data extended with single ambiguity value (N)
+ *
+ *  text encodings use the IUPAC character set
+ *  legal values: [ACGTNacgtn.]
+ *  canonical values: [ACGTN]
+ *
+ *  x2na values are 0..4 => { ACGTN } or { ACGUN }
+ *
+ *  2na values exclude N:
+ *    A = 0
+ *    C = 1
+ *    G = 2
+ *    T = 3
+ */
+typedef U8 INSDC:2na:bin;
+typedef U8 INSDC:x2na:bin;
+typedef B1 INSDC:2na:packed [ 2 ];
+
+const INSDC:2na:bin  INSDC:2na:map:BINSET      = [ 0,1,2,3 ];
+const INSDC:dna:text INSDC:2na:map:CHARSET     = "ACGT";
+const INSDC:dna:text INSDC:2na:accept:CHARSET  = "ACGTacgt";
+
+const INSDC:x2na:bin INSDC:x2na:map:BINSET     = [ 0,1,2,3,4 ];
+const INSDC:dna:text INSDC:x2na:map:CHARSET    = "ACGTN";
+const INSDC:dna:text INSDC:x2na:accept:CHARSET = "ACGTNacgtn.";
+
+
+/*--------------------------------------------------------------------------
+ * color - color-space text
+ * 2cs   - color-space data 0,1,2,3
+ * x2cs  - color-space data extended with single ambiguity value (.)
+ *
+ *  text encodings use the ASCII numeric character set
+ *  values: [0123.]
+ *
+ *  x2cs values are 0..4 = { 0123. }
+ *
+ *  2cs values exclude '.':
+ *    '0' = 0
+ *    '1' = 1
+ *    '2' = 2
+ *    '3' = 3
+ */
+typedef ascii INSDC:color:text;
+typedef U8 INSDC:2cs:bin;
+typedef U8 INSDC:x2cs:bin;
+typedef B1 INSDC:2cs:packed [ 2 ];
+
+const INSDC:2cs:bin  INSDC:2cs:map:BINSET        = [ 0,1,2,3 ];
+const INSDC:color:text INSDC:2cs:map:CHARSET     = "0123";
+const INSDC:color:text INSDC:2cs:accept:CHARSET  = "0123";
+const INSDC:x2cs:bin INSDC:x2cs:map:BINSET       = [ 0,1,2,3,4 ];
+const INSDC:color:text INSDC:x2cs:map:CHARSET    = "0123.";
+const INSDC:color:text INSDC:x2cs:accept:CHARSET = "0123.";
+
+const U8 INSDC:color:default_matrix =
+[
+    0, 1, 2, 3, 4,
+    1, 0, 3, 2, 4,
+    2, 3, 0, 1, 4,
+    3, 2, 1, 0, 4,
+    4, 4, 4, 4, 4
+];
+
+/*--------------------------------------------------------------------------
+ * protein
+ *  represented in IUPAC characters
+ */
+typedef ascii INSDC:protein:text;
+
+/*--------------------------------------------------------------------------
+ * aa
+ *  protein data
+ *  text encodings use the IUPAC character set
+ */
+typedef	U8 INSDC:aa:bin;
+
+const INSDC:aa:bin INSDC:aa:map:BINSET
+= [ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27 ];
+const INSDC:protein:text INSDC:aa:map:CHARSET
+    = "ABCDEFGHIKLMNPQRSTVWXYZU*OJ";
+const INSDC:protein:text INSDC:aa:accept:CHARSET
+    = "ABCDEFGHIJKLMNOPQRSTVWXYZU*abcdefghijklmnopqrstvwxyzu";
+
+
+/*--------------------------------------------------------------------------
+ * quality
+ *  quality scoring values
+ *
+ *  phred legal values: 0..63
+ */
+typedef U8 INSDC:quality:phred;
+typedef I8 INSDC:quality:log_odds;
+
+// text-encoding of quality scores
+// offsets are 33 = '!' and 64 = '@'
+typedef ascii INSDC:quality:text:phred_33;
+typedef ascii INSDC:quality:text:phred_64;
+typedef ascii INSDC:quality:text:log_odds_64;
+
+
+/*--------------------------------------------------------------------------
+ * coordinate
+ *  zero and one based coordinates
+ */
+
+// 32 bit coordinates
+typedef I32 INSDC:coord:val;
+typedef U32 INSDC:coord:len;
+
+// zero or one based coordinate system
+typedef INSDC:coord:val INSDC:coord:zero;
+typedef INSDC:coord:val INSDC:coord:one;
+
+// POSITION types for relating bases to their location in signal
+typedef INSDC:coord:zero INSDC:position:zero;
+typedef INSDC:coord:one INSDC:position:one;
+
+// one-based coordinate limits
+const INSDC:coord:one INSDC:coord:min:one = 0x80000001;
+const INSDC:coord:one INSDC:coord:max:one = 0x3FFFFFFF;
+
+// zero-based coordinate limits
+const INSDC:coord:zero INSDC:coord:min:zero = 0x80000000;
+const INSDC:coord:zero INSDC:coord:max:zero = 0x3FFFFFFE;
+
+/*-------------------------------------------------------------------------
+ * spot and read filters bits
+ */
+typedef U8 INSDC:SRA:read_filter;
+const INSDC:SRA:read_filter SRA_READ_FILTER_PASS = 0;
+const INSDC:SRA:read_filter SRA_READ_FILTER_REJECT = 1;
+const INSDC:SRA:read_filter SRA_READ_FILTER_CRITERIA = 2;
+const INSDC:SRA:read_filter SRA_READ_FILTER_REDACTED = 3;
+
+typedef U8 INSDC:SRA:spot_filter;
+const INSDC:SRA:spot_filter SRA_SPOT_FILTER_PASS = 0;
+const INSDC:SRA:spot_filter SRA_SPOT_FILTER_REJECT = 1;
+const INSDC:SRA:spot_filter SRA_SPOT_FILTER_CRITERIA = 2;
+const INSDC:SRA:spot_filter SRA_SPOT_FILTER_REDACTED = 3;
+
+/*-------------------------------------------------------------------------
+ * read type bits
+ */
+typedef U8 INSDC:SRA:xread_type;
+const INSDC:SRA:xread_type SRA_READ_TYPE_TECHNICAL  = 0;
+const INSDC:SRA:xread_type SRA_READ_TYPE_BIOLOGICAL = 1;
+const INSDC:SRA:xread_type SRA_READ_TYPE_FORWARD    = 2;
+const INSDC:SRA:xread_type SRA_READ_TYPE_REVERSE    = 4;
+
+// original read-types included only technical and biological
+typedef INSDC:SRA:xread_type INSDC:SRA:read_type;
+

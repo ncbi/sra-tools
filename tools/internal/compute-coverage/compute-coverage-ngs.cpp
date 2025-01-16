@@ -33,6 +33,8 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
+const char UsageDefaultName[] = "compute-coverage-ngs";
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static
@@ -184,8 +186,6 @@ int run ( int argc, char const * argv [] ) {
 
 extern "C"
 {
-    const char UsageDefaultName[] = "compute-coverage-ngs";
-
     rc_t CC UsageSummary (const char * progname)
     {   // this is not used at this point, see handle_help()
         return 0;
@@ -198,6 +198,9 @@ extern "C"
 
     rc_t CC KMain ( int argc, char *argv [] )
     {
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         return run ( argc, (const char**)argv );
     }
 }

@@ -25,6 +25,7 @@
 # External
 if( NOT WIN32 )
 	set( LIBS
+		kapp
 		${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_READ}
 	)

@@ -43,6 +43,7 @@ if( LibXml2_FOUND )
 
 	if (SINGLE_CONFIG )
 		set( LOADER_LIB
+			kapp
 			loader
 			${COMMON_LINK_LIBRARIES}
 			${COMMON_LIBS_WRITE}
@@ -53,6 +54,7 @@ if( LibXml2_FOUND )
 
 	else()
 		set( LOADER_LIB
+			kapp
 			loader
 			${COMMON_LINK_LIBRARIES}
 			${COMMON_LIBS_WRITE}

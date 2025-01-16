@@ -34,6 +34,7 @@
 #include <klib/defs.h>
 #include <klib/log.h>
 #include <klib/status.h>
+#include <kapp/vdbapp.h>
 
 #include <assert.h>
 #include <string.h>
@@ -46,7 +47,7 @@ const char de[]             = "en";
 
 
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
     /* name            alias max times oparam required fmtfunc help text loc */
     { OPTION_FORCE,   ALIAS_FORCE,   NULL, ForceUsage,   0, false, false },
@@ -189,6 +190,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     KStsLevelSet (1);
 

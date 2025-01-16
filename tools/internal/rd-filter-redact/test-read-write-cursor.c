@@ -36,6 +36,9 @@ rc_t CC KMain(int argc, char* argv[])
     const char table[] = "/home/klymenka/REDACT-IN";
     const char name[] = "READ_FILTER";
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = 0;
 
     bool locked = false;

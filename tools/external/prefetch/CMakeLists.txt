@@ -36,5 +36,5 @@ set( SRC
 	PrfOutFile
 )
 
-GenerateExecutableWithDefs( prefetch "${SRC}" "" "" "ascp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( prefetch "${SRC}" "" "" "ascp;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( prefetch true )

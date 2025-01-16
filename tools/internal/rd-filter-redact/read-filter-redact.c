@@ -307,7 +307,7 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
     while (rc == 0 && ! self->eof) {
         rc = SpotIteratorReadLine(self);
 
-        /* skip empty lines */ 
+        /* skip empty lines */
         if ((rc == 0) && (self->inBuffer > 0)) {
             spotid_t spot = 0;
 
@@ -526,7 +526,7 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
             PLOGERR(klogErr, (klogErr, rc,
                 "while opening VTable '$(table)'", "table=%s", args->table));
         }
-    } 
+    }
 
     if( rc == 0) {
         rc = VTableOpenMetadataUpdate ( db->tbl, & db->meta );
@@ -705,7 +705,7 @@ static rc_t fill_timestring( char * s, size_t size )
 {
     KTime tr;
     rc_t rc;
-    
+
     KTimeLocal ( &tr, KTimeStamp() );
     rc = string_printf ( s, size, NULL, "%lT", &tr );
 
@@ -1025,6 +1025,9 @@ rc_t CC KMain(int argc, char* argv[])
     Args* args = NULL;
 
     CmdLine cmdArgs;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     LogLevelSet("info");
 

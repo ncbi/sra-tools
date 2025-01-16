@@ -27,5 +27,5 @@ set( SRC
 	meta-copy
 )
 
-GenerateExecutableWithDefs( meta-copy "${SRC}" "__mod__=\"tools/internal/meta-copy\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( meta-copy "${SRC}" "__mod__=\"tools/internal/meta-copy\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( meta-copy false )

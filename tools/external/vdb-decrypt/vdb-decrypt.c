@@ -35,6 +35,7 @@
 #include <klib/defs.h>
 #include <klib/log.h>
 #include <klib/status.h>
+#include <kapp/vdbapp.h>
 
 #include <assert.h>
 #include <ctype.h> /* isdigit */
@@ -51,7 +52,7 @@ const char OptionSra[] = OPTION_DEC_SRA;
 
 
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
     /* name            alias max times oparam required fmtfunc help text loc */
     { OPTION_DEC_SRA, ALIAS_DEC_SRA, NULL, UsageSra,      0, false, false },
@@ -60,7 +61,7 @@ OptDef Options[] =
 };
 
 
-static 
+static
 bool DecryptSraFlag = false;
 
 
@@ -188,7 +189,7 @@ rc_t CryptFile (const KFile * in, const KFile ** new_in,
     case encError:
         rc = RC (rcExe, rcFile, rcClassifying, rcFile, rcInvalid);
         break;
-        
+
     case encNone:
     copy:
         rc = KFileAddRef (in);
@@ -264,6 +265,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     KStsLevelSet (1);
 

@@ -33,7 +33,7 @@ add_compile_definitions( __mod__="test/external/prefetch" )
 if ( NOT WIN32 )
 	ToolsRequired(prefetch srapath)
 
-	GenerateExecutableWithDefs( test-quality "test-quality" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( test-quality "test-quality" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 	add_test( NAME Test_Prefetch_In_PATH
 		COMMAND

@@ -31,5 +31,5 @@ set( SRC
 	cgi_request
 	srapath
 )
-GenerateExecutableWithDefs( srapath "${SRC}" "__mod__=\"tools/srapath\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( srapath "${SRC}" "__mod__=\"tools/srapath\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( srapath true )

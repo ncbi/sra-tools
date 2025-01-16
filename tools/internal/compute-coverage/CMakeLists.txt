@@ -42,6 +42,7 @@ target_link_libraries ( compute-coverage
 add_executable        ( compute-coverage-ngs compute-coverage-ngs.cpp )
 
 target_link_libraries ( compute-coverage-ngs
+    kapp
     ncbi-ngs
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}

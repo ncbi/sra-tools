@@ -906,7 +906,7 @@ static rc_t RepairCheckTable(Repair *self) {
     rc_t rc = 0, r2 = 0;
     const struct VDBManager *m = NULL;
     const VTable *t = NULL;
-    
+
     STSMSG(1, ("Checking for -TSEQUENCE...\n"));
 
     assert(self);
@@ -914,7 +914,7 @@ static rc_t RepairCheckTable(Repair *self) {
     self->tblOpt = "";
 
     rc = VDBManagerMakeRead(&m, NULL);
-    
+
     if (rc == 0) {
         rc = VDBManagerOpenTableRead(m, &t, NULL, "%s", self->inDir);
         if (rc == 0)
@@ -935,7 +935,7 @@ static rc_t RepairCheckTable(Repair *self) {
                 rc = r2;
         }
     }
-    
+
     r2 = VTableRelease(t);
     if (r2 != 0 && rc == 0)
         rc = r2;
@@ -1020,7 +1020,7 @@ static rc_t RepairDoFix(const Repair *self) {
     rc = RepairExecute(self, command);
     if (rc == 0)
         PLOGMSG(klogInfo, (klogInfo, "Updated $(F) from $(O) to $(N)",
-            "F=%s,O=%lu,N=%lu", self->name, self->actual, self->expected)); 
+            "F=%s,O=%lu,N=%lu", self->name, self->actual, self->expected));
 
     return rc;
 }
@@ -1177,10 +1177,84 @@ static rc_t RepairFix(Repair *self) {
     return rc;
 }
 
+const char UsageDefaultName [] = "meta-repair";
+
+rc_t CC UsageSummary (const char *progname) {return 0;}
+
+rc_t CC Usage (const Args *args){
+    char const *progname = UsageDefaultName;
+    char const *fullpath = UsageDefaultName;
+    rc_t rc = 0;
+    unsigned i = 0;
+
+    rc = ArgsProgram(args, &fullpath, &progname);
+
+    UsageSummary(progname);
+
+    KOutMsg( "Options:\n" );
+    for (i = 0; i < sizeof OPTIONS / sizeof OPTIONS[0]; ++i)
+        HelpOptionLine(OPTIONS[i].aliases, OPTIONS[i].name,
+                          USAGE_PARAMS[i], OPTIONS[i].help);
+    XMLLogger_Usage();
+    KOutMsg( "\n" );
+    HelpOptionsStandard();
+
+
+    KOutMsg( "\n\n" );
+    KOutMsg( "Use examples:\n" );
+
+    KOutMsg("\n");
+    KOutMsg( "  To generate a fix file named 'fix.file' for an input archive "
+             "'SRR1215779':\n"
+             "     if exit code is 0 - fix is not needed;\n"
+             "     if exit code is not 0 - fix is needed or failure.\n"
+             "    If fix is needed "
+                    "- returned rc is 'data unequal while validating data'.\n"
+             "\n"
+             "  $ meta-repair --mode check -i SRR1215779 > fix.file 2>&1\n\n");
+    KOutMsg( "\n" );
+
+    KOutMsg( "  To replace an archive named 'SRR1215779'"
+             " with fix file named 'fix.file' as file 'SRR1215779.sra'"
+             "\n\n"
+             "  $ meta-repair --mode fix -i SRR1215779 -F fix.file "
+                                             "-o SRR1215779.sra\n\n");
+    KOutMsg( "\n" );
+
+    KOutMsg( "  You can pipe input file as:"
+             "\n\n"
+             "  $ cat fix.file | meta-repair --mode fix -i SRR1215779 -F - "
+                                                     "-o SRR1215779.sra\n\n");
+
+    KOutMsg("\n");
+
+    KOutMsg( "Use --info to report (field, old value, correct value) "
+    "for all fields examined even if the old value is correct.\n\n");
+
+    KOutMsg( "Binaries needed:\n"
+    "- for check mode:\n"
+    "  -  sra-stat\n"
+    "- for fix mode:\n"
+    "  -  kar\n"
+    "  -  kdbmeta\n"
+    "  -  prefetch\n"
+    "  -  vdb-lock\n"
+    "  -  vdb-unlock\n");
+
+    HelpVersion(fullpath, KAppVersion());
+
+    return rc;
+}
+
+
 rc_t KMain(int argc, char *argv[]){
     rc_t rc = 0, r2 = 0;
     Args *args=NULL;
     Repair pars;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     r2 = RepairInit(&pars, argc, argv, &args);
     if (rc == 0 && r2 != 0)
         rc = r2;
@@ -1253,75 +1327,6 @@ rc_t KMain(int argc, char *argv[]){
 
     if (rc == 0 && pars.fix[0] != '\0' && !(pars.mode & eFix))
         rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
-
-    return rc;
-}
-
-const char UsageDefaultName [] = "meta-repair";
-
-rc_t CC UsageSummary (const char *progname) {return 0;}
-
-rc_t CC Usage (const Args *args){
-    char const *progname = UsageDefaultName;
-    char const *fullpath = UsageDefaultName;
-    rc_t rc = 0;
-    unsigned i = 0;
-
-    rc = ArgsProgram(args, &fullpath, &progname);
-
-    UsageSummary(progname);
-
-    KOutMsg( "Options:\n" );
-    for (i = 0; i < sizeof OPTIONS / sizeof OPTIONS[0]; ++i)
-        HelpOptionLine(OPTIONS[i].aliases, OPTIONS[i].name,
-                          USAGE_PARAMS[i], OPTIONS[i].help);
-    XMLLogger_Usage();
-    KOutMsg( "\n" );
-    HelpOptionsStandard();
-
-
-    KOutMsg( "\n\n" );
-    KOutMsg( "Use examples:\n" );
-
-    KOutMsg("\n");
-    KOutMsg( "  To generate a fix file named 'fix.file' for an input archive "
-             "'SRR1215779':\n"
-             "     if exit code is 0 - fix is not needed;\n"
-             "     if exit code is not 0 - fix is needed or failure.\n"
-             "    If fix is needed "
-                    "- returned rc is 'data unequal while validating data'.\n"
-             "\n"
-             "  $ meta-repair --mode check -i SRR1215779 > fix.file 2>&1\n\n");
-    KOutMsg( "\n" );
-
-    KOutMsg( "  To replace an archive named 'SRR1215779'"
-             " with fix file named 'fix.file' as file 'SRR1215779.sra'"
-             "\n\n"
-             "  $ meta-repair --mode fix -i SRR1215779 -F fix.file "
-                                             "-o SRR1215779.sra\n\n");
-    KOutMsg( "\n" );
-
-    KOutMsg( "  You can pipe input file as:"
-             "\n\n"
-             "  $ cat fix.file | meta-repair --mode fix -i SRR1215779 -F - "
-                                                     "-o SRR1215779.sra\n\n");
-
-    KOutMsg("\n");
- 
-    KOutMsg( "Use --info to report (field, old value, correct value) "
-    "for all fields examined even if the old value is correct.\n\n");
-
-    KOutMsg( "Binaries needed:\n"
-    "- for check mode:\n"
-    "  -  sra-stat\n"
-    "- for fix mode:\n"
-    "  -  kar\n"
-    "  -  kdbmeta\n"
-    "  -  prefetch\n"
-    "  -  vdb-lock\n"
-    "  -  vdb-unlock\n");
-
-    HelpVersion(fullpath, KAppVersion());
 
     return rc;
 }

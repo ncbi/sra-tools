@@ -41,6 +41,7 @@
 #include "input.hpp"
 #include "hashing.hpp"
 #include "output.hpp"
+#include "fingerprint.hpp"
 #include <assert.h>
 
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
@@ -452,6 +453,7 @@ struct Stats {
     SpotLayouts layouts;
     DistanceStats spectra;
     ReferenceStats references;
+    Fingerprint fingerprint;
 
     void record(SpotLayout const &desc, Stats *group = nullptr) {
         reads.biological += desc.biological;
@@ -477,6 +479,8 @@ struct Stats {
 
         if (group)
             group->record(seq, type);
+
+        fingerprint.record(seq);
     }
     void record(int refId, int position, int strand, std::string const &sequence, CIGAR const &cigar, Stats *group = nullptr) {
         references.record(refId, position, strand, sequence, cigar);
@@ -485,12 +489,14 @@ struct Stats {
     }
 
     friend JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-        out << JSON_Member{"reads"}        << '{' << self.reads      << '}';
-        out << JSON_Member{"bases"}        << '[' << self.bases      << ']';
-        out << JSON_Member{"spots"}        << '[' << self.spots      << ']';
-        out << JSON_Member{"spot-layouts"} << '[' << self.layouts    << ']';
-        out << JSON_Member{"spectra"}      << '{' << self.spectra    << '}';
-        out << JSON_Member{"references"}   << '[' << self.references << ']';
+        out << JSON_Member{"reads"}        << '{' << self.reads       << '}';
+        out << JSON_Member{"bases"}        << '[' << self.bases       << ']';
+        out << JSON_Member{"spots"}        << '[' << self.spots       << ']';
+        out << JSON_Member{"spot-layouts"} << '[' << self.layouts     << ']';
+        out << JSON_Member{"spectra"}      << '{' << self.spectra     << '}';
+        out << JSON_Member{"references"}   << '[' << self.references  << ']';
+        // fingerprint is only output separately
+        // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
 
         return out;
     }
@@ -563,7 +569,8 @@ struct App {
         { "progress", "p", "60" },
         { "multithreaded", "t", "1" },
         { "mmap", "m", "1" },
-        { "output", "o", nullptr, true }
+        { "output", "o", nullptr, true },
+        { "fingerprint", "f", nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -589,8 +596,12 @@ struct App {
                 std::cerr << "error: output parameter needs a path" << std::endl;
                 exit(1);
             }
+            if (param == "fingerprint") {
+                fingerprint = true;
+                continue;
+            }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             std::cerr << "error: Unrecognized parameter " << param << std::endl;
@@ -621,20 +632,27 @@ private:
     void print(std::ostream &strm) {
         auto out = JSON_ostream(strm);
 
-        out << '{'
-            << JSON_Member{"total"} << '{' << stats << '}';
+        out << '{';
+        if ( fingerprint )
+        {
+            out << JSON_Member{"fingerprint"}  << '[' << stats.fingerprint << ']';
+        }
+        else
+        {
+            out << JSON_Member{"total"} << '{' << stats << '}';
 
-        if (!spotGroup.empty()) {
-            out << JSON_Member{"groups"} << '[';
-            for (auto const &stats : spotGroup) {
-                auto const &group = Input::groups[&stats - &spotGroup[0]];
+            if (!spotGroup.empty()) {
+                out << JSON_Member{"groups"} << '[';
+                for (auto const &stats : spotGroup) {
+                    auto const &group = Input::groups[&stats - &spotGroup[0]];
 
-                out << '{'
-                    << JSON_Member{"group"} << group
-                    << stats
-                << '}';
+                    out << '{'
+                        << JSON_Member{"group"} << group
+                        << stats
+                    << '}';
+                }
+                out << ']';
             }
-            out << ']';
         }
         out << '}';
         std::cout << std::endl;
@@ -673,6 +691,7 @@ private:
                     auto const &layout = SpotLayout(spot);
                     stats.record(layout, group);
                 }
+
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {
@@ -691,6 +710,7 @@ private:
     uint64_t processed = 0;
     int multithreaded = 0;
     bool use_mmap = false;
+    bool fingerprint = false;
     std::optional<std::string> output;
 
     Stats stats;

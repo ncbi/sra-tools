@@ -23,7 +23,12 @@
 # ===========================================================================
 
 if( NOT WIN32 )
+
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
     AddExecutableTest( Test_qa-stats_Input "test-input;../../../tools/test-tools/qa-stats/input.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Output "test-output;../../../tools/test-tools/qa-stats/output.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Fingerprint "test-finger;../../../tools/test-tools/qa-stats/output.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
 
     add_test( NAME Test_qa-stats
             COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
@@ -37,8 +42,16 @@ if( NOT WIN32 )
     foreach(i ${INPUTS})
         get_filename_component(filename ${i} NAME)
         add_test( NAME Test_qa_stats_${filename}
-            COMMAND bash -c "qa-stats ${i} 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
+            COMMAND sh -c "${BINDIR}/qa-stats ${i} 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endforeach()
 
-endif()
+    add_test( NAME Test_qa_stats_Finger_1
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_qa_stats_Finger_2
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    endif()

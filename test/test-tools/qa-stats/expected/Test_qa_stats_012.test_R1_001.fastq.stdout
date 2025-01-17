@@ -1,0 +1,150 @@
+{
+	"total": {
+		"reads": {
+			"count": 3,
+			"biological": 3,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "N",
+				"biological": 3
+			},
+			{
+				"base": "W",
+				"biological": 42
+			},
+			{
+				"base": "S",
+				"biological": 33
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 3,
+				"biological": 3,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 3
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "26BF",
+				"count": 3
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 0.419355
+				},
+				{
+					"length": 1,
+					"power": 0.225806
+				},
+				{
+					"length": 2,
+					"power": 0.0322581
+				},
+				{
+					"length": 3,
+					"power": 0.0967742
+				},
+				{
+					"length": 4,
+					"power": 0.0645161
+				},
+				{
+					"length": 5,
+					"power": 0.0967742
+				},
+				{
+					"length": 9,
+					"power": 0.0645161
+				}
+			],
+			"S": [
+				{
+					"length": 0,
+					"power": 0.333333
+				},
+				{
+					"length": 1,
+					"power": 0.166667
+				},
+				{
+					"length": 2,
+					"power": 0.166667
+				},
+				{
+					"length": 3,
+					"power": 0.0416667
+				},
+				{
+					"length": 5,
+					"power": 0.0833333
+				},
+				{
+					"length": 6,
+					"power": 0.0833333
+				},
+				{
+					"length": 7,
+					"power": 0.0416667
+				},
+				{
+					"length": 9,
+					"power": 0.0416667
+				},
+				{
+					"length": 10,
+					"power": 0.0416667
+				}
+			],
+			"S-W": [
+				{
+					"length": 0,
+					"power": 0.607143
+				},
+				{
+					"length": 1,
+					"power": 0.107143
+				},
+				{
+					"length": 2,
+					"power": 0.142857
+				},
+				{
+					"length": 3,
+					"power": 0.0714286
+				},
+				{
+					"length": 4,
+					"power": 0.0714286
+				}
+			],
+			"K-M": [
+				{
+					"length": 0,
+					"power": 0.5
+				},
+				{
+					"length": 1,
+					"power": 0.269231
+				},
+				{
+					"length": 2,
+					"power": 0.115385
+				},
+				{
+					"length": 4,
+					"power": 0.115385
+				}
+			]
+		},
+		"references": []
+	}
+}

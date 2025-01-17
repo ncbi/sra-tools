@@ -1,0 +1,178 @@
+{
+	"total": {
+		"reads": {
+			"count": 3,
+			"biological": 3,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "N",
+				"biological": 1
+			},
+			{
+				"base": "W",
+				"biological": 139
+			},
+			{
+				"base": "S",
+				"biological": 25
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 3,
+				"biological": 3,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 3
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "55BF",
+				"count": 3
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 0.840909
+				},
+				{
+					"length": 1,
+					"power": 0.0606061
+				},
+				{
+					"length": 2,
+					"power": 0.0378788
+				},
+				{
+					"length": 3,
+					"power": 0.0151515
+				},
+				{
+					"length": 6,
+					"power": 0.00757576
+				},
+				{
+					"length": 7,
+					"power": 0.00757576
+				},
+				{
+					"length": 8,
+					"power": 0.00757576
+				},
+				{
+					"length": 14,
+					"power": 0.00757576
+				},
+				{
+					"length": 30,
+					"power": 0.00757576
+				},
+				{
+					"length": 32,
+					"power": 0.00757576
+				}
+			],
+			"S": [
+				{
+					"length": 0,
+					"power": 0.388889
+				},
+				{
+					"length": 1,
+					"power": 0.166667
+				},
+				{
+					"length": 2,
+					"power": 0.0555556
+				},
+				{
+					"length": 3,
+					"power": 0.0555556
+				},
+				{
+					"length": 4,
+					"power": 0.111111
+				},
+				{
+					"length": 8,
+					"power": 0.0555556
+				},
+				{
+					"length": 9,
+					"power": 0.0555556
+				},
+				{
+					"length": 30,
+					"power": 0.0555556
+				},
+				{
+					"length": 35,
+					"power": 0.0555556
+				}
+			],
+			"S-W": [
+				{
+					"length": 0,
+					"power": 0.478261
+				},
+				{
+					"length": 1,
+					"power": 0.173913
+				},
+				{
+					"length": 2,
+					"power": 0.217391
+				},
+				{
+					"length": 4,
+					"power": 0.0434783
+				},
+				{
+					"length": 29,
+					"power": 0.0434783
+				},
+				{
+					"length": 30,
+					"power": 0.0434783
+				}
+			],
+			"K-M": [
+				{
+					"length": 0,
+					"power": 0.433333
+				},
+				{
+					"length": 1,
+					"power": 0.233333
+				},
+				{
+					"length": 2,
+					"power": 0.133333
+				},
+				{
+					"length": 3,
+					"power": 0.0666667
+				},
+				{
+					"length": 4,
+					"power": 0.0333333
+				},
+				{
+					"length": 24,
+					"power": 0.0333333
+				},
+				{
+					"length": 29,
+					"power": 0.0666667
+				}
+			]
+		},
+		"references": []
+	}
+}

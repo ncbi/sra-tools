@@ -262,6 +262,11 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
 
+        # has reads with duplicate subsequnces and should fail
+        SharqTest(017.dedup.fail 1 "${IN}017.R1.fq ${IN}017.R2.fq" "no-sa")  # VDB--5542
+        # has reads with duplicate subsequnces but dedup shoudl clean them up 
+        SharqTest(017.dedup.pass 0 "--dedup ${IN}017.R1.fq ${IN}017.R2.fq" "only-sa")  # VDB--5542
+
     endif()
 
 endif()

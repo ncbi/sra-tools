@@ -1,0 +1,37 @@
+{
+	"total": {
+		"reads": {
+			"count": 2,
+			"biological": 2,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "N",
+				"biological": 2
+			},
+			{
+				"base": "W",
+				"biological": 4
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 2,
+				"biological": 2,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 2
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "3BF",
+				"count": 2
+			}
+		],
+		"spectra": {},
+		"references": []
+	}
+}

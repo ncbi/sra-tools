@@ -162,7 +162,7 @@ static inline JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &se
         << self.g
         << self.t
         << self.n
-        << self.eor;
+        << self.ool;
     return out;
 }
 

@@ -59,7 +59,7 @@ struct Fingerprint
     , g( "G", p_maxReadSize )
     , t( "T", p_maxReadSize )
     , n( "N", p_maxReadSize )
-    , eor( "EoR", p_maxReadSize )
+    , ool( "OoL", p_maxReadSize )
     {}
 
     void record(char base, size_t position)
@@ -75,7 +75,7 @@ struct Fingerprint
         accum->record(position);
     }
     void recordEnd(size_t length) {
-        eor.record(length);
+        ool.record(length);
     }
     void record(std::string_view value)
     {
@@ -92,7 +92,7 @@ struct Fingerprint
     Accumulator g;
     Accumulator t;
     Accumulator n; // everything that is not AGCT
-    Accumulator eor; // end of read
+    Accumulator ool; // end of read
 };
 
 #endif // fingerprint_hpp

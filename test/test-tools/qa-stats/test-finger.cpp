@@ -31,6 +31,8 @@
 
 #include <ktst/unit_test.hpp>
 
+#define EOR_FLD ool
+#define EOR_TAG "OoL"
 using namespace std;
 
 TEST_SUITE(QaStatsFingerprintTestSuite);
@@ -47,7 +49,7 @@ TEST_CASE(Empty)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -65,7 +67,7 @@ TEST_CASE(EmptyRead)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -83,7 +85,7 @@ TEST_CASE(OneBase)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -131,12 +133,12 @@ TEST_CASE(AllBases)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 4,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 5,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
@@ -196,12 +198,12 @@ TEST_CASE(MultiRead)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 4,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 5,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
@@ -248,7 +250,7 @@ TEST_CASE(ReadHash_example_Fig_1_Fig_2)
     require_eq(fp.g, expectedG);
     require_eq(fp.t, expectedT);
     require_eq(fp.n, expectedN);
-    require_eq(fp.eor, expectedE);
+    require_eq(fp.EOR_FLD, expectedE);
 }
 
 TEST_CASE(WrapAround)
@@ -288,9 +290,9 @@ TEST_CASE(WrapAround)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 1,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"EoR\",\n\t\t\"pos\": 2,\n\t\t\"count\": 2\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 2\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {

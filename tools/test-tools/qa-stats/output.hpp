@@ -140,4 +140,32 @@ JSON_ostream &operator <<(JSON_ostream &s, T const &v) {
     return s.insert(v);
 }
 
+#ifdef fingerprint_hpp
+
+static inline JSON_ostream &operator <<(JSON_ostream &out, Fingerprint::Accumulator const &self)
+{
+    for (size_t i = 0; i < self.size(); ++i) {
+        out << '{'
+            << JSON_Member{"base"} << self.base
+            << JSON_Member{"pos"} << i
+            << JSON_Member{"count"} << self[i]
+        << '}';
+    }
+    return out;
+}
+
+
+static inline JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
+{
+    out << self.a
+        << self.c
+        << self.g
+        << self.t
+        << self.n
+        << self.eor;
+    return out;
+}
+
+#endif // fingerprint_hpp
+
 #endif /* output_hpp */

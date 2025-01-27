@@ -69,6 +69,8 @@
 #include <condition_variable>
 #include <chrono>
 
+#include <fingerprint.hpp>
+
 using namespace std::chrono_literals;
 
 
@@ -107,11 +109,11 @@ struct queue_t {
     bool finished{false};
     //ReaderWriterQueue<T> queue{QUEUE_SIZE};
     BlockingReaderWriterQueue<T> queue{QUEUE_SIZE};
-    
+
     size_t enqueue_count{0};
     size_t dequeue_count{0};
 
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
     std::chrono::duration<double> enqueue_idle_time;
     spdlog::stopwatch enqueue_sw;
     std::chrono::duration<double> dequeue_idle_time;
@@ -121,13 +123,13 @@ struct queue_t {
 
     size_t enqueue_idle_count{0};
     size_t dequeue_idle_count{0};
-#endif    
-    queue_t(const string& name, atomic<bool>& is_cancel) 
+#endif
+    queue_t(const string& name, atomic<bool>& is_cancel)
         : m_name(name), is_cancelled(is_cancel)
     {
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
         queue_sw.reset();
-#endif        
+#endif
     }
 #ifdef PRINT_QUEUE_T_STATS
     ~queue_t() {
@@ -146,28 +148,28 @@ struct queue_t {
             logger->info("--------------------");
         }
     }
-#endif    
+#endif
 
     inline
     void enqueue(T&& item) {
 
-#ifdef PRINT_QUEUE_T_STATS    
-        auto i = enqueue_idle_count;    
+#ifdef PRINT_QUEUE_T_STATS
+        auto i = enqueue_idle_count;
         enqueue_sw.reset();
-#endif        
+#endif
         do {
             if (queue.try_enqueue(std::move(item))) {
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
                 if (enqueue_idle_count > i) {
                     enqueue_idle_time += enqueue_sw.elapsed();
                 }
-#endif                
+#endif
                 ++enqueue_count;
                 break;
             }
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
             ++enqueue_idle_count;
-#endif            
+#endif
             std::this_thread::yield();
         } while (is_cancelled == false);
     }
@@ -175,29 +177,29 @@ struct queue_t {
     bool dequeue(T& item) {
         if (finished)
             return false;
-#ifdef PRINT_QUEUE_T_STATS    
-        auto i = dequeue_idle_count;    
+#ifdef PRINT_QUEUE_T_STATS
+        auto i = dequeue_idle_count;
         dequeue_sw.reset();
-#endif        
+#endif
         do {
             if (queue.wait_dequeue_timed(item, std::chrono::milliseconds(100))) {
             //if (queue.try_dequeue(item)) {
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
                 if (dequeue_idle_count > i) {
                     dequeue_idle_time += dequeue_sw.elapsed();
                 }
-#endif                
+#endif
                 ++dequeue_count;
                 return true;
             }
-#ifdef PRINT_QUEUE_T_STATS    
+#ifdef PRINT_QUEUE_T_STATS
             ++dequeue_idle_count;
-#endif            
+#endif
             if (is_done == true && queue.peek() == nullptr) {
                 finished = true;
                 break;
             }
-            std::this_thread::yield();                
+            std::this_thread::yield();
         } while (is_cancelled == false);
         return false;
     }
@@ -208,7 +210,7 @@ struct queue_t {
 
 };
 
-#define BEGIN_MT_EXCEPTION std::exception_ptr ex_ptr = nullptr; try { 
+#define BEGIN_MT_EXCEPTION std::exception_ptr ex_ptr = nullptr; try {
 
 #define END_MT_EXCEPTION } catch (exception& e) { pipeline_cancelled = true; ex_ptr = current_exception(); } return ex_ptr;
 
@@ -229,7 +231,7 @@ struct validator_options
     static constexpr int max_score() { return max_score_; }   ///< Flag for presence of counts
 };
 
-// input telemetry metrics 
+// input telemetry metrics
 struct data_input_metrics_t {
     size_t defline_len = 0;
     size_t sequence_len = 0;
@@ -245,7 +247,7 @@ struct data_input_metrics_t {
     array<size_t, 256> quality_counts{};
 };
 
-// output telemetry metrics 
+// output telemetry metrics
 struct data_output_metrics_t {
     size_t sequence_len = 0;
     size_t sequence_len_bio = 0;
@@ -370,12 +372,12 @@ public:
     template<typename ScoreValidator = validator_options<>>
     bool get_spot_mt(const string& spot_name, vector<CFastqRead>& reads);
 
-    bool eof() const { return m_stream->eof();}  ///< Returns true if file is  at eof 
+    bool eof() const { return m_stream->eof();}  ///< Returns true if file is  at eof
     // multi-threaded version of eof
     bool eof_mt() const { return m_read_queue->is_done && m_read_queue->queue.peek() == nullptr;}  ///< Returns true if file is at eof
 
     bool end_of_data() const { return m_buffered_spot.empty() && m_pending_spot.empty() && eof();}  ///< Returns true if file has no more reads
-    // multi-threaded version of end_of_data      
+    // multi-threaded version of end_of_data
     bool end_of_data_mt() const { return m_buffered_spot.empty() && m_pending_spot.empty() && eof_mt();}  ///< Returns true if file has no more reads
 
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
@@ -417,7 +419,7 @@ public:
     template<typename ScoreValidator>
     void char_qual_validator(CFastqRead& read);  ///< Character (PHRED) quality score validator
 
-    void set_error_handler(std::function<void(fastq_error&)> handler) { m_error_handler = handler; } ///< Sets error handler    
+    void set_error_handler(std::function<void(fastq_error&)> handler) { m_error_handler = handler; } ///< Sets error handler
     function<void(fastq_error&)> m_error_handler; ///< Error handler
 
     // start reading in mt mode
@@ -430,6 +432,8 @@ public:
     // process mt errors
     void end_reading();
 
+    // fingerprint of all reads consumed so far
+    const Fingerprint & fingerprint() const { return m_fingerprint; }
 
     data_input_metrics_t m_input_metrics;
 
@@ -449,10 +453,11 @@ private:
     int                 m_curr_platform = 0;        ///< current platform
     CFastqRead          m_read;                     ///< Temporary read holder
     vector<CFastqRead>  m_next_reads;               ///< Temporary read vector
-    string              m_spot;                     ///< Temporary spot holder   
+    string              m_spot;                     ///< Temporary spot holder
     int                 m_platform = 0;             ///< Last successfull platform
+    Fingerprint         m_fingerprint;              ///< fingerprint of all reads consumed so far
 
-    shared_ptr<queue_t<fastq_read, READ_QUEUE_SIZE>> m_read_queue; 
+    shared_ptr<queue_t<fastq_read, READ_QUEUE_SIZE>> m_read_queue;
     future<exception_ptr> m_read_future;
     exception_ptr m_read_exception{nullptr};
 
@@ -502,7 +507,7 @@ public:
         m_read_types(std::move(read_types)),
         m_read_type_sz(m_read_types.size())
     {
-        m_logger = spdlog::stderr_logger_mt("parser_logger"); // send log to stderr                    
+        m_logger = spdlog::stderr_logger_mt("parser_logger"); // send log to stderr
     }
 
     ~fastq_parser() {
@@ -539,8 +544,8 @@ public:
 
     /**
      * @brief Set the experiment file object
-     * 
-     * @param experiment_file 
+     *
+     * @param experiment_file
      */
     void set_experiment_file(const string& experiment_file);
 
@@ -567,13 +572,13 @@ public:
 
     /**
      * @brief first step of spot-assembly mode
-     * collect all reads from all readers and build spot-assembly 
+     * collect all reads from all readers and build spot-assembly
     */
     template<typename ScoreValidator, typename ErrorChecker>
     void first_pass(str_sv_type& read_names, ErrorChecker&& error_checker);
 
     template<typename T>
-    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index);    
+    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index);
 
     /**
      * @brief second step of spot-assembly mode
@@ -581,7 +586,7 @@ public:
     */
     template<typename ScoreValidator, bool is_nanopore, typename ErrorChecker, typename T>
     void second_pass(ErrorChecker&& error_checker, const vector<T>& read_index);
-    
+
     /**
      * @brief sort/uniq spot to remove duplicate reads
     */
@@ -599,14 +604,14 @@ public:
 
 
     /**
-     * @brief thread worker 
+     * @brief thread worker
      * reads from save_spot_queue
      * if it's the last read in the spot, gets the spot and sends it to assemble_spot_queue
-     * otherwise saves the read to hot/cold storage 
-     * 
+     * otherwise saves the read to hot/cold storage
+     *
     */
     template<typename ScoreValidator, bool is_nanopore>
-    void save_spot_thread(); 
+    void save_spot_thread();
 
     /**
      * @brief thread worker
@@ -616,7 +621,7 @@ public:
      * sends spot to update_telemetry_queue
     */
     template<typename ScoreValidator, bool is_nanopore>
-    void assemble_spot_thread(); 
+    void assemble_spot_thread();
 
     /**
      * @brief thread worker
@@ -624,7 +629,7 @@ public:
      * frees memory associated with the spot
     */
     template<typename ScoreValidator, bool is_nanopore>
-    void clear_spot_thread(); 
+    void clear_spot_thread();
 
     /**
      * @brief thread worker
@@ -637,9 +642,9 @@ public:
      * works in non spot-assembly mode
      * reads from assemble_spot_queue, writes spot to general-loader
      * and sends spot  to update_telemetry_queue
-     * 
+     *
     */
-    void write_spot_thread(); 
+    void write_spot_thread();
 
 
     /* structure for collation check*/
@@ -677,8 +682,8 @@ public:
      * @brief Set threshold for hot/cold reads
      * default: 10000000
     */
-    void set_hot_reads_threshold(size_t threshold) { 
-        m_spot_assembly.m_hot_reads_threshold = threshold; 
+    void set_hot_reads_threshold(size_t threshold) {
+        m_spot_assembly.m_hot_reads_threshold = threshold;
     }
 
 private:
@@ -747,7 +752,7 @@ private:
     string               m_spot_file;                  ///< Optional file name for spot_name dictionary
     bool                 m_sort_by_readnum{false};          ///< sort reads based on number of readers and existence of read numbers
     str_sv_type::back_insert_iterator m_spot_names_bi; ///< Internal back_inserter for spot_names collection
-    vector<char>         m_read_types;                 ///< ReadTypes 
+    vector<char>         m_read_types;                 ///< ReadTypes
     int                  m_read_type_sz{0};            ///< ReadTypes size
 
     spot_assembly_t m_spot_assembly;
@@ -868,6 +873,7 @@ bool fastq_reader::get_read(CFastqRead& read)
             return false;
         validate_read<ScoreValidator>(read);
         m_platform = m_defline_parser.GetPlatform();
+        m_fingerprint.record( read.Sequence() );
     } catch (fastq_error& e) {
         ++m_input_metrics.rejected_read_count;
         e.set_file(m_file_name, read.LineNumber());
@@ -899,7 +905,7 @@ void fastq_reader::validate_read(CFastqRead& read)
         char_qual_validator<ScoreValidator>(read);
     }
 
-    for (const auto& c : read.Sequence()) 
+    for (const auto& c : read.Sequence())
         ++m_input_metrics.base_counts[c];
 
 }
@@ -1007,7 +1013,7 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
         assert(!reads.empty() && reads.front().Spot() == spot_name);
         m_buffered_spot = std::move(m_next_reads);
         return true;
-    } 
+    }
     m_buffered_spot = std::move(m_next_reads);
     return false;
 }
@@ -1029,7 +1035,7 @@ bool fastq_reader::get_spot_mt(const string& spot_name, vector<CFastqRead>& read
         assert(!reads.empty() && reads.front().Spot() == spot_name);
         m_buffered_spot = std::move(m_next_reads);
         return true;
-    } 
+    }
     m_buffered_spot = std::move(m_next_reads);
     return false;
 }
@@ -1145,10 +1151,10 @@ void fastq_reader::start_reading()
     m_read_future = std::async(std::launch::async, [&]() {
         CFastqRead read;
         BEGIN_MT_EXCEPTION
-        
+
         while (pipeline_cancelled == false) {
             try {
-                if (!parse_read<ScoreValidator>(read)) 
+                if (!parse_read<ScoreValidator>(read))
                     break;
                 validate_read<ScoreValidator>(read);
                 m_platform = m_defline_parser.GetPlatform();
@@ -1191,7 +1197,7 @@ void fastq_reader::start_reading()
         m_validate_queue->close();
         END_MT_EXCEPTION
     });
-  */      
+  */
 }
 void fastq_reader::wait()
 {
@@ -1211,7 +1217,7 @@ void fastq_reader::end_reading()
     auto read_eptr = m_read_future.get();
     if (read_eptr)
         rethrow_exception(read_eptr);
-    m_read_queue.reset();        
+    m_read_queue.reset();
 }
 
 template<typename ScoreValidator>
@@ -1316,7 +1322,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
     spdlog::stopwatch sw;
     spdlog::info("Parsing from {} files", m_readers.size());
     auto spot_names_bi = m_spot_names.get_back_inserter();
-    
+
     assemble_spot_queue.reset(new queue_t<vector<fastq_read>, ASSEMBLE_QUEUE_SIZE>("assemble_spot_queue", pipeline_cancelled));
     update_telemetry_queue.reset(new queue_t<spot_t, ASSEMBLE_QUEUE_SIZE>("update_telemetry_queue", pipeline_cancelled));
 
@@ -1334,7 +1340,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         size_t line_no = assembled_spot.front().mLineNumber;
         size_t reader_idx = assembled_spot.front().m_ReaderIdx;
         assemble_spot_queue->enqueue(std::move(assembled_spot));
-        spot_names_bi = spot_name; 
+        spot_names_bi = spot_name;
         if (name_checker.seen_before(spot_name.c_str(), spot_name.size())) {
             search_terms.emplace_back() = { std::move(spot_name), line_no, reader_idx };
             if (search_terms.size() == 10000) {
@@ -1393,14 +1399,14 @@ void fastq_parser<TWriter>::update_readers_telemetry()
 
     for (size_t i = 0; i < m_telemetry.input_metrics.base_counts.size(); ++i) {
         size_t out_counts = m_telemetry.output_metrics.base_counts[i] + m_telemetry.output_metrics.tech_base_counts[i];
-        if (m_telemetry.input_metrics.base_counts[i] != out_counts) 
+        if (m_telemetry.input_metrics.base_counts[i] != out_counts)
             throw fastq_error(230, "Input base counts mismatch for {} : input {} != parsed {}", char(i), m_telemetry.input_metrics.base_counts[i], out_counts);
-    }       
+    }
     for (size_t i = 0; i < m_telemetry.input_metrics.quality_counts.size(); ++i) {
         size_t out_counts = m_telemetry.output_metrics.quality_counts[i];
-        if (m_telemetry.input_metrics.quality_counts[i] != out_counts) 
+        if (m_telemetry.input_metrics.quality_counts[i] != out_counts)
             throw fastq_error(230, "Input quality counts mismatch for {} : input {} != parsed {}", char(i), m_telemetry.input_metrics.quality_counts[i], out_counts);
-    }       
+    }
     // adjust quality counts for numeric scores to match run_stat format
     if constexpr (ScoreValidator::type() == eNumeric) {
         for (int i = (int)m_telemetry.output_metrics.quality_counts.size() - 1; i >= 0; --i) {
@@ -1420,7 +1426,7 @@ void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
     auto& telemetry = m_telemetry.groups.back();
     telemetry.number_of_spots += 1;
     telemetry.number_of_reads += reads.size();
-    
+
     m_telemetry.output_metrics.read_count += reads.size();
     ++m_telemetry.output_metrics.spot_count;
     vector<uint8_t> qual_scores;
@@ -1446,7 +1452,7 @@ void fastq_parser<TWriter>::update_telemetry(const spot_t& reads)
         telemetry.min_sequence_size = min<size_t>(sz, telemetry.min_sequence_size);
         m_telemetry.output_metrics.quality_len += r.GetQualScores().size();
     }
-    
+
     if ((int)reads.size() < telemetry.reads_per_spot)
         ++telemetry.number_of_spots_with_orphans;
 }
@@ -1530,9 +1536,9 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
 //  ----------------------------------------------------------------------------
 /**
  * @brief Groups files by the first spot into batches
- * 
- * @param files 
- * @param batches 
+ *
+ * @param files
+ * @param batches
  */
 void fastq_reader::cluster_files(const vector<string>& files, vector<vector<string>>& batches)
 {
@@ -1556,8 +1562,8 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
         auto reader1 = fastq_reader(files[i], s_OpenStream(files[i], 1024*1024), readTypes, 0, true);
         for (auto c = 0; c < 100; ++c) {
             try {
-                if (reader1.get_next_spot<>(spot, reads)) 
-                    break;     
+                if (reader1.get_next_spot<>(spot, reads))
+                    break;
             }  catch (fastq_error& e) {
                 // skip errors during file clustering
             }
@@ -1576,7 +1582,7 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
                         break;
                     }
                 }  catch (fastq_error& e) {
-                    // skip errors during file clustering 
+                    // skip errors during file clustering
                 }
 
             }
@@ -1707,7 +1713,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
                 file_size = fs::file_size(fn);
                 f["file_size"] = file_size;
             } catch(...) {
-                // ignore file size errors (stdin)               
+                // ignore file size errors (stdin)
             }
             if (re2::RE2::PartialMatch(fn, re_10x_I))
                 has_I_file = true;
@@ -1859,17 +1865,17 @@ void fastq_parser<TWriter>::set_telemetry(const json& group)
     group_telemetry.reads_per_spot = spot_reads;
 }
 
-static function<bool(const fastq_read& l, const fastq_read& r)> s_sort_by_readnum = 
-[](const fastq_read& l, const fastq_read& r) 
-{ 
+static function<bool(const fastq_read& l, const fastq_read& r)> s_sort_by_readnum =
+[](const fastq_read& l, const fastq_read& r)
+{
     return l.ReadNum() < r.ReadNum();
 };
 
-static function<bool(const fastq_read& l, const fastq_read& r)> s_sort_by_file_order = 
+static function<bool(const fastq_read& l, const fastq_read& r)> s_sort_by_file_order =
 [](const fastq_read& l, const fastq_read& r)
 {
     if (l.m_ReaderIdx == r.m_ReaderIdx)
-        return l.LineNumber() < r.LineNumber(); 
+        return l.LineNumber() < r.LineNumber();
     else
         return l.m_ReaderIdx < r.m_ReaderIdx;
 };
@@ -1880,14 +1886,14 @@ void fastq_parser<TWriter>::set_readers(json& group, bool update_telemetry)
     m_readers.clear();
     if (group["files"].empty())
         return;
-    uint8_t files_with_read_numbers = 0;        
+    uint8_t files_with_read_numbers = 0;
     vector<char> read_types;
     for (auto& data : group["files"]) {
         const string& name = data["file_path"];
         if (data.contains("readType"))
             read_types = data["readType"];
         else
-            read_types.clear();  
+            read_types.clear();
         m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), read_types, data["platform_code"].front());
         if (!data["readNums"].empty())
             ++files_with_read_numbers;
@@ -1943,9 +1949,9 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
             im["subsequence_reads"] = m_telemetry.input_metrics.subsequence_reads_count;
             im["subsequence_reads_len"] = m_telemetry.input_metrics.subsequence_reads_len;
         }
-        if (m_telemetry.input_metrics.qual_scores_added) 
+        if (m_telemetry.input_metrics.qual_scores_added)
             im["qual_scores_added"] = m_telemetry.input_metrics.qual_scores_added;
-        if (m_telemetry.input_metrics.qual_scores_removed) 
+        if (m_telemetry.input_metrics.qual_scores_removed)
             im["qual_scores_removed"] = m_telemetry.input_metrics.qual_scores_removed;
 
         if (j.contains("is_spot_assembly")) {
@@ -1958,19 +1964,19 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         om["quality_len"] = m_telemetry.output_metrics.quality_len;
 
         auto &bc = om["base_counts"];
-        for (size_t i = 0; i < m_telemetry.output_metrics.base_counts.size(); ++i) 
+        for (size_t i = 0; i < m_telemetry.output_metrics.base_counts.size(); ++i)
             if (m_telemetry.output_metrics.base_counts[i] != 0) {
                 auto s = string(1, char(i));
                 bc[s] = m_telemetry.output_metrics.base_counts[i];
             }
 
         auto &qc = om["quality_counts"];
-        for (size_t i = 0; i < m_telemetry.output_metrics.quality_counts.size(); ++i) 
+        for (size_t i = 0; i < m_telemetry.output_metrics.quality_counts.size(); ++i)
             if (m_telemetry.output_metrics.quality_counts[i] != 0)
                 qc[to_string(i - 33)] = m_telemetry.output_metrics.quality_counts[i];
 
-        om["read_count"] = m_telemetry.output_metrics.read_count;               
-        om["spot_count"] = m_telemetry.output_metrics.spot_count;       
+        om["read_count"] = m_telemetry.output_metrics.read_count;
+        om["spot_count"] = m_telemetry.output_metrics.spot_count;
         auto& qm = j["qc"];
         if (m_telemetry.input_metrics.sequence_len > 0) {
             qm["sequence_loss"] = (long long int)(m_telemetry.input_metrics.sequence_len - m_telemetry.output_metrics.sequence_len);
@@ -2000,7 +2006,7 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
             m_readers[i].set_error_handler(error_checker);
     #ifdef _PARALLEL_READ_
             m_readers[i].template start_reading<ScoreValidator>();
-    #endif        
+    #endif
         }
 
         bool has_spots;
@@ -2015,9 +2021,9 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
             try {
     #ifdef _PARALLEL_READ_
                 if (!m_readers[i] . template get_read_mt<ScoreValidator>(read)) {
-    #else                
+    #else
                 if (!m_readers[i] . template get_read<ScoreValidator>(read)) {
-    #endif                
+    #endif
                     check_readers = ++early_end > 4 && num_readers > 1 && m_allow_early_end == false;
                     continue;
                 }
@@ -2030,8 +2036,8 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
                 //has_spots = true;  /// we don't want interrupt too early in case of an exception
                 continue;
             }
-            
-//            if (row_id % 1000 == 0)  
+
+//            if (row_id % 1000 == 0)
 //                m_logger->info("Reads: {:L}", row_id);
 
             if (has_spots == false)
@@ -2042,9 +2048,9 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
                 for (int i = 0; i < num_readers; ++i) {
     #ifdef _PARALLEL_READ_
                     if (m_readers[i].eof_mt())
-    #else                
+    #else
                     if (m_readers[i].eof())
-    #endif                
+    #endif
                         ++readers_at_eof;
                 }
                 if ((int)readers_at_eof == num_readers) // all readers are at EOF
@@ -2055,7 +2061,7 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
                         if (m_readers[i].eof_mt())
     #else
                         if (m_readers[i].eof())
-    #endif                    
+    #endif
                             throw fastq_error(180, "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.",
                                     m_readers[i].file_name(), m_readers[i].line_number());
                     }
@@ -2067,16 +2073,16 @@ void fastq_parser<TWriter>::for_each_read(ErrorChecker&& error_checker, T&& func
         for (int i = 0; i < num_readers; ++i) {
             m_readers[i].end_reading();
         }
-    #else    
+    #else
         } while (true);
-    #endif    
+    #endif
     } catch (exception& e) {
         pipeline_cancelled = true;
 #ifdef _PARALLEL_READ_
         for (int i = 0; i < num_readers; ++i) {
             m_readers[i].wait();
         }
-#endif 
+#endif
         throw;
     }
 }
@@ -2091,7 +2097,7 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
             m_readers[i].set_error_handler(error_checker);
     #ifdef _PARALLEL_READ1_
             m_readers[i].template start_reading<ScoreValidator>();
-    #endif        
+    #endif
         }
 
         bool has_spots;
@@ -2110,17 +2116,17 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
     #ifdef _PARALLEL_READ1_
                 if (!m_readers[i] . template get_next_spot_mt<ScoreValidator>(spot, spot_reads[i])) {
                     if (m_readers[i].end_of_data_mt()) {
-    #else                
+    #else
                 if (!m_readers[i] . template get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
                     if (m_readers[i].end_of_data()) {
-    #endif                    
+    #endif
                         check_readers = num_readers > 1 && m_allow_early_end == false;
                         continue;
                     }
                     has_spots = true;
                     if (spot_reads[i].empty()) {
                         ++m_telemetry.groups.back().rejected_spots;
-                        continue; 
+                        continue;
                     }
                 }
                 has_spots = true;
@@ -2128,9 +2134,9 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
                     if (j == i) continue;
     #ifdef _PARALLEL_READ1_
                     m_readers[j] . template get_spot_mt<ScoreValidator>(spot, spot_reads[j]);
-    #else                
-                    m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);                    
-    #endif                    
+    #else
+                    m_readers[j] . template get_spot<ScoreValidator>(spot, spot_reads[j]);
+    #endif
                 }
                 assembled_spot.clear();
                 for (auto& r : spot_reads) {
@@ -2140,7 +2146,7 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
                     }
                 }
                 assert(assembled_spot.empty() == false);
-                if (assembled_spot.size() > 4) 
+                if (assembled_spot.size() > 4)
                     throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
                 func(assembled_spot);
             } catch (fastq_error& e) {
@@ -2148,7 +2154,7 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
                 ++m_telemetry.groups.back().rejected_spots;
                 continue;
             }
-            
+
             if (has_spots == false)
                 break;
 
@@ -2158,18 +2164,18 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
                 for (int i = 0; i < num_readers; ++i) {
     #ifdef _PARALLEL_READ1_
                     if (m_readers[i].eof_mt())
-    #else                
+    #else
                     if (m_readers[i].eof())
-    #endif                
+    #endif
                         ++readers_at_eof;
                 }
                 if (readers_at_eof > 0 && (int)readers_at_eof < num_readers) {
                     for (int i = 0; i < num_readers; ++i) {
     #ifdef _PARALLEL_READ1_
                     if (m_readers[i].eof_mt())
-    #else                
+    #else
                         if (m_readers[i].eof())
-    #endif                    
+    #endif
                             throw fastq_error(180, "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.",
                                     m_readers[i].file_name(), m_readers[i].line_number());
                     }
@@ -2180,7 +2186,7 @@ void fastq_parser<TWriter>::for_each_spot(ErrorChecker&& error_checker, T&& func
         for (int i = 0; i < num_readers; ++i) {
             m_readers[i].end_reading();
         }
-#endif    
+#endif
     } catch (exception& e) {
         pipeline_cancelled = true;
 #ifdef _PARALLEL_READ1_
@@ -2202,7 +2208,7 @@ template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker>
 void fastq_parser<TWriter>::first_pass(str_sv_type& read_names, ErrorChecker&& error_checker)
 {
-#if defined(__SAVE_FIRST_PASS__) 
+#if defined(__SAVE_FIRST_PASS__)
     if (file_exists("read_names.sv")) {
         spdlog::info("Restoring read names");
         vector<char> buffer;
@@ -2212,7 +2218,7 @@ void fastq_parser<TWriter>::first_pass(str_sv_type& read_names, ErrorChecker&& e
         deserializer.deserialize(read_names, (const unsigned char*)&buffer[0]);
         return;
     }
-#endif        
+#endif
     spdlog::stopwatch sw;
     spdlog::info("Parsing from {} files", m_readers.size());
 
@@ -2227,11 +2233,11 @@ void fastq_parser<TWriter>::first_pass(str_sv_type& read_names, ErrorChecker&& e
     str_sv_type::statistics stats;
     read_names.optimize(TB, bm::bvector<>::opt_compress, &stats);
     read_names.freeze();
-    spdlog::info("Remapping took {:.3}", sw);       
-    spdlog::info("num_row: {:L}, read_names mem: {:L}",  read_names.size(), stats.memory_used);   
+    spdlog::info("Remapping took {:.3}", sw);
+    spdlog::info("num_row: {:L}, read_names mem: {:L}",  read_names.size(), stats.memory_used);
 #if defined(__SAVE_FIRST_PASS__)
     serialize_vec("read_names.sv", read_names);
-#endif    
+#endif
 }
 
 template<typename TWriter>
@@ -2261,11 +2267,11 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
 
 template<typename TWriter>
 template<typename ScoreValidator, bool is_nanopore>
-void fastq_parser<TWriter>::save_spot_thread() 
+void fastq_parser<TWriter>::save_spot_thread()
 {
-    // get last spot read from save_spot_queue 
-    // retrieve other reads from this spot 
-    // send the assembled spot assemble_spot_queue 
+    // get last spot read from save_spot_queue
+    // retrieve other reads from this spot
+    // send the assembled spot assemble_spot_queue
     spot_read_t spot_read;
     vector<fastq_read> spot;
     vector<int> read_ids;
@@ -2287,7 +2293,7 @@ void fastq_parser<TWriter>::save_spot_thread()
             spot.front().m_SpotId = spot_id;
             assemble_spot_queue->enqueue(std::move(spot));
         } else {
-            m_spot_assembly. template save_read_mt<ScoreValidator, is_nanopore>(read.m_SpotId, read);               
+            m_spot_assembly. template save_read_mt<ScoreValidator, is_nanopore>(read.m_SpotId, read);
         }
     }
     assemble_spot_queue->close();
@@ -2295,13 +2301,13 @@ void fastq_parser<TWriter>::save_spot_thread()
 
 
 template<typename TWriter>
-void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fastq_read>& reads) 
+void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fastq_read>& reads)
 {
     int sz = reads.size();
     for(int i = 0; i < sz; i++) {
-        auto seq_sz = reads[i].Sequence().size(); 
+        auto seq_sz = reads[i].Sequence().size();
         for(int j = 0; j < sz; j++) {
-            if(i != j && seq_sz < reads[j].Sequence().size() && reads[j].Sequence().find(reads[i].Sequence()) != string::npos) 
+            if(i != j && seq_sz < reads[j].Sequence().size() && reads[j].Sequence().find(reads[i].Sequence()) != string::npos)
             {
                 vector<uint8_t> qual_scores1;
                 reads[i].GetQualScores(qual_scores1);
@@ -2311,9 +2317,9 @@ void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fa
                     ++m_telemetry.input_metrics.subsequence_reads_count;
                     //cerr << "Removing subsequence read: " << spot_name << endl << reads[i].Sequence() << endl;
                     m_telemetry.input_metrics.subsequence_reads_len += reads[i].GetSize();
-                    for (const auto& c : reads[i].Sequence()) 
+                    for (const auto& c : reads[i].Sequence())
                         --m_telemetry.input_metrics.base_counts[c];
-                    for (const auto& c : reads[i].GetQualScores()) 
+                    for (const auto& c : reads[i].GetQualScores())
                         --m_telemetry.input_metrics.quality_counts[c];
 
                     reads.erase(reads.begin() + i);
@@ -2330,13 +2336,13 @@ void fastq_parser<TWriter>::removeSubsequences(const string& spot_name,vector<fa
 template<typename TWriter>
 void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vector<fastq_read>& assembled_spot)
 {
-    sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) { 
+    sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) {
         if (l.ReadNum() == r.ReadNum()) {
-            int c = l.Sequence().compare(r.Sequence()); 
+            int c = l.Sequence().compare(r.Sequence());
             if (c == 0) {
-                if (l.GetQualScores() != r.GetQualScores()) 
+                if (l.GetQualScores() != r.GetQualScores())
                     c = -1;
-            }        
+            }
             return c < 0;
         }
         return l.ReadNum() < r.ReadNum();
@@ -2346,15 +2352,15 @@ void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vecto
     {
         if (first == last)
             return last;
-    
+
         auto result = first;
         while (++first != last)
             // is duplicate?
             if (result->ReadNum() == first->ReadNum() && result->Sequence().compare(first->Sequence()) == 0 && result->GetQualScores() == first->GetQualScores()) {
-                // adjust input statistics 
-                for (const auto& c : first->Sequence()) 
+                // adjust input statistics
+                for (const auto& c : first->Sequence())
                     --m_telemetry.input_metrics.base_counts[c];
-                for (const auto& c : first->GetQualScores()) 
+                for (const auto& c : first->GetQualScores())
                     --m_telemetry.input_metrics.quality_counts[c];
                 m_telemetry.input_metrics.duplicate_reads_len += first->GetSize();
 
@@ -2386,17 +2392,17 @@ void fastq_parser<TWriter>::prepare_assemble_spot(const string& spot_name, vecto
         if (m_sort_by_readnum) {
             // already sorted by read number
             // sort by read number
-            //sort(assembled_spot.begin(), assembled_spot.end(), [](const fastq_read& l, const fastq_read& r) { 
+            //sort(assembled_spot.begin(), assembled_spot.end(), [](const fastq_read& l, const fastq_read& r) {
             //    return l.ReadNum() < r.ReadNum(); });
             if (m_read_type_sz > 0) {
-                if (m_read_type_sz < (int)sz) 
+                if (m_read_type_sz < (int)sz)
                     throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type_sz, sz, spot_name);
                 // sort index by file order so that readTypes can be applied
                 read_ids.resize(sz);
                 iota(read_ids.begin(), read_ids.end(), 0);
                 sort(read_ids.begin(), read_ids.end(), [&](int i, int j) {
-                    if (assembled_spot[i].m_ReaderIdx == assembled_spot[j].m_ReaderIdx) 
-                        return assembled_spot[i].LineNumber() < assembled_spot[j].LineNumber(); 
+                    if (assembled_spot[i].m_ReaderIdx == assembled_spot[j].m_ReaderIdx)
+                        return assembled_spot[i].LineNumber() < assembled_spot[j].LineNumber();
                     return assembled_spot[i].m_ReaderIdx < assembled_spot[j].m_ReaderIdx;
                 });
                 for (int i = 0; i < sz; ++i) {
@@ -2409,7 +2415,7 @@ void fastq_parser<TWriter>::prepare_assemble_spot(const string& spot_name, vecto
                 return l.m_ReaderIdx == r.m_ReaderIdx ? l.LineNumber() < r.LineNumber() : l.m_ReaderIdx < r.m_ReaderIdx;});
 
             if (m_read_type_sz > 0) {
-                if (m_read_type_sz < (int)sz) 
+                if (m_read_type_sz < (int)sz)
                     throw fastq_error(30, "readTypes number should match the number of reads {} != {}, Spot: '{}'", m_read_type_sz, sz, spot_name);
                 for (int i = 0; i < sz; ++i) {
                     assembled_spot[i].SetType(m_read_types[i]);
@@ -2421,15 +2427,15 @@ void fastq_parser<TWriter>::prepare_assemble_spot(const string& spot_name, vecto
             assembled_spot[0].SetType(m_read_types[0]);
         }
     }
-} 
+}
 
 
 template<typename TWriter>
 template<typename ScoreValidator, bool is_nanopore>
-void fastq_parser<TWriter>::assemble_spot_thread() 
+void fastq_parser<TWriter>::assemble_spot_thread()
 {
-    // get spot from assemble_spot_queue 
-    // send it to writer 
+    // get spot from assemble_spot_queue
+    // send it to writer
     // add spot_id to clear_spot_queue
     vector<fastq_read> assembled_spot;
     vector<int> read_ids;
@@ -2457,7 +2463,7 @@ void fastq_parser<TWriter>::assemble_spot_thread()
 
 template<typename TWriter>
 template<typename ScoreValidator, bool is_nanopore>
-void fastq_parser<TWriter>::clear_spot_thread() 
+void fastq_parser<TWriter>::clear_spot_thread()
 {
     // get spot_id from clear_spot_queue
     // and clear it from memory
@@ -2473,7 +2479,7 @@ void fastq_parser<TWriter>::update_telemetry_thread()
 {
     spot_t spot;
     while (update_telemetry_queue->dequeue(spot)) {
-        update_telemetry(spot); 
+        update_telemetry(spot);
     }
 
 }
@@ -2482,7 +2488,7 @@ template<typename TWriter>
 void fastq_parser<TWriter>::write_spot_thread()
 {
     size_t spotCount = 0, readCount = 0, currCount = 0;
-    
+
     vector<fastq_read> assembled_spot;
     while (assemble_spot_queue->dequeue(assembled_spot)) {
         assert(assembled_spot.empty() == false);
@@ -2503,7 +2509,7 @@ void fastq_parser<TWriter>::write_spot_thread()
     }
     update_telemetry_queue->close();
     m_logger->info("spots: {:L}, reads: {:L}", spotCount, readCount);
-} 
+}
 
 
 #if defined(_PARALLEL_PARSE_)
@@ -2525,9 +2531,9 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vect
     array<future<exception_ptr>, 4> futures;
 
     futures[3] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->template save_spot_thread<ScoreValidator, is_nanopore>(); END_MT_EXCEPTION });
-    futures[2] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->template assemble_spot_thread<ScoreValidator, is_nanopore>();END_MT_EXCEPTION }); 
-    futures[1] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->template clear_spot_thread<ScoreValidator, is_nanopore>();END_MT_EXCEPTION }); 
-    futures[0] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->update_telemetry_thread(); END_MT_EXCEPTION }); 
+    futures[2] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->template assemble_spot_thread<ScoreValidator, is_nanopore>();END_MT_EXCEPTION });
+    futures[1] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->template clear_spot_thread<ScoreValidator, is_nanopore>();END_MT_EXCEPTION });
+    futures[0] = std::async(std::launch::async, [this](){ BEGIN_MT_EXCEPTION this->update_telemetry_thread(); END_MT_EXCEPTION });
 
     spot_read_t spot_read;
     for_each_read<ScoreValidator, ErrorChecker>(error_checker, [&](size_t row_id, CFastqRead& read) {
@@ -2540,7 +2546,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vect
                 ++spotCount;
 
             save_spot_queue->enqueue(std::move(spot_read));
-            if (readCount % 10000000 == 0)  
+            if (readCount % 10000000 == 0)
                 m_spot_assembly.optimize();
         } catch (fastq_error& e) {
             error_checker(e);
@@ -2559,7 +2565,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vect
     if (m_spot_assembly.m_total_spots != spotCount)
         throw fastq_error("Invalid assembly: Spot counts do not match {} != {}", m_spot_assembly.m_total_spots, spotCount);
     if (read_index.size() != readCount)
-        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);        
+        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);
 
     if (m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
@@ -2588,7 +2594,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vect
                 prepare_assemble_spot(spot, assembled_spot, read_ids);
                 m_writer->write_spot(spot, assembled_spot);
                 m_writer->write_messages();
-                m_spot_assembly.clear_spot_mt<is_nanopore>(spot_id); 
+                m_spot_assembly.clear_spot_mt<is_nanopore>(spot_id);
             } else {
                 m_spot_assembly. template save_read<ScoreValidator, is_nanopore>(spot_id, read);
             }
@@ -2606,7 +2612,7 @@ void fastq_parser<TWriter>::second_pass(ErrorChecker&& error_checker, const vect
     if (m_spot_assembly.m_total_spots != spotCount)
         throw fastq_error("Invalid assembly: Spot counts do not match {} != {}", m_spot_assembly.m_total_spots, spotCount);
     if (read_index.size() != readCount)
-        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);        
+        throw fastq_error("Invalid assembly: Read counts do not match {} != {}", read_index.size(), readCount);
 
     if (m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);

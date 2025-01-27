@@ -22,11 +22,15 @@
  *
  * ===========================================================================
  *
+ * Project:
+ *  Loader QA Stats
+ *
  * Purpose:
  *  Fingerprinting reads
  */
 
 #pragma once
+
 #ifndef fingerprint_hpp
 #define fingerprint_hpp
 
@@ -35,8 +39,9 @@
 #include <vector>
 #include <cctype>
 
-struct Fingerprint
+class Fingerprint
 {
+public:
     static constexpr size_t DefaultMaxReadSize = 4096;
 
     struct Accumulator : public std::vector< uint64_t >
@@ -92,7 +97,7 @@ struct Fingerprint
     Accumulator g;
     Accumulator t;
     Accumulator n; // everything that is not AGCT
-    Accumulator ool; // end of read
+    Accumulator ool; // out of read length
 };
 
 #endif // fingerprint_hpp

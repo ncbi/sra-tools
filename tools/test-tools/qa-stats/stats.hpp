@@ -29,6 +29,11 @@
  *  Collect Statistics.
  */
 
+#pragma once
+
+#ifndef stats_hpp
+#define stats_hpp
+
 #include <cstdint>
 #include <vector>
 #include <map>
@@ -105,15 +110,17 @@ struct BaseStats {
 
 struct DistanceStats {
     struct DistanceStat {
-        unsigned last = 0, n = 0;
         std::vector<uint64_t> counts;
+        uint64_t n = 0;
+        unsigned last = 0;
         using Index = decltype(counts)::size_type;
 
         operator bool() const { return !counts.empty(); }
+        Index size() const { return counts.size(); }
         void reset() {
             n = 0;
         }
-        void record(unsigned position) {
+        void record(unsigned const position) {
             if (n > 0 && position > last) {
                 auto index = (position - last) - 1;
                 if (counts.size() <= index)
@@ -123,8 +130,30 @@ struct DistanceStats {
             last = position;
             ++n;
         }
-        uint64_t operator[](Index index) const {
+        uint64_t operator[](Index const index) const {
             return index < counts.size() ? counts[index] : 0;
+        }
+        uint64_t total() const {
+            uint64_t result = 0;
+            for (auto v : counts)
+                result += v;
+            return result;
+        }
+
+        template < typename FUNC >
+        void forEach(FUNC && func) const {
+            auto const n = size();
+            auto const sum = total();
+            for (auto i = Index{ 0 }; i < n; ++i)
+                func(i, counts[i], sum);
+        }
+
+        template < typename FUNC >
+        void forEach(DistanceStat const &complement, FUNC && func) const {
+            auto const n = std::max(size(), complement.size());
+            auto const sum = total() + complement.total();
+            for (auto i = Index{ 0 }; i < n; ++i)
+                func(i, counts[i] + complement[i], sum);
         }
     };
     DistanceStat A, C, G, T, SW, KM;
@@ -371,3 +400,5 @@ struct Stats {
             group->record(desc);
     }
 };
+
+#endif /* stats_hpp */

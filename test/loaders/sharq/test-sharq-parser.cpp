@@ -34,6 +34,8 @@
 #include <kfs/file.h>
 #include <sstream>
 
+#include <fingerprint.hpp>
+
 #include "../../tools/loaders/sharq/fastq_utils.hpp"
 #include "../../tools/loaders/sharq/fastq_parser.hpp"
 #include "../../tools/loaders/sharq/fastq_read.hpp"
@@ -269,6 +271,34 @@ FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
     REQUIRE(reader.get_read(read));
     REQUIRE_EQ(read.Sequence(), cSEQ);
     REQUIRE_EQ(read.Sequence().size(), 4lu);
+
+
+    const Fingerprint & fp = reader.fingerprint();
+    REQUIRE_EQ( 0, (int)fp.a[0] );
+    REQUIRE_EQ( 1, (int)fp.a[1] );
+    REQUIRE_EQ( 0, (int)fp.a[2] );
+    REQUIRE_EQ( 0, (int)fp.a[3] );
+    REQUIRE_EQ( 0, (int)fp.c[0] );
+    REQUIRE_EQ( 0, (int)fp.c[1] );
+    REQUIRE_EQ( 0, (int)fp.c[2] );
+    REQUIRE_EQ( 0, (int)fp.c[3] );
+    REQUIRE_EQ( 1, (int)fp.g[0] );
+    REQUIRE_EQ( 0, (int)fp.g[1] );
+    REQUIRE_EQ( 0, (int)fp.g[2] );
+    REQUIRE_EQ( 0, (int)fp.g[3] );
+    REQUIRE_EQ( 0, (int)fp.t[0] );
+    REQUIRE_EQ( 0, (int)fp.t[1] );
+    REQUIRE_EQ( 1, (int)fp.t[2] );
+    REQUIRE_EQ( 1, (int)fp.t[3] );
+    REQUIRE_EQ( 0, (int)fp.n[0] );
+    REQUIRE_EQ( 0, (int)fp.n[1] );
+    REQUIRE_EQ( 0, (int)fp.n[2] );
+    REQUIRE_EQ( 0, (int)fp.n[3] );
+    REQUIRE_EQ( 0, (int)fp.ool[0] );
+    REQUIRE_EQ( 0, (int)fp.ool[1] );
+    REQUIRE_EQ( 0, (int)fp.ool[2] );
+    REQUIRE_EQ( 0, (int)fp.ool[3] );
+    REQUIRE_EQ( 1, (int)fp.ool[4] );
 }
 
 FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)
@@ -984,7 +1014,7 @@ FIXTURE_TEST_CASE(LS454_2, LS454Fixture)
 FIXTURE_TEST_CASE(LS454_3, LS454Fixture)
 {
     LS454("GKW2OSF01D55D9");
-    
+
     REQUIRE_EQ( m_read.Spot(), string( "GKW2OSF01D55D9") );
     REQUIRE( m_read.ReadNum().empty());
 }
@@ -1015,13 +1045,13 @@ FIXTURE_TEST_CASE(LS454_6, LS454Fixture)
 //        # >311CX:3560:2667   length=347 (SRR547526)
 
 // type, defline, spot, spot_group, read_num
-vector<tuple<string, string, string, string>> cIonTorrentCases = 
+vector<tuple<string, string, string, string>> cIonTorrentCases =
 {
     { "@A313D:7:49", "A313D:7:49", "", "" },
     { "@RD4FE:00027:00172", "RD4FE:00027:00172", "", "" },
     { "@ONBWR:00329:02356/1", "ONBWR:00329:02356", "", "1" },
     { ">311CX:3560:2667   length=347", "311CX:3560:2667", "", ""} ,
-    { "@SEDCJ:00674:05781 1:N:0:AAAAA", "SEDCJ:00674:05781", "AAAAA", "1" }, 
+    { "@SEDCJ:00674:05781 1:N:0:AAAAA", "SEDCJ:00674:05781", "AAAAA", "1" },
     { "@ONBWR:00329:02356#GGTCATTT+TAGGTATG/2", "ONBWR:00329:02356", "GGTCATTT+TAGGTATG", "2" },
 };
 
@@ -1061,7 +1091,7 @@ vector<illumina_old_t> cIlluminaOldColon = {
     { "@rumen9533:0:0:0:5", "rumen9533:0:0:0:5", "", "" },
     { "@HWUSI-BETA8_3:7:1:-1:14", "HWUSI-BETA8_3:7:1:-1:14", "", "" },
     { "@IL10_334:1:1:4:606", "IL10_334:1:1:4:606", "", "" },
-    { "@HWUSI-EAS517-74:3:1:1023:8178/1 ~ RGR:Uk6;", "HWUSI-EAS517-74:3:1:1023:8178", "", "1" }, 
+    { "@HWUSI-EAS517-74:3:1:1023:8178/1 ~ RGR:Uk6;", "HWUSI-EAS517-74:3:1:1023:8178", "", "1" },
     { "@FCC19K2ACXX:3:1101:1485:2170#/1", "FCC19K2ACXX:3:1101:1485:2170", "", "1" },
     { "@AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771:0:1#0", "AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771", "", "" },
     { "@AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769:0:0#0", "AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769", "",  ""},
@@ -1074,31 +1104,31 @@ vector<illumina_old_t> cIlluminaOldColon = {
     { "@SOLEXA-GA02_1:1:1:0:106", "SOLEXA-GA02_1:1:1:0:106", "", "" },
     { "@HWUSI-EAS499:1:3:9:1822#0/1", "HWUSI-EAS499:1:3:9:1822", "", "1" },
     { "@BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540", "BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540", "", ""},
-    { ">KN-930:1:1:653:356", "KN-930:1:1:653:356", "", ""}, 
+    { ">KN-930:1:1:653:356", "KN-930:1:1:653:356", "", ""},
     { "USI-EAS50_1:6:1:392:881", "USI-EAS50_1:6:1:392:881", "", ""},
-    { "@HWI-EAS299_2_30MNAAAXX:5:1:936:1505/1", "HWI-EAS299_2_30MNAAAXX:5:1:936:1505", "", "1" }, 
-    { "@HWI-EAS-249:7:1:1:443/1", "HWI-EAS-249:7:1:1:443", "", "1"}, 
+    { "@HWI-EAS299_2_30MNAAAXX:5:1:936:1505/1", "HWI-EAS299_2_30MNAAAXX:5:1:936:1505", "", "1" },
+    { "@HWI-EAS-249:7:1:1:443/1", "HWI-EAS-249:7:1:1:443", "", "1"},
     { "@HWI-EAS385_0086_FC:1:1:1239:943#0/1", "HWI-EAS385_0086_FC:1:1:1239:943", "", "1" },
-    { "@HWUSI-EAS613-R_0001:8:1:1020:14660#0/1", "HWUSI-EAS613-R_0001:8:1:1020:14660", "", "1" }, 
+    { "@HWUSI-EAS613-R_0001:8:1:1020:14660#0/1", "HWUSI-EAS613-R_0001:8:1:1020:14660", "", "1" },
     { "@ILLUMINA-D01686_0001:7:1:1028:14175#0/1", "ILLUMINA-D01686_0001:7:1:1028:14175", "", "1" },
     { "@741:6:1:1204:10747/1", "741:6:1:1204:10747", "", "1" },
-    { "@1920:1:1:1504:1082/1", "1920:1:1:1504:1082", "", "1" }, 
+    { "@1920:1:1:1504:1082/1", "1920:1:1:1504:1082", "", "1" },
     { "@HWI-EAS397_0013:1:1:1083:11725#0/1", "HWI-EAS397_0013:1:1:1083:11725", "", "1" },
-    { ">HWI-EAS6_4_FC2010T:1:1:80:366", "HWI-EAS6_4_FC2010T:1:1:80:366", "", "" }, 
-    { "@NUTELLA_42A08AAXX:4:001:0003:0089/1", "NUTELLA_42A08AAXX:4:001:0003:0089", "", "1" }, 
-    { "@R16:8:1:0:875#0/1", "R16:8:1:0:875", "", "1" }, 
+    { ">HWI-EAS6_4_FC2010T:1:1:80:366", "HWI-EAS6_4_FC2010T:1:1:80:366", "", "" },
+    { "@NUTELLA_42A08AAXX:4:001:0003:0089/1", "NUTELLA_42A08AAXX:4:001:0003:0089", "", "1" },
+    { "@R16:8:1:0:875#0/1", "R16:8:1:0:875", "", "1" },
     { "HWI-EAS102_1_30LWPAAXX:5:1:1456:776", "HWI-EAS102_1_30LWPAAXX:5:1:1456:776", "", "" },
-    { "@HWI-EAS390_30VGNAAXX1:1:1:377:1113/1", "HWI-EAS390_30VGNAAXX1:1:1:377:1113", "", "1" }, 
-    { "@ID57_120908_30E4FAAXX:3:1:1772:953/1", "ID57_120908_30E4FAAXX:3:1:1772:953", "", "1" }, 
-    { "HWI-EAS440_102:8:1:168:1332", "HWI-EAS440_102:8:1:168:1332", "", "" }, 
-    { "@SNPSTER4_246_30GCDAAXX_PE:1:1:3:896/1", "SNPSTER4_246_30GCDAAXX_PE:1:1:3:896", "", "1" }, 
-    { "@FC42AUBAAXX:6:1:4:1280#TGACCA/1", "FC42AUBAAXX:6:1:4:1280", "TGACCA", "1" }, 
-    { "@SOLEXA9:1:1:1:2005#0/1", "SOLEXA9:1:1:1:2005", "", "1" }, 
-    { "@SNPSTER3_264_30JGGAAXX_PE:2:1:218:311/1", "SNPSTER3_264_30JGGAAXX_PE:2:1:218:311", "", "1" }, 
-    { "@HWUSI-EAS535_0001:7:1:747:14018#0/1", "HWUSI-EAS535_0001:7:1:747:14018", "", "1" }, 
-    { "@FC42ATTAAXX:5:1:0:20481", "FC42ATTAAXX:5:1:0:20481", "", "" }, 
-    { "@HWUSI-EAS1571_0012:8:1:1017:20197#0/1", "HWUSI-EAS1571_0012:8:1:1017:20197", "", "1" }, 
-    { "@SOLEXA1_0052_FC:8:1:1508:1078#TTAGGC/1", "SOLEXA1_0052_FC:8:1:1508:1078", "TTAGGC", "1" }, 
+    { "@HWI-EAS390_30VGNAAXX1:1:1:377:1113/1", "HWI-EAS390_30VGNAAXX1:1:1:377:1113", "", "1" },
+    { "@ID57_120908_30E4FAAXX:3:1:1772:953/1", "ID57_120908_30E4FAAXX:3:1:1772:953", "", "1" },
+    { "HWI-EAS440_102:8:1:168:1332", "HWI-EAS440_102:8:1:168:1332", "", "" },
+    { "@SNPSTER4_246_30GCDAAXX_PE:1:1:3:896/1", "SNPSTER4_246_30GCDAAXX_PE:1:1:3:896", "", "1" },
+    { "@FC42AUBAAXX:6:1:4:1280#TGACCA/1", "FC42AUBAAXX:6:1:4:1280", "TGACCA", "1" },
+    { "@SOLEXA9:1:1:1:2005#0/1", "SOLEXA9:1:1:1:2005", "", "1" },
+    { "@SNPSTER3_264_30JGGAAXX_PE:2:1:218:311/1", "SNPSTER3_264_30JGGAAXX_PE:2:1:218:311", "", "1" },
+    { "@HWUSI-EAS535_0001:7:1:747:14018#0/1", "HWUSI-EAS535_0001:7:1:747:14018", "", "1" },
+    { "@FC42ATTAAXX:5:1:0:20481", "FC42ATTAAXX:5:1:0:20481", "", "" },
+    { "@HWUSI-EAS1571_0012:8:1:1017:20197#0/1", "HWUSI-EAS1571_0012:8:1:1017:20197", "", "1" },
+    { "@SOLEXA1_0052_FC:8:1:1508:1078#TTAGGC/1", "SOLEXA1_0052_FC:8:1:1508:1078", "TTAGGC", "1" },
     { "@SN971:2:1101:15.80:103.70#0/1", "SN971:2:1101:15.80:103.70", "", "1" }
 };
 
@@ -1199,7 +1229,7 @@ FIXTURE_TEST_CASE(PacBioTests, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(illuminaOldBcRnOnly, LoaderFixture)
-{   
+{
     fastq_reader reader("test", create_stream(_READ("_2_#GATCAGAT/1", "GAAA", "IIII")), {}, 2);
     CFastqRead read;
     THROW_ON_FALSE( reader.get_read(read) );
@@ -1211,7 +1241,7 @@ FIXTURE_TEST_CASE(illuminaOldBcRnOnly, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(illuminaOldBcOnly, LoaderFixture)
-{   
+{
     fastq_reader reader("test", create_stream(_READ("@Read_190546#BC005 length=1419", "GAAA", "IIII")), {}, 2);
     CFastqRead read;
     THROW_ON_FALSE( reader.get_read(read) );

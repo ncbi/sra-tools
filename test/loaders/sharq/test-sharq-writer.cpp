@@ -139,6 +139,97 @@ FIXTURE_TEST_CASE(NanoporeSpecificColumns, VdbWriterFixture)
 
 }
 
+FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
+{
+    CFastqRead read;
+    read.SetSequence( "GATT" );
+    m_w.open();
+    vector<CFastqRead> v { read };
+    m_w.write_spot( "", v );
+
+
+    const Fingerprint & fp = m_w.get_read_fingerprint();
+    REQUIRE_EQ( 0, (int)fp.a[0] );
+    REQUIRE_EQ( 1, (int)fp.a[1] );
+    REQUIRE_EQ( 0, (int)fp.a[2] );
+    REQUIRE_EQ( 0, (int)fp.a[3] );
+    REQUIRE_EQ( 0, (int)fp.c[0] );
+    REQUIRE_EQ( 0, (int)fp.c[1] );
+    REQUIRE_EQ( 0, (int)fp.c[2] );
+    REQUIRE_EQ( 0, (int)fp.c[3] );
+    REQUIRE_EQ( 1, (int)fp.g[0] );
+    REQUIRE_EQ( 0, (int)fp.g[1] );
+    REQUIRE_EQ( 0, (int)fp.g[2] );
+    REQUIRE_EQ( 0, (int)fp.g[3] );
+    REQUIRE_EQ( 0, (int)fp.t[0] );
+    REQUIRE_EQ( 0, (int)fp.t[1] );
+    REQUIRE_EQ( 1, (int)fp.t[2] );
+    REQUIRE_EQ( 1, (int)fp.t[3] );
+    REQUIRE_EQ( 0, (int)fp.n[0] );
+    REQUIRE_EQ( 0, (int)fp.n[1] );
+    REQUIRE_EQ( 0, (int)fp.n[2] );
+    REQUIRE_EQ( 0, (int)fp.n[3] );
+    REQUIRE_EQ( 0, (int)fp.ool[0] );
+    REQUIRE_EQ( 0, (int)fp.ool[1] );
+    REQUIRE_EQ( 0, (int)fp.ool[2] );
+    REQUIRE_EQ( 0, (int)fp.ool[3] );
+    REQUIRE_EQ( 1, (int)fp.ool[4] );
+
+}
+
+FIXTURE_TEST_CASE(Fingerprinting_exp, VdbWriterFixture)
+{
+    json json_exp;
+    json_exp = json::parse(
+        R"(
+{"EXPERIMENT":
+    {"DESIGN":
+        {"SPOT_DESCRIPTOR":
+            {"SPOT_DECODE_SPEC":
+                {"READ_SPEC":
+                    {"BASE_COORD":"0","READ_CLASS":"b"}
+                }
+            }
+        }
+    }
+})"
+    );
+    fastq_writer_exp w( json_exp, cnull) ;
+
+    CFastqRead read;
+    read.SetSequence( "GATT" );
+    w.open();
+    vector<CFastqRead> v { read };
+    w.write_spot( "", v );
+
+    const Fingerprint & fp = w.get_read_fingerprint();
+    REQUIRE_EQ( 0, (int)fp.a[0] );
+    REQUIRE_EQ( 1, (int)fp.a[1] );
+    REQUIRE_EQ( 0, (int)fp.a[2] );
+    REQUIRE_EQ( 0, (int)fp.a[3] );
+    REQUIRE_EQ( 0, (int)fp.c[0] );
+    REQUIRE_EQ( 0, (int)fp.c[1] );
+    REQUIRE_EQ( 0, (int)fp.c[2] );
+    REQUIRE_EQ( 0, (int)fp.c[3] );
+    REQUIRE_EQ( 1, (int)fp.g[0] );
+    REQUIRE_EQ( 0, (int)fp.g[1] );
+    REQUIRE_EQ( 0, (int)fp.g[2] );
+    REQUIRE_EQ( 0, (int)fp.g[3] );
+    REQUIRE_EQ( 0, (int)fp.t[0] );
+    REQUIRE_EQ( 0, (int)fp.t[1] );
+    REQUIRE_EQ( 1, (int)fp.t[2] );
+    REQUIRE_EQ( 1, (int)fp.t[3] );
+    REQUIRE_EQ( 0, (int)fp.n[0] );
+    REQUIRE_EQ( 0, (int)fp.n[1] );
+    REQUIRE_EQ( 0, (int)fp.n[2] );
+    REQUIRE_EQ( 0, (int)fp.n[3] );
+    REQUIRE_EQ( 0, (int)fp.ool[0] );
+    REQUIRE_EQ( 0, (int)fp.ool[1] );
+    REQUIRE_EQ( 0, (int)fp.ool[2] );
+    REQUIRE_EQ( 0, (int)fp.ool[3] );
+    REQUIRE_EQ( 1, (int)fp.ool[4] );
+}
+
 int main (int argc, char *argv [])
 {
     return SharQWriterTestSuite(argc, argv);

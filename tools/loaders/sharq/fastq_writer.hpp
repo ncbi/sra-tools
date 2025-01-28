@@ -43,6 +43,9 @@
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
 #include "sra-tools/writer.hpp"
+
+#include <fingerprint.hpp>
+
 #include <spdlog/spdlog.h>
 #include "spdlog/sinks/base_sink.h"
 #include <spdlog/sinks/stdout_sinks.h>
@@ -94,7 +97,7 @@ public:
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         writer(writer_)
     {}
-*/    
+*/
     general_writer_sink(fastq_writer* writer_)
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         m_writer(writer_)
@@ -176,9 +179,9 @@ public:
     /**
      * @brief Get the attr object
      * value is not changed if attr is not found
-     * 
-     * @param name 
-     * @param value 
+     *
+     * @param name
+     * @param value
      */
     void get_attr(const string& name, string& value) {
         auto it = m_attr.find(name);
@@ -193,7 +196,7 @@ public:
             m_err_messages.push_back(msg);
         else
             m_log_messages.push_back(msg);
-        m_has_messages = true;            
+        m_has_messages = true;
     }
 
     virtual void write_messages()
@@ -235,7 +238,7 @@ public:
         m_quality_as_string = quality_expression == "(INSDC:quality:phred)QUALITY";
     };
 
-    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override
     {
         if (reads.empty())
             return;
@@ -309,6 +312,8 @@ public:
 
     }
 
+    const Fingerprint & get_read_fingerprint() const { return m_read_fingerprint; }
+
 protected:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
     std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default logger
@@ -326,11 +331,12 @@ protected:
     Writer2::Column c_READ_NUMBER;
     uint8_t m_platform{0};
     bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
-    string m_tmp_sequence; ///< temp string for sequences 
+    string m_tmp_sequence; ///< temp string for sequences
     string m_tmp_spot; ///< temp string for spots
     vector<uint8_t> m_qual_scores; ///< temp vector for scores
     vector<char> mReadTypes;
 
+    Fingerprint m_read_fingerprint;
 };
 
 //  -----------------------------------------------------------------------------
@@ -411,7 +417,7 @@ void fastq_writer_vdb::open()
     case SRA_PLATFORM_OXFORD_NANOPORE:
         db = cNANOPORE_DB;
         break;
-    case SRA_PLATFORM_454: 
+    case SRA_PLATFORM_454:
         schema = c454_SCHEMA;
         db = c454_DB;
         break;
@@ -424,7 +430,7 @@ void fastq_writer_vdb::open()
     //m_writer->set_attr("db", db);
 
 
-    //string schema = cSCHEMA;        
+    //string schema = cSCHEMA;
     //string db = cGENERIC_DB;
     //get_attr("schema", schema);
     //get_attr("db", db);
@@ -571,6 +577,8 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
         ++read_num;
     }
     c_READ.setValue(m_tmp_sequence);
+    m_read_fingerprint.record( m_tmp_sequence );
+
     c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
     c_READ_START.setValue(read_num, sizeof(int32_t), read_start);
     c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len);
@@ -587,7 +595,7 @@ using json = nlohmann::json;
 
 class fastq_writer_exp : public fastq_writer_vdb
 {
-public:    
+public:
     fastq_writer_exp(const json& ExperimentSpecs, ostream& stream, shared_ptr<Writer2> writer = shared_ptr<Writer2>())
         : fastq_writer_vdb(stream, writer)
     {
@@ -596,7 +604,7 @@ public:
                 throw fastq_error("Experiment does not contains READ_SPEC");
 
             if (j.is_array()) {
-                for (auto it = j.begin();it != j.end(); ++it) {           
+                for (auto it = j.begin();it != j.end(); ++it) {
                     auto& v = *it;
                     auto base_coord = v["BASE_COORD"].get<string>();
                     read_start.push_back(stoi(base_coord) - 1);
@@ -609,14 +617,14 @@ public:
                 auto read_class = j["READ_CLASS"].get<string>();
                 m_read_type.push_back((read_class == "Technical Read") ? 0 : 1);
             }
-        
+
         auto num_reads = read_start.size();
         read_len.resize(num_reads, 0);
         read_filter.resize(num_reads, 0);
-    }  
+    }
 
 
-    void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
+    void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override
     {
         if (reads.empty())
             return;
@@ -638,6 +646,8 @@ public:
             sz -= read_len[i];
         }
         c_READ.setValue(m_tmp_sequence);
+        m_read_fingerprint.record( m_tmp_sequence );
+
         c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
         c_READ_START.setValue(read_num, sizeof(int32_t),read_start.data());
         c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len.data());

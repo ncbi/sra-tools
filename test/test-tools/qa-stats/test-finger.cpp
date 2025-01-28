@@ -26,8 +26,9 @@
  *  Unit tests for fingerprint.hpp
  */
 
+#include <sstream>
+#include <JSON_ostream.hpp>
 #include <fingerprint.hpp>
-#include "../../../tools/test-tools/qa-stats/output.hpp"
 
 #include <ktst/unit_test.hpp>
 

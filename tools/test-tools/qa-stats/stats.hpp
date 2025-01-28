@@ -145,7 +145,7 @@ struct DistanceStats {
             auto const n = size();
             auto const sum = total();
             for (auto i = Index{ 0 }; i < n; ++i)
-                func(i, counts[i], sum);
+                func(i, (*this)[i], sum);
         }
 
         template < typename FUNC >
@@ -153,7 +153,7 @@ struct DistanceStats {
             auto const n = std::max(size(), complement.size());
             auto const sum = total() + complement.total();
             for (auto i = Index{ 0 }; i < n; ++i)
-                func(i, counts[i] + complement[i], sum);
+                func(i, (*this)[i] + complement[i], sum);
         }
     };
     DistanceStat A, C, G, T, SW, KM;

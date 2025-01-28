@@ -38,6 +38,7 @@
 #include <string_view>
 #include <vector>
 #include <cctype>
+#include <JSON_ostream.hpp>
 
 class Fingerprint
 {
@@ -99,5 +100,31 @@ public:
     Accumulator n; // everything that is not AGCT
     Accumulator ool; // out of read length
 };
+
+static inline
+JSON_ostream &operator <<(JSON_ostream &out, Fingerprint::Accumulator const &self)
+{
+    for (size_t i = 0; i < self.size(); ++i) {
+        out << '{'
+            << JSON_Member{"base"} << self.base
+            << JSON_Member{"pos"} << i
+            << JSON_Member{"count"} << self[i]
+        << '}';
+    }
+    return out;
+}
+
+
+static inline
+JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
+{
+    out << self.a
+        << self.c
+        << self.g
+        << self.t
+        << self.n
+        << self.ool;
+    return out;
+}
 
 #endif // fingerprint_hpp

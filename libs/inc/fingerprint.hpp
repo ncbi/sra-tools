@@ -123,4 +123,3 @@ JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
         << self.ool;
     return out;
 }
-

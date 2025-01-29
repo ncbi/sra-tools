@@ -1,37 +1,39 @@
 /*===========================================================================
-*
-*                            PUBLIC DOMAIN NOTICE
-*               National Center for Biotechnology Information
-*
-*  This software/database is a "United States Government Work" under the
-*  terms of the United States Copyright Act.  It was written as part of
-*  the author's official duties as a United States Government employee and
-*  thus cannot be copyrighted.  This software/database is freely available
-*  to the public for use. The National Library of Medicine and the U.S.
-*  Government have not placed any restriction on its use or reproduction.
-*
-*  Although all reasonable efforts have been taken to ensure the accuracy
-*  and reliability of the software and data, the NLM and the U.S.
-*  Government do not and cannot warrant the performance or results that
-*  may be obtained by using this software or data. The NLM and the U.S.
-*  Government disclaim all warranties, express or implied, including
-*  warranties of performance, merchantability or fitness for any particular
-*  purpose.
-*
-*  Please cite the author in any work or product based on this material.
-*
-* ===========================================================================
-*
-*/
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ * Purpose:
+ *  Unit tests for fingerprint.hpp
+ */
 
-/**
-* Unit tests for qa-stat/fingerprint.hpp
-*/
-
-#include "../../../tools/test-tools/qa-stats/fingerprint.hpp"
+#include <sstream>
+#include <JSON_ostream.hpp>
+#include <fingerprint.hpp>
 
 #include <ktst/unit_test.hpp>
 
+#define EOR_FLD ool
+#define EOR_TAG "OoL"
 using namespace std;
 
 TEST_SUITE(QaStatsFingerprintTestSuite);
@@ -48,7 +50,7 @@ TEST_CASE(Empty)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -66,7 +68,7 @@ TEST_CASE(EmptyRead)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -84,7 +86,7 @@ TEST_CASE(OneBase)
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -132,12 +134,12 @@ TEST_CASE(AllBases)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 4,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 5,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
@@ -197,12 +199,12 @@ TEST_CASE(MultiRead)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 4,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 5,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
@@ -217,14 +219,55 @@ TEST_CASE(MultiRead)
     REQUIRE_EQ( expected, outStr.str() );
 }
 
+TEST_CASE(ReadHash_example_Fig_1_Fig_2)
+{
+    Fingerprint fp{9};
+
+    // from Fig. 1
+    //         01234567
+    fp.record("AATGCCT");
+    fp.record("AACTTNGG");
+    fp.record("TATATATA");
+    fp.record("GCTA");
+
+    // from Fig. 2
+    //                             0  1  2  3  4  5  6  7  8
+    uint64_t const expectedA[] = { 2, 3, 0, 2, 0, 1, 0, 1, 0 };
+    uint64_t const expectedC[] = { 0, 1, 1, 0, 1, 1, 0, 0, 0 };
+    uint64_t const expectedG[] = { 1, 0, 0, 1, 0, 0, 1, 1, 0 };
+    uint64_t const expectedT[] = { 1, 0, 3, 1, 2, 0, 2, 0, 0 };
+    uint64_t const expectedN[] = { 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+    uint64_t const expectedE[] = { 0, 0, 0, 0, 1, 0, 0, 1, 2 };
+
+
+    auto const require_eq = [&](Fingerprint::Accumulator const &stats, uint64_t const *expected) {
+        REQUIRE_EQ(stats.size(), size_t{9});
+        for (size_t i = 0; i < 9; ++i) {
+            REQUIRE_EQ(stats[i], expected[i]);
+        }
+    };
+
+    require_eq(fp.a, expectedA);
+    require_eq(fp.c, expectedC);
+    require_eq(fp.g, expectedG);
+    require_eq(fp.t, expectedT);
+    require_eq(fp.n, expectedN);
+    require_eq(fp.EOR_FLD, expectedE);
+}
+
+
 TEST_CASE(WrapAround)
 {
     Fingerprint fp(3);
     fp.record("ACGTN");
-             //TN
+             //ACG
+             //TN$
     fp.record("AACCGT");
+             //AAC
              //CGT
+             //$
     fp.record("AC");
+             //AC$
 
     ostringstream outStr;
     JSON_ostream out(outStr);
@@ -250,9 +293,9 @@ TEST_CASE(WrapAround)
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 1,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
 
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"OoL\",\n\t\t\"pos\": 2,\n\t\t\"count\": 1\n\t}\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 2\n\t}\n"
         "]";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {

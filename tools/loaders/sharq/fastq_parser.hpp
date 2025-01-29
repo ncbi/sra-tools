@@ -873,7 +873,7 @@ bool fastq_reader::get_read(CFastqRead& read)
             return false;
         validate_read<ScoreValidator>(read);
         m_platform = m_defline_parser.GetPlatform();
-        m_fingerprint.record( read.Sequence() );//TODO: move to caller
+        m_fingerprint.record( read.Sequence() );
     } catch (fastq_error& e) {
         ++m_input_metrics.rejected_read_count;
         e.set_file(m_file_name, read.LineNumber());

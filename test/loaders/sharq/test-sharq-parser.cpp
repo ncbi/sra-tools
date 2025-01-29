@@ -272,7 +272,6 @@ FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
     REQUIRE_EQ(read.Sequence(), cSEQ);
     REQUIRE_EQ(read.Sequence().size(), 4lu);
 
-
     const Fingerprint & fp = reader.fingerprint();
     REQUIRE_EQ( 0, (int)fp.a[0] );
     REQUIRE_EQ( 1, (int)fp.a[1] );

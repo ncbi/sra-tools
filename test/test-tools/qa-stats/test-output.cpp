@@ -28,7 +28,8 @@
 * Unit tests for qa-stat/output.[hc]pp
 */
 
-#include "../../tools/test-tools/qa-stats/output.hpp"
+#include <sstream>
+#include <JSON_ostream.hpp>
 
 #include <ktst/unit_test.hpp>
 
@@ -50,7 +51,7 @@ TEST_CASE(InsertInt)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert(1);
+        out << 1;
     }
     REQUIRE_EQ( string("1"), outStr.str() );
 }
@@ -60,8 +61,8 @@ TEST_CASE(InsertBool)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert(true);
-        out.insert(false);
+        out << true;
+        out << false;
     }
     REQUIRE_EQ( string("truefalse"), outStr.str() );
 }
@@ -71,7 +72,7 @@ TEST_CASE(InsertChar)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert('c');
+        out << 'c';
     }
     REQUIRE_EQ( string("c"), outStr.str() );
 }
@@ -81,7 +82,7 @@ TEST_CASE(InsertCString)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert("cstring");
+        out << "cstring";
     }
     REQUIRE_EQ( string(R"("cstring")"), outStr.str() );
 }
@@ -91,7 +92,17 @@ TEST_CASE(InsertString)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert(string("string"));
+        out << string("string");
+    }
+    REQUIRE_EQ( string(R"("string")"), outStr.str() );
+}
+
+TEST_CASE(InsertStringView)
+{
+    ostringstream outStr;
+    {
+        JSON_ostream out(outStr);
+        out << string_view("string");
     }
     REQUIRE_EQ( string(R"("string")"), outStr.str() );
 }
@@ -102,10 +113,10 @@ TEST_CASE(InsertMember)
     {
         JSON_Member mem = { "name" };
         JSON_ostream out(outStr);
-        out.insert('{');
-        out.insert(mem);
-        out.insert(string("value"));
-        out.insert('}');
+        out << '{';
+        out << mem;
+        out << "value";
+        out << '}';
     }
     REQUIRE_EQ( string("{\n\t\"name\": \"value\"\n}"), outStr.str() );
 }
@@ -117,12 +128,12 @@ TEST_CASE(InsertMembers)
         JSON_Member mem1 = { "name1" };
         JSON_Member mem2 = { "name2" };
         JSON_ostream out(outStr);
-        out.insert('{');
-        out.insert(mem1);
-        out.insert(string("value1"));
-        out.insert(mem2);
-        out.insert(string("value2"));
-        out.insert('}');
+        out << '{';
+        out << mem1;
+        out << string("value1");
+        out << mem2;
+        out << string_view("value2");
+        out << '}';
     }
     REQUIRE_EQ( string("{\n\t\"name1\": \"value1\",\n\t\"name2\": \"value2\"\n}"), outStr.str() );
 }
@@ -131,11 +142,10 @@ TEST_CASE(InsertArrayElem)
 {
     ostringstream outStr;
     {
-        JSON_Member mem = { "name" };
         JSON_ostream out(outStr);
-        out.insert('[');
-        out.insert(string("elem1"));
-        out.insert(']');
+        out << '[';
+        out << "elem1";
+        out << ']';
     }
     REQUIRE_EQ( string("[\n\t\"elem1\"\n]"), outStr.str() );
 }
@@ -145,9 +155,9 @@ TEST_CASE(InsertArrayElems)
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
-        out.insert('[');
-        out<<"elem1"<<','<<"elem2"<<','<<"elem3";
-        out.insert(']');
+        out << '[';
+        out << "elem1" << ',' << "elem2" << ',' << "elem3";
+        out << ']';
     }
     REQUIRE_EQ( string("[\n\t\"elem1\",\n\t\"elem2\",\n\t\"elem3\"\n]"), outStr.str() );
 }

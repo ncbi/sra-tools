@@ -320,7 +320,7 @@ namespace VDB {
         enum MetaNodeRoot {
             database, table, column
         };
-        bool setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &name, std::string const &value) const
+        virtual bool setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &name, std::string const &value) const
         {
             auto const code = root == database ? dbMeta
                             : root == table    ? tableMeta

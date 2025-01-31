@@ -1367,8 +1367,15 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
     update_readers_telemetry<ScoreValidator>();
 
 //    spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
-    if (m_telemetry.groups.back().rejected_spots > 0)
+    if (! m_telemetry.groups.empty() && m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
+
+    // register readers' fingerprints with the writer
+    for ( auto r : m_readers )
+    {
+        m_writer->set_fingerprint( r.file_name(), r.fingerprint() );
+    }
+
     spdlog::debug("parsing time: {}", sw);
 }
 
@@ -1993,7 +2000,6 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
 
 template<typename TWriter>
 void set_experiment_file(const string& experiment_file);
-
 
 template<typename TWriter>
 template<typename ScoreValidator, typename ErrorChecker, typename T>

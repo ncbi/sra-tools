@@ -215,6 +215,11 @@ public:
         m_has_messages = false;
     }
 
+    void set_fingerprint( const string & source, const Fingerprint & fp )
+    {
+        m_source_fp.push_back( make_pair(source, fp ) );
+    }
+
 protected:
     using TAttributeName = string;
     using TAttributeValue = string;
@@ -223,7 +228,7 @@ protected:
     vector<string> m_err_messages; ///< Messages
     vector<string> m_log_messages; ///< Messages
     atomic<bool> m_has_messages{false}; ///< Messages
-
+    vector< pair<string, Fingerprint> > m_source_fp; ///< read fingerprints per input file
 };
 
 class fastq_writer_debug : public fastq_writer
@@ -273,6 +278,7 @@ public:
         }
     }
     bool m_quality_as_string{false};
+    using fastq_writer::m_source_fp;
 };
 
 
@@ -490,6 +496,21 @@ void fastq_writer_vdb::open()
 void fastq_writer_vdb::close()
 {
     if (m_is_writing && m_writer) {
+
+        // save fingerprints in the metadata
+        // input fingerprint(s)
+        for( int i = 0;  i < m_source_fp.size(); ++i )
+        {
+            ostringstream key;
+            key << "LOAD/QC/file_" << i;
+            ostringstream value;
+            value << "v_" << i;
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), value.str() );
+        }
+        // output fingerprint
+        m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, 0, "QC", "out" );
+
+
         write_messages();
         m_writer->endWriting();
         m_is_writing = false;
@@ -577,8 +598,6 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
         ++read_num;
     }
     c_READ.setValue(m_tmp_sequence);
-    m_read_fingerprint.record( m_tmp_sequence );
-
     c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
     c_READ_START.setValue(read_num, sizeof(int32_t), read_start);
     c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len);
@@ -646,8 +665,6 @@ public:
             sz -= read_len[i];
         }
         c_READ.setValue(m_tmp_sequence);
-        m_read_fingerprint.record( m_tmp_sequence );
-
         c_QUALITY.setValue(m_qual_scores.size(), sizeof(uint8_t), &m_qual_scores[0]);
         c_READ_START.setValue(read_num, sizeof(int32_t),read_start.data());
         c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len.data());

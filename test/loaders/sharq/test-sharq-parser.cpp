@@ -28,24 +28,9 @@
 * Unit tests for SHARQ loader
 */
 #include <ktst/unit_test.hpp>
-#include <klib/rc.h>
-#include <loader/common-writer.h>
-#include <kfs/directory.h>
-#include <kfs/file.h>
-#include <sstream>
 
-#include <fingerprint.hpp>
-
-#include "../../tools/loaders/sharq/fastq_utils.hpp"
 #include "../../tools/loaders/sharq/fastq_parser.hpp"
-#include "../../tools/loaders/sharq/fastq_read.hpp"
-#include "../../tools/loaders/sharq/fastq_error.hpp"
-
-#include <sysalloc.h>
-#include <stdlib.h>
-#include <cstring>
-#include <stdexcept>
-#include <list>
+#include "../../tools/loaders/sharq/fastq_writer.hpp"
 
 using namespace std;
 
@@ -69,48 +54,36 @@ public:
     string filename;
 };
 
-const string cSPOT1 = "NB501550:336:H75GGAFXY:2:11101:10137:1038";
-const string cSPOT_GROUP = "CTAGGTGA";
-const string cDEFLINE1 = cSPOT1 + " 1:N:0:" + cSPOT_GROUP;
-const string cSEQ1 = "GATT";
-const string cSEQ2 = "CCAG";
-const string cQUAL = "!''*";
-
-#define _READ(defline, sequence, quality)\
-    string(((defline[0] == '@' || defline[0] == '>') ? "" : "@") + string(defline)  + "\n" + sequence  + "\n+\n" + quality + "\n")\
-
-
 FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
-{
-    fastq_reader reader1("test", create_stream(_READ(cDEFLINE1, cSEQ1, cQUAL)));
-    fastq_reader reader2("test", create_stream(_READ(cDEFLINE1, cSEQ2, cQUAL)));
-    //fastq_parser([readr1,reader2])
-    const Fingerprint & fp = reader1.fingerprint();
-    REQUIRE_EQ( 0, (int)fp.a[0] );
-    REQUIRE_EQ( 1, (int)fp.a[1] );
-    REQUIRE_EQ( 0, (int)fp.a[2] );
-    REQUIRE_EQ( 0, (int)fp.a[3] );
-    REQUIRE_EQ( 0, (int)fp.c[0] );
-    REQUIRE_EQ( 0, (int)fp.c[1] );
-    REQUIRE_EQ( 0, (int)fp.c[2] );
-    REQUIRE_EQ( 0, (int)fp.c[3] );
-    REQUIRE_EQ( 1, (int)fp.g[0] );
-    REQUIRE_EQ( 0, (int)fp.g[1] );
-    REQUIRE_EQ( 0, (int)fp.g[2] );
-    REQUIRE_EQ( 0, (int)fp.g[3] );
-    REQUIRE_EQ( 0, (int)fp.t[0] );
-    REQUIRE_EQ( 0, (int)fp.t[1] );
-    REQUIRE_EQ( 1, (int)fp.t[2] );
-    REQUIRE_EQ( 1, (int)fp.t[3] );
-    REQUIRE_EQ( 0, (int)fp.n[0] );
-    REQUIRE_EQ( 0, (int)fp.n[1] );
-    REQUIRE_EQ( 0, (int)fp.n[2] );
-    REQUIRE_EQ( 0, (int)fp.n[3] );
-    REQUIRE_EQ( 0, (int)fp.ool[0] );
-    REQUIRE_EQ( 0, (int)fp.ool[1] );
-    REQUIRE_EQ( 0, (int)fp.ool[2] );
-    REQUIRE_EQ( 0, (int)fp.ool[3] );
-    REQUIRE_EQ( 1, (int)fp.ool[4] );
+{   // parser register the fingerprints of incoming reads with the writer
+    json readers = json::parse(
+        R"( {
+                "files" : [
+                    { "file_path" : "input/r1.fastq", "platform_code" : 1, "quality_encoding" : 33, "max_reads" : 1 },
+                    { "file_path" : "input/r2.fastq", "platform_code" : 1, "quality_encoding" : 33, "max_reads" : 1 }
+                ],
+                "is_10x" : false
+            }
+        )"
+    );
+    auto wr = make_shared<fastq_writer_debug>();
+    fastq_parser<fastq_writer_debug> parser( wr );
+    wr->open();
+    parser.set_readers( readers ); // will open files
+
+    auto err_checker = [this](fastq_error& e) -> void {};
+    spot_name_check name_checker(10);
+    parser.parse< validator_options<eNumeric, 33, 126> > (
+        name_checker,
+        err_checker
+    );
+    // this will not read anything but should save readers' (empty) fingerprints
+    // on the writer
+
+    REQUIRE_EQ( string("input/r1.fastq"), wr->m_source_fp[0].first);
+    REQUIRE_EQ( string("input/r2.fastq"), wr->m_source_fp[1].first);
+
+    wr->close();
 }
 ////////////////////////////////////////////
 

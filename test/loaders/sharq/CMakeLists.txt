@@ -129,7 +129,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "0" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -190,7 +190,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
         add_test( NAME Test_${TestName}
             COMMAND
-                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
+                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "0" "--debug" "--no-timestamp" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         endmacro()
@@ -268,6 +268,16 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(014.2files_bad_sequence 0 "${IN}014.R1.fastq ${IN}014.R2.fastq" "no-sa")
         SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
+
+
+        macro(SharqTestWithMetadata TestName Result TestParams )
+            add_test( NAME Test_${TestName}
+                COMMAND
+                    "./runtestcase.sh" "${DIRTOTEST}" "sharq" "." "${TestName}" "${Result}" "0" "1" "${TestParams}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+        endmacro()
+        SharqTestWithMetadata(MetaSingleFile 0 "${IN}001.R1.fastq")
 
     endif()
 

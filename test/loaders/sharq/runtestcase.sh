@@ -30,7 +30,8 @@
 # $4 - test case ID
 # $5 - expected result code from sharq
 # $6 - telemetry testing (0 - off)
-# $5, $6, ... - command line options for fastq-load.3
+# $7 - metadata testing (0 - off)
+# $8, $9, ... - command line options for fastq-load.3
 #
 # return codes:
 # 0 - passed
@@ -44,7 +45,8 @@ WORKDIR=$3
 CASEID=$4
 RC=$5
 TELEMETRY_RPT=$6
-shift 6
+METADATA_DIFF=$7
+shift 7
 CMDLINE=$*
 
 DUMP="$BINDIR/vdb-dump"
@@ -75,8 +77,13 @@ if [ "$TELEMETRY_RPT" != "0" ] ; then
 CMDLINE="${CMDLINE} -t ${TEMPDIR}/telemetry"
 fi
 
+if [ "$METADATA_DIFF" != "0" ] ; then
+CMD="$LOAD ${CMDLINE} 2>$TEMPDIR/load.stderr | general-loader -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+else
 CMD="$LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-echo $CMD
+fi
+
+echo CMD=$CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
@@ -118,7 +125,7 @@ if [ "$rc" != "0" ] ; then
         echo "command executed:"
         echo $CMD
         exit 3
-    fi    
+    fi
 fi
 
 if [ "$TELEMETRY_RPT" != "0" ] ; then
@@ -132,5 +139,16 @@ if [ "$TELEMETRY_RPT" != "0" ] ; then
     fi
 fi
 
+if [ "$METADATA_DIFF" != "0" ] ; then
+    kdbmeta $TEMPDIR/db LOAD | grep -v timestamp >$TEMPDIR/meta
+    $DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
+    rc="$?"
+    if [ "$rc" != "0" ] ; then
+        cat $TEMPDIR/meta.diff
+        echo "command executed:"
+        echo $CMD
+        exit 3
+    fi
+fi
 
 exit 0

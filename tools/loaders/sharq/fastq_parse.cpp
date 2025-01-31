@@ -690,9 +690,8 @@ int CFastqParseApp::xRun()
         //if (mNoTimeStamp == false)
         //    mReport["timing"]["collation_check"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
         spdlog::info("Parsing complete");
-        //TODO: m_writer->set_attr("Read_FP", parser.get_fingerprint().toString() );
-        //TODO: m_writer->set_attr("Write_FP", m_writer->get_read_fingerprint().toString() )
-        m_writer->close();
+
+        m_writer->close(); // m_writer will save read+write fingerprints in metadata if capable
     } catch (exception& e) {
         if (!mTelemetryFile.empty())
             parser.report_telemetry(mReport);

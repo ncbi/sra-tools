@@ -115,11 +115,13 @@ JSON_ostream &operator <<(JSON_ostream &out, Fingerprint::Accumulator const &sel
 static inline
 JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
 {
-    out << self.a
+    out << '{'
+        << self.a
         << self.c
         << self.g
         << self.t
         << self.n
-        << self.ool;
+        << self.ool
+        << '}';
     return out;
 }

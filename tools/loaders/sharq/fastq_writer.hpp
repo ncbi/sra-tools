@@ -1,5 +1,4 @@
-#ifndef __FASTQ_WRITER_HPP__
-#define __FASTQ_WRITER_HPP__
+#pragma once
 
 /**
  * @file fastq_writer.hpp
@@ -499,24 +498,30 @@ void fastq_writer_vdb::close()
 
         // save fingerprints in the metadata
         // input fingerprint(s)
-        for( int i = 0;  i < m_source_fp.size(); ++i )
+        for( size_t i = 0;  i < m_source_fp.size(); ++i )
         {
             ostringstream key;
-            key << "LOAD/QC/file_" << i;
+            key << "LOAD/QC/file_" << (i+1);
             ostringstream value;
-            value << "v_" << i;
+            JSON_ostream json(value);
+            json << m_source_fp[i].second;
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), value.str() );
+            //TODO: save m_source.fp[i].first as the node's attribute "name"
         }
-        // output fingerprint
-        m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, 0, "QC", "out" );
 
+        {   // output fingerprint
+            ostringstream value;
+            JSON_ostream json(value);
+            json << m_read_fingerprint;
+            Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/fingerprint", value.str() );
+        }
 
         write_messages();
         m_writer->endWriting();
         m_is_writing = false;
         m_writer->flush();
         spdlog::set_default_logger(m_default_logger);
-        //spdlog::set_default_logger(m_default_logger);
         //m_writer.reset();
     }
 }
@@ -695,5 +700,3 @@ void general_writer_sink<Mutex>::sink_it_(const spdlog::details::log_msg& msg)
     */
 }
 
-
-#endif

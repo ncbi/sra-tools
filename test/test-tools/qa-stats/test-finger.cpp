@@ -43,14 +43,14 @@ TEST_CASE(Empty)
     Fingerprint fp(1);
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"C\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t}\n}";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -61,14 +61,14 @@ TEST_CASE(EmptyRead)
 
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"C\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n}";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -79,14 +79,14 @@ TEST_CASE(OneBase)
 
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"C\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"G\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"T\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"N\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n"
-           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n]";
+           "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t}\n}";
     REQUIRE_EQ( expected, outStr.str() );
 }
 
@@ -97,9 +97,9 @@ TEST_CASE(AllBases)
 
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
@@ -140,7 +140,7 @@ TEST_CASE(AllBases)
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
-        "]";
+        "}";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
         if (expected[i] != outStr.str()[i] )
@@ -162,9 +162,9 @@ TEST_CASE(MultiRead)
 
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 2\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 2\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
@@ -205,7 +205,7 @@ TEST_CASE(MultiRead)
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 3,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 4,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 5,\n\t\t\"count\": 1\n\t}\n"
-        "]";
+        "}";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
         if (expected[i] != outStr.str()[i] )
@@ -271,9 +271,9 @@ TEST_CASE(WrapAround)
 
     ostringstream outStr;
     JSON_ostream out(outStr);
-    out << '[' << fp << ']';
+    out << fp;
     const string expected =
-        "[\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 3\n\t},\n"
+        "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 3\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 2,\n\t\t\"count\": 0\n\t},\n"
 
@@ -296,7 +296,7 @@ TEST_CASE(WrapAround)
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 1,\n\t\t\"count\": 0\n\t},\n"
            "\t{\n\t\t\"base\": \"" EOR_TAG "\",\n\t\t\"pos\": 2,\n\t\t\"count\": 2\n\t}\n"
-        "]";
+        "}";
     for( size_t i = 0 ; i < expected.size(); ++i )
     {
         if (expected[i] != outStr.str()[i] )

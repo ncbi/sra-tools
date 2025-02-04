@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <cassert>
 
 struct JSON_Member {
     std::string name;
@@ -148,6 +149,7 @@ class JSON_ostream {
 
     // start a new list item
     void listItem() {
+        assert(!listStack.empty());
         if (listStack.back()) {
             insert_raw(',');
             newline = true;
@@ -159,6 +161,7 @@ class JSON_ostream {
 
     // end a list (array or object)
     void endList(char type) {
+        assert(!listStack.empty());
         newline = listStack.back();
         listStack.pop_back();
         indentIfNeeded();

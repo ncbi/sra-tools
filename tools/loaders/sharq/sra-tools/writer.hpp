@@ -402,6 +402,9 @@ public:
         bool closeRow() const {
             return parent->closeRow(table_entry->first);
         }
+        TableID id() const {
+            return table_entry->first;
+        }
     };
 
     class Column {

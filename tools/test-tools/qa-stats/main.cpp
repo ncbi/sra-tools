@@ -222,7 +222,7 @@ static JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
         out << JSON_Member{"spectra"}      << '{' << self.spectra     << '}';
         out << JSON_Member{"references"}   << '[' << self.references  << ']';
         // fingerprint is only output separately
-        // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
+        // out << JSON_Member{"fingerprint"}  << self.fingerprint;
 
         return out;
 }
@@ -374,7 +374,7 @@ private:
         out << '{';
         if ( fingerprint )
         {
-            out << JSON_Member{"fingerprint"}  << '[' << stats.fingerprint << ']';
+            out << JSON_Member{"fingerprint"}  << stats.fingerprint;
         }
         else
         {

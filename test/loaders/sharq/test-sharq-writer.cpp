@@ -155,36 +155,59 @@ FIXTURE_TEST_CASE(NanoporeSpecificColumns, VdbWriterFixture)
 #endif
 FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 {   // input and ouput fingerprints recorded in the metadata
+    vector<CFastqRead> reads;
 
-    Fingerprint fp1(2);
-    fp1.record("A");
-    Fingerprint fp2(2);
-    fp2.record("C");
+    const string File1 = "file1";
+    {
+        CFastqRead r; r.SetSequence("A");
+        Fingerprint fp(2);
+        fp.record( r.Sequence());
+        reads.push_back(r);
+        m_w.set_fingerprint( File1, fp );
+    }
 
-    m_w.set_fingerprint( "1", fp1 );
-    m_w.set_fingerprint( "2", fp2 );
+    const string File2 = "file2";
+    {
+        CFastqRead r; r.SetSequence("C");
+        Fingerprint fp(2);
+        fp.record( r.Sequence());
+        reads.push_back(r);
+        m_w.set_fingerprint( File2, fp );
+    }
 
     m_w.open();
+    m_w.write_spot( "spot", reads );
     m_w.close();
 
     REQUIRE_EQ( 3, (int)m_tw->m_roots.size() );
 
-    REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[0] );
-    REQUIRE_EQ( 0u, m_tw->m_metaOids[0] );
-    REQUIRE_EQ( string("LOAD/QC/file_1"), m_tw->m_metaNames[0] );
-//    REQUIRE_EQ( string("v_0"), m_tw->m_metaValues[0] );
+    // input fingerprints, on the database per input file
+    {   // file1
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[0] );
+        REQUIRE_EQ( 0u, m_tw->m_metaOids[0] );
+        REQUIRE_EQ( string("LOAD/QC/file_1"), m_tw->m_metaNames[0] );
+        //TODO: REQUIRE_EQ( File1, meta-attr("LOAD/QC/file_1", "name") );
+        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[0].substr(0, Expected.size()) );
+    }
 
-    REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[1] );
-    REQUIRE_EQ( 0u, m_tw->m_metaOids[1] );
-    REQUIRE_EQ( string("LOAD/QC/file_2"), m_tw->m_metaNames[1] );
-//    REQUIRE_EQ( string("v_1"), m_tw->m_metaValues[1] );
+    {   // file2
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[1] );
+        REQUIRE_EQ( 0u, m_tw->m_metaOids[1] );
+        REQUIRE_EQ( string("LOAD/QC/file_2"), m_tw->m_metaNames[1] );
+        //TODO: REQUIRE_EQ( File2, meta-attr("LOAD/QC/file_2", "name") );
+        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[1].substr(0, Expected.size()) );
+    }
 
-    REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, m_tw->m_roots[2] );
-    REQUIRE_EQ( 0u, m_tw->m_metaOids[2] );
-    REQUIRE_EQ( string("QC"), m_tw->m_metaNames[2] );
-    REQUIRE_EQ( string("out"), m_tw->m_metaValues[2] );
-
-    //TODO: other data
+    // output fingerprint, on the SEQUENCE table
+    {
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, m_tw->m_roots[2] );
+        REQUIRE_EQ( 1u, m_tw->m_metaOids[2] );
+        REQUIRE_EQ( string("QC/fingerprint"), m_tw->m_metaNames[2] );
+        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[2].substr(0, Expected.size()) );
+    }
 }
 
 int main (int argc, char *argv [])

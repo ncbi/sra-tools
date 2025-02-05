@@ -503,6 +503,7 @@ void fastq_writer_vdb::close()
             ostringstream key;
             key << "LOAD/QC/file_" << (i+1);
             ostringstream value;
+            value.imbue(std::locale::classic()); // no thousands separator
             JSON_ostream json(value);
             json << m_source_fp[i].second;
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), value.str() );
@@ -511,6 +512,7 @@ void fastq_writer_vdb::close()
 
         {   // output fingerprint
             ostringstream value;
+            value.imbue(std::locale::classic()); // no thousands separator
             JSON_ostream json(value);
             json << m_read_fingerprint;
             Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
@@ -573,6 +575,7 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
 
     for (const auto& read : reads) {
         m_tmp_sequence += read.Sequence();
+        m_read_fingerprint.record( read.Sequence() );
         read.GetQualScores(m_qual_scores);
         read_start[read_num] = start;
         auto sz = read.Sequence().size();

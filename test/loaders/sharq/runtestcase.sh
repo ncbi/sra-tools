@@ -37,7 +37,8 @@
 # 0 - passed
 # 1 - coud not create temp dir
 # 2 - unexpected return code from sharq
-# 3 - outputs differ
+# 3 - outputs differ (stdout/stderr)
+# 4 - outputs differ (metadata)
 
 BINDIR=$1
 SHARQ_BINARY=$2
@@ -141,6 +142,7 @@ fi
 
 if [ "$METADATA_DIFF" != "0" ] ; then
     kdbmeta $TEMPDIR/db LOAD | grep -v timestamp >$TEMPDIR/meta
+    kdbmeta $TEMPDIR/db/tbl/SEQUENCE QC/fingerprint >>$TEMPDIR/meta
     $DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then

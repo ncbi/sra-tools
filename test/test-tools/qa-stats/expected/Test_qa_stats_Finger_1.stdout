@@ -1,5 +1,5 @@
 {
-	"fingerprint": [
+	"fingerprint": {
 		{
 			"base": "A",
 			"pos": 0,
@@ -122880,5 +122880,5 @@
 			"pos": 4095,
 			"count": 0
 		}
-	]
+	}
 }

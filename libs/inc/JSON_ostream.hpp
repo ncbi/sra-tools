@@ -45,12 +45,12 @@ struct JSON_Member {
 
 class JSON_ostream {
     std::ostream &strm;
+    bool compact = false;
     bool ws = true;         ///< was the last character inserted a whitespace character.
     bool newline = true;    ///< Is newline needed before the next item.
     bool comma = false;     ///< Was the character a ','? More importanly, will the next character belong to a new list item (or be the end of list).
     bool instr = false;     ///< In a string, therefore apply string escaping rules to the inserted characters.
     bool esc = false;       ///< In a string and the next character is escaped.
-    bool compact = false;
     
     /// A list is anything with components that are separated by ',', i.e. JSON Objects and Arrays
     std::vector<bool> listStack; ///< Records if list is empty. false mean empty. back() is the current list.

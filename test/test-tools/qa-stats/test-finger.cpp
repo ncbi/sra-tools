@@ -246,12 +246,12 @@ TEST_CASE(ReadHash_example_Fig_1_Fig_2)
         }
     };
 
-    require_eq(fp.a, expectedA);
-    require_eq(fp.c, expectedC);
-    require_eq(fp.g, expectedG);
-    require_eq(fp.t, expectedT);
-    require_eq(fp.n, expectedN);
-    require_eq(fp.EOR_FLD, expectedE);
+    require_eq(fp.a(), expectedA);
+    require_eq(fp.c(), expectedC);
+    require_eq(fp.g(), expectedG);
+    require_eq(fp.t(), expectedT);
+    require_eq(fp.n(), expectedN);
+    require_eq(fp.EOR_FLD(), expectedE);
 }
 
 TEST_CASE(WrapAround)

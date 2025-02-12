@@ -36,95 +36,168 @@
 
 #include <string>
 #include <string_view>
+#include <sstream>
 #include <vector>
 #include <cctype>
 #include <JSON_ostream.hpp>
+#include <klib/checksum.h>
 
 class Fingerprint
 {
 public:
     static constexpr size_t DefaultMaxReadSize = 4096;
 
+    struct Entry {
+        uint64_t eor = 0, n = 0, a = 0, c = 0, g = 0, t = 0;
+        
+        uint64_t operator[](char base) const {
+            switch (std::toupper(base))
+            {
+                case 'A': return a;
+                case 'C': return c;
+                case 'G': return g;
+                case 'T': return t;
+            }
+            return base ? n : eor;
+        }
+        uint64_t &operator[](char base) {
+            switch (std::toupper(base))
+            {
+                case 'A': return a;
+                case 'C': return c;
+                case 'G': return g;
+                case 'T': return t;
+            }
+            return base ? n : eor;
+        }
+        void record(char base) {
+            (*this)[base] += 1;
+        }
+        void recordEnd() {
+            eor += 1;
+        }
+    };
+    
+private:
+    std::vector< Entry > accumulator;
+    size_t maxPos = 0;
+
+    Entry &operator[](size_t position) {
+        auto const pos = position % size();
+        maxPos = std::max(maxPos, pos);
+        return accumulator[pos];
+    }
+
+public:
+    explicit Fingerprint( size_t p_maxReadSize = DefaultMaxReadSize )
+    : accumulator(p_maxReadSize, Entry{})
+    {}
+
+    size_t size() const { return accumulator.size(); }
+
+    Entry const &operator[](size_t position) const {
+        auto const pos = position % size();
+        return accumulator[pos];
+    }
+    void record(char base, size_t position) {
+        (*this)[position].record(base);
+    }
+    void recordEnd(size_t length) {
+        (*this)[length].recordEnd();
+    }
+    void record(std::string_view const seq) {
+        auto cur = accumulator.begin();
+        auto const end = accumulator.end();
+        
+        for (auto && base : seq) {
+            cur->record(base);
+            if (++cur == end)
+                cur = accumulator.begin();
+        }
+        cur->recordEnd();
+        maxPos = std::max(maxPos, seq.length() % size());
+    }
+
+    friend
+    struct Accumulator;
+
     struct Accumulator : public std::vector< uint64_t >
     {
         std::string base;
 
-        Accumulator(std::string_view p_base, size_t p_reserve)
-        : std::vector< uint64_t >( p_reserve, 0 )
+        Accumulator(std::vector< Entry > const &entry, std::string_view const p_base, size_t maxPos)
+        : std::vector< uint64_t >(maxPos + 1, 0)
         , base(p_base)
-        {}
-
-        void record(size_t position) {
-            (*this)[position % size()] += 1;
+        {
+            auto const bc = base.length() == 1 ? base[0] 
+                          : base == "OoL" ? 0 : 'N';
+            for (size_t i = 0; i <= maxPos; ++i)
+                (*this)[i] = entry[i][bc];
+        }
+        
+        friend
+        JSON_ostream &operator <<(JSON_ostream &out, Accumulator const &self)
+        {
+            for (size_t i = 0; i < self.size(); ++i) {
+                out << '{'
+                    << JSON_Member{"base"} << self.base
+                    << JSON_Member{"pos"} << i
+                    << JSON_Member{"count"} << self[i]
+                << '}';
+            }
+            return out;
         }
     };
-
-    explicit Fingerprint( size_t p_maxReadSize = DefaultMaxReadSize )
-    : a( "A", p_maxReadSize )
-    , c( "C", p_maxReadSize )
-    , g( "G", p_maxReadSize )
-    , t( "T", p_maxReadSize )
-    , n( "N", p_maxReadSize )
-    , ool( "OoL", p_maxReadSize )
-    {}
-
-    void record(char base, size_t position)
+    
+    Accumulator a() const { return Accumulator{ accumulator, "A"  , maxPos }; }
+    Accumulator c() const { return Accumulator{ accumulator, "C"  , maxPos }; }
+    Accumulator g() const { return Accumulator{ accumulator, "G"  , maxPos }; }
+    Accumulator t() const { return Accumulator{ accumulator, "T"  , maxPos }; }
+    Accumulator n() const { return Accumulator{ accumulator, "N"  , maxPos }; }
+    Accumulator ool() const { return Accumulator{ accumulator, "OoL", maxPos }; }
+    
+    friend 
+    JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
     {
-        auto accum = &n;
-        switch (std::toupper(base))
-        {
-            case 'A': accum = &a; break;
-            case 'C': accum = &c; break;
-            case 'G': accum = &g; break;
-            case 'T': accum = &t; break;
-        }
-        accum->record(position);
+        out << self.a()
+            << self.c()
+            << self.g()
+            << self.t()
+            << self.n()
+            << self.ool();
+        return out;
     }
-    void recordEnd(size_t length) {
-        ool.record(length);
-    }
-    void record(std::string_view value)
-    {
-        size_t count = value.length();
-        for(size_t i = 0; i < count; ++i)
+    
+    std::string JSON(bool compact = true) const {
+        std::ostringstream strm;
         {
-            record(value[i], i);
+            auto && wrapper = JSON_ostream{strm, compact};
+            wrapper << *this;
         }
-        recordEnd(count);
-    };
-
-    Accumulator a;
-    Accumulator c;
-    Accumulator g;
-    Accumulator t;
-    Accumulator n; // everything that is not AGCT
-    Accumulator ool; // out of read length
+        return strm.str();
+    }
+    
+    /// SHA-256 Digest; a 64 hex digit string.
+    std::string digest() const {
+        auto result = std::string{64, '\0'};
+        uint8_t buffer[32];
+        {
+            SHA256State state;
+            
+            SHA256StateInit(&state);
+            {
+                auto const json = JSON();
+                SHA256StateAppend(&state, json.data(), json.size());
+            }
+            SHA256StateFinish(&state, buffer);
+        }
+        // convert digest to hex digits
+        for (auto i = 0; i < 32; ++i) {
+            result[i * 2 + 0] = "0123456789abcdef"[(buffer[i] >> 4) & 0x0F];
+            result[i * 2 + 1] = "0123456789abcdef"[(buffer[i] >> 0) & 0x0F];
+        }
+        return result;
+    }
 };
-
-static inline
-JSON_ostream &operator <<(JSON_ostream &out, Fingerprint::Accumulator const &self)
-{
-    for (size_t i = 0; i < self.size(); ++i) {
-        out << '{'
-            << JSON_Member{"base"} << self.base
-            << JSON_Member{"pos"} << i
-            << JSON_Member{"count"} << self[i]
-        << '}';
-    }
-    return out;
-}
-
-
-static inline
-JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
-{
-    out << self.a
-        << self.c
-        << self.g
-        << self.t
-        << self.n
-        << self.ool;
-    return out;
-}
 
 #endif // fingerprint_hpp

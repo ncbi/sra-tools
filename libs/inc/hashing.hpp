@@ -191,7 +191,7 @@ struct State {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
         auto constexpr BMask = sizeof(Word) - 1;
         auto constexpr WMask = (sizeof(buffer) - 1) ^ BMask;
-        return (offset & BMask) | (LMask - (offset & BMask));
+        return (offset & WMask) | (BMask - (offset & BMask));
 #else
         return offset;
 #endif

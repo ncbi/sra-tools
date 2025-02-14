@@ -24,7 +24,6 @@
 
 if ( NOT WIN32 )
 
-
     add_test( NAME Test_FasterqDump_Help
         COMMAND ${DIRTOTEST}/fasterq-dump -h
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -33,6 +32,23 @@ if ( NOT WIN32 )
         COMMAND ${DIRTOTEST}/fasterq-dump
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
+
+    add_test( NAME Test_FasterDump_Simple
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET fasterq-dump-asan )
+      add_test( NAME Test_FasterDump_Simple-asan
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-asan
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET fasterq-dump-tsan )
+      add_test( NAME Test_FasterDump_Simple-tsan
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-tsan
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
     add_test( NAME Test_FasterDump_Fasta_unsorted_flat_tbl_read_id
         COMMAND

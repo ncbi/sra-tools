@@ -343,7 +343,7 @@ GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_paren
     pLogMsg ( klogDebug,
               "database-loader: adding database id=$(i) parent=$(p) mbrName='$(m)' dbName='$(n)' mode=$(d)",
               "m=%s,n=%s,i=%u,p=%u,d=%u",
-              p_objId, p_parentId, p_mbrName . c_str(), p_dbName . c_str (), ( unsigned int ) p_createMode );
+              p_mbrName . c_str(), p_dbName . c_str (), p_objId, p_parentId, ( unsigned int ) p_createMode );
 
     rc_t rc = MakeDatabase ( p_parentId );
     if ( rc == 0 )
@@ -441,6 +441,28 @@ rc_t WriteMetadata ( KMetadata* p_meta, const string& p_metadata_node, const str
     return rc;
 }
 
+static
+rc_t WriteMetadataAttr ( KMetadata* p_meta, const string& p_metadata_node, const string& p_metadata_attr, const string& p_value )
+{
+    pLogMsg ( klogDebug,
+              "database-loader: adding metadata attribute '$(a)=$(v)' to node $(n)",
+              "a=%s,v=%s,n=%s",
+              p_metadata_attr . c_str(), p_value.c_str(), p_metadata_node.c_str() );
+    KMDataNode* node;
+    rc_t rc = KMetadataOpenNodeUpdate ( p_meta, & node, p_metadata_node . c_str () );
+    if ( rc == 0 )
+    {
+        rc = KMDataNodeWriteAttr ( node, p_metadata_attr . c_str (), p_value . c_str() );
+
+        rc_t rc2 = KMDataNodeRelease ( node );
+        if ( rc == 0 )
+        {
+            rc = rc2;
+        }
+    }
+    return rc;
+}
+
 rc_t
 GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
@@ -458,6 +480,38 @@ GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const stri
         if ( rc == 0 )
         {
             rc = WriteMetadata ( meta,p_metadata_node, p_value );
+            rc_t rc2 = KMetadataRelease ( meta );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcDatabase, rcNotFound );
+    }
+
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: DBMetadataNodeAttr ( uint32_t p_objId, const string& p_metadata_node, const string& p_attr, const string& p_value )
+{
+    pLogMsg ( klogDebug,
+              "database-loader: setting metadata node attr '$(n) $(a)=$(v)' to database $(i)",
+              "n=%s,a=%s,v=%s,i=%u",
+              p_metadata_node . c_str(), p_attr . c_str(), p_value.c_str(), p_objId );
+
+    rc_t rc = 0;
+    Databases::iterator it = m_databases . find ( p_objId );
+    if ( it != m_databases . end() )
+    {
+        struct KMetadata* meta;
+        rc = VDatabaseOpenMetadataUpdate ( it -> second, & meta );
+        if ( rc == 0 )
+        {
+            rc = WriteMetadataAttr ( meta, p_metadata_node, p_attr, p_value );
             rc_t rc2 = KMetadataRelease ( meta );
             if ( rc == 0 )
             {
@@ -517,6 +571,49 @@ GeneralLoader :: DatabaseLoader :: TblMetadataNode ( uint32_t p_objId, const str
 }
 
 rc_t
+GeneralLoader :: DatabaseLoader :: TblMetadataNodeAttr ( uint32_t p_objId, const string& p_metadata_node, const string& p_attr, const string& p_value )
+{
+    pLogMsg ( klogDebug,
+              "database-loader: adding metadata node '$(n)=$(v)' to table $(i)",
+              "n=%s,v=%s,i=%u",
+              p_metadata_node . c_str(), p_value.c_str(), p_objId );
+
+    rc_t rc = 0;
+    Tables::iterator it = m_tables . find ( p_objId );
+    if ( it != m_tables . end() )
+    {
+        struct VTable* tbl;
+        assert ( m_cursors [ it -> second . cursorIdx ] );
+        rc = VCursorOpenParentUpdate ( m_cursors [ it -> second . cursorIdx ], &tbl );
+        if ( rc == 0 )
+        {
+            struct KMetadata* meta;
+            rc = VTableOpenMetadataUpdate ( tbl, & meta );
+            if ( rc == 0 )
+            {
+                rc = WriteMetadataAttr ( meta, p_metadata_node, p_attr, p_value );
+                rc_t rc2 = KMetadataRelease ( meta );
+                if ( rc == 0 )
+                {
+                    rc = rc2;
+                }
+            }
+            rc_t rc2 = VTableRelease ( tbl );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcTable, rcNotFound );
+    }
+
+    return rc;
+}
+
+rc_t
 GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
     pLogMsg ( klogDebug,
@@ -539,9 +636,31 @@ GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const str
 }
 
 rc_t
+GeneralLoader :: DatabaseLoader :: ColMetadataNodeAttr ( uint32_t p_objId, const string& p_metadata_node, const string& p_attr, const string& p_value )
+{
+    pLogMsg ( klogDebug,
+              "database-loader: adding metadata attribute '$(a)=$(v)' to node $(n), column $(i)",
+              "a=%s,v=%s,n=%s,i=%u",
+              p_attr . c_str(), p_value.c_str(), p_metadata_node.c_str(), p_objId );
+
+    rc_t rc = 0;
+    Columns::iterator it = m_columns . find ( p_objId );
+    if ( it != m_columns . end() )
+    {
+        it -> second . metadata_attributes [ p_metadata_node ] [ p_attr ]= p_value;
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
+    }
+
+    return rc;
+}
+
+rc_t
 GeneralLoader :: DatabaseLoader :: SaveColumnMetadata ( const Column& p_col )
 {
-    if ( p_col . metadata . size () == 0 )
+    if ( p_col . metadata . size () == 0 && p_col . metadata_attributes . size() == 0 )
     {
         return 0;
     }
@@ -576,6 +695,21 @@ GeneralLoader :: DatabaseLoader :: SaveColumnMetadata ( const Column& p_col )
                             break;
                         }
                     }
+                    if ( rc == 0 )
+                    {   // metadata node attributes
+                        for ( auto it : p_col . metadata_attributes )
+                        {
+                            for ( auto sub_it : it . second )
+                            {
+                                rc = WriteMetadataAttr ( meta, it . first . c_str(), sub_it . first . c_str (), sub_it . second . c_str () );
+                                if ( rc != 0 )
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     rc_t rc2 = KMetadataRelease ( meta );
                     if ( rc == 0 )
                     {

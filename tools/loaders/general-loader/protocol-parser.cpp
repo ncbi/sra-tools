@@ -52,6 +52,62 @@ GeneralLoader :: ProtocolParser :: ReadEvent ( Reader& p_reader, TEvent& p_event
 ///////////// GeneralLoader::UnpackedProtocolParser
 
 rc_t
+GeneralLoader :: UnpackedProtocolParser :: Handle_2stringEvent(
+    Reader& p_reader,
+    DatabaseLoader& p_dbLoader,
+    const char * p_eventName,
+    rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) )
+{
+    pLogMsg ( klogDebug, "protocol-parser event: name=$(n)", "n=%s", p_eventName );
+
+    gw_2string_evt_v1 evt;
+    rc_t rc = ReadEvent ( p_reader, evt );
+    if ( rc == 0 )
+    {
+        size_t size1 = ncbi :: size1 ( evt );
+        size_t size2 = ncbi :: size2 ( evt );
+        rc = p_reader . Read ( size1 + size2 );
+        if ( rc == 0 )
+        {
+            rc = ( p_dbLoader .* p_fn ) (
+                string ( ( const char * ) p_reader . GetBuffer (), size1 ),
+                string ( ( const char * ) p_reader . GetBuffer () + size1, size2 )
+            );
+        }
+    }
+    return rc;
+}
+
+rc_t
+GeneralLoader :: UnpackedProtocolParser :: Handle_2stringEvent(
+    Reader& p_reader,
+    DatabaseLoader& p_dbLoader,
+    const char * p_eventName,
+    uint32_t p_objId,
+    rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) )
+{
+    pLogMsg ( klogDebug, "protocol-parser event: name=$(n), id=$(i)", "n=%s,i=%u", p_eventName, p_objId );
+
+    gw_2string_evt_v1 evt;
+    rc_t rc = ReadEvent ( p_reader, evt );
+    if ( rc == 0 )
+    {
+        size_t size1 = ncbi :: size1 ( evt );
+        size_t size2 = ncbi :: size2 ( evt );
+        rc = p_reader . Read ( size1 + size2 );
+        if ( rc == 0 )
+        {
+            rc = ( p_dbLoader .* p_fn ) (
+                p_objId,
+                string ( ( const char * ) p_reader . GetBuffer (), size1 ),
+                string ( ( const char * ) p_reader . GetBuffer () + size1, size2 )
+            );
+        }
+    }
+    return rc;
+}
+
+rc_t
 GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, DatabaseLoader& p_dbLoader )
 {
     rc_t rc;
@@ -69,23 +125,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         switch ( ncbi :: evt ( evt_header ) )
         {
         case evt_use_schema:
-            {
-                LogMsg ( klogDebug, "protocol-parser event: Use-Schema" );
-
-                gw_2string_evt_v1 evt;
-                rc = ReadEvent ( p_reader, evt );
-                if ( rc == 0 )
-                {
-                    size_t schema_file_size = ncbi :: size1 ( evt );
-                    size_t schema_name_size = ncbi :: size2 ( evt );
-                    rc = p_reader . Read ( schema_file_size + schema_name_size );
-                    if ( rc == 0 )
-                    {
-                        rc = p_dbLoader . UseSchema ( string ( ( const char * ) p_reader . GetBuffer (), schema_file_size ),
-                                                      string ( ( const char * ) p_reader . GetBuffer () + schema_file_size, schema_name_size ) );
-                    }
-                }
-            }
+            rc = Handle_2stringEvent( p_reader, p_dbLoader, "Use-Schema", & DatabaseLoader::UseSchema );
             break;
 
         case evt_remote_path:
@@ -107,90 +147,92 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             break;
 
         case evt_software_name:
-            {
-                LogMsg ( klogDebug, "protocol-parser event: Software-Name" );
-
-                gw_2string_evt_v1 evt;
-                rc = ReadEvent ( p_reader, evt );
-                if ( rc == 0 )
-                {
-                    size_t name_size = ncbi :: size1 ( evt );
-                    size_t version_size = ncbi :: size2 ( evt );
-                    rc = p_reader . Read ( name_size + version_size );
-                    if ( rc == 0 )
-                    {
-                        rc = p_dbLoader . SoftwareName ( string ( ( const char * ) p_reader . GetBuffer (), name_size ),
-                                                         string ( ( const char * ) p_reader . GetBuffer () + name_size, version_size ) );
-                    }
-                }
-            }
+            rc = Handle_2stringEvent( p_reader, p_dbLoader, "Software-Name", & DatabaseLoader::SoftwareName );
             break;
 
         case evt_db_metadata_node:
-            {
-                uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogDebug, "protocol-parser event: DB-Metadata-Node, id=$(i)", "i=%u", objId );
-
-                gw_2string_evt_v1 evt;
-                rc = ReadEvent ( p_reader, evt );
-                if ( rc == 0 )
-                {
-                    size_t node_size = ncbi :: size1 ( evt );
-                    size_t value_size = ncbi :: size2 ( evt );
-                    rc = p_reader . Read ( node_size + value_size );
-                    if ( rc == 0 )
-                    {
-                        rc = p_dbLoader . DBMetadataNode ( objId,
-                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ),
-                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
-                    }
-                }
-            }
+            rc = Handle_2stringEvent( p_reader, p_dbLoader, "DB-Metadata-Node", ncbi :: id ( evt_header ), & DatabaseLoader::DBMetadataNode );
             break;
 
         case evt_tbl_metadata_node:
-            {
-                uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogDebug, "protocol-parser event: Tbl-Metadata-Node, id=$(i)", "i=%u", objId );
-
-                gw_2string_evt_v1 evt;
-                rc = ReadEvent ( p_reader, evt );
-                if ( rc == 0 )
-                {
-                    size_t node_size = ncbi :: size1 ( evt );
-                    size_t value_size = ncbi :: size2 ( evt );
-                    rc = p_reader . Read ( node_size + value_size );
-                    if ( rc == 0 )
-                    {
-                        rc = p_dbLoader . TblMetadataNode ( objId,
-                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ),
-                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
-                    }
-                }
-            }
+            rc = Handle_2stringEvent( p_reader, p_dbLoader, "Tbl-Metadata-Node", ncbi :: id ( evt_header ), & DatabaseLoader::TblMetadataNode );
             break;
 
         case evt_col_metadata_node:
+            rc = Handle_2stringEvent( p_reader, p_dbLoader, "Col-Metadata-Node", ncbi :: id ( evt_header ), & DatabaseLoader::ColMetadataNode );
+            break;
+
+        case evt_db_metadata_node_attr:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogDebug, "protocol-parser event: Col-Metadata-Node, id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: DB-Metadata-Node-Attr, id=$(i)", "i=%u", objId );
 
-                gw_2string_evt_v1 evt;
+                gw_3string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t node_size = ncbi :: size1 ( evt );
-                    size_t value_size = ncbi :: size2 ( evt );
-                    rc = p_reader . Read ( node_size + value_size );
+                    size_t attr_size = ncbi :: size2 ( evt );
+                    size_t value_size = ncbi :: size3 ( evt );
+                    rc = p_reader . Read ( node_size + value_size + attr_size );
                     if ( rc == 0 )
                     {
-                        rc = p_dbLoader . ColMetadataNode ( objId,
+                        rc = p_dbLoader . DBMetadataNodeAttr ( objId,
                                                          string ( ( const char * ) p_reader . GetBuffer (), node_size ),
-                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
                     }
                 }
             }
             break;
+
+        case evt_tbl_metadata_node_attr:
+        {
+            uint32_t objId = ncbi :: id ( evt_header );
+            pLogMsg ( klogDebug, "protocol-parser event: Tbl-Metadata-Node-Attr, id=$(i)", "i=%u", objId );
+
+            gw_3string_evt_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                size_t node_size = ncbi :: size1 ( evt );
+                size_t attr_size = ncbi :: size2 ( evt );
+                size_t value_size = ncbi :: size3 ( evt );
+                rc = p_reader . Read ( node_size + value_size + attr_size );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . TblMetadataNodeAttr ( objId,
+                                                     string ( ( const char * ) p_reader . GetBuffer (), node_size ),
+                                                     string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                     string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
+                }
+            }
+        }
+        break;
+
+        case evt_col_metadata_node_attr:
+        {
+            uint32_t objId = ncbi :: id ( evt_header );
+            pLogMsg ( klogDebug, "protocol-parser event: Col-Metadata-Node-Attr, id=$(i)", "i=%u", objId );
+
+            gw_3string_evt_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                size_t node_size = ncbi :: size1 ( evt );
+                size_t attr_size = ncbi :: size2 ( evt );
+                size_t value_size = ncbi :: size3 ( evt );
+                rc = p_reader . Read ( node_size + value_size + attr_size );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . ColMetadataNodeAttr ( objId,
+                                                     string ( ( const char * ) p_reader . GetBuffer (), node_size ),
+                                                     string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                     string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
+                }
+            }
+        }
+        break;
 
         case evt_new_table:
             {
@@ -713,6 +755,82 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                         rc = p_dbLoader . ColMetadataNode ( objId,
                                                          string ( ( const char * ) p_reader . GetBuffer (), node_size ),
                                                          string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
+                    }
+                }
+            }
+            break;
+
+        case evt_db_metadata_node_attr:
+            {
+                uint32_t objId = ncbi :: id ( evt_header );
+                if ( objId == 256 ) // a special case for the root database; same as 0
+                {
+                    objId = 0;
+                }
+                pLogMsg ( klogDebug, "protocol-parser event: DB-Metadata-Node-Attr (packed), id=$(i)", "i=%u", objId );
+
+                gwp_3string_evt_v1 evt;
+                rc = ReadEvent ( p_reader, evt );
+                if ( rc == 0 )
+                {
+                    size_t node_size = ncbi :: size1 ( evt );
+                    size_t attr_size = ncbi :: size2 ( evt );
+                    size_t value_size = ncbi :: size3 ( evt );
+                    rc = p_reader . Read ( node_size + value_size + attr_size );
+                    if ( rc == 0 )
+                    {
+                        rc = p_dbLoader . DBMetadataNodeAttr ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
+                    }
+                }
+            }
+            break;
+
+        case evt_tbl_metadata_node_attr:
+            {
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogDebug, "protocol-parser event: Tbl-Metadata-Node-Attr (packed), id=$(i)", "i=%u", objId );
+
+                gwp_3string_evt_v1 evt;
+                rc = ReadEvent ( p_reader, evt );
+                if ( rc == 0 )
+                {
+                    size_t node_size = ncbi :: size1 ( evt );
+                    size_t attr_size = ncbi :: size2 ( evt );
+                    size_t value_size = ncbi :: size3 ( evt );
+                    rc = p_reader . Read ( node_size + value_size + attr_size );
+                    if ( rc == 0 )
+                    {
+                        rc = p_dbLoader . TblMetadataNodeAttr ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
+                    }
+                }
+            }
+            break;
+
+        case evt_col_metadata_node_attr:
+            {   //TODO: refactor with the similar blocks for other 3string events
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogDebug, "protocol-parser event: Col-Metadata-Node-Attr (packed), id=$(i)", "i=%u", objId );
+
+                gwp_3string_evt_v1 evt;
+                rc = ReadEvent ( p_reader, evt );
+                if ( rc == 0 )
+                {
+                    size_t node_size = ncbi :: size1 ( evt );
+                    size_t attr_size = ncbi :: size2 ( evt );
+                    size_t value_size = ncbi :: size3 ( evt );
+                    rc = p_reader . Read ( node_size + value_size + attr_size );
+                    if ( rc == 0 )
+                    {
+                        rc = p_dbLoader . ColMetadataNodeAttr ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, attr_size ),
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size + attr_size, value_size ) );
                     }
                 }
             }

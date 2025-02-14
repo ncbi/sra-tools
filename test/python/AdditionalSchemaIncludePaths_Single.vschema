@@ -1,0 +1,1 @@
+include 'AdditionalSchemaIncludePaths_Single.inc.vschema'; database database1 #1 { table table1 #1 TABLE1; } ;

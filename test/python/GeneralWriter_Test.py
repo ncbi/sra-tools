@@ -1,3 +1,5 @@
+#!python
+
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,40 +24,42 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+import sys
+import os
+sys.path.append(os.path.abspath("../../shared/python"))
+import GeneralWriter
 
-if ( NOT SINGLE_CONFIG )
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-else()
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
-endif()
+tbl = {
+    'SEQUENCE': {
+        'READ': {
+            'expression': 'READ',
+            'elem_bits': 8
+        }
+    }
+}
 
-add_subdirectory( vdb )
-add_subdirectory( schema )
-add_subdirectory( search )
-add_subdirectory( external )
-if( BUILD_TOOLS_LOADERS )
-	add_subdirectory( loaders )
-endif()
-if( BUILD_TOOLS_INTERNAL )
-	add_subdirectory( internal )
-endif()
-if( BUILD_TOOLS_TEST_TOOLS )
-	add_subdirectory( test-tools )
-endif()
+def main():
+    gw = GeneralWriter.GeneralWriter(
+        './actual/test.gw'
+        , 'sra/nanopore.vschema'
+        , 'NCBI:SRA:Nanopore:db'
+        , 'GeneralWriterTest.py'
+        , '1.0.0'
+        , tbl)
 
-#add_subdirectory( ngs ) # moved to test/external
-#add_subdirectory( align ) # moved to test/internal
-#add_subdirectory( test_sanitizers ) # move to test/internal
+    gw._writeColumnData(tbl["SEQUENCE"]["READ"]["_columnId"], 1, "A".encode('ascii'))
+    gw._writeNextRow(tbl["SEQUENCE"]["_tableId"])
+    gw._writeColumnData(tbl["SEQUENCE"]["READ"]["_columnId"], 1, "C".encode('ascii'))
+    gw._writeNextRow(tbl["SEQUENCE"]["_tableId"])
 
-add_subdirectory( scripts ) # move to test/internal
+    gw.writeDbMetadata("dbpath", "dbvalue")
+    gw.writeTableMetadata(tbl["SEQUENCE"], "tblpath", "tblvalue")
+    gw.writeColumnMetadata(tbl["SEQUENCE"]["READ"], "colpath", "colvalue")
 
-# add_subdirectory(samline) # command line tool; move to tools/internal
+    gw.writeDbMetadataNodeAttr("dbpath", "dbattr", "dbattrvalue")
+    gw.writeTableMetadataNodeAttr(tbl["SEQUENCE"], "tblpath", "tblattr", "tblattrvalue")
+    gw.writeColumnMetadataNodeAttr(tbl["SEQUENCE"]["READ"], "colpath", "colattr", "colattrvalue")
 
-# add_subdirectory(tarballs) # called directly from TeamCity
+    gw = None # close stream and flush
 
-add_subdirectory( python )
+main()

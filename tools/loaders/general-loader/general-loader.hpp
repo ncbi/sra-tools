@@ -208,6 +208,32 @@ private:
 
     protected:
         template <typename TEvent> rc_t ReadEvent ( Reader& p_reader, TEvent& p_event );
+
+        template <typename TEvent> rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+
+        template<typename TEvent> rc_t Handle_2stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        template<typename TEvent> rc_t Handle_2stringEventWithObjId(
+                Reader& p_reader,
+                DatabaseLoader& p_dbLoader,
+                const char * p_eventName,
+                uint32_t p_objId,
+                rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        template<typename TEvent> rc_t Handle_3stringEvent(
+                    Reader& p_reader,
+                    DatabaseLoader& p_dbLoader,
+                    const char * p_eventName,
+                    uint32_t p_objId,
+                    rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
     };
 
     class UnpackedProtocolParser : public ProtocolParser
@@ -216,18 +242,30 @@ private:
         virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
 
     private:
+
+        rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
         rc_t Handle_2stringEvent(
             Reader& p_reader,
             DatabaseLoader& p_dbLoader,
             const char * p_eventName,
             rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
-        rc_t Handle_2stringEvent( // with objId added
+        rc_t Handle_2stringEventWithObjId(
                 Reader& p_reader,
                 DatabaseLoader& p_dbLoader,
                 const char * p_eventName,
                 uint32_t p_objId,
                 rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
-        };
+        rc_t Handle_3stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
+    };
 
     class PackedProtocolParser : public ProtocolParser
     {
@@ -240,6 +278,36 @@ private:
         template < typename T_uintXX > rc_t UncompressInt ( Reader& p_reader, uint32_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
 
         rc_t ParseData ( Reader& p_reader, DatabaseLoader& p_dbLoader, uint32_t p_columnId, uint32_t p_dataSize );
+
+        rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+        rc_t Handle_1stringEvent2(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+
+        rc_t Handle_2stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
+        rc_t Handle_2stringEventWithObjId(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        rc_t Handle_3stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
 
         std::vector<uint8_t>    m_unpackingBuf;
     };

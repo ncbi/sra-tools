@@ -29,6 +29,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
 include_directories (".." )
+ToolsRequired(general-loader kdbmeta)
 
 add_executable ( test-general-loader
     test-general-loader

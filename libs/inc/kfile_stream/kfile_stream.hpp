@@ -1,3 +1,29 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
 #pragma once
 
 #include <iostream>
@@ -218,8 +244,8 @@ template < class CharT, class Traits = std::char_traits< CharT > >
     public :
         // Ctor
         custom_streambuf( src_interface_ptr src, std::streamsize bufSize = 4096 )
-            : f_bufSize{ 4096 },
-              std::basic_streambuf<CharT, Traits>(),
+            : std::basic_streambuf<CharT, Traits>(),
+              f_bufSize{ 4096 },
               f_src{ src } {
                 f_buffer = new CharT [ f_bufSize ];
                 char_type* begin_of_get_area = f_buffer + f_pbSize;
@@ -260,113 +286,3 @@ class custom_istream : private custom_streambuf< char >, public std::istream {
 };
 
 }; // end of namespace "custom_istream"
-
-namespace custom_istream_test {
-
-class test {
-    public:
-        static size_t consume_line_by_line( std::istream& stream, bool show = false, size_t max = SIZE_MAX ) {
-            size_t res = 0;
-            std::string s;
-            while( res < max && std::getline( stream, s ) ) {
-                if ( show ) { std::cout << s << std::endl; }
-                res++;
-            }
-            return res;
-        }
-
-        static size_t consume_numbers( std::istream& s, bool show = false ) {
-            size_t res = 0;
-            while ( s . good() ) {
-                int n;
-                s >> n;
-                if ( show ) { std::cout << n << std::endl; }
-                res++;
-            }
-            return res;
-        }
-
-        static bool test1( void ) {
-            auto stream = custom_istream::custom_istream::make_from_string(
-                "this is a very long \nlong long string" );
-            return ( 2 == consume_line_by_line( stream ) );
-        }
-
-        static bool test2( void ) {
-            auto stream = custom_istream::custom_istream::make_from_string( "100 200 300 400" );
-            return ( 4 == consume_numbers( stream ) );
-        }
-
-        static bool test3( void ) {
-            auto src = vdb::KFileFactory::make_from_path( "Makefile" );
-            auto stream = custom_istream::custom_istream::make_from_kfile( src );
-            bool res = ( consume_line_by_line( stream ) > 0 );
-            return res;
-        }
-
-        static bool test4( void ) {
-            bool res = false;
-            const std::string url{ "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos5/sra-pub-zq-11/SRR000/000/SRR000001/SRR000001.lite.1" };
-            auto src = vdb::KFileFactory::make_from_vpath( url );
-            if ( nullptr != src ) {
-                auto stream = custom_istream::custom_istream::make_from_kfile( src );
-                res = ( consume_line_by_line( stream, false, 100 ) > 0 );
-            }
-            return res;
-        }
-
-        static bool test5( void ) {
-            bool res = false;
-            const std::string uri{ "https://www.nih.gov" };
-            auto src = vdb::KStreamFactory::make_from_uri( uri );
-            if ( nullptr != src ) {
-                auto stream = custom_istream::custom_istream::make_from_kstream( src );
-                res = ( consume_line_by_line( stream, false, 20 ) > 0 );
-            }
-            return res;
-        }
-
-        static bool test6( void ) {
-            try {
-                const std::string uri{ "https://www.nih.gov/an_invalid_path" };
-                auto src = vdb::KStreamFactory::make_from_uri( uri );
-                if ( nullptr != src ) {
-                    auto stream = custom_istream::custom_istream::make_from_kstream( src );
-                    consume_line_by_line( stream, false, 20 );
-                }
-            } catch ( const std::runtime_error& ex ) {
-                // we are expecting an exception here - because of the invalid path
-                return true;
-            }
-            return false;
-        }
-
-        static bool run( void ) {
-            try {
-                bool res1 = test1();
-                std::cout << "test1 : " << std::boolalpha << res1 << std::endl;
-
-                bool res2 = test2();
-                std::cout << "test2 : " << std::boolalpha << res2 << std::endl;
-
-                bool res3 = test3();
-                std::cout << "test3 : " << std::boolalpha << res3 << std::endl;
-
-                bool res4 = test4();
-                std::cout << "test4 : " << std::boolalpha << res4 << std::endl;
-
-                bool res5 = test5();
-                std::cout << "test5 : " << std::boolalpha << res5 << std::endl;
-
-                bool res6 = test6();
-                std::cout << "test6 : " << std::boolalpha << res6 << std::endl;
-
-                return res1 && res2 && res3 && res4 && res5 && res6;
-            } catch ( const std::runtime_error& ex ) {
-                std::cout << ex . what() << std::endl;
-            }
-            return false;
-        }
-}; // end of class test
-
-}; // end of namespace "custom_istream_test"

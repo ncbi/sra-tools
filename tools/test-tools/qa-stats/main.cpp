@@ -38,11 +38,10 @@
 #include <cmath>
 #include <cassert>
 #include <JSON_ostream.hpp>
+#include <hashing.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
-#include "hashing.hpp"
 #include "stats.hpp"
-
 
 static inline
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
@@ -370,12 +369,13 @@ private:
         return !(arguments.empty() || nextInput == arguments.end());
     }
     void print(std::ostream &strm) {
-        auto out = JSON_ostream(strm);
+        auto out = JSON_ostream{strm};
 
         out << '{';
         if ( fingerprint )
         {
-            out << JSON_Member{"fingerprint"}  << '[' << stats.fingerprint << ']';
+            out << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << stats.fingerprint << JSON_ostream::Compact{false}
+                << JSON_Member{"fingerprint-digest"} << stats.fingerprint.digest();
         }
         else
         {

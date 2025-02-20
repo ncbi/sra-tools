@@ -40,7 +40,7 @@
 #include <vector>
 #include <cctype>
 #include <JSON_ostream.hpp>
-#include <klib/checksum.h>
+#include <hashing.hpp>
 
 class Fingerprint
 {
@@ -80,11 +80,13 @@ public:
     
 private:
     std::vector< Entry > accumulator;
-    size_t maxPos = 0;
+    size_t maxLength = 0;   ///< the maximum length of any read
+    size_t maxPos = 0;      ///< the maximum position of any event, should be maxLength mod size
 
     Entry &operator[](size_t position) {
         auto const pos = position % size();
         maxPos = std::max(maxPos, pos);
+        maxLength = std::max(maxLength, position);
         return accumulator[pos];
     }
 
@@ -94,6 +96,7 @@ public:
     {}
 
     size_t size() const { return accumulator.size(); }
+    size_t max_length() const { return maxLength; }
 
     Entry const &operator[](size_t position) const {
         auto const pos = position % size();
@@ -116,6 +119,7 @@ public:
         }
         cur->recordEnd();
         maxPos = std::max(maxPos, seq.length() % size());
+        maxLength = std::max(maxLength, seq.length());
     }
 
     friend
@@ -130,7 +134,7 @@ public:
         , base(p_base)
         {
             auto const bc = base.length() == 1 ? base[0] 
-                          : base == "OoL" ? 0 : 'N';
+                          : base == "EoR" ? 0 : 'N';
             for (size_t i = 0; i <= maxPos; ++i)
                 (*this)[i] = entry[i][bc];
         }
@@ -138,33 +142,33 @@ public:
         friend
         JSON_ostream &operator <<(JSON_ostream &out, Accumulator const &self)
         {
-            for (size_t i = 0; i < self.size(); ++i) {
-                out << '{'
-                    << JSON_Member{"base"} << self.base
-                    << JSON_Member{"pos"} << i
-                    << JSON_Member{"count"} << self[i]
-                << '}';
-            }
+            out << JSON_Member{self.base} << '[';
+            for (size_t i = 0; i < self.size(); ++i)
+                out << self[i] << ',';
+            out << ']';
             return out;
         }
     };
     
-    Accumulator a() const { return Accumulator{ accumulator, "A"  , maxPos }; }
-    Accumulator c() const { return Accumulator{ accumulator, "C"  , maxPos }; }
-    Accumulator g() const { return Accumulator{ accumulator, "G"  , maxPos }; }
-    Accumulator t() const { return Accumulator{ accumulator, "T"  , maxPos }; }
-    Accumulator n() const { return Accumulator{ accumulator, "N"  , maxPos }; }
-    Accumulator ool() const { return Accumulator{ accumulator, "OoL", maxPos }; }
+    Accumulator a()   const { return Accumulator{ accumulator, "A"  , maxPos }; }
+    Accumulator c()   const { return Accumulator{ accumulator, "C"  , maxPos }; }
+    Accumulator g()   const { return Accumulator{ accumulator, "G"  , maxPos }; }
+    Accumulator t()   const { return Accumulator{ accumulator, "T"  , maxPos }; }
+    Accumulator n()   const { return Accumulator{ accumulator, "N"  , maxPos }; }
+    Accumulator eor() const { return Accumulator{ accumulator, "EoR", maxPos }; }
     
     friend 
     JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
     {
-        out << self.a()
-            << self.c()
-            << self.g()
-            << self.t()
-            << self.n()
-            << self.ool();
+        out << '{'
+                << JSON_Member{"maximum-position"} << self.max_length()
+                << self.a()
+                << self.c()
+                << self.g()
+                << self.t()
+                << self.n()
+                << self.eor()
+            << '}';
         return out;
     }
     
@@ -179,23 +183,9 @@ public:
     
     /// SHA-256 Digest; a 64 hex digit string.
     std::string digest() const {
-        auto result = std::string{64, '\0'};
-        uint8_t buffer[32];
-        {
-            SHA256State state;
-            
-            SHA256StateInit(&state);
-            {
-                auto const json = JSON();
-                SHA256StateAppend(&state, json.data(), json.size());
-            }
-            SHA256StateFinish(&state, buffer);
-        }
-        // convert digest to hex digits
-        for (auto i = 0; i < 32; ++i) {
-            result[i * 2 + 0] = "0123456789abcdef"[(buffer[i] >> 4) & 0x0F];
-            result[i * 2 + 1] = "0123456789abcdef"[(buffer[i] >> 0) & 0x0F];
-        }
+        auto result = SHA256::hash(JSON()).string();
+        for (auto && ch : result)
+            ch = std::tolower(ch);
         return result;
     }
 };

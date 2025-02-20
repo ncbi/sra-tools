@@ -282,6 +282,14 @@ public:
     , compact(p_compact)
     {}
 
+    bool is_compact() const { return compact; }
+    JSON_ostream &set_compact(bool value) { compact = value; return *this; }
+
+    struct Compact { bool value; };
+    friend JSON_ostream &operator <<(JSON_ostream &s, Compact v) {
+        return s.set_compact(v.value);
+    }
+
     /// This will use the appropriate overload of `insert`
     template <typename T>
     friend JSON_ostream &operator <<(JSON_ostream &s, T const &v) {

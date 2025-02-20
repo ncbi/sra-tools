@@ -29,6 +29,8 @@
  *  Compute expected invariant hashes.
  */
 
+#pragma once
+
 #ifndef hashing_hpp
 #define hashing_hpp
 

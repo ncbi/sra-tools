@@ -2515,10 +2515,10 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         
             if (rc == 0
                 && (
-                    rc3 == RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)
+                 rc3 == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)
                     /* 404 */
                     ||
-                    rc3 == RC(rcNS, rcFile, rcOpening, rcFile, rcUnexpected)
+                 rc3 == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcUnexpected)
                     /* Unexpected HTTP status */
                     )
                 )

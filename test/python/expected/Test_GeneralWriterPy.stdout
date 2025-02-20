@@ -1,0 +1,55 @@
+header: version 2
+  hdr_size = 24
+  packing = 0
+1: remote-path
+  remote_db_name [ 16 ] = "./actual/test.gw"
+2: use-schema
+  schema_file_name [ 20 ] = "sra/nanopore.vschema"
+  schema_db_spec [ 20 ] = "NCBI:SRA:Nanopore:db"
+3: software-name
+  software_name [ 20 ] = "GeneralWriterTest.py"
+  version [ 5 ] = "1.0.0"
+4: new-table
+  table_name [ 8 ] = "SEQUENCE"
+5: new-column
+  table_id = 1 ( "SEQUENCE" )
+  column_name [ 4 ] = "READ"
+6: open-stream
+7: cell-data
+  stream_id = 1 ( SEQUENCE . READ )
+  elem_bits = 8
+  elem_count = 1
+{ "event": "data", "column-id": 1, "data": "A" }
+8: next-row
+  table_id = 1 ( "SEQUENCE" )
+  row_id = 2
+9: cell-data
+  stream_id = 1 ( SEQUENCE . READ )
+  elem_bits = 8
+  elem_count = 1
+{ "event": "data", "column-id": 1, "data": "C" }
+10: next-row
+  table_id = 1 ( "SEQUENCE" )
+  row_id = 3
+11: metadata-node
+  metadata_node [ 6 ] = "dbpath"
+  value [ 7 ] = "dbvalue"
+12: metadata-node
+  metadata_node [ 7 ] = "tblpath"
+  value [ 8 ] = "tblvalue"
+13: metadata-node
+  metadata_node [ 7 ] = "colpath"
+  value [ 8 ] = "colvalue"
+14: metadata-node-attr
+  metadata_node_attr [ 6 ] = "dbpath"
+  attr [ 6 ] = "dbattr"
+  value [ 11 ] = "dbattrvalue"
+15: metadata-node-attr
+  metadata_node_attr [ 7 ] = "tblpath"
+  attr [ 7 ] = "tblattr"
+  value [ 12 ] = "tblattrvalue"
+16: metadata-node-attr
+  metadata_node_attr [ 7 ] = "colpath"
+  attr [ 7 ] = "colattr"
+  value [ 12 ] = "colattrvalue"
+END

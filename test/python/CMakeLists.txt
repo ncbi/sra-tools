@@ -22,40 +22,15 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+if( NOT WIN32 )
 
-if ( NOT SINGLE_CONFIG )
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-else()
-	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
+    if( Python3_EXECUTABLE )
+        add_test( NAME Test_GeneralWriterPy
+            COMMAND sh -c "${Python3_EXECUTABLE} GeneralWriter_Test.py >actual/Test_GeneralWriterPy.gw && gw-dumper -v actual/Test_GeneralWriterPy.gw >actual/Test_GeneralWriterPy.stdout && diff actual/Test_GeneralWriterPy.stdout expected/Test_GeneralWriterPy.stdout"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endif()
+
 endif()
-
-add_subdirectory( vdb )
-add_subdirectory( schema )
-add_subdirectory( search )
-add_subdirectory( external )
-if( BUILD_TOOLS_LOADERS )
-	add_subdirectory( loaders )
-endif()
-if( BUILD_TOOLS_INTERNAL )
-	add_subdirectory( internal )
-endif()
-if( BUILD_TOOLS_TEST_TOOLS )
-	add_subdirectory( test-tools )
-endif()
-
-#add_subdirectory( ngs ) # moved to test/external
-#add_subdirectory( align ) # moved to test/internal
-#add_subdirectory( test_sanitizers ) # move to test/internal
-
-add_subdirectory( scripts ) # move to test/internal
-
-# add_subdirectory(samline) # command line tool; move to tools/internal
-
-# add_subdirectory(tarballs) # called directly from TeamCity
-
-add_subdirectory( python )

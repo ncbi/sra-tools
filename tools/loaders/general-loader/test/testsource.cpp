@@ -33,12 +33,7 @@
 #include "../../tools/loaders/general-loader/general-loader.hpp"
 
 #include <kfs/ramfile.h>
-
-#include <sysalloc.h>
-
-#include <cstring>
-
-#include <stdexcept> 
+#include <klib/log.h>
 
 using namespace std;
 using namespace ncbi;
@@ -53,38 +48,39 @@ TestSource::Buffer::Buffer ( const string& p_signature, uint32_t p_endness, uint
     m_header . dad . endian   = p_endness;
     m_header . dad . version  = p_version;
     m_header . packing = p_packing ? 1 : 0;
-    
-    Write ( & m_header, m_header . dad . hdr_size ); 
+
+    Write ( & m_header, m_header . dad . hdr_size );
 }
-    
+
 TestSource::Buffer::~Buffer ()
 {
     free ( m_buffer );
 }
 
-void 
-TestSource::Buffer::Save ( std::ostream& p_out ) const 
-{ 
-    p_out . write ( m_buffer, m_bufSize ); 
+void
+TestSource::Buffer::Save ( std::ostream& p_out ) const
+{
+    p_out . write ( m_buffer, m_bufSize );
 }
-    
-void 
+
+void
 TestSource::Buffer::Write ( const void * p_data, size_t p_size )
 {
+    pLogMsg ( klogDebug, "TestSource: writing $(i) bytes, offset=$(o)", "i=%u,o=%u", p_size, m_bufSize );
     m_buffer = ( char * ) realloc ( m_buffer, m_bufSize + p_size );
     if ( m_buffer == 0 )
         throw logic_error ( "TestSource::Buffer::Write: realloc failed" );
-        
+
     memmove ( m_buffer + m_bufSize, p_data, p_size );
     m_bufSize += p_size;
 }
 
-void 
+void
 TestSource::Buffer::Pad ( size_t p_alignment )
 {
     size_t newSize = ( m_bufSize + p_alignment - 1 ) / p_alignment;
     newSize *= p_alignment;
-    if ( m_bufSize != newSize ) 
+    if ( m_bufSize != newSize )
     {
         m_buffer = ( char * ) realloc ( m_buffer, newSize );
         if ( m_buffer == 0 )
@@ -94,7 +90,7 @@ TestSource::Buffer::Pad ( size_t p_alignment )
     }
 }
 
-void  
+void
 TestSource::Buffer::Write ( const TestSource::Event& p_event )
 {
     if ( m_header . packing )
@@ -107,7 +103,7 @@ TestSource::Buffer::Write ( const TestSource::Event& p_event )
     }
 }
 
-void    
+void
 TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
 {
     Pad ();
@@ -118,29 +114,29 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
     case evt_db_metadata_node:
     case evt_tbl_metadata_node:
     case evt_col_metadata_node:
-        {   
+        {
             gw_2string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_size1 ( hdr, p_event . m_str1 . size() );
             set_size2 ( hdr, p_event . m_str2 . size() );
-            
-            Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
-            Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() ); 
+
+            Write ( & hdr, sizeof hdr );
+            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
+            Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() );
         }
         break;
-        
+
     case evt_remote_path:
     case evt_new_table:
     case evt_logmsg:
     case evt_errmsg:
-        {   
+        {
             gw_1string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_size ( hdr, p_event . m_str1 . size () );
-            
-            Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+
+            Write ( & hdr, sizeof hdr );
+            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
         }
         break;
     case evt_progmsg:
@@ -156,7 +152,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
 
         break;
-        
+
     case evt_new_column :
         {
             gw_column_evt_v1 hdr;
@@ -164,12 +160,12 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             set_table_id ( hdr, p_event . m_id2 );
             set_elem_bits ( hdr, p_event . m_uint32 );
             set_name_size ( hdr, p_event . m_str1 . size () );
-            
+
             Write ( & hdr, sizeof hdr );
             Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
         }
         break;
-        
+
     case evt_add_mbr_db:
     case evt_add_mbr_tbl:
     {
@@ -180,11 +176,11 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         set_size1 ( hdr, p_event . m_str1 . size() );
         set_size2 ( hdr, p_event . m_str2 . size() );
         set_create_mode ( hdr, p_event . m_uint8 );
-            
+
         Write ( & hdr, sizeof hdr );
         Write ( p_event . m_str1 . data (), p_event . m_str1 . size () );
         Write ( p_event . m_str2 . data (), p_event . m_str2 . size () );
-        
+
     }
     break;
 
@@ -203,12 +199,12 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             gw_data_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_elem_count ( hdr, p_event . m_uint32 );
-            
+
             Write ( & hdr, sizeof hdr );
             Write ( p_event . m_val . data(), p_event . m_val . size() );
         }
         break;
-        
+
     case evt_next_row:
     case evt_empty_default :
         {
@@ -217,7 +213,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             Write ( & hdr, sizeof hdr );
         }
         break;
-        
+
     case evt_move_ahead:
         {
             gw_move_ahead_evt_v1 hdr;
@@ -226,13 +222,54 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             Write ( & hdr, sizeof hdr );
         }
         break;
-        
+
+    case evt_db_metadata_node_attr:
+    case evt_tbl_metadata_node_attr:
+    case evt_col_metadata_node_attr:
+        {
+            gw_3string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, p_event . m_event );
+            set_size1 ( hdr, p_event . m_str1 . size() );
+            set_size2 ( hdr, p_event . m_str2 . size() );
+            set_size3 ( hdr, p_event . m_str3 . size() );
+
+            Write ( & hdr, sizeof hdr );
+            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
+            Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() );
+            Write ( p_event . m_str3 . c_str(), p_event . m_str3 . size() );
+        }
+        break;
+
     default:
         throw logic_error ( "TestSource::Buffer::WriteUnpacked: event not implemented" );
     }
 }
-    
-void    
+
+void
+TestSource::Buffer::Write_1stringEvent (
+    const TestSource::Event& p_event,
+    gw_evt_id p_unpackedEvtId,
+    gw_evt_id p_packedEvtId
+)
+{
+    if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
+    {
+        gwp_1string_evt_v1 hdr;
+        init ( hdr, p_event . m_id1, p_unpackedEvtId );
+        set_size ( hdr, p_event . m_str1 . size () );
+        Write ( & hdr, sizeof hdr );
+    }
+    else
+    {
+        gwp_1string_evt_U16_v1 hdr;
+        init ( hdr, p_event . m_id1, p_packedEvtId );
+        set_size ( hdr, p_event . m_str1 . size () );
+        Write ( & hdr, sizeof hdr );
+    }
+    Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
+}
+
+void
 TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
 {
     switch ( p_event . m_event )
@@ -243,89 +280,79 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
     case evt_tbl_metadata_node:
     case evt_col_metadata_node:
         if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString && p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString )
-        {   
+        {
             gwp_2string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
-        
+
             set_size1 ( hdr, p_event . m_str1 . size() );
             set_size2 ( hdr, p_event . m_str2 . size() );
 
-            Write ( & hdr, sizeof hdr ); 
-        }
-        else
-        {   
-            gwp_2string_evt_U16_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_use_schema2 );
-        
-            set_size1 ( hdr, p_event . m_str1 . size() );
-            set_size2 ( hdr, p_event . m_str2 . size() );
-
-            Write ( & hdr, sizeof hdr ); 
-        }
-        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
-        Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() ); 
-        break;
-        
-    //TODO: the following 3 cases are almost identical - refactor
-    case evt_remote_path:
-        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
-        {   
-            gwp_1string_evt_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_remote_path );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
+            Write ( & hdr, sizeof hdr );
         }
         else
         {
-            gwp_1string_evt_U16_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_remote_path2 );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
+            gwp_2string_evt_U16_v1 hdr;
+            init ( hdr, p_event . m_id1, p_event . m_event );
+
+            set_size1 ( hdr, p_event . m_str1 . size() );
+            set_size2 ( hdr, p_event . m_str2 . size() );
+
+            Write ( & hdr, sizeof hdr );
         }
-        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
+        Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() );
+        break;
+
+    case evt_db_metadata_node_attr:
+    case evt_tbl_metadata_node_attr:
+    case evt_col_metadata_node_attr:
+        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString &&
+             p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString &&
+             p_event . m_str3 . size () <= GeneralLoader :: MaxPackedString
+             )
+        {
+            gwp_3string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, p_event . m_event );
+
+            set_size1 ( hdr, p_event . m_str1 . size() );
+            set_size2 ( hdr, p_event . m_str2 . size() );
+            set_size3 ( hdr, p_event . m_str3 . size() );
+
+            Write ( & hdr, sizeof hdr );
+        }
+        else
+        {
+            gwp_3string_evt_U16_v1 hdr;
+            init ( hdr, p_event . m_id1, p_event . m_event );
+
+            set_size1 ( hdr, p_event . m_str1 . size() );
+            set_size2 ( hdr, p_event . m_str2 . size() );
+            set_size2 ( hdr, p_event . m_str3 . size() );
+
+            Write ( & hdr, sizeof hdr );
+        }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
+        Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() );
+        Write ( p_event . m_str3 . c_str(), p_event . m_str3 . size() );
+        break;
+
+    case evt_remote_path:
+        Write_1stringEvent ( p_event, evt_remote_path, evt_remote_path2 );
         break;
     case evt_new_table:
-        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
-        {   
-            gwp_1string_evt_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_new_table );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
-        }
-        else
-        {
-            gwp_1string_evt_U16_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_new_table2 );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
-        }
-        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        Write_1stringEvent ( p_event, evt_new_table, evt_new_table2 );
         break;
     case evt_logmsg:
         {
             gwp_1string_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
+            Write ( & hdr, sizeof hdr );
         }
-        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() );
         break;
     case evt_errmsg:
-        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
-        {   
-            gwp_1string_evt_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_errmsg );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
-        }
-        else
-        {
-            gwp_1string_evt_U16_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_errmsg2 );
-            set_size ( hdr, p_event . m_str1 . size () );
-            Write ( & hdr, sizeof hdr ); 
-        }
-        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        Write_1stringEvent ( p_event, evt_errmsg, evt_errmsg2 );
         break;
     case evt_progmsg:
         gwp_status_evt_v1 hdr;
@@ -347,7 +374,7 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             set_elem_bits ( hdr, p_event . m_uint32 );
             hdr . flag_bits = p_event . m_uint8;
             set_name_size ( hdr, p_event . m_str1 . size () );
-            
+
             Write ( & hdr, sizeof hdr );
             Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
         }
@@ -363,14 +390,14 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
         set_size1 ( hdr, p_event . m_str1 . size() );
         set_size2 ( hdr, p_event . m_str2 . size() );
         set_create_mode ( hdr, p_event . m_uint8 );
-            
+
         Write ( & hdr, sizeof hdr );
         Write ( p_event . m_str1 . data (), p_event . m_str1 . size () );
         Write ( p_event . m_str2 . data (), p_event . m_str2 . size () );
-        
+
     }
     break;
-        
+
     case evt_open_stream:
     case evt_end_stream:
         {
@@ -386,8 +413,8 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             gwp_data_evt_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_data );
             // in the packed message, we specify the number of bytes in the cell
-            set_size ( hdr, p_event . m_val . size() ); 
-            
+            set_size ( hdr, p_event . m_val . size() );
+
             Write ( & hdr, sizeof hdr );
         }
         else
@@ -395,8 +422,8 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             gwp_data_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_data2 );
             // in the packed message, we specify the number of bytes in the cell
-            set_size ( hdr, p_event . m_val . size() ); 
-            
+            set_size ( hdr, p_event . m_val . size() );
+
             Write ( & hdr, sizeof hdr );
         }
         Write ( p_event . m_val . data(), p_event . m_val . size() );
@@ -407,8 +434,8 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             gwp_data_evt_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_default ); //TODO: this is the only difference from evt_cell_data - refactor
             // in the packed message, we specify the number of bytes in the cell
-            set_size ( hdr, p_event . m_val . size() ); 
-            
+            set_size ( hdr, p_event . m_val . size() );
+
             Write ( & hdr, sizeof hdr );
         }
         else
@@ -416,13 +443,13 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             gwp_data_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_default2 ); //TODO: this is the only difference from evt_cell_data - refactor
             // in the packed message, we specify the number of bytes in the cell
-            set_size ( hdr, p_event . m_val . size() ); 
-            
+            set_size ( hdr, p_event . m_val . size() );
+
             Write ( & hdr, sizeof hdr );
         }
         Write ( p_event . m_val . data(), p_event . m_val . size() );
         break;
-        
+
     case evt_next_row:
     case evt_empty_default :
         {
@@ -431,7 +458,7 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             Write ( & hdr, sizeof hdr );
         }
         break;
-        
+
     case evt_move_ahead:
         {
             gwp_move_ahead_evt_v1 hdr;
@@ -440,7 +467,7 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             Write ( & hdr, sizeof hdr );
         }
         break;
-        
+
     default:
         throw logic_error ( "TestSource::Buffer::WritePacked: event not implemented" );
     }
@@ -460,33 +487,33 @@ TestSource::~TestSource()
     delete m_buffer;
 }
 
-const struct KFile * 
+const struct KFile *
 TestSource::MakeSource ()
 {
     const struct KFile * ret;
-    if ( KRamFileMakeRead ( & ret, 
-                            const_cast < char* > ( m_buffer -> GetData() ), 
-                            m_buffer -> GetSize() ) != 0 
+    if ( KRamFileMakeRead ( & ret,
+                            const_cast < char* > ( m_buffer -> GetData() ),
+                            m_buffer -> GetSize() ) != 0
          || ret == 0 )
         throw logic_error ( "TestSource::MakeSource KRamFileMakeRead failed" );
-        
+
     return ret;
 }
 
-void 
+void
 TestSource::SchemaEvent ( const std::string& p_schemaFile, const std::string& p_schemaName )
 {
     m_buffer -> Write ( Event ( evt_use_schema, p_schemaFile, p_schemaName ) );
 }
 
-void 
+void
 TestSource::DatabaseEvent ( const std::string& p_databaseName )
 {
     m_buffer -> Write ( Event ( evt_remote_path, p_databaseName ) );
     m_database = p_databaseName;
 }
 
-void 
+void
 TestSource::SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version )
 {
     m_buffer -> Write ( Event ( evt_software_name, p_softwareName, p_version ) );
@@ -510,13 +537,31 @@ TestSource::ColMetadataNodeEvent ( ColumnId p_id, const std::string& p_metadataN
     m_buffer -> Write ( Event ( evt_col_metadata_node, p_id, p_metadataNode, p_value ) );
 }
 
-void 
+void
+TestSource::DBMetadataNodeAttrEvent ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_db_metadata_node_attr, p_id, p_metadataNode, p_metadataAttrName, p_value ) );
+}
+
+void
+TestSource::TblMetadataNodeAttrEvent ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_tbl_metadata_node_attr, p_id, p_metadataNode, p_metadataAttrName, p_value ) );
+}
+
+void
+TestSource::ColMetadataNodeAttrEvent ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_col_metadata_node_attr, p_id, p_metadataNode, p_metadataAttrName, p_value ) );
+}
+
+void
 TestSource::NewTableEvent ( TableId p_id, const std::string& p_table )
 {
     m_buffer -> Write ( Event ( evt_new_table, p_id, p_table ) );
 }
 
-void 
+void
 TestSource::NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits, bool p_compresssed )
 {
     m_buffer -> Write ( Event ( evt_new_column, p_columnId, p_tableId, p_column, p_elemBits, p_compresssed ? 1 : 0 ) );
@@ -533,26 +578,26 @@ TestSource::DBAddTableEvent ( int p_tbl_id, int p_db_id, const std :: string &p_
 {
     m_buffer -> Write ( Event ( evt_add_mbr_tbl, p_tbl_id, p_db_id, p_mbr_name, p_table_name, p_create_mode ) );
 }
-    
-void 
+
+void
 TestSource::OpenStreamEvent ()
 {
     m_buffer -> Write ( Event ( evt_open_stream ) );
 }
 
-void 
+void
 TestSource::CloseStreamEvent ()
 {
     m_buffer -> Write ( Event ( evt_end_stream ) );
 }
 
-void 
+void
 TestSource::NextRowEvent ( TableId p_id )
 {
     m_buffer -> Write ( Event ( evt_next_row, p_id ) );
 }
 
-void 
+void
 TestSource::MoveAheadEvent ( TableId p_id, uint64_t p_count )
 {
     m_buffer -> Write ( Event ( evt_move_ahead, p_id, p_count ) );
@@ -563,40 +608,40 @@ template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value 
     m_buffer -> Write ( Event ( evt_cell_data, p_columnId, ( uint32_t ) p_value . size(), ( uint32_t ) p_value . size(), p_value . c_str() ) );
 }
 
-void 
+void
 TestSource::CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
 {
     m_buffer -> Write ( Event ( p_value . size() == 0 ? evt_empty_default : evt_cell_default,
-                                p_columnId, 
-                                ( uint32_t ) p_value . size(), 
-                                ( uint32_t ) p_value . size(), 
+                                p_columnId,
+                                ( uint32_t ) p_value . size(),
+                                ( uint32_t ) p_value . size(),
                                 p_value . c_str() ) );
 }
 
-void 
+void
 TestSource::CellEmptyDefaultEvent ( ColumnId p_columnId )
 {
     m_buffer -> Write ( Event ( evt_empty_default, p_columnId, 0, 0, 0 ) );
 }
 
-void 
+void
 TestSource::CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value )
 {
     m_buffer -> Write ( Event ( evt_cell_default, p_columnId, 1,  sizeof p_value, (const void*)&p_value ) );
 }
-void 
+void
 TestSource::CellDefaultEvent ( ColumnId p_columnId, bool p_value )
 {
     m_buffer -> Write ( Event ( evt_cell_default, p_columnId, 1, sizeof p_value, (const void*)&p_value ) );
 }
 
-void 
+void
 TestSource::ErrorMessageEvent ( const string& p_msg )
 {
     m_buffer -> Write ( Event ( evt_errmsg, p_msg ) );
 }
 
-void 
+void
 TestSource::LogMessageEvent ( const string& p_msg )
 {
     m_buffer -> Write ( Event ( evt_logmsg, p_msg ) );
@@ -609,7 +654,7 @@ TestSource::ProgMessageEvent ( ProcessId p_pid, const std :: string& p_name, uin
 }
 
 
-void 
+void
 TestSource::SaveBuffer ( const char* p_filename ) const
 {
     ofstream out ( p_filename );
@@ -625,7 +670,7 @@ TestSource::Event::Event ( gw_evt_id p_event )
     m_uint64 ( 0 )
 {
 }
-        
+
 TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1 )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
@@ -700,6 +745,19 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id, const std::string& 
     m_uint64 ( 0 ),
     m_str1 ( p_str1 ),
     m_str2 ( p_str2 )
+{
+}
+
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2, const std::string& p_str3)
+:   m_event ( p_event ),
+    m_id1 ( p_id ),
+    m_id2 ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 ),
+    m_str3 ( p_str3 )
 {
 }
 

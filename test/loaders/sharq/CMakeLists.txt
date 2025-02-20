@@ -277,7 +277,8 @@ message(RE2_FOUND=${RE2_FOUND})
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
-        SharqTestWithMetadata(MetaSingleFile 0 "${IN}001.R1.fastq")
+        SharqTestWithMetadata(DbMetaSingleFile 0 "${IN}001.R1.fastq")
+        SharqTestWithMetadata(DbMetaMultipleFiles 0 "${IN}r1.fastq ${IN}r2.fastq")
 
     endif()
 

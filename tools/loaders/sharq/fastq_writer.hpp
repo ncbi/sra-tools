@@ -507,7 +507,7 @@ void fastq_writer_vdb::close()
             JSON_ostream json(value);
             json << m_source_fp[i].second;
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), value.str() );
-            //TODO: save m_source.fp[i].first as the node's attribute "name"
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
         }
 
         {   // output fingerprint

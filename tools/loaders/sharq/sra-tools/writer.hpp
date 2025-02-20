@@ -36,6 +36,7 @@
 
 namespace VDB {
     class Writer {
+        // keep in sync with enum gw_evt_id (sra-tools/libs/inc/writer.hpp)
         enum EventCode {
             badEvent = 0,
             errMessage,
@@ -69,11 +70,15 @@ namespace VDB {
             tableMeta2,
             columnMeta2,
 
-            addMbrDb, // ???
-            addMbrTbl, // ???
+            addMbrDb, // add a sub-db; not used here
+            addMbrTbl, // add a table to a sub-db; not used here
 
             logMesg,
-            progressMesg
+            progressMesg,
+
+            dbMetaAttr,
+            tableMetaAttr,
+            columnMetaAttr
         };
         ostream& stream;
         ///FILE *stream;
@@ -156,6 +161,39 @@ namespace VDB {
             : eid((code << 24) + id)
             , str1(str_1)
             , str2(str_2)
+            {}
+        };
+
+        class String3Event {
+            friend Writer;
+            uint32_t eid;
+            std::string const &str1;
+            std::string const &str2;
+            std::string const &str3;
+            bool write(ostream& stream) const {
+                uint32_t const zero = 0;
+                auto const size1 = (uint32_t)str1.size();
+                auto const size2 = (uint32_t)str2.size();
+                auto const size3 = (uint32_t)str3.size();
+                auto const size = size1 + size2 + size3;
+                auto const padding = (4 - (size & 3)) & 3;
+                stream.write((const char*)&eid, sizeof(eid));
+                stream.write((const char*)&size1, sizeof(size1));
+                stream.write((const char*)&size2, sizeof(size2));
+                stream.write((const char*)&size3, sizeof(size3));
+                stream.write((const char*)str1.data(), size1);
+                stream.write((const char*)str2.data(), size2);
+                stream.write((const char*)str3.data(), size3);
+                stream.write((const char*)&zero, padding);
+                return true;
+            }
+
+        public:
+            String3Event(EventCode const code, unsigned const id, std::string const &str_1, std::string const &str_2, std::string const &str_3)
+            : eid((code << 24) + id)
+            , str1(str_1)
+            , str2(str_2)
+            , str3(str_3)
             {}
         };
 
@@ -320,13 +358,21 @@ namespace VDB {
         enum MetaNodeRoot {
             database, table, column
         };
-        virtual bool setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &name, std::string const &value) const
+        virtual bool setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &value) const
         {
             auto const code = root == database ? dbMeta
                             : root == table    ? tableMeta
                             : root == column   ? columnMeta
                             : badEvent;
-            return String2Event(code, oid, name, value).write(stream);
+            return String2Event(code, oid, path, value).write(stream);
+        }
+        bool setMetadataAttr(MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const
+        {
+            auto const code = root == database ? dbMetaAttr
+                            : root == table    ? tableMetaAttr
+                            : root == column   ? columnMetaAttr
+                            : badEvent;
+            return String3Event(code, oid, path, attr, value).write(stream);
         }
 
         bool endWriting() const
@@ -358,6 +404,7 @@ public:
     using VDB::Writer::beginWriting;
     using VDB::Writer::closeRow;
     using VDB::Writer::setMetadata;
+    using VDB::Writer::setMetadataAttr;
     using VDB::Writer::endWriting;
     using VDB::Writer::flush;
     using VDB::Writer::errorMessage;

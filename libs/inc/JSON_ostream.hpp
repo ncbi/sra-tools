@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <string_view>
 
 struct JSON_Member {
     std::string name;
@@ -62,9 +63,9 @@ class JSON_ostream {
     }
 
     /// Insert a string without using any escaping rules.
-    void insert_raw(char const *const str) {
-        for (auto cp = str; *cp; ++cp)
-            insert_raw(*cp);
+    void insert_raw(std::string_view v) {
+        for (auto && ch : v)
+            insert_raw(ch);
     }
     
     /// Insert a character using string escaping rules.
@@ -119,12 +120,6 @@ class JSON_ostream {
         }
     }
     
-    /// Insert a string using string escaping rules.
-    void insert_instr(char const *const str) {
-        for (auto cp = str; *cp; ++cp)
-            insert_instr(*cp);
-    }
-    
     /// If needed, start a newline and indent it.
     void indentIfNeeded() {
         if (!compact && newline) {
@@ -152,8 +147,8 @@ class JSON_ostream {
             insert_raw(',');
             newline = true;
         }
-        else
-            listStack.back() = true;
+        comma = false;
+        listStack.back() = true;
         indentIfNeeded();
     }
 
@@ -165,28 +160,14 @@ class JSON_ostream {
         insert_raw(type);
         newline = true;
     }
-
-    /// Insert a whole string of characters.
-    /// In string mode, it will append to the current string.
-    /// Otherwise, it will insert '"' (thus entering string mode),
-    /// append the string, and insert '"' (hopefully exiting string mode)
-    JSON_ostream &insertString(char const *const v, char const *const endp) {
-        auto const need_quotes = !instr;
-    
-        if (need_quotes)
-            insert('"');
-        for (auto cp = v; cp != endp && *cp != '\0'; ++cp)
-            insert_instr(*cp);
-        if (need_quotes)
-            insert('"');
-        return *this;
-    }
     
     // These `insert` functions are overloaded for types
     // that have specific representations in JSON.
 
     /// Insert a Boolean value
     JSON_ostream &insert(bool v) {
+        if (comma)
+            listItem();
         insert_raw(v ? "true" : "false");
         return *this;
     }
@@ -224,12 +205,11 @@ class JSON_ostream {
     
         if (comma)
             listItem();
-        comma = false;
     
         switch (v) {
         case '"':
             if (!ws && !compact)
-                insert(' ');
+                insert_raw(' ');
             instr = true;
             break;
         case '[':
@@ -240,8 +220,7 @@ class JSON_ostream {
         default:
             break;
         }
-        strm << v;
-        ws = isspace(v);
+        insert_raw(v);
         return *this;
     }
 
@@ -249,18 +228,31 @@ class JSON_ostream {
     /// In string mode, it will append to the current string.
     /// Otherwise, it will insert '"' (thus entering string mode),
     /// append the string, and insert '"' (hopefully exiting string mode)
-    JSON_ostream &insert(char const *v) {
-        return insertString(v, nullptr);
+    JSON_ostream &insert(std::string_view v) {
+        auto const need_quotes = !instr;
+    
+        if (need_quotes) {
+            if (comma)
+                listItem();
+            insert('"');
+        }
+        for (auto && ch : v)
+            insert_instr(ch);
+
+        if (need_quotes)
+            insert('"');
+
+        return *this;
     }
 
-    /// Insert a whole string of characters
+    /// Insert a whole string of characters.
     JSON_ostream &insert(std::string const &v) {
-        return insertString(v.data(), v.data() + v.length());
+        return insert(std::string_view{v});
     }
 
-    /// Insert a whole string of characters
-    JSON_ostream &insert(std::string_view const &v) {
-        return insertString(v.begin(), v.end());
+    /// Insert a whole string of characters.
+    JSON_ostream &insert(char const *v) {
+        return insert(std::string_view{v});
     }
 
     /// Insert an object member name, i.e. a string followed by a ':'
@@ -274,9 +266,11 @@ class JSON_ostream {
     /// This is a catch-all, intended for numeric types
     template <typename T>
     JSON_ostream &insert(T const &v) {
-        if (!ws && !compact) {
-            strm << ' ';
-            ws = true;
+        if (!instr) {
+            if (comma)
+                listItem();
+            if (!ws && !compact)
+                insert_raw(' ');
         }
         strm << v;
         return *this;

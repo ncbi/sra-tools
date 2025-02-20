@@ -80,13 +80,21 @@ enum gw_evt_id
     evt_logmsg,
     evt_progmsg,
 
+    /* BEGIN VERSION 3 MESSAGES */
+    evt_db_metadata_node_attr,              /* uses gw(p)_3string_evt_v1   */
+    evt_tbl_metadata_node_attr,
+    evt_col_metadata_node_attr,
+    evt_db_metadata_node_attr2,             /* uses gw(p)_3string_evt_U16   */
+    evt_tbl_metadata_node_attr2,
+    evt_col_metadata_node_attr2,
+
     evt_max_id                            /* must be last                */
 };
 
 #define GW_SIGNATURE "NCBIgnld"
 #define GW_GOOD_ENDIAN 1
 #define GW_REVERSE_ENDIAN ( 1 << 24 )
-#define GW_CURRENT_VERSION 2
+#define GW_CURRENT_VERSION 3
 
 //These are not to change
 #define STRING_LIMIT_8 0x100
@@ -239,6 +247,22 @@ struct gw_2string_evt_v1
     char align [ 0..3 ];   * ( ( 4 - sizeof str % 4 ) % 4 ) zeros             */
 };
 
+/* gw_3string_evt
+ *  event used to send a triplet of strings
+ *
+ *  used for events:
+ *    { evt_[db|tbl|co]_metadata_node_attr }
+ */
+struct gw_3string_evt_v1
+{
+    gw_evt_hdr_v1 dad;    /* common header : id = 0                           */
+    uint32_t sz1;         /* size of string 1 in bytes, NO trailing NUL byte  */
+    uint32_t sz2;         /* size of string 2 in bytes, NO trailing NUL byte  */
+    uint32_t sz3;         /* size of string 3 in bytes, NO trailing NUL byte  */
+ /* char str [ sz1+sz2+sz3 ];  * string data.                                     *
+    char align [ 0..3 ];   * ( ( 4 - sizeof str % 4 ) % 4 ) zeros             */
+};
+
 /* gw_column_evt
  *  event used to create a new column
  *
@@ -344,6 +368,21 @@ struct gwp_2string_evt_v1
  /* char str[ sz1+sz2+2 ]; * string data.                                     */
 };
 
+/* gwp_3string_evt
+ *  event used to send a triplet of strings
+ *
+ *  used for events:
+ *    { evt_[db|tbl|co]_metadata_node_attr }
+ */
+struct gwp_3string_evt_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = db/tbl/col id > 0           */
+    uint8_t sz1;          /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint8_t sz2;          /* size of string 2 - 1 in bytes, NO trailing NUL   */
+    uint8_t sz3;          /* size of string 3 - 1 in bytes, NO trailing NUL   */
+ /* char str[ sz1+sz2+sz3+3 ]; * string data.                                     */
+};
+
 /* gwp_column_evt
  *  event used to create a new column
  *
@@ -413,6 +452,23 @@ struct gwp_2string_evt_U16_v1
     uint16_t sz1;         /* size of string 1 - 1 in bytes, NO trailing NUL   */
     uint16_t sz2;         /* size of string 2 - 1 in bytes, NO trailing NUL   */
  /* char str[ sz1+sz2+2 ]; * string data.                                     */
+};
+
+/* gwp_3string_evt_U16
+ *  event used to send a triplet of strings
+ *
+ *  used for events:
+ *    { evt_[db|tbl|co]_metadata_node_attr }
+ *
+ *  ...whenever size of any string > 256
+ */
+struct gwp_3string_evt_U16_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = 0                           */
+    uint16_t sz1;         /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz2;         /* size of string 2 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz3;         /* size of string 3 - 1 in bytes, NO trailing NUL   */
+ /* char str[ sz1+sz2+sz3+3 ]; * string data.                                     */
 };
 
 
@@ -545,6 +601,38 @@ namespace ncbi
 
     inline void set_size2 ( :: gw_2string_evt_v1 & self, size_t bytes )
     { set_string_size ( self . sz2, bytes ); }
+
+
+    // gw_3string_evt
+    inline void init ( :: gw_3string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+
+    inline void init ( :: gw_3string_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+
+    inline size_t size1 ( const gw_3string_evt_v1 & self )
+    { return self . sz1; }
+
+    inline size_t size2 ( const gw_3string_evt_v1 & self )
+    { return self . sz2; }
+
+    inline size_t size3 ( const gw_3string_evt_v1 & self )
+    { return self . sz3; }
+
+    inline void set_size1 ( :: gw_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gw_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+    inline void set_size3 ( :: gw_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz3, bytes ); }
 
     // gw_column_evt
     inline void init ( :: gw_column_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
@@ -765,7 +853,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz = 0;
     }
-
     inline void init ( :: gwp_1string_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -785,7 +872,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz1 = hdr . sz2 = 0;
     }
-
     inline void init ( :: gwp_2string_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -804,6 +890,36 @@ namespace ncbi
     inline void set_size2 ( :: gwp_2string_evt_v1 & self, size_t bytes )
     { set_string_size ( self . sz2, bytes ); }
 
+    // gwp_3string_evt
+    inline void init ( :: gwp_3string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+    inline void init ( :: gwp_3string_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+
+    inline size_t size1 ( const gwp_3string_evt_v1 & self )
+    { return ( size_t ) self . sz1 + 1; }
+
+    inline size_t size2 ( const gwp_3string_evt_v1 & self )
+    { return ( size_t ) self . sz2 + 1; }
+
+    inline size_t size3 ( const gwp_3string_evt_v1 & self )
+    { return ( size_t ) self . sz3 + 1; }
+
+    inline void set_size1 ( :: gwp_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gwp_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+    inline void set_size3 ( :: gwp_3string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz3, bytes ); }
+
 
     // gwp_column_evt
     inline void init ( :: gwp_column_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
@@ -811,7 +927,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . table_id = hdr . elem_bits = hdr . name_sz = 0;
     }
-
     inline void init ( :: gwp_column_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -854,7 +969,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz = 0;
     }
-
     inline void init ( :: gwp_data_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -874,7 +988,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         memset ( & hdr . nrows, 0, sizeof hdr . nrows );
     }
-
     inline void init ( :: gwp_move_ahead_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -908,7 +1021,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz = 0;
     }
-
     inline void init ( :: gwp_1string_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -928,7 +1040,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz1 = hdr . sz2 = 0;
     }
-
     inline void init ( :: gwp_2string_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -947,6 +1058,36 @@ namespace ncbi
     inline void set_size2 ( :: gwp_2string_evt_U16_v1 & self, size_t bytes )
     { set_string_size ( self . sz2, bytes ); }
 
+    // gwp_3string_evt
+    inline void init ( :: gwp_3string_evt_U16_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+    inline void init ( :: gwp_3string_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = hdr . sz3 = 0;
+    }
+
+    inline size_t size1 ( const gwp_3string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz1 + 1; }
+
+    inline size_t size2 ( const gwp_3string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz2 + 1; }
+
+    inline size_t size3 ( const gwp_3string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz3 + 1; }
+
+    inline void set_size1 ( :: gwp_3string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gwp_3string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+    inline void set_size3 ( :: gwp_3string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz3, bytes ); }
+
 
     // gwp_data_evt
     inline void init ( :: gwp_data_evt_U16_v1 & hdr, uint32_t id, gw_evt_id evt )
@@ -954,7 +1095,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . sz = 0;
     }
-
     inline void init ( :: gwp_data_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -974,7 +1114,6 @@ namespace ncbi
         init ( hdr . dad, id, evt );
         hdr . db_id = hdr . mbr_sz = hdr . name_sz = hdr . create_mode = 0;
     }
-
     inline void init ( :: gwp_add_mbr_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
@@ -1022,7 +1161,6 @@ namespace ncbi
         hdr . version = hdr . timestamp  = 0;
         hdr . name_sz = hdr . percent = 0;
     }
-
     inline void init ( :: gwp_status_evt_v1 &hdr, const :: gwp_evt_hdr_v1 &dad )
     {
         hdr . dad = dad;

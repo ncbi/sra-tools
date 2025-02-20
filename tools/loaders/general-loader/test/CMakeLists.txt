@@ -29,13 +29,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
 include_directories (".." )
+ToolsRequired(general-loader kdbmeta)
 
 add_executable ( test-general-loader
     test-general-loader
     testsource
 )
 
-add_dependencies ( test-general-loader general-writer )
+add_dependencies ( test-general-loader general-writer gw-dumper )
 
 target_link_libraries ( test-general-loader
     general-writer
@@ -45,19 +46,15 @@ target_link_libraries ( test-general-loader
     ${COMMON_LIBS_WRITE}
 )
 
-add_executable ( test-gw-dumper test-gw-dumper )
-target_link_libraries ( test-gw-dumper
-    general-writer
-)
+make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/db )
+make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/input )
+make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
 #white box tests
-file ( MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/db )
-file ( MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/input )
 add_test ( NAME GeneralLoaderWhiteBox
            COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-general-loader
            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
          )
-add_test ( GWDumper ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-gw-dumper )
 
 # command line tests
 add_executable ( makeinputs
@@ -71,14 +68,17 @@ target_link_libraries ( makeinputs
 
 if ( NOT WIN32)
     #TODO: simplify
-    set ( CMD sh runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/vdb-dump ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD sh runtestcase.sh "${DIRTOTEST} ${DIRTOTEST}/vdb-dump db" ${CMAKE_CURRENT_SOURCE_DIR} )
 
     file( WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
                 "/vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n" )
 
+    # FIXTURE
     add_test ( NAME makeinputs
             COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/makeinputs
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(makeinputs PROPERTIES FIXTURES_SETUP Fixture)
+    #
 
     add_test ( NAME GeneralLoader-1.0-Basic-Unpacked
             COMMAND ${CMD} 1 0
@@ -129,6 +129,47 @@ if ( NOT WIN32)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
+    # tests depending on kdbmeta
+    #TODO: simplify
+    set ( CMD sh runtestcase.sh ${DIRTOTEST} "${DIRTOTEST}/kdbmeta db" ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
+            COMMAND ${CMD} 6 0 -L=info SOFTWARE/formatter
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-6.1-SoftwareName-Packed
+            COMMAND ${CMD} 6packed 0 -L=info SOFTWARE/formatter
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-7.0-MetadataAttrsDb-Unpacked
+            COMMAND ${CMD} 7 0 -L=info dbmeta
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-7.1-MetadataAttrsDb-Packed
+            COMMAND ${CMD} 7packed 0 -L=info dbmeta
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    set ( CMD sh runtestcase.sh ${DIRTOTEST} "${DIRTOTEST}/kdbmeta db/tbl/REFERENCE" ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test ( NAME GeneralLoader-8.0-MetadataAttrsTbl-Unpacked
+             COMMAND ${CMD} 8 0 -L=info tblmeta
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-8.1-MetadataAttrsTbl-Packed
+             COMMAND ${CMD} 8packed 0 -L=info tblmeta
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    set ( CMD sh runtestcase.sh ${DIRTOTEST} "${DIRTOTEST}/kdbmeta db/tbl/REFERENCE/col/PRIMARY_ALIGNMENT_IDS" ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test ( NAME GeneralLoader-9.0-MetadataAttrsCol-Unpacked
+             COMMAND ${CMD} 9 0 -L=info colmeta
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test ( NAME GeneralLoader-9.1-MetadataAttrsCol-Packed
+             COMMAND ${CMD} 9packed 0 -L=info colmeta
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
     set_tests_properties(
         GeneralLoader-1.0-Basic-Unpacked
         GeneralLoader-1.1-Basic-Packed
@@ -141,28 +182,16 @@ if ( NOT WIN32)
         GeneralLoader-4.0-MoveAheadEvent-Unpacked
         GeneralLoader-4.1-MoveAheadEvent-Packed
         GeneralLoader-5.0-IntegerConversion
-
-        PROPERTIES DEPENDS makeinputs
-    )
-
-    # tests depending on kdbmeta
-    #TODO: simplify
-    set ( CMD sh runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/kdbmeta  ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
-            COMMAND ${CMD} 6 0 -L=info SOFTWARE/formatter
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test ( NAME GeneralLoader-6.1-SoftwareName-Packed
-            COMMAND ${CMD} 6packed 0 -L=info SOFTWARE/formatter
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    set_tests_properties(
         GeneralLoader-6.0-SoftwareName-Unpacked
         GeneralLoader-6.1-SoftwareName-Packed
+        GeneralLoader-7.0-MetadataAttrsDb-Unpacked
+        GeneralLoader-7.1-MetadataAttrsDb-Packed
+        GeneralLoader-8.0-MetadataAttrsTbl-Unpacked
+        GeneralLoader-8.1-MetadataAttrsTbl-Packed
+        GeneralLoader-9.0-MetadataAttrsCol-Unpacked
+        GeneralLoader-9.1-MetadataAttrsCol-Packed
 
-        PROPERTIES DEPENDS makeinputs
+        PROPERTIES FIXTURES_REQUIRED Fixture
     )
 
 endif()

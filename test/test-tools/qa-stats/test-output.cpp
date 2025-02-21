@@ -28,6 +28,8 @@
 * Unit tests for qa-stat/output.[hc]pp
 */
 
+#include <iostream>
+#include <typeinfo>
 #include <sstream>
 #include <JSON_ostream.hpp>
 
@@ -56,15 +58,34 @@ TEST_CASE(InsertInt)
     REQUIRE_EQ( string("1"), outStr.str() );
 }
 
-TEST_CASE(InsertBool)
+TEST_CASE(InsertFloat)
+{
+    ostringstream outStr;
+    {
+        JSON_ostream out(outStr);
+        out << 1.5;
+    }
+    REQUIRE_EQ( string("1.5"), outStr.str() );
+}
+
+TEST_CASE(InsertTrue)
 {
     ostringstream outStr;
     {
         JSON_ostream out(outStr);
         out << true;
+    }
+    REQUIRE_EQ( string("true"), outStr.str() );
+}
+
+TEST_CASE(InsertFalse)
+{
+    ostringstream outStr;
+    {
+        JSON_ostream out(outStr);
         out << false;
     }
-    REQUIRE_EQ( string("truefalse"), outStr.str() );
+    REQUIRE_EQ( string("false"), outStr.str() );
 }
 
 TEST_CASE(InsertChar)
@@ -107,59 +128,125 @@ TEST_CASE(InsertStringView)
     REQUIRE_EQ( string(R"("string")"), outStr.str() );
 }
 
+static void insertArrayElem(JSON_ostream &&out)
+{ // expect ["elem1"]
+    out << '[';
+    out << "elem1";
+    out << ']';
+}
+
+static void insertArrayElems(JSON_ostream &&out)
+{ // expect [1,[],{},true,false,"Hello",0.5]
+   // commas between array elements are the caller's responsibility
+    out << '[' << 1
+        << ',' << '[' << ']' // empty array
+        << ',' << '{' << '}' // empty object
+        << ',' << true
+        << ',' << false
+        << ',' << "Hello"
+        << ',' << 0.5
+        << ']';
+}
+
+static void insertArrayElems_Strings(JSON_ostream &&out)
+{ // expect ["12","3"]
+    out << '[' << '"' << 1 << 2 << '"'  // build a string with multiple insertions
+        << ',' << "3"
+        << ','                          // dangling comma does nothing
+        << ']';
+}
+
+static void insertMember(JSON_ostream &&out)
+{ // expect {"name":"value"}
+    out << '{';
+    out << JSON_Member{"name"};
+    out << "value";
+    out << '}';
+}
+
+static void insertMember2(JSON_ostream &&out)
+{ // expect {"name1":"value1","name2":"value2","emptyArray":[],"emptyObject":{}}
+   // commas between value members appear automagically
+    out << '{';
+    out << JSON_Member{"name1"};
+    out << std::string{"value1"};
+    out << JSON_Member{"name2"};
+    out << std::string_view{"value2"};
+    out << JSON_Member{"emptyArray"};
+    out << '[' << ']';
+    out << JSON_Member{"emptyObject"};
+    out << '{' << '}';
+    out << '}';
+}
+
+TEST_CASE(InsertArrayElem)
+{
+    ostringstream outStr;
+    insertArrayElem(JSON_ostream{outStr});
+    REQUIRE_EQ( string("[\n\t\"elem1\"\n]"), outStr.str() );
+}
+
+TEST_CASE(InsertArrayElems)
+{
+    ostringstream outStr;
+    insertArrayElems(JSON_ostream{outStr});
+    REQUIRE_EQ( string("[\n\t1,\n\t[],\n\t{},\n\ttrue,\n\tfalse,\n\t\"Hello\",\n\t0.5\n]"), outStr.str() );
+}
+
+TEST_CASE(InsertArrayElems_Strings)
+{
+    ostringstream outStr;
+    insertArrayElems_Strings(JSON_ostream{outStr});
+    REQUIRE_EQ( string("[\n\t\"12\",\n\t\"3\"\n]"), outStr.str() );
+}
+
 TEST_CASE(InsertMember)
 {
     ostringstream outStr;
-    {
-        JSON_Member mem = { "name" };
-        JSON_ostream out(outStr);
-        out << '{';
-        out << mem;
-        out << "value";
-        out << '}';
-    }
+    insertMember(JSON_ostream{outStr});
     REQUIRE_EQ( string("{\n\t\"name\": \"value\"\n}"), outStr.str() );
 }
 
 TEST_CASE(InsertMembers)
 {   // commas between value members appear automagically
     ostringstream outStr;
-    {
-        JSON_Member mem1 = { "name1" };
-        JSON_Member mem2 = { "name2" };
-        JSON_ostream out(outStr);
-        out << '{';
-        out << mem1;
-        out << string("value1");
-        out << mem2;
-        out << string_view("value2");
-        out << '}';
-    }
-    REQUIRE_EQ( string("{\n\t\"name1\": \"value1\",\n\t\"name2\": \"value2\"\n}"), outStr.str() );
+    insertMember2(JSON_ostream{outStr});
+    REQUIRE_EQ( string("{\n\t\"name1\": \"value1\",\n\t\"name2\": \"value2\",\n\t\"emptyArray\": [],\n\t\"emptyObject\": {}\n}"), outStr.str() );
 }
 
-TEST_CASE(InsertArrayElem)
+TEST_CASE(InsertArrayElem_compact)
 {
     ostringstream outStr;
-    {
-        JSON_ostream out(outStr);
-        out << '[';
-        out << "elem1";
-        out << ']';
-    }
-    REQUIRE_EQ( string("[\n\t\"elem1\"\n]"), outStr.str() );
+    insertArrayElem(JSON_ostream{outStr, true});
+    REQUIRE_EQ( string{R"(["elem1"])"}, outStr.str() );
 }
 
-TEST_CASE(InsertArrayElems)
-{   // commas between array elements seem to be the caller's responsibility
+TEST_CASE(InsertArrayElems_compact)
+{
     ostringstream outStr;
-    {
-        JSON_ostream out(outStr);
-        out << '[';
-        out << "elem1" << ',' << "elem2" << ',' << "elem3";
-        out << ']';
-    }
-    REQUIRE_EQ( string("[\n\t\"elem1\",\n\t\"elem2\",\n\t\"elem3\"\n]"), outStr.str() );
+    insertArrayElems(JSON_ostream{outStr, true});
+    REQUIRE_EQ( string{R"([1,[],{},true,false,"Hello",0.5])"}, outStr.str() );
+}
+
+TEST_CASE(InsertArrayElems_Strings_compact)
+{
+    ostringstream outStr;
+    insertArrayElems_Strings(JSON_ostream{outStr, true});
+    REQUIRE_EQ( string{R"(["12","3"])"}, outStr.str() );
+}
+
+TEST_CASE(InsertMember_compact)
+{
+    ostringstream outStr;
+    insertMember(JSON_ostream{outStr, true});
+    REQUIRE_EQ( string{R"({"name":"value"})"}, outStr.str() );
+}
+
+TEST_CASE(InsertMembers_compact)
+{
+    ostringstream outStr;
+    insertMember2(JSON_ostream{outStr, true});
+    REQUIRE_EQ( string{R"({"name1":"value1","name2":"value2","emptyArray":[],"emptyObject":{}})"}, outStr.str() );
 }
 
 int main (int argc, char *argv [])

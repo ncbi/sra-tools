@@ -38,11 +38,12 @@
 #include <cmath>
 #include <cassert>
 #include <JSON_ostream.hpp>
+#include <hashing.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
-#include "hashing.hpp"
 #include "stats.hpp"
 
+static inline
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
     char buffer[32];
     return s << HashResult64::to_hex(v.value, buffer);
@@ -50,16 +51,16 @@ JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
 
 static inline
 JSON_ostream &operator <<(JSON_ostream &out, CountBT const &value) {
-        return out
-            << JSON_Member{"count"} << value.total
-            << JSON_Member{"biological"} << value.biological
-            << JSON_Member{"technical"} << value.technical;
+    return out
+        << JSON_Member{"count"} << value.total
+        << JSON_Member{"biological"} << value.biological
+        << JSON_Member{"technical"} << value.technical;
 }
 
 static inline
 JSON_ostream &operator <<(JSON_ostream &out, CountFR const &value) {
     return out
-            << JSON_Member{"total"} << value.total
+        << JSON_Member{"total"} << value.total
         << JSON_Member{"5'"} << value.fwd
         << JSON_Member{"3'"} << value.rev;
 }
@@ -78,7 +79,6 @@ struct BaseStatsEntry {
                 out << JSON_Member{"technical"} << self.tech;
             out << '}';
         }
-
         return out;
     }
 };
@@ -114,8 +114,8 @@ struct DistanceStatEntry {
         << '{'
             << JSON_Member{"length"} << self.length
             << JSON_Member{"power"} << self.power
-                << '}';
-            }
+        << '}';
+    }
 };
 
 static inline
@@ -144,8 +144,8 @@ JSON_ostream &operator <<(JSON_ostream &out, DistanceStats const &distance) {
         out << JSON_Member{"S"} << '[' << std::make_pair(&distance.C, &distance.G) << ']';
         out << JSON_Member{"S-W"} << '[' << distance.SW << ']';
         out << JSON_Member{"K-M"} << '[' << distance.KM << ']';
-        }
-        return out;
+    }
+    return out;
 }
 
 static
@@ -171,60 +171,60 @@ JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &self) {
             << '{'
                 << JSON_Member{"start"} << chunk * ReferenceStats::chunkSize + 1
                 << JSON_Member{"last"} << (chunk + 1) * ReferenceStats::chunkSize
-                    << JSON_Member{"alignments"} << '{' << counter << '}'
-                << '}';
-            }
-            out << ']'
+                << JSON_Member{"alignments"} << '{' << counter << '}'
+            << '}';
+        }
+        out << ']'
             << JSON_Member{"alignments"} << '{' << total << '}'
             << JSON_Member{"position"} << HashResult64{posHash}
             << JSON_Member{"sequence"} << HashResult64{seqHash}
             << JSON_Member{"cigar"} << HashResult64{cigHash}
-            << '}';
-        }
-        return out;
+        << '}';
+    }
+    return out;
 }
 
 static JSON_ostream &operator <<(JSON_ostream &out, SpotLayouts const &value) {
-        for (auto i = value.index.begin(); i != value.index.end(); ++i) {
-            out << '{'
+    for (auto i = value.index.begin(); i != value.index.end(); ++i) {
+        out << '{'
             << JSON_Member{"descriptor"} << i->first
             << JSON_Member{"count"} << value.count[i->second]
-            << '}';
-        }
-        return out;
+        << '}';
+    }
+    return out;
 }
 
 static JSON_ostream &operator <<(JSON_ostream &out, CountBTN const &value) {
-        return out
-            << JSON_Member{"total"} << value.total
-            << JSON_Member{"biological"} << value.biological
-            << JSON_Member{"no-biological"} << value.nobiological
-            << JSON_Member{"technical"} << value.technical
-            << JSON_Member{"no-technical"} << value.notechnical;
+    return out
+        << JSON_Member{"total"} << value.total
+        << JSON_Member{"biological"} << value.biological
+        << JSON_Member{"no-biological"} << value.nobiological
+        << JSON_Member{"technical"} << value.technical
+        << JSON_Member{"no-technical"} << value.notechnical;
 }
 
 static
 JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &stats) {
-        for (auto &[k, v] : stats) {
-            out << '{'
-                << JSON_Member{"nreads"} << k
-                << v
-            << '}';
-        }
-        return out;
+    for (auto &[k, v] : stats) {
+        out << '{'
+            << JSON_Member{"nreads"} << k
+            << v
+        << '}';
+    }
+    return out;
 }
 
 static JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-        out << JSON_Member{"reads"}        << '{' << self.reads       << '}';
-        out << JSON_Member{"bases"}        << '[' << self.bases       << ']';
-        out << JSON_Member{"spots"}        << '[' << self.spots       << ']';
-        out << JSON_Member{"spot-layouts"} << '[' << self.layouts     << ']';
-        out << JSON_Member{"spectra"}      << '{' << self.spectra     << '}';
-        out << JSON_Member{"references"}   << '[' << self.references  << ']';
-        // fingerprint is only output separately
-        // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
+    out << JSON_Member{"reads"}        << '{' << self.reads      << '}';
+    out << JSON_Member{"bases"}        << '[' << self.bases      << ']';
+    out << JSON_Member{"spots"}        << '[' << self.spots      << ']';
+    out << JSON_Member{"spot-layouts"} << '[' << self.layouts    << ']';
+    out << JSON_Member{"spectra"}      << '{' << self.spectra    << '}';
+    out << JSON_Member{"references"}   << '[' << self.references << ']';
+    // fingerprint is only output separately
+    // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
 
-        return out;
+    return out;
 }
 
 static
@@ -237,7 +237,7 @@ SpotLayout spotLayout(Input const &spot) {
                           , read.type == Input::ReadType::technical
                           , read.orientation == Input::ReadOrientation::forward
                           , read.orientation == Input::ReadOrientation::reverse);
-     }
+    }
     return result;
 }
 
@@ -369,12 +369,13 @@ private:
         return !(arguments.empty() || nextInput == arguments.end());
     }
     void print(std::ostream &strm) {
-        auto out = JSON_ostream(strm);
+        auto out = JSON_ostream{strm};
 
         out << '{';
         if ( fingerprint )
         {
-            out << JSON_Member{"fingerprint"}  << '[' << stats.fingerprint << ']';
+            out << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << stats.fingerprint << JSON_ostream::Compact{false}
+                << JSON_Member{"fingerprint-digest"} << stats.fingerprint.digest();
         }
         else
         {

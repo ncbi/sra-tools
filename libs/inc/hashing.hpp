@@ -179,7 +179,7 @@ using FNV1a = struct HashFunction<FNV1a64>;
 namespace SHA2 {
 
 template <typename Word>
-struct State {
+struct TState {
     uint64_t length = 0;
     Word H[8];
     union {
@@ -241,7 +241,7 @@ struct Digest {
 
 /// Used for 32-bit SHA-2
 struct SHA_32 {
-    using State = State<uint32_t>;
+    using State = TState<uint32_t>;
 
 private:
     using Word = uint32_t;
@@ -348,7 +348,7 @@ protected:
 
 /// Used for 64-bit SHA-2
 struct SHA_64 {
-    using State = State<uint64_t>;
+    using State = TState<uint64_t>;
 private:
     using Word = uint64_t;
 

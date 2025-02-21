@@ -9,7 +9,6 @@ set(SOURCES
 
 set(HEADERS
     input.hpp
-    hashing.hpp
     parameters.hpp
     stats.hpp
 )

@@ -39,7 +39,40 @@
 #include <map>
 #include <string>
 #include <string_view>
-#include "fingerprint.hpp"
+#include <fingerprint.hpp>
+#include <hashing.hpp>
+
+struct SeqHash_impl {
+    using State = FNV1a;
+    using Value = FNV1a::Value;
+    static State init() { return State{}; }
+    static Value finalize(State &state) {
+        return state.state;
+    }
+    static void update(State &state, size_t size, char const *seq) {
+        auto const end = seq + size;
+
+        for (auto i = seq; i != end; ++i) {
+            auto ch = *i;
+            switch (ch) {
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+                break;
+            default:
+                ch = 'N';
+                break;
+            }
+            state.update<char>(ch);
+        }
+    }
+    static void test() {
+#ifndef NDEBUG
+#endif
+    }
+};
+using SeqHash = struct HashFunction<SeqHash_impl>;
 
 struct CountBT {
     uint64_t total, biological, technical;

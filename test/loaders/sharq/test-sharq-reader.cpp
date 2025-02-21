@@ -280,31 +280,31 @@ FIXTURE_TEST_CASE(TestFingerprint, LoaderFixture)
     REQUIRE(reader.get_read(read));
 
     const Fingerprint & fp = reader.fingerprint();
-    REQUIRE_EQ( 0, (int)fp.a[0] );
-    REQUIRE_EQ( 1, (int)fp.a[1] );
-    REQUIRE_EQ( 0, (int)fp.a[2] );
-    REQUIRE_EQ( 0, (int)fp.a[3] );
-    REQUIRE_EQ( 0, (int)fp.c[0] );
-    REQUIRE_EQ( 0, (int)fp.c[1] );
-    REQUIRE_EQ( 0, (int)fp.c[2] );
-    REQUIRE_EQ( 0, (int)fp.c[3] );
-    REQUIRE_EQ( 1, (int)fp.g[0] );
-    REQUIRE_EQ( 0, (int)fp.g[1] );
-    REQUIRE_EQ( 0, (int)fp.g[2] );
-    REQUIRE_EQ( 0, (int)fp.g[3] );
-    REQUIRE_EQ( 0, (int)fp.t[0] );
-    REQUIRE_EQ( 0, (int)fp.t[1] );
-    REQUIRE_EQ( 1, (int)fp.t[2] );
-    REQUIRE_EQ( 1, (int)fp.t[3] );
-    REQUIRE_EQ( 0, (int)fp.n[0] );
-    REQUIRE_EQ( 0, (int)fp.n[1] );
-    REQUIRE_EQ( 0, (int)fp.n[2] );
-    REQUIRE_EQ( 0, (int)fp.n[3] );
-    REQUIRE_EQ( 0, (int)fp.ool[0] );
-    REQUIRE_EQ( 0, (int)fp.ool[1] );
-    REQUIRE_EQ( 0, (int)fp.ool[2] );
-    REQUIRE_EQ( 0, (int)fp.ool[3] );
-    REQUIRE_EQ( 1, (int)fp.ool[4] );
+    REQUIRE_EQ( 0, (int)fp.a()[0] );
+    REQUIRE_EQ( 1, (int)fp.a()[1] );
+    REQUIRE_EQ( 0, (int)fp.a()[2] );
+    REQUIRE_EQ( 0, (int)fp.a()[3] );
+    REQUIRE_EQ( 0, (int)fp.c()[0] );
+    REQUIRE_EQ( 0, (int)fp.c()[1] );
+    REQUIRE_EQ( 0, (int)fp.c()[2] );
+    REQUIRE_EQ( 0, (int)fp.c()[3] );
+    REQUIRE_EQ( 1, (int)fp.g()[0] );
+    REQUIRE_EQ( 0, (int)fp.g()[1] );
+    REQUIRE_EQ( 0, (int)fp.g()[2] );
+    REQUIRE_EQ( 0, (int)fp.g()[3] );
+    REQUIRE_EQ( 0, (int)fp.t()[0] );
+    REQUIRE_EQ( 0, (int)fp.t()[1] );
+    REQUIRE_EQ( 1, (int)fp.t()[2] );
+    REQUIRE_EQ( 1, (int)fp.t()[3] );
+    REQUIRE_EQ( 0, (int)fp.n()[0] );
+    REQUIRE_EQ( 0, (int)fp.n()[1] );
+    REQUIRE_EQ( 0, (int)fp.n()[2] );
+    REQUIRE_EQ( 0, (int)fp.n()[3] );
+    REQUIRE_EQ( 0, (int)fp.eor()[0] );
+    REQUIRE_EQ( 0, (int)fp.eor()[1] );
+    REQUIRE_EQ( 0, (int)fp.eor()[2] );
+    REQUIRE_EQ( 0, (int)fp.eor()[3] );
+    REQUIRE_EQ( 1, (int)fp.eor()[4] );
 }
 
 FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)

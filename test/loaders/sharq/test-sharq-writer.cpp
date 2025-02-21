@@ -186,8 +186,15 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         REQUIRE_EQ( 0u, m_tw->m_metaOids[0] );
         REQUIRE_EQ( string("LOAD/QC/file_1"), m_tw->m_metaNames[0] );
         //TODO: REQUIRE_EQ( File1, meta-attr("LOAD/QC/file_1", "name") );
-        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[0].substr(0, Expected.size()) );
+        const string Expected =
+        "{\n\t\"maximum-position\": 1,"
+            "\n\t\"A\": [\n\t\t1,\n\t\t0\n\t],"
+            "\n\t\"C\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"EoR\": [\n\t\t0,\n\t\t1\n\t]\n}";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[0] );
     }
 
     {   // file2
@@ -195,8 +202,15 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         REQUIRE_EQ( 0u, m_tw->m_metaOids[1] );
         REQUIRE_EQ( string("LOAD/QC/file_2"), m_tw->m_metaNames[1] );
         //TODO: REQUIRE_EQ( File2, meta-attr("LOAD/QC/file_2", "name") );
-        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 0\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[1].substr(0, Expected.size()) );
+        const string Expected =
+        "{\n\t\"maximum-position\": 1,"
+            "\n\t\"A\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"C\": [\n\t\t1,\n\t\t0\n\t],"
+            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"EoR\": [\n\t\t0,\n\t\t1\n\t]\n}";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[1] );
     }
 
     // output fingerprint, on the SEQUENCE table
@@ -204,8 +218,15 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, m_tw->m_roots[2] );
         REQUIRE_EQ( 1u, m_tw->m_metaOids[2] );
         REQUIRE_EQ( string("QC/fingerprint"), m_tw->m_metaNames[2] );
-        const string Expected = "{\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 0,\n\t\t\"count\": 1\n\t},\n\t{\n\t\t\"base\": \"A\",\n\t\t\"pos\": 1,";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[2].substr(0, Expected.size()) );
+        const string Expected =
+        "{\n\t\"maximum-position\": 1,"
+            "\n\t\"A\": [\n\t\t1,\n\t\t0\n\t],"
+            "\n\t\"C\": [\n\t\t1,\n\t\t0\n\t],"
+            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
+            "\n\t\"EoR\": [\n\t\t0,\n\t\t2\n\t]\n}";
+        REQUIRE_EQ( Expected, m_tw->m_metaValues[2] );
     }
 }
 

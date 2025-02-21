@@ -1,4 +1,5 @@
-# ===========================================================================
+#! /bin/sh
+# ==============================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -20,7 +21,29 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# =============================================================================$
+# Test of fasterq-dump fetching run via HTTP
+# =============================================================================$
 
-# NGS-BAM and library version
-VERSION = 3.2.1
+BIN="$1"
+
+SANDBOX="TEST_SANDBOX"
+ACC="SRR053325"
+
+mkdir -p $SANDBOX
+cd $SANDBOX
+
+echo "run $BIN $ACC"
+$BIN $ACC
+STATUS=$?
+
+cd ..
+rm -r $SANDBOX
+
+if [ "$STATUS" -eq 0 ]; then
+    echo "success!"
+    exit 0
+else
+    echo "error!"
+    exit 3
+fi

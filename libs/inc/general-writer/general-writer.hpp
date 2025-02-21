@@ -89,6 +89,7 @@ namespace ncbi
         // add or set metadata on a specific object
         // where obj_id == 0 => outer database, and
         // any other positive id means the database, table or column
+        // value can be binary!
         void setDBMetadataNode ( int obj_id,
                                const std :: string & node_path,
                                const std :: string & value );
@@ -102,6 +103,7 @@ namespace ncbi
         // add or set metadata node attribute on a specific object
         // where obj_id == 0 => outer database, and
         // any other positive id means the database, table or column
+        // value is always a character string
         void setDBMetadataNodeAttr
             ( int obj_id,
               const std :: string & node_path,

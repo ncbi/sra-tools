@@ -29,7 +29,7 @@ project(rnd2sra)
 set( RND2SRALIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 
 if (NOT APPLE)
-list( append RND2SRALIBS "stdc++fs" )
+list( APPEND RND2SRALIBS "stdc++fs" )
 endif()
 
 GenerateExecutableWithDefs( rnd2sra

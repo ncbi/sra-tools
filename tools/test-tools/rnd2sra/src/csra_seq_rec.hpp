@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../vdb/wvdb.hpp"
-#include "../util/random_toolbox.hpp"
+#include "../util/utils.hpp"
 
 using namespace std;
 using namespace vdb;
@@ -116,7 +116,7 @@ class SeqRec {
         void set_read_filter( uint8_t value1, uint8_t value2 ) { set_u8( &f_read_filter, value1, value2 ); }
         void set_read_filter( uint8_t value ) { set_u8( &f_read_filter, value ); }
 
-        void make_random_qual( RandomPtr rnd, size_t len ) {
+        void make_random_qual( util::RandomPtr rnd, size_t len ) {
             if ( len > f_qual_buffer . len ) {
                 if ( nullptr != f_qual_buffer . data ) {
                     free( ( void * ) f_qual_buffer . data );

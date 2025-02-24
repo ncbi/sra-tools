@@ -3,8 +3,7 @@
 #include <cstdlib>
 #include <memory>
 #include <iostream>
-#include "../util/ini.hpp"
-#include "../util/file_tool.hpp"
+#include "../util/utils.hpp"
 #include "../vdb/wvdb.hpp"
 #include "product.hpp"
 #include "rnd2sra_ini.hpp"
@@ -43,14 +42,14 @@ class Tool_Main {
             bool res = true;
             string parent_out_path, out_leaf;
             auto ini = rnd2sra_ini::make( f_main_params -> get_ini_file() );
-            auto output_dir = FileTool::remove_traling_separator(
+            auto output_dir = util::FileTool::remove_traling_separator(
                                 f_main_params -> get_output() );
             if ( ini -> has_output_dir() ) {
                 if ( ! output_dir . empty() ) {
                     // cmd-line overwrite the ini-file setting
                     ini -> set_output_dir( output_dir );
                 } else {
-                    output_dir = FileTool::remove_traling_separator(
+                    output_dir = util::FileTool::remove_traling_separator(
                                     ini -> get_output_dir() );
                 }
             } else {
@@ -72,7 +71,7 @@ class Tool_Main {
             if ( res ) {
                 if ( ini -> get_echo_values() ) { cerr << ini << endl; }
 
-                auto rnd = Random::make( ini -> get_seed() );
+                auto rnd = util::Random::make( ini -> get_seed() );
 
                 auto dir = vdb::KDir::make( parent_out_path );
                 if ( ! *dir ) { cerr << "make dir failed\n"; return false; }
@@ -80,9 +79,10 @@ class Tool_Main {
                 auto mgr = dir -> make_mgr();
                 if ( ! *mgr ) {
                     cerr << "make mgr failed :\n";
-                    cerr << "current dir     : " << FileTool::current_dir() << endl;
+                    cerr << "current dir     : " << util::FileTool::current_dir() << endl;
                     cerr << "parent_out_path : '" << parent_out_path << "'" << endl;
-                    return false; }
+                    return false;
+                }
 
                 if ( f_product -> is_flat() ) {
                     res = RndNonecSraFlat::produce( mgr, ini, rnd, out_leaf ); // rnd_none_csra.hpp
@@ -100,14 +100,17 @@ class Tool_Main {
 
         // run a test of a tool against an artificial accession
         bool run_test( void ) {
-            auto ini = Ini::make( f_main_params -> get_ini_file() );
+            auto ini = util::Ini::make( f_main_params -> get_ini_file() );
+            if ( ini -> has_value( "debug", "yes" ) ) {
+                std::cout << "run_test()\n";
+            }
             auto r = runner::make( ini, f_main_params );
             return r -> run();
         }
 
         // Ctor
         Tool_Main( const MainParamsPtr params ) : f_main_params( params ) {
-            string s_product = Ini::make( params -> get_ini_file() ) -> get( "product", "" );
+            string s_product = util::Ini::make( params -> get_ini_file() ) -> get( "product", "" );
             f_product = Product::make( s_product );
         }
 
@@ -122,10 +125,10 @@ class Tool_Main {
             if ( ini_file . empty() ) {
                 // without a config/ini - file we cannot do anything ...
                 cerr << "missing: config/ini-file" << endl;
-            } else if ( ! FileTool::exists( ini_file ) ) {
+            } else if ( ! util::FileTool::exists( ini_file ) ) {
                 // there is a config-file specified, but it cannot be found
                 cerr << "config-file '" << ini_file << "' not found" << endl;
-                cerr << "ini-dir: " << f_main_params->get_ini_file_loc() << endl;
+                cerr << "ini-dir: " << f_main_params -> get_ini_file_loc() << endl;
             } else {
                 if ( f_product -> is_acc() ) {
                     res = produce_acc();    // above

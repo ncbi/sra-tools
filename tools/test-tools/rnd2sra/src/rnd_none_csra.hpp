@@ -83,7 +83,7 @@ class RndNonecSra : public Rndcmn {
 
         // Ctor
         RndNonecSra( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                     RandomPtr rnd, const string& output_dir )
+                     util::RandomPtr rnd, const string& output_dir )
             : Rndcmn( mgr, ini, rnd, output_dir, none_csra_schema_txt ) {
                 qual_arr . data = nullptr;
                 qual_arr . len = 0;
@@ -120,6 +120,7 @@ class RndNonecSra : public Rndcmn {
         }
 
         bool write_row( VCurPtr cur, int64_t row ) {
+
             if ( !cur -> open_row() ) {
                 cerr << "open_row( " << row << " ) failed\n";
                 return false;
@@ -136,10 +137,8 @@ class RndNonecSra : public Rndcmn {
             size_t row_len = spot_layout -> get_len();
 
             // --- READ
-            auto bases = f_rnd -> random_bases( row_len );
-            if ( ! f_read_column -> write_string( bases ) ) {
-                return false;
-            }
+            string bases = f_rnd -> random_bases( row_len );
+            if ( ! f_read_column -> write_string( bases ) ) { return false; }
 
             // --- QUALITY
             if ( row_len > qual_arr . len ) {
@@ -154,8 +153,10 @@ class RndNonecSra : public Rndcmn {
             if ( nullptr == qual_arr . data ) {
                 return false;
             }
+
             // optionally introduce an error in the quality length
             size_t q_row_len = make_random_qual( ( uint8_t * )qual_arr . data, row, row_len );
+
             if ( ! f_qual_column -> write_u8arr( ( uint8_t * )qual_arr . data, q_row_len ) ) {
                 return false;
             }
@@ -215,6 +216,7 @@ class RndNonecSra : public Rndcmn {
         }
 
         bool populate_table( VTblPtr tbl ) {
+
             //  (1) ... create a writable cursor
             auto cur = tbl -> writable_cursor();
             bool res = ( *cur );
@@ -223,26 +225,46 @@ class RndNonecSra : public Rndcmn {
             }
 
             //  (2) ... populate the cursor with all the columns we want to write
-            if ( res ) { res = initialize_columns( cur ); }
+            if ( res ) {
+                res = initialize_columns( cur );
+                if ( !res ) {
+                    cerr << "populate_table() - initialize_columns() failed!\n";
+                }
+            }
 
             //  (3) ... set the default-value for the PLATFORM-column
             if ( res ) {
                 uint8_t platform = 2; // ILLUMINA
                 res = f_platform_column -> dflt_u8( platform );
+                if ( !res ) {
+                    cerr << "populate_table() - set default for platform failed!\n";
+                }
             }
 
             //  (4) ... write the rows  [[[ the main loop ]]]
             uint64_t row_count = f_ini -> get_rows();
-            base_counters counters;
             for ( int64_t row = 1; res && ( uint64_t )row <= row_count; ++row ) {
                 res = write_row( cur, row );
+                if ( !res ) {
+                    cerr << "populate_table() - write-row( " << row << ") failed!\n";
+                }
             }
 
             //  (5) ... commit all the changes on the cursor
-            if ( res ) { res = cur -> commit(); }
+            if ( res ) {
+                res = cur -> commit();
+                if ( !res ) {
+                    cerr << "populate_table() - cur->commit() failed!\n";
+                }
+            }
 
             //  (6) ... write the STATS-metadata
-            if ( res ) { res = write_stats( tbl, f_counters, row_count ); }
+            if ( res ) {
+                res = write_stats( tbl, f_counters, row_count );
+                if ( !res ) {
+                    cerr << "populate_table() - write_stats() failed!\n";
+                }
+            }
 
             return res;
         }
@@ -262,7 +284,7 @@ class RndNonecSraFlat : public RndNonecSra {
 
         // Ctor
         RndNonecSraFlat( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                         RandomPtr rnd, const string& output_dir )
+                         util::RandomPtr rnd, const string& output_dir )
             : RndNonecSra( mgr, ini, rnd, output_dir ) {
         }
 
@@ -277,7 +299,7 @@ class RndNonecSraFlat : public RndNonecSra {
 
     public:
         static bool produce( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                             RandomPtr rnd, const string& output_dir ) {
+                             util::RandomPtr rnd, const string& output_dir ) {
             RndNonecSraFlat writer( mgr, ini, rnd, output_dir );
             return writer . run();
         }
@@ -289,7 +311,7 @@ class RndNonecSraDb : public RndNonecSra {
 
         // Ctor
         RndNonecSraDb( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                       RandomPtr rnd, const string& output_dir )
+                       util::RandomPtr rnd, const string& output_dir )
             : RndNonecSra( mgr, ini, rnd, output_dir ) {
         }
 
@@ -310,7 +332,7 @@ class RndNonecSraDb : public RndNonecSra {
 
     public:
         static bool produce( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                             RandomPtr rnd, const string& output_dir ) {
+                             util::RandomPtr rnd, const string& output_dir ) {
             RndNonecSraDb writer( mgr, ini, rnd, output_dir );
             return writer . run();
         }

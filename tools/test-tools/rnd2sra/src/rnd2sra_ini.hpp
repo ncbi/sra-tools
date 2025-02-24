@@ -1,12 +1,11 @@
 #pragma once
 
-#include "../util/ini.hpp"
-#include "../util/random_toolbox.hpp"
+#include "../util/utils.hpp"
+#include "../vdb/vdb.hpp"
 #include "product.hpp"
 #include "bio_or_tech.hpp"
 #include "fwd_or_rev.hpp"
 #include "RdFilter.hpp"
-#include "../vdb/checksum.hpp"
 #include <cstdint>
 #include <iostream>
 
@@ -31,12 +30,12 @@ class spot_section {
         }
 
         void initialize_lengths( const string& lengths ) {
-            auto parts = StrTool::tokenize( lengths, '-' );
+            auto parts = util::StrTool::tokenize( lengths, '-' );
             if ( parts . size() > 1 ) {
-                f_len  = StrTool::convert< size_t >( parts[ 0 ], 0 );
-                f_len2 = StrTool::convert< size_t >( parts[ 1 ], 0 );
+                f_len  = util::StrTool::convert< size_t >( parts[ 0 ], 0 );
+                f_len2 = util::StrTool::convert< size_t >( parts[ 1 ], 0 );
             } else if ( parts . size() > 0 ) {
-                f_len  = StrTool::convert< size_t >( parts[ 0 ], 0 );
+                f_len  = util::StrTool::convert< size_t >( parts[ 0 ], 0 );
                 f_len2 = f_len;
             } else {
                 f_len = f_biotech -> dflt_length();
@@ -57,7 +56,7 @@ class spot_section {
 
         void initialize( const string& read_def ) {
             f_biotech = Bio_or_Tech::make( read_def[ 0 ] );
-            auto lengths_flags = StrTool::tokenize( read_def . substr( 1 ), '|' );
+            auto lengths_flags = util::StrTool::tokenize( read_def . substr( 1 ), '|' );
             if ( lengths_flags . empty() ) {
                 initialize_lengths( "50" );
                 initialize_flags( "" );
@@ -108,13 +107,13 @@ class spot_section {
         }
 
         uint32_t get_bio_base_count( void ) const {
-            if ( f_biotech -> is_bio() ) return (uint32_t)f_random_len;
+            if ( f_biotech -> is_bio() ) return f_random_len;
             return 0;
         }
 
-        void randomize( RandomPtr r ) {
+        void randomize( util::RandomPtr r ) {
             if ( f_len != f_len2 ) {
-                f_random_len = r -> random_u32( (uint32_t)f_len, (uint32_t)f_len2 );
+                f_random_len = r -> random_u32( f_len, f_len2 );
             }
         }
 
@@ -133,7 +132,7 @@ class spot_layout {
 
         // >>>>> Ctor <<<<<
         spot_layout( const string& layout_def ) {
-            for ( auto const& read_def : StrTool::tokenize( layout_def, ':' ) ) {
+            for ( auto const& read_def : util::StrTool::tokenize( layout_def, ':' ) ) {
                 f_sections . push_back( spot_section::make( read_def ) );
             }
         }
@@ -145,7 +144,7 @@ class spot_layout {
 
         const vector< spot_section_ptr >& get_sections( void ) const { return f_sections; }
 
-        void randomize( RandomPtr r ) {
+        void randomize( util::RandomPtr r ) {
             for ( auto& section : f_sections ) { section -> randomize( r ); }
         }
 
@@ -162,14 +161,14 @@ class spot_layout {
             uint32_t idx = 0;
             for ( auto const& section : f_sections ) {
                 values[ idx++ ] = start;
-                start += (uint32_t)section -> get_len();
+                start += section -> get_len();
             }
         }
 
         void populate_read_len( uint32_t* values ) const {
             uint32_t idx = 0;
             for ( auto const& section : f_sections ) {
-                values[ idx++ ] = (uint32_t)section -> get_len();
+                values[ idx++ ] = section -> get_len();
             }
         }
 
@@ -261,12 +260,12 @@ class csra_spot_layout {
             uint32_t count = 20;
             uint32_t min_len = 50;
             uint32_t max_len = 0;
-            for ( const string& part : StrTool::tokenize( desc, ':' ) ) {
+            for ( const string& part : util::StrTool::tokenize( desc, ':' ) ) {
                 switch( idx++ ) {
                     case 0 : aligned = from_str( part ); break;
-                    case 1 : count = StrTool::convert< uint32_t >( part, 0 ); break;
-                    case 2 : min_len = StrTool::convert< uint32_t >( part, 0 ); break;
-                    case 3 : max_len = StrTool::convert< uint32_t >( part, 0 ); break;
+                    case 1 : count = util::StrTool::convert< uint32_t >( part, 0 ); break;
+                    case 2 : min_len = util::StrTool::convert< uint32_t >( part, 0 ); break;
+                    case 3 : max_len = util::StrTool::convert< uint32_t >( part, 0 ); break;
                 }
             }
             if ( 0 == max_len ) { max_len = min_len; }
@@ -308,10 +307,10 @@ class row_offset_pair {
             int64_t row = 0;
             int32_t offset = 0;
             uint32_t idx = 0 ;
-            for ( auto const& part : StrTool::tokenize( s, ',' ) ) {
+            for ( auto const& part : util::StrTool::tokenize( s, ',' ) ) {
                 switch( idx++ ) {
-                    case 0 : row = StrTool::convert< int64_t >( part, 0 ); break;
-                    case 1 : offset = StrTool::convert< int32_t >( part, 0 ); break;
+                    case 0 : row = util::StrTool::convert< int64_t >( part, 0 ); break;
+                    case 1 : offset = util::StrTool::convert< int32_t >( part, 0 ); break;
                 }
             }
             return row_offset_pair_ptr( new row_offset_pair( row, offset ) );
@@ -344,7 +343,7 @@ class rnd2sra_ini {
         bool f_echo_values;
         bool f_do_not_write_meta;
         Product_ptr f_product;
-        Checksum_ptr f_checksum;
+        ChecksumKind_ptr f_checksum;
         vector< spot_layout_ptr > f_layouts;
         vector< csra_spot_layout_ptr > f_csra_layouts;
         vector< string > f_spot_groups;
@@ -355,7 +354,7 @@ class rnd2sra_ini {
 
         // >>>>> Ctor <<<<<
         rnd2sra_ini( const string_view& ini_filename ) {
-            IniPtr f_ini = Ini::make( ini_filename );
+            util::IniPtr f_ini = util::Ini::make( ini_filename );
             f_output_dir = f_ini -> get( "out", "" );
             f_rows = f_ini -> get_u64( "rows", 10 );
             f_seed = f_ini -> get_u64( "seed", 1010101 );
@@ -365,7 +364,7 @@ class rnd2sra_ini {
             f_echo_values = f_ini -> get( "echo", "no" ) == "yes";
             f_do_not_write_meta = f_ini -> get( "do_not_write_meta", "no" ) == "yes";
             f_product = Product::make( f_ini -> get( "product", "flat" ) );
-            f_checksum = Checksum::make( f_ini -> get( "checksum", "none" ) );
+            f_checksum = ChecksumKind::make( f_ini -> get( "checksum", "none" ) );
             f_qual_len_offset = row_offset_pair::make( f_ini -> get( "qual_len_offset", "" ) );
             f_read_len_offset = row_offset_pair::make( f_ini -> get( "read_len_offset", "" ) );
             f_cmp_rd_fault = row_offset_pair::make( f_ini -> get( "cmp_rd_fault", "" ) );
@@ -400,7 +399,7 @@ class rnd2sra_ini {
         bool get_echo_values( void ) const { return f_echo_values; }
         bool get_do_not_write_meta( void ) const { return f_do_not_write_meta; }
         Product_ptr get_product( void ) const { return f_product; }
-        Checksum_ptr get_checksum( void ) const { return f_checksum; }
+        ChecksumKind_ptr get_checksum( void ) const { return f_checksum; }
         const vector< spot_layout_ptr >& get_layouts( void ) const { return f_layouts; }
         const vector< csra_spot_layout_ptr >& get_csra_layouts( void ) const { return f_csra_layouts; }
 
@@ -416,12 +415,12 @@ class rnd2sra_ini {
             return ( 0 != get_cmp_rd_fault() -> offset( row ) );
         }
 
-        spot_layout_ptr select_spot_layout( RandomPtr r ) {
+        spot_layout_ptr select_spot_layout( util::RandomPtr r ) {
             size_t count = f_layouts . size();
             if ( count == 1 ) {
                 return f_layouts[ 0 ];
             } else if ( count > 1 ) {
-                uint32_t selected = r -> random_u32( 0, (uint32_t)count - 1 );
+                uint32_t selected = r -> random_u32( 0, count - 1 );
                 return f_layouts[ selected ];
             }
             auto layout = spot_layout::make( "T5:B50:T5:B50" );
@@ -430,12 +429,12 @@ class rnd2sra_ini {
         }
 
         bool has_spot_groups( void ) const { return !f_spot_groups . empty(); }
-        const string select_spot_group( RandomPtr r ) {
+        const string select_spot_group( util::RandomPtr r ) {
             size_t count = f_spot_groups . size();
             if ( count == 1 ) {
                 return f_spot_groups[ 0 ];
             } else if ( count > 1 ) {
-                uint32_t selected = r -> random_u32( 0, (uint32_t)count - 1 );
+                uint32_t selected = r -> random_u32( 0, count - 1 );
                 return f_spot_groups[ selected ];
             }
             return string();
@@ -445,7 +444,7 @@ class rnd2sra_ini {
         // every occurance of '%' is filled with a random-value between 1 and 100
         // every occurance of '$' is filled with a random-char between 'a' ... 'z'
         // every occurance of '&' is filled with a random-char between 'A' ... 'Z'
-        string filled_name_pattern( const string& pattern, RandomPtr r ) {
+        string filled_name_pattern( const string& pattern, util::RandomPtr r ) {
             stringstream ss;
             for ( char c : pattern ) {
                 switch( c ) {
@@ -459,7 +458,7 @@ class rnd2sra_ini {
             return ss . str();
         }
 
-        string name( RandomPtr r ) {
+        string name( util::RandomPtr r ) {
             if ( f_name_pattern . empty() ) {
                 return r -> random_string( f_name_len );
             }
@@ -472,6 +471,7 @@ class rnd2sra_ini {
         }
 
         friend auto operator<<( ostream& os, rnd2sra_ini_ptr o ) -> ostream& {
+            os << std::boolalpha;
             os << "out      = " << o -> get_output_dir() << endl;
             os << "rows     = " << o -> get_rows() << endl;
             os << "seed     = " << o -> get_seed() << endl;

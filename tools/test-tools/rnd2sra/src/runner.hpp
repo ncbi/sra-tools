@@ -4,10 +4,7 @@
 #include <chrono>
 #include <thread>
 
-#include "../util/file_deleter.hpp"
-#include "../util/process.hpp"
-#include "../util/file_rename.hpp"
-#include "../util/file_diff.hpp"
+#include "../util/utils.hpp"
 #include "runner_ini.hpp"
 #include "main_params.hpp"
 #include "normalizer.hpp"
@@ -23,13 +20,13 @@ class runner;
 typedef std::shared_ptr< runner > runner_ptr;
 class runner {
     private :
-        const IniPtr f_ini;
+        const util::IniPtr f_ini;
         MainParamsPtr f_params;
-        KV_Map_Ptr f_values;
+        util::KV_Map_Ptr f_values;
 
         // >>>>> Ctor <<<<<
-        runner( const IniPtr ini, MainParamsPtr params )
-            : f_ini( ini ), f_params( params ), f_values( KV_Map::make() ) { }
+        runner( const util::IniPtr ini, MainParamsPtr params )
+            : f_ini( ini ), f_params( params ), f_values( util::KV_Map::make() ) { }
 
 /* -------------------------------------------------------------------------------------------- */
         bool compare_values( vector< string >& args, bool silent ) const {
@@ -147,11 +144,11 @@ class runner {
             } else if ( executable . compare( ":cmp" ) == 0 ) {
                 res = compare_values( args, silent );
             } else if ( executable . compare( ":rm" ) == 0 ) {
-                res = deleter::del( args, silent, ignore_err );
+                res = util::deleter::del( args, silent, ignore_err );
             } else if ( executable . compare( ":mv" ) == 0 ) {
-                res = FileRename::move_files( args, ignore_err );
+                res = util::FileRename::move_files( args, ignore_err );
             } else if ( executable . compare( ":diff" ) == 0 ) {
-                res = FileDiff::diff( args, ignore_err );
+                res = util::FileDiff::diff( args, ignore_err );
             } else if ( executable . compare( ":sleep" ) == 0 ) {
                 res = sleep_ms( args );
             } else if ( executable . compare( ":norm" ) == 0 ) {
@@ -170,14 +167,13 @@ class runner {
         }
 
         bool run_process( const runner_ini_ptr section_ini, const string_view& executable ) {
-            auto proc = process::make( f_values );  // pass in values from previous processes...
-            // replace args starting with '$' with a value from f_values, if found in there
-            proc -> set_exe( f_values -> replace( executable ) );
-            proc -> set_args( f_values -> replace( section_ini -> get_args() ) );
-            proc -> set_stdout_file( f_values -> replace( section_ini -> get_stdout() ) );
-            proc -> set_stderr_file( f_values -> replace( section_ini -> get_stderr() ) );
-            proc -> set_silent( section_ini -> get_silent() );
-            return ( proc -> run() == EXIT_SUCCESS );
+            auto exec = util::execute::make( f_values );
+            exec -> set_exe( f_values -> replace( executable ) );
+            exec -> set_args( f_values -> replace( section_ini -> get_args() ) );
+            exec -> set_stdout( f_values -> replace( section_ini -> get_stdout() ) );
+            exec -> set_stderr( f_values -> replace( section_ini -> get_stderr() ) );
+            exec -> set_silent( section_ini -> get_silent() );
+            return ( 0 == exec -> run() );
         }
 
         bool is_excluded( const string_view exclude, string_view title ) const {
@@ -185,7 +181,7 @@ class runner {
             string s_exclude{ exclude };    // we have to make a string out of it...
             // let's see if any of the tokens of exclude match in the title...
             bool found = false;
-            auto tokens = StrTool::tokenize( s_exclude );
+            auto tokens = util::StrTool::tokenize( s_exclude );
             for ( auto& item : tokens ) {
                 if ( !found ) {
                     found = ( title . find( item ) != string::npos );
@@ -198,7 +194,7 @@ class runner {
                           string_view executable,
                           string_view title,
                           string_view caption ) const {
-            bool is_echo = StrTool::startsWith( executable, ":echo" );
+            bool is_echo = util::StrTool::startsWith( executable, ":echo" );
             string prefix;
             for ( int i = 0; i < f_params -> get_sub_level(); ++i ) { prefix += "  "; }
 
@@ -218,18 +214,35 @@ class runner {
             }
         }
 
+        bool check_platform( const std::string_view& platform ) {
+            if ( platform. empty() ) return true;
+            #ifdef __linux__
+                return ( platform == "linux" );
+            #endif
+            #ifdef _WIN32
+                return ( platform == "windows" );
+            #endif
+            #ifdef __APPLE__
+                return ( platform == "mac" );
+            #endif
+            return true;
+        }
+
         bool run_section( const string_view& section, uint32_t id, uint32_t count ) {
+            bool res = true;
             auto section_ini = runner_ini::make( f_ini, section );
+            if ( !check_platform( section_ini -> get_platform() ) ) { return res; }
+
             string_view title{ f_params -> get_title() };
             bool excl = is_excluded( section_ini -> get_exclude(), title );
             string_view executable{ section_ini -> get_executable() };
             string caption{ f_values -> replace( section_ini -> get_caption() ) };
 
+
             print_title( id, count, excl, executable, title, caption );
 
-            bool res = true;
             if ( !excl ) {
-                if ( StrTool::startsWith( executable, ':' ) ) {
+                if ( util::StrTool::startsWith( executable, ':' ) ) {
                     // 'special' commands like rm, cmp etc..
                     res = run_special( section_ini, executable );
                 } else {
@@ -246,7 +259,7 @@ class runner {
         bool tokenized( vector< string >& dst, const string& key ) const {
             bool res = f_ini -> has( key ); // breaks recursion
             if ( res ) {
-                for ( const auto& item : StrTool::tokenize( f_ini -> get( key ) ) ) {
+                for ( const auto& item : util::StrTool::tokenize( f_ini -> get( key ) ) ) {
                     if ( !tokenized( dst, item ) ) {    // recursion!!!
                         dst . push_back( item );
                     }
@@ -256,7 +269,7 @@ class runner {
         }
 
     public:
-        static runner_ptr make( const IniPtr ini, MainParamsPtr params ) {
+        static runner_ptr make( const util::IniPtr ini, MainParamsPtr params ) {
             return runner_ptr( new runner( ini, params ) );
         }
 

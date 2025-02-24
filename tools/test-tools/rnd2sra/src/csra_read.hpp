@@ -1,7 +1,7 @@
 #pragma once
 
 #include "csra_prim_cols.hpp"
-#include "../util/random_toolbox.hpp"
+#include "../util/utils.hpp"
 
 using namespace std;
 
@@ -20,7 +20,7 @@ class cSRARead {
         uint32_t f_read_id;
         string f_bases;
 
-        cSRARead( uint32_t read_id, uint32_t len, State state, RandomPtr rnd )
+        cSRARead( uint32_t read_id, uint32_t len, State state, util::RandomPtr rnd )
             : f_state( state ),
               f_align_id( 0 ),
               f_spot_id( 0 ),
@@ -51,7 +51,7 @@ class cSRARead {
                                  uint32_t min_len,
                                  uint32_t max_len,
                                  State state,
-                                 RandomPtr rnd ) {
+                                 util::RandomPtr rnd ) {
             uint32_t len = min_len;
             if ( len < max_len ) {
                 len = rnd -> random_u32( min_len, max_len );

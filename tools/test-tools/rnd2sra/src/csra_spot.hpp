@@ -13,7 +13,7 @@ typedef std::shared_ptr< cSRASpot > cSRASpotPtr;
 class cSRASpot {
     private :
         rnd2sra_ini_ptr f_ini;
-        RandomPtr f_rnd;
+        util::RandomPtr f_rnd;
         uint64_t f_spot_id;
         uint32_t f_read_count;
         cSRAReadPtr f_read1;
@@ -21,7 +21,7 @@ class cSRASpot {
 
         cSRASpot( csra_spot_layout_ptr layout,
                   rnd2sra_ini_ptr ini,
-                  RandomPtr rnd )
+                  util::RandomPtr rnd )
             : f_ini( ini ), f_rnd( rnd ), f_spot_id( 0 ), f_read_count( 0 ) {
                 uint32_t min_len = layout -> get_min_len();
                 uint32_t max_len = layout -> get_max_len();
@@ -98,7 +98,7 @@ class cSRASpot {
 
         static cSRASpotPtr make( csra_spot_layout_ptr layout,
                                  rnd2sra_ini_ptr ini,
-                                 RandomPtr rnd ) {
+                                 util::RandomPtr rnd ) {
             return cSRASpotPtr( new cSRASpot( layout, ini, rnd ) );
         }
 

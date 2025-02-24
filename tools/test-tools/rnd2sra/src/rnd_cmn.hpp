@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include "../vdb/wvdb.hpp"
-#include "../util/random_toolbox.hpp"
+#include "../util/utils.hpp"
 #include "rnd2sra_ini.hpp"
 
 using namespace std;
@@ -21,7 +21,7 @@ class Rndcmn {
     protected :
         VMgrPtr f_mgr;
         rnd2sra_ini_ptr f_ini;      // custom values from the ini-file
-        RandomPtr f_rnd;            // provider of the random-ness
+        util::RandomPtr f_rnd;            // provider of the random-ness
         const string& f_output_dir; // where to write the to
         base_counters f_counters;   // stats to be written
         VSchPtr f_schema;           // the schema to use
@@ -29,7 +29,7 @@ class Rndcmn {
         // Ctor
         Rndcmn( VMgrPtr mgr,
                 rnd2sra_ini_ptr ini,
-                RandomPtr rnd,
+                util::RandomPtr rnd,
                 const string& output_dir,
                 const char * schema_txt )
               : f_mgr( mgr ),

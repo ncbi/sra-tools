@@ -12,10 +12,10 @@ typedef std::shared_ptr< cSRASpotList > cSRASpotListPtr;
 class cSRASpotList {
     private :
         rnd2sra_ini_ptr f_ini;
-        RandomPtr f_rnd;
+        util::RandomPtr f_rnd;
         vector< cSRASpotPtr > f_spots;
 
-        cSRASpotList( rnd2sra_ini_ptr ini, RandomPtr rnd ) : f_ini( ini ), f_rnd( rnd ) {}
+        cSRASpotList( rnd2sra_ini_ptr ini, util::RandomPtr rnd ) : f_ini( ini ), f_rnd( rnd ) {}
 
         void add_layout( csra_spot_layout_ptr layout ) {
             for ( uint32_t idx = 0; idx < layout -> get_count(); ++idx ) {
@@ -48,7 +48,7 @@ class cSRASpotList {
         }
 
     public :
-        static cSRASpotListPtr make( rnd2sra_ini_ptr ini, RandomPtr rnd ) {
+        static cSRASpotListPtr make( rnd2sra_ini_ptr ini, util::RandomPtr rnd ) {
             auto res = cSRASpotListPtr( new cSRASpotList( ini, rnd ) );
             // add the list of different layouts to the spot-list
             // each layout then creates the number requested spots per layout

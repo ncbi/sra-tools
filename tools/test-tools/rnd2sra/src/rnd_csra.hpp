@@ -79,7 +79,8 @@ database MAIN_DB #1 {
 class RndcSRA : public Rndcmn {
     private:
         // Ctor
-        RndcSRA( VMgrPtr mgr, rnd2sra_ini_ptr ini, RandomPtr rnd, const string& output_dir )
+        RndcSRA( VMgrPtr mgr, rnd2sra_ini_ptr ini,
+                util::RandomPtr rnd, const string& output_dir )
             : Rndcmn( mgr, ini, rnd, output_dir, csra_schema_txt ) {
         }
 
@@ -159,7 +160,7 @@ class RndcSRA : public Rndcmn {
 
     public:
         static int produce( VMgrPtr mgr, rnd2sra_ini_ptr ini,
-                            RandomPtr rnd, const string& output_dir ) {
+                            util::RandomPtr rnd, const string& output_dir ) {
             RndcSRA rnd_csra( mgr, ini, rnd, output_dir );
             return rnd_csra . run();
         }

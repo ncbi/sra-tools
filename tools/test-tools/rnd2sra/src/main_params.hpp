@@ -5,9 +5,7 @@
 #include <vector>
 #include <string>
 #include <ostream>
-#include "../util/str_tools.hpp"
-#include "../util/values.hpp"
-#include "../util/file_tool.hpp"
+#include "../util/utils.hpp"
 
 using namespace std;
 
@@ -101,10 +99,10 @@ class CmdLineParser {
                 }
             }
             if ( f_ini_dir . empty() ) {
-                f_ini_dir = FileTool::location( f_ini_file );
+                f_ini_dir = util::FileTool::location( f_ini_file );
             }
             if ( f_bin_dir . empty() ) {
-                f_bin_dir = FileTool::location( f_prog );
+                f_bin_dir = util::FileTool::location( f_prog );
             }
         }
 
@@ -123,7 +121,7 @@ typedef std::shared_ptr< MainParams > MainParamsPtr;
 class MainParams {
     private:
         int f_sub_level;
-        KV_Map_Ptr f_values;
+        util::KV_Map_Ptr f_values;
         vector< string > f_args;
         string f_title;
         string f_ini_file;
@@ -135,7 +133,7 @@ class MainParams {
 
         // Ctor(s)
         MainParams( int argc, const char** argv, int sub_level )
-            : f_sub_level( sub_level ), f_values( KV_Map::make() ) {
+            : f_sub_level( sub_level ), f_values( util::KV_Map::make() ) {
                 for ( int idx = 0; idx < argc; ++idx ) {
                     f_args . push_back( string( argv[ idx ]) );
                 }
@@ -143,7 +141,7 @@ class MainParams {
         }
 
         MainParams( int sub_level )
-            : f_sub_level( sub_level ), f_values( KV_Map::make() ) { }
+            : f_sub_level( sub_level ), f_values( util::KV_Map::make() ) { }
 
         void set_output( const string& value ) {
             if ( !value . empty() ) {
@@ -197,8 +195,8 @@ class MainParams {
             for ( auto& item : args ) { f_args . push_back( item ); }
         }
 
-        const KV_Map_Ptr get_values( void ) const { return f_values; }
-        void add_values( const KV_Map_Ptr src ) {
+        const util::KV_Map_Ptr get_values( void ) const { return f_values; }
+        void add_values( const util::KV_Map_Ptr src ) {
             f_values -> import_values( src );
         }
 
@@ -227,7 +225,7 @@ class MainParams {
             os << "MainParams:\n";
             os << "sub    : " << o -> f_sub_level << endl;
             os << "args   :\n";
-            StrTool::to_stream( os, o -> f_args, "   " );
+            util::StrTool::to_stream( os, o -> f_args, "   " );
             os << "values :\n";
             o -> f_values -> to_stream( os, "   " );
             return os;

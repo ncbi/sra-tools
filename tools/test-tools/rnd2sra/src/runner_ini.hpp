@@ -1,8 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "../util/ini.hpp"
-#include "../util/values.hpp"
+#include "../util/utils.hpp"
 
 using namespace std;
 
@@ -12,12 +11,13 @@ class runner_ini;
 typedef std::shared_ptr< runner_ini > runner_ini_ptr;
 class runner_ini {
     private:
-        KV_Map_Ptr f_values;
+        util::KV_Map_Ptr f_values;
         string f_prefix;
         string f_executable;
         string f_title;
         string f_caption;
         string f_exclude;
+        string f_platform;
         vector< string > f_args;
         string f_stdout;
         string f_stderr;
@@ -25,11 +25,11 @@ class runner_ini {
         bool f_ignore_err;
 
         // >>>>> Ctor <<<<<
-        runner_ini( const IniPtr ini, const string_view& prefix )
-            : f_values( KV_Map::make() ), f_prefix( prefix ) {
+        runner_ini( const util::IniPtr ini, const string_view& prefix )
+            : f_values( util::KV_Map::make() ), f_prefix( prefix ) {
             int idx = 0;
             auto key = prefixed( "exe" );
-            for ( const auto& s : StrTool::tokenize( ini -> get( key ) ) ) {
+            for ( const auto& s : util::StrTool::tokenize( ini -> get( key ) ) ) {
                 if ( idx++ == 0 ) {
                     f_executable = s;
                 } else {
@@ -37,7 +37,7 @@ class runner_ini {
                 }
             }
             for ( const auto& s : ini -> get_definitions_of( prefixed( "args" ) ) ) {
-                auto p = StrTool::tokenize( s );
+                auto p = util::StrTool::tokenize( s );
                 copy( p . begin(), p . end(), back_inserter( f_args ) );
             }
 
@@ -50,6 +50,7 @@ class runner_ini {
             f_stderr = ini -> get( prefixed( "stderr" ) );
             f_silent = !ini -> has_value( prefixed( "echo" ), "yes" );
             f_ignore_err = ini -> has_value( prefixed( "ignore" ), "yes" );
+            f_platform = ini -> get( prefixed( "platform" ) );
         }
 
         string prefixed( const string& key ) const {
@@ -58,18 +59,19 @@ class runner_ini {
         }
 
     public:
-        static runner_ini_ptr make( const IniPtr ini, const string_view& prefix = "" ) {
+        static runner_ini_ptr make( const util::IniPtr ini, const string_view& prefix = "" ) {
             return runner_ini_ptr( new runner_ini( ini, prefix ) );
         }
 
         const string_view get_executable( void ) const { return f_executable; }
         const vector< string >& get_args( void ) const { return f_args; }
-        const KV_Map_Ptr get_values( void ) const { return f_values; }
+        const util::KV_Map_Ptr get_values( void ) const { return f_values; }
         const string_view get_title( void ) const { return f_title; }
         const string_view get_caption( void ) const { return f_caption; }
         const string_view get_exclude( void ) const { return f_exclude; }
         const string_view get_stdout( void ) const { return f_stdout; }
         const string_view get_stderr( void ) const { return f_stderr; }
+        const string_view get_platform( void ) const { return f_platform; }
         bool get_silent( void ) const { return f_silent; }
         bool get_ignore_err( void ) const { return f_ignore_err; }
 

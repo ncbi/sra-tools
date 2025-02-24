@@ -861,6 +861,9 @@ bool fastq_reader::parse_read(CFastqRead& read)
             } while (true);
         }
     }
+
+    m_fingerprint.record( read.Sequence() );
+
     return true;
 }
 
@@ -873,7 +876,6 @@ bool fastq_reader::get_read(CFastqRead& read)
             return false;
         validate_read<ScoreValidator>(read);
         m_platform = m_defline_parser.GetPlatform();
-        m_fingerprint.record( read.Sequence() );
     } catch (fastq_error& e) {
         ++m_input_metrics.rejected_read_count;
         e.set_file(m_file_name, read.LineNumber());
@@ -1371,9 +1373,9 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
 
     // register readers' fingerprints with the writer
-    for ( auto r : m_readers )
+    for ( auto r = m_readers.begin(); r != m_readers.end(); ++r )
     {
-        m_writer->set_fingerprint( r.file_name(), r.fingerprint() );
+        m_writer->set_fingerprint( r->file_name(), r->fingerprint() );
     }
 
     spdlog::debug("parsing time: {}", sw);

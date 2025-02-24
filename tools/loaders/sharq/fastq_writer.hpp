@@ -502,21 +502,13 @@ void fastq_writer_vdb::close()
         {
             ostringstream key;
             key << "LOAD/QC/file_" << (i+1);
-            ostringstream value;
-            value.imbue(std::locale::classic()); // no thousands separator
-            JSON_ostream json(value);
-            json << m_source_fp[i].second;
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), value.str() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
         }
 
         {   // output fingerprint
-            ostringstream value;
-            value.imbue(std::locale::classic()); // no thousands separator
-            JSON_ostream json(value);
-            json << m_read_fingerprint;
             Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/fingerprint", value.str() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/fingerprint", m_read_fingerprint.JSON() );
         }
 
         write_messages();

@@ -185,7 +185,7 @@ struct TState {
     union {
         Word    w[16]; // algorithm assumes little-endian byte order
         uint8_t b[16 * sizeof(Word)];
-    } buffer; // message block buffer, accumulated one byte at a time but proceded as little-endian 
+    } buffer; // message block buffer, accumulated one byte at a time but proceded as little-endian
     unsigned cur = 0;
 
     /// Used to fill in the buffer so that the word values will have the correct byte order for the host.
@@ -203,12 +203,12 @@ struct TState {
 template <unsigned N>
 struct Digest {
     uint8_t byte[N];
-    
+
     Digest() = default;
     Digest(std::string_view const sv) {
         if (sv.size() != 2 * N)
             throw std::domain_error("invalid length");
-            
+
         for (unsigned i = 0; i < N; ++i)
             byte[i] = HashResult64::from_hex(sv[i * 2 + 0], sv[i * 2 + 1]);
     }
@@ -225,7 +225,7 @@ struct Digest {
         char buffer[32];
         std::string result;
         result.reserve(2 * N);
-        
+
         for (unsigned i = 0; i < N; ++i)
             result.append(HashResult64::to_hex(byte[i], buffer));
 
@@ -258,22 +258,22 @@ private:
 
     static void stage(State &state) {
         static Word const K[] = {
-            0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U, 
-            0x3956c25bU, 0x59f111f1U, 0x923f82a4U, 0xab1c5ed5U, 
-            0xd807aa98U, 0x12835b01U, 0x243185beU, 0x550c7dc3U, 
-            0x72be5d74U, 0x80deb1feU, 0x9bdc06a7U, 0xc19bf174U, 
-            0xe49b69c1U, 0xefbe4786U, 0x0fc19dc6U, 0x240ca1ccU, 
-            0x2de92c6fU, 0x4a7484aaU, 0x5cb0a9dcU, 0x76f988daU, 
-            0x983e5152U, 0xa831c66dU, 0xb00327c8U, 0xbf597fc7U, 
-            0xc6e00bf3U, 0xd5a79147U, 0x06ca6351U, 0x14292967U, 
-            0x27b70a85U, 0x2e1b2138U, 0x4d2c6dfcU, 0x53380d13U, 
-            0x650a7354U, 0x766a0abbU, 0x81c2c92eU, 0x92722c85U, 
-            0xa2bfe8a1U, 0xa81a664bU, 0xc24b8b70U, 0xc76c51a3U, 
-            0xd192e819U, 0xd6990624U, 0xf40e3585U, 0x106aa070U, 
-            0x19a4c116U, 0x1e376c08U, 0x2748774cU, 0x34b0bcb5U, 
-            0x391c0cb3U, 0x4ed8aa4aU, 0x5b9cca4fU, 0x682e6ff3U, 
-            0x748f82eeU, 0x78a5636fU, 0x84c87814U, 0x8cc70208U, 
-            0x90befffaU, 0xa4506cebU, 0xbef9a3f7U, 0xc67178f2U, 
+            0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U,
+            0x3956c25bU, 0x59f111f1U, 0x923f82a4U, 0xab1c5ed5U,
+            0xd807aa98U, 0x12835b01U, 0x243185beU, 0x550c7dc3U,
+            0x72be5d74U, 0x80deb1feU, 0x9bdc06a7U, 0xc19bf174U,
+            0xe49b69c1U, 0xefbe4786U, 0x0fc19dc6U, 0x240ca1ccU,
+            0x2de92c6fU, 0x4a7484aaU, 0x5cb0a9dcU, 0x76f988daU,
+            0x983e5152U, 0xa831c66dU, 0xb00327c8U, 0xbf597fc7U,
+            0xc6e00bf3U, 0xd5a79147U, 0x06ca6351U, 0x14292967U,
+            0x27b70a85U, 0x2e1b2138U, 0x4d2c6dfcU, 0x53380d13U,
+            0x650a7354U, 0x766a0abbU, 0x81c2c92eU, 0x92722c85U,
+            0xa2bfe8a1U, 0xa81a664bU, 0xc24b8b70U, 0xc76c51a3U,
+            0xd192e819U, 0xd6990624U, 0xf40e3585U, 0x106aa070U,
+            0x19a4c116U, 0x1e376c08U, 0x2748774cU, 0x34b0bcb5U,
+            0x391c0cb3U, 0x4ed8aa4aU, 0x5b9cca4fU, 0x682e6ff3U,
+            0x748f82eeU, 0x78a5636fU, 0x84c87814U, 0x8cc70208U,
+            0x90befffaU, 0xa4506cebU, 0xbef9a3f7U, 0xc67178f2U,
         };
         auto H = state.H;
         auto W = state.buffer.w;
@@ -286,11 +286,11 @@ private:
         auto g = H[6];
         auto h = H[7];
         unsigned t;
-        
+
         for (t = 0; t < 16; ++t) {
             auto const T1 = h + Sigma1(e) + Ch(e, f, g) + K[t] + W[t];
             auto const T2 = Sigma0(a) + Maj(a, b, c);
-            
+
             h = g; g = f; f = e; e = d + T1;
             d = c; c = b; b = a; a = T1 + T2;
         }
@@ -298,7 +298,7 @@ private:
             auto const T1 = h + Sigma1(e) + Ch(e, f, g) + K[t] +
                 (W[t%16] = sigma1(W[(t-2)%16])+W[(t-7)%16]+sigma0(W[(t-15)%16])+W[(t-16)%16]);
             auto const T2 = Sigma0(a) + Maj(a, b, c);
-            
+
             h = g; g = f; f = e; e = d + T1;
             d = c; c = b; b = a; a = T1 + T2;
         }
@@ -323,15 +323,15 @@ private:
         auto bits = bytes << 3;
         uint8_t buffer[sizeof(uint64_t)];
         auto cp = buffer + sizeof(buffer);
-        
-        for (int i = 0; i < sizeof(buffer); ++i, bits >>= 8)
+
+        for (size_t i = 0; i < sizeof(buffer); ++i, bits >>= 8)
             *--cp = bits;
         while (state.cur + sizeof(buffer) != sizeof(state.buffer))
             append(state, 0x00);
-        for (int i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < sizeof(buffer); ++i)
             append(state, buffer[i]);
     }
-    
+
 protected:
     static void update(State &state, size_t const bytes, void const *const data) {
         auto const D = reinterpret_cast<uint8_t const *>(data);
@@ -365,26 +365,26 @@ private:
 
     static void stage(State &state) {
         static Word const K[] = {
-            0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL, 
-            0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL, 
-            0xd807aa98a3030242UL, 0x12835b0145706fbeUL, 0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL, 
-            0x72be5d74f27b896fUL, 0x80deb1fe3b1696b1UL, 0x9bdc06a725c71235UL, 0xc19bf174cf692694UL, 
-            0xe49b69c19ef14ad2UL, 0xefbe4786384f25e3UL, 0x0fc19dc68b8cd5b5UL, 0x240ca1cc77ac9c65UL, 
-            0x2de92c6f592b0275UL, 0x4a7484aa6ea6e483UL, 0x5cb0a9dcbd41fbd4UL, 0x76f988da831153b5UL, 
-            0x983e5152ee66dfabUL, 0xa831c66d2db43210UL, 0xb00327c898fb213fUL, 0xbf597fc7beef0ee4UL, 
-            0xc6e00bf33da88fc2UL, 0xd5a79147930aa725UL, 0x06ca6351e003826fUL, 0x142929670a0e6e70UL, 
-            0x27b70a8546d22ffcUL, 0x2e1b21385c26c926UL, 0x4d2c6dfc5ac42aedUL, 0x53380d139d95b3dfUL, 
-            0x650a73548baf63deUL, 0x766a0abb3c77b2a8UL, 0x81c2c92e47edaee6UL, 0x92722c851482353bUL, 
-            0xa2bfe8a14cf10364UL, 0xa81a664bbc423001UL, 0xc24b8b70d0f89791UL, 0xc76c51a30654be30UL, 
-            0xd192e819d6ef5218UL, 0xd69906245565a910UL, 0xf40e35855771202aUL, 0x106aa07032bbd1b8UL, 
-            0x19a4c116b8d2d0c8UL, 0x1e376c085141ab53UL, 0x2748774cdf8eeb99UL, 0x34b0bcb5e19b48a8UL, 
-            0x391c0cb3c5c95a63UL, 0x4ed8aa4ae3418acbUL, 0x5b9cca4f7763e373UL, 0x682e6ff3d6b2b8a3UL, 
-            0x748f82ee5defb2fcUL, 0x78a5636f43172f60UL, 0x84c87814a1f0ab72UL, 0x8cc702081a6439ecUL, 
-            0x90befffa23631e28UL, 0xa4506cebde82bde9UL, 0xbef9a3f7b2c67915UL, 0xc67178f2e372532bUL, 
-            0xca273eceea26619cUL, 0xd186b8c721c0c207UL, 0xeada7dd6cde0eb1eUL, 0xf57d4f7fee6ed178UL, 
-            0x06f067aa72176fbaUL, 0x0a637dc5a2c898a6UL, 0x113f9804bef90daeUL, 0x1b710b35131c471bUL, 
-            0x28db77f523047d84UL, 0x32caab7b40c72493UL, 0x3c9ebe0a15c9bebcUL, 0x431d67c49c100d4cUL, 
-            0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL, 0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL, 
+            0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
+            0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
+            0xd807aa98a3030242UL, 0x12835b0145706fbeUL, 0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
+            0x72be5d74f27b896fUL, 0x80deb1fe3b1696b1UL, 0x9bdc06a725c71235UL, 0xc19bf174cf692694UL,
+            0xe49b69c19ef14ad2UL, 0xefbe4786384f25e3UL, 0x0fc19dc68b8cd5b5UL, 0x240ca1cc77ac9c65UL,
+            0x2de92c6f592b0275UL, 0x4a7484aa6ea6e483UL, 0x5cb0a9dcbd41fbd4UL, 0x76f988da831153b5UL,
+            0x983e5152ee66dfabUL, 0xa831c66d2db43210UL, 0xb00327c898fb213fUL, 0xbf597fc7beef0ee4UL,
+            0xc6e00bf33da88fc2UL, 0xd5a79147930aa725UL, 0x06ca6351e003826fUL, 0x142929670a0e6e70UL,
+            0x27b70a8546d22ffcUL, 0x2e1b21385c26c926UL, 0x4d2c6dfc5ac42aedUL, 0x53380d139d95b3dfUL,
+            0x650a73548baf63deUL, 0x766a0abb3c77b2a8UL, 0x81c2c92e47edaee6UL, 0x92722c851482353bUL,
+            0xa2bfe8a14cf10364UL, 0xa81a664bbc423001UL, 0xc24b8b70d0f89791UL, 0xc76c51a30654be30UL,
+            0xd192e819d6ef5218UL, 0xd69906245565a910UL, 0xf40e35855771202aUL, 0x106aa07032bbd1b8UL,
+            0x19a4c116b8d2d0c8UL, 0x1e376c085141ab53UL, 0x2748774cdf8eeb99UL, 0x34b0bcb5e19b48a8UL,
+            0x391c0cb3c5c95a63UL, 0x4ed8aa4ae3418acbUL, 0x5b9cca4f7763e373UL, 0x682e6ff3d6b2b8a3UL,
+            0x748f82ee5defb2fcUL, 0x78a5636f43172f60UL, 0x84c87814a1f0ab72UL, 0x8cc702081a6439ecUL,
+            0x90befffa23631e28UL, 0xa4506cebde82bde9UL, 0xbef9a3f7b2c67915UL, 0xc67178f2e372532bUL,
+            0xca273eceea26619cUL, 0xd186b8c721c0c207UL, 0xeada7dd6cde0eb1eUL, 0xf57d4f7fee6ed178UL,
+            0x06f067aa72176fbaUL, 0x0a637dc5a2c898a6UL, 0x113f9804bef90daeUL, 0x1b710b35131c471bUL,
+            0x28db77f523047d84UL, 0x32caab7b40c72493UL, 0x3c9ebe0a15c9bebcUL, 0x431d67c49c100d4cUL,
+            0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL, 0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
         };
         auto H = state.H;
         auto a = H[0];
@@ -397,11 +397,11 @@ private:
         auto h = H[7];
         unsigned t;
         auto W = state.buffer.w;
-        
+
         for (t = 0; t < 16; ++t) {
             auto const T1 = h + Sigma1(e) + Ch(e, f, g) + K[t] + W[t];
             auto const T2 = Sigma0(a) + Maj(a, b, c);
-            
+
             h = g; g = f; f = e; e = d + T1;
             d = c; c = b; b = a; a = T1 + T2;
         }
@@ -409,7 +409,7 @@ private:
             auto const T1 = h + Sigma1(e) + Ch(e, f, g) + K[t] +
                 (W[t%16] = sigma1(W[(t-2)%16])+W[(t-7)%16]+sigma0(W[(t-15)%16])+W[(t-16)%16]);
             auto const T2 = Sigma0(a) + Maj(a, b, c);
-            
+
             h = g; g = f; f = e; e = d + T1;
             d = c; c = b; b = a; a = T1 + T2;
         }
@@ -437,12 +437,12 @@ private:
         auto bits = bytes << 3;
         uint8_t buffer[sizeof(uint64_t) * 2];
         auto cp = buffer + sizeof(buffer);
-        
-        for (int i = 0; i < sizeof(buffer); ++i, bits >>= 8)
+
+        for (size_t i = 0; i < sizeof(buffer); ++i, bits >>= 8)
             *--cp = bits;
         while (state.cur + sizeof(buffer) != sizeof(state.buffer))
             append(state, 0x00);
-        for (int i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < sizeof(buffer); ++i)
             append(state, buffer[i]);
     }
 
@@ -462,7 +462,7 @@ protected:
 
 struct SHA_224 : public SHA_32 {
     using Value = Digest<28>;
-    
+
     static State init() {
         static uint32_t const H0[8] = {
             0xc1059ed8u,
@@ -478,9 +478,9 @@ struct SHA_224 : public SHA_32 {
         std::copy(&H0[0], &H0[8], &result.H[0]);
         return result;
     };
-    
+
     using SHA_32::update;
-    
+
     static Value finalize(State &state) {
         union {
             uint32_t H[8];
@@ -506,7 +506,7 @@ struct SHA_224 : public SHA_32 {
 
 struct SHA_256 : public SHA_32 {
     using Value = Digest<32>;
-    
+
     static State init() {
         static uint32_t const H0[8] = {
             0x6a09e667u,
@@ -522,9 +522,9 @@ struct SHA_256 : public SHA_32 {
         std::copy(&H0[0], &H0[8], &result.H[0]);
         return result;
     };
-    
+
     using SHA_32::update;
-    
+
     static Value finalize(State &state) {
         union {
             uint32_t H[8];
@@ -550,7 +550,7 @@ struct SHA_256 : public SHA_32 {
 
 struct SHA_384 : public SHA_64 {
     using Value = Digest<48>;
-    
+
     static State init() {
         static uint64_t const H0[] = {
             0xcbbb9d5dc1059ed8ul,
@@ -566,9 +566,9 @@ struct SHA_384 : public SHA_64 {
         std::copy(&H0[0], &H0[8], &result.H[0]);
         return result;
     }
-    
+
     using SHA_64::update;
-    
+
     static Value finalize(State &state) {
         union {
             uint64_t H[8];
@@ -602,7 +602,7 @@ struct SHA_384 : public SHA_64 {
 
 struct SHA_512 : public SHA_64 {
     using Value = Digest<64>;
-    
+
     static State init() {
         static uint64_t const H0[] = {
             0x6a09e667f3bcc908ul,
@@ -618,9 +618,9 @@ struct SHA_512 : public SHA_64 {
         std::copy(&H0[0], &H0[8], &result.H[0]);
         return result;
     }
-    
+
     using SHA_64::update;
-    
+
     static Value finalize(State &state) {
         union {
             uint64_t H[8];

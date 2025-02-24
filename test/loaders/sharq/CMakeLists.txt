@@ -273,7 +273,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithMetadata TestName Result TestParams )
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${DIRTOTEST}" "sharq" "." "${TestName}" "${Result}" "0" "1" "${TestParams}"
+                    "./runtestcase-meta.sh" "${DIRTOTEST}" "sharq" "." "${TestName}" "${Result}" "0" "1" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()

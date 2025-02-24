@@ -366,7 +366,7 @@ namespace VDB {
                             : badEvent;
             return String2Event(code, oid, path, value).write(stream);
         }
-        bool setMetadataAttr(MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const
+        virtual bool setMetadataAttr(MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const
         {
             auto const code = root == database ? dbMetaAttr
                             : root == table    ? tableMetaAttr

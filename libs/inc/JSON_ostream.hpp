@@ -39,6 +39,7 @@
 #include <vector>
 #include <cctype>
 #include <string_view>
+#include <cassert>
 
 struct JSON_Member {
     std::string name;

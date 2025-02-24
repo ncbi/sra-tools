@@ -30,6 +30,8 @@
 
 #include "../../../tools/loaders/sharq/fastq_writer.hpp"
 
+#include <tuple>
+
 #include <ktst/unit_test.hpp>
 
 using namespace std;
@@ -55,10 +57,12 @@ public:
     }
     bool setMetadata(VDB::Writer::MetaNodeRoot const root, unsigned const oid, string const &name, string const &value) const override
     {
-        m_roots.push_back( root );
-        m_metaOids.push_back( oid );
-        m_metaNames.push_back( name );
-        m_metaValues.push_back( value );
+        m_metadata.push_back( std::make_tuple( root, oid, name, value) );
+        return true;
+    }
+    bool setMetadataAttr(VDB::Writer::MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const override
+    {
+        m_metadataAttrs.push_back( std::make_tuple( root, oid, path, attr, value) );
         return true;
     }
 
@@ -66,10 +70,8 @@ public:
     mutable string m_file;
     mutable string m_dbSpec;
 
-    mutable vector<VDB::Writer::MetaNodeRoot> m_roots;
-    mutable vector<unsigned int> m_metaOids;
-    mutable vector<string> m_metaNames;
-    mutable vector<string> m_metaValues;
+    mutable vector< tuple< VDB::Writer::MetaNodeRoot, unsigned int, string, string > > m_metadata;
+    mutable vector< tuple< VDB::Writer::MetaNodeRoot, unsigned int, string, string, string > > m_metadataAttrs;
 };
 
 class test_fastq_writer_vdb : public fastq_writer_vdb
@@ -178,55 +180,53 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.write_spot( "spot", reads );
     m_w.close();
 
-    REQUIRE_EQ( 3, (int)m_tw->m_roots.size() );
+    REQUIRE_EQ( 3, (int)m_tw->m_metadata.size() );  // 1 per input + 1 for output
+    REQUIRE_EQ( 2, (int)m_tw->m_metadataAttrs.size() ); // 1 per input
 
     // input fingerprints, on the database per input file
     {   // file1
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[0] );
-        REQUIRE_EQ( 0u, m_tw->m_metaOids[0] );
-        REQUIRE_EQ( string("LOAD/QC/file_1"), m_tw->m_metaNames[0] );
-        //TODO: REQUIRE_EQ( File1, meta-attr("LOAD/QC/file_1", "name") );
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadata[0]) );
+        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[0]) );
+        REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadata[0]) );
+
         const string Expected =
-        "{\n\t\"maximum-position\": 1,"
-            "\n\t\"A\": [\n\t\t1,\n\t\t0\n\t],"
-            "\n\t\"C\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"EoR\": [\n\t\t0,\n\t\t1\n\t]\n}";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[0] );
+            R"({"maximum-position":1,"A":[1,0],"C":[0,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
+        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[0]) );
+
+        // path "LOAD/QC/file_1" attr "name" = File1
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadataAttrs[0]) );
+        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadataAttrs[0]) );
+        REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadataAttrs[0]) );
+        REQUIRE_EQ( string("name"), get<3>(m_tw->m_metadataAttrs[0]) );
+        REQUIRE_EQ( File1, get<4>(m_tw->m_metadataAttrs[0]) );
+
     }
 
     {   // file2
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, m_tw->m_roots[1] );
-        REQUIRE_EQ( 0u, m_tw->m_metaOids[1] );
-        REQUIRE_EQ( string("LOAD/QC/file_2"), m_tw->m_metaNames[1] );
-        //TODO: REQUIRE_EQ( File2, meta-attr("LOAD/QC/file_2", "name") );
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadata[1]) );
+        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[1]) );
+        REQUIRE_EQ( string("LOAD/QC/file_2"), get<2>(m_tw->m_metadata[1]) );
+
         const string Expected =
-        "{\n\t\"maximum-position\": 1,"
-            "\n\t\"A\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"C\": [\n\t\t1,\n\t\t0\n\t],"
-            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"EoR\": [\n\t\t0,\n\t\t1\n\t]\n}";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[1] );
+            R"({"maximum-position":1,"A":[0,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
+        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[1]) );
+
+        // path "LOAD/QC/file_2" attr "name" = File2
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadataAttrs[1]) );
+        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadataAttrs[1]) );
+        REQUIRE_EQ( string("LOAD/QC/file_2"), get<2>(m_tw->m_metadataAttrs[1]) );
+        REQUIRE_EQ( string("name"), get<3>(m_tw->m_metadataAttrs[1]) );
+        REQUIRE_EQ( File2, get<4>(m_tw->m_metadataAttrs[1]) );
     }
 
     // output fingerprint, on the SEQUENCE table
     {
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, m_tw->m_roots[2] );
-        REQUIRE_EQ( 1u, m_tw->m_metaOids[2] );
-        REQUIRE_EQ( string("QC/fingerprint"), m_tw->m_metaNames[2] );
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, get<0>(m_tw->m_metadata[2]) );
+        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[2]) );
+        REQUIRE_EQ( string("QC/fingerprint"), get<2>(m_tw->m_metadata[2]) );
         const string Expected =
-        "{\n\t\"maximum-position\": 1,"
-            "\n\t\"A\": [\n\t\t1,\n\t\t0\n\t],"
-            "\n\t\"C\": [\n\t\t1,\n\t\t0\n\t],"
-            "\n\t\"G\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"T\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"N\": [\n\t\t0,\n\t\t0\n\t],"
-            "\n\t\"EoR\": [\n\t\t0,\n\t\t2\n\t]\n}";
-        REQUIRE_EQ( Expected, m_tw->m_metaValues[2] );
+            R"({"maximum-position":1,"A":[1,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,2]})";
+        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[2]) );
     }
 }
 

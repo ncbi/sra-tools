@@ -78,7 +78,11 @@ if [ "$TELEMETRY_RPT" != "0" ] ; then
 CMDLINE="${CMDLINE} -t ${TEMPDIR}/telemetry"
 fi
 
+if [ "$METADATA_DIFF" != "0" ] ; then
+CMD="$LOAD ${CMDLINE} 2>$TEMPDIR/load.stderr | general-loader -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+else
 CMD="$LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+fi
 
 echo CMD=$CMD
 eval $CMD

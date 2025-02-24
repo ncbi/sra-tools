@@ -30,15 +30,13 @@
 # $4 - test case ID
 # $5 - expected result code from sharq
 # $6 - telemetry testing (0 - off)
-# $7 - metadata testing (0 - off)
-# $8, $9, ... - command line options for fastq-load.3
+# $7, $8, ... - command line options for sharq
 #
 # return codes:
 # 0 - passed
 # 1 - coud not create temp dir
 # 2 - unexpected return code from sharq
 # 3 - outputs differ (stdout/stderr)
-# 4 - outputs differ (metadata)
 
 BINDIR=$1
 SHARQ_BINARY=$2
@@ -46,8 +44,7 @@ WORKDIR=$3
 CASEID=$4
 RC=$5
 TELEMETRY_RPT=$6
-METADATA_DIFF=$7
-shift 7
+shift 6
 CMDLINE=$*
 
 DUMP="$BINDIR/vdb-dump"
@@ -130,19 +127,6 @@ if [ "$TELEMETRY_RPT" != "0" ] ; then
     rc="$?"
     if [ "$rc" != "0" ] ; then
         cat $TEMPDIR/telemetry.diff
-        echo "command executed:"
-        echo $CMD
-        exit 3
-    fi
-fi
-
-if [ "$METADATA_DIFF" != "0" ] ; then
-    kdbmeta $TEMPDIR/db LOAD | grep -v timestamp >$TEMPDIR/meta
-    kdbmeta $TEMPDIR/db/tbl/SEQUENCE QC/fingerprint >>$TEMPDIR/meta
-    $DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
-    rc="$?"
-    if [ "$rc" != "0" ] ; then
-        cat $TEMPDIR/meta.diff
         echo "command executed:"
         echo $CMD
         exit 3

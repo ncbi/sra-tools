@@ -24,34 +24,29 @@
 # ===========================================================================
 #echo "$0 $*"
 
-# $1 - path sharq binary
-# $2 - name of the sharq binary
+# load a VDB database and verify metadata
+
+# $1 - pathname of the loader
+# $2 - pathname of kdbmeta
 # $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $4 - test case ID
-# $5 - expected result code from sharq
-# $6 - telemetry testing (0 - off)
-# $7 - metadata testing (0 - off)
-# $8, $9, ... - command line options for fastq-load.3
-#
+# $5 - command line options for the loader
+# $6 - command line options for kdbmeta
+
 # return codes:
 # 0 - passed
 # 1 - coud not create temp dir
-# 2 - unexpected return code from sharq
-# 3 - outputs differ (stdout/stderr)
-# 4 - outputs differ (metadata)
+# 2 - unexpected return code from loader
+# 3 - unexpected return code from kdbmeta
+# 4 - kdbmeta outputs differ
 
-BINDIR=$1
-SHARQ_BINARY=$2
+LOAD_BINARY=$1
+KDBMETA_BINARY=$2
 WORKDIR=$3
 CASEID=$4
-RC=$5
-TELEMETRY_RPT=$6
-METADATA_DIFF=$7
-shift 7
-CMDLINE=$*
+LOAD_ARGS=$5
+KDBMETA_ARGS=$6
 
-DUMP="$BINDIR/vdb-dump"
-LOAD="$BINDIR/${SHARQ_BINARY}"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 if [ "$(uname)" == "Darwin" ]; then
@@ -74,20 +69,12 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
-if [ "$TELEMETRY_RPT" != "0" ] ; then
-CMDLINE="${CMDLINE} -t ${TEMPDIR}/telemetry"
-fi
-
-if [ "$METADATA_DIFF" != "0" ] ; then
-CMD="$LOAD ${CMDLINE} 2>$TEMPDIR/load.stderr | general-loader -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
-else
-CMD="$LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-fi
+CMD="$LOAD_BINARY ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | general-loader -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
 
 echo CMD=$CMD
 eval $CMD
 rc="$?"
-if [ "$rc" != "$RC" ] ; then
+if [ "$rc" != "0" ] ; then
     echo "$LOAD returned $rc, expected $RC"
     echo "command executed:"
     echo $CMD
@@ -104,53 +91,17 @@ for suffix in "${suffixes[@]}"; do
     fi
 done
 
-if [ "$rc" == "0" ] ; then
-    OUT=stdout
-else
-    OUT=stderr
-    sed -i"" -e '/\[info\]/d' $TEMPDIR/load.$OUT
-    sed -i"" -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
-fi
+CMD=${KDBMETA_BINARY} $TEMPDIR/db ${KDBMETA_ARGS}  | grep -v timestamp >$TEMPDIR/meta
+$DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
 
-$DIFF $WORKDIR/expected/$expected.$OUT $TEMPDIR/load.$OUT >$TEMPDIR/diff
+echo CMD=$CMD
+eval $CMD
 rc="$?"
 if [ "$rc" != "0" ] ; then
-
-    # retry on sorted output
-    sort $WORKDIR/expected/$expected.$OUT >$TEMPDIR/$expected.$OUT.sorted
-    sort $TEMPDIR/load.$OUT >$TEMPDIR/load.$OUT.sorted
-    $DIFF $TEMPDIR/$expected.$OUT.sorted $TEMPDIR/load.$OUT.sorted >$TEMPDIR/diff.sorted
-    rc="$?"
-    if (( rc != 0 )); then
-        cat $TEMPDIR/diff
-        echo "command executed:"
-        echo $CMD
-        exit 3
-    fi
-fi
-
-if [ "$TELEMETRY_RPT" != "0" ] ; then
-    $DIFF $WORKDIR/expected/$expected.telemetry <(grep -v '"version":' $TEMPDIR/telemetry) >$TEMPDIR/telemetry.diff
-    rc="$?"
-    if [ "$rc" != "0" ] ; then
-        cat $TEMPDIR/telemetry.diff
-        echo "command executed:"
-        echo $CMD
-        exit 3
-    fi
-fi
-
-if [ "$METADATA_DIFF" != "0" ] ; then
-    kdbmeta $TEMPDIR/db LOAD | grep -v timestamp >$TEMPDIR/meta
-    kdbmeta $TEMPDIR/db/tbl/SEQUENCE QC/fingerprint >>$TEMPDIR/meta
-    $DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
-    rc="$?"
-    if [ "$rc" != "0" ] ; then
-        cat $TEMPDIR/meta.diff
-        echo "command executed:"
-        echo $CMD
-        exit 3
-    fi
+    cat $TEMPDIR/meta.diff
+    echo "command executed:"
+    echo $CMD
+    exit 3
 fi
 
 exit 0

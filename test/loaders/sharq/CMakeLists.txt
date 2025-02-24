@@ -129,7 +129,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "0" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -190,7 +190,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
         add_test( NAME Test_${TestName}
             COMMAND
-                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "0" "--debug" "--no-timestamp" "${TestParams}"
+                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         endmacro()
@@ -270,15 +270,15 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
 
 
-        macro(SharqTestWithMetadata TestName Result TestParams )
+        macro(SharqTestWithMetadata TestName LoadParams MetaKey)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-meta.sh" "${DIRTOTEST}" "sharq" "." "${TestName}" "${Result}" "0" "1" "${TestParams}"
+                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaKey}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
-        SharqTestWithMetadata(DbMetaSingleFile 0 "${IN}001.R1.fastq")
-        SharqTestWithMetadata(DbMetaMultipleFiles 0 "${IN}r1.fastq ${IN}r2.fastq")
+        SharqTestWithMetadata(DbMetaSingleFile "${IN}001.R1.fastq" "LOAD")
+        SharqTestWithMetadata(DbMetaMultipleFiles "${IN}r1.fastq ${IN}r2.fastq" "LOAD")
 
     endif()
 

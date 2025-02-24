@@ -215,6 +215,7 @@ class entry_filter;
 typedef std::shared_ptr< entry_filter > entry_filter_ptr;
 class entry_filter {
     public :
+        virtual ~entry_filter() = default;
         virtual bool ok( const fs::directory_entry& e ) { return false; };
         virtual bool valid( void ) const { return true; }
 
@@ -227,6 +228,8 @@ class entry_filter {
 // a simple filter: lets only regular files pass ( no directories etc. )
 class file_entry_filter : public entry_filter {
     public :
+        virtual ~file_entry_filter() = default;
+
         virtual bool ok( const fs::directory_entry& e ) override {
             return e . is_regular_file();
         }
@@ -240,6 +243,8 @@ class file_entry_filter : public entry_filter {
 // a simple filter: lets only directories pass ( no files etc. )
 class dir_entry_filter : public entry_filter {
     public :
+        virtual ~dir_entry_filter() = default;
+
         bool ok( const fs::directory_entry& e ) override {
             return e . is_directory();
         }
@@ -257,6 +262,8 @@ class count_filter : public entry_filter {
         count_filter( size_t max ) : f_max{ max }, f_cur{ 0 } {}
 
     public :
+        virtual ~count_filter() = default;
+
         bool ok( const fs::directory_entry& e ) override {
             return ( f_cur++ < f_max );
         }
@@ -279,6 +286,8 @@ class ending_filter : public entry_filter {
         }
 
     public :
+        virtual ~ending_filter() = default;
+
         virtual bool ok( const fs::directory_entry& e ) override {
             for ( auto& item : f_endings ) {
                 std::string p = e . path() . string();
@@ -419,6 +428,8 @@ class regex_filter : public entry_filter {
         regex_filter( const regex_ptr regex ) : f_regex{ regex } {}
 
     public :
+        virtual ~regex_filter() = default;
+
         virtual bool ok( const fs::directory_entry& e ) override {
             bool res = false;
             if ( nullptr != f_regex . get() ) {
@@ -451,6 +462,8 @@ class glob_filter : public entry_filter {
         glob_filter( entry_filter_ptr filter ) : f_filter{ filter } {}
 
     public :
+        virtual ~glob_filter() = default;
+
         bool ok( const fs::directory_entry& e ) override {
             return f_filter -> ok( e );
         }
@@ -625,6 +638,8 @@ class flat_dir_iter : public any_dir_iter {
         }
 
     public :
+        virtual ~flat_dir_iter() = default;
+
         std::optional< fs::directory_entry > next( void ) override {
             if ( f_valid && f_iter . has_value() ) {
                 auto res = *( f_iter . value()++ );
@@ -659,6 +674,8 @@ class rec_dir_iter : public any_dir_iter {
         }
 
     public :
+        virtual ~rec_dir_iter() = default;
+
         std::optional< fs::directory_entry > next( void ) override {
             if ( f_valid && f_iter . has_value() ) {
                 auto res = *( f_iter . value()++ );
@@ -1762,6 +1779,8 @@ class file_out_stream : public out_stream {
         }
 
     public :
+        virtual ~file_out_stream() = default;
+
         static out_stream_ptr make( const std::string& filename ) {
             return out_stream_ptr ( new file_out_stream( filename ) );
         }
@@ -1783,6 +1802,8 @@ class string_out_stream : public out_stream {
         string_out_stream( std::string& data ) : f_data( data ) { }
 
     public :
+        virtual ~string_out_stream() = default;
+
         static out_stream_ptr make( std::string& data ) {
             return out_stream_ptr ( new string_out_stream( data ) );
         }
@@ -1798,6 +1819,8 @@ class std_out_stream : public out_stream {
         std_out_stream( void ) { }
 
     public :
+        virtual ~std_out_stream() = default;
+
         static out_stream_ptr make( void ) {
             return out_stream_ptr( new std_out_stream() );
         }
@@ -1813,6 +1836,8 @@ class std_err_stream : public out_stream {
         std_err_stream( void ) { }
 
     public :
+        virtual ~std_err_stream() = default;
+
         static out_stream_ptr make( void ) {
             return out_stream_ptr( new std_err_stream() );
         }
@@ -1832,6 +1857,8 @@ class md5_stream : public out_stream {
             : f_md5{ util::MD5::make() }, f_digest{ digest } { }
 
     public :
+        virtual ~md5_stream() = default;
+
         static out_stream_ptr make( std::string& digest ) {
             return out_stream_ptr( new md5_stream( digest ) );
         }

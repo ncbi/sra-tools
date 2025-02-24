@@ -26,12 +26,11 @@ echo "$0 $*"
 
 # $1 - path to general-loader,
 # $2 - dumper executable (vdb-dump, kdbmeta etc.; full path if not in PATH)
-# $3 - vdb-config executable (full path if not in PATH)
-# $4 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $5 - test case ID (expect a file input/$3.gl to exist)
-# $6 - expected return code
-# $7 - command line options for general-loader
-# $8 - command line options for dumper
+# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $4 - test case ID (expect a file input/$3.gl to exist)
+# $5 - expected return code
+# $6 - command line options for general-loader
+# $7 - command line options for dumper
 #
 # return codes:
 # 0 - passed
@@ -42,12 +41,11 @@ echo "$0 $*"
 
 BINDIR=$1
 DUMPER=$2
-CONFIG=$3
-WORKDIR=$4
-CASEID=$5
-RC=$6
-LOAD_OPTIONS=$7
-DUMP_OPTIONS=$8
+WORKDIR=$3
+CASEID=$4
+RC=$5
+LOAD_OPTIONS=$6
+DUMP_OPTIONS=$7
 
 DUMP="$DUMPER"
 LOAD="$BINDIR/general-loader"
@@ -68,7 +66,6 @@ fi
 
 rm -rf $TEMPDIR/*
 export NCBI_SETTINGS=$TEMPDIR/../t.mkfg
-#$CONFIG
 CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 echo $CMD
 eval $CMD
@@ -95,9 +92,10 @@ if [ "$rc" != "0" ] ; then
     rc="$?"
 else
     echo "Load succeeded, dumping and matching stdout"
-    CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+
+    CMD="$DUMP $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     echo $CMD
-    eval $CMD
+    cd $TEMPDIR; eval $CMD
     rc="$?"
     if [ "$rc" != "0" ] ; then
         echo "$CMD failed"

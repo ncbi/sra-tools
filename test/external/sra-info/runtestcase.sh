@@ -49,12 +49,11 @@ if ! test -f $EXE; then
     exit 0
 fi
 
-DIFF="diff -b -Z"
-if [ "$(uname)" = "Darwin" ] ; then
-    DIFF="diff -b"
-fi
-if [ "$(uname)" = "FreeBSD" ] ; then
-    DIFF="diff -b"
+DIFF="diff -b"
+if [ "$(uname -s)" = "Linux" ] ; then
+    if [ "$(uname -o)" = "GNU/Linux" ] ; then
+        DIFF="diff -b -Z"
+    fi
 fi
 
 echo "running $CASEID"

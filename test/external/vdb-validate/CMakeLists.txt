@@ -25,6 +25,10 @@ add_compile_definitions( __mod__="test/external/vdb-validate" )
 
 # unit tests
 
+if( NOT DEFINED VDB_SRCDIR )
+    set( VDB_SRCDIR "${VDB_INCDIR}/.." )
+endif()
+
 AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
                                 "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
                                 "${PROJECT_SOURCE_DIR}/tools/external/vdb-validate" )
@@ -38,7 +42,7 @@ if ( NOT WIN32 )
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Vdb_validate_redact
-        COMMAND sh -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_INCDIR}/../py_vdb'"
+        COMMAND sh -c "./vdb_validate_redact.sh '${DIRTOTEST}' '${VDB_LIBDIR}' '${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}' '${VDB_SRCDIR}/py_vdb'"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	if( TARGET vdb-validate-asan )

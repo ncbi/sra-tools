@@ -35,7 +35,9 @@ if( NOT WIN32 )
         add_dependencies( ${TestName} latf-load )
     endmacro()
 
-    LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    if( NOT "bsd" STREQUAL ${OS} )
+        LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    endif()
     LatfExeTest( Test_FastqLoader_WbFastq_dflt    "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
     LatfExeTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 

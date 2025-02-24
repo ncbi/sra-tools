@@ -42,6 +42,14 @@ def _make2StringEvent(eid, str1, str2):
     fmt = _paddedFormat(f"I 2I {len1}s {len2}s")
     return pack(fmt, eid, len1, len2, str1, str2)
 
+def _make3StringEvent(eid, str1, str2, str3):
+    """ used for { evt_db_metadata_node_attr, evt_tbl_metadata_node_attr, evt_col_metadata_node_attr } """
+    len1 = len(str1)
+    len2 = len(str2)
+    len3 = len(str3)
+    fmt = _paddedFormat(f"I 3I {len1}s {len2}s {len3}s")
+    return pack(fmt, eid, len1, len2, len3, str1, str2, str3)
+
 
 def _makeColumnEvent(colid, tblid, bits, name):
     """ used for { evt_new_column } """
@@ -91,6 +99,14 @@ class GeneralWriter:
 
     evt_logmsg             = (1 << 24) + evt_add_mbr_tbl
     evt_progmsg            = (1 << 24) + evt_logmsg
+
+    # BEGIN VERSION 3 MESSAGES
+    evt_db_metadata_node_attr   = (1 << 24) + evt_progmsg
+    evt_tbl_metadata_node_attr  = (1 << 24) + evt_db_metadata_node_attr
+    evt_col_metadata_node_attr  = (1 << 24) + evt_tbl_metadata_node_attr
+    evt_db_metadata_node_attr2  = (1 << 24) + evt_col_metadata_node_attr
+    evt_tbl_metadata_node_attr2 = (1 << 24) + evt_db_metadata_node_attr2
+    evt_col_metadata_node_attr2 = (1 << 24) + evt_tbl_metadata_node_attr2
 
     def errorMessage(self, message):
         _writeStdOut(_make1StringEvent(self.evt_errmsg, message.encode('utf-8')))
@@ -169,6 +185,18 @@ class GeneralWriter:
         _writeStdOut(pack(_padding(l)))
 
     @classmethod
+    def _writeDbMetadataAttr(cls, dbId, nodeName, attrName, attrValue):
+        _writeStdOut(_make3StringEvent(cls.evt_db_metadata_node_attr + dbId, nodeName, attrName, attrValue))
+
+    @classmethod
+    def _writeTableMetadataAttr(cls, tblId, nodeName, attrName, attrValue):
+        _writeStdOut(_make3StringEvent(cls.evt_tbl_metadata_node_attr + tblId, nodeName, attrName, attrValue))
+
+    @classmethod
+    def _writeColumnMetadataAttr(cls, colId, nodeName, attrName, attrValue):
+        _writeStdOut(_make3StringEvent(cls.evt_col_metadata_node_attr + colId, nodeName, attrName, attrValue))
+
+    @classmethod
     def _writeNextRow(cls, tableId):
         # called once per row
         _writeStdOut(_makeSimpleEvent(cls.evt_next_row + tableId))
@@ -182,6 +210,16 @@ class GeneralWriter:
 
     def writeColumnMetadata(self, column, nodeName, nodeValue):
         GeneralWriter._writeColumnMetadata(column['_columnId'], nodeName.encode('ascii'), nodeValue.encode('utf-8'))
+
+    def writeDbMetadataNodeAttr(self, nodeName, attrName, attrValue):
+        """ this only supports writing to the default database """
+        GeneralWriter._writeDbMetadataAttr(0, nodeName.encode('ascii'), attrName.encode('ascii'), attrValue.encode('utf-8'))
+
+    def writeTableMetadataNodeAttr(self, table, nodeName, attrName, attrValue):
+        GeneralWriter._writeTableMetadataAttr(table['_tableId'], nodeName.encode('ascii'), attrName.encode('ascii'), attrValue.encode('utf-8'))
+
+    def writeColumnMetadataNodeAttr(self, column, nodeName, attrName, attrValue):
+        GeneralWriter._writeColumnMetadataAttr(column['_columnId'], nodeName.encode('ascii'), attrName.encode('ascii'), attrValue.encode('utf-8'))
 
     def __init__(self, fileName, schemaFileName, schemaDbSpec, softwareName, versionString, tbl):
         """ Construct a General Writer object

@@ -73,6 +73,10 @@ public:
     void TblMetadataNodeEvent ( TableId p_id, const std::string& p_metadataNode, const std::string& p_value );
     void ColMetadataNodeEvent ( ColumnId p_id, const std::string& p_metadataNode, const std::string& p_value );
 
+    void DBMetadataNodeAttrEvent  ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value );
+    void TblMetadataNodeAttrEvent ( TableId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value );
+    void ColMetadataNodeAttrEvent ( ColumnId p_id, const std::string& p_metadataNode, const std::string& p_metadataAttrName, const std::string& p_value );
+
     void NewTableEvent ( TableId p_id, const std::string& p_table );
     void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId,
                           const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );
@@ -118,6 +122,7 @@ private:
         Event ( gw_evt_id p_event, uint32_t p_id1, uint64_t p_uint64 );
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1 );
         Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2 );
+        Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2, const std::string& p_str3 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val );
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint32, uint8_t p_uint8 );
@@ -138,6 +143,7 @@ private:
 
         std :: string           m_str1;
         std :: string           m_str2;
+        std :: string           m_str3;
         std :: vector < char >  m_val;
     };
 
@@ -157,6 +163,12 @@ private:
     private:
         void WritePacked ( const Event& );
         void WriteUnpacked ( const Event& );
+
+        void Write_1stringEvent (
+            const TestSource::Event& p_event,
+            gw_evt_id p_unpackedEvtId,
+            gw_evt_id p_packedEvtId
+        );
 
         void Write( const void * p_data, size_t p_size );
         void Pad ( size_t p_alignment = 4 );

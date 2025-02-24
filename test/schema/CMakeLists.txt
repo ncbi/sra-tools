@@ -24,6 +24,10 @@
 
 AddExecutableTest( Test_SraSchema_Unit "test-schema.cpp" "sra;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )
 
+if( NOT DEFINED VDB_SRCDIR )
+    set( VDB_SRCDIR "${VDB_INCDIR}/.." )
+endif()
+
 if (Python3_EXECUTABLE)
     add_test( NAME Test_SraSchema_454_db
         COMMAND ${Python3_EXECUTABLE} test_VDB-5250.py
@@ -31,7 +35,7 @@ if (Python3_EXECUTABLE)
     )
     set_tests_properties( Test_SraSchema_454_db
         PROPERTIES
-        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_SRCDIR}"
     )
 
     add_test( NAME Test_SraSchema_IonTorrent_db
@@ -40,6 +44,6 @@ if (Python3_EXECUTABLE)
     )
     set_tests_properties( Test_SraSchema_IonTorrent_db
         PROPERTIES
-        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_INCDIR}/.."
+        ENVIRONMENT "VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR};VDB_SRCDIR=${VDB_SRCDIR}"
     )
 endif()

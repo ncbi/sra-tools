@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 test_binary_dir=$1
 echo Starting ngs-sdk expected tests, binary directory: ${test_binary_dir}

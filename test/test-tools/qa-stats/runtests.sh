@@ -1,5 +1,9 @@
 #!/bin/sh
 
+if [ "$(uname -s)" = "Linux" ]; then
+    [ "$(uname -o)" = "GNU/Linux" ] || { echo "Skipped; not GNU/Linux"; exit 2; }
+fi
+
 DIRTOTEST=${1}
 DIRTOTEST=$(cd ${DIRTOTEST}; pwd) || exit 1
 

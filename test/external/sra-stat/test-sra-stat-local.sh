@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ==============================================================================
 #
@@ -27,17 +27,29 @@
 bin_dir=$1
 sra_stat=$2
 
-LL='ls -l'
-MD5SUM='md5sum -b'
-RSLV=realpath
-TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
-DTIME="$TIME -d"
-if [ `uname -s` == 'Darwin' ]; then
+OS=$(uname -o 2>/dev/null) || OS=$(uname -s)
+
+if [ "${OS}" = 'GNU/Linux' ]; then
+    LL='ls -l'
+    MD5SUM='md5sum -b'
+    RSLV=realpath
+    TIME='ls -l --time-style=+%Y-%m-%dT%H:%M:%S'
+    DTIME="$TIME -d"
+elif [ "${OS}" = 'Darwin' ]; then
     LL='stat -F'
     MD5SUM='/sbin/md5 -q'
     RSLV='readlink -f'
     TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
     DTIME="$TIME"
+elif [ "${OS}" = 'FreeBSD' ]; then
+    LL='stat -F'
+    MD5SUM='/sbin/md5 -q'
+    RSLV='realpath'
+    TIME='stat -f %Sm -t %Y-%m-%dT%H:%M:%S'
+    DTIME="$TIME"
+else
+    echo "Skipped; not GNU/Linux"
+    exit 2
 fi
 
 echo Testing $sra_stat from $bin_dir

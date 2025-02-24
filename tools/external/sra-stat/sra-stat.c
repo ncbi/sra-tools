@@ -2876,6 +2876,35 @@ static rc_t make_time(KTime_t timestamp, char * t, size_t sz, size_t * out) {
     }
 }
 
+/// Equivalent to POSIX `strftime("%a %Y-%m-%d %H:%M:%S %Z", gmtime(tv))`.
+/// - Parameters:
+///   - tv: the time to format.
+///   - buf: the result buffer.
+///   - sz: `sizeof(buf)`.
+///   - out: actual bytes used.
+/// - Returns: 0 or non-zero RC if error.
+///
+/// Timezone is "UTC" not "GMT" because POSIX says `gmtime` converts to UTC time.
+static rc_t formatLoadTime(time_t const tv, char *const buf, size_t const sz, size_t *const out) {
+    struct tm *const tm = gmtime(&tv);
+    if (tm) {
+        static char const *const weekdays[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+        
+        assert(0 <= tm->tm_wday && tm->tm_wday <= 6);
+        return string_printf(buf, sz, out
+                             , "%s %02u-%02u-%02u %02u:%02u:%02u UTC"
+                             , (0 <= tm->tm_wday && tm->tm_wday <= 6) ? weekdays[tm->tm_wday] : "???"
+                             , tm->tm_year + 1900
+                             , tm->tm_mon + 1
+                             , tm->tm_mday
+                             , tm->tm_hour
+                             , tm->tm_min
+                             , tm->tm_sec);
+    }
+    else
+        return RC(rcExe, rcData, rcReading, rcParam, rcInvalid);
+}
+
 static
 rc_t print_results(const Ctx* ctx)
 {
@@ -3230,8 +3259,9 @@ rc_t print_results(const Ctx* ctx)
             }
             if (ctx->info->loadTimestamp) {
                 char       buf[80];
-                struct tm* ts = localtime(&ctx->info->loadTimestamp);
-                strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", ts);
+                size_t sz = 0;
+                rc_t rc_fmt = formatLoadTime(ctx->info->loadTimestamp, buf, sizeof(buf), &sz);
+                assert(rc_fmt == 0);
                 OUTMSG(("      <LOAD timestamp=\"%lX\">%s</LOAD>\n",
                     ctx->info->loadTimestamp, buf));
             }

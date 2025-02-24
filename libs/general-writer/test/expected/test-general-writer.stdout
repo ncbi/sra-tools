@@ -1,0 +1,99 @@
+header: version 3
+  hdr_size = 24
+  packing = 1
+1: remote-path
+  remote_db_name [ 29 ] = "./test-general-writer.vschema"
+2: use-schema
+  schema_file_name [ 29 ] = "./test-general-writer.vschema"
+  schema_db_spec [ 22 ] = "general_writer:test:db"
+3: software-name
+  software_name [ 12 ] = "softwarename"
+  version [ 1 ] = "2"
+4: new-table
+  table_name [ 6 ] = "table1"
+5: new-column
+  table_id = 1 ( "table1" )
+  column_name [ 14 ] = "input/column01"
+6: new-column
+  table_id = 1 ( "table1" )
+  column_name [ 14 ] = "input/column02"
+7: add-member
+  db_id [ 0 ]
+  add_mbr  [ 11 ] = "member_name"
+  db/tbl  [ 7 ] = "db_name"
+  create_mode  [ 1 ] ( kcmInit )
+8: add-member
+  db_id [ 0 ]
+  add_mbr  [ 11 ] = "member_name"
+  db/tbl  [ 10 ] = "table_name"
+  create_mode  [ 1 ] ( kcmInit )
+9: open-stream
+10: cell-default
+  stream_id = 1 ( table1 . input/column01 )
+  elem_bits = 8
+  elem_count = 3 ( 3 bytes )
+11: cell-default
+  stream_id = 2 ( table1 . input/column02 )
+  elem_bits = 8
+  elem_count = 3 ( 3 bytes )
+12: cell-data
+  stream_id = 1 ( table1 . input/column01 )
+  elem_bits = 8
+  elem_count = 19 ( 19 bytes )
+13: cell-data
+  stream_id = 2 ( table1 . input/column02 )
+  elem_bits = 8
+  elem_count = 19 ( 19 bytes )
+14: next-row
+  table_id = 1 ( "table1" )
+  row_id = 2
+15: cell-data
+  stream_id = 1 ( table1 . input/column01 )
+  elem_bits = 8
+  elem_count = 34 ( 34 bytes )
+16: cell-data
+  stream_id = 2 ( table1 . input/column02 )
+  elem_bits = 8
+  elem_count = 34 ( 34 bytes )
+17: next-row
+  table_id = 1 ( "table1" )
+  row_id = 3
+18: metadata-node
+  metadata_node [ 16 ] = "db_metadata_node"
+  value [ 9 ] = "01a2b3c4d"
+19: metadata-node
+  metadata_node [ 17 ] = "tbl_metadata_node"
+  value [ 9 ] = "11a2b3c4d"
+20: metadata-node
+  metadata_node [ 17 ] = "col_metadata_node"
+  value [ 9 ] = "21a2b3c4d"
+21: metadata-node-attr
+  metadata_node_attr [ 21 ] = "db_metadata_node_attr"
+  attr [ 9 ] = "attr_name"
+  value [ 9 ] = "02a2b3c4d"
+22: metadata-node-attr
+  metadata_node_attr [ 22 ] = "db_metadata_node_attr2"
+  attr [ 17 ] = "long_db_attr_name"
+  value [ 257 ] = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+23: metadata-node-attr
+  metadata_node_attr [ 22 ] = "tbl_metadata_node_attr"
+  attr [ 9 ] = "attr_name"
+  value [ 9 ] = "12a2b3c4d"
+24: metadata-node-attr
+  metadata_node_attr [ 23 ] = "tbl_metadata_node_attr2"
+  attr [ 18 ] = "long_tbl_attr_name"
+  value [ 258 ] = "222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"
+25: metadata-node-attr
+  metadata_node_attr [ 22 ] = "col_metadata_node_attr"
+  attr [ 9 ] = "attr_name"
+  value [ 9 ] = "22a2b3c4d"
+26: metadata-node-attr
+  metadata_node_attr [ 23 ] = "col_metadata_node_attr2"
+  attr [ 18 ] = "long_col_attr_name"
+  value [ 259 ] = "3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
+27: prog-msg
+  app [ name ] 
+  message [  proccessed 85% ] 
+  version [ 0.0.1 ] 
+  percent [ 85 ]
+ END

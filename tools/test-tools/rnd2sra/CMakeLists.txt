@@ -26,11 +26,17 @@ cmake_minimum_required (VERSION 3.8)
 
 project(rnd2sra)
 
+set( RND2SRALIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+
+if (NOT APPLE)
+list( append RND2SRALIBS "stdc++fs" )
+endif()
+
 GenerateExecutableWithDefs( rnd2sra
     src/rnd2sra.cpp
     ""
     ""
-    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
+    "${RND2SRALIBS}" )
 
 target_compile_features( rnd2sra PRIVATE cxx_std_17 )
 
@@ -38,6 +44,6 @@ GenerateExecutableWithDefs( test_rnd2sra
     src/test_rnd2sra.cpp
     ""
     ""
-    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
+    "${RND2SRALIBS}" )
 
 target_compile_features( test_rnd2sra PRIVATE cxx_std_17 )

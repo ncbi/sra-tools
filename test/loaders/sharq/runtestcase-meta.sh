@@ -27,11 +27,12 @@
 # load a VDB database and verify metadata
 
 # $1 - pathname of the loader
-# $2 - pathname of kdbmeta
-# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $4 - test case ID
-# $5 - command line options for the loader
-# $6 - command line options for kdbmeta
+# $2 - pathname of general-loader
+# $3 - pathname of kdbmeta
+# $4 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $5 - test case ID
+# $6 - command line options for the loader
+# $7 - command line options for kdbmeta
 
 # return codes:
 # 0 - passed
@@ -41,11 +42,12 @@
 # 4 - kdbmeta outputs differ
 
 LOAD_BINARY=$1
-KDBMETA_BINARY=$2
-WORKDIR=$3
-CASEID=$4
-LOAD_ARGS=$5
-KDBMETA_ARGS=$6
+GENLOADER_BINARY=$2
+KDBMETA_BINARY=$3
+WORKDIR=$4
+CASEID=$5
+LOAD_ARGS=$6
+KDBMETA_ARGS=$7
 
 TEMPDIR=$WORKDIR/actual/$CASEID
 
@@ -69,7 +71,7 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
-CMD="$LOAD_BINARY ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | general-loader -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+CMD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
 
 echo CMD=$CMD
 eval $CMD

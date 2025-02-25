@@ -273,7 +273,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithMetadata TestName LoadParams MetaKey)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaKey}"
+                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaKey}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()

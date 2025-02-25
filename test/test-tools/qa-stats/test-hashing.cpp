@@ -38,7 +38,7 @@ namespace VDB {
 struct SHA_224 {
     using Value = SHA2::Digest<28>;
     using State = SHA224State;
-    
+
     static State init() {
         State state;
         SHA224StateInit(&state);
@@ -57,7 +57,7 @@ struct SHA_224 {
 struct SHA_256 {
     using Value = SHA2::Digest<32>;
     using State = SHA256State;
-    
+
     static State init() {
         State state;
         SHA256StateInit(&state);
@@ -76,7 +76,7 @@ struct SHA_256 {
 struct SHA_384 {
     using Value = SHA2::Digest<48>;
     using State = SHA384State;
-    
+
     static State init() {
         State state;
         SHA384StateInit(&state);
@@ -95,7 +95,7 @@ struct SHA_384 {
 struct SHA_512 {
     using Value = SHA2::Digest<64>;
     using State = SHA512State;
-    
+
     static State init() {
         State state;
         SHA512StateInit(&state);
@@ -228,7 +228,7 @@ TEST_CASE(SHA_224)
 {
     auto const N = sizeof(uint32_t) * 16 * 2;
     auto const string = std::string(N, 'A');
-    for (int i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         auto const str = string.substr(0, i);
         auto const xpt = VDB::SHA224::hash(str);
         auto const got = SHA224::hash(str);
@@ -240,7 +240,7 @@ TEST_CASE(SHA_256)
 {
     auto const N = sizeof(uint32_t) * 16 * 2;
     auto const string = std::string(N, 'A');
-    for (int i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         auto const str = string.substr(0, i);
         auto const xpt = VDB::SHA256::hash(str);
         auto const got = SHA256::hash(str);
@@ -252,7 +252,7 @@ TEST_CASE(SHA_384)
 {
     auto const N = sizeof(uint64_t) * 16 * 2;
     auto const string = std::string(N, 'A');
-    for (int i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         auto const str = string.substr(0, i);
         auto const xpt = VDB::SHA384::hash(str);
         auto const got = SHA384::hash(str);
@@ -264,7 +264,7 @@ TEST_CASE(SHA_512)
 {
     auto const N = sizeof(uint64_t) * 16 * 2;
     auto const string = std::string(N, 'A');
-    for (int i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         auto const str = string.substr(0, i);
         auto const xpt = VDB::SHA512::hash(str);
         auto const got = SHA512::hash(str);

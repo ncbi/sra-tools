@@ -143,43 +143,6 @@ TEST_CASE(ReadHash_example_Fig_1_Fig_2)
     require_eq(fp.eor(), expectedE);
 }
 
-TEST_CASE(ReadHash_example_Fig_1_Fig_2)
-{
-    Fingerprint fp{9};
-
-    // from Fig. 1
-    //         01234567
-    fp.record("AATGCCT");
-    fp.record("AACTTNGG");
-    fp.record("TATATATA");
-    fp.record("GCTA");
-
-    // from Fig. 2
-    //                             0  1  2  3  4  5  6  7  8
-    uint64_t const expectedA[] = { 2, 3, 0, 2, 0, 1, 0, 1, 0 };
-    uint64_t const expectedC[] = { 0, 1, 1, 0, 1, 1, 0, 0, 0 };
-    uint64_t const expectedG[] = { 1, 0, 0, 1, 0, 0, 1, 1, 0 };
-    uint64_t const expectedT[] = { 1, 0, 3, 1, 2, 0, 2, 0, 0 };
-    uint64_t const expectedN[] = { 0, 0, 0, 0, 0, 1, 0, 0, 0 };
-    uint64_t const expectedE[] = { 0, 0, 0, 0, 1, 0, 0, 1, 2 };
-
-
-    auto const require_eq = [&](Fingerprint::Accumulator const &stats, uint64_t const *expected) {
-        REQUIRE_EQ(stats.size(), size_t{9});
-        for (size_t i = 0; i < 9; ++i) {
-            REQUIRE_EQ(stats[i], expected[i]);
-        }
-    };
-
-    require_eq(fp.a, expectedA);
-    require_eq(fp.c, expectedC);
-    require_eq(fp.g, expectedG);
-    require_eq(fp.t, expectedT);
-    require_eq(fp.n, expectedN);
-    require_eq(fp.EOR_FLD, expectedE);
-}
-
-
 TEST_CASE(WrapAround)
 {
     Fingerprint fp(3);

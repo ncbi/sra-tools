@@ -44,9 +44,7 @@
 
 class Fingerprint
 {
-public:
-    static constexpr size_t DefaultMaxReadSize = 4096;
-
+private:
     struct Entry {
         uint64_t eor = 0, n = 0, a = 0, c = 0, g = 0, t = 0;
         
@@ -78,96 +76,89 @@ public:
         }
     };
     
-private:
-    std::vector< Entry > accumulator;
-    size_t maxLength = 0;   ///< the maximum length of any read
-    size_t maxPos = 0;      ///< the maximum position of any event, should be maxLength mod size
+    struct Accumulator : std::vector< Entry >
+    {
+        using Base = std::vector< Entry >;
+        using Size = Base::size_type;
+        Size max = 0;           ///< the maximum index updated
+        Size max_effective = 0; ///< the maximum actual index updated, i.e. max % size
 
-    Entry &operator[](size_t position) {
-        auto const pos = position % size();
-        maxPos = std::max(maxPos, pos);
-        maxLength = std::max(maxLength, position);
-        return accumulator[pos];
-    }
+        Accumulator(Size size)
+        : Base(size, Entry{})
+        {}
+
+        Entry &operator[](Size index) {
+            auto const effective = index % size();
+            max = std::max(max, index);
+            max_effective = std::max(max_effective, effective);
+            return Base::operator[](effective);
+        }
+        Entry operator[](Size index) const {
+            return Base::operator[](index % size());
+        }
+
+        struct Formatter {
+            std::vector< Entry > const *entry;
+            size_t N;
+            char which;
+
+            Formatter(Accumulator const *accum, char p_which = 0)
+            : entry(accum)
+            , N(accum->max_effective)
+            , which(p_which)
+            {}
+            uint64_t operator[](int i) const {
+                return (*entry)[i][which];
+            }
+            friend JSON_ostream &operator<<(JSON_ostream &strm, Formatter const &self) {
+                strm << '[';
+                for (size_t i = 0; i <= self.N; ++i)
+                    strm << self[i] << ',';
+                strm << ']';
+                return strm;
+            }
+        };
+        Formatter a() const { return Formatter{this, 'A'}; }
+        Formatter c() const { return Formatter{this, 'C'}; }
+        Formatter g() const { return Formatter{this, 'G'}; }
+        Formatter t() const { return Formatter{this, 'T'}; }
+        Formatter n() const { return Formatter{this, 'N'}; }
+        Formatter eor() const { return Formatter{this}; }
+    };
+
+    Accumulator accum;
 
 public:
+    static constexpr size_t DefaultMaxReadSize = 4096;
+
     explicit Fingerprint( size_t p_maxReadSize = DefaultMaxReadSize )
-    : accumulator(p_maxReadSize, Entry{})
+    : accum{p_maxReadSize}
     {}
 
-    size_t size() const { return accumulator.size(); }
-    size_t max_length() const { return maxLength; }
-
-    Entry const &operator[](size_t position) const {
-        auto const pos = position % size();
-        return accumulator[pos];
-    }
     void record(char base, size_t position) {
-        (*this)[position].record(base);
+        accum[position].record(base);
     }
     void recordEnd(size_t length) {
-        (*this)[length].recordEnd();
+        accum[length].recordEnd();
     }
     void record(std::string_view const seq) {
-        auto cur = accumulator.begin();
-        auto const end = accumulator.end();
-        
-        for (auto && base : seq) {
-            cur->record(base);
-            if (++cur == end)
-                cur = accumulator.begin();
-        }
-        cur->recordEnd();
-        maxPos = std::max(maxPos, seq.length() % size());
-        maxLength = std::max(maxLength, seq.length());
+        size_t index = 0;
+        for (auto && base : seq)
+            accum[index++].record(base);
+        accum[index].recordEnd();
     }
 
-    friend
-    struct Accumulator;
-
-    struct Accumulator : public std::vector< uint64_t >
-    {
-        std::string base;
-
-        Accumulator(std::vector< Entry > const &entry, std::string_view const p_base, size_t maxPos)
-        : std::vector< uint64_t >(maxPos + 1, 0)
-        , base(p_base)
-        {
-            auto const bc = base.length() == 1 ? base[0] 
-                          : base == "EoR" ? 0 : 'N';
-            for (size_t i = 0; i <= maxPos; ++i)
-                (*this)[i] = entry[i][bc];
-        }
-        
-        friend
-        JSON_ostream &operator <<(JSON_ostream &out, Accumulator const &self)
-        {
-            out << JSON_Member{self.base} << '[';
-            for (size_t i = 0; i < self.size(); ++i)
-                out << self[i] << ',';
-            out << ']';
-            return out;
-        }
-    };
-    
-    Accumulator a()   const { return Accumulator{ accumulator, "A"  , maxPos }; }
-    Accumulator c()   const { return Accumulator{ accumulator, "C"  , maxPos }; }
-    Accumulator g()   const { return Accumulator{ accumulator, "G"  , maxPos }; }
-    Accumulator t()   const { return Accumulator{ accumulator, "T"  , maxPos }; }
-    Accumulator n()   const { return Accumulator{ accumulator, "N"  , maxPos }; }
-    Accumulator eor() const { return Accumulator{ accumulator, "EoR", maxPos }; }
-    
     friend 
     JSON_ostream &operator <<(JSON_ostream &out, Fingerprint const &self)
     {
         out << '{'
-                << JSON_Member{"maximum-position"} << self.max_length()
-                << self.a()
-                << self.c()
-                << self.g()
-                << self.t()
-                << self.n()
-                << self.eor()
+            << JSON_Member{"maximum-position"} << self.accum.max
+            << JSON_Member{"A"}   << self.accum.a()
+            << JSON_Member{"C"}   << self.accum.c()
+            << JSON_Member{"G"}   << self.accum.g()
+            << JSON_Member{"T"}   << self.accum.t()
+            << JSON_Member{"N"}   << self.accum.n()
+            << JSON_Member{"EoR"} << self.accum.eor()
             << '}';
         return out;
     }
@@ -187,6 +178,24 @@ public:
         for (auto && ch : result)
             ch = std::tolower(ch);
         return result;
+    }
+    static std::string version() {
+        return "1.0.0";
+    }
+    static std::string algorithm() {
+        return "SHA-256";
+    }
+    static std::string format() {
+        return "json utf-8 compact";
+    }
+    JSON_ostream &canonicalForm(JSON_ostream &strm) {
+        return strm
+                << JSON_Member{"fingerprint-version"} << version()
+                << JSON_Member{"fingerprint-format"} << format()
+                << JSON_Member{"fingerprint-digest-algorithm"} << algorithm()
+                << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << (*this) << JSON_ostream::Compact{false}
+                << JSON_Member{"fingerprint-digest"} << digest();
+
     }
 };
 

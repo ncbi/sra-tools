@@ -34,9 +34,13 @@ else()
 	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
 endif()
 
+add_subdirectory( libs )
+
+ #TODO: move to libs/
 add_subdirectory( vdb )
 add_subdirectory( schema )
 add_subdirectory( search )
+
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )
 	add_subdirectory( loaders )
@@ -57,3 +61,5 @@ add_subdirectory( scripts ) # move to test/internal
 # add_subdirectory(samline) # command line tool; move to tools/internal
 
 # add_subdirectory(tarballs) # called directly from TeamCity
+
+add_subdirectory( python )

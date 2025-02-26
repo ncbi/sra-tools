@@ -620,10 +620,10 @@ class vdbconf_ctrl : public Dlg_Runner {
 #endif
 
                 case CACHE_USE_CACHE_ID  : view.status_txt( "use local cache" ); break;
-                case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
-                case CACHE_REPO_CLEAR_ID  : view.status_txt( "clear loacation of local repository" ); break;
-                case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose loacation of process local storage" ); break;
-                case CACHE_PROC_CLEAR_ID  : view.status_txt( "clear loacation of process local storage" ); break;
+                case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose location of local repository" ); break;
+                case CACHE_REPO_CLEAR_ID  : view.status_txt( "clear location of local repository" ); break;
+                case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose location of process local storage" ); break;
+                case CACHE_PROC_CLEAR_ID  : view.status_txt( "clear location of process local storage" ); break;
 
                 case AWS_CHARGES_ID : view.status_txt( "do accept charges for AWS usage" ); break;
                 case AWS_REPORT_ID  : view.status_txt( "report cloud instance identity to ..." ); break;

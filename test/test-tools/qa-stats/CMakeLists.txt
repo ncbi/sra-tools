@@ -55,4 +55,4 @@ if( NOT WIN32 )
         COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    endif()
+endif()

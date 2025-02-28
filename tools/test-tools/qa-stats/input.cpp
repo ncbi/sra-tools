@@ -249,11 +249,11 @@ static void cleanUpSegments(std::string &sequence, std::vector<int> const &lengt
     std::string new_seq;
     {
         std::string_view view(sequence);
-        
+
         new_seq.reserve(totalReadLen);
         for (auto const &len : lengths) {
             auto const i = &len - &lengths[0];
-            
+
             if (aligned[i] == 0) {
                 new_seq.append(view.substr(0, len));
                 view = view.substr(len);
@@ -856,7 +856,7 @@ struct BasicSource: public Input::Source {
                 if (isspace(ch))
                     continue;
                 if (ch == '#') {
-                    std::cerr << line << std::endl;
+                    //std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
                 }
                 break;

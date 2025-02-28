@@ -116,6 +116,27 @@ TEST_CASE(Fastq_File)
     REQUIRE( i->eof() );
 }
 
+TEST_CASE(Fasta_File)
+{   // VDB-5867: multi-line FASTA reads starting from the 2nd one are parsed incorrectly
+    auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG" };
+    char const *const expected[] = {
+        "AAAGTC",
+        "TCGTCG",
+        nullptr
+    };
+    auto i = Input::newSource( source, false );
+    for (auto e = expected; *e; ++e) {
+        auto const expect = string_view{ *e };
+        auto const input = i->get();
+        REQUIRE_EQ( expect, string_view{ input.sequence } );
+    }
+}
+
+TEST_CASE(Input_tests)
+{
+    Input::runTests(); // will abort if anything fails
+}
+
 int main (int argc, char *argv [])
 {
     return QaStatsInputTestSuite(argc, argv);

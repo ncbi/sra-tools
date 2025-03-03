@@ -600,6 +600,7 @@ static void release_background_file_merger( background_file_merger_t * self ) {
     if ( NULL != self ) {
         locked_file_list_release( &( self -> files ), self -> dir, self -> details );
         locked_value_release( &( self -> sealed ) );
+		KThreadRelease( self -> thread );
         free( self );
     }
 }

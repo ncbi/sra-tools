@@ -702,6 +702,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
                 if ( 0 == rc ) {
                     num_src++;
                 }
+				StringWhack( filename );
             }
         }
 

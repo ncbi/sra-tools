@@ -69,6 +69,10 @@
 #include <klib/report.h> /* ReportResetObject */
 #include <vdb/report.h> /* ReportSetVDBManager */
 
+#ifndef _h_kproc_task_
+#include <kproc/task.h>
+#endif
+
 #ifndef _h_dflt_defline_
 #include "dflt_defline.h"
 #endif
@@ -313,6 +317,9 @@ static rc_t tctx_encforce_constrains( tool_ctx_t * tool_ctx ) {
 
 rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
     rc_t rc = rc_in;
+	
+	KTaskRelease( tool_ctx -> cleanup_task );
+		
     if ( NULL != tool_ctx -> dir ) {
         rc_t rc2 = KDirectoryRelease( tool_ctx -> dir );
         if ( 0 != rc2 ) {

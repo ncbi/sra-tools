@@ -927,6 +927,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         }
 		ArgsWhack( args );
     }
+	
     hlp_unread_rc_info( false );
 
     {

@@ -77,8 +77,8 @@ static rc_t clt_execute( CleanupTask_t * self ) {
             rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean, self -> details ); /* helper.c */
         }
 		
-		locked_file_list_release( & ( self -> files_to_clean ), NULL, self -> details ); /* helper.c */
-		locked_file_list_release( & ( self -> dirs_to_clean ), NULL, self -> details ); /* helper.c */
+		//locked_file_list_release( & ( self -> files_to_clean ), NULL, self -> details ); /* helper.c */
+		//locked_file_list_release( & ( self -> dirs_to_clean ), NULL, self -> details ); /* helper.c */
 
         {
             rc_t rc2 = KDirectoryRelease( dir );

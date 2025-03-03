@@ -249,6 +249,7 @@ static void release_background_vector_merger( background_vector_merger_t * self 
     if ( NULL != self -> job_q ) {
         KQueueRelease ( self -> job_q );
     }
+	KThreadRelease( self -> thread );
     free( self );
 }
 

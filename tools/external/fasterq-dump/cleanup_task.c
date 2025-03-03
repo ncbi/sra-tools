@@ -197,10 +197,15 @@ rc_t clt_terminate( struct CleanupTask_t * self ) {
             rc = KProcMgrRemoveCleanupTask ( proc_mgr, &( self -> ticket ) );
             if ( 0 != rc ) {
                 ErrMsg( "clt_terminate().KProcMgrRemoveCleanupTask() -> %R", rc );
-            }
-            else if ( self -> details ) { 
-                InfoMsg( "CleanupTask: terminating ..." );
-            }
+            } else {
+				bool details = self -> details;
+				locked_file_list_release( &( self -> files_to_clean ), NULL, details ); /* helper.c */
+				locked_file_list_release( &( self -> dirs_to_clean ), NULL, details ); /* helper.c */
+				if ( details ) { 
+					InfoMsg( "CleanupTask: terminating ..." );
+				}
+			}
+			
             {
                 rc_t rc2 = KProcMgrRelease ( proc_mgr );
                 if ( 0 != rc2 ) {

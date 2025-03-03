@@ -925,6 +925,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                 rc = tctx_release( &tool_ctx, rc );
             }
         }
+		ArgsWhack( args );
     }
     hlp_unread_rc_info( false );
 

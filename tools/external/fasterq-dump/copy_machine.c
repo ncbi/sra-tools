@@ -108,6 +108,8 @@ static rc_t cm_destroy( copy_machine_t * self ) {
             free( ( void * ) self -> blocks[ i ] . buffer );
         }
     }
+	
+	KThreadRelease( self -> thread );
     return rc;
 }
 

@@ -622,7 +622,7 @@ rc_t hlp_make_thread( KThread ** self,
                       size_t stacksize ) {
     rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
     return rc;
-                      }
+}
                       
 rc_t hlp_join_and_release_threads( Vector * threads ) {
     rc_t rc = 0;

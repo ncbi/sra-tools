@@ -32,6 +32,8 @@
 #include <exception>
 
 #include <vdb.hpp>
+#include <fingerprint.hpp>
+
 #include <insdc/sra.h>
 #include <kdb/manager.h>
 
@@ -92,6 +94,9 @@ public:
     bool HasLiteMetadata() const;
 
     char const *QualityDescription() const;
+
+    typedef std::vector< std::pair< std::string, Fingerprint > > Fingerprints;
+    Fingerprints GetFingerprints( Detail detail ) const;
 
 private:
     bool isDatabase() const;

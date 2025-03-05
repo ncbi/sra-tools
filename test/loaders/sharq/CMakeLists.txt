@@ -270,15 +270,17 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
 
 
-        macro(SharqTestWithMetadata TestName LoadParams MetaKey)
+        macro(SharqTestWithMetadata TestName LoadParams MetaParams)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaKey}"
+                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
-        SharqTestWithMetadata(DbMetaSingleFile "${IN}001.R1.fastq" "LOAD")
-        SharqTestWithMetadata(DbMetaMultipleFiles "${IN}r1.fastq ${IN}r2.fastq" "LOAD")
+        SharqTestWithMetadata(DbMetaSingleFile_input "${IN}001.R1.fastq" ". LOAD")
+        SharqTestWithMetadata(DbMetaSingleFile_output "${IN}001.R1.fastq" "tbl/SEQUENCE QC/fingerprint")
+        SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
+        SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC/fingerprint")
 
     endif()
 

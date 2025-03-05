@@ -71,39 +71,39 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
-CMD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+CMD_LOAD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
 
-echo CMD=$CMD
-eval $CMD
+echo CMD_LOAD=$CMD_LOAD
+eval $CMD_LOAD
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    echo "$LOAD returned $rc, expected $RC"
+    echo "loader returned $rc, expected $RC"
     echo "command executed:"
-    echo $CMD
+    echo $CMD_LOAD
     cat $TEMPDIR/load.stderr
     exit 2
 fi
 
-expected=$CASEID
-suffixes=('-sa-hot' '-sa-cold')
+CMD_META="${KDBMETA_BINARY} $TEMPDIR/db/${KDBMETA_ARGS} | grep -v timestamp >$TEMPDIR/meta"
+echo CMD_META=$CMD_META
+eval $CMD_META
+rc="$?"
+if [ "$rc" != "0" ] ; then
+    echo "kdbmeta returned $rc, expected $RC"
+    echo "command executed:"
+    echo $CMD_META
+    exit 3
+fi
 
-for suffix in "${suffixes[@]}"; do
-    if [[ $expected == *"$suffix" ]]; then
-        expected=${expected%"$suffix"}
-    fi
-done
-
-CMD=${KDBMETA_BINARY} $TEMPDIR/db ${KDBMETA_ARGS}  | grep -v timestamp >$TEMPDIR/meta
-$DIFF $WORKDIR/expected/$expected.meta $TEMPDIR/meta >$TEMPDIR/meta.diff
-
-echo CMD=$CMD
-eval $CMD
+CMD_DIFF="$DIFF $WORKDIR/expected/$CASEID.meta $TEMPDIR/meta >$TEMPDIR/meta.diff"
+echo CMD_DIFF=$CMD_DIFF
+eval $CMD_DIFF
 rc="$?"
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/meta.diff
     echo "command executed:"
-    echo $CMD
-    exit 3
+    echo $CMD_DIFF
+    exit 4
 fi
 
 exit 0

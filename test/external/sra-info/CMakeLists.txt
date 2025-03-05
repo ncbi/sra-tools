@@ -177,4 +177,7 @@ AddQueryTest( Test_Sra_Info_Contents_Detail_Detailed_Json 12.3 "--contents SRR34
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Default 12.4 "--contents SRR341576 --detail 2" )
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Json 12.5 "--contents SRR341576 -fjson --detail 3" )
 
+AddQueryTest( Test_Sra_Info_Fingerprint_None 13.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Short 13.1 "--fingerprint input/Test_Sra_Info_Fingerprint" )
+
 endif()

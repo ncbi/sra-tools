@@ -54,6 +54,7 @@ public:
     std::string format( const SraInfo::SpotLayouts &, SraInfo::Detail ) const;
     std::string format( const VDB::SchemaInfo & ) const;
     std::string format( const KDBContents &, SraInfo::Detail ) const;
+    std::string format( const SraInfo::Fingerprints &, SraInfo::Detail ) const;
 
 private:
     std::string formatJsonSeparator( void ) const;

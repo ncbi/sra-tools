@@ -556,6 +556,14 @@ FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
     //etc.
 }
 
+// Contents
+FIXTURE_TEST_CASE(Fingerprint_Empty, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Verbose );
+    REQUIRE( fp.empty() );
+}
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>

@@ -413,7 +413,7 @@ const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
 }
 
 SraInfo::Contents
-SraInfo::GetContents() const 
+SraInfo::GetContents() const
 {
     const KDBManager * kdb;
     rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
@@ -457,4 +457,10 @@ char const *SraInfo::QualityDescription() const {
     return HasPhysicalQualities() ? "STORED"
          : HasLiteMetadata() ? "REMOVED"
          : "NONE";
+}
+
+SraInfo::Fingerprints
+SraInfo::GetFingerprints( Detail detail ) const
+{
+    return Fingerprints();
 }

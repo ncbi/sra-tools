@@ -55,6 +55,7 @@ using namespace std;
 #define OPTION_SCHEMAVERS   "schema"
 #define OPTION_SEQUENCE     "sequence"
 #define OPTION_SPOTLAYOUT   "spot-layout"
+#define OPTION_FINGERPRINT  "fingerprint"
 
 #define ALIAS_ISALIGNED     "A"
 #define ALIAS_SCHEMAVERS    "C"
@@ -67,6 +68,7 @@ using namespace std;
 #define ALIAS_SPOTLAYOUT    "S"
 #define ALIAS_SEQUENCE      "s"
 #define ALIAS_CONTENTS      "T"
+#define ALIAS_FINGERPRINT  "F"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
@@ -80,6 +82,7 @@ static const char * detail_usage[]      = { "detail level, <0> the least detaile
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
 static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
 static const char * contents_usage[]    = { "list the contents of the run: databases, tables, columns etc.", nullptr };
+static const char * fingerprint_usage[] = { "show the fingerprint information. Detail level <0> (default) shows only the current run fingerprint. Description of fingerprint method available here: <LINK TBD>", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -94,6 +97,7 @@ OptDef InfoOptions[] =
     { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
     { OPTION_ROWS,          ALIAS_ROWS,         nullptr, rows_usage,        1, true,    false, nullptr },
     { OPTION_CONTENTS,      ALIAS_CONTENTS,     nullptr, contents_usage,    1, false,   false, nullptr },
+    { OPTION_FINGERPRINT,   ALIAS_FINGERPRINT,  nullptr, fingerprint_usage,1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -136,6 +140,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_SCHEMAVERS,  OPTION_SCHEMAVERS,  nullptr, schema_vers_usage );
     HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
     HelpOptionLine ( ALIAS_CONTENTS,    OPTION_CONTENTS,    nullptr, contents_usage );
+    HelpOptionLine ( ALIAS_FINGERPRINT, OPTION_FINGERPRINT, nullptr, fingerprint_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
@@ -218,6 +223,7 @@ typedef class Query {
     bool schema;
     bool spots;
     bool contents;
+    bool fingerprints;
     int count;
 
 public:
@@ -227,6 +233,7 @@ public:
     void doSchema(void) { ++count; schema = true; }
     void doSpots(void) { ++count; spots = true; }
     void doContents(void) { ++count; contents = true; }
+    void doFingerprints(void) { ++count; fingerprints = true; }
 
     int queries(void) const { return count; }
 
@@ -236,6 +243,7 @@ public:
     bool needSchema(void) const { return schema; }
     bool needSpots(void) const { return spots; }
     bool needContents(void) const { return contents; }
+    bool needFingerprints(void) const { return fingerprints; }
 } Query;
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -321,6 +329,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                     DISP_RC( rc, "ArgsOptionCount() failed" );
                     if ( opt_count > 0 )
                         q.doContents();
+
+                    rc = ArgsOptionCount( args, OPTION_FINGERPRINT, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doFingerprints();
                 }
 
                 if (q.queries() > 1) {
@@ -371,7 +384,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                 // detail level
                 rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
                 DISP_RC( rc, "ArgsOptionCount() failed" );
-                if ( opt_count > 0 )
+                bool detail_specified = opt_count > 0;
+                if ( detail_specified )
                 {
                     switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
                     {
@@ -408,6 +422,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( q.needContents() )
                 {
                     Output( formatter.format( * info.GetContents().get(), detail ) );
+                }
+
+                if ( q.needFingerprints() )
+                {   // has its own default detail level
+                    SraInfo::Detail fp_detail = detail_specified ? detail : SraInfo::Short;
+                    Output( formatter.format( info.GetFingerprints( fp_detail ), fp_detail ) );
                 }
 
                 Output( formatter.end() );

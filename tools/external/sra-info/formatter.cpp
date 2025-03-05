@@ -953,3 +953,25 @@ Formatter::format( const KDBContents & cont, SraInfo::Detail detail ) const
 
     return out;
 }
+
+string
+Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail detail  ) const
+{
+    string out;
+
+    if ( fp.empty() )
+    {
+        return "none provided";
+    }
+
+    switch ( fmt )
+    {
+    case Default:
+    case Json:
+    case XML:
+    default:
+        throw VDB::Error( "unsupported formatting option for fingerprint" );
+    }
+
+    return out;
+}

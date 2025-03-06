@@ -180,13 +180,13 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.write_spot( "spot", reads );
     m_w.close();
 
-    REQUIRE_EQ( 3, (int)m_tw->m_metadata.size() );  // 1 per input + 1 for output
-    REQUIRE_EQ( 2, (int)m_tw->m_metadataAttrs.size() ); // 1 per input
+    REQUIRE_EQ( 5, (int)m_tw->m_metadata.size() );  // 1 per input + 3 for output
+    REQUIRE_EQ( 2, (int)m_tw->m_metadataAttrs.size() ); // 1 per input (file name)
 
     // input fingerprints, on the database per input file
     {   // file1
         REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadata[0]) );
-        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[0]) );
+        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[0]) ); // root database
         REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadata[0]) );
 
         const string Expected =
@@ -199,7 +199,6 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadataAttrs[0]) );
         REQUIRE_EQ( string("name"), get<3>(m_tw->m_metadataAttrs[0]) );
         REQUIRE_EQ( File1, get<4>(m_tw->m_metadataAttrs[0]) );
-
     }
 
     {   // file2
@@ -221,12 +220,26 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
     // output fingerprint, on the SEQUENCE table
     {
+        //value
         REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, get<0>(m_tw->m_metadata[2]) );
-        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[2]) );
-        REQUIRE_EQ( string("QC/fingerprint"), get<2>(m_tw->m_metadata[2]) );
+        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[2]) ); // tableId
+        REQUIRE_EQ( string("QC/current/fingerprint"), get<2>(m_tw->m_metadata[2]) );
         const string Expected =
             R"({"maximum-position":1,"A":[1,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,2]})";
         REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[2]) );
+
+        // hash
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, get<0>(m_tw->m_metadata[3]) );
+        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[3]) ); // tableId
+        REQUIRE_EQ( string("QC/current/hash"), get<2>(m_tw->m_metadata[3]) );
+        const string ExpectedOutputHash = "2944f448d685435cffa136126a7fd7975d9177b36369b480ddd64c0bf818a5e0";
+        REQUIRE_EQ( ExpectedOutputHash, get<3>(m_tw->m_metadata[3]) );
+
+        // timestamp
+        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, get<0>(m_tw->m_metadata[4]) );
+        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[4]) ); // tableId
+        REQUIRE_EQ( string("QC/current/timestamp"), get<2>(m_tw->m_metadata[4]) );
+        REQUIRE_NE( string(), get<3>(m_tw->m_metadata[4]) );
     }
 }
 

@@ -278,9 +278,9 @@ message(RE2_FOUND=${RE2_FOUND})
             )
         endmacro()
         SharqTestWithMetadata(DbMetaSingleFile_input "${IN}001.R1.fastq" ". LOAD")
-        SharqTestWithMetadata(DbMetaSingleFile_output "${IN}001.R1.fastq" "tbl/SEQUENCE QC/fingerprint")
+        SharqTestWithMetadata(DbMetaSingleFile_output "${IN}001.R1.fastq" "tbl/SEQUENCE QC/current")
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
-        SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC/fingerprint")
+        SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
     endif()
 

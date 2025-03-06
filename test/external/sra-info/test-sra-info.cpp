@@ -46,6 +46,7 @@ const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
 const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
+const string Run_Fingerprints   = "./input/Test_Sra_Info_Fingerprint";
 
 TEST_CASE(Construction)
 {
@@ -562,6 +563,27 @@ FIXTURE_TEST_CASE(Fingerprint_Empty, SraInfoFixture)
     info.SetAccession(Run_Multiplatform);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Verbose );
     REQUIRE( fp.empty() );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
+{
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
+    REQUIRE( ! fp.empty() );
+    REQUIRE_EQ( string("fingerprint"), fp[0].first );
+    REQUIRE_EQ( string(R"({"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]})"),
+                fp[0].second );
+    REQUIRE_EQ( string("digest"), fp[1].first );
+    REQUIRE_EQ( string("67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5"), fp[1].second );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
+{
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Abbreviated );
+    REQUIRE( ! fp.empty() );
+    REQUIRE_EQ( string("digest"), fp[0].first );
+    REQUIRE_EQ( string("67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5"), fp[0].second );
 }
 
 //////////////////////////////////////////// Main

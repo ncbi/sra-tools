@@ -508,7 +508,13 @@ void fastq_writer_vdb::close()
 
         {   // output fingerprint
             Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/fingerprint", m_read_fingerprint.JSON() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/fingerprint", m_read_fingerprint.JSON() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/hash", m_read_fingerprint.digest() );
+
+            ostringstream timestamp;
+            timestamp.imbue( std::locale( "" ) ); // no thousands separator
+            timestamp << std::time(nullptr);
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/timestamp", timestamp.str() );
         }
 
         write_messages();

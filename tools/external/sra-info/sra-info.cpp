@@ -462,5 +462,28 @@ char const *SraInfo::QualityDescription() const {
 SraInfo::Fingerprints
 SraInfo::GetFingerprints( Detail detail ) const
 {
-    return Fingerprints();
+    Fingerprints ret;
+
+    if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
+    {
+        return ret;
+    }
+
+    string json;
+    string digest;
+    try
+    {
+        VDB::Table seq = (*m_u.db)["SEQUENCE"];
+        VDB::MetadataCollection meta = seq.metadata();
+        json = meta["QC/current/fingerprint"].value();
+        digest = meta["QC/current/hash"].value();
+    }
+    catch(...)
+    {
+        return ret;
+    }
+
+    ret.push_back( make_pair( "fingerprint", json ) );
+    ret.push_back( make_pair( "digest", digest ) );
+    return ret;
 }

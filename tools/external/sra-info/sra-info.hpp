@@ -95,7 +95,7 @@ public:
 
     char const *QualityDescription() const;
 
-    typedef std::vector< std::pair< std::string, Fingerprint > > Fingerprints;
+    typedef std::vector< std::pair< std::string, std::string > > Fingerprints;
     Fingerprints GetFingerprints( Detail detail ) const;
 
 private:

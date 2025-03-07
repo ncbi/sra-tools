@@ -464,26 +464,41 @@ SraInfo::GetFingerprints( Detail detail ) const
 {
     Fingerprints ret;
 
-    if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
-    {
-        return ret;
-    }
-
-    string json;
-    string digest;
     try
     {
+        if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
+        {
+            return ret;
+        }
+
+        // current
         VDB::Table seq = (*m_u.db)["SEQUENCE"];
         VDB::MetadataCollection meta = seq.metadata();
-        json = meta["QC/current/fingerprint"].value();
-        digest = meta["QC/current/hash"].value();
+        ret.push_back( make_pair( "fingerprint", meta["QC/current/fingerprint"].value() ) );
+        ret.push_back( make_pair( "digest", meta["QC/current/hash"].value() ) );
+        if ( detail > Short )
+        {
+            ret.push_back( make_pair( "timestamp", meta["QC/current/timestamp"].value() ) );
+
+            // history
+            int i = 1;
+            while( true )
+            {
+                ostringstream key;
+                key << "history/update_" << i;
+                const string & k = key.str();
+                string k1 = "QC/"+k+"/fingerprint";
+                ret.push_back( make_pair( k+"/fingerprint", meta[k1].value() ) );
+                ret.push_back( make_pair( k+"/digest", meta["QC/"+k+"/hash"].value() ) );
+                ret.push_back( make_pair( k+"/timestamp", meta["QC/"+k+"/timestamp"].value() ) );
+                ++i;
+            }
+        }
     }
-    catch(...)
+    catch(const VDB::Error &)
     {
         return ret;
     }
 
-    ret.push_back( make_pair( "fingerprint", json ) );
-    ret.push_back( make_pair( "digest", digest ) );
     return ret;
 }

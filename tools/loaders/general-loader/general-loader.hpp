@@ -21,7 +21,7 @@
  *  Please cite the author in any work or product based on this material.
  *
  * ===========================================================================
- * 
+ *
  */
 
 #ifndef _sra_tools_hpp_general_loader_
@@ -45,48 +45,50 @@ class GeneralLoader
 {
 public:
     static const uint32_t MaxPackedString = 256;
-    
+
+    typedef std :: map < std :: string, std :: string > StringMap;
+
 public:
     GeneralLoader ( const std :: string& p_programName, const struct KStream& p_input );
     ~GeneralLoader ();
-    
+
     void AddSchemaIncludePath( const std::string& p_path );
     void AddSchemaFile( const std::string& p_file );
     void SetTargetOverride( const std::string& p_path );
-    
+
     rc_t Run ();
-    
+
 private:
 
     typedef std::vector < std::string > Paths;
 
-private:    
+private:
 
     class Reader
     {
     public:
         Reader( const struct KStream& p_input );
         ~Reader();
-        
+
         // read into caller's buffer
-        rc_t Read( void * p_buffer, size_t p_size ); 
-        
+        rc_t Read( void * p_buffer, size_t p_size );
+
         // if rc == 0, there are p_size bytes available through GetBuffer until the next call to Read
-        rc_t Read( size_t p_size ); 
-        
+        rc_t Read( size_t p_size );
+
         const void* GetBuffer() const { return m_buffer; }
-        
+
         void Align( uint8_t p_bytes = 4 );
-        
+
         uint64_t GetReadCount() { return m_readCount; }
-        
+
     private:
         const struct KStream& m_input;
         void* m_buffer;
         size_t m_bufSize;
         uint64_t m_readCount;
     };
-    
+
     class DatabaseLoader
     {
     public:
@@ -94,46 +96,53 @@ private:
         {
             std :: string name;
             uint32_t databaseId; // key into Databases
-            uint32_t cursorIdx;   
+            uint32_t cursorIdx;
         };
-        
+
         struct Column
         {
             std :: string name;
-            
+
             uint32_t tableId;       // key into Tables
             uint32_t cursorIdx;     // index into Cursors
             uint32_t columnIdx;     // index in the VCursor
             uint32_t elemBits;
             uint32_t flagBits;
-            
-            typedef std :: map < std :: string, std :: string > Metadata;
-            Metadata metadata;
-            
+
+            typedef StringMap Metadata;
+            Metadata metadata; // path -> value
+
+            typedef std :: map < std :: string, StringMap > MetadataNodeAttributes; // path -> { attr -> value }
+            MetadataNodeAttributes metadata_attributes;
+
             bool IsCompressed () const { return ( flagBits & 1 ) == 1; }
         };
 
     public:
         DatabaseLoader ( const std :: string& p_programName, const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
         ~DatabaseLoader();
-    
+
         rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
         rc_t RemotePath ( const std :: string& p_path );
         rc_t SoftwareName ( const std :: string& p_softwareName, const std :: string& p_version );
         rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
-        rc_t NewColumn ( uint32_t p_columnId, 
-                         uint32_t p_tableId, 
-                         uint32_t p_elemBits, 
-                         uint8_t p_flags, 
+        rc_t NewColumn ( uint32_t p_columnId,
+                         uint32_t p_tableId,
+                         uint32_t p_elemBits,
+                         uint8_t p_flags,
                          const std :: string& p_columnName );
-                         
+
         rc_t DBMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
         rc_t TblMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
         rc_t ColMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
-        
+
+        rc_t DBMetadataNodeAttr ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_attr, const std :: string& p_value );
+        rc_t TblMetadataNodeAttr ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_attr, const std :: string& p_value );
+        rc_t ColMetadataNodeAttr ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_attr, const std :: string& p_value );
+
         rc_t AddMbrDB ( uint32_t p_objId, uint32_t p_parentId, const std :: string &mbr_name, const std :: string &db_name, uint8_t p_create_mode );
         rc_t AddMbrTbl ( uint32_t p_objId, uint32_t p_parentId, const std :: string &mbr_name, const std :: string &db_name, uint8_t p_create_mode );
-        
+
         rc_t CellData    ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t CellDefault ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t NextRow ( uint32_t p_tableId );
@@ -143,26 +152,26 @@ private:
         rc_t ProgressMessage ( const std :: string& p_name, uint32_t p_pid, uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent );
         rc_t OpenStream ();
         rc_t CloseStream ();
-        
+
         const std :: string& GetDatabaseName() const { return m_databaseName; }
-        const Column* GetColumn ( uint32_t p_columnId ) const; 
-        
+        const Column* GetColumn ( uint32_t p_columnId ) const;
+
     private:
         // Active Cursors
         typedef std::vector < struct VCursor * > Cursors;
-        
+
         // from TableId to Table
-        typedef std::map < uint32_t, Table > Tables; 
-        
+        typedef std::map < uint32_t, Table > Tables;
+
         // from ColumnId to Column
-        typedef std::map < uint32_t, Column > Columns; 
-        
+        typedef std::map < uint32_t, Column > Columns;
+
         // From database id to VDatabase. id == 0 for the root database.
-        typedef std::map < uint32_t, VDatabase* > Databases; 
-        
-        // From database id to parent database id 
-        typedef std::map < uint32_t, uint32_t > DatabaseToParent; 
-        
+        typedef std::map < uint32_t, VDatabase* > Databases;
+
+        // From database id to parent database id
+        typedef std::map < uint32_t, uint32_t > DatabaseToParent;
+
     private:
         rc_t MakeDatabase ( uint32_t p_id );
         rc_t CursorWrite   ( const Column& p_col, const void* p_data, size_t p_size );
@@ -172,23 +181,23 @@ private:
     private:
         Paths                   m_includePaths;
         Paths                   m_schemas;
-    
+
         std :: string           m_programName;
         std :: string           m_databaseName;
         std :: string           m_schemaName;
-        
+
         std :: string           m_softwareName;
         ver_t                   m_softwareVersion;
-    
+
         Cursors                 m_cursors;
         Tables                  m_tables;
         Columns                 m_columns;
-        Databases               m_databases;    
-        DatabaseToParent        m_dbParents;    
-        
+        Databases               m_databases;
+        DatabaseToParent        m_dbParents;
+
         struct VDBManager*      m_mgr;
         struct VSchema*         m_schema;
-        
+
         bool                    m_databaseNameOverridden;
     };
 
@@ -196,43 +205,124 @@ private:
     {
     public:
         virtual rc_t ParseEvents ( Reader&, DatabaseLoader& ) = 0;
-        
+
     protected:
         template <typename TEvent> rc_t ReadEvent ( Reader& p_reader, TEvent& p_event );
+
+        template <typename TEvent> rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+
+        template<typename TEvent> rc_t Handle_2stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        template<typename TEvent> rc_t Handle_2stringEventWithObjId(
+                Reader& p_reader,
+                DatabaseLoader& p_dbLoader,
+                const char * p_eventName,
+                uint32_t p_objId,
+                rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        template<typename TEvent> rc_t Handle_3stringEvent(
+                    Reader& p_reader,
+                    DatabaseLoader& p_dbLoader,
+                    const char * p_eventName,
+                    uint32_t p_objId,
+                    rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
     };
-    
+
     class UnpackedProtocolParser : public ProtocolParser
     {
     public:
         virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
+
+    private:
+
+        rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+        rc_t Handle_2stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
+        rc_t Handle_2stringEventWithObjId(
+                Reader& p_reader,
+                DatabaseLoader& p_dbLoader,
+                const char * p_eventName,
+                uint32_t p_objId,
+                rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
+        rc_t Handle_3stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
     };
-    
+
     class PackedProtocolParser : public ProtocolParser
     {
     public:
         virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
-        
+
     private:
-        // read p_dataSize bytes and use one of the decoder functions in utf8-like-int-codec.h to unpack a sequence of integer values, 
+        // read p_dataSize bytes and use one of the decoder functions in utf8-like-int-codec.h to unpack a sequence of integer values,
         // stored in m_unpackingBuf as a collection of bytes
         template < typename T_uintXX > rc_t UncompressInt ( Reader& p_reader, uint32_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
-        
+
         rc_t ParseData ( Reader& p_reader, DatabaseLoader& p_dbLoader, uint32_t p_columnId, uint32_t p_dataSize );
-        
+
+        rc_t Handle_1stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+        rc_t Handle_1stringEvent2(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str ) );
+
+        rc_t Handle_2stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            rc_t (DatabaseLoader :: * p_fn) ( const std :: string& p_str1, const std :: string& p_str2 ) );
+        rc_t Handle_2stringEventWithObjId(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 ) );
+
+        rc_t Handle_3stringEvent(
+            Reader& p_reader,
+            DatabaseLoader& p_dbLoader,
+            const char * p_eventName,
+            uint32_t p_objId,
+            rc_t (DatabaseLoader :: * p_fn) ( uint32_t p_objId, const std :: string& p_str1, const std :: string& p_str2 , const std :: string& p_str3 ) );
+
         std::vector<uint8_t>    m_unpackingBuf;
     };
-    
-private:    
+
+private:
     GeneralLoader(const GeneralLoader&);
     GeneralLoader& operator = ( const GeneralLoader&);
-    
+
     rc_t ReadHeader ( bool& p_packed );
-    
+
     void CleanUp ();
-    
+
     static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
-    
-private:    
+
+private:
     std::string             m_programName;
     Reader                  m_reader;
     Paths                   m_includePaths;

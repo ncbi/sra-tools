@@ -51,7 +51,7 @@ TEST_CASE(Format)
     auto const format = Fingerprint::format();
     REQUIRE_NE(format.find("json"), format.npos);
     REQUIRE_NE(format.find("utf-8"), format.npos);
-    REQUIRE_NE(format.find("no-whitespace"), format.npos);
+    REQUIRE_NE(format.find("compact"), format.npos);
 }
 
 TEST_CASE(Empty)

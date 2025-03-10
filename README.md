@@ -48,6 +48,7 @@ Fixed crash of fasterq-dump when using WGS references.
 Fixed failure of fasterq-dump when accessing run via HTTP.
 
 We started publishing Linux releases built on AlmaLinux instead of Centos.
+
 ----
 _January 14, 2025_: **SRA Toolkit Release 3.2.0**
 

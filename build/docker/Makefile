@@ -41,7 +41,7 @@ clean:
 	docker manifest rm ${REPO}:${VERSION}
 
 buildx:
-	docker buildx build \
+	docker build \
 	    --platform=linux/amd64,linux/arm64 \
 	    --build-arg VDB_BRANCH=${BRANCH} \
 	    --tag ${REPO}:${VERSION} \

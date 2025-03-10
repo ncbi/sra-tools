@@ -1,5 +1,4 @@
-#ifndef __FASTQ_WRITER_HPP__
-#define __FASTQ_WRITER_HPP__
+#pragma once
 
 /**
  * @file fastq_writer.hpp
@@ -43,6 +42,9 @@
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
 #include "sra-tools/writer.hpp"
+
+#include <fingerprint.hpp>
+
 #include <spdlog/spdlog.h>
 #include "spdlog/sinks/base_sink.h"
 #include <spdlog/sinks/stdout_sinks.h>
@@ -94,7 +96,7 @@ public:
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         writer(writer_)
     {}
-*/    
+*/
     general_writer_sink(fastq_writer* writer_)
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         m_writer(writer_)
@@ -176,9 +178,9 @@ public:
     /**
      * @brief Get the attr object
      * value is not changed if attr is not found
-     * 
-     * @param name 
-     * @param value 
+     *
+     * @param name
+     * @param value
      */
     void get_attr(const string& name, string& value) {
         auto it = m_attr.find(name);
@@ -193,7 +195,7 @@ public:
             m_err_messages.push_back(msg);
         else
             m_log_messages.push_back(msg);
-        m_has_messages = true;            
+        m_has_messages = true;
     }
 
     virtual void write_messages()
@@ -212,6 +214,11 @@ public:
         m_has_messages = false;
     }
 
+    void set_fingerprint( const string & source, const Fingerprint & fp )
+    {
+        m_source_fp.push_back( make_pair(source, fp ) );
+    }
+
 protected:
     using TAttributeName = string;
     using TAttributeValue = string;
@@ -220,7 +227,7 @@ protected:
     vector<string> m_err_messages; ///< Messages
     vector<string> m_log_messages; ///< Messages
     atomic<bool> m_has_messages{false}; ///< Messages
-
+    vector< pair<string, Fingerprint> > m_source_fp; ///< read fingerprints per input file
 };
 
 class fastq_writer_debug : public fastq_writer
@@ -235,7 +242,7 @@ public:
         m_quality_as_string = quality_expression == "(INSDC:quality:phred)QUALITY";
     };
 
-    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
+    virtual void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override
     {
         if (reads.empty())
             return;
@@ -270,6 +277,7 @@ public:
         }
     }
     bool m_quality_as_string{false};
+    using fastq_writer::m_source_fp;
 };
 
 
@@ -309,6 +317,8 @@ public:
 
     }
 
+    const Fingerprint & get_read_fingerprint() const { return m_read_fingerprint; }
+
 protected:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
     std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default logger
@@ -326,11 +336,12 @@ protected:
     Writer2::Column c_READ_NUMBER;
     uint8_t m_platform{0};
     bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
-    string m_tmp_sequence; ///< temp string for sequences 
+    string m_tmp_sequence; ///< temp string for sequences
     string m_tmp_spot; ///< temp string for spots
     vector<uint8_t> m_qual_scores; ///< temp vector for scores
     vector<char> mReadTypes;
 
+    Fingerprint m_read_fingerprint;
 };
 
 //  -----------------------------------------------------------------------------
@@ -411,7 +422,7 @@ void fastq_writer_vdb::open()
     case SRA_PLATFORM_OXFORD_NANOPORE:
         db = cNANOPORE_DB;
         break;
-    case SRA_PLATFORM_454: 
+    case SRA_PLATFORM_454:
         schema = c454_SCHEMA;
         db = c454_DB;
         break;
@@ -424,7 +435,7 @@ void fastq_writer_vdb::open()
     //m_writer->set_attr("db", db);
 
 
-    //string schema = cSCHEMA;        
+    //string schema = cSCHEMA;
     //string db = cGENERIC_DB;
     //get_attr("schema", schema);
     //get_attr("db", db);
@@ -484,12 +495,27 @@ void fastq_writer_vdb::open()
 void fastq_writer_vdb::close()
 {
     if (m_is_writing && m_writer) {
+
+        // save fingerprints in the metadata
+        // input fingerprint(s)
+        for( size_t i = 0;  i < m_source_fp.size(); ++i )
+        {
+            ostringstream key;
+            key << "LOAD/QC/file_" << (i+1);
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
+        }
+
+        {   // output fingerprint
+            Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/fingerprint", m_read_fingerprint.JSON() );
+        }
+
         write_messages();
         m_writer->endWriting();
         m_is_writing = false;
         m_writer->flush();
         spdlog::set_default_logger(m_default_logger);
-        //spdlog::set_default_logger(m_default_logger);
         //m_writer.reset();
     }
 }
@@ -541,6 +567,7 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
 
     for (const auto& read : reads) {
         m_tmp_sequence += read.Sequence();
+        m_read_fingerprint.record( read.Sequence() );
         read.GetQualScores(m_qual_scores);
         read_start[read_num] = start;
         auto sz = read.Sequence().size();
@@ -587,7 +614,7 @@ using json = nlohmann::json;
 
 class fastq_writer_exp : public fastq_writer_vdb
 {
-public:    
+public:
     fastq_writer_exp(const json& ExperimentSpecs, ostream& stream, shared_ptr<Writer2> writer = shared_ptr<Writer2>())
         : fastq_writer_vdb(stream, writer)
     {
@@ -596,7 +623,7 @@ public:
                 throw fastq_error("Experiment does not contains READ_SPEC");
 
             if (j.is_array()) {
-                for (auto it = j.begin();it != j.end(); ++it) {           
+                for (auto it = j.begin();it != j.end(); ++it) {
                     auto& v = *it;
                     auto base_coord = v["BASE_COORD"].get<string>();
                     read_start.push_back(stoi(base_coord) - 1);
@@ -609,14 +636,14 @@ public:
                 auto read_class = j["READ_CLASS"].get<string>();
                 m_read_type.push_back((read_class == "Technical Read") ? 0 : 1);
             }
-        
+
         auto num_reads = read_start.size();
         read_len.resize(num_reads, 0);
         read_filter.resize(num_reads, 0);
-    }  
+    }
 
 
-    void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override 
+    void write_spot(const string& spot_name, const vector<CFastqRead>& reads) override
     {
         if (reads.empty())
             return;
@@ -668,5 +695,3 @@ void general_writer_sink<Mutex>::sink_it_(const spdlog::details::log_msg& msg)
     */
 }
 
-
-#endif

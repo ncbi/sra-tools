@@ -1043,7 +1043,7 @@ namespace ncbi
     {
         packing_buffer = new uint8_t [ bsize ];
         output_buffer = new uint8_t [ bsize ];
-        out_fd = :: open( out_path.c_str(), O_CREAT | O_RDWR | O_TRUNC ) ;
+        out_fd = :: open( out_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR ) ;
         if ( out_fd < 0 )
         {
             throw  string("Error opening ") + out_path;

@@ -119,10 +119,10 @@ private:
     vector<TInputFiles> mInputBatches;  ///< List of input batches
     bool mDiscardNames{false};          ///< If set spot names are not written in the db, the same effect as mNameColumn = 'NONE'
     bool mAllowEarlyFileEnd{false};     ///< Flag to continue if one of the streams ends
-    bool mSpotAssembly{false};          ///< spot assembly mode 
+    bool mSpotAssembly{false};          ///< spot assembly mode
     int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
     int mDigest{0};                     ///< Number of digest lines to produce
-    bool mHasReadPairs{false};          ///< Flag to indicate that read pairs are defined in the command line 
+    bool mHasReadPairs{false};          ///< Flag to indicate that read pairs are defined in the command line
     unsigned int mThreads{24};          ///< Number of threads to use
     string mTelemetryFile;              ///< Telemetry report file name
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
@@ -202,7 +202,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         app.add_flag("--allowEarlyFileEnd", mAllowEarlyFileEnd, "Complete load at early end of one of the files");
         app.add_flag("--sa, --spot-assembly", mSpotAssembly);
-        
+
 
         bool print_errors = false;
         app.add_flag("--help_errors,--help-errors", print_errors, "Print error codes and descriptions");
@@ -287,7 +287,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         if (platform.empty() == false) {
             xSetPlatformCode(platform);
             mReport["platform_override"] = platform;
-        } 
+        }
 
         vector<string> options2log = {"--platform", "--readTypes", "--useAndDiscardNames", "--allowEarlyFileEnd", "--name-column", "--quality"};
         for (const auto& opt_name : options2log) {
@@ -301,7 +301,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         if (mNoTimeStamp)
             spdlog::set_pattern("[%l] %v");
-        else        
+        else
             mReport["version"] = SHARQ_VERSION;
 
 
@@ -309,7 +309,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         if (!experiment_file.empty()) try {
             std::ifstream f(experiment_file);
-            mExperimentSpecs = json::parse(f);      
+            mExperimentSpecs = json::parse(f);
         } catch (exception& e) {
             throw fastq_error(220, "Invalid experiment file {}: {}", experiment_file, e.what());
         }
@@ -333,12 +333,12 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             if (input_files.empty()) {
                 mInputBatches.push_back({"-"});
             } else {
-                for (auto& s : input_files) 
+                for (auto& s : input_files)
                    s.erase(remove(s.begin(), s.end(), '\''), s.end());
                 stable_sort(input_files.begin(), input_files.end());
                 xCheckInputFiles(input_files);
                 if (mSpotAssembly) {
-                    mAllowEarlyFileEnd = true;                        
+                    mAllowEarlyFileEnd = true;
                     mInputBatches.push_back(input_files);
                 } else {
                     fastq_reader::cluster_files(input_files, mInputBatches);
@@ -367,7 +367,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 // max memory usage in bytes
 #ifdef __linux__
 
-static 
+static
 unsigned long getPeakRSS() {
     unsigned long rss = 0;
     std::ifstream in("/proc/self/status");
@@ -527,7 +527,7 @@ void CFastqParseApp::xProcessDigest(json& data)
                 }
             }
         }
-    } 
+    }
     if (input_size)
         mReport["input_size"] = input_size;
 /*
@@ -576,14 +576,14 @@ int CFastqParseApp::xRunDigest()
 
 /**
  * @brief Check if the load specification describes multiple reads with defined base coords
- * 
- * @return true 
- * @return false 
+ *
+ * @return true
+ * @return false
  */
-static 
+static
 bool s_has_split_read_spec(const json& ExperimentSpecs)
 {
-    if (ExperimentSpecs.is_null()) 
+    if (ExperimentSpecs.is_null())
         return false;
     auto read_specs = ExperimentSpecs["EXPERIMENT"]["DESIGN"]["SPOT_DESCRIPTOR"]["SPOT_DECODE_SPEC"]["READ_SPEC"];
     if (read_specs.is_null())
@@ -591,11 +591,11 @@ bool s_has_split_read_spec(const json& ExperimentSpecs)
     return (read_specs.is_array() && read_specs.size() > 1 && read_specs.front().contains("BASE_COORD"));
     /*
     if (j.is_array()) {
-        for (auto it = j.begin();it != j.end(); ++it) {     
-            if (it->contains("BASE_COORD"))                      
+        for (auto it = j.begin();it != j.end(); ++it) {
+            if (it->contains("BASE_COORD"))
                 return true;
         }
-    } 
+    }
     return false;
     */
 }
@@ -603,7 +603,7 @@ bool s_has_split_read_spec(const json& ExperimentSpecs)
 bool CFastqParseApp::xIsSingleFileInput() const
 {
     return all_of(mInputBatches.begin(), mInputBatches.end(), [](const auto& it) { return it.size() == 1; });
-}   
+}
 
 void CFastqParseApp::xCreateWriterFromDigest(json& data)
 {
@@ -654,7 +654,7 @@ int CFastqParseApp::xRun()
     mErrorCount = 0; //Reset error counts after initial digest
     xCreateWriterFromDigest(data);
     size_t total_spots = 0;
-    for (auto& group : data["groups"]) 
+    for (auto& group : data["groups"])
         total_spots += group["estimated_spots"].get<size_t>();
     if (total_spots > mMaxSpotsInLinearMode)
         throw fastq_error(250, "SRAE-70: Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
@@ -690,13 +690,14 @@ int CFastqParseApp::xRun()
         //if (mNoTimeStamp == false)
         //    mReport["timing"]["collation_check"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
         spdlog::info("Parsing complete");
-        m_writer->close();
+
+        m_writer->close(); // m_writer will save read+write fingerprints in metadata if capable
     } catch (exception& e) {
-        if (!mTelemetryFile.empty()) 
+        if (!mTelemetryFile.empty())
             parser.report_telemetry(mReport);
         throw;
     }
-    if (!mTelemetryFile.empty()) 
+    if (!mTelemetryFile.empty())
         parser.report_telemetry(mReport);
 
     return 0;
@@ -720,7 +721,7 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     parser.template first_pass<ScoreValidator>(read_names, err_checker);
     if (mNoTimeStamp == false)
         mReport["timing"]["first_pass"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
-    sw.reset();        
+    sw.reset();
 
     //Reset readers
     mErrorCount = 0;
@@ -768,7 +769,7 @@ int CFastqParseApp::xRunSpotAssembly()
     xProcessDigest(data);
     mErrorCount = 0; //Reset error counts after initial digest
     xCreateWriterFromDigest(data);
-    
+
     m_writer->open();
     fastq_parser<fastq_writer> parser(m_writer, mReadTypes);
     try {
@@ -799,11 +800,11 @@ int CFastqParseApp::xRunSpotAssembly()
         spdlog::info("Parsing complete");
         m_writer->close();
     } catch (exception& e) {
-        if (!mTelemetryFile.empty()) 
+        if (!mTelemetryFile.empty())
             parser.report_telemetry(mReport);
-        throw;        
+        throw;
     }
-    if (!mTelemetryFile.empty()) 
+    if (!mTelemetryFile.empty())
         parser.report_telemetry(mReport);
 
     return 0;
@@ -839,7 +840,7 @@ void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
     spdlog::warn(e.Message());
     if (++mErrorCount >= mMaxErrCount)
         throw fastq_error(e.error_code(), "Exceeded maximum number of errors {}", mMaxErrCount);
-    
+
 }
 
 void CFastqParseApp::xSetPlatformCode(const string& platform)
@@ -856,7 +857,7 @@ void CFastqParseApp::xSetPlatformCode(const string& platform)
         return;
     }
     auto _platform = platform;
-    std::transform(_platform.begin(), _platform.end(), _platform.begin(), [](unsigned char c){ return std::toupper(c); });    
+    std::transform(_platform.begin(), _platform.end(), _platform.begin(), [](unsigned char c){ return std::toupper(c); });
 
     for (size_t i = 0; i < platform_names.size(); ++i) {
         const auto& pl_name = platform_names[i];

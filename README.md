@@ -1,5 +1,4 @@
-=============================================================================
-
+----
                           PUBLIC DOMAIN NOTICE
              National Center for Biotechnology Information
 
@@ -19,9 +18,7 @@ warranties of performance, merchantability or fitness for any particular
 purpose.
 
 Please cite the author in any work or product based on this material.
-
-=============================================================================
-
+----
 # The NCBI SRA (Sequence Read Archive)
 
 ### Contact:

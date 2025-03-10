@@ -664,6 +664,7 @@ static acc_type_t insp_db_type( const insp_input_t * input,
                         }
                     }
                 }
+				VNamelistRelease( tables );
             }
             rc = insp_release_KNamelist( k_tables, rc, "insp_db_type", input -> accession_short );
         }

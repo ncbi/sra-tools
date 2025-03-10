@@ -272,32 +272,11 @@ FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
     REQUIRE_EQ(read.Sequence(), cSEQ);
     REQUIRE_EQ(read.Sequence().size(), 4lu);
 
-    const Fingerprint & fp = reader.fingerprint();
-    REQUIRE_EQ( 0, (int)fp.a[0] );
-    REQUIRE_EQ( 1, (int)fp.a[1] );
-    REQUIRE_EQ( 0, (int)fp.a[2] );
-    REQUIRE_EQ( 0, (int)fp.a[3] );
-    REQUIRE_EQ( 0, (int)fp.c[0] );
-    REQUIRE_EQ( 0, (int)fp.c[1] );
-    REQUIRE_EQ( 0, (int)fp.c[2] );
-    REQUIRE_EQ( 0, (int)fp.c[3] );
-    REQUIRE_EQ( 1, (int)fp.g[0] );
-    REQUIRE_EQ( 0, (int)fp.g[1] );
-    REQUIRE_EQ( 0, (int)fp.g[2] );
-    REQUIRE_EQ( 0, (int)fp.g[3] );
-    REQUIRE_EQ( 0, (int)fp.t[0] );
-    REQUIRE_EQ( 0, (int)fp.t[1] );
-    REQUIRE_EQ( 1, (int)fp.t[2] );
-    REQUIRE_EQ( 1, (int)fp.t[3] );
-    REQUIRE_EQ( 0, (int)fp.n[0] );
-    REQUIRE_EQ( 0, (int)fp.n[1] );
-    REQUIRE_EQ( 0, (int)fp.n[2] );
-    REQUIRE_EQ( 0, (int)fp.n[3] );
-    REQUIRE_EQ( 0, (int)fp.ool[0] );
-    REQUIRE_EQ( 0, (int)fp.ool[1] );
-    REQUIRE_EQ( 0, (int)fp.ool[2] );
-    REQUIRE_EQ( 0, (int)fp.ool[3] );
-    REQUIRE_EQ( 1, (int)fp.ool[4] );
+    auto const fp = reader.fingerprint().JSON();
+    auto const expected = std::string{
+        R"({"maximum-position":4,"A":[0,1,0,0],"C":[0,0,0,0],"G":[1,0,0,0],"T":[0,0,1,1],"N":[0,0,0,0],"EoR":[0,0,0,0,1]})"
+    };
+    REQUIRE_EQ( fp, expected );
 }
 
 FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)

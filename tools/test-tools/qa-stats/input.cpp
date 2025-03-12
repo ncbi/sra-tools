@@ -353,6 +353,8 @@ struct BasicSource: public Input::Source {
     uint64_t lines = 0;
     int fh = -1;
     uint8_t *buffer;
+    std::string const *put_back = nullptr;
+    std::string putback_buffer;
     size_t cur = 0, next = 0, block = 0, size = 0, bmax = 0;
     bool isEof = false;
     bool use_mmap = false;
@@ -394,8 +396,10 @@ struct BasicSource: public Input::Source {
 
         for ( ; ; ) {
             while (next < size) {
-                if (buffer[next++] == '\n')
+                if (buffer[next++] == '\n') {
                     goto CURRENT_LINE;
+                    ++lines;
+                }
             }
             if (fh < 0) {
                 isEof = true;
@@ -423,8 +427,19 @@ struct BasicSource: public Input::Source {
             --end;
         return end != cur ? std::string_view((char *)&buffer[cur], (next - 1) - cur) : std::string_view();
     }
+    void putback(std::string const &str) {
+        assert(put_back == nullptr);
+        assert(!str.empty());
+        putback_buffer = str;
+        put_back = &putback_buffer;
+    }
     /// Get next line, skipping empty lines.
     std::string getline(bool skipEmpty = true) {
+        if (put_back) {
+            auto const curline = *put_back;
+            put_back = nullptr;
+            return curline;
+        }
         cur = next;
         auto const curline = peek();
         if (curline.empty()) {
@@ -802,7 +817,7 @@ struct BasicSource: public Input::Source {
     Input readFASTQ() {
         auto const start = lines;
         auto const defline = std::string{peek()};
-        auto &&defline_start = defline.front();
+        auto const defline_start = defline.front();
         auto nextline = getline(false);
         auto seq = nextline;
         try {
@@ -816,7 +831,10 @@ struct BasicSource: public Input::Source {
             goto EndOfFile;
             ((void)(e));
         }
-        if (nextline.front() == '+') {
+        if (nextline.front() != '+') {
+            putback(nextline);
+        }
+        else {
             try {
                 auto qual = getline(!seq.empty());
 
@@ -851,7 +869,6 @@ struct BasicSource: public Input::Source {
     READ_LINE_LOOP:
         for ( ; ; ) {
             auto const &line = getline();
-            ++lines;
             for (auto ch : line) {
                 if (isspace(ch))
                     continue;

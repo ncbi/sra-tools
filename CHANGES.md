@@ -27,6 +27,7 @@ Please cite the author in any work or product based on this material.
 **March 18, 2025**
 
   **fasterq-dump**: fixed race condition when using WGS references  
+  **fasterq-dump**: fixed a problem with '.' in output-path  
   **fasterq-dump, kns, sratools, vdb, vfs**: fixed failure of fasterq-dump when accessing run via HTTP  
   **prefetch**: improved error reporting when failed to download a file or dependency  
   **SharQ**: records fingerprinting information  in the output object's metadata  

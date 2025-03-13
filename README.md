@@ -44,11 +44,11 @@ using data in the INSDC Sequence Read Archives.
 ----
 _March 18, 2025_: **SRA Toolkit Release 3.2.1**
 
-Fixed crash of fasterq-dump when using WGS references.
+Fixed fasterq-dump crash when using WGS references.
 
-Fixed failure of fasterq-dump when accessing run via HTTP.
+Fixed fasterq-dump failures when accessing runs via HTTP.
 
-We started publishing Linux releases built on AlmaLinux instead of Centos.
+Releases built on CentOS will no longer be provided. 
 
 ----
 _January 14, 2025_: **SRA Toolkit Release 3.2.0**

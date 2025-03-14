@@ -95,7 +95,16 @@ public:
 
     char const *QualityDescription() const;
 
-    typedef std::vector< std::pair< std::string, std::string > > Fingerprints;
+    struct TreeNode
+    {
+        std::string key;
+        std::string value;
+        std::vector<TreeNode> subnodes; // empty if value is not empty
+
+        TreeNode( const std::string & p_key, const std::string & p_value = std::string() )
+        : key(p_key), value(p_value) {}
+    };
+    typedef std::vector< TreeNode > Fingerprints;
     Fingerprints GetFingerprints( Detail detail ) const;
 
 private:

@@ -177,7 +177,25 @@ AddQueryTest( Test_Sra_Info_Contents_Detail_Detailed_Json 12.3 "--contents SRR34
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Default 12.4 "--contents SRR341576 --detail 2" )
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Json 12.5 "--contents SRR341576 -fjson --detail 3" )
 
+# query for fingerprinting info
 AddQueryTest( Test_Sra_Info_Fingerprint_None 13.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra" )
 AddQueryTest( Test_Sra_Info_Fingerprint_Short 13.1 "--fingerprint input/Test_Sra_Info_Fingerprint" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Abbreviated 13.2 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Detailed 13.3 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_None 14.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format csv" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Short 14.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Abbreviated 14.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Detailed 14.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_None 15.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format json" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Short 15.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format json" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Abbreviated 15.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format json --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Detailed 15.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format json --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_None 16.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format xml" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Short 16.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Abbreviated 16.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Detailed 16.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml --detail 2" )
 
 endif()

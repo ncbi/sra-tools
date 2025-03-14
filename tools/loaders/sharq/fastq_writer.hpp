@@ -504,6 +504,7 @@ void fastq_writer_vdb::close()
             key << "LOAD/QC/file_" << (i+1);
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "hash", m_source_fp[i].second.digest() );
         }
 
         {   // output fingerprint

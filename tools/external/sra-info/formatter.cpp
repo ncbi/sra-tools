@@ -27,6 +27,7 @@
 #include "formatter.hpp"
 
 #include <algorithm>
+#include <string_view>
 
 using namespace std;
 
@@ -107,7 +108,7 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
         return JoinPlatforms( platforms, "\n", "PLATFORM: " );
     case CSV:
         // CSV, all values on 1 line
-        expectSingleQuery( "CVS format does not support multiple queries" );
+        expectSingleQuery( "CSV format does not support multiple queries" );
         return JoinPlatforms( platforms, "," );
     case XML:
         // XML, each value in a tag, one per line
@@ -178,7 +179,7 @@ Formatter::format( const string & value, const string & name ) const
     switch ( fmt )
     {
     case CSV:
-        expectSingleQuery("CVS format does not support multiple queries");
+        expectSingleQuery("CSV format does not support multiple queries");
         return value;
     case Tab:
         expectSingleQuery( "TAB format does not support multiple queries" );
@@ -425,7 +426,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
         break;
 
     case CSV:
-        expectSingleQuery( "CVS format does not support multiple queries" );
+        expectSingleQuery( "CSV format does not support multiple queries" );
         for( size_t i = 0; i < count; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
@@ -954,24 +955,216 @@ Formatter::format( const KDBContents & cont, SraInfo::Detail detail ) const
     return out;
 }
 
+static
 string
-Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail detail  ) const
+formatTreeNodeDefault( size_t p_indent, const SraInfo::TreeNode & node )
+{
+    string ret = string ( p_indent, ' ' );
+    ret += node.key;
+    if ( node.subnodes.empty() )
+    {
+        ret += ": ";
+        ret += node.value;
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            ret += "\n";
+            ret += formatTreeNodeDefault( p_indent + 1, n );
+        }
+    }
+
+    return ret;
+}
+
+static
+string
+escapeCsv( const string & input )
+{
+    string ret;
+    bool hasComma = input.find( ',', 0 ) != string::npos;
+    if ( hasComma )
+    {
+        ret += "\"";
+    }
+
+    for ( auto c : input )
+    {
+        switch ( c )
+        {
+        case '"':
+            ret += "\"\"";
+            break;
+        default:
+            ret += c;
+        }
+    }
+
+    if ( hasComma )
+    {
+        ret += "\"";
+    }
+    return ret;
+}
+
+static
+string
+formatTreeNodeCsv( size_t p_indent, const SraInfo::TreeNode & node )
+{
+    string ret = string ( p_indent, ',' );
+    ret += escapeCsv(node.key);
+    if ( node.subnodes.empty() )
+    {
+        ret += ","; // important: no space before the next value
+        ret += escapeCsv(node.value);
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            ret += "\n";
+            ret += formatTreeNodeCsv( p_indent + 1, n );
+        }
+    }
+
+    return ret;
+}
+
+static
+string
+formatTreeNodeJson( const SraInfo::TreeNode & node )
+{
+    string ret;
+    ret += "\"";
+    ret += node.key;
+    ret += "\": ";
+    if ( node.subnodes.empty() )
+    {
+        bool needQuotes = node.value[0] != '{';
+        if ( needQuotes )
+        {
+            ret += "\"";
+        }
+        ret += node.value;
+        if ( needQuotes )
+        {
+            ret += "\"";
+        }
+    }
+    else
+    {
+        ret += "[ ";
+        bool first = true;
+        for ( auto n : node.subnodes )
+        {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                ret += ", ";
+            }
+            ret += "{ ";
+            ret += formatTreeNodeJson( n );
+            ret += " }";
+        }
+        ret += " ]";
+    }
+
+    return ret;
+}
+
+static
+string
+formatTreeNodeXml( const SraInfo::TreeNode & node )
+{
+    string ret;
+    ret += "<";
+    ret += node.key;
+    ret += ">";
+
+    if ( node.subnodes.empty() )
+    {
+        ret += node.value;
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            ret += formatTreeNodeXml( n );
+        }
+    }
+
+    ret += "</";
+    ret += node.key;
+    ret += ">\n";
+
+    return ret;
+}
+
+
+string
+Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail detail ) const
 {
     string out;
-
-    if ( fp.empty() )
-    {
-        return "none provided";
-    }
 
     switch ( fmt )
     {
     case Default:
+        if ( fp.empty() )
+        {
+            return "none provided";
+        }
+        for (auto p : fp)
+        {
+            out += formatTreeNodeDefault( 0, p );
+            out += "\n";
+        }
+        break;
+
+    case CSV:
+        if ( fp.empty() )
+        {
+            return "none provided";
+        }
+        for (auto p : fp)
+        {
+            out += formatTreeNodeCsv( 0, p );
+            out += "\n";
+        }
+        break;
+
     case Json:
+        {
+            bool first = true;
+            for (auto p : fp)
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    out += ", ";
+                }
+                out += formatTreeNodeJson( p );
+            }
+        }
+        break;
+
     case XML:
+        out += " <FINGERPRINTS>";
+        for (auto p : fp)
+        {
+            out += formatTreeNodeXml( p );
+        }
+        out += "\n </FINGERPRINTS>";
+        break;
+
     default:
         throw VDB::Error( "unsupported formatting option for fingerprint" );
     }
-
     return out;
 }

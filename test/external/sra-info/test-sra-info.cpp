@@ -65,6 +65,15 @@ protected:
         return f.format( sl, det );
     }
 
+    void verifyFingerprint( const SraInfo::Fingerprints::value_type & object, const string& exp_key, const string& exp_value )
+    {
+        if ( exp_key != object.key || exp_value != object.value )
+        {
+            cerr << "SraInfoFixture::verifyFingerprint() expected " << exp_key << " " << exp_value << " got " << object.key << " " << object.value << endl;
+            THROW_ON_FALSE( false );
+        }
+    }
+
     SraInfo info;
 };
 
@@ -550,7 +559,7 @@ FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
     //etc.
 }
 
-// Contents
+// Fingerprints
 FIXTURE_TEST_CASE(Fingerprint_Empty, SraInfoFixture)
 {
     info.SetAccession(Run_Multiplatform);
@@ -563,12 +572,14 @@ FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
     REQUIRE_EQ( 2, (int)fp.size() ); // fingerprint + hash
-    REQUIRE_EQ( string("fingerprint"), fp[0].first );
-    REQUIRE_EQ( string(R"({"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]})"),
-                fp[0].second );
-
-    REQUIRE_EQ( string("digest"), fp[1].first );
-    REQUIRE_EQ( string("67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5"), fp[1].second );
+    verifyFingerprint(
+        fp[0],
+        "fingerprint",
+        R"({"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]})");
+    verifyFingerprint(
+        fp[1],
+        "digest",
+        "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5");
 }
 
 FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
@@ -576,28 +587,25 @@ FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Abbreviated );
 
-    REQUIRE_EQ( 9, (int)fp.size() ); // 3 for the current + 3 * history entry
+    REQUIRE_EQ( 4, (int)fp.size() ); // fingerprint, digest, timestamp, history
 
-    REQUIRE_EQ( string("67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5"), fp[1].second );
-    REQUIRE_EQ( string("timestamp"), fp[2].first );
-    REQUIRE_EQ( string("1741379358"), fp[2].second );
+    verifyFingerprint( fp[2], "timestamp", "1741379358" );
 
     // history
-    REQUIRE_EQ( string("history/update_1/fingerprint"), fp[3].first );
-    REQUIRE_EQ( string(R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})"),
-                fp[3].second );
-    REQUIRE_EQ( string("history/update_1/digest"), fp[4].first );
-    REQUIRE_EQ( string("qwer"), fp[4].second );
-    REQUIRE_EQ( string("history/update_1/timestamp"), fp[5].first );
-    REQUIRE_EQ( string("123"), fp[5].second );
+    verifyFingerprint( fp[3], "history", "" );
+    REQUIRE_EQ( 2, (int)fp[3].subnodes.size() ); // 2 history entries
+    verifyFingerprint( fp[3].subnodes[0], "update_1", "" );
+    REQUIRE_EQ( 3, (int)fp[3].subnodes[0].subnodes.size() );  //fingerprint, digest, timestamp
 
-    REQUIRE_EQ( string("history/update_2/fingerprint"), fp[6].first );
-    REQUIRE_EQ( string(R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})"),
-                fp[6].second );
-    REQUIRE_EQ( string("history/update_2/digest"), fp[7].first );
-    REQUIRE_EQ( string("asdf"), fp[7].second );
-    REQUIRE_EQ( string("history/update_2/timestamp"), fp[8].first );
-    REQUIRE_EQ( string("456"), fp[8].second );
+    verifyFingerprint( fp[3].subnodes[0].subnodes[0], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
+    verifyFingerprint( fp[3].subnodes[0].subnodes[1], "digest", "qwer" );
+    verifyFingerprint( fp[3].subnodes[0].subnodes[2], "timestamp", "123" );
+
+    verifyFingerprint( fp[3].subnodes[1], "update_2", "" );
+    REQUIRE_EQ( 3, (int)fp[3].subnodes[1].subnodes.size() );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[0], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[1], "digest", "asdf" );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[2], "timestamp", "456" );
 }
 
 FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
@@ -605,9 +613,23 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Full );
 
-    REQUIRE_EQ( 11, (int)fp.size() ); // 3 for the current + 3 per history entry + 1 per input file
+    REQUIRE_EQ( 5, (int)fp.size() ); // fingerprint, digest, timestamp, history, inputs
 
+    verifyFingerprint( fp[4], "inputs", "" );
+    REQUIRE_EQ( 2, (int)fp[4].subnodes.size() ); // 2 input files
 
+    // inputs
+    verifyFingerprint( fp[4].subnodes[0], "file_1", "" );
+    REQUIRE_EQ( 3, (int)fp[4].subnodes[0].subnodes.size() ); // name, fingerprint, digest
+    verifyFingerprint( fp[4].subnodes[0].subnodes[0], "name", "input/r1.fastq" );
+    verifyFingerprint( fp[4].subnodes[0].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( fp[4].subnodes[0].subnodes[2], "digest", "123" );
+
+    verifyFingerprint( fp[4].subnodes[1], "file_2", "" );
+    REQUIRE_EQ( 3, (int)fp[4].subnodes[1].subnodes.size() ); // name, fingerprint, digest
+    verifyFingerprint( fp[4].subnodes[1].subnodes[0], "name", "input/r2.fastq" );
+    verifyFingerprint( fp[4].subnodes[1].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( fp[4].subnodes[1].subnodes[2], "digest", "456" );
 }
 
 //////////////////////////////////////////// Main

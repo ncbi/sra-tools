@@ -464,40 +464,99 @@ SraInfo::GetFingerprints( Detail detail ) const
 {
     Fingerprints ret;
 
-    try
+    if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
     {
-        if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
-        {
-            return ret;
-        }
+        return ret;
+    }
 
-        // current
-        VDB::Table seq = (*m_u.db)["SEQUENCE"];
-        VDB::MetadataCollection meta = seq.metadata();
-        ret.push_back( make_pair( "fingerprint", meta["QC/current/fingerprint"].value() ) );
-        ret.push_back( make_pair( "digest", meta["QC/current/hash"].value() ) );
-        if ( detail > Short )
-        {
-            ret.push_back( make_pair( "timestamp", meta["QC/current/timestamp"].value() ) );
+    VDB::Table seq = (*m_u.db)["SEQUENCE"];
+    VDB::MetadataCollection meta = seq.metadata();
 
-            // history
-            int i = 1;
+    try
+    {   // current output fp; if not found, there is no fingerprint info in this database
+        ret.push_back( TreeNode( "fingerprint", meta["QC/current/fingerprint"].value() ) );
+        ret.push_back( TreeNode( "digest", meta["QC/current/hash"].value()) );
+    }
+    catch(VDB::Error& e)
+    {
+        e.handled = true;
+        return ret;
+    }
+
+    if ( detail > Short )
+    {
+        ret.push_back( TreeNode( "timestamp", meta["QC/current/timestamp"].value()) );
+
+        // history of the output fp updates
+        TreeNode history { "history" };
+        int i = 1;
+        try
+        {   // rely on meta[i] throwing to exit the loop at the end of history
             while( true )
             {
                 ostringstream key;
-                key << "history/update_" << i;
-                const string & k = key.str();
-                string k1 = "QC/"+k+"/fingerprint";
-                ret.push_back( make_pair( k+"/fingerprint", meta[k1].value() ) );
-                ret.push_back( make_pair( k+"/digest", meta["QC/"+k+"/hash"].value() ) );
-                ret.push_back( make_pair( k+"/timestamp", meta["QC/"+k+"/timestamp"].value() ) );
+                key << "update_" << i;
+
+                TreeNode h { key.str() };
+
+                const string & k = string("QC/history/") + key.str();
+                h.subnodes.push_back( TreeNode ( "fingerprint", meta[ k+"/fingerprint" ].value() ) ); // may throw
+                h.subnodes.push_back( TreeNode ( "digest", meta[ k+"/hash" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "timestamp", meta[k+"/timestamp"].value() ) );
+
+                history.subnodes.push_back( h );
+
                 ++i;
             }
         }
-    }
-    catch(const VDB::Error &)
-    {
-        return ret;
+        catch(VDB::Error& e)
+        {
+            e.handled = true;
+            if ( ! history.subnodes.empty() )
+            {
+                ret.push_back( history );
+            }
+        }
+
+        if ( detail > Abbreviated )
+        {   // input fp(s)
+            TreeNode inputs { "inputs" };
+
+            VDB::MetadataCollection meta = m_u.db -> metadata();
+            int i = 1;
+            try
+            {   // rely on meta[i] throwing to exit the loop at the end of inputs
+                while( true )
+                {
+                    ostringstream key;
+                    key << "LOAD/QC/file_" << i;
+                    const string & k = key.str();
+
+                    ostringstream out_key;
+                    out_key << "file_" << i;
+                    const string & out_k = out_key.str();
+
+                    TreeNode in { out_key.str() };
+
+                    in.subnodes.push_back( TreeNode( "name", meta[k].attributeValue("name") ) );
+                    in.subnodes.push_back( TreeNode( "fingerprint", meta[k].value() ) );
+                    in.subnodes.push_back( TreeNode( "digest", meta[k].attributeValue("hash") ) );
+
+                    inputs.subnodes.push_back( in );
+
+                    ++i;
+                }
+            }
+            catch(VDB::Error& e)
+            {
+                e.handled = true;
+
+                if ( ! inputs.subnodes.empty() )
+                {
+                    ret.push_back( inputs );
+                }
+            }
+        }
     }
 
     return ret;

@@ -172,8 +172,7 @@ namespace VDB {
             name += part;
 
             for (e = e->next; e; e = e->next) {
-                std::string part(e->name->addr, e->name->size);
-                name += ":" + part;
+                name += ":" + std::string(e->name->addr, e->name->size);
             }
 
             uint32_t version = sn->version;

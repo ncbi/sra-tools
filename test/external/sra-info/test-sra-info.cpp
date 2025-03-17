@@ -292,7 +292,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
 
     // the most popular layouts are at the start of the vector
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(119), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -302,7 +302,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
     }
 
     {
-        class SraInfo::SpotLayout & l = sl[1];
+        SraInfo::SpotLayout & l = sl[1];
         REQUIRE_EQ( uint64_t(112), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -319,7 +319,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Abbreviated ); // ignore read lengths
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() );
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -334,7 +334,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Short ); // ignore read types
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() ); // only the size is used here
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() ); // the default
@@ -445,7 +445,7 @@ FIXTURE_TEST_CASE(SpotLayout_TopRows, SraInfoFixture)
 
     // the top 5 rows are all different layouts
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(1), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -651,7 +651,7 @@ rc_t CC UsageSummary (const char * progname)
     return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );
 }
 
-rc_t CC Usage( const Args* args )
+rc_t CC Usage( const Args* /*args*/)
 {
     return 0;
 }

@@ -39,7 +39,7 @@ Formatter::StringToFormat( const string & value )
         lowercase.begin(),
         lowercase.end(),
         lowercase.begin(),
-        [](unsigned char c){ return tolower(c); }
+        [](unsigned char c){ return (char)tolower(c); }
     );
     if ( lowercase == "csv" ) return CSV;
     if ( lowercase == "xml" ) return XML;
@@ -49,7 +49,7 @@ Formatter::StringToFormat( const string & value )
 }
 
 Formatter::Formatter( Format f, uint32_t l )
-: fmt( f ), limit( l ), first ( true ), count( 0 )
+: m_fmt( f ), m_limit( l ), m_first ( true ), m_count( 0 )
 {
 }
 
@@ -60,9 +60,9 @@ Formatter::~Formatter()
 string
 Formatter::formatJsonSeparator( void ) const
 {
-    if ( first ) {
+    if ( m_first ) {
         Formatter * ncThis = const_cast<Formatter *>(this);
-        ncThis->first = false;
+        ncThis->m_first = false;
         return "";
     }
     else
@@ -73,7 +73,7 @@ void
 Formatter::expectSingleQuery( const string & error ) const
 {
     Formatter * ncThis = const_cast<Formatter *>(this);
-    if ( ++ncThis->count > 1 )
+    if ( ++ncThis->m_count > 1 )
         throw VDB::Error( error );
 }
 
@@ -101,7 +101,7 @@ JoinPlatforms( const SraInfo::Platforms & platforms,
 string
 Formatter::format( const SraInfo::Platforms & platforms ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
         // default format, 1 value per line
@@ -138,7 +138,7 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
 string
 Formatter::start( void ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     case CSV:
@@ -156,7 +156,7 @@ Formatter::start( void ) const
 string
 Formatter::end( void ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     case CSV:
@@ -176,7 +176,7 @@ Formatter::format( const string & value, const string & name ) const
 {
     const string space(" ");
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case CSV:
         expectSingleQuery("CSV format does not support multiple queries");
@@ -211,7 +211,7 @@ public:
         _space(space), _indent(indent)
     {}
     void format(
-        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+        const struct VDB::SchemaData &d, int indent = -1, bool /*first*/ = true)
     {
         if (indent < 0)
             indent = _indent;
@@ -316,18 +316,18 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 {
     ostringstream ret;
 
-    size_t count = layouts.size();
-    if ( limit != 0 && limit < count )
+    size_t cnt = layouts.size();
+    if ( m_limit != 0 && m_limit < cnt)
     {
-        count = limit;
+        cnt = m_limit;
     }
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
         {
             bool first_group = true;
-            for( size_t i = 0; i < count; ++i )
+            for( size_t i = 0; i < cnt; ++i )
             {
                 if ( first_group )
                 {
@@ -376,7 +376,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
                 ret << " " << separator << endl;
             ret << " \"SPOTS\": [" << endl;
             bool  first_layout = true;
-            for( size_t i = 0; i < count; ++i )
+            for( size_t i = 0; i < cnt; ++i )
             {
                 const SraInfo::SpotLayout & l = layouts[i];
                 if ( first_layout )
@@ -427,7 +427,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case CSV:
         expectSingleQuery( "CSV format does not support multiple queries" );
-        for( size_t i = 0; i < count; ++i )
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             switch( detail )
@@ -455,7 +455,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case Tab:
         expectSingleQuery("TAB format does not support multiple queries");
-        for( size_t i = 0; i < count; ++i )
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             switch( detail )
@@ -483,7 +483,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case XML:
         ret << " <SPOTS>" << endl;
-        for( size_t i = 0; i < count; ++i )
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             ret << "  <layout><count>" << l.count << "</count>";
@@ -526,7 +526,7 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     bool first(true);
     string out;
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     {
@@ -935,7 +935,7 @@ Formatter::format( const KDBContents & cont, SraInfo::Detail detail ) const
 {
     string out;
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     {
@@ -1106,11 +1106,11 @@ formatTreeNodeXml( const SraInfo::TreeNode & node )
 
 
 string
-Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail detail ) const
+Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail /*detail*/) const
 {
     string out;
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
         if ( fp.empty() )

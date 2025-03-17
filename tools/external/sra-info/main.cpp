@@ -432,7 +432,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 Output( formatter.end() );
             }
-            catch( const exception& ex )
+            catch( const exception& /*ex*/)
             {
                 //KOutMsg( "%s\n", ex.what() ); ? - should be in stderr already, at least for VDB::Error
                 rc = 3;

@@ -150,7 +150,7 @@ SraInfo::GetPlatforms() const
     try
     {
         table.read({ "PLATFORM" })
-        .foreach([&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values ) {
+        .foreach([&](VDB::Cursor::RowID /*row*/, const vector<VDB::Cursor::RawData>& values) {
             ret.insert( PlatformToString( values[0].valueOr<uint8_t>(SRA_PLATFORM_UNDEFINED) ) );
         });
     }
@@ -289,7 +289,7 @@ SraInfo::GetSpotLayouts(
 
     auto const &table = openSequenceTable(useConsensus);
     auto const &cursor = table.read( { "READ_TYPE", "READ_LEN", "SPOT_ID" } );
-    auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
+    auto handle_row = [&](VDB::Cursor::RowID /*row*/, const vector<VDB::Cursor::RawData>& values)
     {
         vector<INSDC_read_type> types = values[0].asVector<INSDC_read_type>();
         vector<uint32_t> lengths = values[1].asVector<uint32_t>();
@@ -470,12 +470,12 @@ SraInfo::GetFingerprints( Detail detail ) const
     }
 
     VDB::Table seq = (*m_u.db)["SEQUENCE"];
-    VDB::MetadataCollection meta = seq.metadata();
+    VDB::MetadataCollection seqmeta = seq.metadata();
 
     try
     {   // current output fp; if not found, there is no fingerprint info in this database
-        ret.push_back( TreeNode( "fingerprint", meta["QC/current/fingerprint"].value() ) );
-        ret.push_back( TreeNode( "digest", meta["QC/current/hash"].value()) );
+        ret.push_back( TreeNode( "fingerprint", seqmeta["QC/current/fingerprint"].value() ) );
+        ret.push_back( TreeNode( "digest",      seqmeta["QC/current/hash"].value()) );
     }
     catch(VDB::Error& e)
     {
@@ -485,7 +485,7 @@ SraInfo::GetFingerprints( Detail detail ) const
 
     if ( detail > Short )
     {
-        ret.push_back( TreeNode( "timestamp", meta["QC/current/timestamp"].value()) );
+        ret.push_back( TreeNode( "timestamp", seqmeta["QC/current/timestamp"].value()) );
 
         // history of the output fp updates
         TreeNode history { "history" };
@@ -500,9 +500,9 @@ SraInfo::GetFingerprints( Detail detail ) const
                 TreeNode h { key.str() };
 
                 const string & k = string("QC/history/") + key.str();
-                h.subnodes.push_back( TreeNode ( "fingerprint", meta[ k+"/fingerprint" ].value() ) ); // may throw
-                h.subnodes.push_back( TreeNode ( "digest", meta[ k+"/hash" ].value() ) );
-                h.subnodes.push_back( TreeNode ( "timestamp", meta[k+"/timestamp"].value() ) );
+                h.subnodes.push_back( TreeNode ( "fingerprint", seqmeta[ k+"/fingerprint" ].value() ) ); // may throw
+                h.subnodes.push_back( TreeNode ( "digest",      seqmeta[ k+"/hash" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "timestamp",   seqmeta[k+"/timestamp"].value() ) );
 
                 history.subnodes.push_back( h );
 
@@ -522,8 +522,8 @@ SraInfo::GetFingerprints( Detail detail ) const
         {   // input fp(s)
             TreeNode inputs { "inputs" };
 
-            VDB::MetadataCollection meta = m_u.db -> metadata();
-            int i = 1;
+            VDB::MetadataCollection dbmeta = m_u.db -> metadata();
+            i = 1;
             try
             {   // rely on meta[i] throwing to exit the loop at the end of inputs
                 while( true )
@@ -534,13 +534,11 @@ SraInfo::GetFingerprints( Detail detail ) const
 
                     ostringstream out_key;
                     out_key << "file_" << i;
-                    const string & out_k = out_key.str();
-
                     TreeNode in { out_key.str() };
 
-                    in.subnodes.push_back( TreeNode( "name", meta[k].attributeValue("name") ) );
-                    in.subnodes.push_back( TreeNode( "fingerprint", meta[k].value() ) );
-                    in.subnodes.push_back( TreeNode( "digest", meta[k].attributeValue("hash") ) );
+                    in.subnodes.push_back( TreeNode( "name",        dbmeta[k].attributeValue("name") ) );
+                    in.subnodes.push_back( TreeNode( "fingerprint", dbmeta[k].value() ) );
+                    in.subnodes.push_back( TreeNode( "digest",      dbmeta[k].attributeValue("hash") ) );
 
                     inputs.subnodes.push_back( in );
 

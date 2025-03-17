@@ -191,6 +191,9 @@ rc_t PrfMainDependenciesList(const PrfMain *self,
 rc_t PrfMainInit(int argc, char *argv[], PrfMain *self);
 rc_t PrfMainFini(PrfMain *self);
 
+extern const char UsageDefaultName[];
+rc_t CC UsageSummary(const char *progname);
+
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define DISP_RC2(rc, msg, name) (void)((rc == 0) ? 0 : \

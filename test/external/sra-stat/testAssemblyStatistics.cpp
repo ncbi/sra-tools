@@ -145,7 +145,6 @@ TEST_CASE ( test7 ) {
 }
 
 extern "C" {
-    ver_t CC KAppVersion ( void ) { return 0; }
     rc_t CC KMain ( int argc, char * argv [] ) {
         return TestAssemblyStatistics ( argc, argv );
     }

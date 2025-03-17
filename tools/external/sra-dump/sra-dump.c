@@ -908,6 +908,9 @@ rc_t CC KMain ( int argc, char *argv [] )
     Args * args;
     rc_t rc;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     default_log_level = KLogLevelGet();
 
     rc = KStsHandlerSetStdErr();

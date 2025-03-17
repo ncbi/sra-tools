@@ -26,5 +26,5 @@ set( SRC
 	check-redact
 )
 
-GenerateExecutableWithDefs( check-redact "${SRC}" "__mod__=\"tools/check-redact\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( check-redact "${SRC}" "__mod__=\"tools/check-redact\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( check-redact false )

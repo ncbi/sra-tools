@@ -58,7 +58,7 @@ typedef struct Context
 
 
     bool force;
-    
+
 } Context
 
 struct SArgs {
@@ -331,7 +331,7 @@ static rc_t SpotIteratorReadSpotToRedact(struct SpotIterator* self)
     while (rc == 0 && ! self->m_eof) {
         rc = SpotIteratorReadLine(self);
 
-                         /* skip empty lines */ 
+                         /* skip empty lines */
         if ((rc == 0) && (self->m_inBuffer > 0)) {
             spotid_t spot = 0;
 
@@ -901,7 +901,7 @@ static bool GetArg(int* argI, int argc, char* argv[],
 #define OPTION_FORCE  "force"
 #define ALIAS_FORCE   "F"
 
-OptDef Options[] = 
+OptDef Options[] =
 {
     { OPTION_TABLE,  ALIAS_TABLE,  NULL, table_usage,  1, true,  true },
     { OPTION_FILE,   ALIAS_FILE,   NULL, file_usage,   1, true,  true },
@@ -941,7 +941,7 @@ rc_t open_and_run (Context * context)
                     {
                         rc = VSchemaParseFile (vschema, args->schema);
                         if (rc)
-                            PLOGERR (klogFatal, (klogFatal, 
+                            PLOGERR (klogFatal, (klogFatal,
                                                  "Unable to parse schema file ($S)",
                                                  "S=%s", args->schema));
                         else
@@ -954,7 +954,7 @@ rc_t open_and_run (Context * context)
                             else
                             {
 
-                        
+
                                 VTableRelease (vtable);
                             }
                         }
@@ -1201,7 +1201,7 @@ rc_t open_and_run (Context * context)
                     /* fill it with the specified schema */
                     rc = VSchemaParseFile (context->schema, "%s", context->schema_path);
                     if (rc)
-                        PLOGERR (klogFatal, (klogFatal, 
+                        PLOGERR (klogFatal, (klogFatal,
                                              "Unable to parse schema file ($S)",
                                              "S=%s", args->schema));
                     else
@@ -1234,6 +1234,9 @@ rc_t KMain(int argc, char* argv[])
 {
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof Options / sizeof (Options[0]));
     if (rc)

@@ -22,5 +22,5 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( rowwritetest rowwritetest "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( rowwritetest rowwritetest "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( rowwritetest false )

@@ -23,5 +23,5 @@
 # ===========================================================================
 
 # External
-GenerateExecutableWithDefs( cache-mgr "cache-mgr" "__mod__=\"tools/cache-mgr\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( cache-mgr "cache-mgr" "__mod__=\"tools/cache-mgr\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( cache-mgr false )

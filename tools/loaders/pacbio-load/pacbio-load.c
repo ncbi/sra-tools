@@ -590,6 +590,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 2,
                                   MyOptions, sizeof MyOptions / sizeof ( OptDef ),
                                   XMLLogger_Args, XMLLogger_ArgsQty  );

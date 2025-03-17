@@ -63,16 +63,6 @@ void samview(char const file[])
 
 const char UsageDefaultName[] = "samview-util";
 
-rc_t CC UsageSummary(char const *name)
-{
-    return 0;
-}
-
-rc_t CC Usage(Args const *args)
-{
-    return 0;
-}
-
 rc_t CC KMain(int argc, char *argv[])
 {
     while (--argc) {

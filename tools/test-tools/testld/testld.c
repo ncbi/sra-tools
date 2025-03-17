@@ -94,7 +94,7 @@ void testld_load_library ( KDyld *dl, KDlset *libs, const char *libname )
 #define ALIAS_LOAD  "l"
 
 static
-const char * load_usage [] = 
+const char * load_usage [] =
 	{ "Path(s) for loading dynamic libraries.", NULL };
 
 static
@@ -147,6 +147,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 1, MyOptions, sizeof MyOptions / sizeof (OptDef));
     if (rc)

@@ -264,12 +264,12 @@ OptDef ToolOptions[] = {
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
     { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
     { OPTION_FASTA_REF,     NULL,               NULL, fasta_ref_tbl_usage,  1, false,  false },
-    { OPTION_FASTA_CONCAT,  NULL,               NULL, fasta_concat_all_usage,  1, false,  false },    
+    { OPTION_FASTA_CONCAT,  NULL,               NULL, fasta_concat_all_usage,  1, false,  false },
     { OPTION_REF_INT,       NULL,               NULL, ref_int_usage,        1, false,  false },
     { OPTION_REF_EXT,       NULL,               NULL, ref_ext_usage,        1, false,  false },
     { OPTION_REF_NAME,      NULL,               NULL, ref_name_usage,       0, true,   false },
     { OPTION_REF_REPORT,    NULL,               NULL, ref_report_usage,     1, false,  false },
-    { OPTION_USE_NAME,      NULL,               NULL, ref_use_name_usage,   1, false,  false },    
+    { OPTION_USE_NAME,      NULL,               NULL, ref_use_name_usage,   1, false,  false },
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,   false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
@@ -362,7 +362,7 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         ErrMsg( "get_user_input . VNamelistMake() -> %R", rc );
         tool_ctx -> ref_name_filter = NULL;
     }
-    
+
     tool_ctx -> cursor_cache = ahlp_get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = ahlp_get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = ahlp_get_bool_option( args, OPTION_DETAILS );
@@ -425,13 +425,13 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
 
     /* fasta-concat cannot be combined with any of the other flags */
     if ( 0 == rc && fasta_concat ) {
-        if ( split_spot | split_file | split_3 | whole_spot | 
+        if ( split_spot | split_file | split_3 | whole_spot |
              fasta | fasta_us | fasta_ref_tbl ) {
             rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
             ErrMsg( "fasta-concat-all cannot be combined with other modes -> %R", rc );
         }
     }
-    
+
     tool_ctx -> fmt = hlp_get_format_t( ahlp_get_str_option( args, OPTION_FORMAT, NULL ),
                     split_spot, split_file, split_3, whole_spot, fasta,
                     fasta_us, fasta_ref_tbl, fasta_concat, ref_report );
@@ -591,7 +591,7 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
 /* --------------------------------------------------------------------------------------------
     produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
     produce fastq-output by iterating over the SEQUENCE - table:
-   -------------------------------------------------------------------------------------------- 
+   --------------------------------------------------------------------------------------------
    each thread iterates over a slice of the SEQUENCE-table
    for each SPOT it may look up an entry in the lookup-table to get the READ
    if it is not stored in the SEQ-tbl
@@ -836,7 +836,7 @@ static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_na
                     } else {
                         rc = main_process_table_fasta_unsorted( tool_ctx, tbl_name );
                     }
-                }  
+                }
     }
     return rc;
 }
@@ -847,6 +847,9 @@ rc_t CC KMain ( int argc, char *argv [] ) {
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( 0 != rc ) {
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
@@ -882,13 +885,13 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                         /* treat it as SRA-db with only unaligned data ( let the schema-funcions do the join ) */
                         tool_ctx . insp_output . acc_type = acc_sra_db;
                 }
-                
+
                 /* if an accession ( of any type ) has a small number of spots : */
                 if ( tool_ctx . insp_output . seq . row_count < MIN_ROWCOUNT ) {
                     /* use only 1 thread */
                     tool_ctx . num_threads = 1;
                 }
-                
+
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */

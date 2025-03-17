@@ -22,5 +22,5 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( testld testld "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( testld testld "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( testld false )

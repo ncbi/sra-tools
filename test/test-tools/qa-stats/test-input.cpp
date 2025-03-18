@@ -117,8 +117,8 @@ TEST_CASE(Fastq_File)
 }
 
 TEST_CASE(Fasta_File)
-{   // VDB-5867: multi-line FASTA reads starting from the 2nd one are parsed incorrectly
-    auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG" };
+{ 
+    auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG\n" };
     char const *const expected[] = {
         "AAAGTC",
         "TCGTCG",

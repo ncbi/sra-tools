@@ -205,6 +205,32 @@ SoftwareIdString( const string& p_caseId, bool p_packed )
     source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
+void
+MetadataAttrs( const string& p_caseId, bool p_packed )
+{   // metadata attributes
+    TestSource source;
+    TestSource::packed = true;
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
+
+    source . NewTableEvent ( 1, tableName );
+    source . NewColumnEvent ( 1, 1, i64ColumnName, 8 );
+    source . OpenStreamEvent();
+
+    source . DBMetadataNodeAttrEvent( 0, "dbmeta", "attr", "value"); // 0 = top db
+    source . TblMetadataNodeAttrEvent( 1, "tblmeta", "attr", "value");
+    source . ColMetadataNodeAttrEvent( 1, "colmeta", "attr", "value");
+
+    // need some rows to make the column non-static
+    source . CellDataEvent( 1, (int64_t)100 );
+    source . NextRowEvent ( 1 );
+    source . CellDataEvent( 1, (int64_t)200 );
+    source . NextRowEvent ( 1 );
+
+    source . CloseStreamEvent();
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
+}
+
 int main()
 {
     for (bool packed = false; ; packed = true )
@@ -216,6 +242,10 @@ int main()
         MoveAhead( "4", packed );
         IntegerCompression( "5", packed );
         SoftwareIdString( "6", packed );
+        // db, table and column metadata tests use identical VDB objects
+        MetadataAttrs( "7", packed );
+        MetadataAttrs( "8", packed );
+        MetadataAttrs( "9", packed );
 
         if ( packed )
         {

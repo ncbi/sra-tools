@@ -27,4 +27,5 @@ default: runtests
 TOP ?= $(abspath ../../..)
 MODULE = test/test-tools/qa-stats
 
+BUILD_TOOLS_TEST_TOOLS=ON
 include $(TOP)/build/Makefile.env

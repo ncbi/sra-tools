@@ -894,11 +894,11 @@ struct BasicSource: public Input::Source {
             // it's a SAM header line
             Input::SAM_HeaderLine(line);
         }
-        auto const line = peek();
+        auto const line = peek(); ///< NOTE: this is a `peek` of the value returned by the `getline` in the loop above. `peek` must not be used without a corresponding `getline`.
         ++records;
 
         if (line[0] == '@' || line[0] == '>') {
-            result = readFASTQ(line);
+            result = readFASTQ(std::string{line});
         }
         else {
             auto const flds = Delimited(line, '\t');

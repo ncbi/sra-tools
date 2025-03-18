@@ -26,10 +26,14 @@ cmake_minimum_required (VERSION 3.8)
 
 project(rnd2sra)
 
-set( RND2SRALIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+if (WIN32)
+	set( RND2SRALIBS Ws2_32 Shell32 Crypt32 Advapi32 Ole32 ${COMMON_LIBS_WRITE} )
+else()
+	set( RND2SRALIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+endif()
 
-if (NOT APPLE)
-list( APPEND RND2SRALIBS "stdc++fs" )
+if (LINUX)
+	list( APPEND RND2SRALIBS "stdc++fs" )
 endif()
 
 GenerateExecutableWithDefs( rnd2sra
@@ -40,6 +44,10 @@ GenerateExecutableWithDefs( rnd2sra
 
 target_compile_features( rnd2sra PRIVATE cxx_std_17 )
 
+if (WIN32)
+	set_target_properties( rnd2sra PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup" )
+endif()
+
 GenerateExecutableWithDefs( test_rnd2sra
     src/test_rnd2sra.cpp
     ""
@@ -47,3 +55,7 @@ GenerateExecutableWithDefs( test_rnd2sra
     "${RND2SRALIBS}" )
 
 target_compile_features( test_rnd2sra PRIVATE cxx_std_17 )
+
+if (WIN32)
+	set_target_properties( test_rnd2sra PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup" )
+endif()

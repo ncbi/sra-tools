@@ -355,7 +355,11 @@ struct BasicSource: public Input::Source {
     uint8_t *buffer;
     std::string const *put_back = nullptr;
     std::string putback_buffer;
-    size_t cur = 0, next = 0, block = 0, size = 0, bmax = 0;
+    size_t cur = 0;   ///< current read position
+    size_t next = 0;  ///< start of next line
+    size_t block = 0; ///< I/O block size
+    size_t size = 0;  ///< actual size of valid content
+    size_t bmax = 0;  ///< allocated size of buffer
     bool isEof = false;
     bool use_mmap = false;
     int lastReported = 0;
@@ -389,43 +393,41 @@ struct BasicSource: public Input::Source {
         isEof = true;
         return false;
     }
+    /// the current line, advancing if needed
+    std::string_view peek_advance() {
+        auto const ci = cur < size ? std::string_view{reinterpret_cast<char *>(buffer + cur), size - cur} : std::string_view{};;
+        auto const at = ci.find('\n');
+        if (at != ci.npos) {
+            next = cur + at + 1;
+            ++lines;
+            return ci.substr(0, at);
+        }
+        if (fh < 0) {
+            isEof = true;
+            return std::string_view{};
+        }
+        if (cur >= block) {
+            auto const blk = cur / block;
+            auto const dst = &buffer[0];
+            auto const src = &buffer[blk * block];
+            auto const end = &buffer[size];
+            auto const shift = src - dst;
+
+            size -= shift;
+            cur -= shift;
+            next -= shift;
+            std::copy(src, end, dst);
+        }
+        return fill() ? peek_advance() : std::string_view{};
+    }
     /// get the current line, advancing if needed, and trimming whitespace
     std::string_view peek() {
-        if (next > cur)
-            goto CURRENT_LINE;
-
-        for ( ; ; ) {
-            while (next < size) {
-                if (buffer[next++] == '\n') {
-                    goto CURRENT_LINE;
-                    ++lines;
-                }
-            }
-            if (fh < 0) {
-                isEof = true;
-                return std::string_view();
-            }
-            if (cur >= block) {
-                auto const blk = cur / block;
-                auto dst = &buffer[0];
-                auto src = &buffer[blk * block];
-                auto const end = &buffer[size];
-                auto const shift = src - dst;
-
-                size -= shift;
-                cur -= shift;
-                next -= shift;
-                while (src < end)
-                    *dst++ = *src++;
-            }
-            if (!fill())
-                return std::string_view();
-        }
-    CURRENT_LINE:
-        auto end = next - 1;
-        while (end != cur && isspace(buffer[end - 1]))
-            --end;
-        return end != cur ? std::string_view((char *)&buffer[cur], (next - 1) - cur) : std::string_view();
+        auto result = peek_advance();
+        while (!result.empty() && std::isspace(result.back()))
+            result.remove_suffix(1);
+        while (!result.empty() && std::isspace(result.front()))
+            result.remove_prefix(1);
+        return result;
     }
     void putback(std::string const &str) {
         assert(put_back == nullptr);
@@ -814,9 +816,8 @@ struct BasicSource: public Input::Source {
         result.reads.emplace_back(std::move(read));
         return result;
     }
-    Input readFASTQ() {
+    Input readFASTQ(std::string const &defline) {
         auto const start = lines;
-        auto const defline = std::string{peek()};
         auto const defline_start = defline.front();
         auto nextline = getline(false);
         auto seq = nextline;
@@ -870,8 +871,6 @@ struct BasicSource: public Input::Source {
         for ( ; ; ) {
             auto const &line = getline();
             for (auto ch : line) {
-                if (isspace(ch))
-                    continue;
                 if (ch == '#') {
                     //std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
@@ -899,7 +898,7 @@ struct BasicSource: public Input::Source {
         ++records;
 
         if (line[0] == '@' || line[0] == '>') {
-            result = readFASTQ();
+            result = readFASTQ(line);
         }
         else {
             auto const flds = Delimited(line, '\t');

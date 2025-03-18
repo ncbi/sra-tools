@@ -84,7 +84,7 @@ enum gw_evt_id
     evt_db_metadata_node_attr,              /* uses gw(p)_3string_evt_v1   */
     evt_tbl_metadata_node_attr,
     evt_col_metadata_node_attr,
-    evt_db_metadata_node_attr2,             /* uses gw(p)_3string_evt_U16   */
+    evt_db_metadata_node_attr2,             /* uses gwp_3string_evt_U16   */
     evt_tbl_metadata_node_attr2,
     evt_col_metadata_node_attr2,
 

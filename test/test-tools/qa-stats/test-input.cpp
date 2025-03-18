@@ -132,6 +132,22 @@ TEST_CASE(Fasta_File)
     }
 }
 
+TEST_CASE(Fasta_File_missing_LF)
+{ 
+    auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG" };
+    char const *const expected[] = {
+        "AAAGTC",
+        "TCGT",
+        nullptr
+    };
+    auto i = Input::newSource( source, false );
+    for (auto e = expected; *e; ++e) {
+        auto const expect = string_view{ *e };
+        auto const input = i->get();
+        REQUIRE_EQ( expect, string_view{ input.sequence } );
+    }
+}
+
 TEST_CASE(Input_tests)
 {
     Input::runTests(); // will abort if anything fails

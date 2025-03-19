@@ -1,5 +1,8 @@
 #!/bin/sh
 
+PYTHON="$(which python3)" || { echo "Skipped; python3 not found"; exit 2; }
+PERL="$(which perl)" || { echo "Skipped; perl not found"; exit 2; }
+
 if [ "$(uname -s)" = "Linux" ]; then
     [ "$(uname -o)" = "GNU/Linux" ] || { echo "Skipped; not GNU/Linux"; exit 2; }
 fi
@@ -10,10 +13,6 @@ DIRTOTEST=$(cd ${DIRTOTEST}; pwd) || exit 1
 SOURCEDIR=${2:-${DIRTOTEST}}
 SOURCEDIR=$(cd ${SOURCEDIR}; pwd) || exit 1
 
-which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
-which python3 || exit 0
-PYTHON=$(which python3)
-PERL=$(which perl)
 STATSTOOL="${DIRTOTEST}/qa-stats"
 DIFFTOOL="${SOURCEDIR}/diff-tool.py"
 INPUT_MAKER="${PWD}/make-test-input.pl"

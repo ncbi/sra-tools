@@ -374,8 +374,7 @@ private:
         out << '{';
         if ( fingerprint )
         {
-            out << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << stats.fingerprint << JSON_ostream::Compact{false}
-                << JSON_Member{"fingerprint-digest"} << stats.fingerprint.digest();
+            stats.fingerprint.canonicalForm(out);
         }
         else
         {

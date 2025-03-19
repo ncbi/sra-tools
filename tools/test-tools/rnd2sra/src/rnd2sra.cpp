@@ -14,7 +14,7 @@ bool run_tool( MainParamsPtr params ) {
 
 } // end of namespace sra_convert
 
-int wmain( int argc, wchar_t* argv[] ) {
+int main( int argc, char* argv[] ) {
 
     sra_convert::MainParamsPtr params = sra_convert::MainParams::make( argc, ( const char ** )argv, 0 );
     if ( params -> is_help() ) {

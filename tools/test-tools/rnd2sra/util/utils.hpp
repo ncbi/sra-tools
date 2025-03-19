@@ -15,7 +15,7 @@
 
 #include "subprocess.h"
 
-#if linux
+#if __linux__
 // ===== OS is LINUX =====
     #if __clang__
         // clang on linux ( because of clang LSP! )

@@ -122,7 +122,8 @@ static inline
 JSON_ostream &operator <<(JSON_ostream &out, DistanceStats::DistanceStat const &self) {
     using Index = DistanceStats::DistanceStat::Index;
     self.forEach([&](Index i, uint64_t count, uint64_t total) {
-        out << DistanceStatEntry{ i, count, total };
+        if (count > 0)
+            out << DistanceStatEntry{ i, count, total };
     });
     return out;
 }
@@ -132,7 +133,8 @@ JSON_ostream &operator <<(JSON_ostream &out, std::pair < DistanceStats::Distance
 {
     using Index = DistanceStats::DistanceStat::Index;
     self.first->forEach(*self.second, [&](Index i, uint64_t count, uint64_t total) {
-        out << DistanceStatEntry{ i, count, total };
+        if (count > 0)
+            out << DistanceStatEntry{ i, count, total };
     });
     return out;
 }

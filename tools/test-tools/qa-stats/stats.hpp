@@ -337,8 +337,8 @@ struct SpotLayout : public std::string {
         auto cp = buffer + 16;
         *--cp = '\0';
 
-        auto bt = --cp; *bt = '_';
         auto fr = --cp; *fr = '_';
+        auto bt = --cp; *bt = '_';
 
         if (biological) {
             *bt = 'B';

@@ -225,7 +225,8 @@ class file_entry_filter : public entry_filter {
         virtual ~file_entry_filter() = default;
 
         virtual bool ok( const fs::directory_entry& e ) override {
-            return e . is_regular_file();
+            return fs::is_regular_file( e . path() );
+            // !!! do not use e.is_regular_file() it does not exist in experimental::fs ... !!!
         }
 
         // >>>>> public Factory <<<<<
@@ -240,7 +241,8 @@ class dir_entry_filter : public entry_filter {
         virtual ~dir_entry_filter() = default;
 
         bool ok( const fs::directory_entry& e ) override {
-            return e . is_directory();
+            return fs::is_directory( e . path() );
+            // !!! do not use e.is_directory() it does not exist in experimental::fs ... !!!
         }
 
         // >>>>> public Factory <<<<<

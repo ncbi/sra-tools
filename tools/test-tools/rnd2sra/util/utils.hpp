@@ -28,8 +28,8 @@
         #endif
 
     #else
-        #if GCC_VERSION <= 6
-            #if __GNUC__ <= 6
+        #if GCC_VERSION <= 7
+            #if __GNUC__ <= 7
                 #include <experimental/filesystem>
                 namespace fs = std::experimental::filesystem;
             #else

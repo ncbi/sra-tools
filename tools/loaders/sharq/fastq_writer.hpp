@@ -504,13 +504,13 @@ void fastq_writer_vdb::close()
             key << "LOAD/QC/file_" << (i+1);
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
-            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "hash", m_source_fp[i].second.digest() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "digest", m_source_fp[i].second.digest() );
         }
 
         {   // output fingerprint
             Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/fingerprint", m_read_fingerprint.JSON() );
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/hash", m_read_fingerprint.digest() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/digest", m_read_fingerprint.digest() );
 
             ostringstream timestamp;
             timestamp.imbue( std::locale( "" ) ); // no thousands separator

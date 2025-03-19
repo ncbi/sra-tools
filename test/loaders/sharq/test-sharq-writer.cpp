@@ -212,7 +212,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.close();
 
     REQUIRE_EQ( 5, (int)m_tw->m_metadata.size() );  // 1 per input + 3 for output
-    REQUIRE_EQ( 4, (int)m_tw->m_metadataAttrs.size() ); // 2 per input (file name and fp hash)
+    REQUIRE_EQ( 4, (int)m_tw->m_metadataAttrs.size() ); // 2 per input (file name and fp digest)
 
     // input fingerprints, on the database per input file
     {   // file1
@@ -221,7 +221,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         verifyMeta(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", Expected);
 
         verifyMetaAttr(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "name", File1);
-        verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "hash", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
+        verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "digest", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
     }
     {   // file2
         const string Expected =
@@ -229,7 +229,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         verifyMeta(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", Expected);
 
         verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
-        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "hash", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
+        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
     }
     // output fingerprint, on the SEQUENCE table
     {
@@ -238,7 +238,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         verifyMeta(2, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/fingerprint", Expected);
 
         const string ExpectedOutputHash = "2944f448d685435cffa136126a7fd7975d9177b36369b480ddd64c0bf818a5e0";
-        verifyMeta(3, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/hash", ExpectedOutputHash);
+        verifyMeta(3, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/digest", ExpectedOutputHash);
         // timestamp changes from execution to execution
         REQUIRE_EQ( string("QC/current/timestamp"), get<2>(m_tw->m_metadata[4]) );
         REQUIRE_NE( string(), get<3>(m_tw->m_metadata[4]) );

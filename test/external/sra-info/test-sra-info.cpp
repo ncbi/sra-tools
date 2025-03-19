@@ -571,7 +571,7 @@ FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
 {   // output fingerprint only
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
-    REQUIRE_EQ( 2, (int)fp.size() ); // fingerprint + hash
+    REQUIRE_EQ( 2, (int)fp.size() ); // fingerprint + digest
     verifyFingerprint(
         fp[0],
         "fingerprint",

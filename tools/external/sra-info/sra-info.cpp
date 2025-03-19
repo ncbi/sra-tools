@@ -475,7 +475,7 @@ SraInfo::GetFingerprints( Detail detail ) const
     try
     {   // current output fp; if not found, there is no fingerprint info in this database
         ret.push_back( TreeNode( "fingerprint", seqmeta["QC/current/fingerprint"].value() ) );
-        ret.push_back( TreeNode( "digest",      seqmeta["QC/current/hash"].value()) );
+        ret.push_back( TreeNode( "digest",      seqmeta["QC/current/digest"].value()) );
     }
     catch(VDB::Error& e)
     {
@@ -488,71 +488,55 @@ SraInfo::GetFingerprints( Detail detail ) const
         ret.push_back( TreeNode( "timestamp", seqmeta["QC/current/timestamp"].value()) );
 
         // history of the output fp updates
+        VDB::Metadata seq_history = seqmeta.childNode("QC/history");
+        VDB::NameList updates = seq_history.children();
+
         TreeNode history { "history" };
-        int i = 1;
-        try
-        {   // rely on meta[i] throwing to exit the loop at the end of history
-            while( true )
+        const string start { "update_" };
+        for ( unsigned int i = 0; i < updates.count(); ++ i)
+        {
+            const string& name = updates[i];
+            if ( name.compare(0, start.size(), start) == 0 )
             {
-                ostringstream key;
-                key << "update_" << i;
+                TreeNode h { name };
 
-                TreeNode h { key.str() };
-
-                const string & k = string("QC/history/") + key.str();
-                h.subnodes.push_back( TreeNode ( "fingerprint", seqmeta[ k+"/fingerprint" ].value() ) ); // may throw
-                h.subnodes.push_back( TreeNode ( "digest",      seqmeta[ k+"/hash" ].value() ) );
-                h.subnodes.push_back( TreeNode ( "timestamp",   seqmeta[k+"/timestamp"].value() ) );
+                h.subnodes.push_back( TreeNode ( "fingerprint", seq_history[ name ] [ "fingerprint" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "digest",      seq_history[ name ] [ "digest" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "timestamp",   seq_history[ name ] [ "timestamp"].value() ) );
 
                 history.subnodes.push_back( h );
-
-                ++i;
             }
         }
-        catch(VDB::Error& e)
+        if ( ! history.subnodes.empty() )
         {
-            e.handled = true;
-            if ( ! history.subnodes.empty() )
-            {
-                ret.push_back( history );
-            }
+            ret.push_back( history );
         }
 
         if ( detail > Abbreviated )
         {   // input fp(s)
-            TreeNode inputs { "inputs" };
-
             VDB::MetadataCollection dbmeta = m_u.db -> metadata();
-            i = 1;
-            try
-            {   // rely on meta[i] throwing to exit the loop at the end of inputs
-                while( true )
+            VDB::Metadata db_inputs = dbmeta.childNode("LOAD/QC");
+            VDB::NameList children = db_inputs.children();
+
+            TreeNode inputs { "inputs" };
+            const string start { "file_" };
+            for ( unsigned int i = 0; i < children.count(); ++ i)
+            {
+                const string& name = children[i];
+                if ( name.compare(0, start.size(), start) == 0 )
                 {
-                    ostringstream key;
-                    key << "LOAD/QC/file_" << i;
-                    const string & k = key.str();
+                    TreeNode in { name };
 
-                    ostringstream out_key;
-                    out_key << "file_" << i;
-                    TreeNode in { out_key.str() };
-
-                    in.subnodes.push_back( TreeNode( "name",        dbmeta[k].attributeValue("name") ) );
-                    in.subnodes.push_back( TreeNode( "fingerprint", dbmeta[k].value() ) );
-                    in.subnodes.push_back( TreeNode( "digest",      dbmeta[k].attributeValue("hash") ) );
+                    in.subnodes.push_back( TreeNode( "name",        db_inputs [ name ] . attributeValue("name") ) );
+                    in.subnodes.push_back( TreeNode( "fingerprint", db_inputs [ name ] . value() ) );
+                    in.subnodes.push_back( TreeNode( "digest",      db_inputs [ name ] . attributeValue("digest") ) );
 
                     inputs.subnodes.push_back( in );
-
-                    ++i;
                 }
             }
-            catch(VDB::Error& e)
+            if ( ! inputs.subnodes.empty() )
             {
-                e.handled = true;
-
-                if ( ! inputs.subnodes.empty() )
-                {
-                    ret.push_back( inputs );
-                }
+                ret.push_back( inputs );
             }
         }
     }

@@ -66,7 +66,7 @@ protected:
 
     SraInfo info;
 };
-#if 0
+
 FIXTURE_TEST_CASE(SetAccession, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
@@ -81,14 +81,13 @@ FIXTURE_TEST_CASE(ResetAccession, SraInfoFixture)
     REQUIRE_EQ( string(Accession2), info.GetAccession() );
 }
 
-// Platform
-
-FIXTURE_TEST_CASE(PlatformInInvalidAccession, SraInfoFixture)
+FIXTURE_TEST_CASE(SetInvalidAccession, SraInfoFixture)
 {
     const string Accession = "i_am_groot";
-    info.SetAccession(Accession);
-    REQUIRE_THROW( info.GetPlatforms() );
+    REQUIRE_THROW( info.SetAccession(Accession) );
 }
+
+// Platform
 
 FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
 {
@@ -122,7 +121,7 @@ FIXTURE_TEST_CASE(SinglePlatformWGS, SraInfoFixture)
     info.SetAccession(Accession_WGS);
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(1), p.size() );
-    REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
+    REQUIRE_EQ( string("none provided"), *p.begin() );
 }
 
 FIXTURE_TEST_CASE(MultiplePlatforms, SraInfoFixture)
@@ -495,7 +494,6 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
     info.SetAccession(Run_Multiplatform);
     REQUIRE( info.HasPhysicalQualities() );
 }
-#endif
 
 // Contents
 FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)

@@ -39,14 +39,16 @@ if( NOT WIN32 )
             SKIP_REGULAR_EXPRESSION "^Skipped"
     )
 
+    # parsing fasta/fastq
     file(GLOB INPUTS input/*.fast[aq])
     foreach(i ${INPUTS})
         get_filename_component(filename ${i} NAME)
         add_test( NAME Test_qa_stats_${filename}
-            COMMAND sh -c "${BINDIR}/qa-stats ${i} 1>actual/${filename}.stdout 2>actual/${filename}.stderr"
+            COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats ${i}" "." Test_qa_stats_${filename}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endforeach()
 
+    # fingerprinting
     add_test( NAME Test_qa_stats_Finger_1
         COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

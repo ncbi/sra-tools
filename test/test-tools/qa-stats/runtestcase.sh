@@ -79,17 +79,10 @@ fi
 $DIFF $WORKDIR/expected/$CASEID.stdout $STDOUT >$TEMPDIR/diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    # there may be an alternative correct answer (e.g. for sralite runs)
-    if [ -f $WORKDIR/expected/$CASEID-alt.stdout ] ; then
-        $DIFF $WORKDIR/expected/$CASEID-alt.stdout $STDOUT >$TEMPDIR/diff
-        rc="$?"
-    fi
-    if [ "$rc" != "0" ] ; then
-        cat $TEMPDIR/diff
-        echo "command executed:"
-        echo $CMD
-        exit 3
-    fi
+    cat $TEMPDIR/diff
+    echo "command executed:"
+    echo $CMD
+    exit 3
 fi
 
 rm -rf $TEMPDIR

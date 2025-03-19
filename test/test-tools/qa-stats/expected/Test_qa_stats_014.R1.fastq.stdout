@@ -1,0 +1,47 @@
+{
+	"total": {
+		"reads": {
+			"count": 10,
+			"biological": 10,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "W",
+				"biological": 234
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 10,
+				"biological": 10,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 10
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "0BF",
+				"count": 1
+			},
+			{
+				"descriptor": "26BF",
+				"count": 9
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 1
+				}
+			],
+			"S": [],
+			"S-W": [],
+			"K-M": []
+		},
+		"references": []
+	}
+}

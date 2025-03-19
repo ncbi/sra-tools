@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(qa-stats)
 
-set(SOURCES 
+set(SOURCES
     main.cpp
     input.cpp
 )
@@ -19,7 +19,7 @@ if (NOT WIN32)
     add_executable(qa-stats ${SOURCES} ${HEADERS})
     target_compile_features(qa-stats PRIVATE cxx_std_17)
     target_link_libraries(qa-stats Threads::Threads)
-    
+
 #     target_compile_options( qa-stats PRIVATE -fsanitize=undefined )
 #     target_compile_options( qa-stats PRIVATE -fsanitize=address )
 #     target_link_options( qa-stats PRIVATE -fsanitize=undefined )

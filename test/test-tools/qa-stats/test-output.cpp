@@ -141,17 +141,17 @@ static void insertArrayElems(JSON_ostream &&out)
     out << '[' << 1
         << ',' << '[' << ']' // empty array
         << ',' << '{' << '}' // empty object
-        << ',' << true 
-        << ',' << false 
-        << ',' << "Hello" 
-        << ',' << 0.5 
+        << ',' << true
+        << ',' << false
+        << ',' << "Hello"
+        << ',' << 0.5
         << ']';
 }
 
 static void insertArrayElems_Strings(JSON_ostream &&out)
 { // expect ["12","3"]
     out << '[' << '"' << 1 << 2 << '"'  // build a string with multiple insertions
-        << ',' << "3" 
+        << ',' << "3"
         << ','                          // dangling comma does nothing
         << ']';
 }

@@ -92,12 +92,12 @@ namespace hashing {
         {
             uint64_t k = *data++;
 
-            k *= m; 
-            k ^= k >> r; 
-            k *= m; 
+            k *= m;
+            k ^= k >> r;
+            k *= m;
 
             h ^= k;
-            h *= m; 
+            h *= m;
         }
 
         const unsigned char * data2 = (const unsigned char*)data;
@@ -119,9 +119,9 @@ namespace hashing {
         h ^= h >> r;
 
         return h;
-    } 
+    }
 
-    int _fnv_1a_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
+    int _fnv_1a_hash(hash_bucket_type& buckets, const char* value, size_t sz)
     {
         auto const hash = fnv_1a(value, sz);
         auto const lo = decltype(bm::id_max){(uint32_t)(hash)};
@@ -130,7 +130,7 @@ namespace hashing {
 
         assert(buckets.size() >= 2);
 
-        if (lo == bm::id_max || !buckets[0].set_bit_conditional(lo, true, false)) 
+        if (lo == bm::id_max || !buckets[0].set_bit_conditional(lo, true, false))
             ++hits;
 
         if (hi == bm::id_max || !buckets[1].set_bit_conditional(hi, true, false))
@@ -139,12 +139,12 @@ namespace hashing {
         return hits;
     }
 
-    bool fnv_1a_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
+    bool fnv_1a_hash(hash_bucket_type& buckets, const char* value, size_t sz)
     {
         return _fnv_1a_hash(buckets, value, sz) == 2;
     }
 
-    int _fnv_murmur_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
+    int _fnv_murmur_hash(hash_bucket_type& buckets, const char* value, size_t sz)
     {
         assert(buckets.size() == 4);
         int hits = _fnv_1a_hash(buckets, value, sz);
@@ -153,7 +153,7 @@ namespace hashing {
         auto const lo = decltype(bm::id_max){(uint32_t)(hash)};
         auto const hi = decltype(bm::id_max){(uint32_t)(hash >> 32)};
 
-        if (lo == bm::id_max || !buckets[2].set_bit_conditional(lo, true, false)) 
+        if (lo == bm::id_max || !buckets[2].set_bit_conditional(lo, true, false))
             ++hits;
         if (hi == bm::id_max || !buckets[3].set_bit_conditional(hi, true, false))
             ++hits;
@@ -161,12 +161,12 @@ namespace hashing {
         return hits;
     }
 
-    bool fnv_murmur_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
+    bool fnv_murmur_hash(hash_bucket_type& buckets, const char* value, size_t sz)
     {
-        return _fnv_murmur_hash(buckets, value, sz) == buckets.size();
+        return (size_t)_fnv_murmur_hash(buckets, value, sz) == buckets.size();
     }
 
-    bool sha1_hash(hash_bucket_type& buckets, const char* value, size_t sz) 
+    bool sha1_hash(hash_bucket_type& buckets, const char* value, size_t sz)
     {
         assert(buckets.size() == 5);
         uint8_t hits = 0;
@@ -175,7 +175,7 @@ namespace hashing {
         SHA1State state;
         SHA1StateInit(&state);
         SHA1StateAppend(&state, value, sz);
-        SHA1StateFinish(&state, reinterpret_cast<uint8_t *>(words.data()));        
+        SHA1StateFinish(&state, reinterpret_cast<uint8_t *>(words.data()));
 
         for (auto && hash : words) {
             auto const i = &hash - &words[0];
@@ -191,16 +191,16 @@ namespace hashing {
 class spot_name_check
 {
 public:
-    spot_name_check(size_t spot_name_number) 
+    spot_name_check(size_t spot_name_number)
     : hash_buckets(bucket_count(spot_name_number), hashing::bvector_type(bm::BM_GAP, bm::gap_len_table_min<true>::_len))
     , hash_func(function(spot_name_number))
     {};
-    
-    bool seen_before(const char* value, size_t sz) 
+
+    bool seen_before(const char* value, size_t sz)
     {
-        return hash_func(hash_buckets, value, sz);   
+        return hash_func(hash_buckets, value, sz);
     }
-    
+
     size_t memory_used() const {
         size_t memory_used = 0;
         for (const auto& hb : hash_buckets) {

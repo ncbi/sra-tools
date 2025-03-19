@@ -161,6 +161,7 @@ const String * hlp_make_string_copy( const char * src );
 
 rc_t hlp_split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t hlp_split_string_r( String * in, String * p0, String * p1, uint32_t ch );
+rc_t hlp_split_path_into_stem_and_extension( String *in, String* out_stem, String* out_ext );
 bool hlp_ends_in_slash( const char * s );
 bool hlp_ends_in_sra( const char * s );
 bool hlp_extract_path( const char * s, String * path );

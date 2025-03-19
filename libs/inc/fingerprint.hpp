@@ -47,7 +47,7 @@ class Fingerprint
 private:
     struct Entry {
         uint64_t eor = 0, n = 0, a = 0, c = 0, g = 0, t = 0;
-        
+
         uint64_t operator[](char base) const {
             switch (std::toupper(base))
             {
@@ -162,7 +162,7 @@ public:
             << '}';
         return out;
     }
-    
+
     std::string JSON(bool compact = true) const {
         std::ostringstream strm;
         {
@@ -171,12 +171,12 @@ public:
         }
         return strm.str();
     }
-    
+
     /// SHA-256 Digest; a 64 hex digit string.
     std::string digest() const {
         auto result = SHA256::hash(JSON()).string();
         for (auto && ch : result)
-            ch = std::tolower(ch);
+            ch = (char)std::tolower(ch);
         return result;
     }
     static std::string version() {

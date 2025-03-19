@@ -39,6 +39,7 @@
 #include <vector>
 #include <cctype>
 #include <string_view>
+#include <cassert>
 
 struct JSON_Member {
     std::string name;
@@ -52,7 +53,7 @@ class JSON_ostream {
     bool comma = false;     ///< Was the character a ','? More importanly, will the next character belong to a new list item (or be the end of list).
     bool instr = false;     ///< In a string, therefore apply string escaping rules to the inserted characters.
     bool esc = false;       ///< In a string and the next character is escaped.
-    
+
     /// A list is anything with components that are separated by ',', i.e. JSON Objects and Arrays
     std::vector<bool> listStack; ///< Records if list is empty. false mean empty. back() is the current list.
 
@@ -67,7 +68,7 @@ class JSON_ostream {
         for (auto && ch : v)
             insert_raw(ch);
     }
-    
+
     /// Insert a character using string escaping rules.
     void insert_instr(char v) {
         if (esc) {
@@ -119,7 +120,7 @@ class JSON_ostream {
             break;
         }
     }
-    
+
     /// If needed, start a newline and indent it.
     void indentIfNeeded() {
         if (!compact && newline) {
@@ -143,6 +144,7 @@ class JSON_ostream {
 
     // start a new list item
     void listItem() {
+        assert(!listStack.empty());
         if (listStack.back()) {
             insert_raw(',');
             newline = true;
@@ -154,13 +156,14 @@ class JSON_ostream {
 
     // end a list (array or object)
     void endList(char type) {
+        assert(!listStack.empty());
         newline = listStack.back();
         listStack.pop_back();
         indentIfNeeded();
         insert_raw(type);
         newline = true;
     }
-    
+
     // These `insert` functions are overloaded for types
     // that have specific representations in JSON.
 
@@ -193,7 +196,7 @@ class JSON_ostream {
             insert_instr(v);
             return *this;
         }
-    
+
         switch (v) {
         case ']':
         case '}':
@@ -202,10 +205,10 @@ class JSON_ostream {
             comma = true;
             return *this;
         }
-    
+
         if (comma)
             listItem();
-    
+
         switch (v) {
         case '"':
             if (!ws && !compact)
@@ -230,7 +233,7 @@ class JSON_ostream {
     /// append the string, and insert '"' (hopefully exiting string mode)
     JSON_ostream &insert(std::string_view v) {
         auto const need_quotes = !instr;
-    
+
         if (need_quotes) {
             if (comma)
                 listItem();
@@ -277,7 +280,7 @@ class JSON_ostream {
     }
 
 public:
-    explicit JSON_ostream(std::ostream &os, bool p_compact = false) 
+    explicit JSON_ostream(std::ostream &os, bool p_compact = false)
     : strm(os)
     , compact(p_compact)
     {}

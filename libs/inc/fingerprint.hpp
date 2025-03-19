@@ -133,7 +133,7 @@ public:
         : std::vector< uint64_t >(maxPos + 1, 0)
         , base(p_base)
         {
-            auto const bc = base.length() == 1 ? base[0]
+            const char bc = base.length() == 1 ? base[0]
                           : base == "EoR" ? 0 : 'N';
             for (size_t i = 0; i <= maxPos; ++i)
                 (*this)[i] = entry[i][bc];
@@ -185,7 +185,7 @@ public:
     std::string digest() const {
         auto result = SHA256::hash(JSON()).string();
         for (auto && ch : result)
-            ch = std::tolower(ch);
+            ch = (char)std::tolower(ch);
         return result;
     }
 };

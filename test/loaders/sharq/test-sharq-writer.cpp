@@ -60,6 +60,7 @@ public:
         m_metadata.push_back( std::make_tuple( root, oid, name, value) );
         return true;
     }
+
     bool setMetadataAttr(VDB::Writer::MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const override
     {
         m_metadataAttrs.push_back( std::make_tuple( root, oid, path, attr, value) );
@@ -103,6 +104,36 @@ class VdbWriterFixture
 public:
     shared_ptr<test_writer> m_tw { new test_writer() };
     test_fastq_writer_vdb m_w { m_tw };
+
+    void verifyMeta(
+        size_t idx,
+        VDB::Writer::MetaNodeRoot root,
+        size_t id,
+        const string & key,
+        const string & value
+    ) const
+    {
+        THROW_ON_FALSE( root    == get<0>(m_tw->m_metadata[idx]) );
+        THROW_ON_FALSE( id      == get<1>(m_tw->m_metadata[idx]) );
+        THROW_ON_FALSE( key     == get<2>(m_tw->m_metadata[idx]) );
+        THROW_ON_FALSE( value   == get<3>(m_tw->m_metadata[idx]) );
+    }
+
+    void verifyMetaAttr(
+        size_t idx,
+        VDB::Writer::MetaNodeRoot root,
+        size_t id,
+        const string & key,
+        const string & attr,
+        const string & value
+    ) const
+    {
+        THROW_ON_FALSE( root    == get<0>(m_tw->m_metadataAttrs[idx]) );
+        THROW_ON_FALSE( id      == get<1>(m_tw->m_metadataAttrs[idx]) );
+        THROW_ON_FALSE( key     == get<2>(m_tw->m_metadataAttrs[idx]) );
+        THROW_ON_FALSE( attr    == get<3>(m_tw->m_metadataAttrs[idx]) );
+        THROW_ON_FALSE( value   == get<4>(m_tw->m_metadataAttrs[idx]) );
+    }
 };
 
 const string NanoporePlatform = "9";
@@ -180,53 +211,37 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.write_spot( "spot", reads );
     m_w.close();
 
-    REQUIRE_EQ( 3, (int)m_tw->m_metadata.size() );  // 1 per input + 1 for output
-    REQUIRE_EQ( 2, (int)m_tw->m_metadataAttrs.size() ); // 1 per input
+    REQUIRE_EQ( 5, (int)m_tw->m_metadata.size() );  // 1 per input + 3 for output
+    REQUIRE_EQ( 4, (int)m_tw->m_metadataAttrs.size() ); // 2 per input (file name and fp digest)
 
     // input fingerprints, on the database per input file
     {   // file1
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadata[0]) );
-        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[0]) );
-        REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadata[0]) );
-
         const string Expected =
             R"({"maximum-position":1,"A":[1,0],"C":[0,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
-        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[0]) );
+        verifyMeta(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", Expected);
 
-        // path "LOAD/QC/file_1" attr "name" = File1
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadataAttrs[0]) );
-        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadataAttrs[0]) );
-        REQUIRE_EQ( string("LOAD/QC/file_1"), get<2>(m_tw->m_metadataAttrs[0]) );
-        REQUIRE_EQ( string("name"), get<3>(m_tw->m_metadataAttrs[0]) );
-        REQUIRE_EQ( File1, get<4>(m_tw->m_metadataAttrs[0]) );
-
+        verifyMetaAttr(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "name", File1);
+        verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "digest", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
     }
-
     {   // file2
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadata[1]) );
-        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadata[1]) );
-        REQUIRE_EQ( string("LOAD/QC/file_2"), get<2>(m_tw->m_metadata[1]) );
-
         const string Expected =
             R"({"maximum-position":1,"A":[0,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
-        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[1]) );
+        verifyMeta(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", Expected);
 
-        // path "LOAD/QC/file_2" attr "name" = File2
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::database, get<0>(m_tw->m_metadataAttrs[1]) );
-        REQUIRE_EQ( 0u, get<1>(m_tw->m_metadataAttrs[1]) );
-        REQUIRE_EQ( string("LOAD/QC/file_2"), get<2>(m_tw->m_metadataAttrs[1]) );
-        REQUIRE_EQ( string("name"), get<3>(m_tw->m_metadataAttrs[1]) );
-        REQUIRE_EQ( File2, get<4>(m_tw->m_metadataAttrs[1]) );
+        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
+        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
     }
-
     // output fingerprint, on the SEQUENCE table
     {
-        REQUIRE_EQ( VDB::Writer::MetaNodeRoot::table, get<0>(m_tw->m_metadata[2]) );
-        REQUIRE_EQ( 1u, get<1>(m_tw->m_metadata[2]) );
-        REQUIRE_EQ( string("QC/fingerprint"), get<2>(m_tw->m_metadata[2]) );
         const string Expected =
             R"({"maximum-position":1,"A":[1,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,2]})";
-        REQUIRE_EQ( Expected, get<3>(m_tw->m_metadata[2]) );
+        verifyMeta(2, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/fingerprint", Expected);
+
+        const string ExpectedOutputHash = "2944f448d685435cffa136126a7fd7975d9177b36369b480ddd64c0bf818a5e0";
+        verifyMeta(3, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/digest", ExpectedOutputHash);
+        // timestamp changes from execution to execution
+        REQUIRE_EQ( string("QC/current/timestamp"), get<2>(m_tw->m_metadata[4]) );
+        REQUIRE_NE( string(), get<3>(m_tw->m_metadata[4]) );
     }
 }
 

@@ -150,7 +150,7 @@ SraInfo::GetPlatforms() const
     try
     {
         table.read({ "PLATFORM" })
-        .foreach([&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values ) {
+        .foreach([&](VDB::Cursor::RowID /*row*/, const vector<VDB::Cursor::RawData>& values) {
             ret.insert( PlatformToString( values[0].valueOr<uint8_t>(SRA_PLATFORM_UNDEFINED) ) );
         });
     }
@@ -289,7 +289,7 @@ SraInfo::GetSpotLayouts(
 
     auto const &table = openSequenceTable(useConsensus);
     auto const &cursor = table.read( { "READ_TYPE", "READ_LEN", "SPOT_ID" } );
-    auto handle_row = [&](VDB::Cursor::RowID row, const vector<VDB::Cursor::RawData>& values )
+    auto handle_row = [&](VDB::Cursor::RowID /*row*/, const vector<VDB::Cursor::RawData>& values)
     {
         vector<INSDC_read_type> types = values[0].asVector<INSDC_read_type>();
         vector<uint32_t> lengths = values[1].asVector<uint32_t>();
@@ -413,7 +413,7 @@ const VDB::SchemaInfo SraInfo::GetSchemaInfo(void) const {
 }
 
 SraInfo::Contents
-SraInfo::GetContents() const 
+SraInfo::GetContents() const
 {
     const KDBManager * kdb;
     rc_t rc = KDBManagerMakeRead ( &kdb, nullptr );
@@ -457,4 +457,89 @@ char const *SraInfo::QualityDescription() const {
     return HasPhysicalQualities() ? "STORED"
          : HasLiteMetadata() ? "REMOVED"
          : "NONE";
+}
+
+SraInfo::Fingerprints
+SraInfo::GetFingerprints( Detail detail ) const
+{
+    Fingerprints ret;
+
+    if ( ! isDatabase() || ! m_u.db->hasTable( "SEQUENCE" ))
+    {
+        return ret;
+    }
+
+    VDB::Table seq = (*m_u.db)["SEQUENCE"];
+    VDB::MetadataCollection seqmeta = seq.metadata();
+
+    try
+    {   // current output fp; if not found, there is no fingerprint info in this database
+        ret.push_back( TreeNode( "fingerprint", seqmeta["QC/current/fingerprint"].value() ) );
+        ret.push_back( TreeNode( "digest",      seqmeta["QC/current/digest"].value()) );
+    }
+    catch(VDB::Error& e)
+    {
+        e.handled = true;
+        return ret;
+    }
+
+    if ( detail > Short )
+    {
+        ret.push_back( TreeNode( "timestamp", seqmeta["QC/current/timestamp"].value()) );
+
+        // history of the output fp updates
+        VDB::Metadata seq_history = seqmeta.childNode("QC/history");
+        VDB::NameList updates = seq_history.children();
+
+        TreeNode history { "history" };
+        const string start { "update_" };
+        for ( unsigned int i = 0; i < updates.count(); ++ i)
+        {
+            const string& name = updates[i];
+            if ( name.compare(0, start.size(), start) == 0 )
+            {
+                TreeNode h { name };
+
+                h.subnodes.push_back( TreeNode ( "fingerprint", seq_history[ name ] [ "fingerprint" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "digest",      seq_history[ name ] [ "digest" ].value() ) );
+                h.subnodes.push_back( TreeNode ( "timestamp",   seq_history[ name ] [ "timestamp"].value() ) );
+
+                history.subnodes.push_back( h );
+            }
+        }
+        if ( ! history.subnodes.empty() )
+        {
+            ret.push_back( history );
+        }
+
+        if ( detail > Abbreviated )
+        {   // input fp(s)
+            VDB::MetadataCollection dbmeta = m_u.db -> metadata();
+            VDB::Metadata db_inputs = dbmeta.childNode("LOAD/QC");
+            VDB::NameList children = db_inputs.children();
+
+            TreeNode inputs { "inputs" };
+            const string start { "file_" };
+            for ( unsigned int i = 0; i < children.count(); ++ i)
+            {
+                const string& name = children[i];
+                if ( name.compare(0, start.size(), start) == 0 )
+                {
+                    TreeNode in { name };
+
+                    in.subnodes.push_back( TreeNode( "name",        db_inputs [ name ] . attributeValue("name") ) );
+                    in.subnodes.push_back( TreeNode( "fingerprint", db_inputs [ name ] . value() ) );
+                    in.subnodes.push_back( TreeNode( "digest",      db_inputs [ name ] . attributeValue("digest") ) );
+
+                    inputs.subnodes.push_back( in );
+                }
+            }
+            if ( ! inputs.subnodes.empty() )
+            {
+                ret.push_back( inputs );
+            }
+        }
+    }
+
+    return ret;
 }

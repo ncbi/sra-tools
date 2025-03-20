@@ -872,7 +872,7 @@ struct BasicSource: public Input::Source {
             auto const &line = getline();
             for (auto ch : line) {
                 if (ch == '#') {
-                    //std::cerr << line << std::endl;
+                    std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
                 }
                 break;

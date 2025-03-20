@@ -32,11 +32,27 @@
 
 #include <ktst/unit_test.hpp>
 
-#define EOR_FLD eor
-#define EOR_TAG "EoR"
 using namespace std;
 
 TEST_SUITE(QaStatsFingerprintTestSuite);
+
+TEST_CASE(Version)
+{
+    REQUIRE_EQ(Fingerprint::version(), string{"1.0.0"});
+}
+
+TEST_CASE(Algorithm)
+{
+    REQUIRE_EQ(Fingerprint::algorithm(), string{"SHA-256"});
+}
+
+TEST_CASE(Format)
+{
+    auto const format = Fingerprint::format();
+    REQUIRE_NE(format.find("json"), format.npos);
+    REQUIRE_NE(format.find("utf-8"), format.npos);
+    REQUIRE_NE(format.find("compact"), format.npos);
+}
 
 TEST_CASE(Empty)
 {
@@ -119,28 +135,17 @@ TEST_CASE(ReadHash_example_Fig_1_Fig_2)
     fp.record("TATATATA");
     fp.record("GCTA");
 
-    // from Fig. 2
-    //                             0  1  2  3  4  5  6  7  8
-    uint64_t const expectedA[] = { 2, 3, 0, 2, 0, 1, 0, 1, 0 };
-    uint64_t const expectedC[] = { 0, 1, 1, 0, 1, 1, 0, 0, 0 };
-    uint64_t const expectedG[] = { 1, 0, 0, 1, 0, 0, 1, 1, 0 };
-    uint64_t const expectedT[] = { 1, 0, 3, 1, 2, 0, 2, 0, 0 };
-    uint64_t const expectedN[] = { 0, 0, 0, 0, 0, 1, 0, 0, 0 };
-    uint64_t const expectedE[] = { 0, 0, 0, 0, 1, 0, 0, 1, 2 };
-
-    auto const require_eq = [&](Fingerprint::Accumulator const &stats, uint64_t const *expected) {
-        REQUIRE_EQ(stats.size(), size_t{9});
-        for (size_t i = 0; i < 9; ++i) {
-            REQUIRE_EQ(stats[i], expected[i]);
-        }
+    ostringstream strm;
+    JSON_ostream out(strm, true);
+    out << fp;
+    auto const expected = std::string{
+        R"({"maximum-position":8,"A":[2,3,0,2,0,1,0,1,0],"C":[0,1,1,0,1,1,0,0,0],"G":[1,0,0,1,0,0,1,1,0],"T":[1,0,3,1,2,0,2,0,0],"N":[0,0,0,0,0,1,0,0,0],"EoR":[0,0,0,0,1,0,0,1,2]})"
     };
-
-    require_eq(fp.a(), expectedA);
-    require_eq(fp.c(), expectedC);
-    require_eq(fp.g(), expectedG);
-    require_eq(fp.t(), expectedT);
-    require_eq(fp.n(), expectedN);
-    require_eq(fp.eor(), expectedE);
+    auto const expectedDigest = std::string{
+        "858fee7fd1220acf4d89cffe5a22ee0ea3f547e6636dafa6c240f3ea6ce5b08e"
+    };
+    REQUIRE_EQ( expected, strm.str() );
+    REQUIRE_EQ( expectedDigest, fp.digest() );
 }
 
 TEST_CASE(WrapAround)

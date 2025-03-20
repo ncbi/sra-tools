@@ -1,0 +1,14 @@
+{
+	"total": {
+		"reads": {
+			"count": 0,
+			"biological": 0,
+			"technical": 0
+		},
+		"bases": [],
+		"spots": [],
+		"spot-layouts": [],
+		"spectra": {},
+		"references": []
+	}
+}

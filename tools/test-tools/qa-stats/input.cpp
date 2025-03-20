@@ -249,11 +249,11 @@ static void cleanUpSegments(std::string &sequence, std::vector<int> const &lengt
     std::string new_seq;
     {
         std::string_view view(sequence);
-        
+
         new_seq.reserve(totalReadLen);
         for (auto const &len : lengths) {
             auto const i = &len - &lengths[0];
-            
+
             if (aligned[i] == 0) {
                 new_seq.append(view.substr(0, len));
                 view = view.substr(len);
@@ -353,7 +353,13 @@ struct BasicSource: public Input::Source {
     uint64_t lines = 0;
     int fh = -1;
     uint8_t *buffer;
-    size_t cur = 0, next = 0, block = 0, size = 0, bmax = 0;
+    std::string const *put_back = nullptr;
+    std::string putback_buffer;
+    size_t cur = 0;   ///< current read position
+    size_t next = 0;  ///< start of next line
+    size_t block = 0; ///< I/O block size
+    size_t size = 0;  ///< actual size of valid content
+    size_t bmax = 0;  ///< allocated size of buffer
     bool isEof = false;
     bool use_mmap = false;
     int lastReported = 0;
@@ -387,44 +393,55 @@ struct BasicSource: public Input::Source {
         isEof = true;
         return false;
     }
+    /// the current line, advancing if needed
+    std::string_view peek_advance() {
+        auto const ci = cur < size ? std::string_view{reinterpret_cast<char *>(buffer + cur), size - cur} : std::string_view{};;
+        auto const at = ci.find('\n');
+        if (at != ci.npos) {
+            next = cur + at + 1;
+            ++lines;
+            return ci.substr(0, at);
+        }
+        if (fh < 0) {
+            isEof = true;
+            return std::string_view{};
+        }
+        if (cur >= block) {
+            auto const blk = cur / block;
+            auto const dst = &buffer[0];
+            auto const src = &buffer[blk * block];
+            auto const end = &buffer[size];
+            auto const shift = src - dst;
+
+            size -= shift;
+            cur -= shift;
+            next -= shift;
+            std::copy(src, end, dst);
+        }
+        return fill() ? peek_advance() : std::string_view{};
+    }
     /// get the current line, advancing if needed, and trimming whitespace
     std::string_view peek() {
-        if (next > cur)
-            goto CURRENT_LINE;
-
-        for ( ; ; ) {
-            while (next < size) {
-                if (buffer[next++] == '\n')
-                    goto CURRENT_LINE;
-            }
-            if (fh < 0) {
-                isEof = true;
-                return std::string_view();
-            }
-            if (cur >= block) {
-                auto const blk = cur / block;
-                auto dst = &buffer[0];
-                auto src = &buffer[blk * block];
-                auto const end = &buffer[size];
-                auto const shift = src - dst;
-
-                size -= shift;
-                cur -= shift;
-                next -= shift;
-                while (src < end)
-                    *dst++ = *src++;
-            }
-            if (!fill())
-                return std::string_view();
-        }
-    CURRENT_LINE:
-        auto end = next - 1;
-        while (end != cur && isspace(buffer[end - 1]))
-            --end;
-        return end != cur ? std::string_view((char *)&buffer[cur], (next - 1) - cur) : std::string_view();
+        auto result = peek_advance();
+        while (!result.empty() && std::isspace(result.back()))
+            result.remove_suffix(1);
+        while (!result.empty() && std::isspace(result.front()))
+            result.remove_prefix(1);
+        return result;
+    }
+    void putback(std::string const &str) {
+        assert(put_back == nullptr);
+        assert(!str.empty());
+        putback_buffer = str;
+        put_back = &putback_buffer;
     }
     /// Get next line, skipping empty lines.
     std::string getline(bool skipEmpty = true) {
+        if (put_back) {
+            auto const curline = *put_back;
+            put_back = nullptr;
+            return curline;
+        }
         cur = next;
         auto const curline = peek();
         if (curline.empty()) {
@@ -799,10 +816,9 @@ struct BasicSource: public Input::Source {
         result.reads.emplace_back(std::move(read));
         return result;
     }
-    Input readFASTQ() {
+    Input readFASTQ(std::string const &defline) {
         auto const start = lines;
-        auto const defline = std::string{peek()};
-        auto &&defline_start = defline.front();
+        auto const defline_start = defline.front();
         auto nextline = getline(false);
         auto seq = nextline;
         try {
@@ -816,7 +832,10 @@ struct BasicSource: public Input::Source {
             goto EndOfFile;
             ((void)(e));
         }
-        if (nextline.front() == '+') {
+        if (nextline.front() != '+') {
+            putback(nextline);
+        }
+        else {
             try {
                 auto qual = getline(!seq.empty());
 
@@ -851,10 +870,7 @@ struct BasicSource: public Input::Source {
     READ_LINE_LOOP:
         for ( ; ; ) {
             auto const &line = getline();
-            ++lines;
             for (auto ch : line) {
-                if (isspace(ch))
-                    continue;
                 if (ch == '#') {
                     std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
@@ -878,11 +894,11 @@ struct BasicSource: public Input::Source {
             // it's a SAM header line
             Input::SAM_HeaderLine(line);
         }
-        auto const line = peek();
+        auto const line = peek(); ///< NOTE: this is a `peek` of the value returned by the `getline` in the loop above. `peek` must not be used without a corresponding `getline`.
         ++records;
 
         if (line[0] == '@' || line[0] == '>') {
-            result = readFASTQ();
+            result = readFASTQ(std::string{line});
         }
         else {
             auto const flds = Delimited(line, '\t');

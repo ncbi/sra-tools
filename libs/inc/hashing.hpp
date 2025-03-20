@@ -174,7 +174,7 @@ struct FNV1a_impl {
     }
 };
 using FNV1a64 = FNV1a_impl<uint64_t, 0x100000001b3ull, 0xcbf29ce484222325ull>;
-using FNV1a = struct HashFunction<FNV1a64>;
+typedef struct HashFunction<FNV1a64> FNV1a;
 
 namespace SHA2 {
 
@@ -325,7 +325,7 @@ private:
         auto cp = buffer + sizeof(buffer);
 
         for (size_t i = 0; i < sizeof(buffer); ++i, bits >>= 8)
-            *--cp = bits;
+            *--cp = (uint8_t)bits;
         while (state.cur + sizeof(buffer) != sizeof(state.buffer))
             append(state, 0x00);
         for (size_t i = 0; i < sizeof(buffer); ++i)
@@ -439,7 +439,7 @@ private:
         auto cp = buffer + sizeof(buffer);
 
         for (size_t i = 0; i < sizeof(buffer); ++i, bits >>= 8)
-            *--cp = bits;
+            *--cp = (uint8_t)bits;
         while (state.cur + sizeof(buffer) != sizeof(state.buffer))
             append(state, 0x00);
         for (size_t i = 0; i < sizeof(buffer); ++i)
@@ -654,9 +654,9 @@ struct SHA_512 : public SHA_64 {
 
 }
 
-using SHA224 = struct HashFunction< SHA2::SHA_224 >;
-using SHA256 = struct HashFunction< SHA2::SHA_256 >;
-using SHA384 = struct HashFunction< SHA2::SHA_384 >;
-using SHA512 = struct HashFunction< SHA2::SHA_512 >;
+typedef struct HashFunction< SHA2::SHA_224 > SHA224;
+typedef struct HashFunction< SHA2::SHA_256 > SHA256;
+typedef struct HashFunction< SHA2::SHA_384 > SHA384;
+typedef struct HashFunction< SHA2::SHA_512 > SHA512;
 
 #endif /* hashing_hpp */

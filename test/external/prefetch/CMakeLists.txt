@@ -147,12 +147,26 @@ if ( NOT WIN32 )
           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-tsan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+        endif()
 
-	add_test( NAME SlowTest_Prefetch_vdbcache
+        add_test ( NAME Test_Prefetch_download_after_csra
+                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( TARGET prefetch-asan )
+         add_test( NAME Test_Prefetch_download_after_csra-asan
+                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET prefetch-tsan )
+         add_test( NAME Test_Prefetch_download_after_csra-tsan
+                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+
+        add_test( NAME SlowTest_Prefetch_vdbcache
 		COMMAND perl vdbcache.pl ${DIRTOTEST} prefetch 0 # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
+        if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_vdbcache-asan
 			COMMAND perl vdbcache.pl ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

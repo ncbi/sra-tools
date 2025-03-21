@@ -286,7 +286,11 @@ public:
     {}
 
     bool is_compact() const { return compact; }
-    JSON_ostream &set_compact(bool value) { compact = value; return *this; }
+    JSON_ostream &set_compact(bool value) { 
+        if (value && !ws && !compact)
+            insert_raw(' ');
+        compact = value; return *this;
+    }
 
     struct Compact { bool value; };
     friend JSON_ostream &operator <<(JSON_ostream &s, Compact v) {

@@ -124,7 +124,7 @@ if ( NOT WIN32 )
           dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
           dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
-          ./test-bad-kart.sh ${DIRTOTEST} prefetch
+          ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET prefetch-asan )
       add_test( NAME Test_Prefetch_Bad_Kart-asan
@@ -134,7 +134,7 @@ if ( NOT WIN32 )
           dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
           dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
-          ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
+          ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET prefetch-tsan )
@@ -145,7 +145,7 @@ if ( NOT WIN32 )
           dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
           dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
-          ./test-bad-kart.sh ${DIRTOTEST} prefetch-tsan
+          ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-tsan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 

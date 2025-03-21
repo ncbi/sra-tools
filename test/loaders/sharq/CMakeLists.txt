@@ -269,7 +269,7 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
 
-
+        ToolsRequired( sharq general-loader kdbmeta )
         macro(SharqTestWithMetadata TestName LoadParams MetaParams)
             add_test( NAME Test_${TestName}
                 COMMAND

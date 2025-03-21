@@ -10,7 +10,8 @@ RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git &&
     git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
 WORKDIR ncbi-vdb
 RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt && \
+    sed -i.orig -e 's/(_POSIX_C_SOURCE\s*>=\s*200112L)\s*&&\s*!\s*_GNU_SOURCE/1/g' libs/klib/linux/syserrcode.c
 WORKDIR /root
 RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Release \
           -S ncbi-vdb -B build/ncbi-vdb && \

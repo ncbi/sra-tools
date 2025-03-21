@@ -27,4 +27,5 @@ default: runtests
 TOP ?= $(abspath ../../..)
 MODULE = test/internal/read-filter-redact
 
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

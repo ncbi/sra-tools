@@ -2,40 +2,44 @@
 
 bin_dir=$1
 read_filter_redact=$2
+TEST_CASE_ID=$3
 
 echo Testing ${read_filter_redact} from ${bin_dir}
 
 if ! test -f ${bin_dir}/${read_filter_redact}; then
-    echo "${bin_dir}/${read_filter_redact} does not exist. Skipping the test."
-    exit 0
+    echo "${bin_dir}/${read_filter_redact} does not exist."
+    exit 1
 fi
 
-RUN=tmp-read-filter-redact-test-run
-FLT=tmp-read-filter-redact-test-in
+RUN=./input/${TEST_CASE_ID}
+FLT=./input/${TEST_CASE_ID}.in
 
 # remove old test files
-if ${bin_dir}/vdb-unlock ${RUN} 2>/dev/null ; then echo ; fi
-rm -fr tmp-read-filter-redact-test-*
-
+${bin_dir}/vdb-unlock actual/${TEST_CASE_ID} 2>/dev/null
+rm -fr actual/${TEST_CASE_ID}
 
 # prepare sources
 echo 1 > ${FLT}
-${bin_dir}/kar --extract ../align-cache/CSRA_file \
-	--directory ${RUN}
+${bin_dir}/kar --extract ${RUN} --directory actual/${TEST_CASE_ID}
 
 # make sure HISTORY meta does not exist
-if ${bin_dir}/kdbmeta tmp-read-filter-redact-test-run \
-			-TSEQUENCE HISTORY 2>/dev/null; \
-	then echo "error: HISTORY found in source metadata"; exit 1; fi
+if ${bin_dir}/kdbmeta ${RUN}/SEQUENCE HISTORY 2>/dev/null; \
+	then echo "error: HISTORY found in source metadata"; exit 2; fi
 
 # read-filter-redact
-${bin_dir}/${read_filter_redact} -F${FLT} ${RUN} > /dev/null 2>&1
+${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} #> /dev/null 2>&1
 
 # make sure HISTORY meta was created
-${bin_dir}/kdbmeta tmp-read-filter-redact-test-run -TSEQUENCE HISTORY | \
-	grep '^  <EVENT_1 build="' | grep '" run="' | \
-	grep '" tool="read-filter-redact" vers="' > /dev/null
+${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY | \
+	grep '^  <EVENT_1 build="' | \
+	grep '" run="' | \
+	grep '" tool="read-filter-redact" vers="' | \
+	grep 'fingerprint' 2>actual/${TEST_CASE_ID}.grep
+res=$?
+if [ "$res" != "0" ];
+	then echo "metadata check FAILED, res=$res" && exit 3;
+fi
 
 # remove old test files
-${bin_dir}/vdb-unlock ${RUN}
-rm -fr tmp-read-filter-redact-test-*
+${bin_dir}/vdb-unlock actual/${TEST_CASE_ID} 2>/dev/null
+rm -fr actual/${TEST_CASE_ID}

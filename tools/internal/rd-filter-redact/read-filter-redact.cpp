@@ -776,6 +776,22 @@ static rc_t enter_date_name_vers( KMDataNode *node )
     return rc;
 }
 
+static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
+{
+    KMDataNode * fp_node = nullptr;
+    rc_t rc = KMDataNodeOpenNodeUpdate ( node, &fp_node, "FINGERPRINT" );
+    if ( rc == 0 )
+    {
+        std::ostringstream strm;
+        JSON_ostream json(strm, true);
+        fp.canonicalForm( json );
+        rc = KMDataNodeWrite ( fp_node, strm.str().data(), strm.str().size() );
+        // string json = fp.JSON();
+        // rc = KMDataNodeWrite ( fp_node, json.data(), json.size() );
+    }
+    return rc;
+}
+
 static rc_t update_history ( Db & db ) {
     KMetadata *dst_meta = db.meta;
     rc_t rc = 0;

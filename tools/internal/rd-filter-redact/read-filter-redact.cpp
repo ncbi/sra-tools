@@ -784,10 +784,10 @@ static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
     {
         std::ostringstream strm;
         JSON_ostream json(strm, true);
+        json << '{';
         fp.canonicalForm( json );
+        json << '}';
         rc = KMDataNodeWrite ( fp_node, strm.str().data(), strm.str().size() );
-        // string json = fp.JSON();
-        // rc = KMDataNodeWrite ( fp_node, json.data(), json.size() );
     }
     return rc;
 }

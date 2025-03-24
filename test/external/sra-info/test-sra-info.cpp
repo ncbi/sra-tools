@@ -580,7 +580,11 @@ FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
         fp[1],
         "digest",
         "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5");
-}
+    verifyFingerprint(
+            fp[2],
+            "algorithm",
+            "");
+    }
 
 FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
 {   // output fingerprint with history

@@ -3,6 +3,8 @@ RUN apk add build-base util-linux linux-headers g++ libstdc++ libgcc gdb ninja c
 
 ARG VDB_BRANCH=engineering
 ARG SRA_BRANCH=${VDB_BRANCH}
+ARG SETTINGS_DIR=/usr/local/bin/ncbi
+ARG SETTINGS_FILE=${SETTINGS_DIR}/settings.kfg
 
 ADD https://github.com/ncbi/ncbi-vdb.git#${VDB_BRANCH} /root/ncbi-vdb
 ADD https://github.com/ncbi/sra-tools.git#${SRA_BRANCH} /root/sra-tools
@@ -23,8 +25,8 @@ RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Debug                \
           -S sra-tools -B build/sra-tools &&                \
     cmake --build build/sra-tools --target install
 
-RUN mkdir -p /etc/ncbi && \
-    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /etc/ncbi && \
-    /usr/local/bin/vdb-config -on /repository/remote > /etc/ncbi/settings.kfg && \
-    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /etc/ncbi/settings.kfg && \
-    printf '/libs/cloud/report_instance_identity = "true"\n' >> /etc/ncbi/settings.kfg
+RUN mkdir -p /usr/local/bin/ncbi && \
+    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /usr/local/bin/ncbi && \
+    /usr/local/bin/vdb-config -on /repository/remote > /usr/local/bin/ncbi/settings.kfg && \
+    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /usr/local/bin/ncbi/settings.kfg && \
+    printf '/libs/cloud/report_instance_identity = "true"\n' >> /usr/local/bin/ncbi/settings.kfg

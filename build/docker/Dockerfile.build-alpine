@@ -25,11 +25,11 @@ RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}  \
           -S sra-tools -B build/sra-tools &&                \
     cmake --build build/sra-tools --target install
 
-RUN mkdir -p /etc/ncbi && \
-    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /etc/ncbi && \
-    /usr/local/bin/vdb-config -on /repository/remote > /etc/ncbi/settings.kfg && \
-    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /etc/ncbi/settings.kfg && \
-    printf '/libs/cloud/report_instance_identity = "true"\n' >> /etc/ncbi/settings.kfg
+RUN mkdir -p /usr/local/bin/ncbi && \
+    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /usr/local/bin/ncbi && \
+    /usr/local/bin/vdb-config -on /repository/remote > /usr/local/bin/ncbi/settings.kfg && \
+    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /usr/local/bin/ncbi/settings.kfg && \
+    printf '/libs/cloud/report_instance_identity = "true"\n' >> /usr/local/bin/ncbi/settings.kfg
 
 FROM alpine:latest
 LABEL author="Kenneth Durbrow"                                              \
@@ -41,6 +41,5 @@ LABEL author="Kenneth Durbrow"                                              \
       notice="WHEN USING THIS IMAGE IN A CLOUD ENVIRONMENT, YOU WILL BE SENDING YOUR CLOUD INSTANCE IDENTITY TO NCBI."
 RUN apk add --no-cache libstdc++ libgcc
 COPY --from=build /usr/local/bin /usr/local/bin
-COPY --from=build /etc/ncbi /etc/ncbi
 # very basic smoke test to check if runnable
 RUN touch foo && srapath ./foo && rm foo

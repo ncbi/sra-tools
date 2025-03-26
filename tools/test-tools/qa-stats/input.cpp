@@ -249,11 +249,11 @@ static void cleanUpSegments(std::string &sequence, std::vector<int> const &lengt
     std::string new_seq;
     {
         std::string_view view(sequence);
-        
+
         new_seq.reserve(totalReadLen);
         for (auto const &len : lengths) {
             auto const i = &len - &lengths[0];
-            
+
             if (aligned[i] == 0) {
                 new_seq.append(view.substr(0, len));
                 view = view.substr(len);
@@ -353,8 +353,15 @@ struct BasicSource: public Input::Source {
     uint64_t lines = 0;
     int fh = -1;
     uint8_t *buffer;
-    size_t cur = 0, next = 0, block = 0, size = 0, bmax = 0;
+    std::string const *put_back = nullptr;
+    std::string putback_buffer;
+    size_t cur = 0;   ///< current read position
+    size_t next = 0;  ///< start of next line
+    size_t block = 0; ///< I/O block size
+    size_t size = 0;  ///< actual size of valid content
+    size_t bmax = 0;  ///< allocated size of buffer
     bool isEof = false;
+    bool use_mmap = false;
     int lastReported = 0;
 
     bool shouldReport(int line) {
@@ -368,6 +375,7 @@ struct BasicSource: public Input::Source {
             return false;
 
         if (bmax - size < block) {
+            assert(use_mmap == false);
             auto const temp = realloc(buffer, bmax * 2);
             if (temp == nullptr)
                 throw std::bad_alloc();
@@ -385,57 +393,76 @@ struct BasicSource: public Input::Source {
         isEof = true;
         return false;
     }
+    /// the current line, advancing if needed
+    std::string_view peek_advance() {
+        auto const ci = cur < size ? std::string_view{reinterpret_cast<char *>(buffer + cur), size - cur} : std::string_view{};;
+        auto const at = ci.find('\n');
+        if (at != ci.npos) {
+            next = cur + at + 1;
+            ++lines;
+            return ci.substr(0, at);
+        }
+        if (fh < 0) {
+            isEof = true;
+            return std::string_view{};
+        }
+        if (cur >= block) {
+            auto const blk = cur / block;
+            auto const dst = &buffer[0];
+            auto const src = &buffer[blk * block];
+            auto const end = &buffer[size];
+            auto const shift = src - dst;
+
+            size -= shift;
+            cur -= shift;
+            next -= shift;
+            std::copy(src, end, dst);
+        }
+        return fill() ? peek_advance() : std::string_view{};
+    }
     /// get the current line, advancing if needed, and trimming whitespace
     std::string_view peek() {
-        if (next > cur)
-            goto CURRENT_LINE;
-
-        for ( ; ; ) {
-            while (next < size) {
-                if (buffer[next++] == '\n')
-                    goto CURRENT_LINE;
-            }
-            if (fh < 0) {
-                isEof = true;
-                return std::string_view();
-            }
-            if (cur >= block) {
-                auto const blk = cur / block;
-                auto dst = &buffer[0];
-                auto src = &buffer[blk * block];
-                auto const end = &buffer[size];
-                auto const shift = src - dst;
-
-                size -= shift;
-                cur -= shift;
-                next -= shift;
-                while (src < end)
-                    *dst++ = *src++;
-            }
-            if (!fill())
-                return std::string_view();
-        }
-    CURRENT_LINE:
-        auto end = next - 1;
-        while (end != cur && isspace(buffer[end - 1]))
-            --end;
-        return end != cur ? std::string_view((char *)&buffer[cur], (next - 1) - cur) : std::string_view();
+        auto result = peek_advance();
+        while (!result.empty() && std::isspace(result.back()))
+            result.remove_suffix(1);
+        while (!result.empty() && std::isspace(result.front()))
+            result.remove_prefix(1);
+        return result;
+    }
+    void putback(std::string const &str) {
+        assert(put_back == nullptr);
+        assert(!str.empty());
+        putback_buffer = str;
+        put_back = &putback_buffer;
     }
     /// Get next line, skipping empty lines.
-    std::string getline() {
+    std::string getline(bool skipEmpty = true) {
+        if (put_back) {
+            auto const curline = *put_back;
+            put_back = nullptr;
+            return curline;
+        }
         cur = next;
         auto const curline = peek();
-        if (curline.empty() && isEof)
-            throw std::ios_base::failure("no input");
-        return !curline.empty() ? std::string(curline) : getline();
+        if (curline.empty()) {
+            if (isEof)
+                throw std::ios_base::failure("no input");
+            if (skipEmpty)
+                return getline();
+        }
+        return std::string(curline);
     }
     ~BasicSource() {
         if (fh > 0)
             close(fh);
+        if (use_mmap) {
+            munmap(buffer, bmax);
+        }
+        else {
+            free(buffer);
+        }
     }
     BasicSource(Input::Source::Type const &src) {
-        bool use_mmap = false;
-
         if (std::holds_alternative<StringLiteralType>(src)) {
             auto const &str = std::get<StringLiteralType>(src).data;
             block = bmax = size = str.size();
@@ -480,6 +507,7 @@ struct BasicSource: public Input::Source {
             std::cerr << "info: could not mmap, was not a file" << std::endl;
         }
 
+        use_mmap = false;
         block = st.st_blksize;
         if (block < 4 * 1024)
             block = 4 * 1024;
@@ -788,25 +816,43 @@ struct BasicSource: public Input::Source {
         result.reads.emplace_back(std::move(read));
         return result;
     }
-    Input readFASTQ() {
+    Input readFASTQ(std::string const &defline) {
         auto const start = lines;
-        auto const defline = std::string(peek());
-        auto seq = getline();
-        auto nextline = peek();
-        while (defline.front() != nextline.front() && nextline.front() != '+') {
-            seq.append(nextline.data(), nextline.size());
+        auto const defline_start = defline.front();
+        auto nextline = getline(false);
+        auto seq = nextline;
+        try {
             nextline = getline();
-        }
-        if (nextline.front() == '+') {
-            auto qual = getline();
-            while (qual.size() < seq.size()) {
+            while (nextline.front() != defline_start && nextline.front() != '+') {
+                seq.append(nextline.data(), nextline.size());
                 nextline = getline();
-                qual.append(nextline.data(), nextline.size());
             }
-            if (qual.size() != seq.size())
-                std::cerr << "warning: length of quality != length of sequence in read starting at line " << start << ":\n" << defline << std::endl;
         }
-        return Input{seq};
+        catch (std::ios_base::failure const &e) {
+            goto EndOfFile;
+            ((void)(e));
+        }
+        if (nextline.front() != '+') {
+            putback(nextline);
+        }
+        else {
+            try {
+                auto qual = getline(!seq.empty());
+
+                while (qual.size() < seq.size()) {
+                    nextline = getline();
+                    qual.append(nextline.data(), nextline.size());
+                }
+                if (qual.size() != seq.size())
+                    std::cerr << "warning: length of quality != length of sequence in read starting at line " << start << ":\n" << defline << std::endl;
+            }
+            catch (std::ios_base::failure const &e) {
+                ((void)(e));
+            }
+        }
+    EndOfFile:
+        auto &&read = Read{ 0, (int)seq.length() };
+        return Input{ seq, { read } };
     }
     virtual Input get() {
         auto nrecs = 0;
@@ -824,10 +870,7 @@ struct BasicSource: public Input::Source {
     READ_LINE_LOOP:
         for ( ; ; ) {
             auto const &line = getline();
-            ++lines;
             for (auto ch : line) {
-                if (isspace(ch))
-                    continue;
                 if (ch == '#') {
                     std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
@@ -851,11 +894,11 @@ struct BasicSource: public Input::Source {
             // it's a SAM header line
             Input::SAM_HeaderLine(line);
         }
-        auto const line = peek();
+        auto const line = peek(); ///< NOTE: this is a `peek` of the value returned by the `getline` in the loop above. `peek` must not be used without a corresponding `getline`.
         ++records;
 
         if (line[0] == '@' || line[0] == '>') {
-            result = readFASTQ();
+            result = readFASTQ(std::string{line});
         }
         else {
             auto const flds = Delimited(line, '\t');
@@ -916,7 +959,10 @@ struct ThreadedSource : public Input::Source {
     std::queue<Input *> que;
     std::mutex mut;
     std::condition_variable condEmpty, condFull;
+    uint64_t enq = 0;
+    uint64_t deq = 0;
     bool volatile done = false;
+    bool volatile running = false;
     unsigned quemax = 16;
     std::thread th;
 
@@ -926,7 +972,7 @@ struct ThreadedSource : public Input::Source {
         th = std::thread(mainLoop, this);
     }
     ~ThreadedSource() {
-        if (!done) {
+        if (running) {
             done = true;
             std::cerr << "Signaling reader thread to stop ..." << std::endl;
             condFull.notify_one();
@@ -934,7 +980,7 @@ struct ThreadedSource : public Input::Source {
         try { th.join(); } catch (...) {}
     }
     virtual operator bool() const {
-        return eof() ? source : true;
+        return !eof();
     }
     virtual bool eof() const {
         return done && que.empty();
@@ -946,7 +992,11 @@ struct ThreadedSource : public Input::Source {
             // the reader thread is not running
             if (!que.empty()) {
                 p = que.front();
+                assert(p != nullptr);
                 que.pop();
+            }
+            else {
+                std::cerr << "Done; dequeued " << deq << " records." << std::endl;
             }
         }
         else {
@@ -954,6 +1004,7 @@ struct ThreadedSource : public Input::Source {
             while (!done) {
                 if (!que.empty()) {
                     p = que.front();
+                    assert(p != nullptr);
                     que.pop();
                     break;
                 }
@@ -962,20 +1013,29 @@ struct ThreadedSource : public Input::Source {
         }
         condFull.notify_one();
         if (p) {
-            Input result(std::move(*p));
+            Input result{std::move(*p)};
             delete p;
+            ++deq;
             return result;
         }
-        else
+        else {
+            if (deq != enq) {
+                std::cerr << "Not done; enqueued " << enq << ", dequeued " << deq << " records." << std::endl;
+            }
+            else {
+                std::cerr << "Done; dequeued " << deq << " records." << std::endl;
+            }
             throw std::ios_base::failure("end of file");
+        }
     }
     static void mainLoop(ThreadedSource *self) {
         std::cerr << "Reader thread is running ..." << std::endl;
+        self->running = true;
         for ( ; ; ) {
             try {
-                auto p = new Input(self->source.get());
+                auto p = new Input{ self->source.get() };
                 {
-                    std::unique_lock guard(self->mut);
+                    auto guard = std::unique_lock{ self->mut };
                     if (self->quemax < self->que.size()) {
                         self->quemax -= self->quemax >> 4;
                         do { self->condFull.wait(guard); } while (self->quemax < self->que.size());
@@ -983,6 +1043,7 @@ struct ThreadedSource : public Input::Source {
                     else if (self->quemax < 0x10000)
                         ++self->quemax;
                     self->que.push(p);
+                    ++self->enq;
                 }
                 self->condEmpty.notify_one();
             }
@@ -990,12 +1051,13 @@ struct ThreadedSource : public Input::Source {
                 self->done = true;
                 self->condEmpty.notify_one();
                 if (self->source.eof())
-                    std::cerr << "Reader thread is done." << std::endl;
+                    std::cerr << "Reader thread is done; enqueued " << self->enq << " records." << std::endl;
                 else
                     std::cerr << "Reader thread caught exception: " << e.what() << std::endl;
                 break;
             }
         }
+        self->running = false;
     }
 };
 

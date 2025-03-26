@@ -63,6 +63,13 @@ message(RE2_FOUND=${RE2_FOUND})
         target_link_libraries(test-regexpr ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
         add_test( NAME Test_regexpr COMMAND test-regexpr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        # test-sharq-reader
+        add_executable(test-sharq-reader test-sharq-reader.cpp )
+        add_dependencies(test-sharq-reader RE2 sharq)
+        target_include_directories(test-sharq-reader PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
+        target_link_libraries(test-sharq-reader ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        add_test( NAME Test_sharq_reader COMMAND test-sharq-reader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
         # test-sharq-parser
         add_executable(test-sharq-parser test-sharq-parser.cpp )
         add_dependencies(test-sharq-parser RE2 sharq)
@@ -72,7 +79,7 @@ message(RE2_FOUND=${RE2_FOUND})
 
         # test-sharq-writer
         add_executable(test-sharq-writer test-sharq-writer.cpp )
-        add_dependencies(test-sharq-writer RE2 sharq)
+        add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests 
         target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -149,7 +156,7 @@ message(RE2_FOUND=${RE2_FOUND})
                 list(GET extra_args 0 spot_assembly)
             endif ()
 
-            if (DEFINED spot_assembly AND spot_assembly STREQUAL "only-sa")            
+            if (DEFINED spot_assembly AND spot_assembly STREQUAL "only-sa")
                 set(params "--spot-assembly ${TestParams}")
                 SharqTestImpl("${TestName}-sa-hot" ${Result} ${params} "sharq" ${TestName}-sa-hot)
 
@@ -163,7 +170,7 @@ message(RE2_FOUND=${RE2_FOUND})
 
                     set(params "--spot-assembly --hot-reads-threshold 0 ${TestParams}")
                     SharqTestImpl("${TestName}-sa-cold" ${Result} ${params} "sharq" ${TestName}-sa-cold)
-                endif()    
+                endif()
             endif()
             if( RUN_SANITIZER_TESTS )
                 SharqTestAsan(${TestName} ${Result} ${TestParams})
@@ -258,9 +265,22 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(012.qualities 0 "--max-err-count 0 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq") #VDB-4745
         SharqTest(012.qualities_with_types 0 "--readTypes=TTB ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq" "only-sa") #VDB-4745
         SharqTest(013.no-reads 0 "--max-err-count 0 ${IN}013.t_I1.fastq ${IN}013.t_I2.fastq ${IN}013.t_R1.fastq ${IN}013.t_R2.fastq") #VDB-4745
-        SharqTest(014.2files_bad_sequence 0 "${IN}014.R1.fastq ${IN}014.R2.fastq" "no-sa") 
+        SharqTest(014.2files_bad_sequence 0 "${IN}014.R1.fastq ${IN}014.R2.fastq" "no-sa")
         SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
+
+        ToolsRequired( sharq general-loader kdbmeta )
+        macro(SharqTestWithMetadata TestName LoadParams MetaParams)
+            add_test( NAME Test_${TestName}
+                COMMAND
+                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+        endmacro()
+        SharqTestWithMetadata(DbMetaSingleFile_input "${IN}001.R1.fastq" ". LOAD")
+        SharqTestWithMetadata(DbMetaSingleFile_output "${IN}001.R1.fastq" "tbl/SEQUENCE QC/current")
+        SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
+        SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
     endif()
 

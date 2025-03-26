@@ -40,7 +40,8 @@ typedef struct {
 
 typedef struct {
     ERunType type;
-    char *name; /* name to resolve */
+    char *name;     /* name to resolve */
+    const char *id; /* numeric ID for kart items */
 
     VPathStr      local;
     const struct String *cache;
@@ -196,7 +197,7 @@ rc_t CC UsageSummary(const char *progname);
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define DISP_RC2(rc, msg, name) (void)((rc == 0) ? 0 : \
-    PLOGERR(klogInt, (klogInt,rc, "$(msg): $(name)","msg=%s,name=%s",msg,name)))
+   PLOGERR(klogInt, (klogInt,rc, "$(msg) [$(name)]","msg=%s,name=%s",msg,name)))
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)

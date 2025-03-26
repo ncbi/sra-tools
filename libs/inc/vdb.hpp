@@ -172,8 +172,7 @@ namespace VDB {
             name += part;
 
             for (e = e->next; e; e = e->next) {
-                std::string part(e->name->addr, e->name->size);
-                name += ":" + part;
+                name += ":" + std::string(e->name->addr, e->name->size);
             }
 
             uint32_t version = sn->version;
@@ -334,6 +333,12 @@ namespace VDB {
                 else
                     throw std::logic_error("bad cast");
             }
+            template <typename T> T valueOr(T const &v) const {
+                if (elem_bits == sizeof(T) * 8 && data != nullptr && elements == 1)
+                    return *(T *)data;
+                else
+                    return v;
+            }
         };
         Cursor(Cursor const &other) :o(other.o), N(other.N), cid(other.cid) { VCursorAddRef(o); }
         ~Cursor() { VCursorRelease(o); }
@@ -342,18 +347,32 @@ namespace VDB {
         VCursor * get() { return o; }
         bool isStaticColumn( unsigned int col_idx ) const /* 0-based index in the column array used to construct this object */
         {
-            bool ret;
+            bool ret = false;
             auto const rc = VCursorIsStaticColumn ( o, cid[col_idx], & ret );
             if (rc) throw Error{ rc, __FILE__, __LINE__ };
             return ret;
         }
 
+        // Are all columns in the cursor static columns?
+        bool isStatic() const {
+            for (unsigned i = 0; i < N; ++i) {
+                if (!isStaticColumn(i))
+                    return false;
+            }
+            return true;
+        }
         std::pair<RowID, RowID> rowRange() const
         {
             uint64_t count = 0;
             int64_t first = 0;
-            auto const rc = VCursorIdRange(o, 0, &first, &count);
-            if (rc) throw Error{ rc, __FILE__, __LINE__ };
+            if (isStatic()) {
+                first = 1;
+                count = 1;
+            }
+            else {
+                auto const rc = VCursorIdRange(o, 0, &first, &count);
+                if (rc) throw Error{ rc, __FILE__, __LINE__ };
+            }
             return std::make_pair(first, first + count);
         }
         RawData read(RowID row, unsigned int col_idx) const {

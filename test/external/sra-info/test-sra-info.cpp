@@ -46,6 +46,7 @@ const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
 const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
+const string Run_Fingerprints   = "./input/Test_Sra_Info_Fingerprint";
 
 TEST_CASE(Construction)
 {
@@ -64,9 +65,18 @@ protected:
         return f.format( sl, det );
     }
 
+    void verifyFingerprint( const SraInfo::Fingerprints::value_type & object, const string& exp_key, const string& exp_value )
+    {
+        if ( exp_key != object.key || exp_value != object.value )
+        {
+            cerr << "SraInfoFixture::verifyFingerprint() expected " << exp_key << " " << exp_value << " got " << object.key << " " << object.value << endl;
+            THROW_ON_FALSE( false );
+        }
+    }
+
     SraInfo info;
 };
-#if 0
+
 FIXTURE_TEST_CASE(SetAccession, SraInfoFixture)
 {
     info.SetAccession(Accession_Table);
@@ -81,14 +91,13 @@ FIXTURE_TEST_CASE(ResetAccession, SraInfoFixture)
     REQUIRE_EQ( string(Accession2), info.GetAccession() );
 }
 
-// Platform
-
-FIXTURE_TEST_CASE(PlatformInInvalidAccession, SraInfoFixture)
+FIXTURE_TEST_CASE(SetInvalidAccession, SraInfoFixture)
 {
     const string Accession = "i_am_groot";
-    info.SetAccession(Accession);
-    REQUIRE_THROW( info.GetPlatforms() );
+    REQUIRE_THROW( info.SetAccession(Accession) );
 }
+
+// Platform
 
 FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
 {
@@ -97,11 +106,6 @@ FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
     REQUIRE_EQ( size_t(1), p.size() );
     REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
 }
-
-// do such runs exist?
-// FIXTURE_TEST_CASE(NoPlatformInDatabase, SraInfoFixture)
-// {
-// }
 
 FIXTURE_TEST_CASE(SinglePlatformInTable, SraInfoFixture)
 {
@@ -118,11 +122,11 @@ FIXTURE_TEST_CASE(SinglePlatformInDatabase, SraInfoFixture)
     REQUIRE_EQ( string("SRA_PLATFORM_ILLUMINA"), *p.begin() );
 }
 FIXTURE_TEST_CASE(SinglePlatformWGS, SraInfoFixture)
-{
+{   // no PLATFORM column
     info.SetAccession(Accession_WGS);
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(1), p.size() );
-    REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
+    REQUIRE_EQ( string("none provided"), *p.begin() );
 }
 
 FIXTURE_TEST_CASE(MultiplePlatforms, SraInfoFixture)
@@ -288,7 +292,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
 
     // the most popular layouts are at the start of the vector
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(119), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -298,7 +302,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
     }
 
     {
-        class SraInfo::SpotLayout & l = sl[1];
+        SraInfo::SpotLayout & l = sl[1];
         REQUIRE_EQ( uint64_t(112), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -315,7 +319,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Abbreviated ); // ignore read lengths
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() );
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -330,7 +334,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Short ); // ignore read types
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() ); // only the size is used here
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() ); // the default
@@ -441,7 +445,7 @@ FIXTURE_TEST_CASE(SpotLayout_TopRows, SraInfoFixture)
 
     // the top 5 rows are all different layouts
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(1), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -495,7 +499,6 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
     info.SetAccession(Run_Multiplatform);
     REQUIRE( info.HasPhysicalQualities() );
 }
-#endif
 
 // Contents
 FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
@@ -556,6 +559,79 @@ FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
     //etc.
 }
 
+// Fingerprints
+FIXTURE_TEST_CASE(Fingerprint_Empty, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Verbose );
+    REQUIRE( fp.empty() );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
+{   // output fingerprint only
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
+    REQUIRE_EQ( 2, (int)fp.size() ); // fingerprint + digest
+    verifyFingerprint(
+        fp[0],
+        "fingerprint",
+        R"({"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]})");
+    verifyFingerprint(
+        fp[1],
+        "digest",
+        "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5");
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
+{   // output fingerprint with history
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Abbreviated );
+
+    REQUIRE_EQ( 4, (int)fp.size() ); // fingerprint, digest, timestamp, history
+
+    verifyFingerprint( fp[2], "timestamp", "1741379358" );
+
+    // history
+    verifyFingerprint( fp[3], "history", "" );
+    REQUIRE_EQ( 2, (int)fp[3].subnodes.size() ); // 2 history entries
+    verifyFingerprint( fp[3].subnodes[0], "update_1", "" );
+    REQUIRE_EQ( 3, (int)fp[3].subnodes[0].subnodes.size() );  //fingerprint, digest, timestamp
+
+    verifyFingerprint( fp[3].subnodes[0].subnodes[0], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
+    verifyFingerprint( fp[3].subnodes[0].subnodes[1], "digest", "qwer" );
+    verifyFingerprint( fp[3].subnodes[0].subnodes[2], "timestamp", "123" );
+
+    verifyFingerprint( fp[3].subnodes[1], "update_2", "" );
+    REQUIRE_EQ( 3, (int)fp[3].subnodes[1].subnodes.size() );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[0], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[1], "digest", "asdf" );
+    verifyFingerprint( fp[3].subnodes[1].subnodes[2], "timestamp", "456" );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
+{   // output fingerprint with history, input fingerprints
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Full );
+
+    REQUIRE_EQ( 5, (int)fp.size() ); // fingerprint, digest, timestamp, history, inputs
+
+    verifyFingerprint( fp[4], "inputs", "" );
+    REQUIRE_EQ( 2, (int)fp[4].subnodes.size() ); // 2 input files
+
+    // inputs
+    verifyFingerprint( fp[4].subnodes[0], "file_1", "" );
+    REQUIRE_EQ( 3, (int)fp[4].subnodes[0].subnodes.size() ); // name, fingerprint, digest
+    verifyFingerprint( fp[4].subnodes[0].subnodes[0], "name", "input/r1.fastq" );
+    verifyFingerprint( fp[4].subnodes[0].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( fp[4].subnodes[0].subnodes[2], "digest", "123" );
+
+    verifyFingerprint( fp[4].subnodes[1], "file_2", "" );
+    REQUIRE_EQ( 3, (int)fp[4].subnodes[1].subnodes.size() ); // name, fingerprint, digest
+    verifyFingerprint( fp[4].subnodes[1].subnodes[0], "name", "input/r2.fastq" );
+    verifyFingerprint( fp[4].subnodes[1].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( fp[4].subnodes[1].subnodes[2], "digest", "456" );
+}
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>
@@ -564,6 +640,16 @@ extern "C"
 {
 
 const char UsageDefaultName[] = "test-sra-info";
+
+rc_t CC UsageSummary (const char * progname)
+{
+    return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );
+}
+
+rc_t CC Usage( const Args* /*args*/)
+{
+    return 0;
+}
 
 rc_t CC KMain ( int argc, char *argv [] )
 {

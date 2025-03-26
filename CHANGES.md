@@ -1,4 +1,53 @@
+----
+                          PUBLIC DOMAIN NOTICE
+             National Center for Biotechnology Information
+
+This software/database is a "United States Government Work" under the
+terms of the United States Copyright Act.  It was written as part of
+the author's official duties as a United States Government employee and
+thus cannot be copyrighted.  This software/database is freely available
+to the public for use. The National Library of Medicine and the U.S.
+Government have not placed any restriction on its use or reproduction.
+
+Although all reasonable efforts have been taken to ensure the accuracy
+and reliability of the software and data, the NLM and the U.S.
+Government do not and cannot warrant the performance or results that
+may be obtained by using this software or data. The NLM and the U.S.
+Government disclaim all warranties, express or implied, including
+warranties of performance, merchantability or fitness for any particular
+purpose.
+
+Please cite the author in any work or product based on this material.
+
+----
 # NCBI External Developer Release:
+
+
+## SRA Toolkit 3.2.1
+**March 18, 2025**
+
+  **fasterq-dump**: fixed race condition when using WGS references  
+  **fasterq-dump**: fixed a problem with '.' in output-path  
+  **fasterq-dump, kns, sratools, vdb, vfs**: fixed failure of fasterq-dump when accessing run via HTTP  
+  **prefetch**: improved error reporting when failed to download a file or dependency  
+  **SharQ**: records fingerprinting information  in the output object's metadata  
+
+
+## SRA Toolkit 3.2.0
+**January 14, 2025**
+
+  **align-info, prefetch, vdb, vfs**: prints an error message when unable to resolve an external reference  
+  **bam-load, vdb**: the load process is terminated when background flush terminates with an error  
+  **fastq-dump, kfs**: fixed infinite loop  
+  **kapp, kns, sra-tools**: always use 3 part tool version in User-Agent request header  
+  **kdb, vdb-validate**: will find corruption via the MD5 sums  
+  **kdb, vdb, vdb-dump**: fixed request of vdb-version on AD (Accession-as-Directory)  
+  **ncbi-vdb, ngs-tools, sra-tools**: fixed error message asking to run configure  
+  **sra**: added sequencing platform SINGULAR_GENOMICS  
+  **sra-tools, vfs**: fixed resolving of WGS references in AD when not running in the same directory  
+  **sra-tools, vfs**: fixed VDB version headers to always include patch version  
+  **sra-tools, vfs**: simplified name resolving  
+  **sra-tools, ngs-tools**: SRA Tools were moved from ngs-tools to sra-tools
 
 
 ## SRA Toolkit 3.1.1

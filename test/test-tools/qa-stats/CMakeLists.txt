@@ -23,11 +23,38 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-    add_test( NAME Test_qa-stat
+
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
+    AddExecutableTest( Test_qa-stats_Input "test-input;../../../tools/test-tools/qa-stats/input.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Output "test-output" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Fingerprint "test-finger" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_qa-stats_Hashing "test-hashing" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+
+    add_test( NAME Test_qa-stats
             COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties ( Test_qa-stat
+    set_tests_properties ( Test_qa-stats
         PROPERTIES
             SKIP_REGULAR_EXPRESSION "^Skipped"
     )
+
+    # parsing fasta/fastq
+    file(GLOB INPUTS input/*.fast[aq])
+    foreach(i ${INPUTS})
+        get_filename_component(filename ${i} NAME)
+        add_test( NAME Test_qa_stats_${filename}
+            COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats ${i}" "." Test_qa_stats_${filename}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endforeach()
+
+    # fingerprinting
+    add_test( NAME Test_qa_stats_Finger_1
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_qa_stats_Finger_2
+        COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 endif()

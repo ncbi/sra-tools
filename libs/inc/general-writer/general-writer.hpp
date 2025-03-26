@@ -42,7 +42,7 @@
 
 namespace ncbi
 {
-#if GW_CURRENT_VERSION <= 2
+#if GW_CURRENT_VERSION <= 3
     typedef :: gwp_evt_hdr_v1 gwp_evt_hdr;
 #else
 #error "unrecognized GW version"
@@ -75,10 +75,10 @@ namespace ncbi
         inline int addIntegerColumn ( int table_id, const std :: string &column_name, uint32_t elem_bits )
         { return addColumn ( table_id, column_name, elem_bits, 1 ); }
 
-        int dbAddDatabase ( int db_id, const std :: string &mbr_name, 
+        int dbAddDatabase ( int db_id, const std :: string &mbr_name,
                              const std :: string &db_name, uint8_t create_mode );
 
-        int dbAddTable ( int db_id, const std :: string &mbr_name, 
+        int dbAddTable ( int db_id, const std :: string &mbr_name,
                              const std :: string &tbl_name, uint8_t create_mode );
 
         // ensure there are atleast one table and one column
@@ -89,6 +89,7 @@ namespace ncbi
         // add or set metadata on a specific object
         // where obj_id == 0 => outer database, and
         // any other positive id means the database, table or column
+        // value can be binary!
         void setDBMetadataNode ( int obj_id,
                                const std :: string & node_path,
                                const std :: string & value );
@@ -98,6 +99,26 @@ namespace ncbi
         void setColMetadataNode ( int obj_id,
                                const std :: string & node_path,
                                const std :: string & value );
+
+        // add or set metadata node attribute on a specific object
+        // where obj_id == 0 => outer database, and
+        // any other positive id means the database, table or column
+        // value is always a character string
+        void setDBMetadataNodeAttr
+            ( int obj_id,
+              const std :: string & node_path,
+              const std :: string & attr_name,
+              const std :: string & value );
+        void setTblMetadataNodeAttr
+            ( int obj_id,
+              const std :: string & node_path,
+              const std :: string & attr_name,
+              const std :: string & value );
+        void setColMetadataNodeAttr
+            ( int obj_id,
+              const std :: string & node_path,
+              const std :: string & attr_name,
+              const std :: string & value );
 
         // generates a chunk of cell data
         // MUST be entire default value in one event
@@ -120,7 +141,7 @@ namespace ncbi
         void logMsg ( const std :: string &msg );
 
         // indicate progress
-        void progMsg ( const std :: string &name, 
+        void progMsg ( const std :: string &name,
                        uint32_t version, uint64_t done, uint64_t total );
 
         // generates an end event
@@ -141,7 +162,26 @@ namespace ncbi
         void internal_write ( const void *data, size_t num_bytes );
         void write_event ( const gwp_evt_hdr * evt, size_t evt_size );
         void flush ();
-        uint32_t getPid ();
+
+        uint32_t getPid () const { return ( uint32_t ) pid; }
+
+        void write_1string_evt_U16( int p_id, gw_evt_id p_eventId, const std :: string & p_str );
+
+        void setMetadataNode (
+            int obj_id,
+            gw_evt_id event8bit,
+            gw_evt_id event16bit,
+            const std :: string & node_path,
+            const std :: string & value
+        );
+        void setMetadataNodeAttr (
+            int obj_id,
+            gw_evt_id event8bit,
+            gw_evt_id event16bit,
+            const std :: string & node_path,
+            const std :: string & attr_name,
+            const std :: string & value
+        );
 
         struct int_stream
         {

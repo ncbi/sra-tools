@@ -29,21 +29,19 @@
 
 #include <kfc/defs.h>
 
-#include <iterator>
-#include <cstdlib>
-#include <iomanip>
-
-#include <time.h>
 #include <unistd.h>
-#include <assert.h>
-#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define PROGRESS_EVENT 0
+
+using namespace std;
 
 namespace ncbi
 {
 
-#if GW_CURRENT_VERSION <= 2
+#if GW_CURRENT_VERSION <= 3
     typedef :: gwp_1string_evt_v1 gwp_1string_evt;
     typedef :: gwp_2string_evt_v1 gwp_2string_evt;
     typedef :: gwp_column_evt_v1 gwp_column_evt;
@@ -51,12 +49,31 @@ namespace ncbi
     typedef :: gwp_1string_evt_U16_v1 gwp_1string_evt_U16;
     typedef :: gwp_2string_evt_U16_v1 gwp_2string_evt_U16;
     typedef :: gwp_data_evt_U16_v1 gwp_data_evt_U16;
+    #if GW_CURRENT_VERSION == 3
+        typedef :: gwp_3string_evt_v1 gwp_3string_evt;
+    #endif
 #else
 #error "unrecognized GW version"
 #endif
 
+    void GeneralWriter :: write_1string_evt_U16( int p_objId, gw_evt_id p_eventId, const string & p_str )
+    {
+        gwp_1string_evt_U16 hdr;
+        init ( hdr, p_objId, p_eventId );
+
+        size_t str_size = p_str . size();
+        if ( str_size > 0x10000 )
+        {
+            str_size = 0x10000;
+        }
+        set_size ( hdr, str_size );
+
+        write_event ( & hdr . dad, sizeof hdr );
+        internal_write ( p_str . data (), str_size );
+    }
+
     // ask the general-loader to use this when naming its output
-    void GeneralWriter :: setRemotePath ( const std :: string & remote_db )
+    void GeneralWriter :: setRemotePath ( const  string & remote_db )
     {
         stream_state new_state = uninitialized;
 
@@ -82,18 +99,14 @@ namespace ncbi
         if ( str_size > 0x10000 )
             throw "remote path too long";
 
-        gwp_1string_evt_U16 hdr;
-        init ( hdr, 0, evt_remote_path2 );
-        set_size ( hdr, str_size );
-        write_event ( & hdr . dad, sizeof hdr );
-        internal_write ( remote_db . data (), str_size );
+        write_1string_evt_U16( 0, evt_remote_path2, remote_db );
 
         state = new_state;
     }
 
     // tell the general-loader to use this pre-defined schema
-    void GeneralWriter :: useSchema ( const std :: string & schema_file_name,
-                                      const std :: string & schema_db_spec )
+    void GeneralWriter :: useSchema ( const  string & schema_file_name,
+                                      const  string & schema_db_spec )
     {
         stream_state new_state = uninitialized;
 
@@ -134,8 +147,8 @@ namespace ncbi
         state = new_state;
     }
 
-    void GeneralWriter :: setSoftwareName ( const std :: string & name,
-                                            const std :: string & version )
+    void GeneralWriter :: setSoftwareName ( const  string & name,
+                                            const  string & version )
     {
         stream_state new_state = uninitialized;
 
@@ -177,7 +190,7 @@ namespace ncbi
     }
 
 
-    int GeneralWriter :: addTable ( const std :: string &table_name )
+    int GeneralWriter :: addTable ( const  string &table_name )
     {
         stream_state new_state = uninitialized;
 
@@ -207,23 +220,18 @@ namespace ncbi
             throw "maximum number of tables exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
-            table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
+         pair <  map < int_dbtbl, int > :: iterator, bool > result =
+            table_name_idx.insert (  pair < int_dbtbl, int > ( tbl, id ) );
 
         // if first time
         if ( result.second )
         {
             tables.push_back ( tbl );
 
-            size_t str_size = table_name . size ();
-            if ( str_size > 0x10000 )
+            if ( table_name . size () > 0x10000 )
                 throw "maximum table name length exceeded";
 
-            gwp_1string_evt_U16 hdr;
-            init ( hdr, id, evt_new_table2 );
-            set_size ( hdr, str_size );
-            write_event ( & hdr . dad, sizeof hdr );
-            internal_write ( table_name.data (), str_size );
+            write_1string_evt_U16( id, evt_new_table2, table_name );
 
             state = new_state;
         }
@@ -233,7 +241,7 @@ namespace ncbi
     }
 
     int GeneralWriter :: addColumn ( int table_id,
-        const std :: string &column_name, uint32_t elem_bits, uint8_t flag_bits )
+        const  string &column_name, uint32_t elem_bits, uint8_t flag_bits )
     {
         stream_state new_state = uninitialized;
 
@@ -274,8 +282,8 @@ namespace ncbi
             throw "maximum number of columns exceeded";
 
         // make sure we never record a column-spec twice
-        std :: pair < std :: map < int_stream, int > :: iterator, bool > result =
-            column_name_idx.insert ( std :: pair < int_stream, int > ( stream, id ) );
+         pair <  map < int_stream, int > :: iterator, bool > result =
+            column_name_idx.insert (  pair < int_stream, int > ( stream, id ) );
 
         // if first time
         if ( result.second )
@@ -305,8 +313,8 @@ namespace ncbi
         return result.first->second;
     }
 
-    int GeneralWriter :: dbAddDatabase ( int db_id, const std :: string &mbr_name,
-                                          const std :: string &db_name, uint8_t create_mode )
+    int GeneralWriter :: dbAddDatabase ( int db_id, const  string &mbr_name,
+                                          const  string &db_name, uint8_t create_mode )
     {
         stream_state new_state = uninitialized;
 
@@ -337,8 +345,8 @@ namespace ncbi
             throw "maximum number of databases exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
-            db_name_idx.insert ( std :: pair < int_dbtbl, int > ( db, id ) );
+         pair <  map < int_dbtbl, int > :: iterator, bool > result =
+            db_name_idx.insert (  pair < int_dbtbl, int > ( db, id ) );
 
         // if first time
         if ( result.second )
@@ -370,8 +378,8 @@ namespace ncbi
         return result.first->second;
     }
 
-    int GeneralWriter :: dbAddTable ( int db_id, const std :: string &mbr_name,
-                                       const std :: string &table_name, uint8_t create_mode )
+    int GeneralWriter :: dbAddTable ( int db_id, const  string &mbr_name,
+                                       const  string &table_name, uint8_t create_mode )
     {
         stream_state new_state = uninitialized;
 
@@ -405,8 +413,8 @@ namespace ncbi
             throw "maximum number of tables exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
-            table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
+         pair <  map < int_dbtbl, int > :: iterator, bool > result =
+            table_name_idx.insert (  pair < int_dbtbl, int > ( tbl, id ) );
 
         // if first time
         if ( result.second )
@@ -464,27 +472,27 @@ namespace ncbi
         state = new_state;
     }
 
-    void GeneralWriter :: setDBMetadataNode ( int obj_id,
-                                            const std :: string & node_path,
-                                            const std :: string & value )
+    void GeneralWriter :: setMetadataNode (
+        int obj_id,
+        gw_evt_id event8bit,
+        gw_evt_id event16bit,
+        const  string & node_path,
+        const  string & value
+    )
     {
-        // zero ( 0 ) is a valid db_id
-        if ( obj_id < 0 || ( size_t ) obj_id > dbs.size () )
-            throw "Invalid database id";
-
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
-            throw "DB_path too long";
+            throw "Metadata node path too long";
 
         size_t str2_size = value . size ();
         if ( str2_size > STRING_LIMIT_16 )
-            throw "value too long";
+            throw "Metadata node value too long";
 
         if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
         {
             // use 8-bit sizes
             gwp_2string_evt_v1 hdr;
-            init ( hdr, obj_id, evt_db_metadata_node );
+            init ( hdr, obj_id, event8bit );
             set_size1 ( hdr, str1_size );
             set_size2 ( hdr, str2_size );
             write_event ( & hdr . dad, sizeof hdr );
@@ -493,7 +501,7 @@ namespace ncbi
         {
             // use 16-bit sizes
             gwp_2string_evt_U16_v1 hdr;
-            init ( hdr, obj_id, evt_db_metadata_node2 );
+            init ( hdr, obj_id, event16bit );
             set_size1 ( hdr, str1_size );
             set_size2 ( hdr, str2_size );
             write_event ( & hdr . dad, sizeof hdr );
@@ -503,82 +511,124 @@ namespace ncbi
         internal_write ( value . data (), str2_size );
     }
 
+    void GeneralWriter :: setDBMetadataNode ( int obj_id,
+                                            const  string & node_path,
+                                            const  string & value )
+    {
+        // zero ( 0 ) is a valid db_id
+        if ( obj_id < 0 || ( size_t ) obj_id > dbs.size () )
+        {
+            throw "Invalid database id";
+        }
+
+        setMetadataNode( obj_id, evt_db_metadata_node, evt_db_metadata_node2, node_path, value );
+    }
     void GeneralWriter :: setTblMetadataNode ( int obj_id,
-                                            const std :: string & node_path,
-                                            const std :: string & value )
+                                            const  string & node_path,
+                                            const  string & value )
     {
         if ( obj_id <= 0 || ( size_t ) obj_id > tables.size () )
             throw "Invalid table id";
 
-        size_t str1_size = node_path . size ();
-        if ( str1_size > STRING_LIMIT_16 )
-            throw "tbl_path too long";
-
-        size_t str2_size = value . size ();
-        if ( str2_size > STRING_LIMIT_16 )
-            throw "value too long";
-
-        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
-        {
-            // use 8-bit sizes
-            gwp_2string_evt_v1 hdr;
-            init ( hdr, obj_id, evt_tbl_metadata_node );
-            set_size1 ( hdr, str1_size );
-            set_size2 ( hdr, str2_size );
-            write_event ( & hdr . dad, sizeof hdr );
-        }
-        else
-        {
-            // use 16-bit sizes
-            gwp_2string_evt_U16_v1 hdr;
-            init ( hdr, obj_id, evt_tbl_metadata_node2 );
-            set_size1 ( hdr, str1_size );
-            set_size2 ( hdr, str2_size );
-            write_event ( & hdr . dad, sizeof hdr );
-        }
-
-        internal_write ( node_path . data (), str1_size );
-        internal_write ( value . data (), str2_size );
-
+        setMetadataNode( obj_id, evt_tbl_metadata_node, evt_tbl_metadata_node2, node_path, value );
     }
     void GeneralWriter :: setColMetadataNode ( int obj_id,
-                                            const std :: string & node_path,
-                                            const std :: string & value )
+                                            const  string & node_path,
+                                            const  string & value )
     {
         if ( obj_id <= 0 || ( size_t ) obj_id > streams.size () )
             throw "Invalid column id";
 
+        setMetadataNode( obj_id, evt_col_metadata_node, evt_col_metadata_node2, node_path, value );
+    }
+
+    void GeneralWriter :: setMetadataNodeAttr (
+        int obj_id,
+        gw_evt_id event8bit,
+        gw_evt_id event16bit,
+        const  string & node_path,
+        const  string & attr_name,
+        const  string & value )
+    {
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
-            throw "tbl_path too long";
+            throw "Metadata node path too long";
 
-        size_t str2_size = value . size ();
+        size_t str2_size = attr_name . size ();
         if ( str2_size > STRING_LIMIT_16 )
-            throw "value too long";
+            throw "Metadata attribute name too long";
 
-        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
+        size_t str3_size = value . size ();
+        if ( str3_size > STRING_LIMIT_16 )
+            throw "Netadata value too long";
+
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 && str3_size <= STRING_LIMIT_8 )
         {
             // use 8-bit sizes
-            gwp_2string_evt_v1 hdr;
-            init ( hdr, obj_id, evt_col_metadata_node );
+            gwp_3string_evt_v1 hdr;
+            init ( hdr, obj_id, event8bit );
             set_size1 ( hdr, str1_size );
             set_size2 ( hdr, str2_size );
+            set_size3 ( hdr, str3_size );
             write_event ( & hdr . dad, sizeof hdr );
         }
         else
         {
             // use 16-bit sizes
-            gwp_2string_evt_U16_v1 hdr;
-            init ( hdr, obj_id, evt_col_metadata_node2 );
+            gwp_3string_evt_U16_v1 hdr;
+            init ( hdr, obj_id, event16bit );
             set_size1 ( hdr, str1_size );
             set_size2 ( hdr, str2_size );
+            set_size3 ( hdr, str3_size );
             write_event ( & hdr . dad, sizeof hdr );
         }
 
         internal_write ( node_path . data (), str1_size );
-        internal_write ( value . data (), str2_size );
+        internal_write ( attr_name . data (), str2_size );
+        internal_write ( value . data (), str3_size );
     }
 
+    void GeneralWriter :: setDBMetadataNodeAttr
+        ( int obj_id,
+            const  string & node_path,
+            const  string & attr_name,
+            const  string & value )
+    {
+        // zero ( 0 ) is a valid db_id
+        if ( obj_id < 0 || ( size_t ) obj_id > dbs.size () )
+        {
+            throw "Invalid database id";
+        }
+
+        setMetadataNodeAttr( obj_id, evt_db_metadata_node_attr, evt_db_metadata_node_attr2, node_path, attr_name, value );
+    }
+    void GeneralWriter :: setTblMetadataNodeAttr
+        ( int obj_id,
+            const  string & node_path,
+            const  string & attr_name,
+            const  string & value )
+    {
+        if ( obj_id <= 0 || ( size_t ) obj_id > tables.size () )
+        {
+            throw "Invalid table id";
+        }
+
+        setMetadataNodeAttr( obj_id, evt_tbl_metadata_node_attr, evt_tbl_metadata_node_attr2, node_path, attr_name, value );
+    }
+    void GeneralWriter :: setColMetadataNodeAttr
+        ( int obj_id,
+            const  string & node_path,
+            const  string & attr_name,
+            const  string & value )
+    {
+        if ( obj_id <= 0 || ( size_t ) obj_id > tables.size () )
+        {
+            throw "Invalid table id";
+
+        }
+
+        setMetadataNodeAttr( obj_id, evt_col_metadata_node_attr, evt_col_metadata_node_attr2, node_path, attr_name, value );
+    }
 
     void GeneralWriter :: columnDefault ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count )
     {
@@ -858,7 +908,7 @@ namespace ncbi
         write_event ( & hdr . dad, sizeof hdr );
     }
 
-    void GeneralWriter :: logError ( const std :: string & msg )
+    void GeneralWriter :: logError ( const  string & msg )
     {
         switch ( state )
         {
@@ -879,25 +929,10 @@ namespace ncbi
             return;
         }
 
-        gwp_1string_evt_U16 hdr;
-        init ( hdr, 0, evt_errmsg2 );
-
-        const char * msg_data = msg . data ();
-        size_t str_size = msg . size ();
-        if ( str_size == 0 )
-        {
-            msg_data = "ERROR: (NO MSG)";
-            str_size = strlen ( msg_data );
-        }
-        else if ( str_size > 0x10000 )
-            str_size = 0x10000;
-
-        set_size ( hdr, str_size );
-        write_event ( & hdr . dad, sizeof hdr );
-        internal_write ( msg_data, str_size );
+        write_1string_evt_U16( 0, evt_errmsg2, msg.empty() ? "ERROR: (NO MSG)" : msg );
     }
 
-    void GeneralWriter :: logMsg ( const std :: string &msg )
+    void GeneralWriter :: logMsg ( const  string &msg )
     {
         switch ( state )
         {
@@ -917,22 +952,10 @@ namespace ncbi
             return;
         }
 
-        size_t str_size = msg . size ();
-        if ( str_size == 0 )
-            return;
-
-        if ( str_size > 0x10000 )
-            str_size = 0x10000;
-
-        gwp_1string_evt_U16 hdr;
-        init ( hdr, 0, evt_logmsg );
-
-        set_size ( hdr, str_size );
-        write_event ( & hdr . dad, sizeof hdr );
-        internal_write ( msg . data (), str_size );
+        write_1string_evt_U16( 0, evt_logmsg, msg );
     }
 
-    void GeneralWriter :: progMsg ( const std :: string & name, uint32_t version,
+    void GeneralWriter :: progMsg ( const  string & name, uint32_t version,
         uint64_t done, uint64_t total )
     {
         switch ( state )
@@ -1006,19 +1029,25 @@ namespace ncbi
 
 
     // Constructors
-    GeneralWriter :: GeneralWriter ( const std :: string &out_path )
-        : out ( out_path.c_str(), std::ofstream::binary )
+    GeneralWriter :: GeneralWriter ( const  string &out_path )
+        : out ( out_path.c_str(), ofstream::binary )
         , evt_count ( 0 )
         , byte_count ( 0 )
         , pid ( getpid () )
         , packing_buffer ( 0 )
         , output_buffer ( 0 )
-        , output_bsize ( 0 )
+        , output_bsize ( bsize )
         , output_marker ( 0 )
         , out_fd ( -1 )
         , state ( uninitialized )
     {
         packing_buffer = new uint8_t [ bsize ];
+        output_buffer = new uint8_t [ bsize ];
+        out_fd = :: open( out_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR ) ;
+        if ( out_fd < 0 )
+        {
+            throw  string("Error opening ") + out_path;
+        }
         writeHeader ();
     }
 
@@ -1064,7 +1093,7 @@ namespace ncbi
         return column_name.compare ( s.column_name ) < 0;
     }
 
-    GeneralWriter :: int_stream :: int_stream ( int _table_id, const std :: string &_column_name, uint32_t _elem_bits, uint8_t _flag_bits )
+    GeneralWriter :: int_stream :: int_stream ( int _table_id, const  string &_column_name, uint32_t _elem_bits, uint8_t _flag_bits )
         : table_id ( _table_id )
         , column_name ( _column_name )
         , elem_bits ( _elem_bits )
@@ -1079,18 +1108,13 @@ namespace ncbi
         return obj_name.compare ( db.obj_name ) < 0;
     }
 
-    GeneralWriter :: int_dbtbl :: int_dbtbl ( int _db_id, const std :: string &_obj_name )
+    GeneralWriter :: int_dbtbl :: int_dbtbl ( int _db_id, const  string &_obj_name )
         : db_id ( _db_id )
         , obj_name ( _obj_name )
     {
     }
 
     // Private methods
-
-    uint32_t GeneralWriter :: getPid ()
-    {
-        return ( uint32_t ) pid;
-    }
 
     void GeneralWriter :: writeHeader ()
     {
@@ -1162,8 +1186,8 @@ namespace ncbi
         if ( ( ec % 10000 ) == 0 )
         {
             if ( ( ec % 500000 ) == 0 )
-                std :: cerr << "\n%  [" << std :: setw ( 12 ) << byte_count << "] " << std :: setw ( 9 ) << ec + 1 << ' ';
-            std :: cerr << '.';
+                 cerr << "\n%  [" <<  setw ( 12 ) << byte_count << "] " <<  setw ( 9 ) << ec + 1 << ' ';
+             cerr << '.';
         }
 #endif
         ++ evt_count;

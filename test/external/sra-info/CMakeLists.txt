@@ -87,6 +87,7 @@ function( AddQueryTest test_name test_id args )
     add_test( NAME ${test_name}
         COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info ${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT 9000)
 endfunction()
 
 # platform
@@ -95,6 +96,7 @@ AddQueryTest( Test_Sra_Info_Platform_CSRA       1.1 "-P ERR334733" )
 AddQueryTest( Test_Sra_Info_Platform_WGS        1.2 "-P AAAAAA01" )
 AddQueryTest( Test_Sra_Info_Platform_Multiple   2.0 "-P ./input/MultiPlatform_Long.sra"  )
 AddQueryTest( Test_Sra_Info_Platform_Reference  3.0 "-P NC_000001.11" )
+AddQueryTest( Test_Sra_Info_Platform_Missing    4.0 "-P SRR576646" )
 
 # formatting
 AddQueryTest( Test_Sra_Info_Platform_Format_CSV     4.1 "-P ./input/MultiPlatform.sra -f csv" )
@@ -174,5 +176,26 @@ AddQueryTest( Test_Sra_Info_Contents_Detail_Detailed_Default 12.2 "--contents SR
 AddQueryTest( Test_Sra_Info_Contents_Detail_Detailed_Json 12.3 "--contents SRR341576 -fjson --detail 1" )
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Default 12.4 "--contents SRR341576 --detail 2" )
 AddQueryTest( Test_Sra_Info_Contents_Detail_Verbose_Json 12.5 "--contents SRR341576 -fjson --detail 3" )
+
+# query for fingerprinting info
+AddQueryTest( Test_Sra_Info_Fingerprint_None 13.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Short 13.1 "--fingerprint input/Test_Sra_Info_Fingerprint" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Abbreviated 13.2 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Detailed 13.3 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_None 14.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format csv" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Short 14.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Abbreviated 14.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Detailed 14.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_None 15.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format json" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Short 15.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format json" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Abbreviated 15.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format json --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Json_Detailed 15.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format json --detail 2" )
+
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_None 16.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format xml" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Short 16.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Abbreviated 16.2 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml --detail 1" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Xml_Detailed 16.3 "--fingerprint input/Test_Sra_Info_Fingerprint --format xml --detail 2" )
 
 endif()

@@ -5,26 +5,30 @@ ARG CMAKE_BUILD_SHARED_LIBS=1
 ARG CMAKE_BUILD_TYPE=Release
 ARG VDB_BRANCH=engineering
 ARG SRA_BRANCH=${VDB_BRANCH}
+
+ADD https://github.com/ncbi/ncbi-vdb.git#${VDB_BRANCH} /root/ncbi-vdb
+ADD https://github.com/ncbi/sra-tools.git#${SRA_BRANCH} /root/sra-tools
+
 WORKDIR /root
-RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git && \
-    git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
-WORKDIR ncbi-vdb
-RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
-    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt && \
-    sed -i.orig -e 's/(_POSIX_C_SOURCE\s*>=\s*200112L)\s*&&\s*!\s*_GNU_SOURCE/1/g' libs/klib/linux/syserrcode.c
-WORKDIR /root
-RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Release \
-          -S ncbi-vdb -B build/ncbi-vdb && \
+RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' ncbi-vdb/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' ncbi-vdb/libs/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kxml\|vdb-sqlite\s*)\s*$/ d' sra-tools/libs/CMakeLists.txt && \
+    sed -i.orig -e '/\bCPACK\|CPack/ d' sra-tools/CMakeLists.txt && \
+    sed -i.orig -e 's/(_POSIX_C_SOURCE\s*>=\s*200112L)\s*&&\s*!\s*_GNU_SOURCE/1/g' ncbi-vdb/libs/klib/linux/syserrcode.c
+
+RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}  \
+          -S ncbi-vdb -B build/ncbi-vdb &&                  \
     cmake --build build/ncbi-vdb
-RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kxml\|vdb-sqlite\s*)\s*$/ d' sra-tools/libs/CMakeLists.txt && \
-    sed -i.orig -e '/\bCPACK\|CPack/ d' sra-tools/CMakeLists.txt
-RUN cmake -G Ninja                                  \
-          -D CMAKE_BUILD_TYPE=Release               \
-          -D VDB_LIBDIR=/root/build/ncbi-vdb/lib    \
-          -S sra-tools -B build/sra-tools &&        \
+
+RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}  \
+          -D VDB_LIBDIR=/root/build/ncbi-vdb/lib            \
+          -S sra-tools -B build/sra-tools &&                \
     cmake --build build/sra-tools --target install
-RUN mkdir -p /etc/ncbi
-RUN printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` > /etc/ncbi/settings.kfg && \
+
+RUN mkdir -p /etc/ncbi && \
+    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /etc/ncbi && \
+    /usr/local/bin/vdb-config -on /repository/remote > /etc/ncbi/settings.kfg && \
+    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /etc/ncbi/settings.kfg && \
     printf '/libs/cloud/report_instance_identity = "true"\n' >> /etc/ncbi/settings.kfg
 
 FROM alpine:latest

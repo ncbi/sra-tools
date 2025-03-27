@@ -3,8 +3,6 @@ RUN apk add build-base util-linux linux-headers g++ libstdc++ libgcc gdb ninja c
 
 ARG VDB_BRANCH=engineering
 ARG SRA_BRANCH=${VDB_BRANCH}
-ARG SETTINGS_DIR=/usr/local/bin/ncbi
-ARG SETTINGS_FILE=${SETTINGS_DIR}/settings.kfg
 
 ADD https://github.com/ncbi/ncbi-vdb.git#${VDB_BRANCH} /root/ncbi-vdb
 ADD https://github.com/ncbi/sra-tools.git#${SRA_BRANCH} /root/sra-tools

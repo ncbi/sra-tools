@@ -46,6 +46,11 @@ if( NOT WIN32 )
         add_test( NAME Test_qa_stats_${filename}
             COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats ${i}" "." Test_qa_stats_${filename}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if (TARGET qa-stats-tsan)
+            add_test( NAME Test_qa_stats_${filename}-tsan
+                COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan -t 1 ${i}" "." Test_qa_stats_${filename}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif ()
     endforeach()
 
     # fingerprinting

@@ -20,10 +20,25 @@ if (NOT WIN32)
     target_compile_features(qa-stats PRIVATE cxx_std_17)
     target_link_libraries(qa-stats Threads::Threads)
 
-#     target_compile_options( qa-stats PRIVATE -fsanitize=undefined )
-#     target_compile_options( qa-stats PRIVATE -fsanitize=address )
-#     target_link_options( qa-stats PRIVATE -fsanitize=undefined )
-#     target_link_options( qa-stats PRIVATE -fsanitize=address )
+    if (CMAKE_BUILD_TYPE MATCHES "Debug")
+        message("Turning on sanitizers")
+
+        add_executable(qa-stats-tsan ${SOURCES} ${HEADERS})
+        target_compile_features(qa-stats-tsan PRIVATE cxx_std_17)
+        target_link_libraries(qa-stats-tsan Threads::Threads)
+
+        target_compile_options( qa-stats PRIVATE -fsanitize=undefined )
+        target_link_options( qa-stats PRIVATE -fsanitize=undefined )
+
+        target_compile_options( qa-stats-tsan PRIVATE -fsanitize=undefined )
+        target_link_options( qa-stats-tsan PRIVATE -fsanitize=undefined )
+
+        target_compile_options( qa-stats PRIVATE -fsanitize=address )
+        target_link_options( qa-stats PRIVATE -fsanitize=address )
+
+        target_compile_options( qa-stats-tsan PRIVATE -fsanitize=thread )
+        target_link_options( qa-stats-tsan PRIVATE -fsanitize=thread )
+    endif()
 endif()
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${SOURCES})

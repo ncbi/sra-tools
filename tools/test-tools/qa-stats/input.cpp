@@ -961,8 +961,8 @@ struct ThreadedSource : public Input::Source {
     std::condition_variable condEmpty, condFull;
     uint64_t enq = 0;
     uint64_t deq = 0;
-    bool volatile done = false;
-    bool volatile running = false;
+    std::atomic_bool done = false;
+    std::atomic_bool running = false;
     unsigned quemax = 16;
     std::thread th;
 
@@ -1023,7 +1023,7 @@ struct ThreadedSource : public Input::Source {
                 std::cerr << "Not done; enqueued " << enq << ", dequeued " << deq << " records." << std::endl;
             }
             else {
-                std::cerr << "Done; dequeued " << deq << " records." << std::endl;
+                fprintf(stderr, "Done; dequeued %lu records.\n", (unsigned long)deq);
             }
             throw std::ios_base::failure("end of file");
         }
@@ -1048,14 +1048,15 @@ struct ThreadedSource : public Input::Source {
                 self->condEmpty.notify_one();
             }
             catch (std::ios_base::failure const &e) {
-                self->done = true;
-                self->condEmpty.notify_one();
-                if (self->source.eof())
-                    std::cerr << "Reader thread is done; enqueued " << self->enq << " records." << std::endl;
-                else
+                if (!self->source.eof())
                     std::cerr << "Reader thread caught exception: " << e.what() << std::endl;
                 break;
             }
+        }
+        self->done = true;
+        self->condEmpty.notify_one();
+        if (self->source.eof()) {
+            fprintf(stderr, "Reader thread is done; enqueued %lu records.\n", (unsigned long)self->enq);
         }
         self->running = false;
     }

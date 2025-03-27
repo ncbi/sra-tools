@@ -97,12 +97,17 @@ public:
 
     struct TreeNode
     {
-        std::string key;
-        std::string value;
-        std::vector<TreeNode> subnodes; // empty if value is not empty
+        typedef enum { Value, Element, Array } NodeType;
 
-        TreeNode( const std::string & p_key, const std::string & p_value = std::string() )
-        : key(p_key), value(p_value) {}
+        std::string key;
+        NodeType type;
+        std::string value; // used only if type == Value
+        std::vector<TreeNode> subnodes;  // used if type == Element or Array
+
+        TreeNode( const std::string & p_key, const std::string & p_value )
+        : key(p_key), type( Value ), value(p_value) {}
+        TreeNode( const std::string & p_key, NodeType p_type )
+        : key(p_key), type(p_type) {}
     };
     typedef std::vector< TreeNode > Fingerprints;
     Fingerprints GetFingerprints( Detail detail ) const;

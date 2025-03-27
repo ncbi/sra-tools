@@ -211,8 +211,8 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.write_spot( "spot", reads );
     m_w.close();
 
-    REQUIRE_EQ( 5, (int)m_tw->m_metadata.size() );  // 1 per input + 3 for output
-    REQUIRE_EQ( 4, (int)m_tw->m_metadataAttrs.size() ); // 2 per input (file name and fp digest)
+    REQUIRE_EQ( 8, (int)m_tw->m_metadata.size() );  // 1 per input + 6 for output
+    REQUIRE_EQ( 10, (int)m_tw->m_metadataAttrs.size() ); // 5 per input (file name, fp digest, fp algorithm, fp version, fp format)
 
     // input fingerprints, on the database per input file
     {   // file1
@@ -222,14 +222,20 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
         verifyMetaAttr(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "name", File1);
         verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "digest", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
+        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "algorithm",Fingerprint::algorithm());
+        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "version", Fingerprint::version());
+        verifyMetaAttr(4, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "format", Fingerprint::format());
     }
     {   // file2
         const string Expected =
             R"({"maximum-position":1,"A":[0,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
         verifyMeta(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", Expected);
 
-        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
-        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
+        verifyMetaAttr(5, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
+        verifyMetaAttr(6, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
+        verifyMetaAttr(7, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "algorithm", Fingerprint::algorithm());
+        verifyMetaAttr(8, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "version", Fingerprint::version());
+        verifyMetaAttr(9, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "format", Fingerprint::format());
     }
     // output fingerprint, on the SEQUENCE table
     {
@@ -239,9 +245,19 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
         const string ExpectedOutputHash = "2944f448d685435cffa136126a7fd7975d9177b36369b480ddd64c0bf818a5e0";
         verifyMeta(3, VDB::Writer::MetaNodeRoot::table, 1u, "QC/current/digest", ExpectedOutputHash);
+
+        REQUIRE_EQ( string("QC/current/algorithm"), get<2>(m_tw->m_metadata[4]) );
+        REQUIRE_EQ( string("SHA-256"), get<3>(m_tw->m_metadata[4]) );
+
+        REQUIRE_EQ( string("QC/current/version"), get<2>(m_tw->m_metadata[5]) );
+        REQUIRE_EQ( Fingerprint::version(), get<3>(m_tw->m_metadata[5]) );
+
+        REQUIRE_EQ( string("QC/current/format"), get<2>(m_tw->m_metadata[6]) );
+        REQUIRE_EQ( Fingerprint::format(), get<3>(m_tw->m_metadata[6]) );
+
         // timestamp changes from execution to execution
-        REQUIRE_EQ( string("QC/current/timestamp"), get<2>(m_tw->m_metadata[4]) );
-        REQUIRE_NE( string(), get<3>(m_tw->m_metadata[4]) );
+        REQUIRE_EQ( string("QC/current/timestamp"), get<2>(m_tw->m_metadata[7]) );
+        REQUIRE_NE( string(), get<3>(m_tw->m_metadata[7]) );
     }
 }
 

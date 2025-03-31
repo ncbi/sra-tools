@@ -188,6 +188,10 @@ public:
     static std::string format() {
         return "json utf-8 compact";
     }
+    /// @brief Writes the canonical form to the stream.
+    /// @param strm the stream to which to write.
+    /// @return the stream which was passed in.
+    /// @note It is incumbent on the caller to provide the JSON object context.
     JSON_ostream &canonicalForm(JSON_ostream &strm) {
         return strm
                 << JSON_Member{"fingerprint-version"} << version()

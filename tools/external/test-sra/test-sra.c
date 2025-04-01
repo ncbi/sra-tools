@@ -2699,11 +2699,8 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 }
 #endif
             }
-            if ( rc == 0 )
-                OUTMSG ( ( "%s", b ) );
-            else
-                OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
         }
+
         if ( rc == 0 ) {
             if ( get ) {
                 rc = KClientHttpRequestGET ( req, & rslt );

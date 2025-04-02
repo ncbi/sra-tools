@@ -459,6 +459,18 @@ char const *SraInfo::QualityDescription() const {
          : "NONE";
 }
 
+// convert a string containing a uint64_t to a string representing the same value as a decimal
+static
+string
+U64StringToDecString( const string & encoded )
+{
+    assert( encoded.size() == sizeof(uint64_t) );
+    uint64_t v = *(const uint64_t*) encoded.data();
+    ostringstream ret;
+    ret << v;
+    return ret.str();
+}
+
 SraInfo::Fingerprints
 SraInfo::GetFingerprints( Detail detail ) const
 {
@@ -486,7 +498,7 @@ SraInfo::GetFingerprints( Detail detail ) const
 
     if ( detail > Short )
     {
-        ret.push_back( TreeNode( "timestamp",   seqmeta["QC/current/timestamp"].value()) );
+        ret.push_back( TreeNode( "timestamp",   U64StringToDecString( seqmeta["QC/current/timestamp"].value() ) ) );
         ret.push_back( TreeNode( "version",     seqmeta["QC/current/version"].value()) );
         ret.push_back( TreeNode( "format",      seqmeta["QC/current/format"].value()) );
 
@@ -508,7 +520,7 @@ SraInfo::GetFingerprints( Detail detail ) const
                 h.subnodes.push_back( TreeNode ( "fingerprint", seq_history[ name ] [ "fingerprint" ].value() ) );
                 h.subnodes.push_back( TreeNode ( "digest",      seq_history[ name ] [ "digest" ].value() ) );
                 h.subnodes.push_back( TreeNode ( "algorithm",   seq_history[ name ] [ "algorithm"].value() ) );
-                h.subnodes.push_back( TreeNode ( "timestamp",   seq_history[ name ] [ "timestamp"].value() ) );
+                h.subnodes.push_back( TreeNode ( "timestamp",   U64StringToDecString ( seq_history[ name ] [ "timestamp"].value() ) ) );
                 h.subnodes.push_back( TreeNode ( "version",     seq_history[ name ] [ "version"].value() ) );
                 h.subnodes.push_back( TreeNode ( "format",      seq_history[ name ] [ "format"].value() ) );
 

@@ -591,7 +591,7 @@ FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
 
     REQUIRE_EQ( 7, (int)fp.size() ); // fingerprint, digest, algorithm, timestamp, history, version, format
 
-    verifyFingerprint( fp[3], "timestamp", "1741379358" );
+    verifyFingerprint( fp[3], "timestamp", "1743618335" );
     verifyFingerprint( fp[4], "version", "1.0.0" );
     verifyFingerprint( fp[5], "format", "json utf-8 compact" );
 
@@ -610,7 +610,7 @@ FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
     verifyFingerprint( h1.subnodes[1], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
     verifyFingerprint( h1.subnodes[2], "digest", "qwer" );
     verifyFingerprint( h1.subnodes[3], "algorithm", "SHA-256" );
-    verifyFingerprint( h1.subnodes[4], "timestamp", "123" );
+    verifyFingerprint( h1.subnodes[4], "timestamp", "1743618305" );
     verifyFingerprint( h1.subnodes[5], "version", "1.0.0" );
     verifyFingerprint( h1.subnodes[6], "format", "json utf-8 compact" );
 
@@ -621,7 +621,7 @@ FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
     verifyFingerprint( h2.subnodes[1], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
     verifyFingerprint( h2.subnodes[2], "digest", "asdf" );
     verifyFingerprint( h2.subnodes[3], "algorithm", "SHA-256" );
-    verifyFingerprint( h2.subnodes[4], "timestamp", "456" );
+    verifyFingerprint( h2.subnodes[4], "timestamp", "1743618339" );
     verifyFingerprint( h2.subnodes[5], "version", "1.0.0" );
     verifyFingerprint( h2.subnodes[6], "format", "json utf-8 compact" );
 }

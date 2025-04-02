@@ -253,7 +253,7 @@ int wmain(int argc, wchar_t* argv[])
 int main(int argc, char* argv[])
 #endif
 {
-    VDB::VdbApp app( argc, argv );
+    VDB::Application app( argc, argv );
     if (!app)
     {
         return 1;

@@ -194,10 +194,7 @@ public:
     static std::string format() {
         return "json utf-8 compact";
     }
-<<<<<<< HEAD
-=======
 
->>>>>>> 0dbe38da (Added more commentdocs)
     /// @brief Writes the canonical form to the stream.
     /// @param strm the stream to which to write.
     /// @return the stream which was passed in.

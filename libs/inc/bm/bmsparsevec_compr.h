@@ -255,7 +255,7 @@ public:
         back_insert_iterator(const back_insert_iterator& bi);
         void operator=(const back_insert_iterator& bi)
         {
-            BM_ASSERT(bi.empty());
+//             BM_ASSERT(bi.empty()); ///< no member named 'empty'
             this->flush(); sv_bi_ = bi.sv_bi_;
         }
 

@@ -168,22 +168,23 @@ public:
         {
             this->buf_.resize(str_sv.effective_max_str());
         }
-
+        /*
         operator const value_type*() const BMNOEXCEPT
         {
             return get();
         }
-
+        */
         const value_type* get() const BMNOEXCEPT
         {
             str_sv_.get(idx_, this->buf_.data(), str_sv_.effective_max_str());
-            return this->buf_.data();
+            const value_type* v = this->buf_.data();
+            return v;
         }
 
         reference& operator=(const reference& ref)
         {
-            // TO DO: implement element copy bit by bit
-            str_sv_.set(idx_, (const value_type*)ref);
+            // TODO: implement element copy bit by bit
+            str_sv_.set(idx_, ref.get());
             return *this;
         }
 
@@ -931,7 +932,7 @@ public:
     void freeze() { this->freeze_matr(); }
 
     /** Returns true if vector is read-only */
-    bool is_ro() const BMNOEXCEPT { return this->is_ro_; }
+    bool is_ro() const BMNOEXCEPT { return this->bmatr_.is_ro(); }
 
     ///@}
 
@@ -1343,7 +1344,7 @@ public:
     // ------------------------------------------------------------
 
     /*! \brief syncronize internal structures */
-    void sync(bool force);
+    void sync(bool force, bool sync_size);
 
     /*!
         \brief check if another sparse vector has the same content and size
@@ -2480,7 +2481,8 @@ str_sparse_vector<CharType, BV, STR_SIZE>::remap_from_impl(
 //---------------------------------------------------------------------
 
 template<class CharType, class BV, unsigned STR_SIZE>
-void str_sparse_vector<CharType, BV, STR_SIZE>::sync(bool /*force*/)
+void str_sparse_vector<CharType, BV, STR_SIZE>::sync(
+                                    bool /*force*/, bool /*sync_size*/)
 {
     if (remap_flags_)
         recalc_remap_matrix2();

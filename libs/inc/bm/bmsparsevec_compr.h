@@ -380,7 +380,7 @@ public:
 
     /**
         \brief recalculate size to exclude tail NULL elements
-        After this call size() will return the true size of the vector
+        After this call size() will return the true size of the vector (without tail NULLs)
      */
     void sync_size() BMNOEXCEPT;
 
@@ -711,7 +711,8 @@ public:
     const_iterator get_const_iterator(size_type idx) const BMNOEXCEPT
         { return const_iterator(this, idx); }
 
-    back_insert_iterator get_back_inserter() { return back_insert_iterator(this); }
+    back_insert_iterator get_back_inserter()
+                { return back_insert_iterator(this); }
     ///@}
 
     // ------------------------------------------------------------
@@ -762,7 +763,7 @@ public:
     void freeze() { sv_.freeze(); }
 
     /** Returns true if vector is read-only */
-    bool is_ro() const BMNOEXCEPT { return sv_.is_ro_; }
+    bool is_ro() const BMNOEXCEPT { return sv_.is_ro(); }
 
 
 
@@ -801,13 +802,17 @@ public:
     /*!
         \brief Re-calculate rank-select index for faster access to vector
         \param force - force recalculation even if it is already recalculated
+        \param sync_size - do "true size" sync, it calculates the last vector element (not null)
+            and sets vector size based on that. Effectively it can reduce size() of vector by truncating tail NULL elements.
+                                                        
+        @sa sync_size()
     */
-    void sync(bool force);
+    void sync(bool force, bool sync_size);
 
     /*!
         \brief Re-calculate prefix sum table used for rank search (if necessary)
     */
-    void sync() { sync(false); }
+    void sync() { sync(false, false); }
 
     /*!
         \brief returns true if prefix sum table is in sync with the vector
@@ -951,6 +956,8 @@ protected:
     static
     value_type u2s(unsigned_value_type v) BMNOEXCEPT
         { return  sparse_vector_type::u2s(v); }
+
+    void set_ro_flag(bool b) BMNOEXCEPT { sv_.set_ro_flag(b); }
 
 private:
 
@@ -1400,8 +1407,7 @@ void rsc_sparse_vector<Val, SV>::load_from(
         size_type count = bv_null->count(); // set correct sizes
         sv_.resize(count);
     }
-    
-    sync(true);
+    sync(true, true);
 }
 
 //---------------------------------------------------------------------
@@ -1439,17 +1445,17 @@ void rsc_sparse_vector<Val, SV>::load_to(sparse_vector_type& sv) const
 //---------------------------------------------------------------------
 
 template<class Val, class SV>
-void rsc_sparse_vector<Val, SV>::sync(bool force)
+void rsc_sparse_vector<Val, SV>::sync(bool force, bool sync_size)
 {
     if (in_sync_ && force == false)
         return;  // nothing to do
     const bvector_type* bv_null = sv_.get_null_bvector();
     BM_ASSERT(bv_null);
     bv_null->build_rs_index(rs_idx_); // compute popcount prefix list
-    sv_.is_ro_ = bv_null->is_ro();
+    sv_.bmatr_.is_ro_ = bv_null->is_ro();
 
-    if (force)
-        sync_size();
+    if (sync_size)
+        this->sync_size();
 
     size_type cnt = size_ ? bv_null->count_range(0, size_-1, *rs_idx_)
                           : 0;
@@ -1472,7 +1478,7 @@ void rsc_sparse_vector<Val, SV>::sync_size() BMNOEXCEPT
         max_id_ = size_ = 0;
     else
         size_ = max_id_ + 1;
-    sync(false);
+    sync(false, false);
 }
 
 //---------------------------------------------------------------------
@@ -1654,7 +1660,7 @@ void rsc_sparse_vector<Val, SV>::optimize(bm::word_t*  temp_block,
              + sizeof(typename rs_index_type::sb_pair_type));
     }
     if (is_sync()) // must rebuild the sync index after optimization
-        this->sync(true);
+        this->sync(true, false); // force index rebuild, keep size as is
 }
 
 //---------------------------------------------------------------------
@@ -2019,6 +2025,9 @@ rsc_sparse_vector<Val, SV>::back_insert_iterator::back_insert_iterator(
 : csv_(bi.csv_),
   sv_bi_(bi.sv_bi_)
 {
+    // reset the flags for fast access (due to modification)
+    csv_->is_dense_ = false;
+    csv_->in_sync_ = false;
 }
 
 

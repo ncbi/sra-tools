@@ -34,8 +34,20 @@ For more information please visit:  http://bitmagic.io
 #include "bmbuffer.h"
 #include "bmdef.h"
 
+
 namespace bm
 {
+
+template<class BV, typename TOut>
+void _print_bv(TOut& tout, const BV& bv)
+{
+    tout << bv.count() << ": ";
+    typename BV::enumerator en = bv.first();
+    for (; en.valid(); ++en)
+        tout << *en << ", ";
+    tout << std::endl;
+}
+
 
 /** \defgroup svserial Sparse vector serialization
     Sparse vector serialization
@@ -86,7 +98,10 @@ struct sparse_vector_serial_layout
     
     /// Set new serialized size
     void resize(size_t ssize) { buf_.resize(ssize);  }
-    
+
+    /// Set new serialized size (shrink)
+    void shrink(size_t ssize) { buf_.shrink(ssize);  }
+
     /// return serialization buffer capacity
     size_t  capacity() const BMNOEXCEPT { return buf_.capacity(); }
     
@@ -127,9 +142,9 @@ protected:
     buffer_type       buf_;                       ///< serialization buffer
     ptr_vector_type   plane_ptrs_; ///< pointers on serialized bit-planes
     sizet_vector_type plane_size_; ///< serialized plane size
-//    unsigned char* plane_ptrs_[SV::sv_slices]; ///< pointers on serialized bit-planes
-//    size_t         plane_size_[SV::sv_slices]; ///< serialized plane size
+
 };
+
 
 // -------------------------------------------------------------------------
 
@@ -286,10 +301,10 @@ public:
 
 protected:
     void build_xor_ref_vector(const SV& sv);
-
+/*
     static
     void build_plane_digest(bvector_type& digest_bv, const SV& sv);
-
+*/
     typedef typename SV::remap_matrix_type  remap_matrix_type;
 
     /// serialize the remap matrix used for SV encoding
@@ -921,23 +936,6 @@ void sparse_vector_serializer<SV>::encode_remap_matrix(bm::encoder& enc,
 // -------------------------------------------------------------------------
 
 template<typename SV>
-void sparse_vector_serializer<SV>::build_plane_digest(bvector_type& digest_bv,
-                                                      const SV& sv)
-{
-    digest_bv.init();
-    digest_bv.clear(false);
-    unsigned planes = (unsigned)sv.get_bmatrix().rows();
-    for (unsigned i = 0; i < planes; ++i)
-    {
-        typename SV::bvector_type_const_ptr bv = sv.get_slice(i);
-        if (bv)
-            digest_bv.set_bit_no_check(i);
-    } // for i
-}
-
-// -------------------------------------------------------------------------
-
-template<typename SV>
 void sparse_vector_serializer<SV>::serialize(const SV&  sv,
                       sparse_vector_serial_layout<SV>&  sv_layout)
 {
@@ -952,11 +950,17 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
         return;
     }
 
-    build_plane_digest(plane_digest_bv_, sv);
+    const auto& bmatr = sv.get_bmatrix();
+
+    bmatr.build_plane_digest(plane_digest_bv_);
+    plane_digest_bv_.optimize();
+
+//bm::_print_bv(std::cout, plane_digest_bv_);
+
     bvs_.set_ref_vectors(0); // disable possible XOR compression for offs.bv
     bvs_.serialize(plane_digest_bv_, plane_digest_buf_);
 
-    unsigned planes = (unsigned)sv.get_bmatrix().rows();
+    unsigned planes = (unsigned)bmatr.rows();
     sv_layout.resize_slices(planes);
 
     // ----------------------------------------------------
@@ -1015,12 +1019,14 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
 
     for (unsigned i = 0; i < planes; ++i)
     {
-        typename SV::bvector_type_const_ptr bv = sv.get_slice(i);
+        typename SV::bvector_type_const_ptr bv = bmatr.row(i);
         if (!bv)  // empty plane
         {
+            BM_ASSERT(!plane_digest_bv_.test(i));
             sv_layout.set_plane(i, 0, 0);
             continue;
         }
+        BM_ASSERT(plane_digest_bv_.test(i));
         if (is_xor_ref())
         {
             unsigned idx;
@@ -1063,8 +1069,9 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
     // save the digest vector
     //
     size_t digest_offset = size_t(buf_ptr - buf); // digest position from the start
-    ::memcpy(buf_ptr, plane_digest_buf_.buf(), plane_digest_buf_.size());
-    buf_ptr += plane_digest_buf_.size();
+    auto pd_size =  plane_digest_buf_.size();
+    ::memcpy(buf_ptr, plane_digest_buf_.buf(), pd_size);
+    buf_ptr += pd_size;
     {
         bool use_64bit = false;
         plane_off_vect_.resize(0);
@@ -1108,17 +1115,20 @@ void sparse_vector_serializer<SV>::serialize(const SV&  sv,
             enc_o.put_32(min_v);
             enc_o.put_32(max_v);
 
+            {
             bm::bit_out<bm::encoder> bo(enc_o);
             bo.bic_encode_u32_cm(plane_off_vect_.data()+1,
                                  unsigned(plane_off_vect_.size()-2),
                                  min_v, max_v);
+            bo.flush();
+            }
         }
         buf_ptr += enc_o.size();
     }
 
 
 
-    sv_layout.resize(size_t(buf_ptr - buf)); // set the true occupied size
+    sv_layout.shrink(size_t(buf_ptr - buf)); // set the true occupied size
 
     // -----------------------------------------------------
     // save the header
@@ -1320,7 +1330,7 @@ void sparse_vector_deserializer<SV>::deserialize_range(SV& sv,
             load_remap(sv, remap_buf_ptr_);
     } // if remap traits
 
-    sv.sync(true); // force sync, recalculate RS index, remap tables, etc
+    sv.sync(true, true); // force sync, recalculate RS index, remap tables, etc
 
     remap_buf_ptr_ = 0;
 
@@ -1388,7 +1398,8 @@ void sparse_vector_deserializer<SV>::deserialize_sv(SV& sv,
     if (sv.max_vector_size == 1)
     {
         // NULL vector at: (sv.max_vector_size * sizeof(value_type) * 8 + 1)
-        const bvector_type* bv_null = sv.get_slice(sv.sv_value_slices);
+        const bvector_type* bv_null =
+            sv.get_bmatrix().get_row(sv.sv_value_slices);
         if (bv_null)
             sv.mark_null_idx(sv.sv_value_slices); // last slice is NULL
     }
@@ -1407,7 +1418,7 @@ void sparse_vector_deserializer<SV>::deserialize_sv(SV& sv,
             load_remap(sv, remap_buf_ptr_);
     } // if remap traits
     
-    sv.sync(true); // force sync, recalculate RS index, remap tables, etc
+    sv.sync(true, true); // force sync, recalculate RS index, remap tables, etc
     remap_buf_ptr_ = 0;
 }
 
@@ -1549,6 +1560,15 @@ void sparse_vector_deserializer<SV>::deserialize_planes(
         }
     } // for i
 
+    switch (is_final_)
+    {
+    case bm::finalization::READONLY:
+        sv.set_ro_flag(true);
+        break;
+    default:
+        break;
+    }
+
     deserial_.unset_range();
 
 }
@@ -1572,7 +1592,7 @@ int sparse_vector_deserializer<SV>::load_null_plane(SV& sv,
         // the NULL vector just to get to the offset of remap table
 
         const unsigned char* bv_buf_ptr = buf + offset; // seek to position
-        bvector_type*  bv = sv.slice(unsigned(i));
+        bvector_type*  bv = sv.get_bmatrix().get_row(unsigned(i));
 
         if (!bv_ref_ptr_)
             bv_ref_.add(bv, unsigned(i));
@@ -1652,7 +1672,11 @@ void sparse_vector_deserializer<SV>::load_planes_off_table(
                 if (plane_digest_bv_.test(i))
                     offset = (size_t) dec_o.get_64();
                 off_vect_[i] = offset;
+//std::cout << offset << ",";
             } // for i
+
+//std::cout << std::endl;
+//_Print_arr(&off_vect_[0], planes);
             break;
         case '3':
         {

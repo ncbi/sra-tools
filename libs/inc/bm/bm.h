@@ -1,7 +1,7 @@
 #ifndef BM__H__INCLUDED__
 #define BM__H__INCLUDED__
 /*
-Copyright(c) 2002-2019 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
+Copyright(c) 2002-2025 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -523,7 +523,7 @@ public:
         {
             bvect_ = ii.bvect_;
             if (!buf_)
-                buf_ = bvect_->allocate_tempblock();
+                buf_ = (value_type*) bvect_->blockman_.get_allocator().alloc_bit_block();
             buf_size_ = ii.buf_size_;
             ::memcpy(buf_, ii.buf_, buf_size_ * sizeof(*buf_));
             sorted_ = ii.sorted_;
@@ -534,7 +534,7 @@ public:
         {
             bvect_ = ii.bvect_;
             if (buf_)
-                bvect_->free_tempblock(buf_);
+                bvect_->blockman_.get_allocator().free_bit_block((bm::word_t*)buf_);
             buf_ = ii.buf_; ii.buf_ = 0;
             buf_size_ = ii.buf_size_;
             sorted_ = ii.sorted_;
@@ -2857,15 +2857,17 @@ bvector<Alloc>::block_count_to(const bm::word_t*    block,
 
     BM_ASSERT(first == bm::bit_block_calc_count_to(block, rs3_border0));
     BM_ASSERT(second == bm::bit_block_calc_count_range(block, rs3_border0+1, rs3_border1));
-
-
+#if (0) // debug code
     {
         unsigned cnt, aux0(bm::gap_word_t(sub >> 32)); (void)cnt; (void)aux0;
-        BM_ASSERT(aux0 == (cnt =bm::bit_block_calc_count_to(block, bm::rs3_border0_1)));
+        cnt = bm::bit_block_calc_count_to(block, bm::rs3_border0_1);
+        BM_ASSERT(aux0 == cnt);
         unsigned cnt1, aux1(bm::gap_word_t(sub >> 48)); (void)aux1; (void) cnt1;
-        BM_ASSERT(aux1 == (cnt1 =bm::bit_block_calc_count_to(block, bm::rs3_border1_1)));
+        cnt1 = bm::bit_block_calc_count_to(block, bm::rs3_border1_1);
+        BM_ASSERT(aux1 == cnt1);
     }
-
+#endif
+    
     size_type c=0;
     unsigned sub_choice =
         bm::get_nibble(bm::rs_intervals<true>::_c._lut, nbit_right);
@@ -4037,10 +4039,8 @@ void bvector<Alloc>::calc_stat(
         st->max_serialize_mem += full_null_size;
         
     } // if blk_root
-    
-    size_t safe_inc = st->max_serialize_mem / 10; // 10% increment
-    if (!safe_inc) safe_inc = 256;
-    st->max_serialize_mem += safe_inc;
+
+    st->add_scorrection();
 
     // Calc size of different odd and temporary things.
     st->memory_used += unsigned(sizeof(*this) - sizeof(blockman_));
@@ -4376,7 +4376,7 @@ void bvector<Alloc>::import_block(const size_type* ids,
         {
             if (stop-start == 1)
             {
-                unsigned nbit = unsigned(ids[0] & bm::set_block_mask);
+                unsigned nbit = unsigned(ids[start] & bm::set_block_mask);
                 gap_block_set_no_ret(BMGAP_PTR(blk), true, nblock, nbit);
                 return;
             }
@@ -4389,7 +4389,7 @@ void bvector<Alloc>::import_block(const size_type* ids,
         #endif
         if (new_blocks_strat_ == BM_GAP) // optimization required
         {
-            BM_DECLARE_TEMP_BLOCK(temp_blk);
+            BM_DECLARE_TEMP_BLOCK(temp_blk)
             unsigned i0, j0;
             bm::get_block_coord(nblock, i0, j0);
             blockman_.optimize_block(i0, j0, blk, temp_blk, opt_compress, 0);
@@ -7308,7 +7308,8 @@ void bvector<Alloc>::combine_operation_block_or(
             res = bm::gap_operation_or(gap_blk, BMGAP_PTR(arg_blk),
                                        tmp_buf, res_len);
             BM_ASSERT(res == tmp_buf);
-            blockman_.assign_gap_check(i, j, res, ++res_len, blk, tmp_buf);
+            BM_ASSERT(res[res_len]==65535);
+            blockman_.assign_gap_check(i, j, res, res_len, blk, tmp_buf);
             return;
         }
         // GAP or BIT
@@ -7413,7 +7414,8 @@ void bvector<Alloc>::combine_operation_block_xor(
                                          tmp_buf,
                                          res_len);
             BM_ASSERT(res == tmp_buf);
-            blockman_.assign_gap_check(i, j, res, ++res_len, blk, tmp_buf);
+            BM_ASSERT(res[res_len]==65535);
+            blockman_.assign_gap_check(i, j, res, res_len, blk, tmp_buf);
             return;
         }
         // GAP or BIT
@@ -7488,7 +7490,9 @@ void bvector<Alloc>::combine_operation_block_and(
                                         tmp_buf,
                                         res_len);
             BM_ASSERT(res == tmp_buf);
-            blockman_.assign_gap_check(i, j, res, ++res_len, blk, tmp_buf);
+            BM_ASSERT(res[res_len]==65535);
+//            blockman_.assign_gap_check(i, j, res, ++res_len, blk, tmp_buf);
+            blockman_.assign_gap_check(i, j, res, res_len, blk, tmp_buf);
             return;
         }
         // GAP & BIT
@@ -7597,8 +7601,8 @@ void bvector<Alloc>::combine_operation_block_sub(
 
             BM_ASSERT(res == tmp_buf);
             BM_ASSERT(!(res == tmp_buf && res_len == 0));
-            
-            blockman_.assign_gap_check(i, j, res, ++res_len, blk, tmp_buf);
+            BM_ASSERT(res[res_len]==65535);
+            blockman_.assign_gap_check(i, j, res, res_len, blk, tmp_buf);
             return;
         }
         // else: argument is BITSET-type (own block is GAP)
@@ -7687,13 +7691,14 @@ bvector<Alloc>::combine_operation_with_block(block_idx_type    nb,
             }
             BM_ASSERT(res == tmp_buf);
             BM_ASSERT(!(res == tmp_buf && res_len == 0));
+            BM_ASSERT(tmp_buf[res_len]==65535);
 
             // if as a result of the operation gap block turned to zero
             // we can now replace it with NULL
             if (bm::gap_is_all_zero(res))
                 blockman_.zero_block(nb);
             else
-                blockman_.assign_gap(nb, res, ++res_len,  blk, tmp_buf);
+                blockman_.assign_gap(nb, res, res_len,  blk, tmp_buf);
             return;
         }
         else // argument is BITSET-type (own block is GAP)

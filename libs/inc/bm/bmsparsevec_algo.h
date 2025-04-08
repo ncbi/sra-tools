@@ -1780,10 +1780,12 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
             }
             else
             {
+#if (0)
                 unsigned pl; (void)pl;
                 BM_ASSERT(prefix_len <=
                                 (pl=sv.template common_prefix_length<true>(
                                                 mask_from_, mask_to_, pref)));
+#endif
                 common_prefix_len = prefix_len;
             }
         } // if one block hit
@@ -1791,10 +1793,12 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
         {
             if (prefix_len != ~0u) // not valid (uncalculated) prefix len
             {
+#if (0)
                 unsigned pl; (void)pl;
                 BM_ASSERT(prefix_len <=
                                 (pl=sv.template common_prefix_length<true>(
                                                 mask_from_, mask_to_, pref)));
+#endif
                 common_prefix_len = prefix_len;
             }
         }

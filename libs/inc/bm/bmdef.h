@@ -22,6 +22,7 @@ For more information please visit:  http://bitmagic.io
 
 #include <climits>
 #include <stdint.h>
+#include <stdlib.h>
 
 // Incorporate appropriate tuneups when the NCBI C++ Toolkit's core
 // headers have been included.

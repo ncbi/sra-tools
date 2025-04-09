@@ -91,6 +91,9 @@ rc_t CommonMain (struct Args * args);
 rc_t CryptFile (const struct KFile * in, const struct KFile ** new_in,
                 struct KFile * out, struct KFile ** new_out, EncScheme scheme);
 
+extern const char UsageDefaultName[];
+extern rc_t CC UsageSummary (const char * progname);
+extern rc_t CC Usage (const Args * args);
 
 #endif
 

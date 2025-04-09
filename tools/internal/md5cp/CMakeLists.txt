@@ -22,5 +22,5 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( md5cp md5cp "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( md5cp md5cp "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( md5cp false )

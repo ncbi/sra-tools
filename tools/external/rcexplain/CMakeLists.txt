@@ -24,5 +24,5 @@
 
 add_compile_definitions( __mod__="tools/util" )
 
-GenerateExecutableWithDefs( rcexplain rcexplain "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( rcexplain rcexplain "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( rcexplain false )

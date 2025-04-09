@@ -30,15 +30,17 @@ set( DUMP_COMMON_SRC
 	core
 )
 
+set(LIBS "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
 # External
-GenerateExecutableWithDefs( fastq-dump "${DUMP_COMMON_SRC};fastq" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( fastq-dump "${DUMP_COMMON_SRC};fastq" "" "" "${LIBS}" )
 MakeLinksExe( fastq-dump true )
 
-GenerateExecutableWithDefs( sff-dump "${DUMP_COMMON_SRC};sff" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( sff-dump "${DUMP_COMMON_SRC};sff" "" "" "${LIBS}" )
 MakeLinksExe( sff-dump false )
 
-GenerateExecutableWithDefs( illumina-dump "${DUMP_COMMON_SRC};illumina" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( illumina-dump "${DUMP_COMMON_SRC};illumina" "" "" "${LIBS}" )
 MakeLinksExe( illumina-dump false )
 
-GenerateExecutableWithDefs( abi-dump "${DUMP_COMMON_SRC};abi" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( abi-dump "${DUMP_COMMON_SRC};abi" "" "" "${LIBS}" )
 MakeLinksExe( abi-dump false )

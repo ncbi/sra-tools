@@ -2068,6 +2068,9 @@ extern "C"
 
        */
 
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         return NSRefVariation::find_variation_region ( argc, argv );
     }
 }

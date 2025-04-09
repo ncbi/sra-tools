@@ -26,8 +26,8 @@ add_compile_definitions( __mod__="test/external/sra-info" )
 
 # unit tests
 
-AddExecutableTest( Test_Sra_Info_Unit "test-sra-info"
-                                "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+AddExecutableTest( Test_SraInfo_Unit "test-sra-info"
+                                "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
                                 "${PROJECT_SOURCE_DIR}/tools/external/sra-info" )
 
 ToolsRequired(sra-info)

@@ -47,5 +47,5 @@ set( CGLOAD_SRC
 	writer-seq
 )
 
-GenerateExecutableWithDefs( cg-load "${CGLOAD_SRC}" "__mod__=\"tools/cg-load\"" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( cg-load "${CGLOAD_SRC}" "__mod__=\"tools/cg-load\"" "${CMAKE_SOURCE_DIR}/libs/inc" "kapp;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( cg-load false )

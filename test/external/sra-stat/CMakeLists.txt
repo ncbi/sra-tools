@@ -28,7 +28,7 @@ if ( NOT WIN32 )
     ToolsRequired(sra-stat)
 
 	#add_executable( testAssemblyStatistics testAssemblyStatistics )
-	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	#target_link_libraries( testAssemblyStatistics ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
 	add_test( NAME Test_Sra_stat_dflt

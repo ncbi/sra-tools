@@ -37,5 +37,5 @@ set( SRC
 	vdb-dump
 )
 
-GenerateExecutableWithDefs( vdb-dump "${SRC}" "__mod__=\"tools/vdb-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( vdb-dump "${SRC}" "__mod__=\"tools/vdb-dump\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-dump true )

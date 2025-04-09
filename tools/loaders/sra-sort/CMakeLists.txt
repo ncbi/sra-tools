@@ -68,8 +68,8 @@ set( SRA_SORT_SRC
 	csra-pair
 )
 
-GenerateExecutableWithDefs( sra-sort "${SRA_SORT_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( sra-sort "${SRA_SORT_SRC}" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( sra-sort false )
 
-GenerateExecutableWithDefs( sra-sort-cg "${SRA_SORT_SRC}" "SEQUENCE_BEFORE_SECONDARY=0" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( sra-sort-cg "${SRA_SORT_SRC}" "SEQUENCE_BEFORE_SECONDARY=0" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( sra-sort-cg false )

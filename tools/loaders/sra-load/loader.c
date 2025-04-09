@@ -126,6 +126,8 @@ rc_t CC UsageSummary (const char * progname)
 
 rc_t Usage( const Args * args )
 {
+    extern const char UsageDefaultName[];
+
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
     rc_t rc;
@@ -907,6 +909,9 @@ rc_t KMain(int argc, char *argv[])
     SRALoaderConfig feInput;
     memset(&feInput, 0, sizeof feInput);
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     /* Initialize statics */
     if (rc == 0) {
         rc = KDirectoryNativeDir(&s_Directory);

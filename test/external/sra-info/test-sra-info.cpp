@@ -671,11 +671,6 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
 extern "C"
 {
 
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-
 const char UsageDefaultName[] = "test-sra-info";
 
 rc_t CC UsageSummary (const char * progname)

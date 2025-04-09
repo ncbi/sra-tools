@@ -32,5 +32,5 @@ add_compile_definitions( __mod__="tools/test-sra" )
 
 include_directories( "." )
 
-GenerateExecutableWithDefs( test-sra "test-sra.c;${OS_SPECIFIC_SRC}" "" "" "ascp;diagnose;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( test-sra "test-sra.c;${OS_SPECIFIC_SRC}" "" "" "kapp;ascp;diagnose;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( test-sra false )

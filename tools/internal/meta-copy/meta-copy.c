@@ -328,6 +328,10 @@ static rc_t copy( const struct copy_ctx * ctx )
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,  NULL, 0 );
     if ( rc != 0 ) {
 		LOGERR ( klogInt, rc, "ArgsMakeAndHandle failed()" );

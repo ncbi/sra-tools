@@ -24,6 +24,8 @@
 
 add_compile_definitions( __mod__="tools/sra-pileup" )
 
+set(LIBS "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
 # External
 set( SRA_PILEUP_SRC
 	dyn_string
@@ -46,7 +48,7 @@ set( SRA_PILEUP_SRC
 	pileup_v2
 	sra-pileup
 )
-GenerateExecutableWithDefs( sra-pileup "${SRA_PILEUP_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( sra-pileup "${SRA_PILEUP_SRC}" "" "" "${LIBS}" )
 MakeLinksExe( sra-pileup true )
 
 set( SAM_DUMP_SRC
@@ -67,5 +69,5 @@ set( SAM_DUMP_SRC
 	sam-dump3
 	dyn_string
 )
-GenerateExecutableWithDefs( sam-dump "${SAM_DUMP_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( sam-dump "${SAM_DUMP_SRC}" "" "" "${LIBS}" )
 MakeLinksExe( sam-dump true )

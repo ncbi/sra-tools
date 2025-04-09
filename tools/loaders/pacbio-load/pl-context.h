@@ -79,6 +79,7 @@ bool ctx_ld_consensus( context * ctx );
 bool ctx_ld_passes( context * ctx );
 bool ctx_ld_metrics( context * ctx );
 
+rc_t CC Usage ( const Args * args );
 
 #ifdef __cplusplus
 }

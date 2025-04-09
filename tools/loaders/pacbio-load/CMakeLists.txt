@@ -58,7 +58,7 @@ if( NOT WIN32 )
             pacbio-load
         )
 
-        set( LIBS loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+        set( LIBS kapp loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
         set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DH5_USE_110_API" )
         GenerateExecutableWithDefs( pacbio-load "${SRC}" "__mod__=\"tools/pacbio-load\"" "${CMAKE_CURRENT_SOURCE_DIR};${HDF5_C_INCLUDE_DIRS}" "${LIBS}" )
 

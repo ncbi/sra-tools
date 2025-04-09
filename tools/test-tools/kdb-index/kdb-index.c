@@ -187,13 +187,7 @@ void print_help ( void )
         );
 }
 
-rc_t CC Usage ( struct Args const * args )
-{
-    return 0;
-}
-
- const char UsageDefaultName[] = "kdb-index";
-rc_t CC UsageSummary (const char * progname) { return 0; }
+const char UsageDefaultName[] = "kdb-index";
 rc_t CC KMain ( int argc, char *argv [] )
 {
     rc_t rc = 0;

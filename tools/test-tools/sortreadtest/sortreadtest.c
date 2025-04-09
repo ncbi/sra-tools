@@ -189,7 +189,7 @@ rc_t write_rows (param_block * pb)
             }
         }
     } while (rc == 0);
-    
+
     return rc;
 }
 
@@ -279,6 +279,9 @@ rc_t CC KMain ( int argc, char *argv[] )
     Args * args;
     rc_t rc = 0;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc = ArgsMakeAndHandle (&args, argc, argv, 0 /*1, Options, sizeof Options / sizeof (&Options[1])*/);
     if (rc)
     {
@@ -303,7 +306,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             default:
                 rc = MiniUsage (args);
                 goto bailout;
-                
+
             case 2:
                 pb.schema_path = SCHEMASPEC;
                 break;
@@ -312,7 +315,7 @@ rc_t CC KMain ( int argc, char *argv[] )
                 pb.schema_path = NULL;
                 break;
             }
-        
+
             rc = ArgsParamValue (args, 0, (const void **)&pb.file_path);
             if (rc)
             {

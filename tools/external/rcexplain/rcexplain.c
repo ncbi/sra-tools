@@ -84,6 +84,9 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc = 0;
     Args * args;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc = ArgsMakeAndHandle (&args, argc, argv, 0);
     if (rc == 0)
     {
@@ -94,7 +97,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             rc = ArgsParamCount (args, &pcount);
             if (rc)
                 break;
-            
+
             if (pcount == 0) {
                 MiniUsage(args);
                 rc = RC(rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid);

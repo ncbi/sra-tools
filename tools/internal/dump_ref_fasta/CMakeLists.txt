@@ -27,6 +27,7 @@ include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
 add_executable ( dump-ref-fasta DumpReferenceFASTA.cpp)
 
 target_link_libraries ( dump-ref-fasta
+    kapp
     ncbi-ngs
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}

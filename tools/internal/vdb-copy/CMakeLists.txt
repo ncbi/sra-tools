@@ -33,7 +33,7 @@ set( SRC
 	config_values
 	vdb-copy
 )
-GenerateExecutableWithDefs( vdb-copy "${SRC}" "__mod__=\"tools/vdb-copy\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( vdb-copy "${SRC}" "__mod__=\"tools/vdb-copy\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( vdb-copy false )
 
 add_custom_command( TARGET vdb-copy POST_BUILD

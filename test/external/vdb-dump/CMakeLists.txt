@@ -39,13 +39,13 @@ set(TOOL_HOME ${CMAKE_SOURCE_DIR}/tools/external/vdb-dump)
 file ( MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/db )
 AddExecutableTest( Test_Vdb_dump_view-spec
     "test-view-spec;${TOOL_HOME}/vdb-dump-view-spec.c;${TOOL_HOME}/vdb-dump-helper.c;${TOOL_HOME}/vdb-dump-context.c;${TOOL_HOME}/vdb-dump-coldefs.c;${TOOL_HOME}/vdb-dump-str.c"
-    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}"
+    "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}"
     "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump" )
 
 if ( NOT WIN32 )
 
 	add_executable( vdb-dump-makedb makedb )
-	target_link_libraries( vdb-dump-makedb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+	target_link_libraries( vdb-dump-makedb kapp ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	add_dependencies(vdb-dump-makedb vdb-dump)
 	if( TARGET vdb-dump-asan )
 		add_dependencies(vdb-dump-makedb vdb-dump-asan)
@@ -81,7 +81,7 @@ if ( NOT WIN32 )
     # run this test after Test_Vdb_dump to make sure the test database has been created
     AddExecutableTest( Test_Vdb_dump_view-alias
         "test-view-alias"
-        "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
+        "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
         "${CMAKE_SOURCE_DIR}/tools/external/vdb-dump"
     )
 

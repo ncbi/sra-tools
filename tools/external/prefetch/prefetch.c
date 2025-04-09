@@ -441,7 +441,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
         if (rc != 0)
             PLOGERR(klogInt, (klogInt, rc,
                 "cannot resolve remote location of '$(acc)'", "acc=%s", id));
-        
+
         if (rc ==0 && !qualPrntd) {
             const char * quality = NULL;
             rc_t r2 = KServiceGetQuality(service, &quality);
@@ -3922,6 +3922,8 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
     return rc;
 }
 
+extern rc_t CC Usage(const Args *args);
+
 /*********** KMain **********/
 rc_t CC KMain(int argc, char *argv[]) {
     rc_t rc = 0;
@@ -3930,6 +3932,9 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     PrfMain pars;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     rc = PrfMainInit(argc, argv, &pars);
 
 #ifdef DBGNG

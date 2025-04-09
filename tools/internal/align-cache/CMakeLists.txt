@@ -27,5 +27,5 @@ set( SRC
     helper
 )
 
-GenerateExecutableWithDefs( align-cache "${SRC}" "__mod__=\"tools/internal/align-cache\"" "${CMAKE_SOURCE_DIR}/libs/inc" "${COMMON_LINK_LIBRARIES};loader;${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( align-cache "${SRC}" "__mod__=\"tools/internal/align-cache\"" "${CMAKE_SOURCE_DIR}/libs/inc" "kapp;${COMMON_LINK_LIBRARIES};loader;${COMMON_LIBS_WRITE}" )
 MakeLinksExe( align-cache false )

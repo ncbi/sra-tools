@@ -32,12 +32,13 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 
-#include <kapp/main.h>
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
+#include <kapp/vdbapp.h>
+
+#include "../../shared/toolkit.vers.h"
 
 #include "formatter.hpp"
-
 
 using namespace std;
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
@@ -156,7 +157,7 @@ rc_t CC Usage ( const Args * args )
 
     HelpOptionsStandard ();
 
-    HelpVersion ( fullpath, KAppVersion() );
+    HelpVersion ( fullpath, TOOLKIT_VERS );
 
     return rc;
 }
@@ -246,10 +247,23 @@ public:
     bool needFingerprints(void) const { return fingerprints; }
 } Query;
 
-rc_t CC KMain ( int argc, char *argv [] )
+#if WINDOWS && UNICODE
+int wmain(int argc, wchar_t* argv[])
+#else
+int main(int argc, char* argv[])
+#endif
 {
+    VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return 1;
+    }
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.GetArgV(),
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );
     DISP_RC( rc, "ArgsMakeAndHandle() failed" );
     if ( rc == 0)

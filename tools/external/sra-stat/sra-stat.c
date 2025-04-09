@@ -728,7 +728,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment,
                 if ( dREAD_LEN [ read - 1 ] > 0 )
                     i += dREAD_LEN [ read - 1 ];
                 -- i; /* here i can become negative: it should be signed */
-                continue;                
+                continue;
             }
         }
 
@@ -1156,7 +1156,7 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
     }
 
     if (rc == 0 && !found) {
-        /* There could be Read groups that are present in the BAM_HEADER 
+        /* There could be Read groups that are present in the BAM_HEADER
         but missed in the csra. We was just ignore them. */
     }
 
@@ -1182,7 +1182,7 @@ rc_t CC tree_RG_callback(const BAM_HEADER_RG* rg, const void* data)
 
     ss = (SraStats*) BSTreeFind(tr, rg->ID, srastats_cmp);
     if (ss == NULL) {
-        /* There could be Read groups that are present in the BAM_HEADER 
+        /* There could be Read groups that are present in the BAM_HEADER
         but missed in the csra. We was just ignore them. */
     }
     else {
@@ -1766,7 +1766,7 @@ rc_t CC fileSizeVisitor(const KDirectory* dir,
             }
             break;
         }
-        case kptDir: 
+        case kptDir:
             DBGMSG(DBG_APP, DBG_COND_1, ("Dir '%s'\n", name));
             rc = KDirectoryVisit(dir, false, fileSizeVisitor, sizes, "%s", name);
             DISP_RC2(rc, name, "while calling KDirectoryVisit");
@@ -1922,7 +1922,7 @@ static rc_t get_arc_info(const srastat_parms * pb, ArcInfo *arc_info,
     const char *path = aPath;
 
     KDirectory * dir = NULL;
-    
+
     assert(pb && arc_info);
 
     memset(arc_info, 0, sizeof(*arc_info));
@@ -2226,9 +2226,9 @@ rc_t readStatsMetaNode(const KMDataNode* parent, const char* parentName,
                               "parent=%s,child=%s", parentName, name));
         }
     }
-    
+
     RELEASE(KMDataNode, node);
-    
+
     return rc;
 }
 
@@ -2889,7 +2889,7 @@ static rc_t formatLoadTime(time_t const tv, char *const buf, size_t const sz, si
     struct tm *const tm = gmtime(&tv);
     if (tm) {
         static char const *const weekdays[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-        
+
         assert(0 <= tm->tm_wday && tm->tm_wday <= 6);
         return string_printf(buf, sz, out
                              , "%s %02u-%02u-%02u %02u:%02u:%02u UTC"
@@ -2978,7 +2978,7 @@ rc_t print_results(const Ctx* ctx)
                 ctx->total->total_cmp_len == 0 &&
                 mDfl->CMP_BASE_COUNT == ctx->total->BASE_COUNT &&
                 ctx->db != NULL;
-            
+
             /* DB without references and with CMP reads.
                A database with a single SEQUENCE table (without references)
                and all reads compressed.
@@ -3119,7 +3119,7 @@ rc_t print_results(const Ctx* ctx)
             if (ctx->total->total_cmp_len > 0) {
                 OUTMSG((" cmp_base_count=\"%ld\"", ctx->total->total_cmp_len));
             }
-            
+
             if (rc == 0) {
                 const ArcInfo* a = ctx->arc_info;
                 if (a->timestamp != 0) {
@@ -3208,7 +3208,7 @@ rc_t print_results(const Ctx* ctx)
                 != ctx->total->filtered_spot_count ||
             ctx->pb->total.filtered_bio_len != ctx->total->filtered_bio_len ||
             ctx->pb->total.total_cmp_len != ctx->total->total_cmp_len
-            || ( mDfl && 
+            || ( mDfl &&
                 (  ctx->total->BASE_COUNT != mDfl->BASE_COUNT ||
                    ctx->total->BIO_BASE_COUNT != mDfl->BIO_BASE_COUNT ||
                    ctx->total->spot_count != mDfl->spot_count ||
@@ -3313,7 +3313,7 @@ rc_t print_results(const Ctx* ctx)
         OUTMSG(("</Run>\n"));
     }
 
-    if (mismatchCMP_BASE_COUNT != 0) 
+    if (mismatchCMP_BASE_COUNT != 0)
         /* ignore it */;
 
     assert(ctx->pb);
@@ -3688,7 +3688,7 @@ void CC bst_whack_free ( BSTNode *n, void *ignore )
     free(ss);
 }
 
-static 
+static
 int64_t CC srastats_sort ( const BSTNode *item, const BSTNode *n )
 {
     const SraStats *ss = ( const SraStats* ) item;
@@ -4001,7 +4001,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                     }
                                 }
                                 if ( rc == 0 )
-                                    DBGMSG ( DBG_APP, DBG_COND_1, ( 
+                                    DBGMSG ( DBG_APP, DBG_COND_1, (
                                         "Reallocated buffers "
                                         "for %zu READS\n", MAX_NREADS ) );
                                 else
@@ -4487,12 +4487,12 @@ static bool VDatabaseIsSingleTblDb(const VDatabase * self) {
     bool isSingleTblDb = false;
 
     uint32_t count = 0;
-    
+
     KNamelist *names = NULL;
     rc_t rc = VDatabaseListTbl(self, &names);
     if (rc != 0)
         return false;
-    
+
     rc = KNamelistCount(names, &count);
     if (rc == 0 && count == 1) {
         const char *name = NULL;
@@ -4505,7 +4505,7 @@ static bool VDatabaseIsSingleTblDb(const VDatabase * self) {
     }
 
     KNamelistRelease(names);
- 
+
     return isSingleTblDb;
 }
 
@@ -4648,7 +4648,7 @@ rc_t run(srastat_parms* pb)
             SraStatsTotalFree(&total);
             RELEASE(KTable, ktbl);
             {
-                uint32_t i; 
+                uint32_t i;
                 for (i = 0; i < stats.spotGroupN; ++i) {
                     SraStatsMetaDestroy(&stats.spotGroup[i]);
                 }
@@ -4846,6 +4846,10 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     srastat_parms pb;
     memset(&pb, 0, sizeof pb);
+
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle(&args, argc, argv, 2, Options,
         sizeof Options / sizeof(OptDef), XMLLogger_Args, XMLLogger_ArgsQty);

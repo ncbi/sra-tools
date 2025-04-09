@@ -166,6 +166,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 0 );
 
     KLogHandlerSetStdErr();

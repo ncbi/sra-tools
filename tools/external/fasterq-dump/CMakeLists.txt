@@ -61,5 +61,5 @@ set( TOOLS_SRC
 	fasterq-dump
 )
 
-GenerateExecutableWithDefs( fasterq-dump "${TOOLS_SRC}" "__mod__=\"tools/fasterq-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};ksrch" )
+GenerateExecutableWithDefs( fasterq-dump "${TOOLS_SRC}" "__mod__=\"tools/fasterq-dump\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};ksrch" )
 MakeLinksExe( fasterq-dump true )

@@ -30,5 +30,5 @@ set( NGS_PILEUP_LIBS
 	${COMMON_LIBS_READ}
 )
 
-GenerateExecutableWithDefs( ngs-pileup "ngs-pileup;main" "__mod__=\"tools/ngs-pileup\"" "${CMAKE_SOURCE_DIR}" "${NGS_PILEUP_LIBS};${COMMON_LINK_LIBRARIES}" )
+GenerateExecutableWithDefs( ngs-pileup "ngs-pileup;main" "__mod__=\"tools/ngs-pileup\"" "${CMAKE_SOURCE_DIR}" "kapp;${NGS_PILEUP_LIBS};${COMMON_LINK_LIBRARIES}" )
 MakeLinksExe( ngs-pileup false )

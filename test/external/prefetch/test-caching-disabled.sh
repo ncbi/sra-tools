@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -20,32 +22,30 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# =============================================================================$
 
-# External
+if [ $# -lt 2 ]; then
+    echo "Usage $0 <bin-dir> <tool-name>"
+    exit 1
+fi
 
-set( CGLOAD_SRC
-	cg-load
-	factory-evidence-intervals
-	factory-evidence-dnbs
-	factory-mappings
-	factory-reads
-	factory-tag-lfr
-	f1_3
-	f1_5
-	f1_7
-	f2_0
-	f2_2
-	f2_4
-	f2_5
-	file
-	file-version-factory
-	formats
-	writer-algn
-	writer-evidence-dnbs
-	writer-evidence-intervals
-	writer-seq
-)
+bin_dir=$1
+prefetch=$2
 
-GenerateExecutableWithDefs( cg-load "${CGLOAD_SRC}" "__mod__=\"tools/cg-load\"" "${CMAKE_SOURCE_DIR}/libs/inc" "kapp;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( cg-load false )
+PREFETCH=$bin_dir/$prefetch
+
+echo Testing ${prefetch} of a run after cSra from ${bin_dir}...
+
+mkdir -p tmp
+
+cd tmp || exit 1
+
+CMD="$PREFETCH SRR619505 SRR053325"
+$CMD > /dev/null 2>&1
+if [ "$?" != "0" ]; then
+    echo "...download FAILED, CMD=$CMD"; exit 2
+fi
+
+cd .. || exit 3
+
+rm -r tmp || exit 4

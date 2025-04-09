@@ -26,5 +26,5 @@ set( SRC
     align-info
 )
 
-GenerateExecutableWithDefs( align-info "${SRC}" "__mod__=\"tools/align-info\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( align-info "${SRC}" "__mod__=\"tools/align-info\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( align-info false )

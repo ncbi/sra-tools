@@ -28,28 +28,10 @@ if( Python3_EXECUTABLE )
 
     #TODO: install
 
-    execute_process (COMMAND "${Python3_EXECUTABLE}" -m venv "${CMAKE_BINARY_DIR}/venv")
-    # update the environment with VIRTUAL_ENV variable (mimic the activate script)
-    set (ENV{VIRTUAL_ENV} "${CMAKE_BINARY_DIR}/venv")
-    # change the context of the search
-    set (Python3_FIND_VIRTUALENV FIRST)
-    # unset Python3_EXECUTABLE because it is also an input variable
-    # (see documentation, Artifacts Specification section)
-    unset (Python3_EXECUTABLE)
-    # Launch a new search
-    find_package (Python3 COMPONENTS Interpreter Development)
-    # message(STATUS "Use: ${Python3_EXECUTABLE}")
-
-    execute_process (COMMAND "${Python3_EXECUTABLE}" -m pip install --upgrade pip setuptools wheel)
-
     add_test(
         NAME Test_NGS_Python_install
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  -q install --user
+        COMMAND ${Python3_EXECUTABLE} setup.py -q install
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    set_tests_properties( Test_NGS_Python_install
-        PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${PythonUserBase}"
     )
 
 endif()

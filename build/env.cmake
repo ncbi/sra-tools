@@ -442,7 +442,26 @@ endif()
 #message( CONFIGTOUSE: ${CONFIGTOUSE})
 
 if( Python3_EXECUTABLE )
-    set( PythonUserBase ${TEMPDIR}/python )
+  # create virtual environment
+  execute_process(
+        COMMAND "${Python3_EXECUTABLE}" -m venv "${CMAKE_BINARY_DIR}/venv" )
+
+  # update the environment with VIRTUAL_ENV variable (mimic the activate script)
+  set( ENV{VIRTUAL_ENV} "${CMAKE_BINARY_DIR}/venv" )
+
+  # change the context of the search
+  set( Python3_FIND_VIRTUALENV FIRST )
+
+  # unset Python3_EXECUTABLE because it is also an input variable
+  # (see documentation, Artifacts Specification section)
+  unset( Python3_EXECUTABLE )
+
+  # Launch a new search
+  find_package( Python3 COMPONENTS Interpreter Development )
+# message(STATUS "Use: ${Python3_EXECUTABLE}")
+
+  execute_process( COMMAND
+         "${Python3_EXECUTABLE}" -m pip install --upgrade pip setuptools wheel )
 endif()
 
 #

@@ -19,6 +19,10 @@ build:
 	docker pull alpine:latest
 	docker build --build-arg VDB_BRANCH=${BRANCH} --tag ${REPO}:${TAG} -f Dockerfile.build-alpine .
 
+build-debug:
+	docker pull alpine:latest
+	docker build --build-arg VDB_BRANCH=${BRANCH} --build-arg CMAKE_BUILD_TYPE=Debug --tag ${REPO}:${TAG}-debug -f Dockerfile.build-alpine .
+
 test:
 	docker run -it --rm ${REPO}:${TAG} fastq-dump -X 5 -Z SRR000001
 

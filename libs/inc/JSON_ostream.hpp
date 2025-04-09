@@ -41,10 +41,24 @@
 #include <string_view>
 #include <cassert>
 
+/// @brief Use for inserting member names into JSON_ostream.
+/// @details This is mainly a convienence and to make code more self-documenting.
 struct JSON_Member {
     std::string name;
 };
 
+/// @brief A JSON formatting output stream.
+///
+/// It is incumbent on the caller to create logically correct JSON. In
+/// particular, if you attempt to insert a list seperator (i.e. `,`) when
+/// you have not yet created an object or array (a list context), it will
+/// break.
+///
+/// This formatter is stateful. It tracks the list context depth and has a
+/// string mode to enable correct handling of special characters in a string.
+///
+/// When not in string mode, these characters have special meanings: `[]{},"`,
+/// see `insert(char)` below.
 class JSON_ostream {
     std::ostream &strm;
     bool compact = false;
@@ -297,7 +311,9 @@ public:
         return s.set_compact(v.value);
     }
 
-    /// This will use the appropriate overload of `insert`
+    /// This will use the appropriate overload of `insert`.
+    /// It is incumbent on the caller to create logically correct JSON.
+    /// See `insert(char)` above for how special characters cause state changes.
     template <typename T>
     friend JSON_ostream &operator <<(JSON_ostream &s, T const &v) {
         return s.insert(v);

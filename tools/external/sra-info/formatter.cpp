@@ -961,7 +961,7 @@ formatTreeNodeDefault( size_t p_indent, const SraInfo::TreeNode & node )
 {
     string ret = string ( p_indent, ' ' );
     ret += node.key;
-    if ( node.subnodes.empty() )
+    if ( node.type == SraInfo::TreeNode::Value )
     {
         ret += ": ";
         ret += node.value;
@@ -970,8 +970,11 @@ formatTreeNodeDefault( size_t p_indent, const SraInfo::TreeNode & node )
     {
         for ( auto n : node.subnodes )
         {
-            ret += "\n";
-            ret += formatTreeNodeDefault( p_indent + 1, n );
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += "\n";
+                ret += formatTreeNodeDefault( p_indent + 1, n );
+            }
         }
     }
 
@@ -1014,7 +1017,7 @@ formatTreeNodeCsv( size_t p_indent, const SraInfo::TreeNode & node )
 {
     string ret = string ( p_indent, ',' );
     ret += escapeCsv(node.key);
-    if ( node.subnodes.empty() )
+    if ( node.type == SraInfo::TreeNode::Value )
     {
         ret += ","; // important: no space before the next value
         ret += escapeCsv(node.value);
@@ -1023,8 +1026,11 @@ formatTreeNodeCsv( size_t p_indent, const SraInfo::TreeNode & node )
     {
         for ( auto n : node.subnodes )
         {
-            ret += "\n";
-            ret += formatTreeNodeCsv( p_indent + 1, n );
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += "\n";
+                ret += formatTreeNodeCsv( p_indent + 1, n );
+            }
         }
     }
 
@@ -1033,44 +1039,71 @@ formatTreeNodeCsv( size_t p_indent, const SraInfo::TreeNode & node )
 
 static
 string
-formatTreeNodeJson( const SraInfo::TreeNode & node )
+formatTreeNodeJson( const SraInfo::TreeNode & node, bool hasKey = true )
 {
     string ret;
-    ret += "\"";
-    ret += node.key;
-    ret += "\": ";
-    if ( node.subnodes.empty() )
+    if ( hasKey ) // not an array element
     {
-        bool needQuotes = node.value[0] != '{';
-        if ( needQuotes )
-        {
-            ret += "\"";
-        }
-        ret += node.value;
-        if ( needQuotes )
-        {
-            ret += "\"";
-        }
+        ret += "\"";
+        ret += node.key;
+        ret += "\": ";
     }
-    else
+    switch (node.type)
     {
-        ret += "[ ";
-        bool first = true;
-        for ( auto n : node.subnodes )
+    case SraInfo::TreeNode::Value:
         {
-            if (first)
+            bool needQuotes = node.value[0] != '{';
+            if ( needQuotes )
             {
-                first = false;
+                ret += "\"";
             }
-            else
+            ret += node.value;
+            if ( needQuotes )
             {
-                ret += ", ";
+                ret += "\"";
             }
+        }
+        break;
+    case SraInfo::TreeNode::Array:
+        {
+            ret += "[ ";
+            bool first = true;
+            for ( auto n : node.subnodes )
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    ret += ", ";
+                }
+                ret += formatTreeNodeJson( n, false );
+            }
+            ret += " ]";
+        }
+        break;
+    case SraInfo::TreeNode::Element:
+        {
             ret += "{ ";
-            ret += formatTreeNodeJson( n );
+            bool first = true;
+            for ( auto n : node.subnodes )
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    ret += ", ";
+                }
+                ret += formatTreeNodeJson( n );
+            }
             ret += " }";
         }
-        ret += " ]";
+        break;
+    default:
+        abort();
     }
 
     return ret;
@@ -1085,7 +1118,7 @@ formatTreeNodeXml( const SraInfo::TreeNode & node )
     ret += node.key;
     ret += ">";
 
-    if ( node.subnodes.empty() )
+    if ( node.type == SraInfo::TreeNode::Value )
     {
         ret += node.value;
     }
@@ -1093,7 +1126,10 @@ formatTreeNodeXml( const SraInfo::TreeNode & node )
     {
         for ( auto n : node.subnodes )
         {
-            ret += formatTreeNodeXml( n );
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += formatTreeNodeXml( n );
+            }
         }
     }
 

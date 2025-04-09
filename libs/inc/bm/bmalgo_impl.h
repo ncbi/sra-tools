@@ -2017,12 +2017,12 @@ void convert_sub_to_arr(const BV& bv, unsigned sb, VECT& vect)
 {
     vect.resize(0);
 
-    typename BV::size_type from, to, idx;
-    typename BV::size_type sb_max_bc = bm::set_sub_array_size * bm::gap_max_bits;
-    from = sb * sb_max_bc;
-    to = (sb+1) * sb_max_bc;
+    typename BV::size_type sb_max_bc = bm::set_sub_total_bits;
+    typename BV::size_type from{sb * sb_max_bc}, to{(sb+1) * sb_max_bc}, idx;
+    BM_ASSERT(bm::set_sub_array_size * bm::gap_max_bits == bm::set_sub_total_bits);
     if (!to || to > bm::id_max) // overflow check
         to = bm::id_max;
+    BM_ASSERT(to - from == bm::set_sub_total_bits || to == bm::id_max);
 
     typename BV::enumerator en = bv.get_enumerator(from);
     for (; en.valid(); ++en)
@@ -2030,7 +2030,14 @@ void convert_sub_to_arr(const BV& bv, unsigned sb, VECT& vect)
         idx = *en;
         if (idx >= to)
             break;
+        {
+            unsigned nb = unsigned(idx >> bm::set_block_shift);
+            unsigned i0, j0;
+            bm::get_block_coord(nb, i0, j0);
+            BM_ASSERT(sb == i0);
+        }
         idx -= from;
+        BM_ASSERT(idx < bm::set_sub_total_bits);
         vect.push_back((typename VECT::value_type)idx);
     } // for en
 }

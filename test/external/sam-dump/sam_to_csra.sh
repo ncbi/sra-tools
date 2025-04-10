@@ -39,12 +39,13 @@ if [[ -f "$CSRA" ]]; then
 fi
 
 #perform the packing via kar
+echo "starting $KAR -c $CSRA -d $CSRA_DIR"
 $KAR -c $CSRA -d $CSRA_DIR
+echo "rc=$?"
 
 #check if the cSRA-object has been produced
 if [[ ! -f "$CSRA" ]]; then
     echo "$CSRA not produced"
-    echo "$KAR -c $CSRA -d $CSRA_DIR"
     exit 3
 fi
 

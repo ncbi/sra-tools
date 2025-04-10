@@ -6,24 +6,37 @@ import xml.parsers.expat
 # ---------------------------------------------------------------------------------------
 
 class Process :
-    def __init__( self, cmd ) :
-        self . proc = subprocess.Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE )
+    def __init__( self, cmd, ShellFlag=False ) :
+        try :
+            if ShellFlag :
+                self . proc = subprocess . Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True )
+            else :
+                self . proc = subprocess . Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False )
+        except Exception as e :
+            self . proc = None
 
     def result( self ) :
-        output, _ = self . proc . communicate()
-        return output . decode()
+        if self . proc :
+            output, _ = self . proc . communicate()
+            if self . proc . returncode == 0 : return output . decode()
+        return None
 
     def write_to( self, dst ) :
-        while self . proc . stdout . readable() :
-            line = self . proc . stdout . readline()
-            if len( line ) == 0 :
-                break
-            dst . proc . stdin . write( line )
+        if self . proc and dst . proc :
+            while self . proc . stdout . readable() :
+                line = self . proc . stdout . readline()
+                if len( line ) == 0 :
+                    break
+                dst . proc . stdin . write( line )
 
 # ---------------------------------------------------------------------------------------
 
-def is_executable( p ) :
-    return os . path . isfile( p ) and os . access( p, os . X_OK )
+def is_executable( toolname, option, binpath ) :
+    tool = os . path . join( binpath, toolname )
+    if binpath :
+        if not os . path . isfile( tool ) : return False
+        if not os . access( tool, os . X_OK ) : return False
+    return not Process( [ tool, option ] ) . result() is None
 
 # ---------------------------------------------------------------------------------------
 
@@ -33,22 +46,19 @@ class FingerprintProducer :
         self . binpath = binpath
 
     def produce( self ) :
-        if self . acc is None or self . binpath is None :
-            return None
+        if self . acc is None or self . binpath is None : return None
+        if not is_executable( "qa-stats", "-h", self . binpath ) : return None
+        if not  is_executable( "vdb-dump", "-V", self . binpath ) : return None
         qa_stats = os . path . join( self . binpath, "qa-stats" )
         vdb_dump = os . path . join( self . binpath, "vdb-dump" )
-        found = True
-        if self . binpath :
-            found = is_executable( qa_stats ) and is_executable( vdb_dump )
-        if found :
-            try :
-                dst = Process( [ qa_stats, "-f" ] )
-                columns = "READ,READ_LEN,READ_START,READ_TYPE,SPOT_GROUP"
-                src = Process( [ vdb_dump, self . acc, "-f", "tab", "-C", columns ] )
-                src . write_to( dst )
-                return dst . result()
-            except Exception as e :
-                print( e )
+        try :
+            dst = Process( [ qa_stats, "-f" ] )
+            columns = "READ,READ_LEN,READ_START,READ_TYPE,SPOT_GROUP"
+            src = Process( [ vdb_dump, self . acc, "-f", "tab", "-C", columns ] )
+            src . write_to( dst )
+            return dst . result()
+        except Exception as e :
+            print( e )
         return None
 
 # ---------------------------------------------------------------------------------------
@@ -76,20 +86,15 @@ class FingerprintExtractor :
         self . binpath = binpath
 
     def extract_meta( self, query ) :
-        if self . binpath is None :
-            return None
-        if self . acc is None :
-            return None
+        if self . binpath is None : return None
+        if self . acc is None : return None
+        if not is_executable( "kdbmeta", "-V", self . binpath ) : return None
         kdbmeta = os.path.join( self . binpath, "kdbmeta" )
-        found = True
-        if self . binpath :
-            found = is_executable( kdbmeta )
-        if found :
-            try :
-                src = Process( [ kdbmeta, "-T", "SEQUENCE", self.acc, query ] )
-                return src . result()
-            except Exception as e :
-                print( e )
+        try :
+            src = Process( [ kdbmeta, "-T", "SEQUENCE", self.acc, query ] )
+            return src . result()
+        except Exception as e :
+            print( e )
         return None
 
     def extract( self ) :
@@ -185,20 +190,13 @@ class Fingerprint :
         return sum( map( lambda a : self . diff( other, a ), [ 'A', 'C', 'G', 'T' ] ) )
 
     def redacted( self, other ) :
-        if other is None :
-            return False
-        if not self . check_digest() :
-            return False
-        if not other . check_digest() :
-            return False
-        if self . digest == other . digest :
-            return False
-        if self . total_bases() != other . total_bases() :
-            return False
-        if self . maxpos() != other . maxpos() :
-            return False
-        if self . content[ "EoR" ] != other . content[ "EoR" ] :
-            return False
+        if other is None : return False
+        if not self . check_digest() : return False
+        if not other . check_digest() : return False
+        if self . digest == other . digest : return False
+        if self . total_bases() != other . total_bases() : return False
+        if self . maxpos() != other . maxpos() : return False
+        if self . content[ "EoR" ] != other . content[ "EoR" ] : return False
         return self . total_diff( other ) == -self . diff( other, 'N' )
 
 # ---------------------------------------------------------------------------------------
@@ -245,17 +243,75 @@ class FingerprintComp :
         return s
 
 # ---------------------------------------------------------------------------------------
+def AccessionTypeOf( acc, binpath = "" ) :
+        if acc is None : return None
+        if binpath is None : return None
+        if not is_executable( "vdb-dump", "-V", binpath ) : return None
+        vdbdump = os.path.join( binpath, "vdb-dump" )
+        tables = Process( [ vdbdump, acc, "-E" ] ) . result()
+        if tables :
+            if tables . find( "cannot enum tables" ) == 0 :
+                return "legacy"
+            elif tables . find( "SEQUENCE" ) > 0 :
+                if tables . find( "PRIMARY_ALIGNMENT" ) > 0 :
+                    return "cSRA"
+                else :
+                    return "standard"
+        return None
 
-class FingerprintInsert :
+# ---------------------------------------------------------------------------------------
+
+#this is needed because the FingerprintInserter requires an "unkar'd" accession in
+#a writable state... and kar only works on files - not directories
+def PrepareForFingerprintInsertFromFile( src, dst, rows, binpath = "" ) :
+    if not src . endswith( ".sra" ) : return None
+    if not is_executable( "vdb-copy", "-V", binpath ) : return None
+    vdbcopy = os.path.join( binpath, "vdb-copy" )
+    cmd = [ vdbcopy, src, dst, '-R', rows '-f' ]
+    s = Process( cmd, False ) . result()
+    print( f"result={s}" )
+
+
+def PrepareForFingerprintInsert( src, dst, rows, binpath = "" ) :
+    if src is None : return None
+    if dst is None : return None
+    if rows is None : return None
+    if binpath is None : return None
+    if os.path.isfile( src ) :
+        return PrepareForFingerprintInsertFromFile( src, dst, rows, binpath )
+    if os.path.isdir( src ) :
+        hd, tl = os.path.split( src )
+        fname = os.path.join( src, tl ) + ".sra"
+        if os.path.isfile( fname ) :
+            return PrepareForFingerprintInsertFromFile( fname, dst, rows, binpath )
+    return None
+
+# ---------------------------------------------------------------------------------------
+
+class FingerprintInserter :
     def __init__( self, acc, binpath = "" ) :
         self . acc = acc
         self . binpath = binpath
 
-    def run() :
-        if self . acc is None :
-            return False
-        if self . binpath is None :
-            return False
+    def run( self ) :
+        if self . acc is None : return False
+        if self . binpath is None : return False
+        at = AccessionTypeOf( self . acc, self . binpath )
+        if at != "standard" : return False
+        fp = Fingerprint . computeFromReadsOfAccession( self . acc, self . binpath )
+        if not fp : return False
+        print( fp )
+        return False
+        if not is_executable( "kdbmeta", "-V", self . binpath ) : return False
+        kdbmeta = os.path.join( self . binpath, "kdbmeta" )
+        p1 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, f"QC/current/digest={ fp . digest }" ] )
+        r1 = p1 . result()
+        print( f"r1=>{r1}<" )
+        if not r1 : return False
+        p2 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, f"QC/current/fingerprint={ fp . content }" ] )
+        r2 = p2 . result()
+        print( f"r1=>{r2}<" )
+        return r2 != None
 
 # ---------------------------------------------------------------------------------------
 
@@ -271,6 +327,13 @@ class FingerprintTests :
             if n <= len( self . tests ) :
                 print( f"Test #{ n }" )
                 self . tests[ n - 1 ]()
+
+    def runall( self ) :
+        n = 1
+        for test in self . tests :
+            print( f"Test #{ n }" )
+            test()
+            n = n + 1
 
     # test if we can compute the fingerprint from the stored bases ( expensive! )
     def test1( self ) :

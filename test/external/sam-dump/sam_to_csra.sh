@@ -44,6 +44,7 @@ $KAR -c $CSRA -d $CSRA_DIR
 #check if the cSRA-object has been produced
 if [[ ! -f "$CSRA" ]]; then
     echo "$CSRA not produced"
+    echo "$KAR -c $CSRA -d $CSRA_DIR"
     exit 3
 fi
 

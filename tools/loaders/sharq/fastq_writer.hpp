@@ -518,10 +518,8 @@ void fastq_writer_vdb::close()
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/version", m_read_fingerprint.version() );
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/format", m_read_fingerprint.format() );
 
-            ostringstream timestamp;
-            timestamp.imbue( std::locale( "" ) ); // no thousands separator
-            timestamp << std::time(nullptr);
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/timestamp", timestamp.str() );
+            time_t t = time(NULL);
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/timestamp", string( (const char*)&t, sizeof(t) ) );
         }
 
         write_messages();

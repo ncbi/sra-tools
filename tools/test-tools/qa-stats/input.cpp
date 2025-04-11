@@ -900,6 +900,9 @@ struct BasicSource: public Input::Source {
         if (line[0] == '@' || line[0] == '>') {
             result = readFASTQ(std::string{line});
         }
+        else if (line[0] == '+' ) {
+            std::cerr << lines << ": warning: unparsable input\n" << line << std::endl;
+        }
         else {
             auto const flds = Delimited(line, '\t');
             if (flds.part.size() >= 11) {

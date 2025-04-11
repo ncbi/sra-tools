@@ -263,27 +263,24 @@ def AccessionTypeOf( acc, binpath = "" ) :
 
 #this is needed because the FingerprintInserter requires an "unkar'd" accession in
 #a writable state... and kar only works on files - not directories
-def PrepareForFingerprintInsertFromFile( src, dst, rows, binpath = "" ) :
+def PrepareForFingerprintInsertFromFile( src, dst, binpath = "" ) :
     if not src . endswith( ".sra" ) : return None
     if not is_executable( "vdb-copy", "-V", binpath ) : return None
     vdbcopy = os.path.join( binpath, "vdb-copy" )
-    cmd = [ vdbcopy, src, dst, '-R', rows '-f' ]
-    s = Process( cmd, False ) . result()
-    print( f"result={s}" )
+    s = Process( [ vdbcopy, src, dst, '-f' ], False ) . result()
+    return True
 
-
-def PrepareForFingerprintInsert( src, dst, rows, binpath = "" ) :
+def PrepareForFingerprintInsert( src, dst, binpath = "" ) :
     if src is None : return None
     if dst is None : return None
-    if rows is None : return None
     if binpath is None : return None
     if os.path.isfile( src ) :
-        return PrepareForFingerprintInsertFromFile( src, dst, rows, binpath )
+        return PrepareForFingerprintInsertFromFile( src, dst, binpath )
     if os.path.isdir( src ) :
         hd, tl = os.path.split( src )
         fname = os.path.join( src, tl ) + ".sra"
         if os.path.isfile( fname ) :
-            return PrepareForFingerprintInsertFromFile( fname, dst, rows, binpath )
+            return PrepareForFingerprintInsertFromFile( fname, dst, binpath )
     return None
 
 # ---------------------------------------------------------------------------------------
@@ -294,24 +291,38 @@ class FingerprintInserter :
         self . binpath = binpath
 
     def run( self ) :
-        if self . acc is None : return False
-        if self . binpath is None : return False
+        if self . acc is None :
+            print( "FingerprintInserter: Abort acc is NONE!" )
+            return False
+        if self . binpath is None :
+            print( "FingerprintInserter: Abort binpath is NONE!" )
+            return False
         at = AccessionTypeOf( self . acc, self . binpath )
-        if at != "standard" : return False
+        if at != "standard" :
+            print( "FingerprintInserter: Abort type of accession is {at}!" )
+            return False
         fp = Fingerprint . computeFromReadsOfAccession( self . acc, self . binpath )
-        if not fp : return False
-        print( fp )
-        return False
-        if not is_executable( "kdbmeta", "-V", self . binpath ) : return False
+        if not fp :
+            print( "FingerprintInserter: Abort failed to compute fingerprint from bases!" )
+            return False
+        if not is_executable( "kdbmeta", "-V", self . binpath ) :
+            print( "FingerprintInserter: Abort kdbmeta not found/executable" )
+            return False
         kdbmeta = os.path.join( self . binpath, "kdbmeta" )
         p1 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, f"QC/current/digest={ fp . digest }" ] )
         r1 = p1 . result()
         print( f"r1=>{r1}<" )
-        if not r1 : return False
-        p2 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, f"QC/current/fingerprint={ fp . content }" ] )
+        if r1 is None: return False
+        content = json . dumps( fp . content ) . replace( " ", "" ) . replace( "\"", "&quot;" )
+        print( "------------------------------------------------------------------------------" )
+        print( content )
+        print( "------------------------------------------------------------------------------" )
+        with open( "options.txt", "w" ) as options :
+            options . write ( f"QC/current/fingerprint={ content }" )
+        p2 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, "--option-file", "options.txt" ] )
         r2 = p2 . result()
-        print( f"r1=>{r2}<" )
-        return r2 != None
+        print( f"r2=>{r2}<" )
+        return not r2 is None
 
 # ---------------------------------------------------------------------------------------
 

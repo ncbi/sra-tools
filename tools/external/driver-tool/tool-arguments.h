@@ -179,3 +179,35 @@
     TOOL_ARG("timing", "", true, TOOL_HELP("write timing log-file", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
 
+#define TOOL_NAME_PREFETCH "prefetch" /* from argv[0] */
+#define TOOL_ARGS_PREFETCH TOOL_ARGS ( \
+    TOOL_ARG("type", "T", true, TOOL_HELP("Specify file type to download.", "Default: sra", 0)), \
+    TOOL_ARG("transport", "t", true, TOOL_HELP("Transport: one of: fasp; http; both [default].", "(fasp only; http only; first try fasp (ascp), use http if cannot download using fasp).", 0)), \
+    TOOL_ARG("location", "", true, TOOL_HELP("Location of data.", 0)), \
+    TOOL_ARG("min-size", "N", true, TOOL_HELP("Minimum file size to download in KB (inclusive).", 0)), \
+    TOOL_ARG("max-size", "X", true, TOOL_HELP("Maximum file size to download in KB (exclusive).", "Default: 20G", 0)), \
+    TOOL_ARG("force", "f", true, TOOL_HELP("Force object download: one of: no, yes, all, ALL.", "no [default]: skip download if the object if found and complete;", "yes: download it even if it is found and is complete;", "all: ignore lock files (stale locks or it is being downloaded by another process - use at your own risk!);", "ALL: ignore lock files, restart download from beginning.", 0)), \
+    TOOL_ARG("resume", "r", true, TOOL_HELP("Resume partial downloads: one of: no, yes [default].", 0)), \
+    TOOL_ARG("verify", "C", true, TOOL_HELP("Verify after download: one of: no, yes [default].", 0)), \
+    TOOL_ARG("progress", "p", false, TOOL_HELP("Show progress.", 0)), \
+    TOOL_ARG("heartbeat", "H", true, TOOL_HELP("Time period in minutes to display download progress.", "(0: no progress), default: 1", 0)), \
+    TOOL_ARG("eliminate-quals", "", false, TOOL_HELP("Download SRA Lite files with simplified base quality scores, or fail if not available.", 0)), \
+    TOOL_ARG("check-all", "c", false, TOOL_HELP("Double-check all refseqs.", 0)), \
+    TOOL_ARG("check-rs", "S", true, TOOL_HELP("Check for refseqs in downloaded files: one of: no, yes, smart [default]. Smart: skip check for large encrypted non-sra files.", 0)), \
+    TOOL_ARG("list", "l", false, TOOL_HELP("List the content of a kart file.", 0)), \
+    TOOL_ARG("numbered-list", "n", false, TOOL_HELP("List the content of a kart file with kart row numbers.", 0)), \
+    TOOL_ARG("list-sizes", "s", false, TOOL_HELP("List the content of a kart file with target file sizes.", 0)), \
+    TOOL_ARG("order", "o", true, TOOL_HELP("Kart prefetch order when downloading a kart: one of: kart, size.", "(in kart order, by file size: smallest first), default: size.", 0)), \
+    TOOL_ARG("rows", "R", true, TOOL_HELP("Kart rows to download (default all).", "Row list should be ordered.", 0)), \
+    TOOL_ARG("perm", "", true, TOOL_HELP("PATH to jwt cart file.", 0)), \
+    TOOL_ARG("ngc", "", true, TOOL_HELP("PATH to ngc file.", 0)), \
+    TOOL_ARG("cart", "", true, TOOL_HELP("To read a kart file.", 0)), \
+    TOOL_ARG("text-kart", "", true, TOOL_HELP("To read a textual format kart file (DEBUG ONLY).", 0)), \
+    TOOL_ARG("ascp-path", "a", true, TOOL_HELP("Path to ascp program and private key file (asperaweb_id_dsa.putty)", 0)), \
+    TOOL_ARG("ascp-options", "", true, TOOL_HELP("Arbitrary options to pass to ascp command line.", 0)), \
+    TOOL_ARG("FAIL-ASCP", "F", false, TOOL_HELP("Force ascp download fail to test ascp->http download combination.", 0)), \
+    TOOL_ARG("output-file", "", true, TOOL_HELP("Write file to FILE when downloading a single file.", 0)), \
+    TOOL_ARG("output-directory", "O", true, TOOL_HELP("Save files to DIRECTORY/", 0)), \
+    TOOL_ARG("dryrun", "", false, TOOL_HELP("Dry run the application: don't download, only check resolving.", 0)), \
+    TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
+

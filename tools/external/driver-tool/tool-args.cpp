@@ -584,6 +584,7 @@ namespace NAME { \
     static ParamDefinitions_Common const &parser = Parser(commonParams, sizeof(defs)/sizeof(defs[0]) - 1, defs); \
 }
 
+DEFINE_ARGS(PREFETCH, ParamDefinitions)
 DEFINE_ARGS(FASTERQ_DUMP, ParamDefinitions)
 DEFINE_ARGS(SAM_DUMP, ParamDefinitions)
 DEFINE_ARGS(VDB_DUMP, ParamDefinitions)
@@ -592,6 +593,9 @@ DEFINE_ARGS(FASTQ_DUMP, ParamDefinitions_FQD)
 
 static ParamDefinitions_Common const &parserForTool(std::string const &toolName)
 {
+    if (toolName == PREFETCH::toolName)
+        return PREFETCH::parser;
+
     if (toolName == FASTERQ_DUMP::toolName)
         return FASTERQ_DUMP::parser;
 
@@ -627,6 +631,7 @@ std::ostream &operator <<(std::ostream &out, Argument const &arg) {
 }
 
 void printParameterBitmasks(std::ostream &out) {
+    PREFETCH::parser.printParameterBitmasks(PREFETCH::toolName, out);
     FASTERQ_DUMP::parser.printParameterBitmasks(FASTERQ_DUMP::toolName, out);
     FASTQ_DUMP::parser.printParameterBitmasks(FASTQ_DUMP::toolName, out);
     SAM_DUMP::parser.printParameterBitmasks(SAM_DUMP::toolName, out);
@@ -637,7 +642,8 @@ void printParameterBitmasks(std::ostream &out) {
 void printParameterJSON(std::ostream &out) {
     JSON_Printer printer(out);
     printer.print("[\n");
-    FASTERQ_DUMP::parser.printParameterJSON(FASTERQ_DUMP::toolName, printer, true);
+    PREFETCH::parser.printParameterJSON(PREFETCH::toolName, printer, true);
+    FASTERQ_DUMP::parser.printParameterJSON(FASTERQ_DUMP::toolName, printer);
     FASTQ_DUMP::parser.printParameterJSON(FASTQ_DUMP::toolName, printer);
     SAM_DUMP::parser.printParameterJSON(SAM_DUMP::toolName, printer);
     SRA_PILEUP::parser.printParameterJSON(SRA_PILEUP::toolName, printer);

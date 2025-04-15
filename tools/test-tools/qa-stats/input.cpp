@@ -901,7 +901,10 @@ struct BasicSource: public Input::Source {
             result = readFASTQ(std::string{line});
         }
         else if (line[0] == '+' ) {
+            // happens in qualities-only files
+            // discard this line and the next
             std::cerr << lines << ": warning: unparsable input\n" << line << std::endl;
+            getline();
         }
         else {
             auto const flds = Delimited(line, '\t');

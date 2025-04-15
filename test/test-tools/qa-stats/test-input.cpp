@@ -150,10 +150,23 @@ TEST_CASE(Fasta_File_missing_LF)
 
 TEST_CASE(Fastq_DecimalQualitiesOnly)
 {
-    auto &&source = Input::Source::StringLiteralType{ "+B:8:2:212:211\n40 40\n" };
+    auto &&source = Input::Source::StringLiteralType{
+        "+B:8:2:212:211\n"  // warning, skip
+        "40 40\n"           // skip
+        ">1\n"              // recover, parse normally
+        "AAAG\n"
+    };
     auto i = Input::newSource( source, false ); // should give out a warning
-    auto const input = i->get();
-    REQUIRE_EQ( 0, (int)input.sequence.size() );
+    char const *const expected[] = {
+        "",
+        "AAAG",
+        nullptr
+    };
+    for (auto e = expected; *e; ++e) {
+        auto const expect = string_view{ *e };
+        auto const input = i->get();
+        REQUIRE_EQ( expect, string_view{ input.sequence } );
+    }
 }
 
 TEST_CASE(Input_tests)

@@ -904,7 +904,7 @@ struct BasicSource: public Input::Source {
             // happens in qualities-only files
             // discard this line and the next
             std::cerr << lines << ": warning: unparsable input\n" << line << std::endl;
-            getline();
+            (void)getline();
         }
         else {
             auto const flds = Delimited(line, '\t');

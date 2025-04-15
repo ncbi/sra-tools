@@ -37,6 +37,8 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
+const char UsageDefaultName[] = "compute-coverage";
+
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
@@ -301,8 +303,6 @@ int run ( int argc, char const * argv [] ) {
 
 extern "C"
 {
-    const char UsageDefaultName[] = "compute-coverage";
-
     rc_t CC UsageSummary (const char * progname)
     {   // this is not used at this point, see handle_help()
         return 0;
@@ -315,6 +315,9 @@ extern "C"
 
     rc_t CC KMain ( int argc, char *argv [] )
     {
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         return run ( argc, (const char**)argv );
     }
 }

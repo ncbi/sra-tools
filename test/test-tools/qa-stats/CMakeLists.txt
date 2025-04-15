@@ -46,15 +46,30 @@ if( NOT WIN32 )
         add_test( NAME Test_qa_stats_${filename}
             COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats ${i}" "." Test_qa_stats_${filename}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( TARGET qa-stats-tsan )
+            add_test( NAME Test_qa_stats-tsan_${filename}
+                COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan --multithreaded 1 ${i}" "." Test_qa_stats_${filename}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
     endforeach()
 
     # fingerprinting
     add_test( NAME Test_qa_stats_Finger_1
         COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET qa-stats-tsan )
+        add_test( NAME Test_qa_stats-tsan_Finger_1
+            COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan --multithreaded 1 input/1.1.fastq --fingerprint" "." Test_qa_stats_Finger_1
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
     add_test( NAME Test_qa_stats_Finger_2
         COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
+    if( TARGET qa-stats-tsan )
+        add_test( NAME Test_qa_stats-tsan_Finger_2
+            COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan --multithreaded 1 input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    
 endif()

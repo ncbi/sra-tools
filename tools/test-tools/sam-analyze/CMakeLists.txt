@@ -22,4 +22,4 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( sam-analyze "main.cpp;sqlite3.c" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")
+GenerateExecutableWithDefs( sam-analyze "main.cpp;sqlite3.c" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}")

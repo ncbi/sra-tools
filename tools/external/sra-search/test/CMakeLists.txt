@@ -56,7 +56,7 @@ AddExecutableTest ( Test_SraSearchSlow
 
 AddExecutableTest ( Test_SraSearch_SearchBlock
     "test-searchblock.cpp;../searchblock.cpp"
-    "${COMMON_LIBS_READ};ncbi-vdb;ksrch" ""
+    "${COMMON_LIBS_READ};ksrch;ncbi-vdb" ""
 )
 
 # white box tests

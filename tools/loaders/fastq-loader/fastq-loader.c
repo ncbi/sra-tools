@@ -406,6 +406,9 @@ rc_t CC KMain (int argc, char * argv[])
     const char * read1file = NULL;
     const char * read2file = NULL;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+    
     memset(&G, 0, sizeof(G));
 
     G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;

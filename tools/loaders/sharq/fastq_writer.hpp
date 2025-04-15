@@ -505,17 +505,21 @@ void fastq_writer_vdb::close()
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "digest", m_source_fp[i].second.digest() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "algorithm", m_source_fp[i].second.algorithm() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "version", Fingerprint::version() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "format", Fingerprint::format() );
         }
 
         {   // output fingerprint
             Writer2::TableID SequenceTabId = m_writer->table("SEQUENCE").id();
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/fingerprint", m_read_fingerprint.JSON() );
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/digest", m_read_fingerprint.digest() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/algorithm", m_read_fingerprint.algorithm() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/version", m_read_fingerprint.version() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/format", m_read_fingerprint.format() );
 
-            ostringstream timestamp;
-            timestamp.imbue( std::locale( "" ) ); // no thousands separator
-            timestamp << std::time(nullptr);
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/timestamp", timestamp.str() );
+            time_t t = time(NULL);
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::table, SequenceTabId, "QC/current/timestamp", string( (const char*)&t, sizeof(t) ) );
         }
 
         write_messages();

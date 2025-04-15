@@ -25,5 +25,5 @@
 # External
 set( SRC meta-cmp )
 
-GenerateExecutableWithDefs( meta-cmp "${SRC}" "__mod__=\"tools/internal/meta-cmp\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( meta-cmp "${SRC}" "__mod__=\"tools/internal/meta-cmp\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( meta-cmp false )

@@ -2750,7 +2750,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                         ( rslt, &b, sizeof_b, & len, "", "\n" );
                 }
             }
-            if ( rc != 0 )            
+            if ( rc != 0 )
                 OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
         }
 #endif
@@ -3948,7 +3948,7 @@ static rc_t Diagnose ( const Main * self, const Args * args ) {
     rc_t rc = 0;
 
     KDiagnose * test = NULL;
-    
+
     assert ( self );
 
     rc = KDiagnoseMakeExt ( & test, self -> cfg, self -> knsMgr,
@@ -4011,6 +4011,9 @@ rc_t CC KMain(int argc, char *argv[]) {
     int argi = 0;
     uint32_t params = 0;
     const char * eol = "\n";
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     Main prms;
     char **argv2 = MainInit(&prms, argc, argv, &argi);

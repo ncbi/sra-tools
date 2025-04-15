@@ -36,12 +36,12 @@ if( NOT WIN32 )
     endmacro()
 
     if( NOT "bsd" STREQUAL ${OS} )
-        LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+        LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "kapp;fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
     endif()
-    LatfExeTest( Test_FastqLoader_WbFastq_dflt    "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    LatfExeTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastq_dflt    "wb-test-fastq.cpp"         "kapp;fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "kapp;fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
-    LatfExeTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    LatfExeTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "kapp;fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )

@@ -24,9 +24,11 @@
 
 add_compile_definitions( __mod__="tools/vdb-decrypt" )
 
+set(LIBS "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
 # External
-GenerateExecutableWithDefs( vdb-decrypt "vdb-decrypt;shared" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( vdb-decrypt "vdb-decrypt;shared" "" "" "${LIBS}" )
 MakeLinksExe( vdb-decrypt false )
 
-GenerateExecutableWithDefs( vdb-encrypt "vdb-encrypt;shared" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( vdb-encrypt "vdb-encrypt;shared" "" "" "${LIBS}" )
 MakeLinksExe( vdb-encrypt false )

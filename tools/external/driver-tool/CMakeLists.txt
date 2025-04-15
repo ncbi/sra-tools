@@ -76,6 +76,7 @@ if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
         fasterq-dump
         sam-dump
         sra-pileup
+        prefetch
     )
 endif()
 

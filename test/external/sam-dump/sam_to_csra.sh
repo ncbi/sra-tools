@@ -35,7 +35,7 @@ print_verbose "cSRA-object ( directory ) produced!"
 
 #if the cSRA-object alread exists, remove it
 if [[ -f "$CSRA" ]]; then
-    rm "$CSRA"
+    rm "$CSRA" $CSRA.md5
 fi
 
 #perform the packing via kar
@@ -49,6 +49,6 @@ fi
 
 #we do not need the cSRA-directory object any more
 chmod +wr "$CSRA_DIR"
-rm -rf $CSRA_DIR
+rm -rf $CSRA_DIR $CSRA.md5
 
 print_verbose "cSRA-object ( single-file ) produced!"

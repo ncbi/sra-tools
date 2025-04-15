@@ -46,7 +46,7 @@ const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
 const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
-const string Run_Fingerprints   = "./input/Test_Sra_Info_Fingerprint";
+const string Run_Fingerprints   = "./input/Test_Sra_Info_Fingerprint"; // a copy of db created by sharq for test cases DbMetaMultipleFiles_*
 
 TEST_CASE(Construction)
 {
@@ -571,7 +571,8 @@ FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
 {   // output fingerprint only
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
-    REQUIRE_EQ( 2, (int)fp.size() ); // fingerprint + digest
+    REQUIRE_EQ( 3, (int)fp.size() ); // fingerprint + digest + algorithm
+    REQUIRE_EQ( SraInfo::TreeNode::Value, fp[0].type );
     verifyFingerprint(
         fp[0],
         "fingerprint",
@@ -580,32 +581,49 @@ FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
         fp[1],
         "digest",
         "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5");
-}
+    verifyFingerprint(fp[2], "algorithm", "SHA-256");
+    }
 
 FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
 {   // output fingerprint with history
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Abbreviated );
 
-    REQUIRE_EQ( 4, (int)fp.size() ); // fingerprint, digest, timestamp, history
+    REQUIRE_EQ( 7, (int)fp.size() ); // fingerprint, digest, algorithm, timestamp, history, version, format
 
-    verifyFingerprint( fp[2], "timestamp", "1741379358" );
+    verifyFingerprint( fp[3], "timestamp", "1743618335" );
+    verifyFingerprint( fp[4], "version", "1.0.0" );
+    verifyFingerprint( fp[5], "format", "json utf-8 compact" );
 
     // history
-    verifyFingerprint( fp[3], "history", "" );
-    REQUIRE_EQ( 2, (int)fp[3].subnodes.size() ); // 2 history entries
-    verifyFingerprint( fp[3].subnodes[0], "update_1", "" );
-    REQUIRE_EQ( 3, (int)fp[3].subnodes[0].subnodes.size() );  //fingerprint, digest, timestamp
+    const auto & h = fp[6];
+    REQUIRE_EQ( SraInfo::TreeNode::Array, h.type );
+    verifyFingerprint( h, "history", "" );
+    REQUIRE_EQ( 2, (int)h.subnodes.size() ); // 2 history entries
 
-    verifyFingerprint( fp[3].subnodes[0].subnodes[0], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
-    verifyFingerprint( fp[3].subnodes[0].subnodes[1], "digest", "qwer" );
-    verifyFingerprint( fp[3].subnodes[0].subnodes[2], "timestamp", "123" );
+    const auto & h1 = h.subnodes[0];
+    REQUIRE_EQ( SraInfo::TreeNode::Element, h1.type );
+    verifyFingerprint( h1, "update_1", "" );
+    REQUIRE_EQ( 7, (int)h1.subnodes.size() );  // update#, fingerprint, digest, algorithm, timestamp, version, format
 
-    verifyFingerprint( fp[3].subnodes[1], "update_2", "" );
-    REQUIRE_EQ( 3, (int)fp[3].subnodes[1].subnodes.size() );
-    verifyFingerprint( fp[3].subnodes[1].subnodes[0], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
-    verifyFingerprint( fp[3].subnodes[1].subnodes[1], "digest", "asdf" );
-    verifyFingerprint( fp[3].subnodes[1].subnodes[2], "timestamp", "456" );
+    verifyFingerprint( h1.subnodes[0], "update", "1" );
+    verifyFingerprint( h1.subnodes[1], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
+    verifyFingerprint( h1.subnodes[2], "digest", "qwer" );
+    verifyFingerprint( h1.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( h1.subnodes[4], "timestamp", "1743618305" );
+    verifyFingerprint( h1.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( h1.subnodes[6], "format", "json utf-8 compact" );
+
+    const auto & h2 = h.subnodes[1];
+    verifyFingerprint( h2, "update_2", "" );
+    REQUIRE_EQ( 7, (int)h2.subnodes.size() );
+    verifyFingerprint( h2.subnodes[0], "update", "2" );
+    verifyFingerprint( h2.subnodes[1], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
+    verifyFingerprint( h2.subnodes[2], "digest", "asdf" );
+    verifyFingerprint( h2.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( h2.subnodes[4], "timestamp", "1743618339" );
+    verifyFingerprint( h2.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( h2.subnodes[6], "format", "json utf-8 compact" );
 }
 
 FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
@@ -613,23 +631,37 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
     info.SetAccession(Run_Fingerprints);
     SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Full );
 
-    REQUIRE_EQ( 5, (int)fp.size() ); // fingerprint, digest, timestamp, history, inputs
+    REQUIRE_EQ( 8, (int)fp.size() ); // fingerprint, digest, algorithm, timestamp, history, version, format, inputs
 
-    verifyFingerprint( fp[4], "inputs", "" );
-    REQUIRE_EQ( 2, (int)fp[4].subnodes.size() ); // 2 input files
+    const auto & ins = fp[7];
+    REQUIRE_EQ( SraInfo::TreeNode::Array, ins.type );
+    verifyFingerprint( ins, "inputs", "" );
+    REQUIRE_EQ( 2, (int)ins.subnodes.size() ); // 2 input files
 
     // inputs
-    verifyFingerprint( fp[4].subnodes[0], "file_1", "" );
-    REQUIRE_EQ( 3, (int)fp[4].subnodes[0].subnodes.size() ); // name, fingerprint, digest
-    verifyFingerprint( fp[4].subnodes[0].subnodes[0], "name", "input/r1.fastq" );
-    verifyFingerprint( fp[4].subnodes[0].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
-    verifyFingerprint( fp[4].subnodes[0].subnodes[2], "digest", "123" );
+    const auto & in1 = ins.subnodes[0];
 
-    verifyFingerprint( fp[4].subnodes[1], "file_2", "" );
-    REQUIRE_EQ( 3, (int)fp[4].subnodes[1].subnodes.size() ); // name, fingerprint, digest
-    verifyFingerprint( fp[4].subnodes[1].subnodes[0], "name", "input/r2.fastq" );
-    verifyFingerprint( fp[4].subnodes[1].subnodes[1], "fingerprint", R"({"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
-    verifyFingerprint( fp[4].subnodes[1].subnodes[2], "digest", "456" );
+    REQUIRE_EQ( SraInfo::TreeNode::Element, in1.type );
+    verifyFingerprint( in1, "file_1", "" );
+    REQUIRE_EQ( 7, (int)in1.subnodes.size() ); // file#, fingerprint, digest, algorithm, timestamp, version, format
+    verifyFingerprint( in1.subnodes[0], "file", "1" );
+    verifyFingerprint( in1.subnodes[1], "name", "input/r1.fastq" );
+    verifyFingerprint( in1.subnodes[2], "fingerprint", R"({"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( in1.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( in1.subnodes[4], "digest", "123" );
+    verifyFingerprint( in1.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( in1.subnodes[6], "format", "json utf-8 compact" );
+
+    const auto & in2 = ins.subnodes[1];
+    verifyFingerprint( in2, "file_2", "" );
+    REQUIRE_EQ( 7, (int)in2.subnodes.size() ); // fingerprint, digest, algorithm, timestamp, version, format
+    verifyFingerprint( in2.subnodes[0], "file", "2" );
+    verifyFingerprint( in2.subnodes[1], "name", "input/r2.fastq" );
+    verifyFingerprint( in2.subnodes[2], "fingerprint", R"({"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( in2.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( in2.subnodes[4], "digest", "456" );
+    verifyFingerprint( in2.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( in2.subnodes[6], "format", "json utf-8 compact" );
 }
 
 //////////////////////////////////////////// Main
@@ -638,11 +670,6 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
 
 extern "C"
 {
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
 
 const char UsageDefaultName[] = "test-sra-info";
 

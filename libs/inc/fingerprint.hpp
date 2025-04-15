@@ -179,21 +179,33 @@ public:
             ch = (char)std::tolower(ch);
         return result;
     }
+
+    /// The version of the fingerprint algorithm.
     static std::string version() {
         return "1.0.0";
     }
+
+    /// The algorithm used to produce the digest.
     static std::string algorithm() {
         return "SHA-256";
     }
+
+    /// How the fingerprint was formated before producing the digest.
     static std::string format() {
         return "json utf-8 compact";
     }
+
+    /// @brief Writes the canonical form to the stream.
+    /// @param strm the stream to which to write.
+    /// @return the stream which was passed in.
+    /// @note It is incumbent on the caller to provide the JSON object context.
     JSON_ostream &canonicalForm(JSON_ostream &strm) {
+        auto const save = strm.is_compact();
         return strm
                 << JSON_Member{"fingerprint-version"} << version()
                 << JSON_Member{"fingerprint-format"} << format()
                 << JSON_Member{"fingerprint-digest-algorithm"} << algorithm()
-                << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << (*this) << JSON_ostream::Compact{false}
+                << JSON_Member{"fingerprint"} << JSON_ostream::Compact{true} << (*this) << JSON_ostream::Compact{save}
                 << JSON_Member{"fingerprint-digest"} << digest();
 
     }

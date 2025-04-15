@@ -73,6 +73,7 @@ namespace bm
 #endif
             } b_;
 
+            explicit operator bm::gap_word_t*() { return (bm::gap_word_t*)&(b_.w32[0]); }
             operator bm::word_t*() { return &(b_.w32[0]); }
             operator const bm::word_t*() const { return &(b_.w32[0]); }
             explicit operator bm::id64_t*() { return &b_.w64[0]; }
@@ -137,7 +138,7 @@ BMFORCEINLINE T ilog2(T x) BMNOEXCEPT
 
 template<>
 BMFORCEINLINE
-bm::gap_word_t ilog2(gap_word_t x) BMNOEXCEPT
+bm::gap_word_t ilog2(bm::gap_word_t x) BMNOEXCEPT
 {
     unsigned int l = 0;
     if (x >= 1<<8)  { x = (bm::gap_word_t)(x >> 8); l |= 8; }

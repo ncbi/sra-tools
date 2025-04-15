@@ -24,7 +24,7 @@
 
 if( NOT WIN32 )
     GenerateExecutableWithDefs( testy-the-bear "testy-the-bear" "__mod__=\"test/ngs/testy-the-bear\""
-                                "" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
+                                "" "kapp;${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
     add_compile_definitions( __mod__="test/ngs/testy-the-bear" )
     add_test( NAME SlowTest_testy-the-bear
         COMMAND runtestcase.sh "${TESTBINDIR}/testy-the-bear" "1" "0"

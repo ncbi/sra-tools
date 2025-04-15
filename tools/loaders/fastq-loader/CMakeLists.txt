@@ -61,12 +61,12 @@ if( NOT WIN32 ) # sys/mman.h
 # External
 	GenerateExecutableWithDefs( latf-load "${FASTQ_SRC};fastq-loader;loader-imp" "" "${CMAKE_SOURCE_DIR}/libs/inc" "" )
 
-	target_link_libraries( latf-load loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+	target_link_libraries( latf-load loader kapp ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
     if( TARGET latf-load-asan )
-		target_link_libraries( latf-load-asan loader-asan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+		target_link_libraries( latf-load-asan loader-asan kapp ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	endif()
     if( TARGET latf-load-tsan )
-		target_link_libraries( latf-load-tsan loader-tsan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+		target_link_libraries( latf-load-tsan loader-tsan kapp ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	endif()
 	MakeLinksExe( latf-load false )
     add_dependencies( latf-load loader fastqloader )

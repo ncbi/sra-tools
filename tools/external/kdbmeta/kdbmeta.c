@@ -24,7 +24,7 @@
 *
 */
 /*
- * This program has a command line sytax that isn't suited to the 
+ * This program has a command line sytax that isn't suited to the
  * normally expected way of handling command line arguments.
  *
  * We'll use the normal Args processing for the standard options
@@ -189,13 +189,13 @@ static void value_print(char value) {
     switch (value) {
         case '\"':
             replacement = "&quot;";
-            break;   
+            break;
         case '&':
             replacement = "&amp;";
-            break;   
+            break;
         case '<':
             replacement = "&lt;";
-            break;   
+            break;
         case '>':
             replacement = "&gt;";
             break;
@@ -1138,10 +1138,13 @@ rc_t CC KMain ( int argc, char *argv [] )
     Args * args = NULL;
     rc_t rc;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc = ArgsMakeAndHandle(&args, argc, argv, 1, opt, sizeof(opt) / sizeof(opt[0]));
     if (rc == 0)
     {
-        do 
+        do
         {
             const char * pc;
             KDirectory *curwd;
@@ -1298,7 +1301,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                         else
                             /* check as local path */
                             type = KDBManagerPathType (mgr, "%s", objpath);
-                            
+
                         switch (type)
                         {
                         case kptDatabase:
@@ -1357,7 +1360,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 rc = ArgsParamValue (args, ix, (const void **)&pc);
                                 if (rc)
                                     break;
-                                    
+
                                 rc = VectorAppend ( &q, NULL, pc );
                                 if (rc)
                                     break;
@@ -1369,7 +1372,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                             {
                                 rc = tool_select (mgr, type,
                                     resolved, 0, cache, objpath, &q);
-                                
+
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
@@ -1383,7 +1386,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         } while (0);
     }
-    
+
     ArgsWhack(args);
     args = NULL;
 

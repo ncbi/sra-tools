@@ -1062,6 +1062,9 @@ rc_t CC KMain(int argc, char* argv[])
 
     CmdLine cmdArgs;
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     LogLevelSet("info");
 
     rc = ArgsMakeAndHandle

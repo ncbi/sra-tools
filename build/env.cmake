@@ -41,8 +41,6 @@ set(BUILD_TOOLS_LOADERS     "OFF" CACHE STRING "If set to ON, build loaders")
 set(BUILD_TOOLS_TEST_TOOLS  "OFF" CACHE STRING "If set to ON, build test tools")
 set(TOOLS_ONLY              "OFF" CACHE STRING "If set to ON, generate tools targets only")
 
-option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
-
 message( "BUILD_TOOLS_INTERNAL=${BUILD_TOOLS_INTERNAL}" )
 message( "BUILD_TOOLS_LOADERS=${BUILD_TOOLS_LOADERS}" )
 message( "BUILD_TOOLS_TEST_TOOLS=${BUILD_TOOLS_TEST_TOOLS}" )
@@ -709,19 +707,21 @@ int main(int argc, char *argv[]) {
 endif()
 
 if( NOT SINGLE_CONFIG )
-    set( COMMON_LINK_LIBRARIES kapp tk-version )
+#    set( COMMON_LINK_LIBRARIES kapp tk-version )
+    set( COMMON_LINK_LIBRARIES tk-version )
     set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} ${MBEDTLS_LIBS} )
     set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} ${MBEDTLS_LIBS} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
-    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
+#    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
+    set( COMMON_LINK_LIBRARIES tk-version )
     set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
     set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
 endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
+   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()

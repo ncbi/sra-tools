@@ -443,14 +443,19 @@ static int main(CommandLine const &argv)
         exit(EX_SOFTWARE);
     }
 
-    // MARK: Check for special tools
-    if (argv.toolName == "prefetch" || argv.toolName == "srapath")
-        Process::reexec(argv);
+    if (argv.toolName == "srapath") ///< srapath is special
+        Process::reexec(argv); ///< noreturn
 
     try {
         auto const parsed = argumentsParsed(argv);
         if (parsed.countOfCommandArguments() == 0)
-            Process::reexec(argv);
+            Process::reexec(argv); ///< noreturn
+
+        // MARK: set parameters-used bitfield in environment
+        data_sources::set_param_bits_env_var(parsed.argsUsed());
+
+        if (argv.toolName == "prefetch") ///< prefetch is special
+            Process::reexec(argv); ///< noreturn
 
         // MARK: Get and set verbosity.
         auto const verbosity = parsed.countMatching("verbose");
@@ -505,9 +510,6 @@ static int main(CommandLine const &argv)
             }
             data_sources::preferNoQual();
         }
-
-        // MARK: include parameters-used bitfield in communications to SDL
-        data_sources::set_param_bits_env_var(parsed.argsUsed());
 
         // MARK: Look for tool arguments in the file system or ask SDL about them.
         auto const &all_sources = data_sources::preload(argv, parsed);

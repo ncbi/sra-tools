@@ -117,7 +117,7 @@ TEST_CASE(Fastq_File)
 }
 
 TEST_CASE(Fasta_File)
-{ 
+{
     auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG\n" };
     char const *const expected[] = {
         "AAAGTC",
@@ -133,7 +133,7 @@ TEST_CASE(Fasta_File)
 }
 
 TEST_CASE(Fasta_File_missing_LF)
-{ 
+{
     auto &&source = Input::Source::StringLiteralType{ ">1\nAAAG\nTC\n>2\nTCGT\nCG" };
     char const *const expected[] = {
         "AAAGTC",
@@ -141,6 +141,27 @@ TEST_CASE(Fasta_File_missing_LF)
         nullptr
     };
     auto i = Input::newSource( source, false );
+    for (auto e = expected; *e; ++e) {
+        auto const expect = string_view{ *e };
+        auto const input = i->get();
+        REQUIRE_EQ( expect, string_view{ input.sequence } );
+    }
+}
+
+TEST_CASE(Fastq_DecimalQualitiesOnly)
+{
+    auto &&source = Input::Source::StringLiteralType{
+        "+B:8:2:212:211\n"  // warning, skip
+        "40 40\n"           // skip
+        ">1\n"              // recover, parse normally
+        "AAAG\n"
+    };
+    auto i = Input::newSource( source, false ); // should give out a warning
+    char const *const expected[] = {
+        "",
+        "AAAG",
+        nullptr
+    };
     for (auto e = expected; *e; ++e) {
         auto const expect = string_view{ *e };
         auto const input = i->get();

@@ -1,67 +1,14 @@
 {
 	"total": {
 		"reads": {
-			"count": 8,
-			"biological": 8,
+			"count": 0,
+			"biological": 0,
 			"technical": 0
 		},
-		"bases": [
-			{
-				"base": "N",
-				"biological": 530
-			},
-			{
-				"base": "W",
-				"biological": 12
-			},
-			{
-				"base": "S",
-				"biological": 4
-			}
-		],
-		"spots": [
-			{
-				"nreads": 1,
-				"total": 8,
-				"biological": 8,
-				"no-biological": 0,
-				"technical": 0,
-				"no-technical": 8
-			}
-		],
-		"spot-layouts": [
-			{
-				"descriptor": "101BF",
-				"count": 1
-			},
-			{
-				"descriptor": "40BF",
-				"count": 4
-			},
-			{
-				"descriptor": "94BF",
-				"count": 1
-			},
-			{
-				"descriptor": "95BF",
-				"count": 1
-			},
-			{
-				"descriptor": "96BF",
-				"count": 1
-			}
-		],
-		"spectra": {
-			"W": [
-				{
-					"length": 0,
-					"power": 1
-				}
-			],
-			"S": [],
-			"S-W": [],
-			"K-M": []
-		},
+		"bases": [],
+		"spots": [],
+		"spot-layouts": [],
+		"spectra": {},
 		"references": []
 	}
 }

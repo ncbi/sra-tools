@@ -1,6 +1,5 @@
-from distutils.core import setup
+from setuptools import setup
 import sys
-#import version
 
 #ver = version.get_git_version()
 

@@ -30,12 +30,8 @@ if( Python3_EXECUTABLE )
 
     add_test(
         NAME Test_NGS_Python_install
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  -q install --user
+        COMMAND ${Python3_EXECUTABLE} -m pip install .
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    set_tests_properties( Test_NGS_Python_install
-        PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${PythonUserBase}"
     )
 
 endif()

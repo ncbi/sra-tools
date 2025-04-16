@@ -442,9 +442,15 @@ endif()
 #message( CONFIGTOUSE: ${CONFIGTOUSE})
 
 if( Python3_EXECUTABLE )
+  find_program( VIRTUALENV_EXECUTABLE NAMES virtualenv )
   # create virtual environment
-  execute_process(
-        COMMAND "${Python3_EXECUTABLE}" -m venv "${CMAKE_BINARY_DIR}/venv" )
+  if( VIRTUALENV_EXECUTABLE )
+      execute_process(
+          COMMAND "${VIRTUALENV_EXECUTABLE}" "${CMAKE_BINARY_DIR}/venv" )
+  else()
+      execute_process(
+          COMMAND "${Python3_EXECUTABLE}" -m venv "${CMAKE_BINARY_DIR}/venv" )
+  endif()
 
   # update the environment with VIRTUAL_ENV variable (mimic the activate script)
   set( ENV{VIRTUAL_ENV} "${CMAKE_BINARY_DIR}/venv" )

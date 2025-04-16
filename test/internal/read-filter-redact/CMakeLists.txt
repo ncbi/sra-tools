@@ -26,7 +26,7 @@ add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
 
 if ( NOT WIN32 )
-    ToolsRequired( read-filter-redact kar vdb-unlock )
+    ToolsRequired( read-filter-redact kar kdbmeta vdb-unlock )
 
     if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
 

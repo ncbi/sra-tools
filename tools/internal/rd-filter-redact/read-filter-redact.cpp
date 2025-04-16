@@ -49,6 +49,8 @@
 #include <klib/status.h> /* STSMSG */
 #include <klib/time.h> /* KTimeLocal */
 
+#include <fingerprint.hpp>
+
 #include <os-native.h>
 
 #include <assert.h>
@@ -56,6 +58,8 @@
 #include <stdio.h> /* sscanf */
 #include <stdlib.h> /* exit */
 #include <string.h> /* memset */
+
+using namespace std;
 
 #define DISP_RC(rc,msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
@@ -84,25 +88,28 @@ typedef struct SpotIterator {
     bool hasCh;
     char ch;
 } SpotIterator;
-typedef struct Db {
-    const char* table;
+struct Db {
+    const char* table = nullptr;
 
-    VDBManager* mgr;
-    VTable *tbl;
+    VDBManager* mgr = nullptr;
+    VTable *tbl = nullptr;
 
-    const VCursor *rCursor;
-    uint32_t rFilterIdx;
+    const VCursor *rCursor = nullptr;
+    uint32_t rFilterIdx = 0;
+    uint32_t rReadIdx = 0;
 
-    VCursor *wCursor;
-    uint32_t wIdx;
+    Fingerprint read_fp;
 
-    KMetadata *meta;
+    VCursor *wCursor = nullptr;
+    uint32_t wIdx = 0;
 
-    bool locked;
+    KMetadata *meta = nullptr;
 
-    spotid_t nSpots;
-    spotid_t redactedSpots;
-} Db;
+    bool locked = false;
+
+    spotid_t nSpots = 0;
+    spotid_t redactedSpots = 0;
+};
 /** Init the static directory object */
 static rc_t SpotIteratorInitDirectory(void) {
     if (__SpotIteratorDirectory) {
@@ -312,8 +319,7 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
             spotid_t spot = 0;
 
             /* make sure the line contains digits only */
-            int i = 0;
-            for (i = 0; i < self->inBuffer; ++i) {
+            for (size_t i = 0; i < self->inBuffer; ++i) {
                 if (!isdigit(self->buffer[i])) {
                     rc = RC(rcExe, rcFile, rcReading, rcChar, rcUnexpected);
                     PLOGERR(klogErr, (klogErr, rc,
@@ -352,7 +358,7 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
                     self->filename, spot, self->spotToReduct,
                     self->line, self->buffer));
             }
-            else if (spot > self->maxSpotId) {
+            else if (spot > (spotid_t)self->maxSpotId) {
                 rc = RC(rcExe, rcFile, rcReading, rcString, rcInvalid);
                 PLOGERR(klogErr, (klogErr, rc,
                     "spotId $(spot) on line $(lineno) "
@@ -448,7 +454,7 @@ static bool SpotIteratorNext(SpotIterator* self, rc_t* rc,
     *rc = 0;
     *toRedact = false;
 
-    if (self->crnSpotId <= self->maxSpotId) {
+    if (self->crnSpotId <= (spotid_t)self->maxSpotId) {
         hasNext = true;
         *spot = self->crnSpotId++;
     }
@@ -466,14 +472,10 @@ static bool SpotIteratorNext(SpotIterator* self, rc_t* rc,
 
 static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
 {
-    const char name[] = "READ_FILTER";
+    const char read_filter_name[]   = "READ_FILTER";
+    const char read_name[]          = "READ";
 
     assert(args && db);
-
-    memset(db, 0, sizeof *db);
-
-    if (rc != 0)
-    {   return rc; }
 
     db->table = args->table;
 
@@ -537,10 +539,17 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
         rc = VTableCreateCursorRead(db->tbl, &db->rCursor);
         DISP_RC(rc, "while creating read cursor");
         if (rc == 0) {
-            rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx, "%s", name);
+            rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx, "%s", read_filter_name);
             if (rc != 0) {
                 PLOGERR(klogErr, (klogErr, rc,
-                    "while adding $(name) to read cursor", "name=%s", name));
+                    "while adding $(name) to read cursor", "name=%s", read_filter_name));
+            }
+            if (rc == 0) {
+                rc = VCursorAddColumn(db->rCursor, &db->rReadIdx, "%s", read_name);
+                if (rc != 0) {
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "while adding $(name) to read cursor", "name=%s", read_name));
+                }
             }
         }
         if (rc == 0) {
@@ -552,10 +561,10 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
         rc = VTableCreateCursorWrite(db->tbl, &db->wCursor, kcmInsert);
         DISP_RC(rc, "while creating write cursor");
         if (rc == 0) {
-            rc = VCursorAddColumn(db->wCursor, &db->wIdx, "%s", name);
+            rc = VCursorAddColumn(db->wCursor, &db->wIdx, "%s", read_filter_name);
             if (rc != 0) {
                 PLOGERR(klogErr, (klogErr, rc,
-                    "while adding $(name) to write cursor", "name=%s", name));
+                    "while adding $(name) to write cursor", "name=%s", read_filter_name));
             }
         }
         if (rc == 0) {
@@ -652,6 +661,12 @@ static rc_t Work(Db* db, SpotIterator* it)
             ++redactedSpots;
             DBGMSG(DBG_APP,DBG_COND_1,
                 ("Redacting spot %d: %d reads\n",row_id,nreads));
+
+            const char * read_buffer = NULL;
+            rc = VCursorCellDataDirect(db->rCursor, row_id, db->rReadIdx,
+                NULL, (const void**)&read_buffer, NULL, &row_len);
+            DISP_RC(rc, "while reading READ");
+            db->read_fp.record( string( read_buffer, row_len ) );
         }
         else {
             buffer = bufferIn;
@@ -761,7 +776,24 @@ static rc_t enter_date_name_vers( KMDataNode *node )
     return rc;
 }
 
-static rc_t update_history ( KMetadata *dst_meta ) {
+static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
+{
+    KMDataNode * fp_node = nullptr;
+    rc_t rc = KMDataNodeOpenNodeUpdate ( node, &fp_node, "FINGERPRINT" );
+    if ( rc == 0 )
+    {
+        std::ostringstream strm;
+        JSON_ostream json(strm, true);
+        json << '{';
+        fp.canonicalForm( json );
+        json << '}';
+        rc = KMDataNodeWrite ( fp_node, strm.str().data(), strm.str().size() );
+    }
+    return rc;
+}
+
+static rc_t update_history ( Db & db ) {
+    KMetadata *dst_meta = db.meta;
     rc_t rc = 0;
     rc_t r2 = 0;
     char event_name[ 32 ] = "";
@@ -837,6 +869,10 @@ static rc_t update_history ( KMetadata *dst_meta ) {
             if ( rc == 0 )
             {
                 rc = enter_date_name_vers( event_node );
+                if ( rc == 0 )
+                {
+                    rc = enter_fingerprint( event_node, db.read_fp );
+                }
                 KMDataNodeRelease ( event_node );
             }
         }
@@ -885,7 +921,7 @@ static rc_t Run(const CmdLine* args)
     }
 
     if (rc == 0)
-        rc = update_history(db.meta);
+        rc = update_history(db);
 
     if (rc == 0) {
         PLOGMSG(klogInfo, (klogInfo,

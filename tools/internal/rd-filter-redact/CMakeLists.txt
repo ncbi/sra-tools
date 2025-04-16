@@ -27,8 +27,8 @@ if ( NOT WIN32 )
     add_compile_definitions( __mod__="tools/internal/rd-filter-redact" )
 
     # Internal
-    GenerateExecutableWithDefs( test-read-write-cursor "test-read-write-cursor" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-    MakeLinksExe( test-read-write-cursor false )
+    GenerateExecutableWithDefs( test-rd-filter-values "test-read-write-cursor" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    MakeLinksExe( test-rd-filter-values false )
 
     # External
     GenerateExecutableWithDefs( read-filter-redact "read-filter-redact" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )

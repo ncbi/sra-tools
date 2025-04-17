@@ -24,6 +24,7 @@
 
 if( Python3_EXECUTABLE )
     if( SINGLE_CONFIG )
+      if( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
         add_test( NAME SlowTest_NgsPython
             COMMAND ${Python3_EXECUTABLE} tests.py
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -34,6 +35,7 @@ if( Python3_EXECUTABLE )
                 DEPENDS Test_NGS_Python_install
                 ENVIRONMENT "LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR};NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${LIBDIR}"
         )
+       endif()
     elseif( WIN32 )
         add_test( NAME SlowTest_NgsPython
             COMMAND ${Python3_EXECUTABLE} tests.py

@@ -23,8 +23,31 @@
 # ===========================================================================
 
 virtualenv venv
+if [ "$?" != "0" ] ; then
+    exit 1
+fi
+
 . venv/bin/activate
+if [ "$?" != "0" ] ; then
+    exit 2
+fi
+
 python -m pip install --upgrade pip setuptools wheel
+if [ "$?" != "0" ] ; then
+    exit 3
+fi
+
 python -m pip install .
+if [ "$?" != "0" ] ; then
+    exit 4
+fi
+
 deactivate
+if [ "$?" != "0" ] ; then
+    exit 5
+fi
+
 rm -r venv
+if [ "$?" != "0" ] ; then
+    exit 6
+fi

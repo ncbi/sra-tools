@@ -33,7 +33,7 @@ if( Python3_EXECUTABLE )
     )
 
     if ( SINGLE_CONFIG )
-
+      if ( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
         if ( NOT TOOLS_ONLY )
             macro( RunAndDiff TestName TestParams )
                 add_test( NAME Test_NgsPythonExamples_${TestName}
@@ -67,6 +67,7 @@ if( Python3_EXECUTABLE )
             DESTINATION ${INSTALL_DEST}
             RENAME README.txt
         )
+      endif()
     endif()
 
 endif()

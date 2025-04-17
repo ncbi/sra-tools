@@ -439,7 +439,15 @@ if( NOT CONFIGTOUSE )
 endif()
 #message( CONFIGTOUSE: ${CONFIGTOUSE})
 
+find_program(LSB_RELEASE_EXEC lsb_release)
+execute_process(COMMAND ${LSB_RELEASE_EXEC} -is
+    OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message("LSB_RELEASE_ID_SHORT: ${LSB_RELEASE_ID_SHORT}")
+
 if( Python3_EXECUTABLE )
+ if( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
   # create virtual environment
   execute_process(
         COMMAND "${Python3_EXECUTABLE}" -m venv "${CMAKE_BINARY_DIR}/venv" )
@@ -460,6 +468,7 @@ if( Python3_EXECUTABLE )
 
   execute_process( COMMAND
          "${Python3_EXECUTABLE}" -m pip install --upgrade pip setuptools wheel )
+ endif()
 endif()
 
 #
@@ -772,12 +781,6 @@ if( NOT SINGLE_CONFIG )
 endif()
 
 if( RUN_SANITIZER_TESTS )
-	find_program(LSB_RELEASE_EXEC lsb_release)
-	execute_process(COMMAND ${LSB_RELEASE_EXEC} -is
-		OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT
-		OUTPUT_STRIP_TRAILING_WHITESPACE
-	)
-	message("LSB_RELEASE_ID_SHORT: ${LSB_RELEASE_ID_SHORT}")
 	if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
 		message("Disabling sanitizer tests on Ubuntu...")
 		set( RUN_SANITIZER_TESTS OFF )

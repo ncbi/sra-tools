@@ -22,23 +22,9 @@
 #
 # ===========================================================================
 
-if( Python3_EXECUTABLE )
-
-    add_subdirectory( examples )
-
-    #TODO: install
-
-    if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
-      add_test(
-        NAME Test_NGS_Python_install
-        COMMAND ${Python3_EXECUTABLE} -m pip install .
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      )
-    else()
-      add_test(
-        NAME Test_NGS_Python_install
-        COMMAND sh test-install.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      )
-    endif()
-endif()
+virtualenv venv
+. venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install .
+deactivate
+rm -r venv

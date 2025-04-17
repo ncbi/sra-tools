@@ -28,7 +28,7 @@ if( Python3_EXECUTABLE )
 
     #TODO: install
 
-    if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
+    if( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
       add_test(
         NAME Test_NGS_Python_install
         COMMAND ${Python3_EXECUTABLE} -m pip install .

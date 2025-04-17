@@ -22,35 +22,15 @@
 #
 # ===========================================================================
 
-if( Python3_EXECUTABLE )
-    if( SINGLE_CONFIG )
-        if( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
-          add_test( NAME SlowTest_NgsPython
-            COMMAND ${Python3_EXECUTABLE} tests.py
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-          )
-        else()
-          add_test( NAME SlowTest_NgsPython
-            COMMAND sh test-python.sh
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-          )
-        endif()
+virtualenv venv     || exit 1
+. venv/bin/activate || exit 2
+python -m pip install --upgrade pip setuptools wheel || exit 3
 
-        set_tests_properties( SlowTest_NgsPython
-            PROPERTIES
-                DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR};NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${LIBDIR}"
-        )
-    elseif( WIN32 )
-        add_test( NAME SlowTest_NgsPython
-            COMMAND ${Python3_EXECUTABLE} tests.py
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        )
+cd ../../../../ngs/ngs-python || exit 4
+python -m pip install . || exit 5
+cd -            || exit 6
 
-        set_tests_properties( SlowTest_NgsPython
-            PROPERTIES
-                DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${BINDIR}"
-        )
-    endif()
-endif()
+python tests.py || exit 7
+
+deactivate      || exit 8
+rm -r venv      || exit 9

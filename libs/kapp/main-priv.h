@@ -63,22 +63,6 @@ extern "C" {
  */
 rc_t KMane ( int argc, char *argv [] );
 
-/*KAppGetTotalRam
- * returns total physical RAM installed in the system
- * in bytes
- */
-rc_t KAppGetTotalRam ( uint64_t * totalRam );
-
-/* VdbInitializeSystem
- *  OS-specific VDB initialization
- */
-int VdbInitializeSystem();
-
-/* VdbTerminateSystem
- *  OS-specific VDB termination
- */
-void VdbTerminateSystem();
-
 #ifdef __cplusplus
 }
 #endif

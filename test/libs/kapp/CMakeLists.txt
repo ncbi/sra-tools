@@ -22,19 +22,30 @@
 #
 # ===========================================================================
 
-set( CMAKE_POSITION_INDEPENDENT_CODE True )
-add_compile_definitions( _LIBRARY )
+if( WIN32 )
+    set( ADDITIONAL_LIBS Crypt32 )
+else()
+    set( ADDITIONAL_LIBS "" )
+endif()
 
-add_subdirectory(kxml)
-add_subdirectory(kapp)
-add_subdirectory(loader)
-add_subdirectory(vdb-sqlite)
-add_subdirectory(ngs-vdb)
-add_subdirectory(ascp)
-add_subdirectory(diagnose)
-add_subdirectory(schema)
-add_subdirectory(search)
+AddExecutableTest( Test_KAPP_args "kapp-test" "ktst;kapp;${COMMON_LIBS_WRITE};${ADDITIONAL_LIBS}" "" )
+if( WIN32 )
+    target_link_options( Test_KAPP_args PRIVATE "/ENTRY:wmainCRTStartup" )
+endif()
 
-if( NOT WIN32 )
-	add_subdirectory(general-writer)
+if ( NOT WIN32 )
+
+    GenerateExecutableWithDefs( sig-core-kapp "sig-core-kapp.c" "" "" "kapp;${COMMON_LIBS_READ}" )
+    if( WIN32 )
+        target_link_options( sig-core-kapp PRIVATE "/ENTRY:mainCRTStartup" )
+    endif()
+
+    if ( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
+        set( BLD dbg)
+    else()
+        set( BLD rel)
+    endif()
+
+    add_test( NAME CoreGenerationKapp COMMAND sh -c "./run-sig-core.sh ${CMAKE_TEST_OUTPUT_DIRECTORY}/sig-core-kapp ${OS} ${BLD}" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 endif()

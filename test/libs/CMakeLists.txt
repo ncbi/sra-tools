@@ -23,3 +23,4 @@
 # ===========================================================================
 
 add_subdirectory( kfile_stream )
+add_subdirectory( kapp )

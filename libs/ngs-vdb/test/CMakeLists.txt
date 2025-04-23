@@ -33,7 +33,7 @@ include_directories ("${VDB_INCDIR}/../libs/ngs")
 
 set ( TEST_LIBS
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
-    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    kapp
     ncbi-ngs
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}
@@ -50,7 +50,7 @@ endif ()
 add_executable ( ngs-makedb ngstest_makedb.cpp )
 target_link_libraries ( ngs-makedb
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
-    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    kapp
     ${COMMON_LINK_LIBRARIES}
     ${COMMON_LIBS_WRITE}
 )

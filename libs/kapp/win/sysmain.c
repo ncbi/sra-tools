@@ -28,7 +28,7 @@
 #define _UNICODE 1
 
 #include "../main-priv.h"
-#include "main-priv-win.h"
+#include <kapp/win/main-priv-win.h>
 #include <klib/rc.h>
 
 #include <WINDOWS.H>
@@ -68,6 +68,8 @@ int __cdecl wmain ( int argc, wchar_t *wargv [], wchar_t *envp [] )
 
     return status;
 }
+
+extern int wmainCRTStartup();
 
 void  __declspec(dllexport) __stdcall wmainCRTStartupNoPathConversion()
 {

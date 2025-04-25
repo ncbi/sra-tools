@@ -75,18 +75,14 @@ TEST_CASE ( ListColumns )
 extern "C"
 {
 
-#include <kapp/args.h>
 #include <kfg/config.h>
 #include <klib/debug.h>
 
-const char UsageDefaultName[] = "test-view-alias";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
 //KDbgSetString ( "VDB" );
-    rc_t rc=VdbDumpViewAliasTestSuite(argc, argv);
-    return rc;
+    return VdbDumpViewAliasTestSuite(argc, argv);
 }
 
 }

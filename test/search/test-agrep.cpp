@@ -29,7 +29,7 @@
 */
 
 #include <ktst/unit_test.hpp>
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 //#include <../libs/search/search-priv.h>
 #include <search/nucstrstr.h>

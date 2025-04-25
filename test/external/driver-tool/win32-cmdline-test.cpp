@@ -71,7 +71,7 @@ LOG_EXPECTED_AND_GOT:
     abort();
 }
 
-int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+int main(int argc, wchar_t *argv[], wchar_t *envp[])
 {
     testCmdLineConvert({ L"foobar", nullptr });
     testCmdLineConvert({ L"\\foobar", nullptr });

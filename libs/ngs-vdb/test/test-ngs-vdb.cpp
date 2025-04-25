@@ -791,30 +791,7 @@ FIXTURE_TEST_CASE ( VdbAlignment_IsFirst_No, KfcFixture )
 
 //////////////////////////////////////////// Main
 extern "C"
+int main(int argc, char *argv[])
 {
-
-#include <kapp/args.h>
-
-    ver_t CC KAppVersion(void)
-    {
-        return 0x1000000;
-    }
-    rc_t CC UsageSummary(const char * progname)
-    {
-        return 0;
-    }
-
-    rc_t CC Usage(const Args * args)
-    {
-        return 0;
-    }
-
-    const char UsageDefaultName[] = "test-ngs_vdb";
-
-    rc_t CC KMain(int argc, char *argv[])
-    {
-        return NgsVdbTestSuite(argc, argv);
-    }
-
+    return NgsVdbTestSuite(argc, argv);
 }
-

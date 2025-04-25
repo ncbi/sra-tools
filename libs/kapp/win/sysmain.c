@@ -28,7 +28,7 @@
 #define _UNICODE 1
 
 #include "../main-priv.h"
-#include "main-priv-win.h"
+#include <kapp/win/main-priv-win.h>
 #include <klib/rc.h>
 
 #include <WINDOWS.H>

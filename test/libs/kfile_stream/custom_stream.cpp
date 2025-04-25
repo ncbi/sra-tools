@@ -96,11 +96,7 @@ TEST_CASE( ConsumeLineByLine_FromInvalidURI )
     REQUIRE_THROW( vdb::KStreamFactory::make_from_uri( uri ) );
 }
 
-#if WINDOWS
-int wmain (int argc, char *argv [])
-#else
 int main (int argc, char *argv [])
-#endif
 {
     return KFileStreamTestSuite(argc, argv);
 }

@@ -868,6 +868,10 @@ endfunction()
 
 function( AddExecutableTest test_name sources libraries include_dirs )
 	GenerateExecutableWithDefs( "${test_name}" "${sources}" "" "${include_dirs}" "${libraries}" )
+    if( WIN32 )
+        target_link_options( ${test_name} PRIVATE "/ENTRY:mainCRTStartup" )
+    endif()
+
 	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME "${test_name}-asan" COMMAND "${test_name}-asan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

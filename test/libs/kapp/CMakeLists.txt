@@ -23,7 +23,7 @@
 # ===========================================================================
 
 if( WIN32 )
-    set( ADDITIONAL_LIBS Crypt32 )
+    set( ADDITIONAL_LIBS Crypt32 Ws2_32.lib )
 else()
     set( ADDITIONAL_LIBS "" )
 endif()

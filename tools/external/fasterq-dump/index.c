@@ -39,8 +39,6 @@
 #include <kfs/buffile.h>
 #endif
 
-#include <stdio.h>
-
 typedef struct index_writer_t {
     struct KFile * f;
     uint64_t frequency, pos, last_key;
@@ -111,7 +109,6 @@ static rc_t make_index_writer_obj( struct index_writer_t ** writer,
         } else {
             release_index_writer( w );
         }
-        printf( "make_index_writer_obj( %p, freq = %lu )\n", w, frequency );
     }
     return rc;
 }

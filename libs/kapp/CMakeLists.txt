@@ -22,19 +22,18 @@
 #
 # ===========================================================================
 
-set( CMAKE_POSITION_INDEPENDENT_CODE True )
-add_compile_definitions( _LIBRARY )
-
-add_subdirectory(kxml)
-add_subdirectory(kapp)
-add_subdirectory(loader)
-add_subdirectory(vdb-sqlite)
-add_subdirectory(ngs-vdb)
-add_subdirectory(ascp)
-add_subdirectory(diagnose)
-add_subdirectory(schema)
-add_subdirectory(search)
-
-if( NOT WIN32 )
-	add_subdirectory(general-writer)
+if ( "windows" STREQUAL ${OS} )
+    set ( SYSMAIN win/sysmain.c )
+else() # assume Unix
+    set ( SYSMAIN unix/sysmain.c )
 endif()
+
+set( KAPP_SRC
+    main.c
+    ${SYSMAIN}
+)
+
+GenerateStaticLibs( kapp "${KAPP_SRC}" )
+ExportStatic( kapp true )
+
+GenerateStaticLibsWithDefs( kapp-norsrc "${KAPP_SRC}" "NO_KRSRC=1" "" )

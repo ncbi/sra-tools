@@ -15,7 +15,7 @@ set( LIBS
     ngs-vdb
     ncbi-ngs
     tk-version
-    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    kapp
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}
     ksrch

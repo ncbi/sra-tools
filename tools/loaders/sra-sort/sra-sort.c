@@ -527,13 +527,16 @@ void initialize_caps ( const ctx_t *ctx, Caps *caps, Args *args )
 
 rc_t copy_stats_metadata( const char * src_path, const char * dst_path );
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     DECLARE_CTX_INFO ();
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     /* initialize context */
     Caps caps;
     char cp_src_path [ 4096 ];
@@ -760,5 +763,5 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( 0 == main_ctx . rc && 0 != cp_src_path[ 0 ] && 0 != cp_dst_path[ 0 ] ) {
         main_ctx . rc = copy_stats_metadata( cp_src_path, cp_dst_path );
     }
-    return main_ctx . rc;
+    return VdbTerminate( main_ctx . rc );
 }

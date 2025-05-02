@@ -140,16 +140,22 @@ rc_t CC Usage (const Args * args)
     return rc;
 }
 
-rc_t CC KMain (int argc, char * argv[])
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     Args * args;
     uint32_t pcount;
     const XMLLogger* xml_logger = NULL;
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
-    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 2
+
+    rc_t rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2
                                  , Options, sizeof Options / sizeof (OptDef)
                                  , XMLLogger_Args, XMLLogger_ArgsQty);
 
@@ -239,5 +245,5 @@ rc_t CC KMain (int argc, char * argv[])
 
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return rc;
+    return app.getExitCode( rc );
 }

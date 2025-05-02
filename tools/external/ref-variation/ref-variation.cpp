@@ -2017,8 +2017,17 @@ extern "C"
         return rc;
     }
 
-    rc_t CC KMain ( int argc, char *argv [] )
+    MAIN_DECL(argc, argv)
     {
+        const VDB::Application app( argc, argv );
+        if (!app)
+        {
+            return VDB_INIT_FAILED;
+        }
+
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         /* command line examples:
           -r NC_011752.1 -p 2018 --query CA -l 0
           -r NC_011752.1 -p 2020 --query CA -l 0

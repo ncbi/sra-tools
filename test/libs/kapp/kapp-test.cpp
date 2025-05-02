@@ -162,7 +162,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeParams, ArgsFixture)
     argv[4] = "3";
     argv[5] = "4";
 
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     uint32_t param_count;
     uint32_t ix;
@@ -190,7 +190,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeParamsConvAppend, ArgsFixture)
     argv[1] = "abcd";
 
     REQUIRE_RC(ArgsAddParamArray (args, Parameters, sizeof Parameters / sizeof Parameters[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const char * value;
@@ -220,7 +220,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions, ArgsFixture)
     argv[2] = "abcd";
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const char * value;
@@ -253,7 +253,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptionsConversion, ArgsFixture)
     rmdir(argv[2]);
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const KFile * file;
@@ -295,7 +295,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
     argv[2] = input.c_str();
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     const char * file;
 

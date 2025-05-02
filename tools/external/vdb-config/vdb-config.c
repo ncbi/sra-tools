@@ -2090,7 +2090,11 @@ static rc_t ProcessCloud(KConfig * cfg, const Params * prm) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char* argv[]) {
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     rc_t rc = 0;
 
     Params prm;
@@ -2099,7 +2103,7 @@ rc_t CC KMain(int argc, char* argv[]) {
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     if (rc == 0)
         rc = ParamsConstruct(argc, argv, &prm);
 
@@ -2241,7 +2245,7 @@ rc_t CC KMain(int argc, char* argv[]) {
         rc = CreateConfig(argv[0]);
 
     ParamsDestruct(&prm);
-    return rc;
+    return VdbTerminate( rc );
 }
 
 /************************************* EOF ************************************/

@@ -536,8 +536,14 @@ extern "C"
         return 0;
     }
 
-    rc_t CC KMain ( int argc, char *argv [] )
+    MAIN_DECL(argc, argv)
     {
+        const VDB::Application app( argc, argv );
+        if (!app)
+        {
+            return VDB_INIT_FAILED;
+        }
+
         rc_t rc = -1;
         Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
         size_t buffer_size = DFLT_BUFFER_SIZE;
@@ -778,6 +784,6 @@ extern "C"
             }
         }
 
-        return rc;
+        return app.getExitCode( rc );
     }
 }

@@ -66,6 +66,28 @@ rc_t CC KMain ( int argc, char *argv [] );
  */
 ver_t CC KAppVersion ( void );
 
+// BSD is defined when compiling on Mac
+// Use the MAC case below, not this one
+#if BSD && !MAC
+    #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+#endif
+
+#if MAC
+    #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[], char *apple[])
+#endif
+
+#if LINUX
+#define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+#endif
+
+#if WINDOWS
+#if USE_WIDE_API
+    #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+#else
+    #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif

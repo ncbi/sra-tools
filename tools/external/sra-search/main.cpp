@@ -385,11 +385,12 @@ run( int argc, const char *argv [] )
     return rc;
 }
 
-
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    rc_t CC KMain ( int argc, char *argv [] )
+    const VDB::Application app( argc, argv );
+    if (!app)
     {
-        return run ( argc, (const char**)argv );
+        return VDB_INIT_FAILED;
     }
+    return run ( argc, app.getArgV() );
 }

@@ -1256,7 +1256,7 @@ static rc_t perform_vdb_copy_tab_or_db( const p_context ctx, VDBManager * vdb_mg
 
 /***************************************************************************
     vdb_copy_main:
-    * called by "KMain()"
+    * called by "main()"
     * make the "native directory"
     * make a vdb-manager for write
       all subsequent copy-functions will use this manager...
@@ -1330,7 +1330,11 @@ static rc_t perform_vdb_copy( const p_context ctx ) {
     * call copy_main() to execute the copy-operation
     * destroy the copy-context
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
 
     SetUsage( Usage );
@@ -1338,15 +1342,15 @@ rc_t CC KMain ( int argc, char *argv [] ) {
 
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
                              MyOptions, sizeof MyOptions / sizeof ( OptDef ) );
-    DISP_RC( rc, "KMain:ArgsMakeAndHandle() failed" );
+    DISP_RC( rc, "Main:ArgsMakeAndHandle() failed" );
     if ( 0 == rc ) {
         context *ctx;
         KLogHandlerSetStdErr();
         rc = context_init( &ctx );
-        DISP_RC( rc, "KMain:copy_context_init() failed" );
+        DISP_RC( rc, "Main:copy_context_init() failed" );
         if ( 0 == rc ) {
             rc = context_capture_arguments_and_options( args, ctx );
-            DISP_RC( rc, "KMain:context_capture_arguments_and_options() failed" );
+            DISP_RC( rc, "Main:context_capture_arguments_and_options() failed" );
             if ( 0 == rc ) {
                 if ( ctx -> usage_requested ) {
                     MiniUsage( args );
@@ -1361,5 +1365,5 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         }
         ArgsWhack ( args );
     }
-    return rc;
+    return VdbTerminate( rc );
 }

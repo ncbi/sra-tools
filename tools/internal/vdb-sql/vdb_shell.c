@@ -6519,7 +6519,9 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] ) {
- int i = smain( argc, argv );
- return i;
+MAIN_DECL( argc, argv )
+{
+  if ( VdbInitialize( argc, argv, 0 ) )
+    return VDB_INIT_FAILED;
+  return smain( argc, argv );
 }

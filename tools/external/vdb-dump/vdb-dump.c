@@ -2112,7 +2112,7 @@ static rc_t vdm_main_one_obj( const p_dump_context ctx,
 
 /***************************************************************************
     dump_main:
-    * called by "KMain()"
+    * called by "main()"
     * make the "native directory"
     * make a vdb-manager for read
       all subsequent dump-functions will use this manager...
@@ -2223,14 +2223,17 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
     int main_vdb_shell_org( int argc, char **argv );    /* to be found in vdb_shell.c! */
 #endif
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     rc_t rc;
     Args * args;
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
 #ifdef WITH_VDB_SHELL
     if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
     {
@@ -2282,5 +2285,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VdbTerminate( rc );
 }

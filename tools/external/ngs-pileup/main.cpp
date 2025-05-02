@@ -113,8 +113,14 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    const VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     Args * args;
 
     SetUsage( Usage );

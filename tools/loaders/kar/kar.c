@@ -2423,8 +2423,11 @@ rc_t run ( const Params *p )
     return kar_test_extract ( p );
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Params params;
     Args *args = NULL;
 
@@ -2438,6 +2441,6 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));
 
-    return rc;
+    return VdbTerminate( rc );
 }
 

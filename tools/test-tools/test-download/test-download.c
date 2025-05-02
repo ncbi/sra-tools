@@ -564,7 +564,11 @@ static rc_t DoStream ( const Do * self, const char * url ) {
     return rc;
 }
 
-rc_t CC KMain ( int argc, char * argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     rc_t rc = 0;
     Args * args = NULL;
     uint32_t argCount = 0, i = 0;
@@ -664,5 +668,5 @@ rc_t CC KMain ( int argc, char * argv [] ) {
 
     STSMSG ( STAT_USR, ( "Done with %R", rc ) );
 
-    return rc;
+    return VdbTerminate( rc );
 }

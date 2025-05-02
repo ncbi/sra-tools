@@ -545,11 +545,17 @@ extern "C"
         return rc;
     }
 
-    rc_t CC KMain(int argc, char* argv[])
+    MAIN_DECL(argc, argv)
     {
+        VDB::Application app( argc, argv );
+        if (!app)
+        {
+            return VDB_INIT_FAILED;
+        }
+
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
 
-        return AlignCache::create_cache_db (argc, argv);
+        return AlignCache::create_cache_db (argc, app.getArgV());
     }
 }

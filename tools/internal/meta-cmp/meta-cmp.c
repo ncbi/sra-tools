@@ -321,8 +321,11 @@ static rc_t compare( const struct cmp_ctx * ctx )
 /***************************************************************************
     Main:
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
 
     SetUsage( Usage );
@@ -341,5 +344,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VdbTerminate( rc );
 }

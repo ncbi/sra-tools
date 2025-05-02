@@ -37,11 +37,12 @@
 #include <kapp/vdbapp.h>
 
 #include "../../shared/toolkit.vers.h"
+#include <kapp/main.h>
 
 #include "formatter.hpp"
 
 using namespace std;
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
+#define DISP_RC(rc, msg) if (rc != 0) { LOGERR(klogInt, rc, msg), throw VDB::Error(msg); }
 #define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = nullptr; } while (false)
 
@@ -247,23 +248,19 @@ public:
     bool needFingerprints(void) const { return fingerprints; }
 } Query;
 
-#if WINDOWS && UNICODE
-int wmain(int argc, wchar_t* argv[])
-#else
-int main(int argc, char* argv[])
-#endif
+MAIN_DECL(argc, argv)
 {
     VDB::Application app( argc, argv );
     if (!app)
     {
-        return 1;
+        return VDB_INIT_FAILED;
     }
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
     Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, app.GetArgV(),
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(),
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );
     DISP_RC( rc, "ArgsMakeAndHandle() failed" );
     if ( rc == 0)
@@ -449,12 +446,12 @@ int main(int argc, char* argv[])
             catch( const exception& /*ex*/)
             {
                 //KOutMsg( "%s\n", ex.what() ); ? - should be in stderr already, at least for VDB::Error
-                rc = 3;
+                return 3;
             }
         }
 
         DESTRUCT(Args, args);
     }
 
-    return rc;
+    return app.getExitCode( rc );
 }

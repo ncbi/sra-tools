@@ -274,8 +274,11 @@ rc_t open (param_block * pb)
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv[] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc = 0;
 
@@ -349,6 +352,5 @@ rc_t CC KMain ( int argc, char *argv[] )
     else
         KStsMsg("Exit success %R");
 
-
-    return rc;
+    return VdbTerminate( rc );
 }

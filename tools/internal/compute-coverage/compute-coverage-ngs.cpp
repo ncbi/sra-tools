@@ -184,23 +184,13 @@ int run ( int argc, char const * argv [] ) {
     return EXIT_FAILURE;
 }
 
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    rc_t CC UsageSummary (const char * progname)
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC Usage ( struct Args const * args )
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC KMain ( int argc, char *argv [] )
+    const VDB::Application app( argc, argv );
+    if (!app)
     {
-        SetUsage( Usage );
-        SetUsageSummary( UsageSummary );
-
-        return run ( argc, (const char**)argv );
+        return VDB_INIT_FAILED;
     }
+
+    return run ( argc, app.getArgV() );
 }

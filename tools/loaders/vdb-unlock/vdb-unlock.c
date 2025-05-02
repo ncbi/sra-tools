@@ -72,15 +72,16 @@ rc_t CC Usage ( const Args *args )
     return rc;
 }
 
-
-
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args *args;
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     rc_t rc = ArgsMakeAndHandle ( & args, argc, argv, 0 );
     if ( rc != 0 )
         LogErr ( klogErr, rc, "failed to parse arguments" );
@@ -156,5 +157,5 @@ rc_t CC KMain ( int argc, char *argv [] )
         ArgsWhack ( args );
     }
 
-    return rc;
+    return VdbTerminate( rc );
 }

@@ -30,8 +30,8 @@
 #include <ngs/ReadIterator.hpp>
 #include <ngs/Read.hpp>
 
+#include <kapp/vdbapp.h>
 #include <kapp/main.h>
-
 
 #include <math.h>
 #include <iostream>
@@ -329,49 +329,38 @@ int run ( int argc, char const *argv[] )
     return 10;
 }
 
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    rc_t CC UsageSummary (const char * progname)
-    {   // this is not used at this point, see print_help()
-        return 0;
-    }
-
-    rc_t CC Usage ( struct Args const * args )
-    {   // this is not used at this point, see print_help()
-        return 0;
-    }
-
-    rc_t CC KMain ( int argc, char *argv [] )
+    const VDB::Application app( argc, argv );
+    if (!app)
     {
-
-        SetUsage( Usage );
-        SetUsageSummary( UsageSummary );
-
-        try
-        {
-            return run ( argc, (const char**)argv );
-        }
-        catch ( ErrorMsg & x )
-        {
-            std :: cerr <<  x.toString () << '\n';
-            return -1;
-        }
-        catch ( std :: exception & x )
-        {
-            std :: cerr <<  x.what () << '\n';
-            return -1;
-        }
-        catch ( const char x [] )
-        {
-            std :: cerr <<  x << '\n';
-            return -1;
-        }
-        catch ( ... )
-        {
-            std :: cerr <<  "unknown exception\n";
-            return -1;
-        }
-
-        return 0;
+        return VDB_INIT_FAILED;
     }
+
+    try
+    {
+        return run ( argc, app.getArgV() );
+    }
+    catch ( ErrorMsg & x )
+    {
+        std :: cerr <<  x.toString () << '\n';
+        return -1;
+    }
+    catch ( std :: exception & x )
+    {
+        std :: cerr <<  x.what () << '\n';
+        return -1;
+    }
+    catch ( const char x [] )
+    {
+        std :: cerr <<  x << '\n';
+        return -1;
+    }
+    catch ( ... )
+    {
+        std :: cerr <<  "unknown exception\n";
+        return -1;
+    }
+
+    return 0;
 }

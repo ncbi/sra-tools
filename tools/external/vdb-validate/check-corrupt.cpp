@@ -698,8 +698,14 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
     return 0;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    const VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     XMLLogger const *xlogger = NULL;
     Args * args;
     rc_t rc;

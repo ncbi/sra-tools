@@ -436,8 +436,11 @@ void CC ascii_to_u64_error_handler ( const char * arg, void * data )
 
 rc_t CC NextLogLevelCommon ( const char * level_parameter );
 
-rc_t CC KMain (int argc, char *argv [])
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t   rc;
 
@@ -575,7 +578,7 @@ rc_t CC KMain (int argc, char *argv [])
     }
 
     STSMSG (1, ("exit txt2kdb %R\n", rc));
-    return rc;
+    return VdbTerminate( rc );
 }
 
 

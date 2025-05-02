@@ -25,7 +25,7 @@
 #include <diagnose/diagnose.h> /* KDiagnose */
 #include "test-sra-priv.h" /* PrintOS */
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <kfg/config.h> /* KConfig */
 #include <kfg/kart.h> /* Kart */
@@ -3999,7 +3999,11 @@ static rc_t Diagnose ( const Main * self, const Args * args ) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char *argv[]) {
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     rc_t rc = 0;
     uint32_t pcount = 0;
     uint32_t i = 0;
@@ -4172,5 +4176,5 @@ rc = Diagnose ( & prms, args );
     }
     free(argv2);
 
-    return rc;
+    return VdbTerminate( rc );
 }

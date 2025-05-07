@@ -115,7 +115,7 @@ rc_t CC Usage ( const Args * args )
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv );
     if (!app)
     {
         return VDB_INIT_FAILED;
@@ -126,7 +126,7 @@ MAIN_DECL(argc, argv)
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv, 1, options, sizeof options / sizeof options [ 0 ] );
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(), 1, options, sizeof options / sizeof options [ 0 ] );
     if ( rc == 0 )
     {
         try

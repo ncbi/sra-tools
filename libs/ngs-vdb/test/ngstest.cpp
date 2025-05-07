@@ -29,6 +29,7 @@
 */
 
 #include <ngs/StringRef.hpp>
+#include <kapp/main.h>
 
 #include <ktst/unit_test.hpp>
 
@@ -38,8 +39,8 @@ using namespace ncbi::NK;
 TEST_SUITE(NgsCppTestSuite);
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
-    return NgsCppTestSuite( argc, argv );
+    VDB::Application app(argc, argv);
+    return NgsCppTestSuite( argc, app.getArgV());
 }

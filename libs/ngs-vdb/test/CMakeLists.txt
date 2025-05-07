@@ -33,15 +33,10 @@ include_directories ("${VDB_INCDIR}/../libs/ngs")
 
 set ( TEST_LIBS
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
-    kapp
     ncbi-ngs
     ${COMMON_LIBS_READ}
     ${COMMON_LINK_LIBRARIES}
 )
-
-if (WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
-endif ()
 
 #-------------------------------------------------------------------------------
 # tests for the underlying C APIs

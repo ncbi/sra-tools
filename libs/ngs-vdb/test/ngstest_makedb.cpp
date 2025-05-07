@@ -25,6 +25,8 @@
 #include <sstream>
 #include <cstdlib>
 
+#include <kapp/main.h>
+
 #include <vdb/manager.h> // VDBManager
 #include <vdb/table.h>
 #include <vdb/cursor.h>
@@ -169,10 +171,11 @@ extern "C"
 {
 
 #include <kfg/config.h>
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc,argv)
 {
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    return NgsMakeDbSuite(argc, argv);
+    return NgsMakeDbSuite(argc, app.getArgV());
 }
 
 }

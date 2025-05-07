@@ -38,7 +38,7 @@
  */
 
 static bool convert_args_paths = true;
-
+#if 0
 int __cdecl wmain ( int argc, wchar_t *wargv [], wchar_t *envp [] )
 {
     char **argv = NULL;
@@ -68,7 +68,7 @@ int __cdecl wmain ( int argc, wchar_t *wargv [], wchar_t *envp [] )
 
     return status;
 }
-
+#endif
 void  __declspec(dllexport) __stdcall wmainCRTStartupNoPathConversion()
 {
     convert_args_paths = false;

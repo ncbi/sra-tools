@@ -700,7 +700,7 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv );
     if (!app)
     {
         return VDB_INIT_FAILED;
@@ -714,7 +714,7 @@ MAIN_DECL(argc, argv)
 
     KLogLevelSet(klogInfo);
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
+    rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2, Options,
                             sizeof (Options) / sizeof (Options[0]),
                             XMLLogger_Args, XMLLogger_ArgsQty);
     if (rc)

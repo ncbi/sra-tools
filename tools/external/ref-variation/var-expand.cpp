@@ -420,6 +420,6 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
-        return VarExpand::expand_variations (argc, argv);
+        return VarExpand::expand_variations (argc, app.getArgV());
     }
 }

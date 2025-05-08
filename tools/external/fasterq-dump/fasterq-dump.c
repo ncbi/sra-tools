@@ -60,10 +60,6 @@
 #include "ref_inventory.h"
 #endif
 
-#ifndef _h_kapp_main_
-#include <kapp/main.h>
-#endif
-
 #ifndef _h_kapp_args_
 #include <kapp/args.h>
 #endif
@@ -81,6 +77,7 @@
 #endif
 
 #include <klib/report.h> /* ReportFinalize */
+#include <kapp/vdbapp.h> /* GetKAppVersion */
 
 /* ---------------------------------------------------------------------------------- */
 
@@ -235,10 +232,15 @@ static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for te
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
+static const char * keep_usage[] = { "keep temp. files", NULL };
+#define OPTION_KEEP              "keep"
+
+static const char * step_usage[] = { "stop after step", NULL };
+#define OPTION_STEP              "step"
+
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
-    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
     { OPTION_FORMAT,        ALIAS_FORMAT,       NULL, format_usage,         1, true,   false },
     { OPTION_OUTPUT_F,      ALIAS_OUTPUT_F,     NULL, outputf_usage,        1, true,   false },
     { OPTION_OUTPUT_D,      ALIAS_OUTPUT_D,     NULL, outputd_usage,        1, true,   false },
@@ -277,7 +279,10 @@ OptDef ToolOptions[] = {
     { OPTION_DISK_LIMIT_OUT,NULL,               NULL, disk_limit_out_usage, 1, true,   false },
     { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
-    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
+    { OPTION_KEEP,          NULL,               NULL, keep_usage,           1, false,  false },
+    { OPTION_STEP,          NULL,               NULL, step_usage,           1, true,   false },
+    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false }
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -301,6 +306,7 @@ rc_t CC Usage ( const Args * args ) {
     uint32_t idx, count = ( sizeof ToolOptions ) / ( sizeof ToolOptions[ 0 ] );
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
+    uint32_t shown_options = count - 3; /* supress the last 3 options - aka keep, step, and row-limit */
 
     if ( NULL == args ) {
         rc = RC( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
@@ -315,7 +321,7 @@ rc_t CC Usage ( const Args * args ) {
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
-    for ( idx = 1; idx < count; ++idx ) { /* start with 1, do not advertize row-limit */
+    for ( idx = 0; idx < shown_options; ++idx ) { /* start with 1, do not advertize row-limit */
         const OptDef * opt = &ToolOptions[ idx ];
         const char * param = NULL;
 
@@ -333,7 +339,7 @@ rc_t CC Usage ( const Args * args ) {
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump\n" );
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/08.-prefetch-and-fasterq-dump\n" );
 
-    HelpVersion( fullpath, KAppVersion() );
+    HelpVersion( fullpath, GetKAppVersion() );
 
     return rc;
 }
@@ -397,6 +403,8 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> only_external_refs = ahlp_get_bool_option( args, OPTION_REF_EXT );
     tool_ctx -> split_file = split_file; /* passing it though for fasta-ref-tbl */
     tool_ctx -> use_name = ahlp_get_bool_option( args, OPTION_USE_NAME );
+    tool_ctx -> keep_tmp_files = ahlp_get_bool_option( args, OPTION_KEEP );
+    tool_ctx -> stop_after_step = ahlp_get_uint32_t_option( args, OPTION_STEP, 0 );
 
     if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
         rc = ahlp_get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
@@ -497,6 +505,8 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         fm_args . wait_time = queue_timeout;
         fm_args . buf_size = tool_ctx -> buf_size;
         fm_args . gap = gap;
+        fm_args . details = tool_ctx -> show_details;
+        fm_args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = make_background_file_merger( &bg_file_merger, &fm_args ); /* merge_sorter.c */
     }
@@ -504,7 +514,7 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
     /* the background-vector-merger catches the KVectors produced by
        the lookup-produceer */
     if ( 0 == rc ) {
-        vector_merger_args_t vm_args; /* merge_sorter.c */
+        vector_merger_args_t vm_args; /* merge_sorter.h */
 
         vm_args . dir = tool_ctx -> dir;
         vm_args . temp_dir = tool_ctx -> temp_dir;
@@ -515,6 +525,7 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         vm_args . buf_size = tool_ctx -> buf_size;
         vm_args . gap = gap;
         vm_args . details = tool_ctx -> show_details;
+        vm_args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = make_background_vector_merger( &bg_vec_merger, &vm_args ); /* merge_sorter.c */
     }
@@ -548,14 +559,20 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         args . mem_limit = tool_ctx -> mem_limit;
         args . num_threads = tool_ctx -> num_threads;
         args . show_progress = tool_ctx -> show_progress;
+        args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = execute_lookup_production( &args ); /* sorter.c */
     }
+
+    if ( 1 == tool_ctx -> stop_after_step ) { return rc; }
+
     bg_update_start( gap, "merge  : " ); /* progress_thread.c ...start showing the activity... */
 
     if ( 0 == rc ) {
         rc = wait_for_and_release_background_vector_merger( bg_vec_merger ); /* merge_sorter.c */
     }
+
+    if ( 2 == tool_ctx -> stop_after_step ) { return rc; }
 
     if ( 0 == rc ) {
         rc = wait_for_and_release_background_file_merger( bg_file_merger ); /* merge_sorter.c */
@@ -583,7 +600,9 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     join_stats_t stats; /* helper.h */
     dbj_sorted_fastq_fasta_args_t args; /* join.h */
 
-    rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+    rc_t rc = make_temp_registry( &registry,
+                                  tool_ctx -> cleanup_task,
+                                  tool_ctx -> keep_tmp_files ); /* temp_registry.c */
 
     hlp_clear_join_stats( &stats );
     /* join SEQUENCE-table with lookup-table === this is the actual purpos of the tool === */
@@ -635,7 +654,8 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
         if ( tool_ctx -> use_stdout ) {
             rc = temp_registry_to_stdout( registry,
                                           tool_ctx -> dir,
-                                          tool_ctx -> buf_size ); /* temp_registry.c */
+                                          tool_ctx -> buf_size,
+                                          tool_ctx -> keep_tmp_files ); /* temp_registry.c */
         } else {
             rc = temp_registry_merge( registry,
                               tool_ctx -> dir,
@@ -708,7 +728,7 @@ static rc_t main_process_csra( const tool_ctx_t * tool_ctx ) {
         case ft_ref_report : rc = ref_inventory_print_report( tool_ctx ); break;
         default : {
             rc = main_produce_lookup_files( tool_ctx );
-            if ( 0 == rc ) {
+            if ( 0 == rc && 0 == tool_ctx -> stop_after_step ) {
                 rc = main_produce_final_db_output( tool_ctx );
             }
         }
@@ -725,7 +745,9 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
 
     hlp_clear_join_stats( &stats ); /* helper.c */
 
-    rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+    rc = make_temp_registry( &registry,
+                             tool_ctx -> cleanup_task,
+                             tool_ctx -> keep_tmp_files ); /* temp_registry.c */
 
     if ( 0 == rc ) {
 
@@ -757,7 +779,8 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
         if ( tool_ctx -> use_stdout ) {
             rc = temp_registry_to_stdout( registry,
                                         tool_ctx -> dir,
-                                        tool_ctx -> buf_size ); /* temp_registry.c */
+                                        tool_ctx -> buf_size,
+                                        tool_ctx -> keep_tmp_files ); /* temp_registry.c */
         } else {
             rc = temp_registry_merge( registry,
                             tool_ctx -> dir,

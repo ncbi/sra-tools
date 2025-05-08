@@ -24,6 +24,7 @@
 *
 */
 #include "merge_sorter.h"
+#include "klib/text.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -671,6 +672,7 @@ static rc_t process_background_file_merger( background_file_merger_t * self ) {
                     if ( 0 == rc ) {
                         num_src++;
                     }
+                    StringWhack( filename );
                 }
             }
             if ( 0 == rc ) {

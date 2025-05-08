@@ -33,6 +33,8 @@
 #include "ngs_c_fixture.hpp"
 #include <ktst/unit_test.hpp>
 
+#include <kapp/main.h>
+
 #include "../ncbi/ngs/NGS_ReadCollection.h"
 #include "../ncbi/ngs/NGS_FragmentBlobIterator.h"
 #include "../ncbi/ngs/NGS_FragmentBlob.h"
@@ -1040,16 +1042,16 @@ FIXTURE_TEST_CASE(SRA_GetFragmentBlobs, SRA_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     //assert(!KDbgSetString("KFG"));
     //assert(!KDbgSetString("VFS"));
     KConfigDisableUserSettings();
 
     putenv((char*)"NCBI_VDB_QUALITY=R");
 
-    int ret=NgsSraTestSuite(argc, argv);
+    int ret=NgsSraTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret ;
 }

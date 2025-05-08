@@ -33,6 +33,8 @@
 #include "../ncbi/ngs/NGS_Pileup.h"
 #include "../ncbi/ngs/NGS_PileupEvent.h"
 
+#include <kapp/main.h>
+
 #include <kdb/manager.h>
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
@@ -548,11 +550,12 @@ FIXTURE_TEST_CASE(CSRA1_Pileup_ExtraEventReported, CSRA1_Fixture)
 //TODO: NGS_PileupEventGetDeletionCount
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
+
     KConfigDisableUserSettings();
-    int ret=NgsCsra1PileupTestSuite(argc, argv);
+    int ret = NgsCsra1PileupTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

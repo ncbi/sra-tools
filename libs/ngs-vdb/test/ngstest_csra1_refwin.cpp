@@ -31,6 +31,7 @@
 #include "ngs_c_fixture.hpp"
 
 #include <kapp/args.h> /* Args */
+#include <kapp/main.h>
 
 #include <kdb/manager.h>
 
@@ -804,11 +805,11 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceWindow_PrintEmAll_1, CSRA1_Fixture)
 }
 #endif
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int ret=NgsCsra1RefWinTestSuite(argc, argv);
+    int ret=NgsCsra1RefWinTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

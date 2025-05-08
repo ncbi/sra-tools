@@ -32,6 +32,8 @@
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
+#include <kapp/main.h>
+
 #include <vdb/database.h>
 #include <vdb/blob.h>
 
@@ -299,11 +301,11 @@ FIXTURE_TEST_CASE ( VByteBlob_MaxRows_LessThanPresent_WithRepeatsOverlapping, By
 
 //////////////////////////////////////////// Main
 
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc,argv)
 {
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    int ret=NgsByteBlobTestSuite(argc, argv);
+    int ret=NgsByteBlobTestSuite(argc, app.getArgV());
     ByteBlobFixture::ReleaseCache();
     return ret;
 }

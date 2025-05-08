@@ -38,6 +38,8 @@
 #include <../ncbi/ngs/NGS_FragmentBlob.h>
 #include <../ncbi/ngs/NGS_FragmentBlobIterator.h>
 
+#include <kapp/main.h>
+
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
 #include <vdb/table.h>
@@ -564,11 +566,12 @@ FIXTURE_TEST_CASE ( NGS_FragmentBlobIterator_IteratorRetreats, BlobIteratorFixtu
 
 //////////////////////////////////////////// Main
 
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
+
     KConfigDisableUserSettings();
-    int ret=NgsFragmentBlobTestSuite(argc, argv);
+    int ret=NgsFragmentBlobTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

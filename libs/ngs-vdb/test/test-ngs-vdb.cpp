@@ -31,6 +31,8 @@
 #include <ngs-vdb/NGS-VDB.hpp>
 #include <ngs-vdb/VdbAlignment.hpp>
 
+#include <kapp/main.h>
+
 #include <kfc/ctx.h>
 
 #include <kfc/rsrc.h>
@@ -790,8 +792,8 @@ FIXTURE_TEST_CASE ( VdbAlignment_IsFirst_No, KfcFixture )
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main(int argc, char *argv[])
+MAIN_DECL(argc, argv)
 {
-    return NgsVdbTestSuite(argc, argv);
+    VDB::Application app(argc, argv);
+    return NgsVdbTestSuite(argc, app.getArgV());
 }

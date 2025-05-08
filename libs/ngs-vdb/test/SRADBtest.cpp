@@ -32,6 +32,8 @@
 
 #include <os-native.h>
 
+#include <kapp/main.h>
+
 #include <ngs/Statistics.hpp>
 
 #include <klib/text.h>
@@ -506,12 +508,12 @@ FIXTURE_TEST_CASE(SRADB_ReadGroup_GetStatistics_iteration, SRADBFixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     setenv("NCBI_VDB_QUALITY", "R", 1);
     KConfigDisableUserSettings();
-    int rc=NgsSradbCppTestSuite(argc, argv);
+    int rc=NgsSradbCppTestSuite(argc, app.getArgV());
     NgsFixture::ReleaseCache();
     return rc;
 }

@@ -29,8 +29,9 @@
 */
 
 #include "ngsfixture.hpp"
-#include <stdint.h>
+#include <kapp/main.h>
 
+#include <stdint.h>
 #include <sstream>
 
 using namespace std;
@@ -1081,20 +1082,14 @@ FIXTURE_TEST_CASE(CSRA1_ReadGroupIterator_AfterNext, CSRA1_Fixture)
 
 
 //////////////////////////////////////////// Main
-extern "C"
+MAIN_DECL(argc, argv)
 {
-
-#include <kfg/config.h>
-int main ( int argc, char *argv [] )
-{
+    VDB::Application app(argc, argv); 
 const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";
     KConfigDisableUserSettings();
-    int rc=NgsCsra1CppTestSuite(argc, argv);
+    int rc=NgsCsra1CppTestSuite(argc, app.getArgV());
 
     NgsFixture::ReleaseCache();
     return rc;
 }
-
-}
-

@@ -32,6 +32,8 @@
 
 #include <limits.h>
 
+#include <kapp/main.h>
+
 #include <klib/printf.h>
 
 #include <kdb/manager.h>
@@ -833,11 +835,11 @@ FIXTURE_TEST_CASE(CSRA1_GetFragmentBlobs, CSRA1_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    int ret = NgsCsra1TestSuite(argc, argv);
+    int ret = NgsCsra1TestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

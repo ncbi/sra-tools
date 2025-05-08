@@ -34,6 +34,8 @@
 
 #include <../ncbi/ngs/NGS_Cursor.h>
 
+#include <kapp/main.h>
+
 #include <kdb/manager.h>
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
@@ -710,11 +712,11 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReadCollectionGetStats, CSRA1_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int ret=NgsCsra1ReadCollectionTestSuite(argc, argv);
+    int ret=NgsCsra1ReadCollectionTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

@@ -34,6 +34,8 @@
 
 #include <limits.h>
 
+#include <kapp/main.h>
+
 #include <klib/printf.h>
 
 #include <kdb/manager.h>
@@ -839,12 +841,12 @@ FIXTURE_TEST_CASE(SRADB_GetFragmentBlobs, SRADB_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
     setenv("NCBI_VDB_QUALITY", "R", 1);
-    int ret=NgsSradbTestSuite(argc, argv);
+    int ret=NgsSradbTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

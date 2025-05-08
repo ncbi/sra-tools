@@ -35,6 +35,8 @@
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
+#include <kapp/main.h>
+
 #include <vdb/database.h>
 
 #include <../ncbi/ngs/NGS_Cursor.h>
@@ -743,11 +745,11 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetBlobs_Slice_MultipleBlobs, ReferenceBlob
 
 //////////////////////////////////////////// Main
 
-extern "C"
-int main ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int m_coll=NgsReferenceBlobTestSuite(argc, argv);
+    int m_coll=NgsReferenceBlobTestSuite(argc, app.getArgV());
     NGS_C_Fixture::ReleaseCache();
     return m_coll;
 }

@@ -547,15 +547,11 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
-        if (!app)
-        {
-            return VDB_INIT_FAILED;
-        }
+        VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
 
-        return AlignCache::create_cache_db (argc, app.getArgV());
+        return VDB_TERMINATE( AlignCache::create_cache_db (argc, argv ) );
     }
 }

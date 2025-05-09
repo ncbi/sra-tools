@@ -65,8 +65,7 @@ const char UsageDefaultName[] = "samview-util";
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     while (--argc) {
         const char * arg = *++argv;
@@ -78,5 +77,5 @@ MAIN_DECL( argc, argv )
         }
         samview(*argv);
     }
-    return VdbTerminate( 0 );
+    return VDB_TERMINATE( 0 );
 }

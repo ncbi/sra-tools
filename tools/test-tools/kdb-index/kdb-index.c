@@ -191,8 +191,7 @@ const char UsageDefaultName[] = "kdb-index";
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc = 0;
     int i, count = 0;
@@ -256,5 +255,5 @@ MAIN_DECL( argc, argv )
         KDBManagerRelease ( mgr );
     }
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

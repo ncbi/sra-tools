@@ -3926,8 +3926,7 @@ extern rc_t CC Usage(const Args *args);
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc = 0;
     bool insufficient = false;
@@ -4066,5 +4065,5 @@ MAIN_DECL( argc, argv )
         rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
     }
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

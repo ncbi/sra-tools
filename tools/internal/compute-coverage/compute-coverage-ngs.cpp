@@ -53,7 +53,7 @@ void handle_help ()
     HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
-int run ( int argc, char const * argv [] ) {
+int run ( int argc, char * argv [] ) {
     bool TESTING = getenv ( "VDB_TEST" ) != NULL;
 //    const char * accession ( "SRR543323" );
    const char * accession = 0;
@@ -186,11 +186,9 @@ int run ( int argc, char const * argv [] ) {
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
-    if (!app)
-    {
-        return VDB_INIT_FAILED;
-    }
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
-    return run ( argc, app.getArgV() );
+    int rc = run ( argc, argv);
+    VDB_TERMINATE(rc);
+    return rc;
 }

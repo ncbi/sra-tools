@@ -1189,16 +1189,12 @@ class t_factory {
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app( argc, argv );
-    if (!app)
-    {
-        return VDB_INIT_FAILED;
-    }
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     int res = 3;
     try {
         t_proglines proglines;
-        t_progline::consume_lines( argc, app.getArgV(), proglines);
+        t_progline::consume_lines( argc, argv, proglines);
         if ( !proglines.empty() ) {
             t_errors errors;
             t_factory factory( proglines, errors );
@@ -1208,5 +1204,6 @@ MAIN_DECL(argc, argv)
     } catch ( std::bad_alloc &e ) {
         std::cerr << "error: " << e.what() << std::endl;
     }
+    VDB_TERMINATE(res);
     return res;
 }

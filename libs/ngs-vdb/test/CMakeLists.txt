@@ -58,9 +58,7 @@ add_definitions(-D__mod__="NGS_TEST")
 add_definitions(-D__file__="__FILE__")
 add_definitions(-D__fext__="cpp")
 
-add_executable ( test-ngs ngstest.cpp )
-target_link_libraries ( test-ngs ${TEST_LIBS})
-add_test ( NAME Test_Ngs COMMAND test-ngs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+AddExecutableTest ( test-ngs ngstest.cpp ${TEST_LIBS} "" )
 
 add_executable ( test-ngs_sra ngstest_sra.cpp )
 target_link_libraries ( test-ngs_sra ${TEST_LIBS})

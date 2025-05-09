@@ -966,8 +966,7 @@ static const char * consensus_table_name = "CONSENSUS";
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc = 0;
     int i;
@@ -1750,5 +1749,5 @@ Catch:
             rc = rc2;
         }
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

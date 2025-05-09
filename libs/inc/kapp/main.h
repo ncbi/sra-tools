@@ -66,6 +66,9 @@ rc_t CC KMain ( int argc, char *argv [] );
  */
 ver_t CC KAppVersion ( void );
 
+#define VDB_INITIALIZE(argc, argv, rc) do { if ( VdbInitialize( argc, argv ) ) return rc; } while (0)
+#define VDB_TERMINATE(rc) VdbTerminate( rc )
+
 // BSD is defined when compiling on Mac
 // Use the MAC case below, not this one
 #if BSD && !MAC
@@ -82,7 +85,11 @@ ver_t CC KAppVersion ( void );
 
 #if WINDOWS
 #if USE_WIDE_API
-    #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+    #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *wargv[], wchar_t *envp[])
+    #undef  VDB_INITIALIZE
+    #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
+    #undef VDB_TERMINATE 
+    #define VDB_TERMINATE(rc) (free(argv), VdbTerminate( rc ))
 #else
     #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
 #endif

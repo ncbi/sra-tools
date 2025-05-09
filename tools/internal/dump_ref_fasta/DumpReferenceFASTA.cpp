@@ -250,7 +250,7 @@ static void print_version ( void )
     HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
-int run ( int argc, char const *argv[] )
+int run ( int argc, char *argv[] )
 {
     if ( argc < 2 )
     {
@@ -331,15 +331,11 @@ int run ( int argc, char const *argv[] )
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
-    if (!app)
-    {
-        return VDB_INIT_FAILED;
-    }
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     try
     {
-        return run ( argc, app.getArgV() );
+        return run ( argc, argv );
     }
     catch ( ErrorMsg & x )
     {
@@ -362,5 +358,5 @@ MAIN_DECL(argc, argv)
         return -1;
     }
 
-    return 0;
+    return VDB_TERMINATE( 0 );
 }

@@ -501,7 +501,14 @@ static rc_t resolve_arguments( Args * args )
     else if ( acount < 1 && cart == NULL )
     {
         MiniUsage( args );
-        rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
+        if (ArgsOptionCount(args, OPTION_HELP, &idx) == 0 && idx > 0)
+        {
+            rc = 0;
+        }
+        else
+        {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+        }
     }
     else
     {
@@ -708,10 +715,9 @@ static rc_t search_cgi( const Args * args )
 
 /* ---------------------------------------------------------------------------- */
 
-MAIN_DECL( argc, argv )
+MAIN_DECL(argc, argv)
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
@@ -736,5 +742,5 @@ MAIN_DECL( argc, argv )
         }
         ArgsWhack( args );
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

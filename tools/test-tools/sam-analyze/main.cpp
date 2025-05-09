@@ -36,16 +36,12 @@
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app( argc, argv );
-    if (!app)
-    {
-        return VDB_INIT_FAILED;
-    }
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     int res = 0;
     args_t::str_vec_t hints;
     params_t::populate_hints( hints );
-    const args_t args( argc, app.getArgV(), hints); // in args.hpp
+    const args_t args( argc, argv, hints); // in args.hpp
     const params_t params( args ); // in params.hpp
     if ( params . cmn . help ) {
         params . show_help();
@@ -97,5 +93,6 @@ MAIN_DECL(argc, argv)
             }
         }
     }
+    VDB_TERMINATE (res);
     return res;
 }

@@ -536,8 +536,7 @@ rc_t CC Legacy_KMain( int argc, char* argv[] );
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     bool call_legacy_dumper = false;
 
@@ -576,5 +575,5 @@ MAIN_DECL( argc, argv )
         rc_t rc2 = ReportFinalize( rc );
         if ( rc == 0 ) { rc = rc2; }
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

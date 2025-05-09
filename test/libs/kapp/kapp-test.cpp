@@ -307,14 +307,9 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
 
 //////////////////////////////////////////// Main
 
-extern "C"
-{
-
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
     KConfigDisableUserSettings();
-    return KAppTestSuite(argc, app.getArgV());
-}
-
+    return VDB_TERMINATE( KAppTestSuite(argc, argv) );
 }

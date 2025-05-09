@@ -1412,8 +1412,7 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
@@ -1492,5 +1491,5 @@ MAIN_DECL( argc, argv )
         rc_t rc2 = ReportFinalize( rc );
         if ( rc == 0 ) { rc = rc2; }
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

@@ -276,8 +276,7 @@ rc_t open (param_block * pb)
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t rc = 0;
@@ -352,5 +351,5 @@ MAIN_DECL( argc, argv )
     else
         KStsMsg("Exit success %R");
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

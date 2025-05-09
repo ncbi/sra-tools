@@ -651,8 +651,7 @@ static rc_t CC run ( Porams * porams );
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Porams porams;
 
@@ -669,7 +668,7 @@ MAIN_DECL( argc, argv )
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }
 
 

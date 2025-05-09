@@ -301,8 +301,7 @@ static rc_t predump_schema( VSchema *schema, const char * type,
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
 
@@ -376,6 +375,6 @@ MAIN_DECL( argc, argv )
             OUTMSG(( "error obtaining arguments\n" ));
         ArgsWhack( args );
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }
 

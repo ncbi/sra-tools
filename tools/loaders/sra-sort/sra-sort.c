@@ -529,8 +529,7 @@ rc_t copy_stats_metadata( const char * src_path, const char * dst_path );
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     DECLARE_CTX_INFO ();
 
@@ -763,5 +762,5 @@ MAIN_DECL( argc, argv )
     if ( 0 == main_ctx . rc && 0 != cp_src_path[ 0 ] && 0 != cp_dst_path[ 0 ] ) {
         main_ctx . rc = copy_stats_metadata( cp_src_path, cp_dst_path );
     }
-    return VdbTerminate( main_ctx . rc );
+    return VDB_TERMINATE( main_ctx . rc );
 }

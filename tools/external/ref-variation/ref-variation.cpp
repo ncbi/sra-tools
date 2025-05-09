@@ -2019,11 +2019,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
-        if (!app)
-        {
-            return VDB_INIT_FAILED;
-        }
+        VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
@@ -2080,6 +2076,8 @@ extern "C"
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
 
-        return NSRefVariation::find_variation_region ( argc, app.getArgV() );
+        int ret = NSRefVariation::find_variation_region ( argc, argv );
+        VDB_TERMINATE(ret);
+        return ret;
     }
 }

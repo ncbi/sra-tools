@@ -845,8 +845,7 @@ static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_na
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
@@ -945,5 +944,5 @@ MAIN_DECL( argc, argv )
 
     hlp_unread_rc_info( false );
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

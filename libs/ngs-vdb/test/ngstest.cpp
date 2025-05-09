@@ -39,8 +39,7 @@ using namespace ncbi::NK;
 TEST_SUITE(NgsCppTestSuite);
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main( int argc, char * argv[] )
 {
-    VDB::Application app(argc, argv);
-    return NgsCppTestSuite( argc, app.getArgV());
+    return NgsCppTestSuite( argc, argv );
 }

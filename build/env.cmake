@@ -830,6 +830,10 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
 
     # always link as c++
     set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE CXX)
+    if( WIN32 )
+        target_link_options( ${target_name} PRIVATE "/ENTRY:wmainCRTStartup" )
+        target_compile_definitions( ${target_name} PRIVATE UNICODE _UNICODE USE_WIDE_API )
+    endif()
 
     if (RUN_SANITIZER_TESTS)
         add_executable( "${target_name}-asan" ${sources} )

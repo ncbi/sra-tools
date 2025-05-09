@@ -2188,8 +2188,7 @@ rc_t run ( const Params *p )
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Params params;
     struct Args * args;
@@ -2207,6 +2206,6 @@ MAIN_DECL( argc, argv )
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }
 

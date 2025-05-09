@@ -1332,8 +1332,7 @@ static rc_t perform_vdb_copy( const p_context ctx ) {
 ***************************************************************************/
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
 
@@ -1365,5 +1364,5 @@ MAIN_DECL( argc, argv )
         }
         ArgsWhack ( args );
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

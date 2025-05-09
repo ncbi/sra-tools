@@ -189,7 +189,7 @@ static void handle_help ( const char * appName )
 }
 
 int
-run( int argc, const char *argv [] )
+run( int argc, char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -387,10 +387,8 @@ run( int argc, const char *argv [] )
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
-    if (!app)
-    {
-        return VDB_INIT_FAILED;
-    }
-    return run ( argc, app.getArgV() );
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    int ret = run ( argc, argv );
+    VDB_TERMINATE( ret );
+    return ret;
 }

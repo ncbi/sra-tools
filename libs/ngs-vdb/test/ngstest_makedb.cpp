@@ -40,6 +40,8 @@
 
 #include <klib/rc.h>
 
+#include <kfg/config.h>
+
 #include <ktst/unit_test.hpp> // TEST_CASE
 
 #include <sysalloc.h>
@@ -167,16 +169,12 @@ FIXTURE_TEST_CASE ( SparseFragmentBlobs, VDB_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
 
-#include <kfg/config.h>
 MAIN_DECL(argc,argv)
 {
-    VDB::Application app(argc, argv);
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
     KConfigDisableUserSettings();
-    return NgsMakeDbSuite(argc, app.getArgV());
+    int ret = NgsMakeDbSuite(argc, argv);
+    VDB_TERMINATE( ret );
+    return ret;
 }
-
-}
-

@@ -301,11 +301,10 @@ FIXTURE_TEST_CASE ( VByteBlob_MaxRows_LessThanPresent_WithRepeatsOverlapping, By
 
 //////////////////////////////////////////// Main
 
-MAIN_DECL(argc,argv)
+int main( int argc, char* argv[] )
 {
-    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    int ret=NgsByteBlobTestSuite(argc, app.getArgV());
+    int ret=NgsByteBlobTestSuite(argc, argv);
     ByteBlobFixture::ReleaseCache();
     return ret;
 }

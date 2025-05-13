@@ -423,16 +423,15 @@ FIXTURE_TEST_CASE(SRA_AlignmentIterator_Next, SRAFixture)
 /////TODO: ReadGroupIterator
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     /*const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";*/
     KConfigDisableUserSettings();
 
     putenv((char*)"NCBI_VDB_QUALITY=R");
 
-    int rc=NgsSraCppTestSuite(argc, app.getArgV());
+    int rc=NgsSraCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();
     return rc;
 }

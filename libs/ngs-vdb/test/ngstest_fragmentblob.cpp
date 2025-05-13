@@ -566,12 +566,10 @@ FIXTURE_TEST_CASE ( NGS_FragmentBlobIterator_IteratorRetreats, BlobIteratorFixtu
 
 //////////////////////////////////////////// Main
 
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[]) 
 {
-    VDB::Application app(argc, argv);
-
     KConfigDisableUserSettings();
-    int ret=NgsFragmentBlobTestSuite(argc, app.getArgV());
+    int ret=NgsFragmentBlobTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

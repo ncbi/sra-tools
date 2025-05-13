@@ -712,11 +712,10 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReadCollectionGetStats, CSRA1_Fixture)
 }
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int ret=NgsCsra1ReadCollectionTestSuite(argc, app.getArgV());
+    int ret=NgsCsra1ReadCollectionTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

@@ -2092,8 +2092,7 @@ static rc_t ProcessCloud(KConfig * cfg, const Params * prm) {
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc = 0;
 
@@ -2245,7 +2244,7 @@ MAIN_DECL( argc, argv )
         rc = CreateConfig(argv[0]);
 
     ParamsDestruct(&prm);
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }
 
 /************************************* EOF ************************************/

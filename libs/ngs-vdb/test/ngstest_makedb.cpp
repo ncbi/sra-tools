@@ -170,11 +170,9 @@ FIXTURE_TEST_CASE ( SparseFragmentBlobs, VDB_Fixture)
 
 //////////////////////////////////////////// Main
 
-MAIN_DECL(argc,argv)
+int main(int argc, char* argv[])
 {
-    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    int ret = NgsMakeDbSuite(argc, argv);
-    VDB_TERMINATE( ret );
-    return ret;
+    return NgsMakeDbSuite(argc, app.getArgV());
 }

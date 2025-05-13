@@ -841,12 +841,11 @@ FIXTURE_TEST_CASE(SRADB_GetFragmentBlobs, SRADB_Fixture)
 }
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
     setenv("NCBI_VDB_QUALITY", "R", 1);
-    int ret=NgsSradbTestSuite(argc, app.getArgV());
+    int ret=NgsSradbTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

@@ -1082,13 +1082,12 @@ FIXTURE_TEST_CASE(CSRA1_ReadGroupIterator_AfterNext, CSRA1_Fixture)
 
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[]) 
 {
-    VDB::Application app(argc, argv); 
 const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";
     KConfigDisableUserSettings();
-    int rc=NgsCsra1CppTestSuite(argc, app.getArgV());
+    int rc=NgsCsra1CppTestSuite(argc, argv);
 
     NgsFixture::ReleaseCache();
     return rc;

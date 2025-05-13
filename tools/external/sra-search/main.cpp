@@ -387,8 +387,6 @@ run( int argc, char *argv [] )
 
 MAIN_DECL(argc, argv)
 {
-    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
-    int ret = run ( argc, argv );
-    VDB_TERMINATE( ret );
-    return ret;
+    VDB::Application app(argc, argv);
+    return run ( argc, app.getArgV());
 }

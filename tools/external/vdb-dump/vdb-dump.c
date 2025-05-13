@@ -2225,8 +2225,7 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc;
     Args * args;
@@ -2285,5 +2284,5 @@ MAIN_DECL( argc, argv )
             }
         }
     }
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

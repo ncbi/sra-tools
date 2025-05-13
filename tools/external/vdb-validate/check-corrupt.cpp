@@ -700,7 +700,7 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
 
 MAIN_DECL(argc, argv)
 {
-    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    VDB::Application app(argc, argv);
 
     XMLLogger const *xlogger = NULL;
     Args * args;
@@ -710,7 +710,7 @@ MAIN_DECL(argc, argv)
 
     KLogLevelSet(klogInfo);
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
+    rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2, Options,
                             sizeof (Options) / sizeof (Options[0]),
                             XMLLogger_Args, XMLLogger_ArgsQty);
     if (rc)
@@ -760,7 +760,7 @@ MAIN_DECL(argc, argv)
         }
         ArgsWhack ( args );
     }
-    return VDB_TERMINATE( rc );
+    return app.getExitCode( rc );
 }
 
 }

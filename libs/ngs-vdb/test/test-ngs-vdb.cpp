@@ -792,8 +792,7 @@ FIXTURE_TEST_CASE ( VdbAlignment_IsFirst_No, KfcFixture )
 }
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv);
-    return NgsVdbTestSuite(argc, app.getArgV());
+    return NgsVdbTestSuite(argc, argv);
 }

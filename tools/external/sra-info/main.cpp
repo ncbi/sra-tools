@@ -250,13 +250,13 @@ public:
 
 MAIN_DECL(argc, argv)
 {
-    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    VDB::Application app(argc, argv);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
     Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(),
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );
     DISP_RC( rc, "ArgsMakeAndHandle() failed" );
     if ( rc == 0)
@@ -449,5 +449,5 @@ MAIN_DECL(argc, argv)
         DESTRUCT(Args, args);
     }
 
-    return VDB_TERMINATE( rc );
+    return app.getExitCode( rc );
 }

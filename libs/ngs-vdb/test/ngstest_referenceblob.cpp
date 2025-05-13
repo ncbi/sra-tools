@@ -745,11 +745,10 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetBlobs_Slice_MultipleBlobs, ReferenceBlob
 
 //////////////////////////////////////////// Main
 
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int m_coll=NgsReferenceBlobTestSuite(argc, app.getArgV());
+    int m_coll=NgsReferenceBlobTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return m_coll;
 }

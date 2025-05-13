@@ -773,7 +773,7 @@ FIXTURE_TEST_CASE(EBI_Reference_Open_EBI_ACC, NGS_C_Fixture)
 }
 #endif
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[]) 
 {
     VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();

@@ -1042,16 +1042,15 @@ FIXTURE_TEST_CASE(SRA_GetFragmentBlobs, SRA_Fixture)
 }
 
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     //assert(!KDbgSetString("KFG"));
     //assert(!KDbgSetString("VFS"));
     KConfigDisableUserSettings();
 
     putenv((char*)"NCBI_VDB_QUALITY=R");
 
-    int ret=NgsSraTestSuite(argc, app.getArgV());
+    int ret=NgsSraTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret ;
 }

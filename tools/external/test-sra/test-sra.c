@@ -4001,8 +4001,7 @@ static rc_t Diagnose ( const Main * self, const Args * args ) {
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
 
     rc_t rc = 0;
     uint32_t pcount = 0;
@@ -4176,5 +4175,5 @@ rc = Diagnose ( & prms, args );
     }
     free(argv2);
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

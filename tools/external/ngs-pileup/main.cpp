@@ -115,14 +115,14 @@ rc_t CC Usage ( const Args * args )
 
 MAIN_DECL(argc, argv)
 {
-    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    VDB::Application app(argc, argv);
 
     Args * args;
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv, 1, options, sizeof options / sizeof options [ 0 ] );
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(), 1, options, sizeof options / sizeof options[0]);
     if ( rc == 0 )
     {
         try
@@ -195,6 +195,6 @@ MAIN_DECL(argc, argv)
         ArgsWhack( args );
     }
 
-    return VDB_TERMINATE( 0 );
+    return 0;
 }
 

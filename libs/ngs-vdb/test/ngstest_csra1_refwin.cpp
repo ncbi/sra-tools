@@ -805,11 +805,10 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceWindow_PrintEmAll_1, CSRA1_Fixture)
 }
 #endif
 //////////////////////////////////////////// Main
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int ret=NgsCsra1RefWinTestSuite(argc, app.getArgV());
+    int ret=NgsCsra1RefWinTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }

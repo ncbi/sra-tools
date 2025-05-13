@@ -698,8 +698,7 @@ static rc_t main_with_args(Args *const args)
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
@@ -717,5 +716,5 @@ MAIN_DECL( argc, argv )
         ArgsWhack ( args );
     }
 
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

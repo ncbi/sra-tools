@@ -719,11 +719,10 @@ static rc_t argsHandler(int argc, char* argv[]) {
     return ArgsMakeAndHandle ( NULL, argc, argv, 0, NULL, 0 );
 }
 
-MAIN_DECL(argc, argv)
+int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv); 
     KConfigDisableUserSettings();
-    int rc=NgsCsra1PileupCppTestSuite(argc, app.getArgV());
+    int rc=NgsCsra1PileupCppTestSuite(argc, argv);
 
     NgsFixture::ReleaseCache();
     return rc;

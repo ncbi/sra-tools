@@ -128,7 +128,7 @@
 #include "debug.h"
 #endif
 
-#include <stdio.h>      /* sprintf() */
+#include <stdio.h>      /* snprintf() */
 #include <limits.h>     /* UINT_MAX */
 #include <strtol.h>     /* strtou32() */
 #include <ctype.h>      /* tolower() / toupper() / isdigit() / isalpha() */
@@ -2442,7 +2442,25 @@ static char merge_M_type_ops( char a, char b ) {
     return c;
 }
 
-static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len,
+static unsigned formatCIGAR(char dst[], char const *const endp, unsigned oplen, char opcode)
+{
+    unsigned n;
+    char buf[16];
+    char *cp = buf + 16;
+    *--cp = '\0';
+    *--cp = opcode;
+    do {
+        *--cp = '0' + oplen % 10;
+        oplen /= 10;
+    } while (oplen);
+    for (n = 0; *cp; ++n) {
+        assert(dst + n < endp);
+        dst[n] = *cp++;
+    }
+    return n;
+}
+
+static unsigned CombineCIGAR( char dst[], char const *const endp, CigOps const seqOp[], unsigned seq_len,
                               int refPos, CigOps const refOp[], unsigned ref_len ) {
     bool     done=false;
     unsigned ciglen=0,last_ciglen=0;
@@ -2458,12 +2476,12 @@ static unsigned CombineCIGAR( char dst[], CigOps const seqOp[], unsigned seq_len
 #define MACRO_BUILD_CIGAR(OP,OPLEN) \
 	if( last_cig_oplen > 0 && last_cig_op == OP){							\
                 last_cig_oplen += OPLEN;								\
-                ciglen = last_ciglen + sprintf(dst+last_ciglen,"%d%c",last_cig_oplen,last_cig_op);	\
+                ciglen = last_ciglen + formatCIGAR(dst+last_ciglen, endp, last_cig_oplen, last_cig_op);	\
         } else {											\
                 last_ciglen = ciglen;									\
                 last_cig_oplen = OPLEN;									\
                 last_cig_op    = OP;									\
-                ciglen = ciglen      + sprintf(dst+last_ciglen,"%d%c",last_cig_oplen,last_cig_op);	\
+                ciglen = ciglen      + formatCIGAR(dst+last_ciglen, endp, last_cig_oplen, last_cig_op);	\
         }
     while ( !done ) {
 
@@ -2641,7 +2659,7 @@ static rc_t DumpCGSAM( SAM_dump_ctx_t *const ctx, TAlignedRegion const *const rg
                                             ExplodeCIGAR( op, readLen, ctx -> eva . cols[ alg_CIGAR ] . base . str,
                                                          ctx -> eva . cols[ alg_CIGAR ] . len );
                                             ctx -> eva . cols[ alg_CIGAR ] . len =
-                                                CombineCIGAR( cigbuf, op, readLen, refPos,
+                                                CombineCIGAR( cigbuf, cigbuf + sizeof(cigbuf), op, readLen, refPos,
                                                               refCigOps + cigop_starts[ ploidy - 1 ], refLen[ ploidy - 1 ] );
                                             ctx -> eva . cols[ alg_CIGAR ] . base.str = cigbuf;
                                             ctx -> eva . cols[ alg_REF_POS ] . base.v = &refPos;

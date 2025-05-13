@@ -310,7 +310,8 @@ rc_t KTimePrint ( KTime_t self, CCDumper *d )
 
     struct tm gmt;
     gmtime_r ( & t, & gmt );
-    len = sprintf ( buffer, "%04d-%02d-%02dT%02d:%02d:%02dZ"
+    len = snprintf ( buffer, sizeof(buffer)
+                    , "%04d-%02d-%02dT%02d:%02d:%02dZ"
                     , gmt . tm_year + 1900
                     , gmt . tm_mon + 1
                     , gmt . tm_mday
@@ -325,11 +326,13 @@ rc_t KTimePrint ( KTime_t self, CCDumper *d )
 static
 rc_t MD5Print ( const uint8_t *digest, CCDumper *d )
 {
-    int i, len;
-    char buff [ 36 ];
+    int i;
+    char buff [ 64 ];
 
-    for ( i = len = 0; i < 16; ++ i )
-        len += sprintf ( & buff [ len ], "%02x", digest [ i ] );
+    for ( i = 0; i < 16; ++ i ) {
+        buff[i * 2 + 0] = "0123456789abcdef"[digest[i] >> 4];
+        buff[i * 2 + 1] = "0123456789abcdef"[digest[i] & 0x0F];
+    }
 
     return CCDumperWrite ( d, buff, 32 );
 }
@@ -371,19 +374,23 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
             switch ( * ( ++ end ) )
             {
             case 'd':
-                len = sprintf ( buffer, "%d", va_arg ( args, int ) );
+                len = snprintf ( buffer, sizeof(buffer), "%d", va_arg ( args, int ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'u':
-                len = sprintf ( buffer, "%u", va_arg ( args, unsigned int ) );
+                len = snprintf ( buffer, sizeof(buffer), "%u", va_arg ( args, unsigned int ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'x':
-                len = sprintf ( buffer, "%x", va_arg ( args, unsigned int ) );
+                len = snprintf ( buffer, sizeof(buffer), "%x", va_arg ( args, unsigned int ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'f':
-                len = sprintf ( buffer, "%f", va_arg ( args, double ) );
+                len = snprintf ( buffer, sizeof(buffer), "%f", va_arg ( args, double ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'l':
@@ -402,7 +409,8 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 }
                 break;
             case 's':
-                len = sprintf ( buffer, "%s", va_arg ( args, const char* ) );
+                len = snprintf ( buffer, sizeof(buffer), "%s", va_arg ( args, const char* ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'p':
@@ -413,10 +421,11 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 break;
             case 'I':
 #if STORE_ID_IN_NODE
-                len = sprintf ( buffer, "%u", va_arg ( args, uint32_t ) );
+                len = snprintf ( buffer, sizeof(buffer), "%u", va_arg ( args, uint32_t ) );
 #else
-                len = sprintf ( buffer, "%u", ++ self -> id );
+                len = snprintf ( buffer, sizeof(buffer), "%u", ++ self -> id );
 #endif
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'T':
@@ -426,7 +435,8 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 rc = MD5Print ( va_arg ( args, const uint8_t* ), self );
                 break;
             case 'C':
-                len = sprintf ( buffer, "%08x", va_arg ( args, unsigned int ) );
+                len = snprintf ( buffer, sizeof(buffer), "%08x", va_arg ( args, unsigned int ) );
+                assert(len < sizeof(buffer));
                 rc = CCDumperWrite ( self, buffer, len );
                 break;
             case 'N':

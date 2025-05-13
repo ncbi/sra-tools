@@ -81,6 +81,7 @@
 #include <string.h> /* memset */
 
 #include <stdio.h> /* sscanf */
+#include <inttypes.h>
 
 VFS_EXTERN rc_t CC VResolverProtocols ( VResolver * self,
     VRemoteProtocols protocols );
@@ -252,7 +253,7 @@ bool testArg(const char *arg, TTest *testOn, TTest *testOff, uint64_t *tests)
 
     if ( isdigit ( arg[1] )) {
         assert ( tests );
-        sscanf ( arg + 1, "%lui", tests ) ;
+        sscanf ( arg + 1, "%" SCNu64 "", tests ) ;
         if ( * tests == 0 )
             * tests = KDIAGN_ALL;
         return true;

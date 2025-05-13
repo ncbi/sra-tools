@@ -193,10 +193,10 @@ class MD5 {
             uint8_t d[ 16 ];
             finish( d );
             std::string res;
-            char buf[ 4 ];
-            for( uint32_t i = 0; i < 16; i++ ) {
-                sprintf( buf, "%02x", d[ i ] );
-                res . append( buf );
+            res.reserve(33);
+            for( auto i = 0; i < 16; i++ ) {
+                res.append(1, "0123456789abcdef"[d[i] >> 4]);
+                res.append(1, "0123456789abcdef"[d[i] & 0xF]);
             }
             return res;
         }

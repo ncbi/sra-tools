@@ -121,7 +121,7 @@ void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool
         {
             /* subtract the bytes */
             remaining = atomic_test_and_set ( & self -> avail,
-                ( atomic_int ) ( avail - bytes ), ( atomic_int ) avail );
+                ( avail - bytes ), avail );
             if ( remaining == avail )
             {
                 /* try to allocate the memory directly */
@@ -129,7 +129,7 @@ void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool
                 if ( mem == NULL )
                 {
                     /* failed to get memory */
-                    atomic_add ( & self -> avail, ( atomic_int ) bytes );
+                    atomic_add ( & self -> avail,  bytes );
                     rc = RC ( rcExe, rcMemory, rcAllocating, rcMemory, rcExhausted );
                     ERROR ( rc, "failed to allocate %zu bytes of memory", bytes );
                 }
@@ -181,7 +181,7 @@ void MemBankImplFree ( MemBankImpl *self, const ctx_t *ctx, void *mem, size_t by
                 ANNOTATE ( "freed memory with size of 0 bytes" );
             else
             {
-                atomic_add ( & self -> avail, ( atomic_int ) bytes );
+                atomic_add ( & self -> avail,  bytes );
 
                 if ( bytes > 256 * 1024 )
                 {
@@ -231,7 +231,7 @@ MemBank *MemBankMake ( const ctx_t *ctx, size_t quota )
         quota = 4096;
 
     mem -> quota = quota;
-    atomic_set ( & mem -> avail, ( atomic_int ) ( quota - sizeof * mem ) );
+    atomic_set ( & mem -> avail, ( quota - sizeof * mem ) );
 
     return & mem -> dad;
 }

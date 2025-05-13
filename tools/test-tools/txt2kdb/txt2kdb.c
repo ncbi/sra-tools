@@ -438,8 +438,7 @@ rc_t CC NextLogLevelCommon ( const char * level_parameter );
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t   rc;
@@ -578,7 +577,7 @@ MAIN_DECL( argc, argv )
     }
 
     STSMSG (1, ("exit txt2kdb %R\n", rc));
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }
 
 

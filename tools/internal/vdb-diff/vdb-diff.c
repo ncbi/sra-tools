@@ -384,8 +384,7 @@ static rc_t perform_diff( const struct diff_ctx * dctx, unsigned long int * diff
 ***************************************************************************/
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
 
     unsigned long int diffs = 0;
     Args * args;
@@ -438,5 +437,5 @@ MAIN_DECL( argc, argv )
         }
     }
     KOutMsg( "%lu differences discovered ( rc = %d )\n", diffs, rc );
-    return VdbTerminate( rc );
+    return VDB_TERMINATE( rc );
 }

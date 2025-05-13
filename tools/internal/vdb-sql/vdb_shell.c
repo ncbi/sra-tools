@@ -6521,7 +6521,6 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
 
 MAIN_DECL( argc, argv )
 {
-  if ( VdbInitialize( argc, argv, 0 ) )
-    return VDB_INIT_FAILED;
-  return smain( argc, argv );
+  VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+  return VDB_TERMINATE( smain( argc, argv ) );
 }

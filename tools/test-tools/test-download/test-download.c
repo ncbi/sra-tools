@@ -22,7 +22,7 @@
 *
 * =========================================================================== */
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <kfs/file.h> /* KFileRelease */
 

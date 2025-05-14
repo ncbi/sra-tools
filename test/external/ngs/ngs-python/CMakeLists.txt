@@ -29,19 +29,17 @@ if( Python3_EXECUTABLE )
             COMMAND ${Python3_EXECUTABLE} tests.py
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
           )
-
-        set_tests_properties( SlowTest_NgsPython
-            PROPERTIES
-                DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR};NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${LIBDIR}"
-        )
-
         else()
           add_test( NAME SlowTest_NgsPython
             COMMAND sh test-python.sh
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
           )
         endif()
+        set_tests_properties( SlowTest_NgsPython
+            PROPERTIES
+                DEPENDS Test_NGS_Python_install
+                ENVIRONMENT "LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR};NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${LIBDIR}"
+        )
 
     elseif( WIN32 )
         add_test( NAME SlowTest_NgsPython

@@ -69,6 +69,9 @@ int __cdecl wmain ( int argc, wchar_t *wargv [], wchar_t *envp [] )
     return status;
 }
 #endif
+
+extern int wmainCRTStartup();
+
 void  __declspec(dllexport) __stdcall wmainCRTStartupNoPathConversion()
 {
     convert_args_paths = false;

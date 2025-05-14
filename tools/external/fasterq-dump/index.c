@@ -24,6 +24,8 @@
 *
 */
 #include "index.h"
+#include "kfs/directory.h"
+#include <stdint.h>
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -75,7 +77,8 @@ rc_t write_key( struct index_writer_t * writer, uint64_t key, uint64_t offset ) 
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "write_key() -> %R", rc );
     } else {
-        if ( key > ( writer -> last_key + writer -> frequency ) ) {
+        uint64_t last_plus_freq = writer -> last_key + writer -> frequency;
+        if ( key > last_plus_freq ) {
             rc = write_key_and_offset( writer, key, offset );
             if ( 0 == rc ) {
                 writer -> last_key = key;
@@ -161,10 +164,28 @@ void release_index_reader( index_reader_t * reader ) {
     }
 }
 
-static rc_t read_value( index_reader_t * reader, uint64_t pos, uint64_t * value ) {
+static rc_t read_value( const index_reader_t * reader, uint64_t pos, uint64_t * value ) {
     rc_t rc = KFileReadExactly( reader -> f, pos, ( void * )value, sizeof *value );
     if ( 0 != rc ) {
         ErrMsg( "read_value().KFileReadExactly( at %ld ) -> %R", pos, rc );
+    }
+    return rc;
+}
+
+typedef struct index_entry_t {
+    uint64_t key;
+    uint64_t offset;
+} index_entry_t;
+
+static rc_t read_entry( const index_reader_t * reader, uint64_t entry_idx,
+                        index_entry_t * entry, uint32_t count ) {
+    uint64_t pos = sizeof reader -> frequency;
+    size_t to_read = ( sizeof *entry ) * count;
+    pos += entry_idx * ( sizeof * entry );
+    rc_t rc = KFileReadExactly( reader -> f, pos, ( void * )entry, to_read );
+    if ( 0 != rc ) {
+        ErrMsg( "read_entry().KFileReadExactly( at %ld, entry_idx = %ld ) -> %R",
+                pos, entry_idx, rc );
     }
     return rc;
 }
@@ -226,12 +247,83 @@ rc_t make_index_reader( const KDirectory * dir, index_reader_t ** reader,
     return rc;
 }
 
+/* =================================================================================================== */
 
-static uint64_t key_to_pos_guess( const index_reader_t * self, uint64_t key ) {
-    uint64_t chunk_id = ( key / self -> frequency );
-    return ( ( sizeof self -> frequency ) + ( chunk_id * ( 2 * ( sizeof self -> frequency ) ) ) );
+static uint64_t index_entry_count( const index_reader_t * self ) {
+    uint64_t res = self -> file_size - ( sizeof self -> frequency );
+    res /= sizeof( index_entry_t );
+    return res;
 }
 
+static rc_t nearest_offset_linear_search( const index_reader_t * self,
+                         uint64_t key_to_find,
+                         uint64_t * key_found,
+                         uint64_t * offset,
+                         uint64_t entry_count ) {
+    index_entry_t entries[ 20 ];
+    rc_t rc = read_entry( self, 0, entries, entry_count );
+    if ( 0 == rc ) {
+        uint64_t entry_idx = 0;
+        bool found = false;
+        while( !found && entry_idx < entry_count ) {
+            bool is_lower  = key_to_find < entries[ entry_idx ] . key;
+            bool is_higher = key_to_find > entries[ entry_idx ] . key;
+            found = !( is_lower || is_higher );
+            if ( found ) {
+                *key_found = entries[ entry_idx ] . key;
+                *offset = entries[ entry_idx ] . offset;
+            }
+            entry_idx++;
+        }
+        if ( !found ) {
+            rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+            ErrMsg( "index.c nearest_offset_linear_search( key not found ) -> %R", rc );
+        }
+    }
+    return rc;
+}
+
+static rc_t nearest_offset_binary_search( const index_reader_t * self,
+                         uint64_t key_to_find,
+                         uint64_t * key_found,
+                         uint64_t * offset,
+                         uint64_t entry_count ) {
+    uint64_t lower_bound = 0;
+    uint64_t upper_bound = entry_count - 1;
+    index_entry_t entries[ 2 ];
+    rc_t rc = 0;
+    bool found = false;
+    while ( 0 == rc && !found ) {
+        uint64_t entry_idx = lower_bound + ( ( upper_bound - lower_bound ) / 2 );
+        rc = read_entry( self, entry_idx, entries, 2 );
+        if ( 0 == rc ) {
+            bool is_lower  = key_to_find < entries[ 0 ] . key;
+            bool is_higher = key_to_find > entries[ 1 ] . key;
+            found = !( is_lower || is_higher );
+            if ( found ) {
+                /* make it easier for the caller which only loops forward to
+                   find the exact key in the lookup-table */
+                if ( key_to_find == entries[ 1 ] . key ) {
+                    *key_found = entries[ 1 ] . key;
+                    *offset = entries[ 1 ] . offset;
+                } else {
+                    *key_found = entries[ 0 ] . key;
+                    *offset = entries[ 0 ] . offset;
+                }
+            } else {
+                if ( is_lower ) {
+                    upper_bound = entry_idx - 1;
+                } else {
+                    lower_bound = entry_idx + 1;
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+/* the caller is in lookup_reader.c indexed_seek() - it only searches forward from the
+   key_found/offset position!!! */
 rc_t get_nearest_offset( const index_reader_t * self,
                          uint64_t key_to_find,
                          uint64_t * key_found,
@@ -240,75 +332,25 @@ rc_t get_nearest_offset( const index_reader_t * self,
     if ( NULL == self || NULL == key_found || NULL == offset ) {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "index.c get_nearest_offset() -> %R", rc );
-    } else if ( self -> file_size <= 24 ) {
-        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
     } else {
-        uint64_t data[ 6 ];
-        /*
-            data[ 0 ] ... key0      data[ 1 ] ... offset0
-            data[ 2 ] ... key1      data[ 3 ] ... offset1
-            data[ 4 ] ... key2      data[ 5 ] ... offset2
-        */
-        uint64_t pos = key_to_pos_guess( self, key_to_find );
-        size_t to_read = sizeof data;
-        bool found = false;
-        uint64_t rounds = 0;
-        while ( 0 == rc && !found && pos < self -> file_size ) {
-            rounds++;
-            if ( rounds > 100 ) {
-                rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcExhausted );
-                ErrMsg( "index.c get_nearest_offset() -> too many rounds pos = %lu of %lu", pos, self -> file_size );
-            } else {
-                if ( ( ( pos + to_read ) - 1 ) > self -> file_size ) {
-                    to_read = ( self -> file_size - pos );
-                }
-                rc = KFileReadExactly( self -> f, pos, ( void * )&( data[ 0 ] ), to_read );
-                if ( 0 != rc ) {
-                    ErrMsg( "index.c get_nearest_offset().KFileReadExactly( %lu of %lu, to_read = %lu ) failed %R",
-                            pos, self -> file_size, to_read, rc );
-                } else {
-                    if ( to_read >= ( ( sizeof data[ 0 ] ) * 4 ) &&
-                         key_to_find >= data[ 0 ] &&
-                         key_to_find < data[ 2 ] ) {
-                        /* key_to_find is between key0 and key1 */
-                        found = true;
-                        *key_found = data[ 0 ];
-                        *offset = data[ 1 ];
-                    } else if ( to_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
-                              key_to_find >= data[ 2 ] &&
-                              key_to_find < data[ 4 ] ) {
-                        /* key_to_find is between key1 and key2 */
-                        found = true;
-                        *key_found = data[ 2 ];
-                        *offset = data[ 3 ];
-                    }
-
-                    if ( !found ) {
-                        if ( to_read >= ( ( sizeof data[ 0 ] ) * 2 ) &&
-                             key_to_find < data[ 0 ] ) {
-                            /* key_to_find is smaller than our guess */
-                            if ( pos > sizeof self -> frequency ) {
-                                pos -= ( 2 * ( sizeof self -> frequency ) );
-                            } else {
-                                found = true;
-                                *key_found = data[ 0 ];
-                                *offset = data[ 1 ];
-                            }
-                        } else if ( to_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
-                                  key_to_find > data[ 4 ] ) {
-                            /* key_to_find is bigger than our guess */
-                            pos += ( 2 * ( sizeof self -> frequency ) );
-                        }
-                    }
-                }
-            }
+        uint64_t entry_count = index_entry_count( self );
+        if ( 0 == entry_count ) {
+            rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcTooShort );
+            ErrMsg( "index.c get_nearest_offset( entry_count == 0 ) -> %R", rc );
+        } else if ( key_to_find > self -> max_key ) {
+            rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcIncorrect );
+            ErrMsg( "index.c get_nearest_offset( key_to_find > max_key ) -> %R", rc );
         }
-        if ( !found ) {
-            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+        else if ( entry_count <= 20 ) {
+            rc = nearest_offset_linear_search( self, key_to_find, key_found, offset, entry_count );
+        } else {
+            rc = nearest_offset_binary_search( self, key_to_find, key_found, offset, entry_count );
         }
     }
     return rc;
 }
+
+/* =================================================================================================== */
 
 rc_t get_max_key( const index_reader_t * self, uint64_t * max_key ) {
     rc_t rc = 0;

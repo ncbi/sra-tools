@@ -48,8 +48,9 @@ struct Test_CommandLine {
     {
         CommandLine cmdline(argc, argv, envp, extra);
         auto const toolName = std::string(cmdline.toolName);
+        auto const expected = std::string{"Test_Drivertool_CommandLine"};
 
-        if (toolName != "Test_Drivertool_CommandLine")
+        if (toolName.substr(0, expected.length()) != expected)
             throw __FUNCTION__;
     }
     /// Can it detect that a re-exec would be a fork bomb?

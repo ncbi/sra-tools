@@ -41,10 +41,11 @@ typedef struct MemBankImpl MemBankImpl;
 #include <klib/refcount.h>
 #include <klib/container.h>
 #include <klib/rc.h>
-#include <atomic.h>
+#include <atomic64.h>
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 FILE_ENTRY ( membank );
 
@@ -57,7 +58,7 @@ struct MemBankImpl
 {
     MemBank dad;
     size_t quota;
-    atomic_t avail;
+    atomic64_t avail;
 };
 
 static
@@ -95,7 +96,7 @@ size_t MemBankImplInUse ( const MemBankImpl *self, const ctx_t *ctx, size_t *quo
     if ( self != NULL )
     {
         * quota = self -> quota;
-        return self -> quota - atomic_read ( & self -> avail );
+        return self -> quota - atomic64_read ( & self -> avail );
     }
 
     * quota = 0;
@@ -109,6 +110,7 @@ size_t MemBankImplInUse ( const MemBankImpl *self, const ctx_t *ctx, size_t *quo
 static
 void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool clear )
 {
+    assert(bytes <= LONG_MAX); /* can safely be a long */
     if ( self != NULL )
     {
         /* allocation from the raw bank */
@@ -116,20 +118,20 @@ void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool
         FUNC_ENTRY ( ctx );
 
         /* update "avail" atomicially */
-        size_t remaining, avail;
-        for ( avail = atomic_read ( & self -> avail ); avail >= bytes; avail = remaining )
+        long remaining, avail;
+        for ( avail = atomic64_read ( & self -> avail ); avail >= (long)bytes; avail = remaining )
         {
             /* subtract the bytes */
-            remaining = atomic_test_and_set ( & self -> avail,
-                ( atomic_int ) ( avail - bytes ), ( atomic_int ) avail );
+            remaining = atomic64_test_and_set ( & self -> avail,
+                ( avail - (long)bytes ), avail );
             if ( remaining == avail )
             {
                 /* try to allocate the memory directly */
-                void *mem = clear ? calloc ( 1, bytes ) : malloc ( bytes );
+                void *mem = calloc ( 1, bytes );
                 if ( mem == NULL )
                 {
                     /* failed to get memory */
-                    atomic_add ( & self -> avail, ( atomic_int ) bytes );
+                    atomic64_add ( & self -> avail, ( long ) bytes );
                     rc = RC ( rcExe, rcMemory, rcAllocating, rcMemory, rcExhausted );
                     ERROR ( rc, "failed to allocate %zu bytes of memory", bytes );
                 }
@@ -162,6 +164,7 @@ void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool
 static
 void MemBankImplFree ( MemBankImpl *self, const ctx_t *ctx, void *mem, size_t bytes )
 {
+    assert(bytes <= LONG_MAX); /* can safely be a long */
     if ( mem != NULL )
     {
         FUNC_ENTRY ( ctx );
@@ -181,7 +184,7 @@ void MemBankImplFree ( MemBankImpl *self, const ctx_t *ctx, void *mem, size_t by
                 ANNOTATE ( "freed memory with size of 0 bytes" );
             else
             {
-                atomic_add ( & self -> avail, ( atomic_int ) bytes );
+                atomic64_add ( & self -> avail, ( long ) bytes );
 
                 if ( bytes > 256 * 1024 )
                 {
@@ -231,7 +234,7 @@ MemBank *MemBankMake ( const ctx_t *ctx, size_t quota )
         quota = 4096;
 
     mem -> quota = quota;
-    atomic_set ( & mem -> avail, ( atomic_int ) ( quota - sizeof * mem ) );
+    atomic64_set ( & mem -> avail, ( long ) ( quota - sizeof * mem ) );
 
     return & mem -> dad;
 }

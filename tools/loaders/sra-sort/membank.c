@@ -118,35 +118,27 @@ void *MemBankImplAlloc ( MemBankImpl *self, const ctx_t *ctx, size_t bytes, bool
         FUNC_ENTRY ( ctx );
 
         /* update "avail" atomicially */
-        long remaining, avail;
-        for ( avail = atomic64_read ( & self -> avail ); avail >= (long)bytes; avail = remaining )
-        {
-            /* subtract the bytes */
-            remaining = atomic64_test_and_set ( & self -> avail,
-                ( avail - (long)bytes ), avail );
-            if ( remaining == avail )
-            {
-                /* try to allocate the memory directly */
-                void *mem = calloc ( 1, bytes );
-                if ( mem == NULL )
-                {
+        long avail = atomic64_read ( & self -> avail );
+        while (bytes <= avail) {
+            long old = atomic64_test_and_set(&self->avail, avail - (long)bytes, avail);
+            if (old == avail) {
+                void *mem = calloc(1, bytes);
+                if (mem) {
+                    if ( bytes > 1024 * 1024 )
+                        STATUS ( 3, "allocated %,zu bytes of memory", bytes );
+                    else if ( bytes > 256 * 1024 )
+                        STATUS ( 4, "allocated %,zu bytes of memory", bytes );
+                }
+                else {
                     /* failed to get memory */
                     atomic64_add ( & self -> avail, ( long ) bytes );
                     rc = RC ( rcExe, rcMemory, rcAllocating, rcMemory, rcExhausted );
-                    ERROR ( rc, "failed to allocate %zu bytes of memory", bytes );
+                    ERROR ( rc, "memory exhausted allocating %zu bytes of memory", bytes );
                 }
-                else if ( bytes > 256 * 1024 )
-                {
-                    if ( bytes > 1024 * 1024 )
-                        STATUS ( 3, "allocated %,zu bytes of memory", bytes );
-                    else
-                        STATUS ( 4, "allocated %,zu bytes of memory", bytes );
-                }
-
                 return mem;
             }
+            avail = old;
         }
-
         /* at this point we could be using a timeout */
         rc = RC ( rcExe, rcMemory, rcAllocating, rcRange, rcExcessive );
         ERROR ( rc, "quota exceeded allocating %zu bytes of memory", bytes );
@@ -232,6 +224,8 @@ MemBank *MemBankMake ( const ctx_t *ctx, size_t quota )
 
     if ( quota < 4096 )
         quota = 4096;
+    if ( quota > LONG_MAX )
+        quota = LONG_MAX;
 
     mem -> quota = quota;
     atomic64_set ( & mem -> avail, ( long ) ( quota - sizeof * mem ) );

@@ -89,7 +89,6 @@ if( SINGLE_CONFIG )
           BUILD_IN_SOURCE 1
           UPDATE_COMMAND "" # No update as we use specific tag
           INSTALL_DIR ${LOCAL_LIBDIR}
-          INSTALL_COMMMAND ""
           CMAKE_ARGS
             -DCMAKE_BUILD_TYPE:STRING=Release
             -DRE2_BUILD_TESTING:BOOL=OFF

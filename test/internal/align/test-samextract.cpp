@@ -593,9 +593,9 @@ TEST_CASE(Fuzz_Hangs)
     KOutMsg("None of below files should hang:\n");
     for (size_t i = 0; i != globbuf.gl_pathc; ++i) {
         KOutMsg("\t%s\n", globbuf.gl_pathv[i]);
-        SAMExtractor extractor;
-        SAMExtractor* e = &extractor;
+        SAMExtractor* e = nullptr;
         rc_t rc = extract_file(globbuf.gl_pathv[i], &e);
+        SAMExtractorRelease(e);
         REQUIRE_RC(rc);
         pool_destroy();
     }

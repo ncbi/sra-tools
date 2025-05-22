@@ -495,7 +495,7 @@ WrapFileMake ( struct KFile * In, struct KFile ** Out )
                     false
                     );
     if ( RCt == 0 ) {
-        RCt = KFileAddRef ( In );
+        /* RCt = KFileAddRef ( In ); unbalanced */
         if ( RCt == 0 ) {
             Ret -> _file = In;
             * Out = & ( Ret -> _dad );

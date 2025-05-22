@@ -107,6 +107,7 @@ static rc_t extract_file(const char* fname, SAMExtractor** extractor)
     StringInitCString(&sfname, fname);
 
     rc = SAMExtractorMake(extractor, infile, &sfname, -1);
+    KFileRelease(infile);
 
     return rc;
 }

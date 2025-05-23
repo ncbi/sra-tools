@@ -35,7 +35,7 @@
 #include <krypto/wgaencrypt.h>
 #include <kfs/kfs-priv.h>
 #include <kfs/file.h>
-#include <kfs/teefile.h>
+#include "../shared/teefile.h"
 #include <kfs/gzip.h>
 #include <kfs/bzip.h>
 #include <kfs/md5.h>

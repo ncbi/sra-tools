@@ -42,7 +42,7 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <kfs/file.h>
-#include <kfs/teefile.h>
+#include "teefile.h"
 #include <sysalloc.h>
 
 #include <assert.h>

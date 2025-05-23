@@ -154,8 +154,6 @@ ver_t CC KAppVersion ( void )
     return 0x1000000;
 }
 
-const char UsageDefaultName[] = "test-ngs-pileup";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();

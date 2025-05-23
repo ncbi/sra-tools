@@ -263,8 +263,6 @@ rc_t CC Usage ( const Args * args )
     return 0;
 }
 
-const char UsageDefaultName[] = "Test_WVDB";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();

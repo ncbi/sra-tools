@@ -79,8 +79,6 @@ extern "C"
 #include <kfg/config.h>
 #include <klib/debug.h>
 
-const char UsageDefaultName[] = "test-view-alias";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();

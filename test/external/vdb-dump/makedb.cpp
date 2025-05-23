@@ -288,8 +288,6 @@ extern "C"
 #include <kapp/args.h>
 #include <kfg/config.h>
 
-const char UsageDefaultName[] = "makedb";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();

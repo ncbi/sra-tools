@@ -3953,8 +3953,15 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         key_batch_t batch;
         while (exit_on_error == false) {
             if (gather_queue.try_dequeue(batch)) {
+
+                if ( batch.keys.size() == 0 )
+                {   // empty batch signals the end of processing
+                    update_queue.enqueue(batch); // signal the update thread to exit
+                    break;
+                }
+
                 ++batches_gathered;
-(void)PLOGMSG(klogInfo, (klogInfo, "batches_gathered: $(NR) records expected $(e)", "NR=%lu,e=%lu", batches_gathered, expected_batches));
+                (void)PLOGMSG(klogInfo, (klogInfo, "batches_gathered: $(NR) records expected $(e)", "NR=%lu,e=%lu", batches_gathered, expected_batches));
 
                 spdlog::stopwatch sw;
                 auto sz = batch.keys.size();
@@ -3992,7 +3999,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                         break;
                 };
             } else if (batches_gathered >= expected_batches) {
-(void)PLOGMSG(klogInfo, (klogInfo, "batches_gathered >= expected_batches $(NR)", "NR=%lu", batches_gathered));
+                (void)PLOGMSG(klogInfo, (klogInfo, "batches_gathered >= expected_batches $(NR)", "NR=%lu", batches_gathered));
                 break;
             }
         }
@@ -4004,8 +4011,14 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         rc = 0;
         while (true) {
             if (update_queue.try_dequeue(batch)) {
+
+                if ( batch.keys.size() == 0 )
+                {   // empty batch signals the end of processing
+                    break;
+                }
+
                 ++batches_updated;
-(void)PLOGMSG(klogInfo, (klogInfo, "batches_updated: $(NR) records expected $(e)", "NR=%lu,e=%lu", batches_updated, expected_batches));
+                (void)PLOGMSG(klogInfo, (klogInfo, "batches_updated: $(NR) records expected $(e)", "NR=%lu,e=%lu", batches_updated, expected_batches));
 
                 spdlog::stopwatch sw;
                 for (size_t i = 0; i < batch.keys.size(); ++i) {
@@ -4037,7 +4050,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 //spdlog::info("Finished updating batch {} in {:3} sec", batch.keys.size(), sw);
 
             } else if (batches_updated >= expected_batches) {
-(void)PLOGMSG(klogInfo, (klogInfo, "batches_updated >= expected_batches $(NR)", "NR=%lu", batches_updated));
+                (void)PLOGMSG(klogInfo, (klogInfo, "batches_updated >= expected_batches $(NR)", "NR=%lu", batches_updated));
                 break;
             }
         }
@@ -4045,7 +4058,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 
     vector<uint64_t> keys;
     keys.reserve(BUFFER_SIZE);
-(void)PLOGMSG(klogInfo, (klogInfo, "BUFFER_SIZE $(b)", "b=%lu", BUFFER_SIZE));
+    (void)PLOGMSG(klogInfo, (klogInfo, "BUFFER_SIZE $(b)", "b=%lu", BUFFER_SIZE));
 
     for (row = 1; row <= ctx->spotId; ++row) {
         rc = SequenceReadKey(seq, row, &keyId);
@@ -4073,19 +4086,18 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             batch.keys = std::move(keys);
             keys.clear();
             keys.reserve(BUFFER_SIZE);
-(void)PLOGMSG(klogInfo, (klogInfo, "enqueue row $(r)", "r=%lu", row));
+            (void)PLOGMSG(klogInfo, (klogInfo, "enqueue row $(r)", "r=%lu", row));
             while (gather_queue.try_enqueue(std::move(batch)) == false) {
                 if (exit_on_error)
                     break;
             };
             ++batches_processed;
-(void)PLOGMSG(klogInfo, (klogInfo, "enqueue batches_processed $(NR)", "NR=%lu", batches_processed));
+            (void)PLOGMSG(klogInfo, (klogInfo, "enqueue batches_processed $(NR)", "NR=%lu", batches_processed));
             if (exit_on_error)
                 break;
             KLoadProgressbar_Process(ctx->progress[ctx->pass - 1], 1, false);
         }
     }
-(void)LOGMSG(klogInfo, "enqueue done");
 
     if (!keys.empty() && exit_on_error == false) {
         key_batch_t batch;
@@ -4099,6 +4111,12 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         };
         ++batches_processed;
     }
+
+    // once done, enqueue an empty batch
+    gather_queue.enqueue( key_batch_t() );
+
+    (void)LOGMSG(klogInfo, "enqueue done");
+
     //while (gather_queue.peek() != nullptr)
     //   std::this_thread::sleep_for(std::chrono::milliseconds(100));
     assert(gather_task.valid());

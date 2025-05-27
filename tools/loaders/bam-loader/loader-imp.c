@@ -4112,7 +4112,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         ++batches_processed;
     }
 
-    // once done, enqueue an empty batch
+    // once done, enqueue an empty batch to signal that there will be no more batches
     gather_queue.enqueue( key_batch_t() );
 
     (void)LOGMSG(klogInfo, "enqueue done");

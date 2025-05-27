@@ -141,8 +141,6 @@ ver_t CC KAppVersion ( void )
     return 0x1000000;
 }
 
-const char UsageDefaultName[] = "test-sra-schema";
-
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );

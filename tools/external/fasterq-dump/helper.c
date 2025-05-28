@@ -720,6 +720,7 @@ void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
 #else
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 static uint32_t hlp_device_id_of_path( const char * path ) {
@@ -729,7 +730,7 @@ static uint32_t hlp_device_id_of_path( const char * path ) {
         /* do nothing for WINDOWS... */
 #else
         struct stat st;
-        if ( 0 == lstat( path, &st ) ) {
+        if ( 0 == stat( path, &st ) ) {
             res = st . st_dev;
         }
 #endif

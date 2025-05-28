@@ -723,24 +723,17 @@ void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
 #include <unistd.h>
 #endif
 
-static uint32_t hlp_device_id_of_path( const char * path ) {
-    uint32_t res = 0;
-    if ( NULL != path ) {
-#ifdef WINDOWS
-        /* do nothing for WINDOWS... */
-#else
-        struct stat st;
-        if ( 0 == stat( path, &st ) ) {
-            res = st . st_dev;
-        }
-#endif
-    }
-    return res;
-}
-
 bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 ) {
-    uint32_t id1 = hlp_device_id_of_path( path1 );
-    uint32_t id2 = hlp_device_id_of_path( path2 );
-    return ( id1 == id2 );
+    if (path1 == path2 || strcmp(path1, path2) == 0)
+        return true;
+
+#ifdef WINDOWS
+#else
+    struct stat st1, st2;
+    if (stat(path1, &st1) == 0 && stat(path2, &st2) == 0)
+        return st1.st_dev == st2.st_dev;
+#endif
+
+    return true; /* assume they are the same */
 }
 

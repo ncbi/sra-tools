@@ -252,8 +252,6 @@ extern "C"
         return 0;
     }
 
-    const char UsageDefaultName[] = "testy-the-ngs-bear";
-
     rc_t KMain ( int argc, char * argv [] )
     {
         try

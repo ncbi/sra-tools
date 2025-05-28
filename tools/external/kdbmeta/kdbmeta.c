@@ -1376,7 +1376,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
-
+                        VPathRelease(resolved);
                         VPathRelease(cache);
                         VFSManagerRelease(vfs);
                     }

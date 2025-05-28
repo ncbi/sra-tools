@@ -383,8 +383,6 @@ extern "C"
 #include <kapp/args.h>
 #include <kfg/config.h>
 
-const char UsageDefaultName[] = "test-view-spec";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();

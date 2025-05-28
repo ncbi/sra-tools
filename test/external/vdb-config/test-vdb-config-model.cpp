@@ -183,8 +183,6 @@ extern "C"
 #include <kapp/args.h>
 #include <kfg/config.h>
 
-const char UsageDefaultName[] = "wb-test-fastq";
-
 rc_t CC KMain ( int argc, char *argv [] )
 {
     // do not disable user settings as we need to update them as part of the testing

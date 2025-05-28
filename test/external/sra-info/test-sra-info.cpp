@@ -671,8 +671,6 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
 extern "C"
 {
 
-const char UsageDefaultName[] = "test-sra-info";
-
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );

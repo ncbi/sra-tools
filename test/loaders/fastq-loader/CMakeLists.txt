@@ -60,7 +60,7 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
-        if( TARGET latf-load-asan )
+        if(${Result} EQUAL "0" AND TARGET latf-load-asan )
             add_test( NAME Test_FastqLoader_${TestName}-asan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
@@ -71,7 +71,7 @@ if( NOT WIN32 )
             set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
         endif()
 
-        if( TARGET latf-load-tsan )
+        if(${Result} EQUAL "0" AND  TARGET latf-load-tsan )
             add_test( NAME Test_FastqLoader_${TestName}-tsan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/

@@ -28,7 +28,6 @@
 #include <vfs/services.h> /* KServiceRelease */
 
 ver_t CC KAppVersion(void) { return 0; }
-const char UsageDefaultName[] = "test-quality";
 rc_t CC UsageSummary(const char * prog_name) { return 0; }
 rc_t CC Usage(const Args * args) { return 0; }
 

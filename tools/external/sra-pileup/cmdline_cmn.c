@@ -577,6 +577,7 @@ rc_t prepare_ref_iter( prepare_ctx *ctx,
                        BSTree * regions ) {
     rc_t rc = prepare_db_table( ctx, vdb_mgr, vdb_schema, path );
     if ( rc == 0 ) {
+        ctx->is_database = ctx->db != NULL;
         rc = prepare_reflist( ctx );
         if( rc == 0 ) {
             if ( ctx->reflist == NULL || count_ref_regions( regions ) == 0 ) {

@@ -123,6 +123,7 @@ typedef struct prepare_ctx {
     bool use_primary_alignments;
     bool use_secondary_alignments;
     bool use_evidence_alignments;
+    bool is_database;
     const char *path;
     rc_t ( CC * on_section ) ( struct prepare_ctx * ctx, const struct reference_range * range );
 } prepare_ctx;

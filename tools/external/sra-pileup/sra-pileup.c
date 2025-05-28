@@ -1222,7 +1222,7 @@ static rc_t on_argument( const char * path, const char * spot_group, void * data
                 prep . path = path;
 
                 rc = prepare_ref_iter( &prep, ctx -> vdb_mgr, ctx -> vdb_schema, path, ctx -> ranges ); /* cmdline_cmn.c */
-                if ( rc == 0 && prep . db == NULL ) {
+                if ( rc == 0 && !prep.is_database ) {
                     rc = RC ( rcApp, rcNoTarg, rcOpening, rcSelf, rcInvalid );
                     LOGERR( klogInt, rc, "unsupported source" );
                 }

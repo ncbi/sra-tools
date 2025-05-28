@@ -728,6 +728,7 @@ bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 ) {
         return true;
 
 #ifdef WINDOWS
+    /* do nothing for WINDOWS... */
 #else
     struct stat st1, st2;
     if (stat(path1, &st1) == 0 && stat(path2, &st2) == 0)

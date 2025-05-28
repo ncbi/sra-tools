@@ -1023,20 +1023,9 @@ static void show_placement_params( const char * prefix, const ReferenceObj *refo
 }
 #endif
 
-static rc_t make_cursor_ids( Vector *cursor_id_vector, pileup_col_ids ** cursor_ids ) {
-    rc_t rc;
-    pileup_col_ids * ids = calloc( 1, sizeof * ids );
-    if ( ids == NULL ) {
-        rc = RC ( rcApp, rcNoTarg, rcOpening, rcMemory, rcExhausted );
-    } else {
-        rc = VectorAppend ( cursor_id_vector, NULL, ids );
-        if ( rc != 0 ) {
-            free( ids );
-        } else {
-            *cursor_ids = ids;
-        }
-    }
-    return rc;
+static rc_t make_cursor_ids( pileup_col_ids * cursor_ids ) {
+    memset(cursor_ids, 0, sizeof(*cursor_ids));
+    return 0;
 }
 
 static bool row_not_found_while_reading_column( rc_t rc ) {
@@ -1079,12 +1068,12 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
             if ( ctx->use_primary_alignments ) {
                 if ( ctx->prim_cur == NULL )
                 {
-                    rc1 = make_cursor_ids( ctx->data, &ctx->prim_cur_ids );
+                    rc1 = make_cursor_ids( &ctx->prim_cur_ids );
                     if ( rc1 != 0 ) {
                         LOGERR( klogInt, rc1, "cannot create cursor-ids for prim. alignment cursor" );
                     } else {
                         rc1 = prepare_prim_cursor( ctx -> db, &( ctx -> prim_cur ), ctx -> omit_qualities,
-                                                   ctx -> read_tlen, ctx -> prim_cur_ids );
+                                                   ctx -> read_tlen, &ctx -> prim_cur_ids );
                     }
                 }
 
@@ -1098,7 +1087,7 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx -> prim_cur,       /* align-cursor */
                                                           primary_align_ids,     /* which id's */
                                                           ctx -> spot_group,     /* what read-group */
-                                                          ctx -> prim_cur_ids    /* placement-context */
+                                                          &ctx -> prim_cur_ids    /* placement-context */
                                                          );
                     if ( rc1 != 0 && !row_not_found_while_reading_column( rc1 ) ) {
                         /* row_not_found_while_reading column within VDB happens if the
@@ -1110,12 +1099,12 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
 
             if ( ctx -> use_secondary_alignments ) {
                 if ( ctx -> sec_cur == NULL ) {
-                    rc2 = make_cursor_ids( ctx -> data, &( ctx -> sec_cur_ids ) );
+                    rc2 = make_cursor_ids( &( ctx -> sec_cur_ids ) );
                     if ( rc2 != 0 ) {
                         LOGERR( klogInt, rc2, "cannot create cursor-ids for sec. alignment cursor" );
                     } else {
                         rc2 = prepare_sec_cursor( ctx -> db, &( ctx -> sec_cur ), ctx -> omit_qualities,
-                                                  ctx -> read_tlen, ctx -> sec_cur_ids );
+                                                  ctx -> read_tlen, &ctx -> sec_cur_ids );
                     }
                 }
 
@@ -1129,7 +1118,7 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx -> sec_cur,        /* align-cursor */
                                                           secondary_align_ids,   /* which id's */
                                                           ctx -> spot_group,     /* what read-group */
-                                                          ctx -> sec_cur_ids     /* placement-context */
+                                                          &ctx -> sec_cur_ids     /* placement-context */
                                                          );
                     if ( rc2 != 0 && !row_not_found_while_reading_column( rc2 ) ) {
                         /* row_not_found_while_reading column within VDB happens if the
@@ -1141,12 +1130,12 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
 
             if ( ctx -> use_evidence_alignments ) {
                 if ( ctx -> ev_cur == NULL ) {
-                    rc3 = make_cursor_ids( ctx -> data, &( ctx -> ev_cur_ids ) );
+                    rc3 = make_cursor_ids( &( ctx -> ev_cur_ids ) );
                     if ( rc3 != 0 ) {
                         LOGERR( klogInt, rc3, "cannot create cursor-ids for ev. alignment cursor" );
                     } else {
                         rc3 = prepare_evidence_cursor( ctx -> db, &( ctx -> ev_cur ), ctx -> omit_qualities,
-                                                       ctx -> read_tlen, ctx -> ev_cur_ids );
+                                                       ctx -> read_tlen, &ctx -> ev_cur_ids );
                     }
                 }
 
@@ -1160,7 +1149,7 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx -> ev_cur,         /* align-cursor */
                                                           evidence_align_ids,    /* which id's */
                                                           ctx -> spot_group,     /* what read-group */
-                                                          ctx -> ev_cur_ids      /* placement-context */
+                                                          &ctx -> ev_cur_ids      /* placement-context */
                                                          );
                     if ( rc3 != 0 && !row_not_found_while_reading_column( rc3 ) ) {
                         /* row_not_found_while_reading column within VDB happens if the
@@ -1192,12 +1181,12 @@ typedef struct foreach_arg_ctx {
     VSchema *vdb_schema;
     ReferenceIterator *ref_iter;
     BSTree *ranges;
-    Vector *cursor_ids;
+    /*Vector *cursor_ids;*/
 } foreach_arg_ctx;
 
 
 /* called for each source-file/accession */
-static rc_t CC on_argument( const char * path, const char * spot_group, void * data ) {
+static rc_t on_argument( const char * path, const char * spot_group, void * data ) {
     rc_t rc = 0;
     foreach_arg_ctx * ctx = ( foreach_arg_ctx * )data;
 
@@ -1221,6 +1210,7 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
             } else {
                 prepare_ctx prep;   /* from cmdline_cmn.h */
 
+                memset(&prep, 0, sizeof(prep));
                 prep . omit_qualities = ctx -> options -> cmn . omit_qualities;
                 prep . read_tlen = ctx -> options -> read_tlen;
                 prep . use_primary_alignments = ( ( ctx -> options -> cmn . tab_select & primary_ats ) == primary_ats );
@@ -1229,21 +1219,23 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
                 prep . ref_iter = ctx -> ref_iter;
                 prep . spot_group = spot_group;
                 prep . on_section = prepare_section_cb;
-                prep . data = ctx -> cursor_ids;
                 prep . path = path;
-                prep . db = NULL;
-                prep . prim_cur = NULL;
-                prep . sec_cur = NULL;
-                prep . ev_cur = NULL;
 
                 rc = prepare_ref_iter( &prep, ctx -> vdb_mgr, ctx -> vdb_schema, path, ctx -> ranges ); /* cmdline_cmn.c */
                 if ( rc == 0 && prep . db == NULL ) {
                     rc = RC ( rcApp, rcNoTarg, rcOpening, rcSelf, rcInvalid );
                     LOGERR( klogInt, rc, "unsupported source" );
                 }
-                if ( prep . prim_cur != NULL ) { VCursorRelease( prep.prim_cur ); }
-                if ( prep . sec_cur != NULL ) { VCursorRelease( prep.sec_cur ); }
-                if ( prep . ev_cur != NULL ) { VCursorRelease( prep.ev_cur ); }
+                VCursorRelease( prep.prim_cur ); prep.prim_cur = NULL;
+                VCursorRelease( prep.sec_cur ); prep.sec_cur = NULL;
+                VCursorRelease( prep.ev_cur ); prep.ev_cur = NULL;
+                
+                assert(prep.db == NULL);
+                assert(prep.seq_tab == NULL);
+                assert(prep.prim_cur == NULL);
+                assert(prep.sec_cur == NULL);
+                assert(prep.ev_cur == NULL);
+                assert(prep.reflist == NULL);
             }
         }
     }
@@ -1251,17 +1243,10 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
 }
 
 
-/* free all cursor-ids-blocks created in parallel with the alignment-cursor */
-static void CC cur_id_vector_entry_whack( void *item, void *data ) {
-    pileup_col_ids * ids = item;
-    free( ids );
-}
-
 static rc_t pileup_main( Args * args, pileup_options *options ) {
     foreach_arg_ctx arg_ctx;
     pileup_callback_data cb_data;
     KDirectory * dir = NULL;
-    Vector cur_ids_vector;
 
     /* (1) make the align-manager ( necessary to make a ReferenceIterator... ) */
     rc_t rc = AlignMgrMakeRead ( &cb_data.almgr );
@@ -1269,11 +1254,11 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
         LOGERR( klogInt, rc, "AlignMgrMake() failed" );
     }
 
-    VectorInit ( &cur_ids_vector, 0, 20 );
+    memset(&cb_data, 0, sizeof(cb_data));
+    memset(&arg_ctx, 0, sizeof(arg_ctx));
     cb_data . options = options;
     arg_ctx . options = options;
     arg_ctx . vdb_schema = NULL;
-    arg_ctx . cursor_ids = &cur_ids_vector;
 
     /* (2) make the reference-iterator */
     if ( rc == 0 ) {
@@ -1403,7 +1388,6 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
     if ( dir != NULL ) { KDirectoryRelease( dir ); }
     if ( arg_ctx . ref_iter != NULL ) { ReferenceIteratorRelease( arg_ctx . ref_iter ); }
     if ( cb_data . almgr != NULL ) { AlignMgrRelease ( cb_data . almgr ); }
-    VectorWhack ( &cur_ids_vector, cur_id_vector_entry_whack, NULL );
 
     return rc;
 }

@@ -483,19 +483,17 @@ static rc_t prepare_whole_file( prepare_ctx * ctx ) {
         } else {
             uint32_t idx;
             for ( idx = 0; idx < count && rc == 0; ++idx ) {
+                assert(ctx->refobj == NULL);
                 rc = ReferenceList_Get( ctx->reflist, &ctx->refobj, idx );
                 if ( rc != 0 ) {
                     LOGERR( klogInt, rc, "ReferenceList_Get() failed" );
                 } else {
                     rc = ctx->on_section( ctx, NULL );
-                    if ( rc == 0 ) {
-                        ReferenceObj_Release( ctx->refobj );
-                    }
                 }
+                ReferenceObj_Release( ctx->refobj ); ctx->refobj = NULL;
             }
         }
     } else {
-        ctx->refobj = NULL;
         rc = ctx->on_section( ctx, NULL );
     }
     return rc;
@@ -503,15 +501,15 @@ static rc_t prepare_whole_file( prepare_ctx * ctx ) {
 
 static rc_t CC prepare_region_cb( const char * name, const struct reference_range * range, void * data ) {
     prepare_ctx * ctx = ( prepare_ctx * )data;
-    rc_t rc = ReferenceList_Find( ctx->reflist, &ctx->refobj, name, string_size( name ) );
+    rc_t rc = 0;
+    assert(ctx->refobj == NULL);
+    rc = ReferenceList_Find( ctx->reflist, &ctx->refobj, name, string_size( name ) );
     if ( rc != 0 ) {
         rc = 0;
     } else {
         rc = ctx->on_section( ctx, range );
-        if ( rc == 0 ) {
-            ReferenceObj_Release( ctx->refobj );
-        }
     }
+    ReferenceObj_Release( ctx->refobj ); ctx->refobj = NULL;
     return rc;
 }
 
@@ -520,13 +518,13 @@ static rc_t prepare_db_table( prepare_ctx *ctx,
                               VSchema *vdb_schema,
                               const char * path ) {
     rc_t rc;
-    ctx->db = NULL;
-    ctx->seq_tab = NULL;
 
     ReportResetObject ( path );
 
+    assert(ctx->db == NULL);
     rc = VDBManagerOpenDBRead ( vdb_mgr, &ctx->db, vdb_schema, "%s", path );
     if ( rc != 0 ) {
+        assert(ctx->seq_tab == NULL);
         rc = VDBManagerOpenTableRead ( vdb_mgr, &ctx->seq_tab, NULL, "%s", path );
         if ( rc != 0 ) {
             PLOGERR( klogErr, ( klogErr, rc, "failed to open '$(path)'", "path=%s", path ) );
@@ -534,6 +532,7 @@ static rc_t prepare_db_table( prepare_ctx *ctx,
             ReportResetTable(path, ctx->seq_tab);
         }
     } else {
+        assert(ctx->seq_tab == NULL);
         rc = VDatabaseOpenTableRead( ctx->db, &ctx->seq_tab, "SEQUENCE" );
         if ( rc != 0 ) {
             LOGERR( klogInt, rc, "VDatabaseOpenTableRead( SEQUENCE ) failed" );
@@ -544,22 +543,26 @@ static rc_t prepare_db_table( prepare_ctx *ctx,
     return rc;
 }
 
+static int get_reflist_options( prepare_ctx const *const ctx ) {
+    int result = ereferencelist_4na;
+    if ( ctx->use_primary_alignments ) {
+        result |= ereferencelist_usePrimaryIds;
+    }
+    if ( ctx->use_secondary_alignments ) {
+        result |= ereferencelist_useSecondaryIds;
+    }
+    if ( ctx->use_evidence_alignments ) {
+        result |= ereferencelist_useEvidenceIds;
+    }
+    return result;
+}
+
 static rc_t prepare_reflist( prepare_ctx *ctx ) {
     rc_t rc = 0;
-    ctx -> reflist = NULL;
+    
     if ( ctx -> db != NULL ) {
-        uint32_t reflist_options = ereferencelist_4na;
-
-        if ( ctx->use_primary_alignments ) {
-            reflist_options |= ereferencelist_usePrimaryIds;
-        }
-        if ( ctx->use_secondary_alignments ) {
-            reflist_options |= ereferencelist_useSecondaryIds;
-        }
-        if ( ctx->use_evidence_alignments ) {
-            reflist_options |= ereferencelist_useEvidenceIds;
-        }
-        rc = ReferenceList_MakeDatabase( &ctx->reflist, ctx->db, reflist_options, 0, NULL, 0 );
+        assert(ctx -> reflist == NULL);
+        rc = ReferenceList_MakeDatabase( &ctx->reflist, ctx->db, (uint32_t)get_reflist_options(ctx), 0, NULL, 0 );
         if ( rc != 0 ) {
             LOGERR( klogInt, rc, "ReferenceList_MakeDatabase() failed" );
         }
@@ -584,12 +587,10 @@ rc_t prepare_ref_iter( prepare_ctx *ctx,
                 rc = foreach_ref_region( regions, prepare_region_cb, ctx ); /* ref_regions.c */
             }
         }
-        if ( ctx->reflist != NULL ) {
-            ReferenceList_Release( ctx->reflist );
-        }
     }
-    VTableRelease ( ctx->seq_tab );
-    VDatabaseRelease ( ctx->db );
+    ReferenceList_Release( ctx->reflist ); ctx->reflist = NULL;
+    VTableRelease ( ctx->seq_tab ); ctx->seq_tab = NULL;
+    VDatabaseRelease ( ctx->db ); ctx->db = NULL;
     return rc;
 }
 

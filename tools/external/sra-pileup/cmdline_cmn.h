@@ -111,9 +111,9 @@ typedef struct prepare_ctx {
     const VCursor *sec_cur;
     const VCursor *ev_cur;
 
-    pileup_col_ids *prim_cur_ids;
-    pileup_col_ids *sec_cur_ids;
-    pileup_col_ids *ev_cur_ids;
+    pileup_col_ids prim_cur_ids;
+    pileup_col_ids sec_cur_ids;
+    pileup_col_ids ev_cur_ids;
 
     const ReferenceList *reflist;
     const ReferenceObj *refobj;
@@ -123,7 +123,6 @@ typedef struct prepare_ctx {
     bool use_primary_alignments;
     bool use_secondary_alignments;
     bool use_evidence_alignments;
-    void * data;
     const char *path;
     rc_t ( CC * on_section ) ( struct prepare_ctx * ctx, const struct reference_range * range );
 } prepare_ctx;

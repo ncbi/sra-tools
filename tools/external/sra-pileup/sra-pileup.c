@@ -1230,6 +1230,7 @@ static rc_t on_argument( const char * path, const char * spot_group, void * data
                 VCursorRelease( prep.sec_cur ); prep.sec_cur = NULL;
                 VCursorRelease( prep.ev_cur ); prep.ev_cur = NULL;
                 
+                assert(prep.plset_iter == NULL);
                 assert(prep.db == NULL);
                 assert(prep.seq_tab == NULL);
                 assert(prep.prim_cur == NULL);
@@ -1247,15 +1248,17 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
     foreach_arg_ctx arg_ctx;
     pileup_callback_data cb_data;
     KDirectory * dir = NULL;
+    rc_t rc = 0;
+
+    memset(&cb_data, 0, sizeof(cb_data));
+    memset(&arg_ctx, 0, sizeof(arg_ctx));
 
     /* (1) make the align-manager ( necessary to make a ReferenceIterator... ) */
-    rc_t rc = AlignMgrMakeRead ( &cb_data.almgr );
+    rc = AlignMgrMakeRead ( &cb_data.almgr );
     if ( rc != 0 ) {
         LOGERR( klogInt, rc, "AlignMgrMake() failed" );
     }
 
-    memset(&cb_data, 0, sizeof(cb_data));
-    memset(&arg_ctx, 0, sizeof(arg_ctx));
     cb_data . options = options;
     arg_ctx . options = options;
     arg_ctx . vdb_schema = NULL;

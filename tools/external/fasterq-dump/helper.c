@@ -716,7 +716,7 @@ void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
 /* -------------------------------------------------------------------------------- */
 
 #ifdef WINDOWS
-        /* do nothing for WINDOWS... */
+/* do nothing for WINDOWS... */
 #else
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -724,17 +724,15 @@ void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
 #endif
 
 bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 ) {
-    if (path1 == path2 || strcmp(path1, path2) == 0)
-        return true;
-
 #ifdef WINDOWS
     /* do nothing for WINDOWS... */
 #else
-    struct stat st1, st2;
-    if (stat(path1, &st1) == 0 && stat(path2, &st2) == 0)
-        return st1.st_dev == st2.st_dev;
+    if (path1 != NULL && path2 != NULL && path1 != path2 && strcmp(path1, path2) != 0)
+    {
+        struct stat st1, st2;
+        if (stat(path1, &st1) == 0 && stat(path2, &st2) == 0)
+            return st1.st_dev == st2.st_dev;
+    }
 #endif
-
     return true; /* assume they are the same */
 }
-

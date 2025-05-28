@@ -245,5 +245,7 @@ MAIN_DECL(argc, argv)
 
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return app.getExitCode( rc );
+
+    app.setRc( rc );
+    return app.getExitCode();
 }

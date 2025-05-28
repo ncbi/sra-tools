@@ -1057,7 +1057,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
 
 MAIN_DECL(argc, argv)
 {
-    const VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv );
     if (!app)
     {
         return VDB_INIT_FAILED;
@@ -1089,7 +1089,8 @@ MAIN_DECL(argc, argv)
     if (rc == SILENT_RC(rcVDB, rcTable, rcOpening, rcSchema, rcNotFound))
     {   exit(10); }
 
-    return app.getExitCode( rc );
+    app.setRc( rc );
+    return app.getExitCode();
 }
 
 /************************************ EOF ****************** ******************/

@@ -538,7 +538,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        const VDB::Application app( argc, argv );
+        VDB::Application app( argc, argv );
         if (!app)
         {
             return VDB_INIT_FAILED;
@@ -784,6 +784,7 @@ extern "C"
             }
         }
 
-        return app.getExitCode( rc );
+        app.setRc( rc );
+        return app.getExitCode();
     }
 }

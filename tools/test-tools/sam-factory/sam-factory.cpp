@@ -1204,5 +1204,7 @@ MAIN_DECL(argc, argv)
     } catch ( std::bad_alloc &e ) {
         std::cerr << "error: " << e.what() << std::endl;
     }
-    return app.getExitCode( res );
+
+    app.setRc( res );
+    return app.getExitCode();
 }

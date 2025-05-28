@@ -449,5 +449,6 @@ MAIN_DECL(argc, argv)
         DESTRUCT(Args, args);
     }
 
-    return app.getExitCode( rc );
+    app.setRc( rc );
+    return app.getExitCode();
 }

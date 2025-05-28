@@ -760,7 +760,8 @@ MAIN_DECL(argc, argv)
         }
         ArgsWhack ( args );
     }
-    return app.getExitCode( rc );
+    app.setRc( rc );
+    return app.getExitCode();
 }
 
 }

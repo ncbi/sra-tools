@@ -93,5 +93,7 @@ MAIN_DECL(argc, argv)
             }
         }
     }
-    return app.getExitCode( res );
+
+    app.setRc( res );
+    return app.getExitCode();
 }

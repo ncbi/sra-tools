@@ -60,7 +60,6 @@
 
 #define TOOL_NAME_FASTERQ_DUMP "fasterq-dump" /* from argv[0] */
 #define TOOL_ARGS_FASTERQ_DUMP TOOL_ARGS ( \
-    TOOL_ARG("row-limit", "l", true, TOOL_HELP("limit rowcount per thread", 0)), \
     TOOL_ARG("format", "F", true, TOOL_HELP("format (special, fastq, default=fastq)", 0)), \
     TOOL_ARG("outfile", "o", true, TOOL_HELP("output-file", 0)), \
     TOOL_ARG("outdir", "O", true, TOOL_HELP("output-dir", 0)), \
@@ -100,6 +99,9 @@
     TOOL_ARG("disk-limit-tmp", "", true, TOOL_HELP("explicitly set disk-limit for temp. files", 0)), \
     TOOL_ARG("size-check", "", true, TOOL_HELP("switch to control:", "on=perform size-check (default), ", "off=do not perform size-check, ", "only=perform size-check only", 0)), \
     TOOL_ARG("ngc", "", true, TOOL_HELP("PATH to ngc file", 0)), \
+    TOOL_ARG("keep", "", false, TOOL_HELP("keep temp. files", 0)), \
+    TOOL_ARG("step", "", true, TOOL_HELP("stop after step", 0)), \
+    TOOL_ARG("row-limit", "l", true, TOOL_HELP("limit rowcount per thread", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
 
 #define TOOL_NAME_SAM_DUMP "sam-dump" /* from argv[0] */

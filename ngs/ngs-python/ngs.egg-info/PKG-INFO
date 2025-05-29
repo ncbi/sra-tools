@@ -1,7 +1,5 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: ngs
 Version: 1.0
 Author: sra-tools
 Author-email: sra-tools@ncbi.nlm.nih.gov
-Dynamic: author
-Dynamic: author-email

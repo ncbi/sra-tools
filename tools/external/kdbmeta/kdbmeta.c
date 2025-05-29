@@ -1361,7 +1361,7 @@ MAIN_DECL( argc, argv )
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
-
+                        VPathRelease(resolved);
                         VPathRelease(cache);
                         VFSManagerRelease(vfs);
                     }

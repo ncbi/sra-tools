@@ -732,9 +732,10 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
 
         TimeoutInit(&tm, 10000);
         rslt.u.error.rc = KQueuePop(self->que, &rr, &tm);
-        if (rslt.u.error.rc == 0) {
+        if (rslt.u.error.rc == 0)
             memmove(&rslt, rr, sizeof(rslt));
-            free(rr);
+        free(rr);
+        if (rslt.u.error.rc == 0) {
             if (rslt.type == rr_done)
                 goto DONE;
             return rslt;

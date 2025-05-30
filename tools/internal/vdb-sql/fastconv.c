@@ -73,7 +73,7 @@ rc_t ErrMsg( const char * fmt, ... )
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
-} 
+}
 
 rc_t CC Usage ( const Args * args )
 {
@@ -95,7 +95,7 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "Options:\n" );
     for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name, NULL, ToolOptions[ idx ].help );
-    
+
     HelpOptionsStandard();
     HelpVersion( fullpath, KAppVersion() );
     return rc;
@@ -161,7 +161,7 @@ static rc_t write_writer( writer * self, const char * fmt, ... )
     va_start( list, fmt );
     rc = string_vprintf( self -> buffer, sizeof self -> buffer, &num_writ, fmt, list );
     va_end( list );
-    if ( rc == 0 )    
+    if ( rc == 0 )
     {
         size_t num_writ2;
         rc = KFileWriteAll( self -> f, self -> pos, self -> buffer, num_writ, &num_writ2 );
@@ -169,7 +169,7 @@ static rc_t write_writer( writer * self, const char * fmt, ... )
             self -> pos += num_writ2;
     }
     return rc;
-        
+
 }
 
 /* {"a":[123, 456]} */
@@ -202,7 +202,7 @@ static rc_t activate_vdb_module( void )
     /* prototype for the extension in sqlite3vdb.c ( which has no header-file... ) */
     int sqlite3_vdbsqlite_init( sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi );
     typedef void ( *entrypoint )( void );
-    
+
     rc_t rc = 0;
     int res = sqlite3_auto_extension( ( entrypoint )sqlite3_vdbsqlite_init );
     if ( res != SQLITE_OK )
@@ -279,7 +279,7 @@ static rc_t iterate_SRC_SEQ( sqlite3 * db, const char * acc, writer * wrt )
     sqlite3_stmt * SEQ;
     sqlite3_stmt * ALIG;
     uint64_t prim_id[ 2 ];
-    
+
     rc_t rc = prepare_stm( db, "select * from SRC_SEQ", &SEQ );
     if ( rc == 0 )
     {
@@ -288,7 +288,7 @@ static rc_t iterate_SRC_SEQ( sqlite3 * db, const char * acc, writer * wrt )
         {
             int resSEQ  = sqlite3_step( SEQ );
             int parameterIndex = sqlite3_bind_parameter_index( ALIG, "@PARAM" );
-            
+
             while ( rc == 0 && resSEQ == SQLITE_ROW )
             {
                 sqlite3_int64 SPOT_ID = sqlite3_column_int64( SEQ, 0 );
@@ -296,7 +296,7 @@ static rc_t iterate_SRC_SEQ( sqlite3 * db, const char * acc, writer * wrt )
                 split_prim_ids( PRIMARY_ALIGNMENT_ID, prim_id );
 
                 /* rc = write_writer( wrt, "%ld [ %ld, %ld ]\n", SPOT_ID, prim_id[ 0 ], prim_id[ 1 ] ); */
-                
+
                 if ( prim_id[ 0 ] == 0 && prim_id[ 1 ] == 0 )
                 {
                     const char * CMP_READ = ( const char * )sqlite3_column_text( SEQ, 2 );
@@ -331,7 +331,7 @@ static rc_t iterate_SRC_SEQ( sqlite3 * db, const char * acc, writer * wrt )
                 }
                 resSEQ  = sqlite3_step( SEQ );
             }
-            
+
             if ( resSEQ != SQLITE_DONE )
                 ErrMsg( "iterate_SRC_SEQ() -> %s", sqlite3_errmsg( db ) );
 
@@ -350,7 +350,7 @@ static rc_t convert( const char * acc, writer * wrt )
     {
         char buffer[ 4096 ];
         size_t num_writ;
-        
+
         rc = string_printf( buffer, sizeof buffer, &num_writ, "%s.db", acc );
         if ( rc == 0 )
         {
@@ -364,23 +364,23 @@ static rc_t convert( const char * acc, writer * wrt )
             else
             {
                 KTime_t t;
-                
+
                 rc = execute_stm( db,
                     "create virtual table SRC_ALIG using vdb( %s, table = PRIMARY_ALIGNMENT, columns = ALIGN_ID;READ )",
                     acc );
-                
+
                 if ( rc == 0 )
                     rc = execute_stm( db, "create table ALIG( ALIGN_ID INTEGER PRIMARY KEY, READ )" );
 
                 KOutMsg( "start copy\n" );
                 t = KTimeStamp();
-                
+
                 if ( rc == 0 )
                     rc = execute_stm( db, "insert into ALIG select * from SRC_ALIG" );
 
                 KOutMsg( "done copy ( t = %ld )\n", KTimeStamp() - t );
                 t = KTimeStamp();
-                
+
                 if ( rc == 0 )
                     rc = execute_stm( db,
                         "create virtual table SRC_SEQ using vdb( %s, table = SEQUENCE, columns = SPOT_ID;PRIMARY_ALIGNMENT_ID;CMP_READ;(INSDC:quality:text:phred_33)QUALITY )",
@@ -393,7 +393,7 @@ static rc_t convert( const char * acc, writer * wrt )
                     rc = iterate_SRC_SEQ( db, acc, wrt );
 
                 KOutMsg( "done iterating ( t = %ld )\n", KTimeStamp() - t );
-                
+
                 sqlite3_close( db );
             }
         }
@@ -401,10 +401,16 @@ static rc_t convert( const char * acc, writer * wrt )
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc;
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
     rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
@@ -428,5 +434,6 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
         ArgsWhack( args );
     }
-    return rc;
+
+    return VDB_TERMINATE( rc );
 }

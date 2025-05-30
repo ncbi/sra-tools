@@ -53,7 +53,7 @@ void handle_help ()
     HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
-int run ( int argc, char const * argv [] ) {
+int run ( int argc, char * argv [] ) {
     bool TESTING = getenv ( "VDB_TEST" ) != NULL;
 //    const char * accession ( "SRR543323" );
    const char * accession = 0;
@@ -184,23 +184,8 @@ int run ( int argc, char const * argv [] ) {
     return EXIT_FAILURE;
 }
 
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    rc_t CC UsageSummary (const char * progname)
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC Usage ( struct Args const * args )
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC KMain ( int argc, char *argv [] )
-    {
-        SetUsage( Usage );
-        SetUsageSummary( UsageSummary );
-
-        return run ( argc, (const char**)argv );
-    }
+    VDB::Application app(argc, argv);
+    return run ( argc, app.getArgV() );
 }

@@ -24,7 +24,6 @@
 
 include_directories( ${CMAKE_SOURCE_DIR} )
 set( NGS_PILEUP_LIBS
-    kapp
     ncbi-ngs-c++
     ngs-c++
     ngs

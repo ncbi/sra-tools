@@ -288,10 +288,6 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
-#if WIN32
-    #define main wmain
-#endif
-
 int
 main( int argc, char *argv [] )
 {

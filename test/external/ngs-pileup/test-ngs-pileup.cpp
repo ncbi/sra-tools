@@ -146,19 +146,12 @@ FIXTURE_TEST_CASE ( AllReferencses, NGSPileupFixture )
 extern "C"
 {
 
-#include <kapp/args.h>
 #include <kfg/config.h>
 
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    rc_t rc=NgsPileupTestSuite(argc, argv);
-    return rc;
+    return NgsPileupTestSuite(argc, argv);
 }
 
 }

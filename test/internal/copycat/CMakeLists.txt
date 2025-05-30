@@ -25,7 +25,7 @@
 add_compile_definitions( __mod__="test/internal/copycat" )
 
 if ( ${OS} STREQUAL "linux"  )
-if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
         ToolsRequired(copycat)
 
@@ -82,7 +82,9 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
-endif()
+    else()
+        message( "libmagic was not found; skipping copycat tests" )
+    endif()
 else()
 #TODO: make run on Windows
 endif()

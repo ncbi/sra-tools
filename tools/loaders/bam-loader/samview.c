@@ -110,8 +110,11 @@ rc_t CC Usage(Args const *args)
     return 0;
 }
 
-rc_t CC KMain(int argc, char *argv[])
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     if (argc == 1) {
         samview("/dev/stdin");
         return 0;

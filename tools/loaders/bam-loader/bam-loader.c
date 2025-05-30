@@ -1309,14 +1309,17 @@ static XMLLogger const *make_logger(int *argc, char *argv[])
     return rslt;
 }
 
-rc_t CC KMain(int argc, char *argv[])
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     static const char *help[] = { "--help", "-h", "-?", NULL };
     static const char *vers[] = { "--version", "-V", NULL };
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     bool const has_help = has_arg(help, argc, argv);
     bool const has_vers = has_arg(vers, argc, argv);
     XMLLogger const *logger = NULL;
@@ -1381,5 +1384,5 @@ rc_t CC KMain(int argc, char *argv[])
     rc = main_1(arglast - argfirst, argv + argfirst, false, load);
     XMLLogger_Release(logger);
     cleanupGlobal();
-    return rc;
+    return VdbTerminate( rc );
 }

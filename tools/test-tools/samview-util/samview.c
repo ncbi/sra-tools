@@ -63,8 +63,10 @@ void samview(char const file[])
 
 const char UsageDefaultName[] = "samview-util";
 
-rc_t CC KMain(int argc, char *argv[])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     while (--argc) {
         const char * arg = *++argv;
         if ( arg [ 0 ] == '-' ) {
@@ -75,5 +77,5 @@ rc_t CC KMain(int argc, char *argv[])
         }
         samview(*argv);
     }
-    return 0;
+    return VDB_TERMINATE( 0 );
 }

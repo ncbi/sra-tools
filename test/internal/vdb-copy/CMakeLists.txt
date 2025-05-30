@@ -60,7 +60,4 @@ if( Python3_EXECUTABLE )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 	endif()
-
-else()
-    message(WARNING "${DIRTOTEST}/vdb-copy${EXE} is not found. The corresponding tests are skipped." )
 endif()

@@ -24,10 +24,6 @@
 
 add_compile_definitions( __mod__="tools/prefetch" )
 
-if (WIN32)
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-endif()
-
 set( SRC
 	kfile-no-q
 	PrfMain
@@ -36,5 +32,5 @@ set( SRC
 	PrfOutFile
 )
 
-GenerateExecutableWithDefs( prefetch "${SRC}" "" "" "ascp;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( prefetch "${SRC}" "" "" "ascp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( prefetch true )

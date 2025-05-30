@@ -203,12 +203,16 @@ multi_bark $KAR_B --extract $WORK_ACCN --directory $OUT1
 ##
 ## Forth we download data and un-kar it locally
 ##
-multi_bark $PRE_B $WORK_ACCN 2> /dev/null
+multi_bark $PRE_B $WORK_ACCN  > /dev/null
 POUT=$WORK_ACCN/${WORK_ACCN}.sra
 if [ ! -f "$POUT" ]
 then
-    echo Error: can not stat result of prefetch command $POUT >&2
-    exit 1
+    echo can not stat result of prefetch command $POUT, checking lite >&2
+    POUT=$WORK_ACCN/${WORK_ACCN}.sralite
+    if [ ! -f "$POUT" ]; then
+        echo Error: can not stat result of prefetch command $POUT >&2
+        exit 1
+    fi
 fi
 OUT2=$VOTCHINA/d2
 multi_bark $KAR_B --extract $POUT --directory $OUT2

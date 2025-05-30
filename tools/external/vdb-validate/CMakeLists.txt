@@ -31,7 +31,7 @@ set(SRC
     check-redact.c
 )
 
-set(LIBS "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+set(LIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 GenerateExecutableWithDefs( vdb-validate "${SRC}" "" "" "${LIBS}" )
 MakeLinksExe( vdb-validate false )

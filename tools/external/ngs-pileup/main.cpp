@@ -113,14 +113,16 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
+
     Args * args;
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv, 1, options, sizeof options / sizeof options [ 0 ] );
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(), 1, options, sizeof options / sizeof options[0]);
     if ( rc == 0 )
     {
         try

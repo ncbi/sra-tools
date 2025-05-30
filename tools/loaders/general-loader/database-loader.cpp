@@ -830,7 +830,7 @@ GeneralLoader :: DatabaseLoader :: MakeDatabase( uint32_t p_id )
 
                     if (rc == 0)
                     {
-                        rc = KLoaderMeta_WriteWithVersion ( node, m_programName.c_str(), __DATE__, KAppVersion(), m_softwareName.c_str(), m_softwareVersion );
+                        rc = KLoaderMeta_WriteWithVersion ( node, m_programName.c_str(), __DATE__, GetKAppVersion(), m_softwareName.c_str(), m_softwareVersion );
                         KMDataNodeRelease(node);
                     }
 

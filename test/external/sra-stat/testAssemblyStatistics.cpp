@@ -144,8 +144,7 @@ TEST_CASE ( test7 ) {
     REQUIRE_NE ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
 }
 
-extern "C" {
-    rc_t CC KMain ( int argc, char * argv [] ) {
-        return TestAssemblyStatistics ( argc, argv );
-    }
+extern "C"
+int main ( int argc, char * argv [] ) {
+    return TestAssemblyStatistics ( argc, argv );
 }

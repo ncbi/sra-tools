@@ -1,3 +1,30 @@
+/*******************************************************************************
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * =============================================================================
+ */
+
+#include <kapp/main.h>
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -53,7 +80,7 @@ class cigar_t {
                 operations . push_back( opt );
             }
         }
-        
+
         std::string to_string( void ) const {
             std::string res;
             for( const cigar_opt_t &opt : operations ) {
@@ -196,7 +223,7 @@ class cigar_t {
             while ( !done ) {
                 uint32_t merge_count = 0;
                 res = res . merge_step( &merge_count );
-                done = ( 0 == merge_count ); 
+                done = ( 0 == merge_count );
             }
             return res;
         }
@@ -222,7 +249,7 @@ int str_to_int( const std::string &s, int dflt ) {
     return dflt;
 }
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
@@ -1160,13 +1187,14 @@ class t_factory {
         }
 };
 
-extern "C"
+MAIN_DECL(argc, argv)
 {
-int KMain( int argc, char *argv[] ) {
+    VDB::Application app(argc, argv);
+
     int res = 3;
     try {
         t_proglines proglines;
-        t_progline::consume_lines( argc, argv, proglines );
+        t_progline::consume_lines( argc, app.getArgV(), proglines);
         if ( !proglines.empty() ) {
             t_errors errors;
             t_factory factory( proglines, errors );
@@ -1176,7 +1204,7 @@ int KMain( int argc, char *argv[] ) {
     } catch ( std::bad_alloc &e ) {
         std::cerr << "error: " << e.what() << std::endl;
     }
-    return res;
-}
 
+    app.setRc( res );
+    return app.getExitCode();
 }

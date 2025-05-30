@@ -325,11 +325,7 @@ TEST_CASE( ChangeDirectoryToFile )
     REQUIRE( !fp1.makeCurrentDirectory() );
 }
 
-#if WINDOWS
-static wchar_t **s_argv;
-#else
 static char **s_argv;
-#endif
 
 TEST_CASE(Current_Executable)
 {
@@ -345,11 +341,7 @@ TEST_CASE(Executable_Yes)
     REQUIRE(fp.executable());
 }
 
-#if WINDOWS
-int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
-#else
 int main(int argc, char* argv[], char *envp[])
-#endif
 {
     s_argv = argv;
     try {

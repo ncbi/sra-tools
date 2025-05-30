@@ -285,12 +285,9 @@ ViewDatabase()
 extern "C"
 {
 
-#include <kapp/args.h>
 #include <kfg/config.h>
 
-const char UsageDefaultName[] = "makedb";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
 
@@ -299,7 +296,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     {
         rc = ViewDatabase();
     }
-    return rc;
+    return (int)rc;
 }
 
 }

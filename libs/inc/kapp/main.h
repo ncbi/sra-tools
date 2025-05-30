@@ -69,3 +69,41 @@ ver_t CC KAppVersion ( void );
 #ifdef __cplusplus
 }
 #endif
+
+// use VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
+#define VDB_INITIALIZE(argc, argv, rc) do { if ( VdbInitialize( argc, argv, rc ) ) return rc; } while (0)
+#define VDB_TERMINATE(rc) VdbTerminate( rc )
+
+// BSD is defined when compiling on Mac
+// Use the MAC case below, not this one
+#if BSD && !MAC
+    #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+#endif
+
+#if MAC
+    #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[], char *apple[])
+#endif
+
+#if LINUX
+#define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+#endif
+
+#if WINDOWS
+    #if USE_WIDE_API
+
+        #ifndef __cplusplus
+            #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *wargv[], wchar_t *envp[])
+            // use this version of VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
+            #undef  VDB_INITIALIZE
+            #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
+            #undef VDB_TERMINATE 
+            #define VDB_TERMINATE(rc) (free(argv), VdbTerminate( rc ))
+        #else
+            #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+            // use VDB::Application to capture/convert/free argv
+        #endif
+
+    #else
+        #define MAIN_DECL(argc, argv) int main(int argc, char *argv[], char *envp[])
+    #endif
+#endif

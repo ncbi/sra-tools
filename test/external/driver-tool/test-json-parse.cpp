@@ -940,11 +940,7 @@ static void JSONNull_runTests() {
     LOG(8) << "All JSON null tests passed." << std::endl;
 }
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
-#else
 int main ( int argc, char *argv[], char *envp[])
-#endif
 {
     try {
         JSONBool_runTests();

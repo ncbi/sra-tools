@@ -29,7 +29,7 @@
 */
 
 #include <ktst/unit_test.hpp>
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 //#include <../libs/search/search-priv.h>
 #include <search/nucstrstr.h>
@@ -916,30 +916,11 @@ TEST_CASE ( Nucstrstr_NonPositional_4NA_Found_InMiddle )
 extern "C"
 {
 
-#include <kapp/args.h>
 #include <kfg/config.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-search";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    rc_t rc = TestSuiteSearch(argc, argv);
-    return rc;
+    return TestSuiteSearch(argc, argv);
 }
 
 } // end of extern "C"

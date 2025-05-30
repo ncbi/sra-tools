@@ -696,11 +696,13 @@ static rc_t main_with_args(Args *const args)
     return rc;
 }
 
-rc_t CC KMain(int argc, char *argv[])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-        
+
     Args *args = NULL;
     rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
                                 options, sizeof(options)/sizeof(options[0]),
@@ -714,5 +716,5 @@ rc_t CC KMain(int argc, char *argv[])
         ArgsWhack ( args );
     }
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

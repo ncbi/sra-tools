@@ -15,11 +15,11 @@ namespace kapp {
 extern "C" {
     typedef uint32_t rc_t;
     typedef uint32_t ver_t;
-    
+
     typedef struct Args Args;
 
     typedef void ( * WhackParamFnP ) (void * object);
-    typedef rc_t ( * ConvertParamFnP ) (const Args * self, uint32_t arg_index, const char * arg, 
+    typedef rc_t ( * ConvertParamFnP ) (const Args * self, uint32_t arg_index, const char * arg,
                                         std::size_t arg_len, void ** result, WhackParamFnP * whack);
 
     typedef struct OptDef {
@@ -86,11 +86,11 @@ extern "C" {
 
     rc_t ArgsAddParam ( Args * self, const ParamDef * param_def );
     rc_t ArgsAddLongParam ( Args * self, const char * param_name, const char * help_text, ConvertParamFnP opt_cvt );
-    
+
     rc_t ArgsAddParamArray ( Args * self, const ParamDef * param, uint32_t count );
     rc_t ArgsAddStandardOptions ( Args * self );
 
-    rc_t ArgsParse ( Args * self, int argc, char *argv[] );
+    rc_t ArgsParse ( Args * self, int argc, const char *argv[] );
 
     rc_t Args_tokenize_file_into_argv( const char * filename, int * argc, char *** argv );
     rc_t Args_tokenize_file_and_progname_into_argv( const char * filename, const char * progname,
@@ -122,8 +122,8 @@ extern "C" {
     rc_t ArgsHandleDebug( const Args * self );
     rc_t ArgsHandleStandardOptions( Args * self );
 
-    rc_t ArgsMakeAndHandle( Args ** pself, int argc, char ** argv, uint32_t table_count, ... );
-    rc_t ArgsMakeAndHandle2( Args ** pself, int argc, char ** argv,
+    rc_t ArgsMakeAndHandle( Args ** pself, int argc, const char ** argv, uint32_t table_count, ... );
+    rc_t ArgsMakeAndHandle2( Args ** pself, int argc, const char ** argv,
                              ParamDef * params, uint32_t param_count, uint32_t table_count, ... );
     rc_t ArgsOptionSingleString( const Args * self, const char * option, const char ** value );
     rc_t ArgsProgram( const Args * args, const char ** fullpath, const char ** progname );
@@ -188,7 +188,7 @@ class DeclaredOption {
                                        const char * params, const char * help,
                                        uint32_t max_count = 1, bool required = false,
                                        bool show_in_help = true ) {
-            return DeclaredOptionPtr( 
+            return DeclaredOptionPtr(
                 new DeclaredOption( name, short_name, params, help, max_count, required, show_in_help ) );
         }
 
@@ -272,7 +272,7 @@ class ArgsParser {
         void declare( const char * name, const char * short_name, const char * params,
                       const char * help, uint32_t max_count = 1, bool required = false,
                       bool show_in_help = true ) {
-            auto d = DeclaredOption::make( name, short_name, params, help, 
+            auto d = DeclaredOption::make( name, short_name, params, help,
                                            max_count, required, show_in_help );
             declared . push_back( d );
         }

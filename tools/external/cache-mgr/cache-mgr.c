@@ -1345,8 +1345,10 @@ static rc_t explain_no_cache_found ( void )
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
@@ -1413,6 +1415,6 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
     }
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

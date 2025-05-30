@@ -158,6 +158,8 @@ public:
         THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
         THROW_ON_RC(CommonWriterWhack( &cw ));
 
+        THROW_ON_RC( ReaderFileRelease( rf ) );
+
         // close database so that it can be reopened for inspection
         THROW_ON_RC( VDatabaseRelease(db) );
         return ret;

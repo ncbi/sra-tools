@@ -1232,7 +1232,6 @@ static rc_t on_argument( const char * path, const char * spot_group, void * data
                 
                 assert(prep.plset_iter == NULL);
                 assert(prep.db == NULL);
-                assert(prep.seq_tab == NULL);
                 assert(prep.prim_cur == NULL);
                 assert(prep.sec_cur == NULL);
                 assert(prep.ev_cur == NULL);

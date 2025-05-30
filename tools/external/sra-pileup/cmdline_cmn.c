@@ -518,28 +518,26 @@ static rc_t prepare_db_table( prepare_ctx *ctx,
                               VSchema *vdb_schema,
                               const char * path ) {
     rc_t rc;
+    VTable const *seq_tab = NULL;
 
     ReportResetObject ( path );
 
     assert(ctx->db == NULL);
     rc = VDBManagerOpenDBRead ( vdb_mgr, &ctx->db, vdb_schema, "%s", path );
     if ( rc != 0 ) {
-        assert(ctx->seq_tab == NULL);
-        rc = VDBManagerOpenTableRead ( vdb_mgr, &ctx->seq_tab, NULL, "%s", path );
+        rc = VDBManagerOpenTableRead ( vdb_mgr, &seq_tab, NULL, "%s", path );
         if ( rc != 0 ) {
             PLOGERR( klogErr, ( klogErr, rc, "failed to open '$(path)'", "path=%s", path ) );
-        } else {
-            ReportResetTable(path, ctx->seq_tab);
         }
     } else {
-        assert(ctx->seq_tab == NULL);
-        rc = VDatabaseOpenTableRead( ctx->db, &ctx->seq_tab, "SEQUENCE" );
+        rc = VDatabaseOpenTableRead( ctx->db, &seq_tab, "SEQUENCE" );
         if ( rc != 0 ) {
             LOGERR( klogInt, rc, "VDatabaseOpenTableRead( SEQUENCE ) failed" );
         } else {
             ReportResetDatabase( path, ctx->db );
         }
     }
+    VTableRelease(seq_tab); /* it is not used */
     return rc;
 }
 
@@ -590,7 +588,6 @@ rc_t prepare_ref_iter( prepare_ctx *ctx,
         }
     }
     ReferenceList_Release( ctx->reflist ); ctx->reflist = NULL;
-    VTableRelease ( ctx->seq_tab ); ctx->seq_tab = NULL;
     VDatabaseRelease ( ctx->db ); ctx->db = NULL;
     return rc;
 }

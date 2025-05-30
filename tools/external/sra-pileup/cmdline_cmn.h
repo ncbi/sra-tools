@@ -105,7 +105,6 @@ typedef struct prepare_ctx {
     ReferenceIterator *ref_iter;
     PlacementSetIterator *plset_iter;
     const VDatabase *db;
-    const VTable *seq_tab;
 
     const VCursor *prim_cur;
     const VCursor *sec_cur;

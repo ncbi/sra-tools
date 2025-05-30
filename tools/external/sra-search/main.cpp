@@ -189,7 +189,7 @@ static void handle_help ( const char * appName )
 }
 
 int
-run( int argc, const char *argv [] )
+run( int argc, char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -385,11 +385,8 @@ run( int argc, const char *argv [] )
     return rc;
 }
 
-
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    rc_t CC KMain ( int argc, char *argv [] )
-    {
-        return run ( argc, (const char**)argv );
-    }
+    VDB::Application app(argc, argv);
+    return run ( argc, app.getArgV());
 }

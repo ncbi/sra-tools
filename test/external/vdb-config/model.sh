@@ -5,7 +5,7 @@ test_bin=$1
 echo "testing ${test_bin}"
 
 output=$(NCBI_SETTINGS=$(pwd)/tmp/u \
-	${test_bin} ; \
+	${test_bin} && \
 	rm -r $(pwd)/tmp)
 
 res=$?

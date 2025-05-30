@@ -897,8 +897,10 @@ rc_t WriteSoftwareVersionsMeta(SRATable* table, const char *argv0, uint32_t fe_v
     return rc;
 }
 
-rc_t KMain(int argc, char *argv[])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = 0, lastRc = 0;
 
     TArgs *args = NULL;
@@ -911,7 +913,7 @@ rc_t KMain(int argc, char *argv[])
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     /* Initialize statics */
     if (rc == 0) {
         rc = KDirectoryNativeDir(&s_Directory);
@@ -1143,5 +1145,5 @@ rc_t KMain(int argc, char *argv[])
     KDirectoryRelease(s_Directory);
     KXMLMgrRelease(s_XmlMgr);
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

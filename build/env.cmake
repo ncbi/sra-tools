@@ -748,8 +748,8 @@ else()
 endif()
 
 if( WIN32 )
-    add_compile_definitions( UNICODE _UNICODE )
-   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
+    add_compile_definitions( UNICODE _UNICODE USE_WIDE_API )
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()
@@ -830,6 +830,10 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
 
     # always link as c++
     set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE CXX)
+    if( WIN32 )
+        target_link_options( ${target_name} PRIVATE "/ENTRY:wmainCRTStartup" )
+        target_compile_definitions( ${target_name} PRIVATE UNICODE _UNICODE USE_WIDE_API )
+    endif()
 
     if (RUN_SANITIZER_TESTS)
         add_executable( "${target_name}-asan" ${sources} )
@@ -868,6 +872,10 @@ endfunction()
 
 function( AddExecutableTest test_name sources libraries include_dirs )
 	GenerateExecutableWithDefs( "${test_name}" "${sources}" "" "${include_dirs}" "${libraries}" )
+    if( WIN32 )
+        target_link_options( ${test_name} PRIVATE "/ENTRY:mainCRTStartup" )
+    endif()
+
 	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( RUN_SANITIZER_TESTS )
 		add_test( NAME "${test_name}-asan" COMMAND "${test_name}-asan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

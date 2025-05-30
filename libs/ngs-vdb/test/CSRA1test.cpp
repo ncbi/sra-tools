@@ -29,8 +29,9 @@
 */
 
 #include "ngsfixture.hpp"
-#include <stdint.h>
+#include <kapp/main.h>
 
+#include <stdint.h>
 #include <sstream>
 
 using namespace std;
@@ -1081,38 +1082,13 @@ FIXTURE_TEST_CASE(CSRA1_ReadGroupIterator_AfterNext, CSRA1_Fixture)
 
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kapp/args.h>
-#include <kfg/config.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_csra1-c++";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[]) 
 {
 const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";
     KConfigDisableUserSettings();
-    rc_t rc=NgsCsra1CppTestSuite(argc, argv);
+    int rc=NgsCsra1CppTestSuite(argc, argv);
 
     NgsFixture::ReleaseCache();
     return rc;
 }
-
-}
-

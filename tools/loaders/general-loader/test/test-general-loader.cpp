@@ -636,7 +636,7 @@ FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
     REQUIRE_EQ ( string ( __DATE__), GetDbMetadataAttr ( m_db, "SOFTWARE/loader", "date" ) );
     {
         char buf[265];
-        string_printf ( buf, sizeof buf, NULL, "%V", KAppVersion() ); // same format as in ncbi-vdb/libs/kapp/loader-meta.c:MakeVersion()
+        string_printf ( buf, sizeof buf, NULL, "%V", GetKAppVersion() ); // same format as in ncbi-vdb/libs/kapp/loader-meta.c:MakeVersion()
         REQUIRE_EQ ( string ( buf ), GetDbMetadataAttr ( m_db, "SOFTWARE/loader", "vers" ) );
     }
 }
@@ -1767,26 +1767,9 @@ FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
 extern "C"
 {
 
-#include <kapp/args.h>
 #include <kfg/config.h>
 
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-general-loader";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
 //    TestEnv::verbosity = LogLevel::e_all;
     KConfigDisableUserSettings();
@@ -1797,7 +1780,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     TestSource::packed = false;
     cerr << "Unpacked protocol: ";
-    rc_t rc = GeneralLoaderTestSuite(argc, argv);
+    int rc = GeneralLoaderTestSuite(argc, argv);
     if ( rc == 0 )
     {
         ClearScratchDir();

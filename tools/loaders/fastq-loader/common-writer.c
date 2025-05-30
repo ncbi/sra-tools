@@ -695,12 +695,11 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             }
         }
 
-        // if no more readers left, signal to the caller that we are done
-        if ( ! self->reader1_active && ! self->reader2_active )
-        {
+        // if no more readers left, we are done
+        if ( fileDone && ! self->reader1_active && ! self->reader2_active )
+        {   
             break;
         }
-        // otherwise, proceed with the remaining reader
     }
     KQueueSeal(self->que);
     return rc;
@@ -732,10 +731,9 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
 
         TimeoutInit(&tm, 10000);
         rslt.u.error.rc = KQueuePop(self->que, &rr, &tm);
-        if (rslt.u.error.rc == 0)
-            memmove(&rslt, rr, sizeof(rslt));
-        free(rr);
         if (rslt.u.error.rc == 0) {
+            memmove(&rslt, rr, sizeof(rslt));
+            free(rr);
             if (rslt.type == rr_done)
                 goto DONE;
             return rslt;

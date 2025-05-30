@@ -162,7 +162,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeParams, ArgsFixture)
     argv[4] = "3";
     argv[5] = "4";
 
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     uint32_t param_count;
     uint32_t ix;
@@ -190,7 +190,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeParamsConvAppend, ArgsFixture)
     argv[1] = "abcd";
 
     REQUIRE_RC(ArgsAddParamArray (args, Parameters, sizeof Parameters / sizeof Parameters[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const char * value;
@@ -220,7 +220,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions, ArgsFixture)
     argv[2] = "abcd";
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const char * value;
@@ -253,7 +253,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptionsConversion, ArgsFixture)
     rmdir(argv[2]);
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     {
         const KFile * file;
@@ -295,7 +295,7 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
     argv[2] = input.c_str();
 
     REQUIRE_RC(ArgsAddOptionArray (args, Options, sizeof Options / sizeof Options[0]));
-    REQUIRE_RC(ArgsParse (args, argc, (char**)argv));
+    REQUIRE_RC(ArgsParse (args, argc, argv));
 
     const char * file;
 
@@ -307,29 +307,9 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
 
 //////////////////////////////////////////// Main
 
-extern "C"
+MAIN_DECL(argc, argv)
 {
-
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-rc_t CC KMain ( int argc, char *argv [] )
-{
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    return (rc_t)KAppTestSuite(argc, argv);
-}
-
+    return KAppTestSuite(argc, app.getArgV());
 }

@@ -698,8 +698,10 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
     return 0;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
+
     XMLLogger const *xlogger = NULL;
     Args * args;
     rc_t rc;
@@ -708,7 +710,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     KLogLevelSet(klogInfo);
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
+    rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2, Options,
                             sizeof (Options) / sizeof (Options[0]),
                             XMLLogger_Args, XMLLogger_ArgsQty);
     if (rc)
@@ -758,7 +760,8 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
         ArgsWhack ( args );
     }
-    return rc != 0 || any_failed ? 1 : 0;
+    app.setRc( rc );
+    return app.getExitCode();
 }
 
 }

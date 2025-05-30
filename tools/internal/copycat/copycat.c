@@ -924,11 +924,11 @@ void param_whack (void * path, void * ignored)
     (void)VPathRelease ((const VPath*)path);
 }
 
-/* KMain
- */
-
-rc_t KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+         return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc, orc;
 
@@ -1252,6 +1252,6 @@ rc_t KMain ( int argc, char *argv [] )
             rc = orc;
     }
     DEBUG_STATUS(("%s: exit rc %R(%x);\n", __func__, rc, rc));
-    return rc;
+    return VdbTerminate( rc );
 }
 

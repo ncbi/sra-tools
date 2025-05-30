@@ -390,8 +390,11 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
     }
 }
 
-rc_t CC KMain (int argc, char * argv[])
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc;
     char *files[256];
@@ -408,7 +411,7 @@ rc_t CC KMain (int argc, char * argv[])
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     memset(&G, 0, sizeof(G));
 
     G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
@@ -692,5 +695,5 @@ rc_t CC KMain (int argc, char * argv[])
     }
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return rc;
+    return VdbTerminate( rc );
 }

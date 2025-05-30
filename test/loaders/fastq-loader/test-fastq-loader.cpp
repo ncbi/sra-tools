@@ -158,6 +158,8 @@ public:
         THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
         THROW_ON_RC(CommonWriterWhack( &cw ));
 
+        THROW_ON_RC( ReaderFileRelease( rf ) );
+
         // close database so that it can be reopened for inspection
         THROW_ON_RC( VDatabaseRelease(db) );
         return ret;
@@ -382,30 +384,10 @@ FIXTURE_TEST_CASE(Interleaved_2_longer, TempFileFixture)
 }
 
 //////////////////////////////////////////// Main
-#include <kapp/args.h>
 #include <kfg/config.h>
 
 extern "C"
-{
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-
-const char UsageDefaultName[] = "test-fastq-loader";
-
-rc_t CC UsageSummary (const char * progname)
-{
-    return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );
-}
-
-rc_t CC Usage( const Args* args )
-{
-    return 0;
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
 
@@ -419,13 +401,11 @@ rc_t CC KMain ( int argc, char *argv [] )
     if (rc == 0)
         rc = KConfigMake ( &cfg, dir ) ;
     if (rc == 0)
-        rc=LoaderFastqTestSuite(argc, argv);
+        rc=(rc_t)LoaderFastqTestSuite(argc, argv);
 
     KConfigRelease(cfg);
     KDirectoryRelease(dir);
     KDirectoryRelease(native);
 
-    return rc;
-}
-
+    return (int)rc;
 }

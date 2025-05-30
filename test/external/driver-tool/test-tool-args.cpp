@@ -111,10 +111,6 @@ TEST_CASE( ParseArgs )
 
 //TODO: more tests
 
-#if WIN32
-#define main wmain
-#endif
-
 int main ( int argc, char *argv [] )
 {
     try {

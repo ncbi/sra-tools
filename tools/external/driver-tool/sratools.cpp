@@ -395,7 +395,7 @@ static void do_sratools [[noreturn]] (CommandLine const &argv)
 
         if (arg == "help")
             printHelp(true);
-        
+
         if (arg == "print-argbits") {
             printParameterBitmasks(std::cout);
             exit(EXIT_SUCCESS);
@@ -471,7 +471,7 @@ static int main(CommandLine const &argv)
         parsed.each("debug", [](Argument const &arg) {
             KDbgSetString(arg.argument);
         });
-#endif        
+#endif
 
         // MARK: Check for special parameters that trigger immediate tool execution.
         if (parsed.any("help"))

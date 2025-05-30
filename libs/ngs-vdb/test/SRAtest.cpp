@@ -30,6 +30,8 @@
 
 #include "ngsfixture.hpp"
 
+#include <kapp/main.h>
+
 using namespace std;
 using namespace ncbi::NK;
 
@@ -421,40 +423,15 @@ FIXTURE_TEST_CASE(SRA_AlignmentIterator_Next, SRAFixture)
 /////TODO: ReadGroupIterator
 
 //////////////////////////////////////////// Main
-extern "C"
+int main(int argc, char* argv[])
 {
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_sra-c++";
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
-/*const char * p = getenv("http_proxy");
+    /*const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";*/
     KConfigDisableUserSettings();
 
     putenv((char*)"NCBI_VDB_QUALITY=R");
 
-    rc_t rc=NgsSraCppTestSuite(argc, argv);
+    int rc=NgsSraCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();
     return rc;
 }
-
-}
-
-

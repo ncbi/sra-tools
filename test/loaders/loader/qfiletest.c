@@ -266,7 +266,7 @@ static rc_t perform_test( const KDirectory *dir, const char * filename,
 }
 
 
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     Args * args;
 
@@ -336,5 +336,5 @@ rc_t CC KMain ( int argc, char *argv [] )
         ArgsWhack ( args );
     }
 
-    return rc;
+    return (int)rc;
 }

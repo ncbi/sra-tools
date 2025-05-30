@@ -32,7 +32,7 @@
 
 #include <ktst/unit_test.hpp>
 
-#include <stdexcept> 
+#include <stdexcept>
 #include <string>
 
 #include <klib/rc.h>
@@ -258,7 +258,7 @@ static void calc_coverage_using_ngs( ngs::String acc, ngs::String refname,
             }
         }
     }
-    
+
     catch ( ngs::ErrorMsg & e ) {
         cerr << "Error: " << e . toString () << endl;
     }
@@ -281,9 +281,9 @@ TEST_SUITE( PileupEstimatorTestSuite );
 TEST_CASE ( Estimator_1 )
 {
     std::cout << "Estimator-Test #1 ( estimator vs. ref_iter ) " << std::endl;
-    
+
     uint64_t res1 = 0;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
@@ -291,30 +291,30 @@ TEST_CASE ( Estimator_1 )
     {
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, &res1 );
         REQUIRE_RC( rc );
-        
+
         //std::cout << "result ( using RunPileupEstimator ) : " << res1 << std::endl;
-        
+
         rc = ReleasePileupEstimator( estim );
         REQUIRE_RC( rc );
     }
-    
+
     uint64_t res2 = 0;
-    
+
     rc = calc_coverage_sum_using_ref_iter( ACC1, ACC1_REF, slice1_start, slice1_len, &res2 );
     REQUIRE_RC( rc );
 
-    //std::cout << "result ( using ReferenceIterator ) : " << res2 << std::endl;    
-    
+    //std::cout << "result ( using ReferenceIterator ) : " << res2 << std::endl;
+
     REQUIRE_EQUAL( res1, res2 );
 }
 
 TEST_CASE ( Estimator_2 )
 {
     std::cout << "Estimator-Test #2 ( no sources and no cursors )" << std::endl;
-    
+
     // MakePileupEstimator has to fail when source and the cursors are NULL
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, NULL, 0, NULL, NULL, 0, false );
@@ -324,7 +324,7 @@ TEST_CASE ( Estimator_2 )
 TEST_CASE ( Estimator_3 )
 {
     std::cout << "Estimator-Test #3 ( no self-ptr )" << std::endl;
-        
+
     // MakePileupEstimator has to fail when given a NULL-ptr as *self
     rc_t rc = MakePileupEstimator( NULL, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC_FAIL( rc );
@@ -373,7 +373,7 @@ TEST_CASE ( Estimator_4 )
         {
             const VCursor * prim_curs;
             rc = make_cursor( db, &prim_curs, "PRIMARY_ALIGNMENT", 2, "REF_POS", "REF_LEN" );
-            REQUIRE_RC( rc );    
+            REQUIRE_RC( rc );
             if ( rc == 0 )
             {
                 const VCursor * ref_curs;
@@ -387,19 +387,19 @@ TEST_CASE ( Estimator_4 )
                     if ( rc == 0 )
                     {
                         uint64_t res = 0;
-                        
+
                         String rname;
                         StringInitCString( &rname, ACC1_REF );
-                        
+
                         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, &res );
                         REQUIRE_RC( rc );
-                        
+
                         //std::cout << "result: " << res << std::endl;
-                        
+
                         rc = ReleasePileupEstimator( estim );
                         REQUIRE_RC( rc );
                     }
-                    VCursorRelease( ref_curs );    
+                    VCursorRelease( ref_curs );
                 }
                 VCursorRelease( prim_curs );
             }
@@ -425,7 +425,7 @@ TEST_CASE ( Estimator_5 )
         {
             const VCursor * prim_curs;
             rc = make_cursor( db, &prim_curs, "PRIMARY_ALIGNMENT", 1, "REF_POS" );
-            REQUIRE_RC( rc );    
+            REQUIRE_RC( rc );
             if ( rc == 0 )
             {
                 const VCursor * ref_curs;
@@ -438,7 +438,7 @@ TEST_CASE ( Estimator_5 )
                     REQUIRE_RC_FAIL( rc );
                     if ( rc == 0 )
                         ReleasePileupEstimator( estim );
-                    VCursorRelease( ref_curs );    
+                    VCursorRelease( ref_curs );
                 }
                 VCursorRelease( prim_curs );
             }
@@ -463,7 +463,7 @@ TEST_CASE ( Estimator_6 )
         {
             const VCursor * prim_curs;
             rc = make_cursor( db, &prim_curs, "PRIMARY_ALIGNMENT", 2, "REF_POS", "REF_LEN" );
-            REQUIRE_RC( rc );    
+            REQUIRE_RC( rc );
             if ( rc == 0 )
             {
                 const VCursor * ref_curs;
@@ -476,7 +476,7 @@ TEST_CASE ( Estimator_6 )
                     REQUIRE_RC_FAIL( rc );
                     if ( rc == 0 )
                         ReleasePileupEstimator( estim );
-                    VCursorRelease( ref_curs );    
+                    VCursorRelease( ref_curs );
                 }
                 VCursorRelease( prim_curs );
             }
@@ -510,19 +510,19 @@ TEST_CASE ( Estimator_7 )
                 if ( rc == 0 )
                 {
                     uint64_t res = 0;
-                    
+
                     String rname;
                     StringInitCString( &rname, ACC1_REF );
-                    
+
                     rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, &res );
                     REQUIRE_RC( rc );
-                    
+
                     //std::cout << "result: " << res << std::endl;
-                    
+
                     rc = ReleasePileupEstimator( estim );
                     REQUIRE_RC( rc );
                 }
-                VCursorRelease( ref_curs );    
+                VCursorRelease( ref_curs );
             }
             VDatabaseRelease( db );
         }
@@ -545,7 +545,7 @@ TEST_CASE ( Estimator_8 )
         {
             const VCursor * prim_curs;
             rc = make_cursor( db, &prim_curs, "PRIMARY_ALIGNMENT", 2, "REF_POS", "REF_LEN" );
-            REQUIRE_RC( rc );    
+            REQUIRE_RC( rc );
             if ( rc == 0 )
             {
                 struct PileupEstimator * estim;
@@ -554,15 +554,15 @@ TEST_CASE ( Estimator_8 )
                 if ( rc == 0 )
                 {
                     uint64_t res = 0;
-                    
+
                     String rname;
                     StringInitCString( &rname, ACC1_REF );
-                    
+
                     rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, &res );
                     REQUIRE_RC( rc );
-                    
+
                     //std::cout << "result: " << res << std::endl;
-                    
+
                     rc = ReleasePileupEstimator( estim );
                     REQUIRE_RC( rc );
                 }
@@ -577,14 +577,14 @@ TEST_CASE ( Estimator_8 )
 TEST_CASE ( Estimator_9 )
 {
     std::cout << "Estimator-Test #9 ( reference-name missing )" << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
     if ( rc == 0 )
     {
         uint64_t res = 0;
-        
+
         rc = RunPileupEstimator( estim, NULL, slice1_start, slice1_len, &res );
         REQUIRE_RC_FAIL( rc );
         if ( rc == 0 )
@@ -595,7 +595,7 @@ TEST_CASE ( Estimator_9 )
 TEST_CASE ( Estimator_10 )
 {
     std::cout << "Estimator-Test #10 ( slice-length is zero )" << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
@@ -605,7 +605,7 @@ TEST_CASE ( Estimator_10 )
 
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start, 0, &res );
         REQUIRE_RC_FAIL( rc );
         if ( rc == 0 )
@@ -616,7 +616,7 @@ TEST_CASE ( Estimator_10 )
 TEST_CASE ( Estimator_11 )
 {
     std::cout << "Estimator-Test #11 ( slice-start beyond end of reference )" << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
@@ -626,7 +626,7 @@ TEST_CASE ( Estimator_11 )
 
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start * 2, slice1_len, &res );
         REQUIRE_RC_FAIL( rc );
         if ( rc == 0 )
@@ -637,7 +637,7 @@ TEST_CASE ( Estimator_11 )
 TEST_CASE ( Estimator_12 )
 {
     std::cout << "Estimator-Test #12 ( slice-length beyond end of reference )" << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
@@ -647,7 +647,7 @@ TEST_CASE ( Estimator_12 )
 
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len * 100000, &res );
         REQUIRE_RC_FAIL( rc );
         if ( rc == 0 )
@@ -658,7 +658,7 @@ TEST_CASE ( Estimator_12 )
 TEST_CASE ( Estimator_13 )
 {
     std::cout << "Estimator-Test #13 ( result-ptr missing )" << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC1, 0, NULL, NULL, 0, false );
     REQUIRE_RC( rc );
@@ -666,7 +666,7 @@ TEST_CASE ( Estimator_13 )
     {
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, NULL );
         REQUIRE_RC_FAIL( rc );
         if ( rc == 0 )
@@ -682,27 +682,27 @@ const uint32_t slice2_len   = 1000;
 TEST_CASE ( Estimator_14 )
 {
     std::cout << "Estimator-Test #14 ( cutoff-value on expensive accession ) " << std::endl;
-    
+
     struct PileupEstimator * estim;
     rc_t rc = MakePileupEstimator( &estim, ACC2, 0, NULL, NULL, 1000000, false );
     REQUIRE_RC( rc );
     if ( rc == 0 )
     {
 		uint64_t res = 0;
-		
+
         String rname;
         StringInitCString( &rname, ACC2_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice2_start, slice2_len, &res );
         REQUIRE_RC( rc );
-        
+
         //std::cout << "result: " << res << std::endl;
-     
+
 		REQUIRE_EQUAL( res, std::numeric_limits<uint64_t>::max() );
-	 
+
         rc = ReleasePileupEstimator( estim );
         REQUIRE_RC( rc );
-    } 
+    }
 }
 
 TEST_CASE ( Estimator_15 )
@@ -715,10 +715,10 @@ TEST_CASE ( Estimator_15 )
     if ( rc == 0 )
     {
 		uint64_t res = 0;
-		
+
         String rname;
         StringInitCString( &rname, ACC1_REF );
-        
+
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, &res );
         REQUIRE_RC( rc );
         //std::cout << "result: " << res << std::endl;
@@ -734,10 +734,10 @@ TEST_CASE ( Estimator_15 )
         rc = RunPileupEstimator( estim, &rname, slice1_start + 6000, slice1_len, &res );
         REQUIRE_RC( rc );
         //std::cout << "result: " << res << std::endl;
- 
+
         rc = ReleasePileupEstimator( estim );
         REQUIRE_RC( rc );
-    } 
+    }
 }
 
 const char * ACC3 = "SRR543323";
@@ -759,19 +759,19 @@ TEST_CASE ( Estimator_16 )
         uint32_t * coverage2 = ( uint32_t * )calloc( slice3_len, sizeof * coverage2 );
         uint32_t depths1[ max_depth ];
         uint32_t depths2[ max_depth ];
-        
+
         memset( depths1, 0, sizeof depths1 );
         memset( depths2, 0, sizeof depths2 );
-        
+
         String rname;
         StringInitCString( &rname, ACC3_REF );
-        
+
         rc = RunCoverage( estim, &rname, slice3_start, slice3_len, coverage1 );
         REQUIRE_RC( rc );
 
         rc = calc_coverage_using_ref_iter( ACC3, ACC3_REF, slice3_start, slice3_len, coverage2 );
         REQUIRE_RC( rc );
-        
+
         uint32_t differences1 = 0;
         for ( uint32_t pos = 0; pos < slice3_len; pos++ )
         {
@@ -780,7 +780,7 @@ TEST_CASE ( Estimator_16 )
                 std::cout << ( slice3_start + pos ) << " : " << coverage1[ pos ] << " , " << coverage2[ pos ] << std::endl;
                 differences1++;
             }
-            
+
             if ( coverage1[ pos ] >= max_depth )
                 depths1[ max_depth - 1 ] += 1;
             else
@@ -790,10 +790,10 @@ TEST_CASE ( Estimator_16 )
                 depths2[ max_depth - 1 ] += 1;
             else
                 depths2[ coverage2[ pos ] ] += 1;
-                
+
         }
-        
-        uint32_t differences2 = 0;        
+
+        uint32_t differences2 = 0;
         for ( uint32_t pos = 0; pos < max_depth; pos++ )
         {
             if ( depths1[ pos ] != depths2[ pos ] )
@@ -802,16 +802,16 @@ TEST_CASE ( Estimator_16 )
                 differences2++;
             }
         }
-        
+
         REQUIRE_EQUAL( differences1, (uint32_t)0 );
         REQUIRE_EQUAL( differences2, (uint32_t)0 );
-        
+
         rc = ReleasePileupEstimator( estim );
         REQUIRE_RC( rc );
-        
+
         free( ( void * ) coverage1 );
         free( ( void * ) coverage2 );
-    } 
+    }
 }
 
 
@@ -828,18 +828,18 @@ TEST_CASE ( Estimator_17 )
         uint32_t * coverage2 = ( uint32_t * )calloc( slice3_len, sizeof * coverage2 );
         uint32_t depths1[ max_depth ];
         uint32_t depths2[ max_depth ];
-        
+
         memset( depths1, 0, sizeof depths1 );
         memset( depths2, 0, sizeof depths2 );
-        
+
         String rname;
         StringInitCString( &rname, ACC3_REF );
-        
+
         rc = RunCoverage( estim, &rname, slice3_start, slice3_len, coverage1 );
         REQUIRE_RC( rc );
 
         calc_coverage_using_ngs( ACC3, ACC3_REF, slice3_start, slice3_len, coverage2 );
-        
+
         uint32_t differences1 = 0;
         for ( uint32_t pos = 0; pos < slice3_len; pos++ )
         {
@@ -848,7 +848,7 @@ TEST_CASE ( Estimator_17 )
                 std::cout << ( slice3_start + pos ) << " : " << coverage1[ pos ] << " , " << coverage2[ pos ] << std::endl;
                 differences1++;
             }
-            
+
             if ( coverage1[ pos ] >= max_depth )
                 depths1[ max_depth - 1 ] += 1;
             else
@@ -858,10 +858,10 @@ TEST_CASE ( Estimator_17 )
                 depths2[ max_depth - 1 ] += 1;
             else
                 depths2[ coverage2[ pos ] ] += 1;
-                
+
         }
-        
-        uint32_t differences2 = 0;        
+
+        uint32_t differences2 = 0;
         for ( uint32_t pos = 0; pos < max_depth; pos++ )
         {
             if ( depths1[ pos ] != depths2[ pos ] )
@@ -870,17 +870,17 @@ TEST_CASE ( Estimator_17 )
                 differences2++;
             }
         }
-        
+
         REQUIRE_EQUAL( differences1, (uint32_t)0 );
         REQUIRE_EQUAL( differences2, (uint32_t)0 );
-        
+
         rc = ReleasePileupEstimator( estim );
         REQUIRE_RC( rc );
-        
+
         free( ( void * ) coverage1 );
         free( ( void * ) coverage2 );
-    } 
-   
+    }
+
 }
 
 
@@ -895,55 +895,55 @@ TEST_CASE ( Estimator_18 )
     const VDBManager *mgr;
     rc = VDBManagerMakeRead( &mgr, NULL );
     REQUIRE_RC( rc );
-    
+
     rc = ReferenceList_MakePath( &reflist, mgr, ACC3, ereferencelist_usePrimaryIds, 0, NULL, 0 );
     REQUIRE_RC( rc );
-    
+
     uint32_t count1, count2;
     rc = EstimatorRefCount( estim, &count1 );
     REQUIRE_RC( rc );
-    
+
     rc = ReferenceList_Count( reflist, &count2 );
-    REQUIRE_RC( rc );    
-    
-    REQUIRE_EQUAL( count1, count2 );    
+    REQUIRE_RC( rc );
+
+    REQUIRE_EQUAL( count1, count2 );
     std::cout << "count1 : " << count1 << "  count2 : " << count2 << std::endl;
-    
+
     for ( uint32_t idx = 0; rc == 0 && idx < count1; ++idx )
     {
         String refname;
         uint64_t reflen;
-        
+
         rc = EstimatorRefInfo( estim, idx, &refname, &reflen );
         REQUIRE_RC( rc );
-        
+
         const ReferenceObj *refobj;
-        rc = ReferenceList_Get( reflist, &refobj, idx );        
+        rc = ReferenceList_Get( reflist, &refobj, idx );
         REQUIRE_RC( rc );
-        
+
         const char * seqid;
         rc = ReferenceObj_SeqId( refobj, &seqid );
         REQUIRE_RC( rc );
-        
+
         String SeqId;
         StringInitCString( &SeqId, seqid );
-        
+
         int cmp = StringCompare( &refname, &SeqId );
         REQUIRE_EQUAL( cmp, (int)0 );
-        
+
         INSDC_coord_len seqlen;
         rc = ReferenceObj_SeqLength( refobj, &seqlen );
         REQUIRE_RC( rc );
         REQUIRE_EQUAL( (uint64_t)seqlen, reflen );
-        
+
         ReferenceObj_Release( refobj );
-        //std::cout << " [" << idx << "] : " << refname.addr << " . " << reflen << std::endl;    
+        //std::cout << " [" << idx << "] : " << refname.addr << " . " << reflen << std::endl;
     }
-    
+
     ReferenceList_Release( reflist ); // has no return-value!
     rc = VDBManagerRelease( mgr );
     REQUIRE_RC( rc );
-    
+
     rc = ReleasePileupEstimator( estim );
     REQUIRE_RC( rc );
 }
@@ -955,29 +955,7 @@ TEST_CASE ( Estimator_18 )
 #include <kfg/config.h>
 
 extern "C"
-{
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-
-const char UsageDefaultName[] = "test-estimator";
-
-rc_t CC UsageSummary (const char * progname)
-{
-    return KOutMsg ( "Usage:\n" "\t%s [options]\n\n", progname );
-}
-
-rc_t CC Usage( const Args* args )
-{
-    return 0;
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     return PileupEstimatorTestSuite( argc, argv );
 }
-
-}
-

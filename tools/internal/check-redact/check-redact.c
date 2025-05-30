@@ -480,8 +480,10 @@ static rc_t write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *n
     return 0;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
 
     SetUsage( Usage );
@@ -503,5 +505,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

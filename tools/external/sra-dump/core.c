@@ -964,11 +964,10 @@ static bool database_contains_table_name( const VDBManager * vmgr, const char * 
 
 static const char * consensus_table_name = "CONSENSUS";
 
-/*******************************************************************************
- * KMain - defined for use with kapp library
- *******************************************************************************/
-rc_t CC KMain ( int argc, char* argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     int i;
     const char* arg;
@@ -1004,7 +1003,7 @@ rc_t CC KMain ( int argc, char* argv[] )
     /* for the fasta-ouput of fastq-dump: branch out completely of 'common' code */
     if ( fasta_dump_requested( argc, argv ) )
     {
-        return fasta_dump( argc, argv );
+        return VdbTerminate( fasta_dump( argc, argv ) );
     }
 
     /* Prepare for the worst: report this information after disaster */
@@ -1750,5 +1749,5 @@ Catch:
             rc = rc2;
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

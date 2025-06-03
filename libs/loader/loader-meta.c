@@ -47,7 +47,7 @@ LIB_EXPORT rc_t CC KLoaderMeta_Write(KMDataNode* root,
                                      const char* argv0, const char* argv0_date,
                                      const char* app_name, ver_t app_version)
 {
-    return KLoaderMeta_WriteWithVersion ( root, argv0, argv0_date, KAppVersion(), app_name, app_version );
+    return KLoaderMeta_WriteWithVersion ( root, argv0, argv0_date, GetKAppVersion(), app_name, app_version );
 }
 
 rc_t CC KLoaderMeta_WriteWithVersion(struct KMDataNode* root,

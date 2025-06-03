@@ -200,8 +200,10 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-rc_t CC KMain (int argc, char * argv [])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args *args;
     rc_t rc;
 
@@ -271,5 +273,5 @@ rc_t CC KMain (int argc, char * argv [])
         } while (0);
     }
 
-    return 0;
+    return VDB_TERMINATE( 0 );
 }

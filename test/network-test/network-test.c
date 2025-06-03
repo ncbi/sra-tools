@@ -63,7 +63,7 @@ rc_t CC Usage ( const Args * args )
         progname = fullpath = UsageDefaultName;
 
     UsageSummary ( progname );
-	
+
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion() );
 
@@ -90,8 +90,10 @@ static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t
     return 0;
 }
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc == 0 )
 	{
@@ -100,6 +102,7 @@ rc_t CC KMain( int argc, char *argv [] )
 		else
 			rc = perfrom_network_test( argv[ 1 ] );
 	}
-    return rc;
+
+    return VDB_TERMINATE( rc );
 }
 

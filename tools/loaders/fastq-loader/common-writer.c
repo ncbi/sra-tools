@@ -630,8 +630,9 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 self->cur_reader,
                 &self->reccount
             );
+        bool fileDone = rr->type == rr_fileDone;
 
-        while ( Quitting() == 0  && rr->type != rr_fileDone )
+        while ( Quitting() == 0  && ! fileDone )
         {
             timeout_t tm;
             TimeoutInit(&tm, 10000);
@@ -646,6 +647,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             }
             break;
         }
+
         if ( rc != 0 )
         {   // KQueuePush failed
             free(rr);
@@ -660,7 +662,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 break;
             }
         }
-        else if (rr->type == rr_fileDone)
+        else if (fileDone)
         {
             /* normal exit from an end of file */
             (void)LOGMSG(klogDebug, "readThread: end of file");
@@ -674,6 +676,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 assert( self->cur_reader == self -> reader2 );
                 self->reader2_active = false;
             }
+            free(rr);
         }
 
         // switch to the other reader if necessary
@@ -692,17 +695,10 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             }
         }
 
-        if ( rr->type == rr_fileDone )
-        {   // if no more readers left, signal to the caller that we are done
-            if ( ! self->reader1_active && ! self->reader2_active )
-            {
-                rr->type = rr_done;
-                break;
-            }
-            else
-            {   // proceed with the remaining reader
-                continue;
-            }
+        // if no more readers left, we are done
+        if ( fileDone && ! self->reader1_active && ! self->reader2_active )
+        {   
+            break;
         }
     }
     KQueueSeal(self->que);
@@ -972,6 +968,10 @@ HandleSequence( const struct ReadResult * rr,
                         PLOGERR(klogErr, (klogErr, rc,
                             "Duplicate read name '$(name)'",
                             "name=%s", name));
+                        if (freeFip) {
+                            free(fip);
+                            frag->data = NULL;
+                        }                            
                         return rc;
                     }
                 }

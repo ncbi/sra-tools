@@ -22,7 +22,7 @@
 *
 * =========================================================================== */
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <kfs/file.h> /* KFileRelease */
 
@@ -564,7 +564,10 @@ static rc_t DoStream ( const Do * self, const char * url ) {
     return rc;
 }
 
-rc_t CC KMain ( int argc, char * argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = 0;
     Args * args = NULL;
     uint32_t argCount = 0, i = 0;
@@ -664,5 +667,5 @@ rc_t CC KMain ( int argc, char * argv [] ) {
 
     STSMSG ( STAT_USR, ( "Done with %R", rc ) );
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

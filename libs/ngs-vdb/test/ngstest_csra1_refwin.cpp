@@ -31,6 +31,7 @@
 #include "ngs_c_fixture.hpp"
 
 #include <kapp/args.h> /* Args */
+#include <kapp/main.h>
 
 #include <kdb/manager.h>
 
@@ -804,34 +805,10 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceWindow_PrintEmAll_1, CSRA1_Fixture)
 }
 #endif
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_csra1_refwin";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[])
 {
     KConfigDisableUserSettings();
-    rc_t ret=NgsCsra1RefWinTestSuite(argc, argv);
+    int ret=NgsCsra1RefWinTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;
 }
-
-}
-

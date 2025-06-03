@@ -866,13 +866,16 @@ static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_na
 
 /* ============================================================================================ */
 
-rc_t CC KMain ( int argc, char *argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( 0 != rc ) {
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
@@ -953,7 +956,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         }
 		ArgsWhack( args );
     }
-	
+
     hlp_unread_rc_info( false );
 
     {
@@ -964,5 +967,5 @@ rc_t CC KMain ( int argc, char *argv [] ) {
 
     hlp_unread_rc_info( false );
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

@@ -28,17 +28,16 @@ else()
     set( ADDITIONAL_LIBS "" )
 endif()
 
-AddExecutableTest( Test_KAPP_args "kapp-test" "ktst;kapp;${COMMON_LIBS_WRITE};${ADDITIONAL_LIBS}" "" )
+GenerateExecutableWithDefs( Test_KAPP_args "kapp-test" "" "" "ktst;kapp;${COMMON_LIBS_WRITE};${ADDITIONAL_LIBS}" )
 if( WIN32 )
+    # will be testing wide character path conversion; use wmain()
     target_link_options( Test_KAPP_args PRIVATE "/ENTRY:wmainCRTStartup" )
 endif()
+add_test( NAME Test_KAPP_args COMMAND Test_KAPP_args WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 if ( NOT WIN32 )
 
     GenerateExecutableWithDefs( sig-core-kapp "sig-core-kapp.c" "" "" "kapp;${COMMON_LIBS_READ}" )
-    if( WIN32 )
-        target_link_options( sig-core-kapp PRIVATE "/ENTRY:mainCRTStartup" )
-    endif()
 
     if ( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
         set( BLD dbg)

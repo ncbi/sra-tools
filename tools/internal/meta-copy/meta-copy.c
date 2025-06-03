@@ -325,8 +325,9 @@ static rc_t copy( const struct copy_ctx * ctx )
 /***************************************************************************
     Main:
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
     Args * args;
 
     SetUsage( Usage );
@@ -345,5 +346,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

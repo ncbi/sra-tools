@@ -63,3 +63,5 @@ add_subdirectory( scripts ) # move to test/internal
 # add_subdirectory(tarballs) # called directly from TeamCity
 
 add_subdirectory( python )
+
+#add_subdirectory( network-test ) # was not plugged in; assuming derelict

@@ -348,11 +348,7 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
-#if WINDOWS
-int wmain (int argc, char *argv [])
-#else
 int main (int argc, char *argv [])
-#endif
 {
     return VdbTestSuite(argc, argv);
 }

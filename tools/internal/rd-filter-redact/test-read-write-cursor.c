@@ -24,20 +24,14 @@
 #define DISP_RC_INT(rc,msg) DISP_RC(klogInt,rc,msg)
 
 const char UsageDefaultName[] = "test-read-write-cursor";
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
 
-rc_t CC Usage(const Args* args) { return 0; }
-
-rc_t CC KMain(int argc, char* argv[])
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     const char table[] = "/home/klymenka/REDACT-IN";
     const char name[] = "READ_FILTER";
-
-    SetUsage( Usage );
-    SetUsageSummary( UsageSummary );
 
     rc_t rc = 0;
 
@@ -233,5 +227,5 @@ rc_t CC KMain(int argc, char* argv[])
     }
     else { LOGMSG(klogInfo, "FAILURE"); }
 
-    return rc;
+    return VdbTerminate( rc );
 }

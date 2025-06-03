@@ -77,25 +77,11 @@ TEST_CASE(is_sorted_unsorted)
 }
 
 //////////////////////////////////////////// Main
-#include <kapp/args.h>
 #include <kfg/config.h>
 
 extern "C"
+int main ( int argc, char *argv [] )
 {
-
-rc_t CC UsageSummary (const char * progname)
-{
-    return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
-    SetUsageSummary( UsageSummary );
-
     KConfigDisableUserSettings();
-
-    rc_t rc=VdbValidateTestSuite(argc, argv);
-    return rc;
-}
-
+    return VdbValidateTestSuite(argc, argv);
 }

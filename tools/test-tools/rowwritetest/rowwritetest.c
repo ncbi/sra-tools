@@ -335,10 +335,10 @@ rc_t run (const char * table_path, uint64_t N )
 }
 
 
-
-
-rc_t CC KMain ( int argc, char *argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     Args * args;
 
@@ -356,7 +356,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             if (rc)
                 break;
 
-            rc = ArgsParse (args, argc, argv);
+            rc = ArgsParse (args, argc, (const char**)argv);
             if (rc)
                 break;
 
@@ -433,5 +433,5 @@ rc_t CC KMain ( int argc, char *argv[] )
 
         ArgsWhack (args);
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

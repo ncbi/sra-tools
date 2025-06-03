@@ -1112,12 +1112,15 @@ rc_t open_mgr_then_run()
 
 
 /*  ----------------------------------------------------------------------
- * KMain
+ * main
  *
  * Figure out what is on the command line
  */
-rc_t KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc;
 
@@ -1271,5 +1274,5 @@ rc_t KMain ( int argc, char *argv [] )
         } while (0);
         ArgsWhack (args);
     }
-    return rc;
+    return VdbTerminate( rc );
 }

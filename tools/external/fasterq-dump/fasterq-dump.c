@@ -76,6 +76,8 @@
 #include <klib/printf.h>
 #endif
 
+#include <kapp/main.h>
+
 #include <klib/report.h> /* ReportFinalize */
 #include <kapp/vdbapp.h> /* GetKAppVersion */
 

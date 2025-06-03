@@ -2430,7 +2430,7 @@ MAIN_DECL( argc, argv )
     Params params;
     Args *args = NULL;
 
-    rc_t rc = parse_params ( &params, args, argc, argv );
+    rc_t rc = parse_params ( &params, &args, argc, argv );
     if ( rc == 0 )
     {
         rc = run ( &params );

@@ -50,6 +50,34 @@
  *  Here we will try to resolve path
  */
 
+static rc_t resolve_path(struct VPath const **path, char const *const accOrPath)
+{
+    struct VFSManager *mgr = NULL;
+    rc_t rc = VFSManagerMake(&mgr);
+    assert(rc == 0);
+    if (rc == 0)
+        rc = VFSManagerResolve(mgr, accOrPath, path);
+    VFSManagerRelease(mgr);
+    return rc;
+}
+
+static rc_t copy_path(struct VPath const *path, size_t const sz, char buf[/* sz */])
+{
+    String const *str = NULL;
+    rc_t rc = VPathMakeString(path, &str);
+    if (rc) return rc;
+    assert(str != NULL);
+    if (str->size + 1 < sz) {
+        string_copy(buf, sz, str->addr, str->size);
+        buf[str->size] = '\0';
+    }
+    else
+        rc = RC ( rcExe, rcPath, rcSearching, rcSize, rcInsufficient );
+    StringWhack(str);
+    return rc;
+}
+
+static
 rc_t
 kar_resolve_path (
                     const char * AccessionOrPath,
@@ -59,85 +87,23 @@ kar_resolve_path (
                     const struct VPath ** Path
 )
 {
-    rc_t RCt;
-    struct VFSManager * Manager;
-    struct VPath * Query;
-    const struct VPath * Remote;
-    const struct VPath * Local;
-    const String * Str;
+    rc_t RCt = 0;
 
-    RCt = 0;
-    Manager = NULL;
-    Query = NULL;
-    Remote = NULL;
-    Local = NULL;
+    assert(AccessionOrPath != NULL);
+    assert(IsLocal != NULL);
+    assert(RetBuf != NULL && BufSize > 0);
+    assert(Path != NULL);
+
+    * IsLocal = true;
     * Path = NULL;
-    Str = NULL;
 
-    if ( IsLocal != NULL ) {
-        * IsLocal = true;
-    }
+    RCt = resolve_path(Path, AccessionOrPath);
+    if ( RCt != 0 ) return RCt;
+    if (*Path == NULL) return RC ( rcExe, rcPath, rcSearching, rcName, rcNotFound );
 
-    if ( AccessionOrPath == NULL ) {
-        return RC ( rcExe, rcPath, rcSearching, rcParam, rcNull );
-    }
-
-    if ( RetBuf == NULL || BufSize == 0 ) {
-        return RC ( rcExe, rcPath, rcSearching, rcParam, rcInvalid );
-    }
-
-    RCt = VFSManagerMake ( & Manager );
-    if ( RCt == 0 ) {
-            RCt = VFSManagerMakePath(
-                                    Manager,
-                                    & Query,
-                                    "ncbi-acc:%s",
-                                    AccessionOrPath
-                                    );
-            if ( RCt == 0 ) {
-                RCt = VFSManagerResolve(Manager, AccessionOrPath, Path);
-                if ( RCt == 0 ) {
-                    if ( Path == NULL ) {
-                        RCt = RC ( rcExe, rcPath, rcSearching, rcName, rcNotFound );
-                    }
-                    else {
-                        *IsLocal = !VPathIsRemote(*Path);
-                        RCt = VPathMakeString( * Path, & Str );
-                        if ( RCt == 0 ) {
-                            if ( Str -> size + 1 >= BufSize ) {
-                                RCt = RC ( rcExe, rcPath, rcSearching, rcSize, rcInsufficient );
-                            }
-                            else {
-                                string_copy (
-                                            RetBuf,
-                                            BufSize,
-                                            Str -> addr,
-                                            Str -> size
-                                            );
-                                RetBuf [ Str -> size ] = 0;
-                            }
-
-                            StringWhack ( Str );
-                        }
-                    }
-                }
-
-                if ( Remote != NULL && * Path != Remote ) {
-                    VPathRelease ( Remote );
-                }
-
-                if ( Local != NULL && * Path != Local ) {
-                    VPathRelease ( Local );
-                }
-
-                VPathRelease ( Query );
-        }
-
-        VFSManagerRelease ( Manager );
-    }
-
-    return RCt;
-}   /* kar_resolve_path () */
+    *IsLocal = !VPathIsRemote(*Path);
+    return copy_path(*Path, BufSize, RetBuf);
+}
 
 #define __WRAP_IT__
 #ifdef __WRAP_IT__
@@ -495,7 +461,7 @@ WrapFileMake ( struct KFile * In, struct KFile ** Out )
                     false
                     );
     if ( RCt == 0 ) {
-        RCt = KFileAddRef ( In );
+        /* RCt = KFileAddRef ( In ); unbalanced */
         if ( RCt == 0 ) {
             Ret -> _file = In;
             * Out = & ( Ret -> _dad );

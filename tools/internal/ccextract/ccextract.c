@@ -32,7 +32,7 @@
 #include <kfs/directory.h>
 #include <kfs/file.h>
 #include <kfs/nullfile.h>
-#include <kfs/teefile.h>
+#include "../shared/teefile.h"
 #include <klib/defs.h>
 #include <klib/rc.h>
 #include <klib/text.h>

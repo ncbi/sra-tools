@@ -334,6 +334,9 @@ protected:
     Writer2::Column c_READ_FILTER;
     Writer2::Column c_CHANNEL;
     Writer2::Column c_READ_NUMBER;
+    Writer2::Column c_NAME_FMT;
+    Writer2::Column c_X;
+    Writer2::Column c_Y;
     uint8_t m_platform{0};
     bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
     string m_tmp_sequence; ///< temp string for sequences
@@ -481,6 +484,9 @@ void fastq_writer_vdb::open()
         c_CHANNEL = SEQUENCE_TABLE.column("CHANNEL");
         c_READ_NUMBER = SEQUENCE_TABLE.column("READ_NUMBER");
     }
+    //c_NAME_FMT = SEQUENCE_TABLE.column("NAME_FMT");
+    // c_X = SEQUENCE_TABLE.column("X");
+    // c_Y = SEQUENCE_TABLE.column("Y");
 
     string read_types;
     get_attr("readTypes", read_types);
@@ -555,9 +561,6 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
 /*
     m_tmp_spot = first_read.Spot();
 */
-    m_tmp_spot = spot_name;
-    m_tmp_spot += first_read.Suffix();
-    c_NAME.setValue(m_tmp_spot);
 
     c_SPOT_GROUP.setValue(first_read.SpotGroup());
     c_PLATFORM.setValue(m_platform);
@@ -572,6 +575,9 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
     m_tmp_sequence.clear();
     m_qual_scores.clear();
     read_num = 0;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    bool hasCoords = false;
 
     //if (read_num >= mReadTypes.size())
         //throw fastq_error(30, "readTypes number should match the number of reads {} != {}", mReadTypes.size(), read_num);
@@ -606,6 +612,7 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
             channel[read_num] = stoul( read.Channel() );
             read_no[read_num] = stoul( read.NanoporeReadNo() );
         }
+        hasCoords = read.GetCoords( x, y );
         ++read_num;
     }
     c_READ.setValue(m_tmp_sequence);
@@ -619,6 +626,20 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
         c_CHANNEL.setValue(read_num, sizeof(uint32_t), channel);
         c_READ_NUMBER.setValue(read_num, sizeof(uint32_t), read_no);
     }
+
+    m_tmp_spot = spot_name;
+    m_tmp_spot += first_read.Suffix();
+    if ( hasCoords )
+    {
+        c_NAME_FMT.setValue(spot_name); // TODO: do properly
+        c_X.setValue( x );
+        c_X.setValue( y );
+    }
+    else
+    {
+        c_NAME.setValue(m_tmp_spot);
+    }
+
     SEQUENCE_TABLE.closeRow();
 }
 using json = nlohmann::json;

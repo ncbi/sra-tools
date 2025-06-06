@@ -81,17 +81,34 @@ public:
     void SetSequence(string sequence) { mSequence = std::move(sequence); }
     void SetQualScores(vector<uint8_t> qual_scores) { mQualScores = std::move(qual_scores); }
 
-    size_t m_SpotId = 0;     ///< Assigned spot_id  
+    size_t m_SpotId = 0;     ///< Assigned spot_id
     uint8_t m_ReaderIdx = 0; /// Reader's index
     size_t mLineNumber{0};        ///< Line number the read starts with
     uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
 
-    size_t GetSize() const 
-    { 
+    size_t GetSize() const
+    {
         size_t sz = mSpot.size() + mSuffix.size() + mReadNum.size() + mSpotGroup.size() + mSequence.size() + mChannel.size() + mNanoporeReadNo.size();
         sz += mQuality.empty() ? mQualScores.size() : mQuality.size();
         return sz;
     }
+
+    void SetCoords( uint32_t p_x, uint32_t p_y )
+    {
+        x = p_x;
+        y = p_y;
+    }
+    bool GetCoords( uint32_t & p_x, uint32_t & p_y ) const
+    {
+        if ( x == 0 && y == 0 )
+        {
+            return false;
+        }
+        p_x = x;
+        p_y = y;
+        return true;
+    }
+
 
 private:
     friend class fastq_reader;
@@ -105,6 +122,8 @@ private:
     string mChannel;              ///< Nanopore channel
     string mNanoporeReadNo;       ///< Nanopore read number; not to be confused with mReadNum
     mutable vector<uint8_t> mQualScores;  ///< Numeric quality scores
+    uint32_t x = 0;
+    uint32_t y = 0;
 };
 
 typedef CFastqRead fastq_read;
@@ -184,9 +203,9 @@ void CFastqRead::GetQualScores(vector<uint8_t>& qual_score) const
 
 const vector<uint8_t>& CFastqRead::GetQualScores() const
 {
-    if (mQualScores.empty()) 
+    if (mQualScores.empty())
         copy(mQuality.begin(), mQuality.end(), back_inserter(mQualScores));
-    return mQualScores;        
+    return mQualScores;
 }
 
 void CFastqRead::SetType(char readType)

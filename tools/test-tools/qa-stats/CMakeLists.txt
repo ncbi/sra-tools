@@ -20,6 +20,8 @@ if (NOT WIN32)
     target_compile_features(qa-stats PRIVATE cxx_std_17)
     target_link_libraries(qa-stats Threads::Threads)
 
+    MakeLinksExe ( qa-stats false )
+
     if (RUN_SANITIZER_TESTS)
         target_compile_options( qa-stats PRIVATE -fsanitize=undefined )
         target_compile_options( qa-stats PRIVATE -fsanitize=address )
@@ -28,7 +30,7 @@ if (NOT WIN32)
 
         add_executable(qa-stats-tsan ${SOURCES} ${HEADERS})
         target_compile_features(qa-stats-tsan PRIVATE cxx_std_17)
-        target_link_libraries(qa-stats-tsan Threads::Threads)    
+        target_link_libraries(qa-stats-tsan Threads::Threads)
         target_compile_options( qa-stats-tsan PRIVATE -fsanitize=thread )
         target_link_options( qa-stats-tsan PRIVATE -fsanitize=thread )
     endif()

@@ -85,11 +85,11 @@ if ( ${OS} STREQUAL "linux"  )
         add_test( NAME Test_Copycat_FastqGzipParser
             COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-#         if( TARGET copycat-asan )
-#             add_test( NAME Test_Copycat_FastqGzipParser-asan
-#                 COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-asan
-#                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-#         endif()
+        if( TARGET copycat-asan )
+            add_test( NAME Test_Copycat_FastqGzipParser-asan
+                COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
         if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_FastqGzipParser-tsan
                 COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-tsan

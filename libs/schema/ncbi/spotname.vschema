@@ -273,7 +273,7 @@ table NCBI:SRA:tbl:skeyname #1.0.2 = INSDC:SRA:tbl:spotname #1.1
 
     // search skey entry
     INSDC:SRA:spot_ids_found spot_ids_found
-        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 1 > ( out_slx_prefix ) 
+        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 1 > ( out_slx_prefix )
         | ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 0 > ();
 
 
@@ -297,7 +297,7 @@ table NCBI:SRA:tbl:skeyname_nocol #2.0.2 = INSDC:SRA:tbl:spotname #1.1
 
     // search skey entry
     INSDC:SRA:spot_ids_found spot_ids_found
-        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ( out_slx_prefix ) 
+        = ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ( out_slx_prefix )
         | ( INSDC:SRA:spot_ids_found ) NCBI:SRA:lookup #1 < 'skey' , 'QUERY_BY_NAME', 2 > ();
 
     // X and Y stored as U16
@@ -380,4 +380,18 @@ table NCBI:SRA:tbl:skeyname #3.1 = INSDC:SRA:tbl:spotname #1.1, NCBI:SRA:tbl:spo
 	/* NCBI:SRA:tbl:skeyname virtual productions
 	 *  in_spot_name_tok
 	 */
+};
+
+table NCBI:SRA:tbl:spotname #1.0 = INSDC:SRA:tbl:spotname #1.1, NCBI:SRA:tbl:spotcoord #1
+{
+    // unparsed spot name
+    extern column < ascii > zip_encoding RAW_NAME;
+
+    // NAME_FMT gets either empty strings or recognized and formatized strings
+    extern column < ascii > zip_encoding NAME_FMT_2;
+    ascii out_name_fmt = .NAME_FMT_2;
+
+    // SPOT_NAME gets either empty strings or unrecognized strings
+    extern column < ascii > zip_encoding SPOT_NAME_2;
+    ascii out_spot_name = .SPOT_NAME_2;
 };

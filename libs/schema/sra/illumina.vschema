@@ -285,7 +285,7 @@ physical NCBI:SRA:swapped_fsamp4 NCBI:SRA:Illumina:encoding:INTENSITY #2
 
 // v2 base table
 table NCBI:SRA:Illumina:tbl:v2 #2
-    = NCBI:SRA:tbl:sra #2.1.4
+    = NCBI:SRA:tbl:sra #3
     , NCBI:tbl:base_space #3
     , NCBI:SRA:Illumina:common #1.0.4
 {
@@ -407,12 +407,14 @@ table NCBI:SRA:Illumina:tbl:q1:v2 #2
  *  1.0.4 - updated ancestry
  *  1.0.5 - updated ancestry
  *  2.0.0 - updated ancestry
+ *  3.0.0 - updated ancestry; direct writing to RAW_NAME or NAME_FMT/X/Y
  */
-table NCBI:SRA:Illumina:tbl:phred:v2 #2
+table NCBI:SRA:Illumina:tbl:phred:v2 #3
     = NCBI:SRA:Illumina:tbl:v2 #2
     , NCBI:tbl:phred_quality #2.0.6
 {
 	/* INSDC:SRA:tbl:spotdesc inherited virtual productions
 	 *  static_fixed_spot_len
 	 */
+    column ascii FMT = cast ( .NAME_FMT );
 };

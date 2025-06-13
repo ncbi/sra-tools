@@ -772,3 +772,69 @@ table NCBI:SRA:tbl:sra #2.1.4
 	 *  in_spot_name_tok
 	 */
 };
+
+/* most platforms don't have a native POSITION
+ * mix in "pos" table to synthesize it
+ *
+ * history:
+ *  2.1.2 - base upon sra#1.0.3, spotdesc #1.0.2, stats #1.1.2
+ *  2.1.4 - base upon sra #1.0.4, skeyname #3.0.2, stats #1.2.1
+ *  3 - derive from NCBI:SRA:tbl:spotname in order to be able to directly write
+ *		to either RAW_NAME or NAME_FMT/X/Y
+ */
+table NCBI:SRA:tbl:sra #3
+    = INSDC:SRA:tbl:sra #1.0.4
+    , NCBI:SRA:tbl:spotname #1.0
+    , NCBI:SRA:tbl:spotdesc #1.1
+    , NCBI:SRA:tbl:stats #1.2.1
+    , NCBI:SRA:tbl:pos #1.0.1
+{
+    readonly column INSDC:position:one POSITION
+        = out_position;
+    readonly column NCBI:SRA:pos16 POSITION
+        = out_position16;
+    readonly column INSDC:position:zero POSITION
+        = ( INSDC:position:zero ) < I32 > diff < 1 > ( out_position );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal
+	 *  in_dna_text
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  trim_len
+	 *  trim_start
+	 *  out_read_type
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  in_stats_bin
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 *  platform_name
+	 */
+
+	/* NCBI:SRA:tbl:spotname inherited productions
+	 *  out_name_fmt
+	 */
+};

@@ -52,7 +52,40 @@ using namespace std;
 
 TEST_SUITE(SraSchemaTestSuite);
 
-FIXTURE_TEST_CASE( UseSraFunction, WVDB_Fixture )
+class WVDB_WriteReadFixture : public WVDB_Fixture
+{
+public:
+    WVDB_WriteReadFixture()
+    {
+        // link in sra-owned schema functions
+        THROW_ON_RC( SraLinkSchema( m_mgr ) );
+    }
+
+    // helpers for reading
+    uint32_t AddColumn( const VCursor * cursor, const string & name )
+    {
+        uint32_t column_idx = 0;
+        THROW_ON_RC ( VCursorAddColumn ( cursor, & column_idx, name.c_str() ) );
+        return column_idx;
+    }
+
+    string ReadString( const VCursor * cursor, int64_t rowId, uint32_t column_idx )
+    {
+        char buf[1024];
+        uint32_t rowLen = 0;
+        THROW_ON_RC( VCursorReadDirect ( cursor, rowId, column_idx, 8, buf, sizeof ( buf ), & rowLen ) );
+        return string( buf, rowLen );
+    }
+    uint32_t ReadU32( const VCursor * cursor, int64_t rowId, uint32_t column_idx )
+    {
+        uint32_t ret = 0;
+        uint32_t rowLen = 0;
+        THROW_ON_RC( VCursorReadDirect ( cursor, rowId, column_idx, 8, &ret, sizeof ( ret ), & rowLen ) );
+        return ret;
+    }
+};
+
+FIXTURE_TEST_CASE( UseSraFunction, WVDB_WriteReadFixture )
 {
     const char* TableName = "tbl";
     const char* ColumnName = "label";
@@ -67,7 +100,6 @@ FIXTURE_TEST_CASE( UseSraFunction, WVDB_Fixture )
 "    table T #1 tbl;\n"
 "};\n"
 ;
-    REQUIRE_RC( SraLinkSchema( m_mgr ) );  // <====== this call links in sra-owned schema functions
 
     MakeDatabase( GetName(), schemaText, "db" );
 
@@ -80,22 +112,17 @@ FIXTURE_TEST_CASE( UseSraFunction, WVDB_Fixture )
 
     {
         const VCursor * cursor = OpenTable( TableName );
-
-        uint32_t column_idx;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx, ColumnName ) );
+        uint32_t column_idx = AddColumn( cursor, ColumnName );
         REQUIRE_RC ( VCursorOpen ( cursor ) );
 
-        char buf[1024];
-        uint32_t rowLen = 0;
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx, 8, buf, sizeof ( buf ), & rowLen ) );
+        // verify that sra:hello() has been called
+        REQUIRE_EQ( string("hello"), ReadString ( cursor, 1, column_idx ) );
 
         REQUIRE_RC ( VCursorRelease ( cursor ) );
-
-        REQUIRE_EQ( string("hello"), string( buf, rowLen ) ); // sra:hello() has been called
     }
 }
 
-FIXTURE_TEST_CASE( NameFormatting, WVDB_Fixture )
+FIXTURE_TEST_CASE( NameFormatting, WVDB_WriteReadFixture )
 {
     const char* TableName = "tbl";
     const string schemaText =
@@ -112,21 +139,20 @@ FIXTURE_TEST_CASE( NameFormatting, WVDB_Fixture )
 "    table T #1 tbl;\n"
 "};\n"
 ;
-    REQUIRE_RC( SraLinkSchema( m_mgr ) );  // <====== this call links in sra-owned schema functions
-
     //m_keepDb = true;
     MakeDatabase( GetName(), schemaText, "db", "../../../ncbi-vdb/interfaces/" );
 
+    const char* ColumnName = "NAME";
+    const string Name1 = "name:1:2:3:4";
+    const string Name2 = "_name:5:6:7:8";
+
     {
         VCursor * cursor = CreateTable( TableName );
-        uint32_t column_idx_Name;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Name, "NAME" ) );
-
+        uint32_t column_idx_Name = AddColumn( cursor, ColumnName );
         REQUIRE_RC ( VCursorOpen ( cursor ) );
 
         REQUIRE_RC ( VCursorOpenRow ( cursor ) );
 
-        const string Name1 = "name:1:2:3:4";
         REQUIRE_RC ( VCursorWrite ( cursor, column_idx_Name, 8, Name1.c_str(), 0, Name1.length() ) );
 
         REQUIRE_RC ( VCursorCommitRow ( cursor ) );
@@ -134,7 +160,6 @@ FIXTURE_TEST_CASE( NameFormatting, WVDB_Fixture )
 
         REQUIRE_RC ( VCursorOpenRow ( cursor ) );
 
-        const string Name2 = "_name:5:6:7:8";
         REQUIRE_RC ( VCursorWrite ( cursor, column_idx_Name, 8, Name2.c_str(), 0, Name2.length() ) );
 
         REQUIRE_RC ( VCursorCommitRow ( cursor ) );
@@ -146,62 +171,44 @@ FIXTURE_TEST_CASE( NameFormatting, WVDB_Fixture )
 
     {
         const VCursor * cursor = OpenTable( TableName );
-
-        uint32_t column_idx_Name;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Name, "NAME" ) );
-        uint32_t column_idx_NameFmt;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_NameFmt, "NAMEFMT" ) );
-        uint32_t column_idx_X;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_X, "X" ) );
-        uint32_t column_idx_Y;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Y, "Y" ) );
+        uint32_t column_idx_Name = AddColumn( cursor, ColumnName );
+        uint32_t column_idx_NameFmt = AddColumn( cursor, "NAMEFMT" );
+        uint32_t column_idx_X = AddColumn ( cursor, "X" );
+        uint32_t column_idx_Y = AddColumn ( cursor, "Y" );
 
         REQUIRE_RC ( VCursorOpen ( cursor ) );
 
-        char buf[1024];
-        uint32_t rowLen = 0;
-        uint32_t x = 0;
-        uint32_t y = 0;
-
         // NAME was converted into a format string
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_NameFmt, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("name:1:2:$X:$Y"), string( buf, rowLen ) );
+        REQUIRE_EQ( string("name:1:2:$X:$Y"), ReadString ( cursor, 1, column_idx_NameFmt ) );
+        REQUIRE_EQ( string("_name:5:6:$X:$Y"), ReadString ( cursor, 2, column_idx_NameFmt ) );
 
         // X and Y were extracted from NAME and stored in their own numeric columns
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_X, 8, &x, sizeof ( x ), & rowLen ) );
-        REQUIRE_EQ( 3u, x );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_Y, 8, &y, sizeof ( y ), & rowLen ) );
-        REQUIRE_EQ( 4u, y );
+        REQUIRE_EQ( 3u, ReadU32( cursor, 1, column_idx_X ) );
+        REQUIRE_EQ( 7u, ReadU32( cursor, 2, column_idx_X ) );
+        REQUIRE_EQ( 4u, ReadU32( cursor, 1, column_idx_Y ) );
+        REQUIRE_EQ( 8u, ReadU32( cursor, 2, column_idx_Y ) );
 
-        // NAME was reassembled on read from NAME_FMT, X and Y
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_Name, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("name:1:2:3:4"), string( buf, rowLen ) );
-
-        // row 2
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_NameFmt, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("_name:5:6:$X:$Y"), string( buf, rowLen ) );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_X, 8, &x, sizeof ( x ), & rowLen ) );
-        REQUIRE_EQ( 7u, x );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_Y, 8, &y, sizeof ( y ), & rowLen ) );
-        REQUIRE_EQ( 8u, y );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_Name, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("_name:5:6:7:8"), string( buf, rowLen ) );
+        // NAME gets reassembled on read from NAME_FMT, X and Y
+        REQUIRE_EQ( Name1, ReadString ( cursor, 1, column_idx_Name ) );
+        REQUIRE_EQ( Name2, ReadString ( cursor, 2, column_idx_Name ) );
 
         REQUIRE_RC ( VCursorRelease ( cursor ) );
     }
 }
 
-FIXTURE_TEST_CASE( NameFormatting_via_NCBI_spotname, WVDB_Fixture )
+FIXTURE_TEST_CASE( NameFormatting_via_NCBI_spotname, WVDB_WriteReadFixture )
 {
+    // saving NAME_FMT, X and Y directly, without using schema functions
+    // to parse NAME
+
     const char* TableName = "tbl";
     const string schemaText =
 "include 'ncbi/spotname.vschema';"
 "include 'sra/illumina.vschema';"
-"table T #1 =  NCBI:SRA:tbl:spotname #1 \n"
+"table T #1 =  NCBI:SRA:tbl:spotname #1 \n" // <= this parent table support direct writing
 "{\n"
     "NCBI:SRA:spot_name_token in_spot_name_tok"
         "= NCBI:SRA:Illumina:tokenize_spot_name ( NAME );"
-    "extern column ascii NAMEFMT = idx:text:project<\"skey\">();"
     "INSDC:coord:val in_x_coord = cast ( X );"
     "INSDC:coord:val in_y_coord = cast ( Y );"
 "};\n"
@@ -210,8 +217,6 @@ FIXTURE_TEST_CASE( NameFormatting_via_NCBI_spotname, WVDB_Fixture )
 "    table T #1 tbl;\n"
 "};\n"
 ;
-    REQUIRE_RC( SraLinkSchema( m_mgr ) );  // <====== this call links in sra-owned schema functions
-
     // m_keepDb = true;
     // KDbgSetString("VDB");
 
@@ -219,17 +224,17 @@ FIXTURE_TEST_CASE( NameFormatting_via_NCBI_spotname, WVDB_Fixture )
     REQUIRE_RC ( VDBManagerAddSchemaIncludePath ( m_mgr, "%s", "../../../ncbi-vdb/interfaces" ) );
     MakeDatabase( GetName(), schemaText, "db" );
 
+    const char* ColumnName = "NAME";
+    const char* ColumnNameFmt = "NAME_FMT_2";
+    const char* ColumnX = "X";
+    const char* ColumnY = "Y";
     {
         VCursor * cursor = CreateTable( TableName );
-        uint32_t column_idx_Name;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Name, "NAME_FMT_2" ) );
-        uint32_t column_idx_X;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_X, "X" ) );
-        uint32_t column_idx_Y;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Y, "Y" ) );
+        uint32_t column_idx_Name = AddColumn( cursor, ColumnNameFmt );
+        uint32_t column_idx_X = AddColumn( cursor, ColumnX );
+        uint32_t column_idx_Y = AddColumn( cursor, ColumnY );
 
         REQUIRE_RC ( VCursorOpen ( cursor ) );
-
 
         REQUIRE_RC ( VCursorOpenRow ( cursor ) );
         const string NameFmt1 = "name:1:2:$X:$Y";
@@ -260,49 +265,34 @@ FIXTURE_TEST_CASE( NameFormatting_via_NCBI_spotname, WVDB_Fixture )
 
     {
         const VCursor * cursor = OpenTable( TableName );
-
-        uint32_t column_idx_Name;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Name, "NAME" ) );
-        uint32_t column_idx_NameFmt;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_NameFmt, "NAME_FMT_2" ) );
-        uint32_t column_idx_X;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_X, "X" ) );
-        uint32_t column_idx_Y;
-        REQUIRE_RC ( VCursorAddColumn ( cursor, & column_idx_Y, "Y" ) );
+        uint32_t column_idx_Name = AddColumn( cursor, ColumnName );
 
         REQUIRE_RC ( VCursorOpen ( cursor ) );
 
-        char buf[1024];
-        uint32_t rowLen = 0;
-        uint32_t x = 0;
-        uint32_t y = 0;
-
-        // NAME was converted into a format string
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_NameFmt, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("name:1:2:$X:$Y"), string( buf, rowLen ) );
-
-        // X and Y were extracted from NAME and stored in their own numeric columns
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_X, 8, &x, sizeof ( x ), & rowLen ) );
-        REQUIRE_EQ( 3u, x );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_Y, 8, &y, sizeof ( y ), & rowLen ) );
-        REQUIRE_EQ( 4u, y );
-
-        // NAME was reassembled on read from NAME_FMT, X and Y
-        REQUIRE_RC( VCursorReadDirect ( cursor, 1, column_idx_Name, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("name:1:2:3:4"), string( buf, rowLen ) );
-
-        // row 2
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_NameFmt, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("_name:5:6:$X:$Y"), string( buf, rowLen ) );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_X, 8, &x, sizeof ( x ), & rowLen ) );
-        REQUIRE_EQ( 7u, x );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_Y, 8, &y, sizeof ( y ), & rowLen ) );
-        REQUIRE_EQ( 8u, y );
-        REQUIRE_RC( VCursorReadDirect ( cursor, 2, column_idx_Name, 8, buf, sizeof ( buf ), & rowLen ) );
-        REQUIRE_EQ( string("_name:5:6:7:8"), string( buf, rowLen ) );
+        // NAME gets reassembled on read from NAME_FMT, X and Y
+        const string Name1 = "name:1:2:3:4";
+        REQUIRE_EQ( Name1, ReadString ( cursor, 1, column_idx_Name ) );
+        const string Name2 = "_name:5:6:7:8";
+        REQUIRE_EQ( Name2, ReadString ( cursor, 2, column_idx_Name ) );
 
         REQUIRE_RC ( VCursorRelease ( cursor ) );
     }
+}
+
+FIXTURE_TEST_CASE( ParseNewIlluminaSchema, WVDB_WriteReadFixture )
+{
+    const string schemaText =
+"include 'sra/illumina.vschema';"
+"table T #1 =  NCBI:SRA:Illumina:tbl:phred:v2 #3 {};\n" // this one derives from NCBI:SRA:tbl:spotname
+"database db #1\n"
+"{\n"
+"    table T #1 tbl;\n"
+"};\n"
+;
+
+    REQUIRE_RC ( VDBManagerAddSchemaIncludePath ( m_mgr, "%s", "../../libs/schema" ) );
+    REQUIRE_RC ( VDBManagerAddSchemaIncludePath ( m_mgr, "%s", "../../../ncbi-vdb/interfaces" ) );
+    MakeDatabase( GetName(), schemaText, "db" );
 }
 
 //////////////////////////////////////////// Main

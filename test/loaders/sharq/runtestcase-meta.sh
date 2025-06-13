@@ -71,7 +71,7 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
-CMD_LOAD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+CMD_LOAD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -L debug -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
 
 echo CMD_LOAD=$CMD_LOAD
 eval $CMD_LOAD

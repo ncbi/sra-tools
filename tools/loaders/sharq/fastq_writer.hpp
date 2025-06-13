@@ -419,7 +419,7 @@ void fastq_writer_vdb::open()
     {
     case SRA_PLATFORM_ILLUMINA:
         // use Illumina DB for illumina with standard NAME column
-        if (has_name_column)
+        //if (has_name_column)
             db = cILLUMINA_DB;
         break;
     case SRA_PLATFORM_OXFORD_NANOPORE:
@@ -460,7 +460,11 @@ void fastq_writer_vdb::open()
 //        { "LABEL",              sizeof(char) }, // concatenated labe string eg. 'FR'
 //        { "LABEL_START",        sizeof(int32_t) }, // one per read
 //        { "LABEL_LEN",          sizeof(int32_t) }, // one per read
-        { "PLATFORM",           sizeof(char) } // platform code
+        { "PLATFORM",           sizeof(char) }, // platform code
+
+        { "NAME_FMT_2",  sizeof(char) },
+        { "X",           sizeof(int32_t) },
+        { "Y",           sizeof(int32_t) }
     };
     if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
     {

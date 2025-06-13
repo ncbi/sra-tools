@@ -80,17 +80,12 @@ table NCBI:SRA:GenericFastq:sequence #2
         .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
 }
 
-database NCBI:SRA:GenericFastq:db #2
-{
-    table NCBI:SRA:GenericFastq:sequence #2.0 SEQUENCE;
-};
-
 /*--------------------------------------------------------------------------
  * Illumina db defined based on sra/illumina.vschema
  */
-database NCBI:SRA:Illumina:db #2
+database NCBI:SRA:Illumina:db #3
 {
-    table NCBI:SRA:Illumina:tbl:phred:v2 #2 SEQUENCE;
+    table NCBI:SRA:Illumina:tbl:phred:v2 #3 SEQUENCE;
 };
 
 /*--------------------------------------------------------------------------

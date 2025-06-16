@@ -279,17 +279,31 @@ class JSON_ostream {
         insert_raw(':');
         return *this;
     }
+    
+    template <typename T>
+    static std::string c_locale_to_string(T const &v) {
+        std::ostringstream ss; ss.imbue(std::locale::classic());
+        ss << v;
+        auto const &result = ss.str();
+        assert(result.find(',') == result.npos); // make sure we don't have disallowed characters
+        return result;
+    }
 
     /// This is a catch-all, intended for numeric types
     template <typename T>
     JSON_ostream &insert(T const &v) {
-        if (!instr) {
-            if (comma)
-                listItem();
-            if (!ws && !compact)
-                insert_raw(' ');
+        if (instr) {
+            strm << v;
+            return *this;
         }
-        strm << v;
+        if (comma)
+            listItem();
+        if (!ws && !compact)
+            insert_raw(' ');
+        
+        // make sure we use the "C" locale
+        strm << c_locale_to_string(v);
+
         return *this;
     }
 

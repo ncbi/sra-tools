@@ -1066,8 +1066,10 @@ rc_t CC Usage( const Args* args )
     return rc;
 }
 
-rc_t CC KMain( int argc, char* argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     Args* args = NULL;
     const char* errmsg = NULL, *refseq_chunk = NULL, *min_mapq = NULL, *cluster_size = NULL;
@@ -1078,7 +1080,7 @@ rc_t CC KMain( int argc, char* argv[] )
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     params.argv0 = argv[0];
 
     if( (rc = ArgsMakeAndHandle(&args, argc, argv, 2, MainArgs, MainArgsQty, XMLLogger_Args, XMLLogger_ArgsQty)) == 0 ) {
@@ -1270,5 +1272,5 @@ rc_t CC KMain( int argc, char* argv[] )
     }
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return rc;
+    return VDB_TERMINATE( rc );
 }

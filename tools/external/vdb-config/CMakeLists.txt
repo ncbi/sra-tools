@@ -22,10 +22,6 @@
 #
 # ===========================================================================
 
-if (WIN32)
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-endif()
-
 set( TUI_LIBS tui_cpp tui)
 
 add_subdirectory( tui )
@@ -42,7 +38,7 @@ add_executable( vdb-config
 
 add_dependencies( vdb-config tui )
 target_include_directories( vdb-config PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
-target_link_libraries ( vdb-config kapp ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-config false )
 
 add_custom_command( TARGET vdb-config POST_BUILD

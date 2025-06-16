@@ -35,7 +35,7 @@
 #include <krypto/wgaencrypt.h>
 #include <kfs/kfs-priv.h>
 #include <kfs/file.h>
-#include <kfs/teefile.h>
+#include "../shared/teefile.h"
 #include <kfs/gzip.h>
 #include <kfs/bzip.h>
 #include <kfs/md5.h>
@@ -1759,6 +1759,7 @@ rc_t copycat (CCTree *tree, KTime_t mtime, KDirectory * _cwd,
     else
     {
         pb.df = df;
+        KFileAddRef(pb.df);
     }
 
     if (in_block)
@@ -1779,7 +1780,6 @@ rc_t copycat (CCTree *tree, KTime_t mtime, KDirectory * _cwd,
                  (klogInt, rc,
                   "failed to create buffer for '$(path)'",
                   "path=%s", spath ));
-        return rc;
     }
     else
     {
@@ -1792,6 +1792,9 @@ rc_t copycat (CCTree *tree, KTime_t mtime, KDirectory * _cwd,
             : copycat_add_crc (&pb);
     }
     copycat_log_set (save, NULL);
+    
+    KFileRelease(pb.df);
+    KFileRelease(pb.sf);
 
     return rc;
 }

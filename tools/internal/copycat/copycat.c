@@ -762,12 +762,12 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
                    const char *cache, VPath * _dest, const char *extract,
                    Vector * v)
 {
-    rc_t rc;
-    int dest_type;
-    KDirectory * cwd;
-    VPath * dest;
-    size_t sz;
-    const char * pleaf;
+    rc_t rc = 0;
+    int dest_type = kptNotFound;
+    KDirectory * cwd = NULL;
+    VPath * dest = NULL;
+    size_t sz = 0;
+    const char * pleaf = NULL;
     char pbuff [4096];
 
     /* =====
@@ -777,7 +777,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 
     rc = VFSManagerGetCWD (mgr, &cwd);
     if (rc)
-        return rc;
+        goto CLEANUP;
 
     /* if there's a cache path, create directory */
     if ( cache != NULL )
@@ -790,7 +790,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
             PLOGERR (klogErr,
                      (klogErr, rc, "failed to open cache directory '$(path)'",
                       "path=%s", cache ));
-            return rc;
+            goto CLEANUP;
         }
     }
     else
@@ -808,7 +808,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
                      (klogErr, rc,
                       "failed to open extract directory '$(path)'",
                       "path=%s", extract ));
-            return rc;
+            goto CLEANUP;
         }
     }
     else
@@ -819,12 +819,14 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
     {
         rc = VectorRemove (v, VectorLength(v) - 1, (void**)&dest);
         if (rc)
-            return rc;
+            goto CLEANUP;
     }
+    else
+        VPathAddRef(dest);
 
     rc = VPathReadPath (dest, pbuff, sizeof pbuff, &sz);
     if (rc)
-        return rc;
+        goto CLEANUP;
 
     if (xml_base)
         pleaf = xml_base;
@@ -859,17 +861,19 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 /* )) */
             && (VectorLength (v) == 1))
         {
-            return copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            rc = copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            goto CLEANUP;
         }
 
         /* create a directory at the given path */
         rc = KDirectoryCreateDir ( cwd, 0775, kcmParents | kcmOpen, "%s", pbuff );
         if ( rc != 0 )
-            return rc;
+            goto CLEANUP;
 
         /* fall through */
     case kptDir:
-        return copycat_files2dir (tree, logs, mgr, v, dest);
+        rc = copycat_files2dir (tree, logs, mgr, v, dest);
+        goto CLEANUP;
 
 
     case kptCharDev:
@@ -882,24 +886,32 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 #if 0
             if (VectorLength (v) > 1)
 #endif
-                return copycat_files2dir (tree, logs, mgr, v, dest);
+            {
+                rc = copycat_files2dir (tree, logs, mgr, v, dest);
+                goto CLEANUP;
+            }
         }
         /* fall through */
     case kptBlockDev:
     case kptFIFO:
     case kptFile:
-        if (VectorLength (v) == 1)
-            return copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
-
+        if (VectorLength (v) == 1) {
+            rc = copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            goto CLEANUP;
+        }
         rc = RC (rcExe, rcDirectory, rcAccessing, rcPath, rcNotFound);
         PLOGERR (klogFatal,
                  (klogFatal, rc, "copying multiple files, but target argument "
                   "[$(D)] is not a directory", "D=%s", pbuff));
-        return rc;
+        goto CLEANUP;
     }
 
     fprintf ( stderr, "%s: '%s': specified destination path is not a directory\n", program_name, pbuff );
-    return RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
+    rc = RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
+    
+CLEANUP:
+    VPathRelease(dest);
+    return rc;
 }
 /* dump
  */
@@ -924,11 +936,11 @@ void param_whack (void * path, void * ignored)
     (void)VPathRelease ((const VPath*)path);
 }
 
-/* KMain
- */
-
-rc_t KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+         return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc, orc;
 
@@ -1252,6 +1264,6 @@ rc_t KMain ( int argc, char *argv [] )
             rc = orc;
     }
     DEBUG_STATUS(("%s: exit rc %R(%x);\n", __func__, rc, rc));
-    return rc;
+    return VdbTerminate( rc );
 }
 

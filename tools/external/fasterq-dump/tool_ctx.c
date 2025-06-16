@@ -334,7 +334,11 @@ rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
-    destroy_temp_dir( tool_ctx -> temp_dir ); /* temp_dir.c */
+
+    if ( !tool_ctx -> keep_tmp_files ) {
+        destroy_temp_dir( tool_ctx -> temp_dir ); /* temp_dir.c */
+    }
+
     if ( NULL != tool_ctx -> vdb_mgr ) {
         rc_t rc2 = VDBManagerRelease( tool_ctx -> vdb_mgr );
         if ( 0 != rc2 ) {
@@ -724,7 +728,9 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
     /* create the cleanup-taks ( for modules to add file/directories to it ) and add the tem-dir to it */
     tool_ctx -> cleanup_task = NULL;
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = clt_create( &( tool_ctx -> cleanup_task ), tool_ctx -> show_details ); /* cleanup_task.c */
+        rc = clt_create( &( tool_ctx -> cleanup_task ),
+                         tool_ctx -> show_details,
+                         tool_ctx -> keep_tmp_files ); /* cleanup_task.c */
         if ( 0 == rc ) {
             rc = clt_add_directory( tool_ctx -> cleanup_task, 
                     get_temp_dir( tool_ctx -> temp_dir ) ); /* cleanup_task.c */

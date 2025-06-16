@@ -55,6 +55,7 @@ typedef struct CleanupTask_t {
     locked_file_list_t dirs_to_clean;
     KTaskTicket ticket;
     bool details;
+    bool keep_tmp_files;
 } CleanupTask_t;
 
 static rc_t clt_destroy( CleanupTask_t * self ) {
@@ -72,13 +73,12 @@ static rc_t clt_execute( CleanupTask_t * self ) {
     if ( 0 != rc ) {
         ErrMsg( "clt_execute().KDirectoryNativeDir() -> %R", rc );
     } else {
-        rc = locked_file_list_delete_files( dir, &self -> files_to_clean, self -> details ); /* helper.c */
-        if ( 0 == rc ) {
-            rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean, self -> details ); /* helper.c */
+        if ( ! self -> keep_tmp_files ) {
+            rc = locked_file_list_delete_files( dir, &self -> files_to_clean, self -> details ); /* helper.c */
+            if ( 0 == rc ) {
+                rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean, self -> details ); /* helper.c */
+            }
         }
-		
-		//locked_file_list_release( & ( self -> files_to_clean ), NULL, self -> details ); /* helper.c */
-		//locked_file_list_release( & ( self -> dirs_to_clean ), NULL, self -> details ); /* helper.c */
 
         {
             rc_t rc2 = KDirectoryRelease( dir );
@@ -127,13 +127,14 @@ static rc_t clt_add_task_to_proc_mgr( CleanupTask_t * task ) {
     return rc;
 }
 
-rc_t clt_create( struct CleanupTask_t **task, bool details ) {
+rc_t clt_create( struct CleanupTask_t **task, bool details, bool keep_tmp_files ) {
     rc_t rc = 0;
     CleanupTask_t * t = malloc ( sizeof * t );
     if ( NULL == t ) {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcMemory, rcExhausted );
     } else {
         t -> details = details;
+        t -> keep_tmp_files = keep_tmp_files;
         if ( details ) { InfoMsg( "CleanupTask: creating..." ); }
         rc = locked_file_list_init( &( t -> files_to_clean ), 25 ); /* helper.c */
         if ( 0 == rc ) {
@@ -202,14 +203,14 @@ rc_t clt_terminate( struct CleanupTask_t * self ) {
             if ( 0 != rc ) {
                 ErrMsg( "clt_terminate().KProcMgrRemoveCleanupTask() -> %R", rc );
             } else {
-				bool details = self -> details;
-				locked_file_list_release( &( self -> files_to_clean ), NULL, details ); /* helper.c */
-				locked_file_list_release( &( self -> dirs_to_clean ), NULL, details ); /* helper.c */
-				if ( details ) { 
-					InfoMsg( "CleanupTask: terminating ..." );
-				}
-			}
-			
+                bool details = self -> details;
+                locked_file_list_release( &( self -> files_to_clean ), NULL, details ); /* helper.c */
+                locked_file_list_release( &( self -> dirs_to_clean ), NULL, details ); /* helper.c */
+                if ( details ) {
+                    InfoMsg( "CleanupTask: terminating ..." );
+                }
+            }
+
             {
                 rc_t rc2 = KProcMgrRelease ( proc_mgr );
                 if ( 0 != rc2 ) {

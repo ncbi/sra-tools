@@ -136,11 +136,7 @@ void uuid_test(void)
     }
 }
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
-#else
 int main ( int argc, char *argv[], char *envp[])
-#endif
 {
     try {
         uuid_test();

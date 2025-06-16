@@ -59,6 +59,7 @@ typedef struct lookup_production_args_t {
     size_t mem_limit;
     uint32_t num_threads;
     bool show_progress;
+    bool keep_tmp_files;
 } lookup_production_args_t;
 
 rc_t execute_lookup_production( const lookup_production_args_t * args );

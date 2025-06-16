@@ -36,7 +36,7 @@ extern "C" {
 
 struct CleanupTask_t;
 
-rc_t clt_create( struct CleanupTask_t **task, bool details );
+rc_t clt_create( struct CleanupTask_t **task, bool details, bool keep_tmp_files );
 
 rc_t clt_add_file( struct CleanupTask_t * self, const char * filename );
 

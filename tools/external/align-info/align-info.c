@@ -32,6 +32,7 @@
 #include <vdb/vdb-priv.h> /* VDBManagerOpenKDBManagerRead */
 
 #include <kapp/main.h>
+#include <kapp/vdbapp.h>
 
 #include <kfg/config.h> /* KConfig */
 
@@ -475,8 +476,10 @@ static rc_t align_info(const Params* prm) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char* argv[]) {
-    rc_t rc = 0;
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args* args = NULL;
 
     Params prm;
@@ -485,6 +488,7 @@ rc_t CC KMain(int argc, char* argv[]) {
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
 
+    rc_t rc = 0;
     do {
         uint32_t pcount = 0;
 
@@ -585,7 +589,7 @@ rc_t CC KMain(int argc, char* argv[]) {
     {   rc = align_info(&prm); }
 
     DESTRUCT(Args, args);
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 /************************************* EOF ************************************/

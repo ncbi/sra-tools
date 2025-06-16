@@ -109,6 +109,7 @@ static rc_t extract_file(const char* fname, SAMExtractor** extractor)
     StringInitCString(&sfname, fname);
 
     rc = SAMExtractorMake(extractor, infile, &sfname, -1);
+    KFileRelease(infile);
 
     return rc;
 }
@@ -598,9 +599,9 @@ TEST_CASE(Fuzz_Hangs)
     KOutMsg("None of below files should hang:\n");
     for (size_t i = 0; i != globbuf.gl_pathc; ++i) {
         KOutMsg("\t%s\n", globbuf.gl_pathv[i]);
-        SAMExtractor extractor;
-        SAMExtractor* e = &extractor;
+        SAMExtractor* e = nullptr;
         rc_t rc = extract_file(globbuf.gl_pathv[i], &e);
+        SAMExtractorRelease(e);
         REQUIRE_RC(rc);
         pool_destroy();
     }
@@ -612,18 +613,9 @@ TEST_CASE(Fuzz_Hangs)
 // TODO: mempool, how to test an allocator?
 // TODO: negative tests, syntax errors
 
-extern "C" {
-ver_t CC KAppVersion(void) { return 0x1000000; }
-rc_t CC UsageSummary(const char* progname) { return 0; }
-
-rc_t CC Usage(const Args* args) { return 0; }
-
-const char UsageDefaultName[] = "test-samextract";
-
-rc_t CC KMain(int argc, char* argv[])
+extern "C"
+int main (int argc, char* argv[])
 {
     srandom(time(NULL));
-    rc_t rc = SAMExtractTestSuite(argc, argv);
-    return rc;
-}
+    return SAMExtractTestSuite(argc, argv);
 }

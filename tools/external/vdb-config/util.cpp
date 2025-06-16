@@ -320,13 +320,12 @@ rc_t CKConfig::Commit(void)
     return rc;
 }
 
-#ifdef NAMESCGI
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
-    bool updated = NodeExists("/repository_remote/CGI/resolver-cgi/trace");
+     rc_t rc = 0;
+#ifdef NAMESCGI
+     bool updated = NodeExists("/repository_remote/CGI/resolver-cgi/trace");
 
-    rc_t rc = 0;
-
-    {
+     {
         const string name("/repository/remote/main/CGI/resolver-cgi");
         if (!updated || !NodeExists(name)) {
             rc_t r2 = UpdateNode(name,
@@ -365,7 +364,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
             }
         }
     }
-
+#endif
     {
         const string name("/repository/remote/main/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
@@ -374,7 +373,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
                 rc = r2;
         }
     }
-
+#ifdef NAMESCGI
     {
         const string name("/repository/remote/protected/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
@@ -383,10 +382,9 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
                 rc = r2;
         }
     }
-
+#endif
     return rc;
 }
-#endif
 
 rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
     if (repoName.size() == 0)

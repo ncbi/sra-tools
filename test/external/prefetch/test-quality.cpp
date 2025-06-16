@@ -22,20 +22,15 @@
 *
 *=============================================================================*/
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <vfs/path-priv.h> /* VPathRelease */
 #include <vfs/services.h> /* KServiceRelease */
 
-ver_t CC KAppVersion(void) { return 0; }
-const char UsageDefaultName[] = "test-quality";
-rc_t CC UsageSummary(const char * prog_name) { return 0; }
-rc_t CC Usage(const Args * args) { return 0; }
-
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
-rc_t CC KMain(int argc, char * argv[]) {
+int main(int argc, char * argv[]) {
     Args * args = NULL;
     rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0);
 
@@ -126,5 +121,5 @@ rc_t CC KMain(int argc, char * argv[]) {
     if (r2 != 0 && rc == 0)
         rc = r2;
 
-    return rc;
+    return (int)rc;
 }

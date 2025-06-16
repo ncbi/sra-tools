@@ -32,7 +32,7 @@
 #include <kfs/directory.h>
 #include <kfs/file.h>
 #include <kfs/nullfile.h>
-#include <kfs/teefile.h>
+#include "../shared/teefile.h"
 #include <klib/defs.h>
 #include <klib/rc.h>
 #include <klib/text.h>
@@ -1112,12 +1112,15 @@ rc_t open_mgr_then_run()
 
 
 /*  ----------------------------------------------------------------------
- * KMain
+ * main
  *
  * Figure out what is on the command line
  */
-rc_t KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc;
 
@@ -1271,5 +1274,5 @@ rc_t KMain ( int argc, char *argv [] )
         } while (0);
         ArgsWhack (args);
     }
-    return rc;
+    return VdbTerminate( rc );
 }

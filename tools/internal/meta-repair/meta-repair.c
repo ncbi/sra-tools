@@ -1272,8 +1272,11 @@ rc_t CC Usage (const Args *args){
     return rc;
 }
 
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
 
-rc_t KMain(int argc, char *argv[]){
     rc_t rc = 0, r2 = 0;
     Args *args=NULL;
     Repair pars;
@@ -1355,5 +1358,5 @@ rc_t KMain(int argc, char *argv[]){
     if (rc == 0 && pars.fix[0] != '\0' && !(pars.mode & eFix))
         rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
 
-    return rc;
+    return VdbTerminate( rc );
 }

@@ -46,6 +46,10 @@
 #include <kfs/buffile.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 typedef struct lookup_writer_t {
     struct KFile * f;
     struct index_writer_t * idx;
@@ -119,10 +123,11 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
 }
 
 rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
-                                    uint64_t key,
+                                    const uint64_t key,
                                     const String * bases_as_packed_4na ) {
     size_t num_writ;
     /* first write the key ( combination of seq-id and read-id ) */
+    if ( key > 34000000 ) { KOutMsg( "\n!!!WP2LW key:%lu \n", key ); }
     rc_t rc = KFileWriteAll( writer -> f, writer -> pos, &key, sizeof key, &num_writ );
     if ( 0 != rc ) {
         ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( key ) -> %R", rc );

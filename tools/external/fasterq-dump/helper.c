@@ -24,6 +24,7 @@
 *
 */
 
+#include "kfc/defs.h"
 #if _POSIX_C_SOURCE < 200112L
 #define _POSIX_C_SOURCE 200112L /* lstat */
 #endif
@@ -50,9 +51,11 @@
 #include <kfs/buffile.h>
 #endif
 
-#ifndef _h_search_nucstrstr_
-#include <search/nucstrstr.h>
+/*
+#ifndef _h_sra_sradb_priv_
+#include <sra/sradb-priv.h>
 #endif
+*/
 
 #ifndef _h_vfs_manager_
 #include <vfs/manager.h>
@@ -61,6 +64,8 @@
 #ifndef _h_vfs_path_
 #include <vfs/path.h>
 #endif
+
+#include "../../../libs/inc/search/nucstrstr.h"
 
 #include <atomic32.h>
 
@@ -598,7 +603,7 @@ static bool hlp_match_Buf2NA( Buf2NA_t * self, const String * ascii ) {
 }
 
 typedef struct filter_2na_t {
-    struct Buf2NA_t * filter_buf2na;        /* the 2na-filter */
+    struct Buf2NA_t * filter_buf2na;
 } filter_2na_t;
 
 filter_2na_t * hlp_make_2na_filter( const char * filter_bases ) {
@@ -606,7 +611,7 @@ filter_2na_t * hlp_make_2na_filter( const char * filter_bases ) {
     if ( NULL != filter_bases ) {
         res = calloc( 1, sizeof * res );
         if ( NULL != res ) {
-            rc_t rc = hlp_make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases ); /* helper.c */
+            rc_t rc = hlp_make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases );
             if ( 0 != rc ) {
                 ErrMsg( "make_2na_filter().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
                 free( ( void * )res );
@@ -628,7 +633,7 @@ void hlp_release_2na_filter( filter_2na_t * self ) {
 bool hlp_filter_2na_1( filter_2na_t * self, const String * bases ) {
     bool res = true;
     if ( NULL != self && NULL != bases ) {
-        res = hlp_match_Buf2NA( self -> filter_buf2na, bases ); /* helper.c */
+        res = hlp_match_Buf2NA( self -> filter_buf2na, bases );
     }
     return res;
 }
@@ -637,7 +642,7 @@ bool hlp_filter_2na_2( filter_2na_t * self, const String * bases1, const String 
     bool res = true;
     if ( NULL != self && NULL != bases1 && NULL != bases2 ) {
         res = ( hlp_match_Buf2NA( self -> filter_buf2na, bases1 ) || 
-        hlp_match_Buf2NA( self -> filter_buf2na, bases2 ) ); /* helper.c */
+        hlp_match_Buf2NA( self -> filter_buf2na, bases2 ) );
     }
     return res;
 }
@@ -711,30 +716,23 @@ void hlp_init_qual_to_ascii_lut( char * lut, size_t size ) {
 /* -------------------------------------------------------------------------------- */
 
 #ifdef WINDOWS
-        /* do nothing for WINDOWS... */
+/* do nothing for WINDOWS... */
 #else
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
-
-static uint32_t hlp_device_id_of_path( const char * path ) {
-    uint32_t res = 0;
-    if ( NULL != path ) {
-#ifdef WINDOWS
-        /* do nothing for WINDOWS... */
-#else
-        struct stat st;
-        if ( 0 == lstat( path, &st ) ) {
-            res = st . st_dev;
-        }
-#endif
-    }
-    return res;
-}
 
 bool hlp_paths_on_same_filesystem( const char * path1, const char * path2 ) {
-    uint32_t id1 = hlp_device_id_of_path( path1 );
-    uint32_t id2 = hlp_device_id_of_path( path2 );
-    return ( id1 == id2 );
+#ifdef WINDOWS
+    /* do nothing for WINDOWS... */
+#else
+    if (path1 != NULL && path2 != NULL && path1 != path2 && strcmp(path1, path2) != 0)
+    {
+        struct stat st1, st2;
+        if (stat(path1, &st1) == 0 && stat(path2, &st2) == 0)
+            return st1.st_dev == st2.st_dev;
+    }
+#endif
+    return true; /* assume they are the same */
 }
-

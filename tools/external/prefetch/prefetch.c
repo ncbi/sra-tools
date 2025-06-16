@@ -2512,7 +2512,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                         return rc;
                 }
             }
-        
+
             if (rc == 0
                 && (
                  rc3 == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)
@@ -3924,8 +3924,10 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
 
 extern rc_t CC Usage(const Args *args);
 
-/*********** KMain **********/
-rc_t CC KMain(int argc, char *argv[]) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     bool insufficient = false;
     uint32_t pcount = 0;
@@ -3934,7 +3936,7 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    
+
     rc = PrfMainInit(argc, argv, &pars);
 
 #ifdef DBGNG
@@ -4063,5 +4065,5 @@ rc_t CC KMain(int argc, char *argv[]) {
         rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
     }
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

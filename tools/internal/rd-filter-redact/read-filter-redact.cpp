@@ -1056,8 +1056,14 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
     return rc;
 }
 
-rc_t CC KMain(int argc, char* argv[])
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     rc_t rc = 0;
     Args* args = NULL;
 
@@ -1084,7 +1090,8 @@ rc_t CC KMain(int argc, char* argv[])
     if (rc == SILENT_RC(rcVDB, rcTable, rcOpening, rcSchema, rcNotFound))
     {   exit(10); }
 
-    return rc;
+    app.setRc( rc );
+    return app.getExitCode();
 }
 
 /************************************ EOF ****************** ******************/

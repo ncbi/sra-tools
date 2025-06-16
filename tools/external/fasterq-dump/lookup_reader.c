@@ -277,7 +277,7 @@ rc_t lookup_reader_get( struct lookup_reader_t * self, uint64_t * key, SBuffer_t
                     to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
                     if ( 0 == to_read ) {
                         rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                        ErrMsg( "lookup_reader_get() to_read == 0 at %lu", self -> pos );
+                        ErrMsg( "lookup_reader_get() to_read == 0 at %lu, key = %lu", self -> pos, *key );
                         packed_bases -> S . size = 0;
                         packed_bases -> S . len = 0;
                         self -> pos += ( 10 );
@@ -335,41 +335,49 @@ static rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool revers
     dna_len |= src[ 1 ];
 
     if ( dna_len > unpacked -> buffer_size ) {
-        rc = increase_SBuffer( unpacked, dna_len - unpacked -> buffer_size );
+        rc = increase_SBuffer_to( unpacked, dna_len + 4 );
+        if ( 0 != rc ) {
+            ErrMsg( "lookup_reader_get().unpack_4na() -> %R failed to increase buffer", rc );
+        }
     }
     if ( 0 == rc ) {
-        uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
-        int32_t dst_idx;
-        uint32_t i;
+        if ( 0 == dna_len ) {
+            unpacked -> S . size = 0;
+            unpacked -> S . len = 0;
+        } else {
+            uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
+            int32_t dst_idx;    /**/
+            uint32_t src_idx;
 
-        /* use the complement-lookup-table in case of reverse */
-        const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
+            /* use the complement-lookup-table in case of reverse */
+            const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
 
-        dst_idx = reverse ? dna_len - 1 : 0;
+            dst_idx = reverse ? dna_len - 1 : 0;
 
-        for ( i = 2; dst_idx >= 0 && i < packed -> len; ++i ) {
-            /* get the packed byte out of the packed input */
-            uint8_t packed_byte = src[ i ];
+            for ( src_idx = 2; dst_idx >= 0 && src_idx < packed -> len; ++src_idx ) {
+                /* get the packed byte out of the packed input */
+                uint8_t packed_byte = src[ src_idx ];
 
-            /* write the first unpacked byte */
-            if ( dst_idx < unpacked -> buffer_size ) {
-                dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
-                dst_idx += reverse ? -1 : 1;
+                /* write the first unpacked byte */
+                if ( dst_idx < unpacked -> buffer_size ) {
+                    dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
+                    dst_idx += reverse ? -1 : 1;
+                }
+
+                /* write the second unpacked byte */
+                if ( dst_idx < unpacked -> buffer_size ) {
+                    dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
+                    dst_idx += reverse ? -1 : 1;
+                }
             }
 
-            /* write the second unpacked byte */
-            if ( dst_idx < unpacked -> buffer_size ) {
-                dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
-                dst_idx += reverse ? -1 : 1;
-            }
+            /* set the dna-length in the output-string */
+            unpacked -> S . size = dna_len;
+            unpacked -> S . len = ( uint32_t )unpacked -> S . size;
+
+            /* terminated the output-string, just in case */
+            dst[ dna_len ] = 0;
         }
-
-        /* set the dna-length in the output-string */
-        unpacked -> S . size = dna_len;
-        unpacked -> S . len = ( uint32_t )unpacked -> S . size;
-
-        /* terminated the output-string, just in case */
-        dst[ dna_len ] = 0;
     }
     return rc;
 }

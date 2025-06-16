@@ -24,6 +24,7 @@
 *
 */
 #include "merge_sorter.h"
+#include "klib/text.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -65,12 +66,24 @@
 #include <kproc/timeout.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 typedef struct merge_src {
     struct lookup_reader_t * reader;
     uint64_t key;
     SBuffer_t packed_bases;
     rc_t rc;
 } merge_src_t;
+
+static void check_batch( merge_src_t * src, uint32_t count ) {
+    uint32_t i;
+    for ( i = 0; i < count; ++i ) {
+        merge_src_t * item = &src[ i ];
+        if ( item -> key > 34000000 ) { KOutMsg( "\n!!!check_batch: i=%u, key=%u \n", i, item -> key ); }
+    }
+}
 
 static merge_src_t * get_min_merge_src( merge_src_t * src, uint32_t count ) {
     merge_src_t * res = NULL;
@@ -173,7 +186,9 @@ static rc_t run_merge_sorter( merge_sorter_t * self ) {
     rc_t rc = 0;
     uint64_t last_key = 0;
     uint64_t loop_nr = 0;
+
     merge_src_t * to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
+    if ( to_write -> key > 34000000 ) { KOutMsg( "\n!!!RMS1 key:%lu \n", to_write -> key ); }
 
     while( 0 == rc && NULL != to_write ) {
         rc = hlp_get_quitting();    /* helper.c */
@@ -184,6 +199,7 @@ static rc_t run_merge_sorter( merge_sorter_t * self ) {
             } else {
                 loop_nr ++;
                 last_key = to_write -> key;
+                if ( to_write -> key > 34000000 ) { KOutMsg( "\n!!!RMS2 key:%lu \n", to_write -> key ); }
                 rc = write_packed_to_lookup_writer( self -> dst,
                                                     to_write -> key,
                                                     &to_write -> packed_bases . S ); /* lookup_writer.h */
@@ -234,6 +250,7 @@ typedef struct background_vector_merger_t {
     uint64_t total_rowcount_prod;   /* updated by the producer, informs the vector-merger about the
                                        rowcount to be processed */
     bool details;
+    bool keep_tmp_files;
 } background_vector_merger_t;
 
 static rc_t wait_for_background_vector_merger( background_vector_merger_t * self ) {
@@ -320,6 +337,7 @@ static bg_vec_merge_src_t * get_min_bg_vec_merge_src( bg_vec_merge_src_t * batch
 static rc_t write_bg_vec_merge_src( bg_vec_merge_src_t * src, struct lookup_writer_t * writer ) {
     rc_t rc = src -> rc;
     if ( 0 == rc ) {
+        if ( src -> key > 34000000 ) { KOutMsg( "\n!!!WBVMS key:%lu \n", src -> key ); }
         rc = write_packed_to_lookup_writer( writer, src -> key, src -> bases ); /* lookup_writer.c */
         StringWhack ( src -> bases );
         src -> bases = NULL;
@@ -431,11 +449,6 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
             }
         }
 
-        /*
-        if ( rc == 0 && self -> file_merger != NULL )
-            rc = lookup_check_file( self -> dir, self -> buf_size, buffer );
-        */
-
         if ( 0 == rc && NULL != self -> file_merger ) {
             rc = push_to_background_file_merger( self -> file_merger, buffer ); /* below */
         }
@@ -502,6 +515,7 @@ rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
         b -> total = 0;
         b -> total_rowcount_prod = 0;
         b -> details = args -> details;
+        b -> keep_tmp_files = args -> keep_tmp_files;
 
         rc = KQueueMake ( &( b -> job_q ), args -> batch_size );
         if ( 0 == rc ) {
@@ -595,6 +609,7 @@ typedef struct background_file_merger_t {
     uint64_t total_rowcount_prod;   /* updated by the producer, informs the file-merger about the
                                        rowcount to be processed */
     bool details;
+    bool keep_tmp_files;
 } background_file_merger_t;
 
 static void release_background_file_merger( background_file_merger_t * self ) {
@@ -657,6 +672,7 @@ static rc_t process_background_file_merger( background_file_merger_t * self ) {
                     if ( 0 == rc ) {
                         num_src++;
                     }
+                    StringWhack( filename );
                 }
             }
             if ( 0 == rc ) {
@@ -732,7 +748,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
                 release_merge_sorter( &sorter );
             }
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && ( ! self -> keep_tmp_files ) ) {
             rc = ft_delete_files( self -> dir, batch_files, self -> details );
         }
         VNamelistRelease( batch_files );
@@ -800,6 +816,7 @@ rc_t make_background_file_merger( background_file_merger_t ** merger,
         b -> total_rows = 0;
         b -> total_rowcount_prod = 0;
         b -> details = args -> details;
+        b -> keep_tmp_files = args -> keep_tmp_files;
 
         rc = locked_file_list_init( &( b -> files ), 25  );
         if ( 0 == rc ) {

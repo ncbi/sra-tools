@@ -298,7 +298,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
     return rc;
 }
 
-rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
+rc_t parse_params ( Params *p, Args **args, int argc, char * argv [] )
 {
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
@@ -317,11 +317,11 @@ rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
     p -> force = false;
     p -> stdout = false;
 
-    rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
+    rc = ArgsMakeAndHandle ( args, argc, argv, 1,
         Options, sizeof Options / sizeof ( Options [ 0 ] ) );
     if ( rc == 0 )
     {
-        rc = parse_params_int ( p, args );
+        rc = parse_params_int ( p, *args );
 
         if ( rc == 0 )
             rc = validate_params ( p );

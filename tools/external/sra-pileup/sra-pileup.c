@@ -1410,11 +1410,13 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
 /* =========================================================================================== */
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-        
+
     rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
     ReportBuildDate( __DATE__ );
     if ( rc != 0 ) {
@@ -1489,5 +1491,5 @@ rc_t CC KMain( int argc, char *argv [] )
         rc_t rc2 = ReportFinalize( rc );
         if ( rc == 0 ) { rc = rc2; }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

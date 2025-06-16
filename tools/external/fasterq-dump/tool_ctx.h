@@ -88,6 +88,7 @@ typedef struct tool_ctx_t {
     size_t disk_limit_tmp_os;
 
     uint32_t num_threads;
+    uint32_t stop_after_step;
     uint64_t total_ram;
     uint64_t row_limit;
 
@@ -100,6 +101,7 @@ typedef struct tool_ctx_t {
     bool only_internal_refs;
     bool only_external_refs;
     bool use_name;
+    bool keep_tmp_files;
 
     join_options_t join_options; /* helper.h */
 

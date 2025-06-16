@@ -32,8 +32,8 @@
 
 #if WINDOWS
 #include "file-path.win32.cpp"
-#define SYS_CHAR wchar_t
-#define MAIN wmain
+#define SYS_CHAR char
+#define MAIN main
 #else
 #include "file-path.posix.cpp"
 #define SYS_CHAR char

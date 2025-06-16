@@ -176,11 +176,7 @@ void MemBankImplFree ( MemBankImpl *self, const ctx_t *ctx, void *mem, size_t by
                 ANNOTATE ( "freed memory with size of 0 bytes" );
             else
             {
-<<<<<<< HEAD
-                atomic_add ( & self -> avail,  bytes );
-=======
                 atomic64_add ( & self -> avail, ( long ) bytes );
->>>>>>> engineering
 
                 if ( bytes > 256 * 1024 )
                 {
@@ -232,11 +228,7 @@ MemBank *MemBankMake ( const ctx_t *ctx, size_t quota )
         quota = LONG_MAX;
 
     mem -> quota = quota;
-<<<<<<< HEAD
-    atomic_set ( & mem -> avail, ( quota - sizeof * mem ) );
-=======
     atomic64_set ( & mem -> avail, ( long ) ( quota - sizeof * mem ) );
->>>>>>> engineering
 
     return & mem -> dad;
 }

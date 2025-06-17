@@ -42,6 +42,7 @@
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
+#include "../../../shared/toolkit.vers.h"
 
 static inline
 JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
@@ -343,6 +344,18 @@ struct App {
             }
             if (param == "help") {
                 std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                exit(0);
+            }
+            if (param == "version") {
+                int const rev = (TOOLKIT_VERS >>  0) & 0xFFFF;
+                int const min = (TOOLKIT_VERS >> 16) & 0xFF;
+                int const maj = (TOOLKIT_VERS >> 24) & 0xFF;
+                
+                std::cout << '\n' << arguments.program << " : 1.0.0 ( " << maj << '.' << min << '.' << rev
+#if _DEBUG || DEBUGGING
+                    << "-dev"
+#endif
+                 << " )\n" << std::endl;
                 exit(0);
             }
             std::cerr << "error: Unrecognized parameter " << param << std::endl;

@@ -55,12 +55,12 @@ if( NOT WIN32 )
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET vdb-diff-asan )
 		add_test( NAME Test_VDB_Diff_Check_success-asan
-			COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
+			COMMAND sh test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET vdb-diff-tsan )
 		add_test( NAME Test_VDB_Diff_Check_success-tsan
-			COMMAND test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
+			COMMAND sh test_success.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
@@ -69,12 +69,12 @@ if( NOT WIN32 )
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET vdb-diff-asan )
 		add_test( NAME Test_VDB_Diff_Check_failure-asan
-			COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
+			COMMAND sh test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET vdb-diff-tsan )
 		add_test( NAME Test_VDB_Diff_Check_failure-tsan
-			COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
+			COMMAND sh test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 endif()

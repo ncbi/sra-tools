@@ -59,8 +59,12 @@ setlocal enabledelayedexpansion
 
 set TOOLS=
 
-rem list all tools; vdb-passwd is obsolete but still in the package
-for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "vdb-passwd.exe" ( call set TOOLS=%%TOOLS%% %%F )
+rem list all tools; vdb-sql is currently broken, samview-util is ignored
+for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "samview-util.exe" (
+  if "%%F" NEQ "vdb-sql.exe" (
+    call set TOOLS=%%TOOLS%% %%F
+  )
+)
 
 cd %1
 set VERSION_CHECKER=%2

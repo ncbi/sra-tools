@@ -63,6 +63,7 @@ struct Arguments : public std::vector<std::string> {
         std::vector<Definition> defs{std::move(pdefs)};
         std::vector<std::pair<std::string, char const *>> args;
         defs.emplace_back(Definition{"help", "h?"});
+        defs.emplace_back(Definition{"version", "V"});
         {
             program = argv[0];
             auto last = program.size();

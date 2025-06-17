@@ -790,6 +790,7 @@ static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
         json << '}';
         rc = KMDataNodeWrite ( fp_node, strm.str().data(), strm.str().size() );
     }
+    KMDataNodeRelease(fp_node);
     return rc;
 }
 

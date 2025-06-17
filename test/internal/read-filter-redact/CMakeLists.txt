@@ -53,12 +53,12 @@ sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXEC
 
 	if( TARGET read-filter-redact-asan )
 		add_test( NAME Test_Read_filter_redact-asan
-			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan Test_Read_filter_redact_1
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
 		add_test( NAME Test_Read_filter_redact-tsan
-			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan Test_Read_filter_redact_1
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 

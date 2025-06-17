@@ -60,6 +60,7 @@ ${bin_dir}/vdb-unlock actual/${TEST_CASE_ID} 2>/dev/null
 rm -fr actual/${TEST_CASE_ID}
 
 # prepare sources
+mkdir -p actual # else kar will fail
 ${bin_dir}/kar --extract ${RUN} --directory actual/${TEST_CASE_ID}
 
 # read-filter-redact

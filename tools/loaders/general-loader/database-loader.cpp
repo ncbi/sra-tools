@@ -29,6 +29,7 @@
 #include <klib/rc.h>
 #include <klib/log.h>
 #include <klib/time.h>
+#include <klib/debug.h>
 
 #include <kdb/meta.h>
 #include <kdb/table.h>
@@ -63,6 +64,7 @@ GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const std::string&  p_progra
     m_schema ( 0 ),
     m_databaseNameOverridden ( ! m_databaseName.empty() )
 {
+KDbgSetString("VDB");
     m_databases . insert ( Databases :: value_type ( 0, (VDatabase*)0 ) ); // reserve root database
 }
 
@@ -122,10 +124,12 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
             rc = VDBManagerAddSchemaIncludePath ( m_mgr, "%s", it -> c_str() );
             if ( rc == 0 )
             {
+                char * resolved = realpath( it -> c_str(), nullptr );
                 pLogMsg ( klogDebug,
                           "database-loader: Added schema include path '$(s)'",
                           "s=%s",
-                          it -> c_str() );
+                          resolved );
+                free( resolved );
             }
             else if ( GetRCObject ( rc ) == (RCObject)rcPath )
             {

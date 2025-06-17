@@ -94,6 +94,7 @@ protected:
     string mDefLineName;             ///< Defline description
     CRegExprMatcher re;              ///< regexpr matcher
     string m_tmp_spot;               ///< variable for spot name assembly
+    string m_tmp_spot_fmt;           ///< variable for spot name formatting
 
 };
 
@@ -189,30 +190,21 @@ public:
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //tile
 
         s_add_sep(m_tmp_spot, re.GetMatch()[5]);
-        uint32_t x = 0; //TODO stoi( re.GetMatch()[6].as_string() );
-        if ( x != 0 )
-        {
-            m_tmp_spot += "$X";
-        }
-        else
-        {
-            re.GetMatch()[6].AppendToString(&m_tmp_spot); //x
-        }
+        uint32_t x = stoi( re.GetMatch()[6].as_string() );
+        m_tmp_spot_fmt = m_tmp_spot;
+        m_tmp_spot_fmt += "$X";
+        re.GetMatch()[6].AppendToString(&m_tmp_spot); //x
 
         s_add_sep(m_tmp_spot, re.GetMatch()[7]);
-        uint32_t y = 0; //TODO stoi( re.GetMatch()[8].as_string() );
-        if ( y != 0 )
-        {
-            m_tmp_spot += "$Y";
-        }
-        else
-        {
-            re.GetMatch()[8].AppendToString(&m_tmp_spot); //y
-        }
+        s_add_sep(m_tmp_spot_fmt, re.GetMatch()[7]);
+        uint32_t y = stoi( re.GetMatch()[8].as_string() );
+        m_tmp_spot_fmt += "$Y";
+        re.GetMatch()[8].AppendToString(&m_tmp_spot); //y
 
-//TODO        read.SetCoords( x, y );
+        read.SetCoords( x, y );
 
         read.MoveSpot(std::move(m_tmp_spot));
+        read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
 
         read.SetReadNum(re.GetMatch()[10]);
 

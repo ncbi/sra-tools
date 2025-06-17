@@ -416,5 +416,6 @@ table NCBI:SRA:Illumina:tbl:phred:v2 #3
 	/* INSDC:SRA:tbl:spotdesc inherited virtual productions
 	 *  static_fixed_spot_len
 	 */
-    column ascii FMT = cast ( .NAME_FMT );
+    INSDC:coord:val in_x_coord = cast ( X );
+    INSDC:coord:val in_y_coord = cast ( Y );
 };

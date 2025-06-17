@@ -216,6 +216,7 @@ public:
 
     void set_fingerprint( const string & source, const Fingerprint & fp )
     {
+cerr<<"fastq_writer::set_fingerprint()"<< endl;
         m_source_fp.push_back( make_pair(source, fp ) );
     }
 
@@ -367,6 +368,8 @@ fastq_writer_vdb::fastq_writer_vdb(ostream& stream, shared_ptr<Writer2> writer =
 //  -----------------------------------------------------------------------------
 fastq_writer_vdb::~fastq_writer_vdb()
 {
+cerr<<"fastq_writer_vdb::~fastq_writer_vdb() m_is_writing = " << m_is_writing << endl;
+
     if (m_is_writing) {
         close();
     }
@@ -488,9 +491,9 @@ void fastq_writer_vdb::open()
         c_CHANNEL = SEQUENCE_TABLE.column("CHANNEL");
         c_READ_NUMBER = SEQUENCE_TABLE.column("READ_NUMBER");
     }
-    //c_NAME_FMT = SEQUENCE_TABLE.column("NAME_FMT");
-    // c_X = SEQUENCE_TABLE.column("X");
-    // c_Y = SEQUENCE_TABLE.column("Y");
+    c_NAME_FMT = SEQUENCE_TABLE.column("NAME_FMT_2");
+    c_X = SEQUENCE_TABLE.column("X");
+    c_Y = SEQUENCE_TABLE.column("Y");
 
     string read_types;
     get_attr("readTypes", read_types);
@@ -504,7 +507,9 @@ void fastq_writer_vdb::open()
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::close()
 {
+cerr<<"fastq_writer_vdb::close() m_is_writing = " << m_is_writing << endl;
     if (m_is_writing && m_writer) {
+cerr<<"fastq_writer_vdb::close() m_source_fp.size() = " << m_source_fp.size() << endl;
 
         // save fingerprints in the metadata
         // input fingerprint(s)
@@ -635,12 +640,16 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
     m_tmp_spot += first_read.Suffix();
     if ( hasCoords )
     {
-        c_NAME_FMT.setValue(spot_name); // TODO: do properly
+        c_NAME_FMT.setValue(first_read.SpotFmt()); // TODO: do properly
         c_X.setValue( x );
-        c_X.setValue( y );
+        c_Y.setValue( y );
+        c_NAME.setValue(string());
     }
     else
     {
+        c_NAME_FMT.setValue( string() );
+        c_X.setValue( 0 );
+        c_Y.setValue( 0 );
         c_NAME.setValue(m_tmp_spot);
     }
 

@@ -43,6 +43,7 @@ public:
     const string& Quality() const { return mQuality; } ///< Quality string
     const string& Channel() const { return mChannel; } ///< Nanopore channel
     const string& NanoporeReadNo() const { return mNanoporeReadNo; } ///< Nanopore read number
+    const string& SpotFmt() const { return mSpotFmt; }
 
     /**
      * Get quality scores as vector of uint8
@@ -63,6 +64,7 @@ public:
     void SetSpot(const re2::StringPiece& spot) {  spot.CopyToString(&mSpot); }
 
     void MoveSpot(string&& spot) { mSpot = std::move(spot); }
+    void MoveSpotFmt(string&& spot_fmt) { mSpotFmt = std::move(spot_fmt); }
 
     void SetReadNum(string readNum) { mReadNum = std::move(readNum); }
     void SetReadNum(const re2::StringPiece& readNum) { readNum.CopyToString(&mReadNum); }
@@ -121,6 +123,7 @@ private:
     string mQuality;              ///< Quality string as it comes from file adjusted to seq length
     string mChannel;              ///< Nanopore channel
     string mNanoporeReadNo;       ///< Nanopore read number; not to be confused with mReadNum
+    string mSpotFmt;              ///< Spot name format
     mutable vector<uint8_t> mQualScores;  ///< Numeric quality scores
     uint32_t x = 0;
     uint32_t y = 0;

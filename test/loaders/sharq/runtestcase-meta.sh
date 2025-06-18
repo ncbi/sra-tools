@@ -44,12 +44,12 @@
 LOAD_BINARY=$1
 GENLOADER_BINARY=$2
 KDBMETA_BINARY=$3
-WORKDIR=$4
+WORKDIR=$(realpath $4)
 CASEID=$5
 LOAD_ARGS=$6
 KDBMETA_ARGS=$7
 
-TEMPDIR=$WORKDIR/actual/$CASEID
+TEMPDIR=$(realpath $WORKDIR/actual/$CASEID)
 
 if [ "$(uname)" == "Darwin" ]; then
     DIFF="diff"
@@ -69,9 +69,9 @@ rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
     exit 1
 fi
-export LD_LIBRARY_PATH=$BINDIR/../lib;
+export LD_LIBRARY_PATH=$(realpath $BINDIR/../lib);
 
-CMD_LOAD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -L debug -I $WORKDIR/../../../libs/schema:$WORKDIR/../../../../ncbi-vdb/interfaces 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
+CMD_LOAD="${LOAD_BINARY} ${LOAD_ARGS} 2>$TEMPDIR/load.stderr | ${GENLOADER_BINARY} -T $TEMPDIR/db -I $(realpath $WORKDIR/../../../libs/schema):$(realpath $WORKDIR/../../../../ncbi-vdb/interfaces) 1>$TEMPDIR/load.stdout 2>>$TEMPDIR/load.stderr"
 
 echo CMD_LOAD=$CMD_LOAD
 eval $CMD_LOAD

@@ -216,7 +216,6 @@ public:
 
     void set_fingerprint( const string & source, const Fingerprint & fp )
     {
-cerr<<"fastq_writer::set_fingerprint()"<< endl;
         m_source_fp.push_back( make_pair(source, fp ) );
     }
 
@@ -368,13 +367,9 @@ fastq_writer_vdb::fastq_writer_vdb(ostream& stream, shared_ptr<Writer2> writer =
 //  -----------------------------------------------------------------------------
 fastq_writer_vdb::~fastq_writer_vdb()
 {
-cerr<<"fastq_writer_vdb::~fastq_writer_vdb() m_is_writing = " << m_is_writing << endl;
-
     if (m_is_writing) {
         close();
     }
-
-
 }
 
 //  -----------------------------------------------------------------------------
@@ -422,7 +417,7 @@ void fastq_writer_vdb::open()
     {
     case SRA_PLATFORM_ILLUMINA:
         // use Illumina DB for illumina with standard NAME column
-        //if (has_name_column)
+        //if (has_name_column)  VDB-5972
             db = cILLUMINA_DB;
         break;
     case SRA_PLATFORM_OXFORD_NANOPORE:
@@ -507,9 +502,7 @@ void fastq_writer_vdb::open()
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::close()
 {
-cerr<<"fastq_writer_vdb::close() m_is_writing = " << m_is_writing << endl;
     if (m_is_writing && m_writer) {
-cerr<<"fastq_writer_vdb::close() m_source_fp.size() = " << m_source_fp.size() << endl;
 
         // save fingerprints in the metadata
         // input fingerprint(s)
@@ -643,13 +636,13 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
         c_NAME_FMT.setValue(first_read.SpotFmt()); // TODO: do properly
         c_X.setValue( x );
         c_Y.setValue( y );
-        c_NAME.setValue(string());
+        c_NAME.setValue(m_tmp_spot); // for size comparison with NAME_FMT+X+Y
     }
     else
     {
-        c_NAME_FMT.setValue( string() );
-        c_X.setValue( 0 );
-        c_Y.setValue( 0 );
+        //c_NAME_FMT.setValue( string() );
+        //c_X.setValue( 0 );
+        //c_Y.setValue( 0 );
         c_NAME.setValue(m_tmp_spot);
     }
 

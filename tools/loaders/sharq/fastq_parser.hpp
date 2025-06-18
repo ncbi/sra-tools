@@ -1373,7 +1373,6 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
 
     // register readers' fingerprints with the writer
-spdlog::info("m_readers.size() ={} files", m_readers.size());
     for ( auto r = m_readers.begin(); r != m_readers.end(); ++r )
     {
         m_writer->set_fingerprint( r->file_name(), r->fingerprint() );

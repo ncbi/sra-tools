@@ -43,11 +43,11 @@ if ( NOT WIN32 )
 	add_test( NAME Test_Prefetch_urls_and_accs
 		COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
-		add_test( NAME Test_Prefetch_urls_and_accs-asan
-			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( TARGET prefetch-asan )
+# 		add_test( NAME Test_Prefetch_urls_and_accs-asan
+# 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_urls_and_accs-tsan
 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan

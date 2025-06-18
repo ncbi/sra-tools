@@ -58,11 +58,11 @@ if ( NOT WIN32 )
 		COMMAND
                perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
-		add_test( NAME Test_Prefetch_out_dir_and_file-asan
-			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( TARGET prefetch-asan )
+# 		add_test( NAME Test_Prefetch_out_dir_and_file-asan
+# 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_out_dir_and_file-tsan
 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan

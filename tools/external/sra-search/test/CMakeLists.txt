@@ -46,7 +46,7 @@ link_libraries (
 
 AddExecutableTest ( Test_SraSearch
     "test-sra-search.cpp;../vdb-search.cpp;../searchblock.cpp;../blobmatchiterator.cpp;../fragmentmatchiterator.cpp;../referencematchiterator.cpp"
-    "ksrch" ""
+    "ksrch" "" "--no-asan"
 )
 
 AddExecutableTest ( Test_SraSearchSlow

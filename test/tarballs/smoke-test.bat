@@ -57,20 +57,26 @@ echo.
 rem this is needed to expand variables inside the loop, e/g/ !VERSION_OPTION!
 setlocal enabledelayedexpansion
 
-set TOOLS=
+set VERSION=%4
 
+echo Smoke testing %VERSION% toolkit tarball ...
+
+set TOOLS=
 rem list all tools; vdb-sql is currently broken, samview-util is ignored
-for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "samview-util.exe" (
-  if "%%F" NEQ "vdb-sql.exe" (
+for /f %%F in ('dir /A:-D /B %1') do (
+  if "%%F" == "samview-util.exe" (
+    echo %%F ignored
+  ) else (
+   if "%%F" == "vdb-sql.exe" (
+    echo %%F ignored
+   ) else (
     call set TOOLS=%%TOOLS%% %%F
+   )
   )
 )
 
 cd %1
 set VERSION_CHECKER=%2
-set VERSION=%4
-
-echo Smoke testing %VERSION% toolkit tarball ...
 
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h

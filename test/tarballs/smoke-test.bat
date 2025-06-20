@@ -70,6 +70,7 @@ for /f %%F in ('dir /A:-D /B %1') do (
    if "%%F" == "vdb-sql.exe" (
     echo %%F ignored
    ) else (
+    echo will test "%%F"
     call set TOOLS=%%TOOLS%% %%F
    )
   )

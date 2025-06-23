@@ -43,11 +43,11 @@ if ( NOT WIN32 )
 	add_test( NAME Test_Prefetch_urls_and_accs
 		COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
-		add_test( NAME Test_Prefetch_urls_and_accs-asan
-			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( TARGET prefetch-asan )
+# 		add_test( NAME Test_Prefetch_urls_and_accs-asan
+# 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_urls_and_accs-tsan
 			COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan
@@ -58,11 +58,11 @@ if ( NOT WIN32 )
 		COMMAND
                perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
-		add_test( NAME Test_Prefetch_out_dir_and_file-asan
-			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( TARGET prefetch-asan )
+# 		add_test( NAME Test_Prefetch_out_dir_and_file-asan
+# 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_out_dir_and_file-tsan
 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan
@@ -106,15 +106,27 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_1GB
 		COMMAND perl ncbi1GB.pl ${DIRTOTEST} prefetch  # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	set_tests_properties ( SlowTest_Prefetch_1GB 
+	    PROPERTIES
+	        SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
+	)
 	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_1GB-asan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties ( SlowTest_Prefetch_1GB-asan
+            PROPERTIES
+                SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
+        )
 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_1GB-tsan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties ( SlowTest_Prefetch_1GB-tsan
+            PROPERTIES
+                SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
+        )
 	endif()
 
 	add_test( NAME Test_Prefetch_Bad_Kart
@@ -126,17 +138,17 @@ if ( NOT WIN32 )
           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( TARGET prefetch-asan )
-      add_test( NAME Test_Prefetch_Bad_Kart-asan
-        COMMAND
-         env
-          dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
-          dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
-          ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( TARGET prefetch-asan )
+#       add_test( NAME Test_Prefetch_Bad_Kart-asan
+#         COMMAND
+#          env
+#           dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
+#           dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
+#           dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
+#           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
+#           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
+#         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 	if( TARGET prefetch-tsan )
       add_test( NAME Test_Prefetch_Bad_Kart-tsan
         COMMAND

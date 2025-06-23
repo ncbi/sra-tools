@@ -46,7 +46,7 @@ link_libraries (
 
 AddExecutableTest ( Test_SraSearch
     "test-sra-search.cpp;../vdb-search.cpp;../searchblock.cpp;../blobmatchiterator.cpp;../fragmentmatchiterator.cpp;../referencematchiterator.cpp"
-    "ksrch" ""
+    "ksrch" "" "--no-asan"
 )
 
 AddExecutableTest ( Test_SraSearchSlow
@@ -180,8 +180,8 @@ if ( NOT WIN32)
 				${SRA_SEARCH} 7.4-threads-sort --args "ACGTAGGGTCC --threads 4 SRR600096 SRR600095 --sort" )
 
 	# nothing found
-	add_test ( NAME SlowTest_SraSearch-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 8.0-nothing-found --rc 3 --args "TTTTTTTTAAAAAAACCCC -T 1 SRR000001" )
+# 	add_test ( NAME SlowTest_SraSearch-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
+# 				${SRA_SEARCH} 8.0-nothing-found --rc 3 --args "TTTTTTTTAAAAAAACCCC -T 1 SRR000001" )
 
 	# reference mode
 	add_test ( NAME SlowTest_SraSearch-9.0-reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh

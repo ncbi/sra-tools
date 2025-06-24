@@ -323,7 +323,7 @@ protected:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
     std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default logger
     Writer2::Table SEQUENCE_TABLE;
-    Writer2::Column c_NAME;
+    //Writer2::Column c_NAME;
     Writer2::Column c_SPOT_GROUP;
     Writer2::Column c_PLATFORM;
     Writer2::Column c_READ;
@@ -451,7 +451,7 @@ void fastq_writer_vdb::open()
         { "READ_TYPE",          sizeof(char) }, // one per read
         { "READ_FILTER",        sizeof(char) }, // one per read '0'or '1'
         { "QUALITY",            sizeof(char), quality_expression.c_str() }, // quality string
-        { "NAME",               sizeof(char), name_column_expression.c_str() }, // spotName
+       // { "NAME",               sizeof(char), name_column_expression.c_str() }, // spotName
         { "SPOT_GROUP",         sizeof(char) }, // barcode
 //        { "CLIP_QUALITY_LEFT",  sizeof(int32_t) }, // one per read, default 0
 //        { "CLIP_QUALITY_RIGHT", sizeof(int32_t) }, // one per read, default 0
@@ -472,7 +472,7 @@ void fastq_writer_vdb::open()
 
     m_writer->addTable("SEQUENCE", SequenceCols);
     SEQUENCE_TABLE = m_writer->table("SEQUENCE");
-    c_NAME = SEQUENCE_TABLE.column("NAME");
+    //c_NAME = SEQUENCE_TABLE.column("NAME");
     c_SPOT_GROUP = SEQUENCE_TABLE.column("SPOT_GROUP");
     c_PLATFORM = SEQUENCE_TABLE.column("PLATFORM");
     c_READ = SEQUENCE_TABLE.column("READ");
@@ -633,17 +633,19 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
     m_tmp_spot += first_read.Suffix();
     if ( hasCoords )
     {
+//cerr<<"has coords"<<first_read.SpotFmt()        <<endl;
         c_NAME_FMT.setValue(first_read.SpotFmt()); // TODO: do properly
         c_X.setValue( x );
         c_Y.setValue( y );
-        c_NAME.setValue(m_tmp_spot); // for size comparison with NAME_FMT+X+Y
+        //c_NAME.setValue(string());
     }
     else
     {
-        //c_NAME_FMT.setValue( string() );
-        //c_X.setValue( 0 );
-        //c_Y.setValue( 0 );
-        c_NAME.setValue(m_tmp_spot);
+//cerr<<"has no coords: "<< m_tmp_spot       <<endl;
+        c_NAME_FMT.setValue( string() ); //TODO: m_tmp_spot
+        c_X.setValue( 0 );
+        c_Y.setValue( 0 );
+        //c_NAME.setValue(m_tmp_spot);
     }
 
     SEQUENCE_TABLE.closeRow();
@@ -690,7 +692,7 @@ public:
         //m_tmp_spot = first_read.Spot();
         m_tmp_spot = spot_name;
         m_tmp_spot += first_read.Suffix();
-        c_NAME.setValue(m_tmp_spot);
+        //c_NAME.setValue(m_tmp_spot);
         c_SPOT_GROUP.setValue(first_read.SpotGroup());
         c_PLATFORM.setValue(m_platform);
         m_tmp_sequence = first_read.Sequence();

@@ -64,7 +64,7 @@ GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const std::string&  p_progra
     m_schema ( 0 ),
     m_databaseNameOverridden ( ! m_databaseName.empty() )
 {
-KDbgSetString("VDB");
+//KDbgSetString("VDB");
     m_databases . insert ( Databases :: value_type ( 0, (VDatabase*)0 ) ); // reserve root database
 }
 

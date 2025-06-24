@@ -183,16 +183,19 @@ public:
         m_tmp_spot.clear();
         if (!re.GetMatch()[0].empty()) {
             re.GetMatch()[0].CopyToString(&m_tmp_spot);
+m_tmp_spot_fmt = m_tmp_spot;
+m_tmp_spot_fmt += ":$X:$Y";
+read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
+
             s_add_sep(m_tmp_spot, re.GetMatch()[1]);
         }
+
         re.GetMatch()[2].AppendToString(&m_tmp_spot); //lane
         s_add_sep(m_tmp_spot, re.GetMatch()[3]);
         re.GetMatch()[4].AppendToString(&m_tmp_spot); //tile
 
         s_add_sep(m_tmp_spot, re.GetMatch()[5]);
         uint32_t x = stoi( re.GetMatch()[6].as_string() );
-        m_tmp_spot_fmt = m_tmp_spot;
-        m_tmp_spot_fmt += "$X";
         re.GetMatch()[6].AppendToString(&m_tmp_spot); //x
 
         s_add_sep(m_tmp_spot, re.GetMatch()[7]);
@@ -204,7 +207,6 @@ public:
         read.SetCoords( x, y );
 
         read.MoveSpot(std::move(m_tmp_spot));
-        read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
 
         read.SetReadNum(re.GetMatch()[10]);
 
@@ -338,10 +340,21 @@ public:
             tile.AppendToString(&m_tmp_spot);
 
         } else {
+
             if (!prefix.empty()) {
                 prefix.CopyToString(&m_tmp_spot);
+m_tmp_spot += "x";
+x.AppendToString(&m_tmp_spot); //x
+m_tmp_spot += "y";
+y.AppendToString(&m_tmp_spot); //y
+
+m_tmp_spot_fmt = m_tmp_spot;
+m_tmp_spot_fmt += ":$X:$Y";
+read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
+
                 s_add_sep(m_tmp_spot, re.GetMatch()[1]);
             }
+
             lane.AppendToString(&m_tmp_spot); //lane
             s_add_sep(m_tmp_spot, re.GetMatch()[3]); // sep2
             tile.AppendToString(&m_tmp_spot); //tile
@@ -349,6 +362,9 @@ public:
             x.AppendToString(&m_tmp_spot); //x
             s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
             y.AppendToString(&m_tmp_spot); //y
+
+read.SetCoords( stoi( x.as_string() ), stoi( y.as_string() ) );
+
         }
         read.MoveSpot(std::move(m_tmp_spot));
 

@@ -1,0 +1,22 @@
+Engineering (NAME, X, Y separated by schema)
+name compresses well
+  writing to NAME
+    mem 2322084 user 607.02 1.8G
+  writing to RAW_NAME
+    mem 2321076 user 630.92 2.0G
+
+name compresses badly:
+  writing to NAME
+    mem 2352712 user 690.11 2.0G
+  writing to RAW_NAME
+    mem 2352556 user 662.26 2.0G
+
+Branch (NAME, X, Y separated by parser)
+  name compresses well
+    mem 2322040 user 613.48 1.8G
+    mem 2321324 user 648.63 1.8G
+
+  name compresses badly:
+    mem 2362308 user 687.29 2.1G
+
+

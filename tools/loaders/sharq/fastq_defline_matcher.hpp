@@ -358,10 +358,10 @@ read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
             lane.AppendToString(&m_tmp_spot); //lane
             s_add_sep(m_tmp_spot, re.GetMatch()[3]); // sep2
             tile.AppendToString(&m_tmp_spot); //tile
-            s_add_sep(m_tmp_spot, re.GetMatch()[5]); // sep3
-            x.AppendToString(&m_tmp_spot); //x
-            s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
-            y.AppendToString(&m_tmp_spot); //y
+            // s_add_sep(m_tmp_spot, re.GetMatch()[5]); // sep3
+            // x.AppendToString(&m_tmp_spot); //x
+            // s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
+            // y.AppendToString(&m_tmp_spot); //y
 
 read.SetCoords( stoi( x.as_string() ), stoi( y.as_string() ) );
 

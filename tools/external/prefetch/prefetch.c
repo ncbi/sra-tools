@@ -1513,6 +1513,8 @@ static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
     opt.quitting = Quitting;
     opt.dryRun = mane->dryRun;
 
+    setenv("ASPERA_SCP_PASS", "743128bf-3bf3-45b5-ab14-4602c67f2950", 1);
+
     return aspera_get(mane->ascp, mane->asperaKey, src, to, &opt);
 }
 

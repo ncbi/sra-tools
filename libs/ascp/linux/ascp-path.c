@@ -42,20 +42,15 @@ static int size_of(const char **array) {
 bool ascp_path(const char **cmd, const char **key) {
     static int idx = 0;
     static const char *k[] = {
-        "/opt/aspera/etc/asperaweb_id_dsa.openssh",
-        "/opt/aspera/etc/asperaweb_id_dsa.putty",
-
-        "/opt/aspera/etc/asperaweb_id_dsa.openssh",
-        "/opt/aspera/etc/asperaweb_id_dsa.putty",
-
-        "/opt/aspera/etc/asperaweb_id_dsa.openssh",
-        "/opt/aspera/etc/asperaweb_id_dsa.putty",
+        "/opt/aspera/etc/aspera_tokenauth_id_rsa",
+        "/opt/aspera/etc/aspera_tokenauth_id_rsa",
+        "/opt/aspera/etc/aspera_tokenauth_id_rsa",
         NULL
     };
     static const char *c[] = {
-                            "ascp",                 "ascp",
-                   "/usr/bin/ascp",        "/usr/bin/ascp",
-            "/opt/aspera/bin/ascp", "/opt/aspera/bin/ascp",
+                            "ascp",
+                   "/usr/bin/ascp",
+            "/opt/aspera/bin/ascp",
             NULL
         };
     int size = size_of(c);

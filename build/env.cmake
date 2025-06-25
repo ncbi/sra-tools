@@ -26,6 +26,8 @@
 # Calculation of the global settings for the CMake build.
 #
 
+include(CheckCXXCompilerFlag)
+
 # allow implicit source file extensions
 if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
      ${CMAKE_VERSION} VERSION_GREATER "3.20")
@@ -213,7 +215,6 @@ endif()
 
 set(COMPILER_OPTION_SSE42_SUPPORTED OFF)
 if( "x86_64" STREQUAL ${ARCH} )
-    include(CheckCXXCompilerFlag)
     CHECK_CXX_COMPILER_FLAG("-msse4.2" COMPILER_OPTION_SSE42_SUPPORTED)
 endif()
 # if (COMPILER_OPTION_SSE42_SUPPORTED)
@@ -773,25 +774,34 @@ if ( SINGLE_CONFIG )
     )
 endif()
 
-if( NOT SINGLE_CONFIG )
-	if( RUN_SANITIZER_TESTS )
-		message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
-	endif()
-	set( RUN_SANITIZER_TESTS OFF )
-endif()
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-fsanitize=address" HAS_SANITIZERS)
 
-if( RUN_SANITIZER_TESTS )
-	if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
-		message("Disabling sanitizer tests on Ubuntu...")
-		set( RUN_SANITIZER_TESTS OFF )
-	endif()
-endif()
+if ( HAS_SANITIZERS )
+    if( NOT SINGLE_CONFIG )
+        if( RUN_SANITIZER_TESTS )
+            message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
+        endif()
+        set( RUN_SANITIZER_TESTS OFF )
+    endif()
 
-if( RUN_SANITIZER_TESTS_OVERRIDE )
-	message("Overriding sanitizer tests due to RUN_SANITIZER_TESTS_OVERRIDE: ${RUN_SANITIZER_TESTS_OVERRIDE}")
-	set( RUN_SANITIZER_TESTS ON )
+    if( RUN_SANITIZER_TESTS )
+        if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
+            message("Disabling sanitizer tests on Ubuntu...")
+            set( RUN_SANITIZER_TESTS OFF )
+        endif()
+    endif()
+
+    if( RUN_SANITIZER_TESTS_OVERRIDE )
+        message("Overriding sanitizer tests due to RUN_SANITIZER_TESTS_OVERRIDE: ${RUN_SANITIZER_TESTS_OVERRIDE}")
+        set( RUN_SANITIZER_TESTS ON )
+    endif()
+    message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
+else()
+    message("ASAN suport is not detected. Disabling sanitizer tests.")
+    set( RUN_SANITIZER_TESTS OFF )
+    set( RUN_SANITIZER_TESTS_OVERRIDE OFF )
 endif()
-message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs include_dirs )
     add_library( ${target_name} STATIC ${sources} )
@@ -804,7 +814,7 @@ function( GenerateStaticLibsWithDefs target_name sources compile_defs include_di
         target_compile_options( "${target_name}-tsan" PUBLIC -fsanitize=thread )
         target_link_options( "${target_name}-tsan" PUBLIC -fsanitize=thread )
     endif()
-    
+
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
         if( RUN_SANITIZER_TESTS )

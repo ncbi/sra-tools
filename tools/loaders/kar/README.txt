@@ -372,7 +372,7 @@ or
     RUNXXX/tbl/SEQUENCE/col/QUALITY     /* run is a database */
 
 After delite process downloaded kar archive with run and unpacked it, the first
-thing script does, is checking of existance of QUALITY directory. If script
+thing scritp does, is checking of existance of QUALITY directory. If script
 is unable to locate that directory, it will exit with return code 83.
 
 Next condition which run should comply with is: there should be substutute

@@ -78,6 +78,8 @@
 #include "PrfRetrier.h"
 #include "PrfOutFile.h"
 
+#include <os-native.h> /* setenv */
+
 #include <strtol.h> /* strtou64 */
 #include <sysalloc.h>
 

@@ -23,6 +23,7 @@
 # ===========================================================================
 
 add_compile_definitions( __mod__="tools/prefetch" )
+add_compile_definitions( _POSIX_C_SOURCE=200809 ) # setenv with clang
 
 set( SRC
 	kfile-no-q

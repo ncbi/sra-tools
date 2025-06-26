@@ -23,10 +23,6 @@
 * =============================================================================$
 */
 
-#if _POSIX_C_SOURCE < 2
-#define _POSIX_C_SOURCE 2 /* popen, pclose */
-#endif
-
 #include <kapp/args.h> /* ArgsWhack */
 #include <kapp/log-xml.h> /* XMLLogger_Release */
 #include <kapp/main.h> /* KAppVersion */
@@ -39,7 +35,8 @@
 #include <vdb/database.h> /* VDatabaseRelease */
 #include <vdb/manager.h> /* VDBManagerRelease */
 #include <vdb/table.h> /* VTableRelease */
-#include <stdio.h> /* sprintf */
+#include <stdio.h> /* snprintf */
+#include <inttypes.h>
 #include <time.h> /* time */
 
 #define DR_OPTION "dryrun"
@@ -228,13 +225,19 @@ static void RepairCheckAD
 
     STSMSG(2, ("Accession: %s\n", self->acc));
 
-    if (prefetched)
-        sprintf(self->prefetched, "%s/%s", dir, self->acc);
-    if (dir != NULL)
-        sprintf(self->inFileBuffer, "%s/%s/%s.sra", dir, self->acc, self->acc);
-    else
-        sprintf(self->inFileBuffer, "%s/%s.sra", path, self->acc);
-
+    if (prefetched) {
+        int const n = snprintf(self->prefetched, sizeof(self->prefetched), "%s/%s", dir, self->acc);
+        assert(n < sizeof(self->prefetched));
+    }
+    if (dir != NULL) {
+        int const n = snprintf(self->inFileBuffer, sizeof(self->inFileBuffer), "%s/%s/%s.sra", dir, self->acc, self->acc);
+        assert(n < sizeof(self->inFileBuffer));
+    }
+    else {
+        int const n = snprintf(self->inFileBuffer, sizeof(self->inFileBuffer), "%s/%s.sra", path, self->acc);
+        assert(n < sizeof(self->inFileBuffer));
+    }
+    
     type = KDirectoryPathType(self->dir, self->inFileBuffer);
     if ((type & ~kptAlias) == kptFile) {
         detected = self->inType = aAccAsDirSra;
@@ -560,7 +563,9 @@ rc_t RepairExecuteImpl(const Repair *self, const char *command, bool silent) {
     FILE *fp = 0;
     char cmd[4096] = "";
     KLogLevel lvl = KLogLevelGet();
-    sprintf(cmd, "%s -L%d", command, lvl);
+    i = snprintf(cmd, sizeof(cmd), "%s -L%d", command, lvl);
+    assert(i < sizeof(cmd));
+    i = 0;
     if (self->verbose > 0) {
         int i = 0;
         strcat(cmd, " -");
@@ -628,7 +633,8 @@ static rc_t RepairExecuteSilent(const Repair *self, const char *command)
 
 static rc_t RepairCheckBins(const Repair *self) {
     rc_t rc = 0;
-    char command[99] = "";
+    char command[256] = "";
+    int n;
     STSMSG(1, ("Checking for required tools...\n"));
     assert(self);
     if (self->dry)
@@ -640,16 +646,18 @@ static rc_t RepairCheckBins(const Repair *self) {
             return rc; */
 
 /* sra-stat is found */
-        sprintf(command, SRA_STAT " -h > /dev/null 2>&1");
+        n = snprintf(command, sizeof(command), SRA_STAT " -h > /dev/null 2>&1");
+        assert(n < sizeof(command));
         rc = Find(command, "Cannot find " SRA_STAT);
         if (rc != 0)
             return rc;
 
 /* sra-stat supports --repair-data */
         if (self->verbose < 4)
-            sprintf(command, SRA_STAT " " REPAIR " > /dev/null 2>&1");
+            n = snprintf(command, sizeof(command), SRA_STAT " " REPAIR " > /dev/null 2>&1");
         else
-            sprintf(command, SRA_STAT " " REPAIR " 2>&1 > /dev/null");
+            n = snprintf(command, sizeof(command), SRA_STAT " " REPAIR " 2>&1 > /dev/null");
+        assert(n < sizeof(command));
         rc = Find(command, SRA_STAT " does not support " REPAIR);
         if (rc != 0)
             return rc;
@@ -657,32 +665,37 @@ static rc_t RepairCheckBins(const Repair *self) {
 
     if (self->mode & eFix) {
 /* kar is found */
-        sprintf(command, KAR " -h > /dev/null 2>&1");
+        n = snprintf(command, sizeof(command), KAR " -h > /dev/null 2>&1");
+        assert(n < sizeof(command));
         rc = Find(command, "Cannot find " KAR);
         if (rc != 0)
             return rc;
 
 /* kdbmeta is found */
-        sprintf(command, KDBMETA " -h > /dev/null 2>&1");
+        n = snprintf(command, sizeof(command), KDBMETA " -h > /dev/null 2>&1");
+        assert(n < sizeof(command));
         rc = Find(command, "Cannot find " KDBMETA);
         if (rc != 0)
             return rc;
 
  /* vdb-lock is found */
-        sprintf(command, LOCK " -h > /dev/null 2>&1");
+        n = snprintf(command, sizeof(command), LOCK " -h > /dev/null 2>&1");
+        assert(n < sizeof(command));
         rc = Find(command, "Cannot find " LOCK);
         if (rc != 0)
             return rc;
 
  /* vdb-unlock is found */
-        sprintf(command, UNLOCK " -h > /dev/null 2>&1");
+        n = snprintf(command, sizeof(command), UNLOCK " -h > /dev/null 2>&1");
+        assert(n < sizeof(command));
         rc = Find(command, "Cannot find " UNLOCK);
         if (rc != 0)
             return rc;
 
         if (self->mode & eCheck && self->inType == eAcc) {
 /* prefetch  is found */
-            sprintf(command, PREFETCH " -h > /dev/null 2>&1");
+            n = snprintf(command, sizeof(command), PREFETCH " -h > /dev/null 2>&1");
+            assert(n < sizeof(command));
             rc = Find(command, "Cannot find " PREFETCH);
             if (rc != 0)
                 return rc;
@@ -740,7 +753,7 @@ static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
     rc_t rc = 0;
     int i = 0;
     FILE* fp = NULL;
-    char cmd[999] = "";
+    char cmd[1024] = "";
     const char* key = "";
     const char* val = "";
     const char* info = "";
@@ -765,8 +778,10 @@ static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
     }
 #endif
 
-    sprintf(cmd, SRA_STAT " " REPAIR " %s %s %s%s -L5 %s 2>&1",
+    i = snprintf(cmd, sizeof(cmd), SRA_STAT " " REPAIR " %s %s %s%s -L5 %s 2>&1",
         info, progress, key, val, what);
+    assert(i < sizeof(cmd));
+    i = 0;
     STSMSG(2, ("%s\n", cmd));
 
     if (succeed == NULL)
@@ -824,13 +839,15 @@ static rc_t RepairCheck(Repair* self, const char* what, bool* succeed) {
 
 static rc_t RepairPrefetch(Repair *self) {
     rc_t rc = 0;
+    int n;
     char command[4115] = "";
 
     STSMSG(1, ("Input not found: prefetching...\n"));
 
     assert(self && self->inType == eAcc);
 
-    sprintf(command, PREFETCH " %s -O%s", self->in, self->tmp);
+    n = snprintf(command, sizeof(command), PREFETCH " %s -O%s", self->in, self->tmp);
+    assert(n < sizeof(command));
 
     rc = RepairExecute(self, command);
     if (rc == 0)
@@ -848,8 +865,9 @@ static rc_t RepairUnlock(const Repair *self, const char *path) {
 
     if ((type & ~kptAlias) == kptFile) {
         char command[4123] = "";
+        int const n = snprintf(command, sizeof(command), UNLOCK " %s", path);
+        assert(n < sizeof(command));
         STSMSG(1, ("Unlocking...\n"));
-        sprintf(command, UNLOCK " %s", path);
         return RepairExecute(self, command);
     }
 
@@ -858,18 +876,21 @@ static rc_t RepairUnlock(const Repair *self, const char *path) {
 
 static rc_t RepairUnkar(Repair *self) {
     rc_t rc = 0;
-    char command[4126] = "";
+    char command[8192];
+    int n;
 
     assert(self);
 
-    if (self->outDir == NULL)
-        sprintf(self->inDirBuffer, "%s/%s.tmp", self->tmp, self->acc);
+    if (self->outDir == NULL) {
+        n = snprintf(self->inDirBuffer, sizeof(self->inDirBuffer), "%s/%s.tmp", self->tmp, self->acc);
+        assert(n < sizeof(self->inDirBuffer));
+    }
     else {
         KPathType type = KDirectoryPathType(self->dir, self->outDir);
         if (type != kptNotFound) {
-            char command[4123] = "";
             STSMSG(1, ("Unlocking %s...\n", self->outDir));
-            sprintf(command, UNLOCK " %s", self->outDir);
+            n = snprintf(command, sizeof(command), UNLOCK " %s", self->outDir);
+            assert(n < sizeof(command));
             rc = RepairExecute(self, command);
 
             if (rc == 0) {
@@ -882,7 +903,8 @@ static rc_t RepairUnkar(Repair *self) {
                 }
             }
         }
-        sprintf(self->inDirBuffer, "%s", self->outDir);
+        n = snprintf(self->inDirBuffer, sizeof(self->inDirBuffer), "%s", self->outDir);
+        assert(n < sizeof(self->inDirBuffer));
     }
 
     if (KDirectoryPathType(self->dir, self->inDirBuffer) == kptDir)
@@ -890,8 +912,9 @@ static rc_t RepairUnkar(Repair *self) {
 
     STSMSG(1, ("Unkaring...\n"));
 
-    sprintf(command, KAR " -f --extract %s -d %s",
+    n = snprintf(command, sizeof(command), KAR " -f --extract %s -d %s",
         self->inFile, self->inDirBuffer);
+    assert(n < sizeof(command));
 
     rc = RepairExecute(self, command);
     if (rc != 0)
@@ -956,7 +979,7 @@ static rc_t RepairFindNextFix(Repair *self) {
     self->actual = self->expected = 0;
     if (self->nextFix != NULL) {
         int n = sscanf(self->nextFix,
-                       "{MISMATCH} Name:%s Expected:%lu, Actual:%lu.",
+                       "{MISMATCH} Name:%s Expected:%" PRIu64 ", Actual:%" PRIu64 ".",
                        self->name, &self->expected, &self->actual);
         if (n != 3)
             return RC(rcExe, rcData, rcProcessing, rcData, rcUnexpected);
@@ -997,16 +1020,17 @@ static rc_t RepairParseFix(Repair *self) {
 
 static rc_t RepairDoFix(const Repair *self) {
     rc_t rc = 0;
-    char command[5000] = "";
     char hex[17] = "";
     char val[33] = "";
     int i = 0, j = 0;
+    char command[8192] = "";
 
     STSMSG(1, ("Running " KDBMETA " to update metadata...\n"));
 
     assert(self);
 
-    sprintf(hex, "%016lX", self->expected);
+    i = snprintf(hex, sizeof(hex), "%016" PRIX64 "", self->expected);
+    assert(i < sizeof(hex));
     for (i = j = 0; i < 8; ++i) {
         val[j++] = '\\';
         val[j++] = 'x';
@@ -1015,8 +1039,9 @@ static rc_t RepairDoFix(const Repair *self) {
     }
     val[j] = '\0';
 
-    sprintf(command, KDBMETA " %s %s %s=\"%s\"",
+    i = snprintf(command, sizeof(command), KDBMETA " %s %s %s=\"%s\"",
             self->inDir, self->tblOpt, self->name, val);
+    assert(i < sizeof(command));
     rc = RepairExecute(self, command);
     if (rc == 0)
         PLOGMSG(klogInfo, (klogInfo, "Updated $(F) from $(O) to $(N)",
@@ -1082,8 +1107,9 @@ static rc_t RepaitFinish(Repair *self) {
 
     if (rc == 0) {
         char command[4123] = "";
+        int const n = snprintf(command, sizeof(command), LOCK " %s", self->inDir);
+        assert(n < sizeof(command));
         STSMSG(1, ("Locking...\n"));
-        sprintf(command, LOCK " %s", self->inDir);
         rc = RepairExecute(self, command);
     }
 
@@ -1278,8 +1304,9 @@ MAIN_DECL( argc, argv )
     }
     if (rc == 0 && pars.unkared != NULL && pars.outDir == NULL) {
         char command[4123] = "";
+        int const n = snprintf(command, sizeof(command), UNLOCK " %s", pars.unkared);
+        assert(n < sizeof(command));
         STSMSG(2, ("Unlocking...\n"));
-        sprintf(command, UNLOCK " %s", pars.unkared);
         rc = RepairExecute(&pars, command);
 
         if (rc == 0) {

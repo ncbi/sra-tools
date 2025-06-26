@@ -306,7 +306,8 @@ static rc_t qual_stats(const Params* prm, const VDatabase* db) {
                 uint64_t u = 0;
                 char name[64];
                 const KMDataNode* n = NULL;
-                sprintf(name, "PHRED_%d", quals[i]);
+                int len = snprintf(name, sizeof(name), "PHRED_%d", quals[i]);
+                assert(len < sizeof(name));
                 rc = KMDataNodeOpenNodeRead(node, &n, "%s", name);
                 DISP_RC(rc, name);
                 if (rc == 0) {

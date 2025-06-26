@@ -59,7 +59,8 @@ static bool tst_fast_u32toa(u32 val)
 {
     char slow[100];
     char fast[100];
-    sprintf(slow, "%u", val);
+    int n = snprintf(slow, sizeof(slow), "%u", val);
+    assert(n < sizeof(slow));
     size_t len = fast_u32toa(fast, val);
     if (strcmp(fast, slow)) {
         fprintf(stderr, "mismatch %u '%s' '%s'\n", val, slow, fast);
@@ -77,7 +78,8 @@ static bool tst_fast_i32toa(u32 val)
 {
     char slow[100];
     char fast[100];
-    sprintf(slow, "%d", val);
+    int n = snprintf(slow, sizeof(slow), "%d", val);
+    assert(n < sizeof(slow));
     size_t len = fast_i32toa(fast, val);
     if (strcmp(fast, slow)) {
         fprintf(stderr, "mismatch %d '%s' '%s'\n", val, slow, fast);
@@ -254,19 +256,22 @@ TEST_CASE(Fast_strtoi64)
 
     for (int i = 0; i != sizeof(tsts) / sizeof(tsts[0]); ++i) {
         REQUIRE_EQUAL(tst_strtoi64(tsts[i]), true);
-        sprintf(str, "-%s", tsts[i]);
+        int n = snprintf(str, sizeof(str), "-%s", tsts[i]);
+        assert(n < sizeof(str));
         REQUIRE_EQUAL(tst_strtoi64(str), true);
     }
 
     for (int i = 0; i != NUM_RAND; ++i) {
-        sprintf(str, "%ld", (random() << 33) + (random() << 16) + random());
+        int n = snprintf(str, sizeof(str), "%ld", (random() << 33) + (random() << 16) + random());
+        assert(n < sizeof(str));
         REQUIRE_EQUAL(tst_strtoi64(str), true);
     }
 
 #ifdef TEST_ALL_THE_INTEGERS
     fprintf(stderr, "all strtoi32\n");
     for (long long i = 2l * INT32_MIN; i != 2l * INT32_MAX; ++i) {
-        sprintf(str, "%lld", i);
+        int n = snprintf(str, sizeof(str), "%lld", i);
+        assert(n < sizeof(str));
         REQUIRE_EQUAL(tst_strtoi64(str), true);
     }
 #endif

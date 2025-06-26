@@ -275,6 +275,7 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
   uint32_t mode = 0;
   uint32_t pathtype = 0;
   uint32_t failed = 0;
+  int n;
 
   if (PathIsMD5File(top, inname)) {
     /* Skip it */
@@ -313,7 +314,8 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
     failed = rc;
     goto FAIL;
   }
-  sprintf(md5filename, "%s.md5", outname);
+  n = snprintf(md5filename, sizeof(md5filename), "%s.md5", outname);
+  assert(n < sizeof(md5filename));
   rc = KDirectoryCreateFile( targettop, &md5file, false, DEFAULTMODE, (force? kcmInit: kcmCreate), "%s", md5filename);
   if (rc != 0) {
     failed = rc;

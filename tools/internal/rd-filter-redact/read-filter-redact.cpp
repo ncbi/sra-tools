@@ -56,6 +56,7 @@
 #include <assert.h>
 #include <ctype.h> /* isblank */
 #include <stdio.h> /* sscanf */
+#include <inttypes.h> /* PRId64 */
 #include <stdlib.h> /* exit */
 #include <string.h> /* memset */
 
@@ -332,7 +333,7 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
                 }
             }
 
-            sscanf(self->buffer, "%ld", &spot);
+            sscanf(self->buffer, "%" PRId64 "", &spot);
 
             if (spot == 0) {
                 rc = RC(rcExe, rcFile, rcReading, rcString, rcInvalid);

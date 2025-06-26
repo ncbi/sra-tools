@@ -348,10 +348,6 @@ x.AppendToString(&m_tmp_spot); //x
 m_tmp_spot += "y";
 y.AppendToString(&m_tmp_spot); //y
 
-m_tmp_spot_fmt = m_tmp_spot;
-m_tmp_spot_fmt += ":$X:$Y";
-read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
-
                 s_add_sep(m_tmp_spot, re.GetMatch()[1]);
             }
 
@@ -363,9 +359,12 @@ read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
             // s_add_sep(m_tmp_spot, re.GetMatch()[7]); //sep 4
             // y.AppendToString(&m_tmp_spot); //y
 
-read.SetCoords( stoi( x.as_string() ), stoi( y.as_string() ) );
+//read.SetCoords( stoi( x.as_string() ), stoi( y.as_string() ) );
 
         }
+m_tmp_spot_fmt = m_tmp_spot;
+//m_tmp_spot_fmt += ":$X:$Y";
+read.MoveSpotFmt(std::move(m_tmp_spot_fmt));
         read.MoveSpot(std::move(m_tmp_spot));
 
         if (!readNum.empty()) { // readNum

@@ -631,7 +631,7 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
 
     m_tmp_spot = spot_name;
     m_tmp_spot += first_read.Suffix();
-    if ( hasCoords )
+//    if ( hasCoords )
     {
 //cerr<<"has coords"<<first_read.SpotFmt()        <<endl;
         c_NAME_FMT.setValue(first_read.SpotFmt()); // TODO: do properly
@@ -639,14 +639,14 @@ void fastq_writer_vdb::write_spot(const string& spot_name, const vector<CFastqRe
         c_Y.setValue( y );
         //c_NAME.setValue(string());
     }
-    else
-    {
-//cerr<<"has no coords: "<< m_tmp_spot       <<endl;
-        c_NAME_FMT.setValue( string() ); //TODO: m_tmp_spot
-        c_X.setValue( 0 );
-        c_Y.setValue( 0 );
-        //c_NAME.setValue(m_tmp_spot);
-    }
+//     else
+//     {
+// //cerr<<"has no coords: "<< m_tmp_spot       <<endl;
+//         c_NAME_FMT.setValue( string() ); //TODO: m_tmp_spot
+//         c_X.setValue( 0 );
+//         c_Y.setValue( 0 );
+//         //c_NAME.setValue(m_tmp_spot);
+//     }
 
     SEQUENCE_TABLE.closeRow();
 }

@@ -653,14 +653,14 @@ LIB_EXPORT rc_t CC ascp_locate(const char **ascp_bin, const char **private_file,
             STSMSG(STS_DBG, ("checking '%s'/'%s'...", bin, key));
             if (_SystemHelp(bin, status)) {
                 if (_KDirectoryFileFound(dir, key, status)) {
-                    STSMSG(STS_DBG, ("...using '%s'/'%s'", bin, key));
+                    STSMSG(STS_FIN, ("...using '%s'/'%s'", bin, key));
                     break;
                 }
                 else
-                    STSMSG(STS_DBG, ("...cannot use '%s'/'%s'", bin, key));
+                    STSMSG(STS_FIN, ("...cannot use '%s'/'%s'", bin, key));
             }
             else
-                STSMSG(STS_DBG, ("...cannot use '%s'", bin));
+                STSMSG(STS_FIN, ("...cannot use '%s'", bin));
         }
         RELEASE(KDirectory, dir);
     }

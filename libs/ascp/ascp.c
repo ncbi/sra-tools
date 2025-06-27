@@ -650,11 +650,17 @@ LIB_EXPORT rc_t CC ascp_locate(const char **ascp_bin, const char **private_file,
             return rc;
         }
         while (ascp_path(&bin, &key)) {
+            STSMSG(STS_INFO, ("checking '%s'/'%s'...", bin, key));
             if (_SystemHelp(bin, status)) {
                 if (_KDirectoryFileFound(dir, key, status)) {
+                    STSMSG(STS_INFO, ("...using '%s'/'%s'", bin, key));
                     break;
                 }
+                else
+                    STSMSG(STS_INFO, ("...cannot use '%s'/'%s'", bin, key));
             }
+            else
+                STSMSG(STS_INFO, ("...cannot use '%s'", bin));
         }
         RELEASE(KDirectory, dir);
     }

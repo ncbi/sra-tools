@@ -12,9 +12,10 @@ bool ascp_path(const char **cmd, const char **key) {
     static const char c[] = "/Applications/Aspera Connect.app/Contents/"
         "Resources/ascp";
     assert(cmd != NULL && key != NULL);
-    if (idx++ == 0) {
+    if (idx == 0) {
         *cmd = c;
         *key = k;
+        idx++;
         return true;
     }
     else if (idx == 1) {

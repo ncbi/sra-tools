@@ -28,7 +28,8 @@ my $VERBOSE = $verbose + 0;
 #$VERBOSE = 2; # print commands
 #$VERBOSE = 3; # print command output
 
-`which ascp 2> /dev/null`;
+#`which ascp 2> /dev/null`;
+print "$?\n";
 unless ($?) {
     unless (`hostname`  =~ /v21/) {
         $FOUND = 1;

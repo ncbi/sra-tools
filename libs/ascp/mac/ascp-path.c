@@ -9,7 +9,7 @@ bool ascp_path(const char **cmd, const char **key) {
     assert(cmd != NULL && key != NULL);
     if (idx == 0) {
         static const char k[] = "/Applications/Aspera Connect.app/Contents/"
-            "Resources/aspera_tokenauth_id_rsa",
+            "Resources/aspera_tokenauth_id_rsa";
         static const char c[] = "/Applications/Aspera Connect.app/Contents/"
             "Resources/ascp";
         *cmd = c;
@@ -18,7 +18,7 @@ bool ascp_path(const char **cmd, const char **key) {
         return true;
     }
     else if (idx == 1) {
-        static const char k[] = "ascp",
+        static const char k[] = "ascp";
         static const char c[] = "/Applications/Aspera Connect.app/Contents/"
             "Resources/ascp";
         *cmd = c;

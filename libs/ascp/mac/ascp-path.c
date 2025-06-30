@@ -37,8 +37,8 @@ bool ascp_path(const char **cmd, const char **key) {
     static int idx = 0;
     assert(cmd != NULL && key != NULL);
     if (idx == 0) {
-        static const char k[] = OLD "/" KEY;
-        static const char c[] = OLD "/" BIN;
+        static const char k[] = NEW "/" KEY;
+        static const char c[] = NEW "/" BIN;
         *cmd = c;
         *key = k;
         idx++;
@@ -62,15 +62,15 @@ bool ascp_path(const char **cmd, const char **key) {
             if (home == NULL) {
                 home = "";
             }
-            rc = string_printf(k, sizeof k, &num_writ, "%s/%s/" KEY,
-                    home, idx == 2 ? OLD : NEW);
+            rc = string_printf(k, sizeof k, &num_writ, "%s%s/" KEY,
+                    home, idx == 2 ? NEW : OLD);
             if (rc != 0 || num_writ >= PATH_MAX) {
                 assert(0);
                 k[0] = '\0';
             }
             else {
-                rc = string_printf(c, sizeof c, &num_writ, "%s/%s/" BIN,
-                    home, idx == 2 ? OLD : NEW);
+                rc = string_printf(c, sizeof c, &num_writ, "%s%s/" BIN,
+                    home, idx == 2 ? NEW : OLD);
                 if (rc != 0 || num_writ >= PATH_MAX) {
                     assert(0);
                     c[0] = '\0';

@@ -21,6 +21,8 @@
 *  Please cite the author in any work or product based on this material.
 * =========================================================================== */
 
+#include <ascp/ascp.h> /* ascp_locate */
+
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -29,13 +31,14 @@
 #include <kfg/config.h> /* KConfigRelease */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
+#include <kfs/kfs-priv.h> /* KDirectoryPosixStringToSystemString */
+
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/rc.h> /* RC */
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* string_dup_measure */
 
-#include <ascp/ascp.h> /* ascp_locate */
 #include <kns/http.h> /* KNSManagerMakeHttpFile */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFile */
 #include <kns/manager.h> /* KNSManagerRelease */
@@ -68,7 +71,7 @@ bool _StringIsXYZ(const String *self, const char **withoutScheme,
     *withoutScheme = NULL;
 
     if (string_cmp(self->addr, self->len, scheme, scheme_size,
-        scheme_size) == 0)
+        (uint32_t)scheme_size) == 0)
     {
         *withoutScheme = self->addr + scheme_size;
         return true;
@@ -318,7 +321,7 @@ static uint64_t _sizeFromString(const char *val) {
         s *= 1024L * 1024 * 1024;
     }
     else if (*val == 't' || *val == 'T') {
-        s *= 1024L * 1024 * 1024 * 1024;
+        s = s * 1024L * 1024 * 1024 * 1024;
     }
     else if (*val == 'u' || *val == 'U') {  /* unlimited */
         s = 0;
@@ -334,7 +337,7 @@ static ParamDef Parameters[] = { { ArgsConvFilepath } };
 #define ASCP_OPTION "ascp-path"
 #define ASCP_ALIAS  "a"
 static const char* ASCP_USAGE[] =
-{ "Path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
+{ "Path to ascp program and private key file (aspera_tokenauth_id_rsa)", NULL };
 
 #define ASCP_PAR_OPTION "ascp-options"
 #define ASCP_PAR_ALIAS  NULL
@@ -805,12 +808,22 @@ option_name = LOCN_OPTION;
                         "ascp-path expected in the following format:\n"
                         "--" ASCP_OPTION " \"<ascp-binary|private-key-file>\"\n"
                         "Examples:\n"
-                        "--" ASCP_OPTION " \"/usr/bin/ascp|/etc/asperaweb_id_dsa.putty\"\n"
-                        "--" ASCP_OPTION " \"C:\\Program Files\\Aspera\\ascp.exe|C:\\Program Files\\Aspera\\etc\\asperaweb_id_dsa.putty\"\n");
+"--" ASCP_OPTION " \"/usr/bin/ascp|/etc/aspera_tokenauth_id_rsa\"\n"
+"--" ASCP_OPTION " \"C:\\Program Files\\Aspera\\ascp.exe|C:\\Program Files\\Aspera\\etc\\aspera_tokenauth_id_rsa\"\n");
                     break;
                 }
                 else {
+#if WINDOWS
+                    rc_t r2 = 0;
+                    char system[PATH_MAX] = "";
+                    *sep = '\0';
+                    r2 = KDirectoryPosixStringToSystemString(
+                        self->dir, system, sizeof system, "%s", val);
+                    if (r2 == 0)
+                        self->ascp = string_dup_measure(system, NULL);
+#else
                     self->ascp = string_dup(val, sep - val);
+#endif
                     self->asperaKey = string_dup_measure(sep + 1, NULL);
                     self->ascpChecked = true;
                 }
@@ -943,7 +956,7 @@ option_name = LOCN_OPTION;
             }
             self->maxSize = _sizeFromString(val);
             if (self->maxSize == 0)
-                self->maxSize = ~0; /* unlimited */
+                self->maxSize = (uint64_t)~0; /* unlimited */
         }
 
         if (self->maxSize > 0 && self->minSize > self->maxSize) {
@@ -1373,6 +1386,11 @@ rc_t PrfMainInit(int argc, char *argv[], PrfMain *self) {
     BSTreeInit(&self->downloaded);
 
     if (rc == 0) {
+        rc = KDirectoryNativeDir(&self->dir);
+        DISP_RC(rc, "KDirectoryNativeDir");
+    }
+
+    if (rc == 0) {
         rc = PrfMainProcessArgs(self, argc, argv);
     }
 
@@ -1429,11 +1447,6 @@ rc_t PrfMainInit(int argc, char *argv[], PrfMain *self) {
     if (rc == 0) {
         rc = VDBManagerMakeRead(&self->mgr, NULL);
         DISP_RC(rc, "VDBManagerMakeRead");
-    }
-
-    if (rc == 0) {
-        rc = KDirectoryNativeDir(&self->dir);
-        DISP_RC(rc, "KDirectoryNativeDir");
     }
 
     if (rc == 0) {

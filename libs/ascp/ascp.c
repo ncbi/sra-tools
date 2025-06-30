@@ -445,7 +445,7 @@ static bool _KConfigAscpDisabled(const KConfig *self, bool status) {
 }
 
 static String* _KConfigAscpString(const KConfig *self,
-    const char *path, const char *name)
+    const char *path)/*, const char* name)*/
 {
     String *ascp = NULL;
     rc_t rc = KConfigReadString(self, path, &ascp);
@@ -513,7 +513,7 @@ static rc_t _KConfigGetAscpRate(const KConfig *self,
 
     max_rate[0] = '\0';
 
-    s = _KConfigAscpString(self, "tools/ascp/max_rate", "Aspera max rate");
+    s = _KConfigAscpString(self, "tools/ascp/max_rate");/*, "Aspera max rate");*/
     if (s != NULL) {
         if (s->size == 0) {
             free(s);
@@ -541,8 +541,8 @@ static rc_t _KConfigGetAscp(const KConfig *self,
     String *key = NULL;
     assert(self && ascp_bin && private_file);
     *ascp_bin = *private_file = NULL;
-    bin = _KConfigAscpString(self, "tools/ascp/path", "ascp");
-    key = _KConfigAscpString(self, "tools/ascp/key", "Aspera key");
+    bin = _KConfigAscpString(self, "tools/ascp/path");/*, "ascp");*/
+    key = _KConfigAscpString(self, "tools/ascp/key");/*, "Aspera key");*/
     if (bin != NULL && key != NULL) {
         *ascp_bin = string_dup_measure(bin->addr, NULL);
         *private_file = string_dup_measure(key->addr, NULL);
@@ -703,12 +703,12 @@ LIB_EXPORT rc_t CC aspera_get(
 
     if (opt->ascp_options == NULL && opt->target_rate[0] == '\0') {
         KConfig *cfg = NULL;
-        rc_t rc = KConfigMake(&cfg, NULL);
-        DISP_RC(rc, "cannot KConfigMake");
-        if (rc == 0) {
-            rc = _KConfigGetAscpRate(cfg,
+        rc_t r2 = KConfigMake(&cfg, NULL);
+        DISP_RC(r2, "cannot KConfigMake");
+        if (r2 == 0) {
+            r2 = _KConfigGetAscpRate(cfg,
                 opt->target_rate, sizeof opt->target_rate);
-            DISP_RC(rc, "cannot get aspera max rate");
+            DISP_RC(r2, "cannot get aspera max rate");
         }
         RELEASE(KConfig, cfg);
     }
@@ -731,7 +731,7 @@ LIB_EXPORT rc_t CC aspera_get(
             }
             else {
 #if _DEBUGGING
-                size_t s =
+                s =
 #endif
                     string_copy(path, sizeof path, aSrc, n - aSrc);
                 assert(s <= sizeof path);

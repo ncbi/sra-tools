@@ -40,20 +40,12 @@ bool ascp_path(const char **cmd, const char **key) {
 
     static const char *c[] = {
         "C:\\Program Files (x86)\\Aspera\\Aspera Connect\\bin\\ascp.exe",
-        "C:\\Program Files (x86)\\Aspera\\Aspera Connect\\bin\\ascp.exe",
-
-              "C:\\Program Files\\Aspera\\Aspera Connect\\bin\\ascp.exe",
               "C:\\Program Files\\Aspera\\Aspera Connect\\bin\\ascp.exe",
     };
 
     static const char *k[] = {
-"C:\\Program Files (x86)\\Aspera\\Aspera Connect\\etc\\asperaweb_id_dsa.openssh"
-                                                                               ,
-"C:\\Program Files (x86)\\Aspera\\Aspera Connect\\etc\\asperaweb_id_dsa.putty",
-
-      "C:\\Program Files\\Aspera\\Aspera Connect\\etc\\asperaweb_id_dsa.openssh"
-                                                                               ,
-      "C:\\Program Files\\Aspera\\Aspera Connect\\etc\\asperaweb_id_dsa.putty",
+"C:\\Program Files (x86)\\Aspera\\Aspera Connect\\etc\\aspera_tokenauth_id_rsa",
+      "C:\\Program Files\\Aspera\\Aspera Connect\\etc\\aspera_tokenauth_id_rsa",
     };
 
     int size = 4;

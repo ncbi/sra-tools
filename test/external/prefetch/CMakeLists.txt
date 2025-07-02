@@ -106,27 +106,15 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch_1GB
 		COMMAND perl ncbi1GB.pl ${DIRTOTEST} prefetch  # 23
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	set_tests_properties ( SlowTest_Prefetch_1GB 
-	    PROPERTIES
-	        SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
-	)
 	if( TARGET prefetch-asan )
 		add_test( NAME SlowTest_Prefetch_1GB-asan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        set_tests_properties ( SlowTest_Prefetch_1GB-asan
-            PROPERTIES
-                SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
-        )
 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_1GB-tsan
 			COMMAND perl ncbi1GB.pl ${BINDIR} prefetch-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        set_tests_properties ( SlowTest_Prefetch_1GB-tsan
-            PROPERTIES
-                SKIP_REGULAR_EXPRESSION "ascp: failed to authenticate, exiting."
-        )
 	endif()
 
 	add_test( NAME Test_Prefetch_Bad_Kart

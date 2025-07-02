@@ -112,7 +112,7 @@ private:
             }
             friend JSON_ostream &operator<<(JSON_ostream &strm, Formatter const &self) {
                 strm << '[';
-                for (size_t i = 0; i <= self.N; ++i)
+                for (auto i = 0; i <= self.N; ++i)
                     strm << self[i] << ',';
                 strm << ']';
                 return strm;

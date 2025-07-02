@@ -17,10 +17,13 @@ if (NOT WIN32)
     find_package(Threads REQUIRED)
 
     add_executable(qa-stats ${SOURCES} ${HEADERS})
+    target_include_directories(qa-stats PRIVATE ../../../libs/inc)
     target_compile_features(qa-stats PRIVATE cxx_std_17)
     target_link_libraries(qa-stats Threads::Threads)
 
-    MakeLinksExe ( qa-stats false )
+    if (NOT CMAKE_GENERATOR STREQUAL "Xcode")
+        MakeLinksExe ( qa-stats false )
+    endif()
 
     if (RUN_SANITIZER_TESTS)
         target_compile_options( qa-stats PRIVATE -fsanitize=undefined )

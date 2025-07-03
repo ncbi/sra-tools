@@ -774,34 +774,49 @@ if ( SINGLE_CONFIG )
     )
 endif()
 
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-fsanitize=address" HAS_SANITIZERS)
+execute_process( COMMAND sh -c "${CMAKE_CXX_COMPILER} -fsanitize=address test.cpp && ./a.out"
+    RESULT_VARIABLE ASAN_WORKS
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/build  )
+execute_process( COMMAND sh -c "${CMAKE_CXX_COMPILER} -fsanitize=thread test.cpp && ./a.out"
+    RESULT_VARIABLE TSAN_WORKS
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/build  )
 
-if ( HAS_SANITIZERS )
-    if( NOT SINGLE_CONFIG )
-        if( RUN_SANITIZER_TESTS )
-            message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
-        endif()
+if( ASAN_WORKS EQUAL 0 AND TSAN_WORKS EQUAL 0 )
+
+    if( NOT SINGLE_CONFIG AND RUN_SANITIZER_TESTS )
+        message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
         set( RUN_SANITIZER_TESTS OFF )
-    endif()
-
-    if( RUN_SANITIZER_TESTS )
-        if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
-            message("Disabling sanitizer tests on Ubuntu...")
-            set( RUN_SANITIZER_TESTS OFF )
-        endif()
     endif()
 
     if( RUN_SANITIZER_TESTS_OVERRIDE )
         message("Overriding sanitizer tests due to RUN_SANITIZER_TESTS_OVERRIDE: ${RUN_SANITIZER_TESTS_OVERRIDE}")
         set( RUN_SANITIZER_TESTS ON )
     endif()
-    message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
+
+    #
+    # TSAN-instrumented programs used to crash on starup with certain version of Ubuntu kernel. Seems to be not thecase anymore, so disabling this section.
+    #
+    # if( RUN_SANITIZER_TESTS )
+    #     find_program(LSB_RELEASE_EXEC lsb_release)
+    #     execute_process(COMMAND ${LSB_RELEASE_EXEC} -is
+    #         OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT
+    #         OUTPUT_STRIP_TRAILING_WHITESPACE
+    #     )
+    #     message("LSB_RELEASE_ID_SHORT: ${LSB_RELEASE_ID_SHORT}")
+    #     if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
+    #         message("Disabling sanitizer tests on Ubuntu...")
+    #         set( RUN_SANITIZER_TESTS OFF )
+    #     endif()
+    # endif()
+
 else()
+
     message("ASAN suport is not detected. Disabling sanitizer tests.")
     set( RUN_SANITIZER_TESTS OFF )
     set( RUN_SANITIZER_TESTS_OVERRIDE OFF )
+
 endif()
+message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs include_dirs )
     add_library( ${target_name} STATIC ${sources} )

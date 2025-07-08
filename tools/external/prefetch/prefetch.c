@@ -520,8 +520,10 @@ static rc_t V_ResolverRemote(const VResolver *self,
                         v = &resolved->remoteHttp;
                     assert(v);
                     assert(path);
-                    if (v->path != NULL)
+                    if (v->path != NULL) {
+                        RELEASE(VPath, path);
                         continue;
+                    }
                     RELEASE(VPath, v->path);
                     v->path = path;
                 }

@@ -205,7 +205,7 @@
     TOOL_ARG("ngc", "", true, TOOL_HELP("PATH to ngc file.", 0)), \
     TOOL_ARG("cart", "", true, TOOL_HELP("To read a kart file.", 0)), \
     TOOL_ARG("text-kart", "", true, TOOL_HELP("To read a textual format kart file (DEBUG ONLY).", 0)), \
-    TOOL_ARG("ascp-path", "a", true, TOOL_HELP("Path to ascp program and private key file (asperaweb_id_dsa.putty)", 0)), \
+    TOOL_ARG("ascp-path", "a", true, TOOL_HELP("Path to ascp program and private key file (aspera_tokenauth_id_rsa)", 0)), \
     TOOL_ARG("ascp-options", "", true, TOOL_HELP("Arbitrary options to pass to ascp command line.", 0)), \
     TOOL_ARG("FAIL-ASCP", "F", false, TOOL_HELP("Force ascp download fail to test ascp->http download combination.", 0)), \
     TOOL_ARG("output-file", "", true, TOOL_HELP("Write file to FILE when downloading a single file.", 0)), \

@@ -3596,7 +3596,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         {{
             int64_t primaryId[2];
-            int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;
+            int const logLevel = klogWarn; //G.assembleWithSecondary ? klogWarn : klogErr;
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);

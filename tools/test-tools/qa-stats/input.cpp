@@ -553,21 +553,24 @@ struct BasicSource: public Input::Source {
         switch (flds.part.size()) {
         case 6:
             group = &flds.part[5];
+            if (group->empty())
+                group = nullptr;
         case 5:
             read.aligned = &flds.part[4];
+            if (read.aligned->empty())
+                read.aligned = nullptr;
         case 4:
             read.types = &flds.part[3];
+            if (read.types->empty())
+                read.types = nullptr;
         case 3:
             read.starts = &flds.part[2];
+            if (read.starts->empty())
+                read.starts = nullptr;
         case 2:
-            read.lengths = &flds.part[1];
-        case 1:
-            break;
-        default:
-            throw ParseError::not_Unaligned;
-            break;
-        }
-        if (read.lengths) {
+            if (flds.part[1].empty())
+                throw ParseError::not_Unaligned;
+
             try {
                 Delimited(flds.part[1], ',') >> lengths;
             }
@@ -576,115 +579,123 @@ struct BasicSource: public Input::Source {
                 (void)(e);
                 throw ParseError::not_Unaligned;
             }
-        }
-        auto const N = lengths.size();
+            if (flds.part.size() == 2) {
+                auto total = (int)result.sequence.length();
 
-        if (read.aligned) {
-            bool parsed = false;
-            try {
-                Delimited(*read.aligned, ',') >> aligned;
-                parsed = true;
-            }
-            catch (std::ios_base::failure const &e) {
-                ((void)e);
-            }
-            if (parsed && aligned.size() != lengths.size())
-                parsed = false;
-            if (!parsed) {
-                if (group != nullptr)
+                for (auto len : lengths)
+                    total -= len;
+
+                if (total != 0)
                     throw ParseError::not_Unaligned;
-                group = read.aligned;
-                read.aligned = nullptr;
             }
-        }
-        if (read.types) {
-            bool parsed = false;
-            try {
-                Delimited(*read.types, ',') >> types;
-                parsed = true;
+            if (read.starts) {
+                bool parsed = false;
+                try {
+                    Delimited(*read.starts, ',') >> starts;
+                    parsed = true;
+                }
+                catch (std::ios_base::failure const &e) {
+                    ((void)e);
+                }
+                if (parsed && starts.size() != lengths.size()) {
+                    parsed = false;
+                    starts.resize(0);
+                }
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
+                    group = read.aligned;
+                    read.aligned = read.types;
+                    read.types = read.starts;
+                    read.starts = nullptr;
+                }
             }
-            catch (std::ios_base::failure const &e) {
-                ((void)e);
+            if (read.starts == nullptr) {
+                starts.resize(lengths.size(), 0);
+                for (unsigned i = 1; i < starts.size(); ++i) {
+                    starts[i] = starts[i - 1] + lengths[i - 1];
+                }
             }
-            if (parsed && types.size() != N)
-                parsed = false;
-            if (!parsed) {
-                if (group != nullptr)
-                    throw ParseError::not_Unaligned;
-                group = read.aligned;
-                read.aligned = read.types;
-                read.types = nullptr;
+            if (read.types) {
+                bool parsed = false;
+                try {
+                    Delimited(*read.types, ',') >> types;
+                    parsed = true;
+                }
+                catch (std::ios_base::failure const &e) {
+                    ((void)e);
+                }
+                if (parsed && types.size() != lengths.size()) {
+                    parsed = false;
+                    types.resize(0);
+                }
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
+                    group = read.aligned;
+                    read.aligned = read.types;
+                    read.types = nullptr;
+                }
             }
-        }
-        if (read.starts) {
-            bool parsed = false;
-            try {
-                Delimited(*read.starts, ',') >> starts;
-                parsed = true;
+            if (read.types == nullptr) {
+                types.resize(lengths.size(), RawReadType());
             }
-            catch (std::ios_base::failure const &e) {
-                ((void)e);
+            if (read.aligned) {
+                bool parsed = false;
+                try {
+                    Delimited(*read.aligned, ',') >> aligned;
+                    parsed = true;
+                }
+                catch (std::ios_base::failure const &e) {
+                    ((void)e);
+                }
+                if (parsed && aligned.size() != lengths.size()) {
+                    parsed = false;
+                    aligned.resize(0);
+                }
+                if (!parsed) {
+                    if (group != nullptr)
+                        throw ParseError::not_Unaligned;
+                    group = read.aligned;
+                    read.aligned = nullptr;
+                }
             }
-            if (parsed && starts.size() != lengths.size())
-                parsed = false;
-            if (!parsed) {
-                if (group != nullptr)
-                    throw ParseError::not_Unaligned;
-                group = read.aligned;
-                read.aligned = read.types;
-                read.types = read.starts;
-                read.starts = nullptr;
+            if (read.aligned == nullptr) {
+                aligned.resize(lengths.size(), 0);
             }
-        }
-        if (read.starts == nullptr) {
-            auto total = (int)result.sequence.length();
+            else {
+                // assume sequence is from CMP_READ and add missing reads
+                cleanUpSegments(result.sequence, lengths, starts, aligned);
+            }
+            // All read fields have the same count and have been initialized
+            // with either their parsed values or their default values.
+            // All raw fields point to the strings that initialized
+            // the corresponding read fields or are null.
 
-            for (auto len : lengths)
-                total -= len;
-
-            if (total != 0)
-                throw ParseError::not_Unaligned;
-
-            starts.resize(lengths.size(), 0);
-            for (unsigned i = 1; i < starts.size(); ++i) {
-                starts[i] = starts[i - 1] + lengths[i - 1];
+            for (auto x : lengths) {
+                if (x < 0 || x > (int)result.sequence.size())
+                    throw ParseError::inconsistent;
             }
-        }
-        if (read.types == nullptr) {
-            types.resize(N, RawReadType());
-        }
-        if (read.aligned == nullptr) {
-            aligned.resize(0);
-            aligned.resize(N, 0);
-        }
-        else {
-            // assume sequence is from CMP_READ and add missing reads
-            cleanUpSegments(result.sequence, lengths, starts, aligned);
-        }
-        // All read fields have the same count and have been initialized
-        // with either their parsed values or their default values.
-        // All raw fields point to the strings that initialized
-        // the corresponding read fields or are null.
+            for (auto x : starts) {
+                if (x < 0 || x > (int)result.sequence.size())
+                    throw ParseError::inconsistent;
+            }
+            for (auto const &len : lengths) {
+                auto const i = &len - &lengths[0];
+                auto const end = len + starts[i];
+                if (end < 0 || end > (int)result.sequence.size())
+                    throw ParseError::inconsistent;
+            }
 
-        for (auto x : lengths) {
-            if (x < 0 || x > (int)result.sequence.size())
-                throw ParseError::inconsistent;
-        }
-        for (auto x : starts) {
-            if (x < 0 || x > (int)result.sequence.size())
-                throw ParseError::inconsistent;
-        }
-        for (auto const &len : lengths) {
-            auto const i = &len - &lengths[0];
-            auto const end = len + starts[i];
-            if (end < 0 || end > (int)result.sequence.size())
-                throw ParseError::inconsistent;
-        }
-
-        result.reads.reserve(N);
-        for (auto const &len : lengths) {
-            auto const i = &len - &lengths[0];
-            result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
+            result.reads.reserve(lengths.size());
+            for (auto const &len : lengths) {
+                auto const i = &len - &lengths[0];
+                result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
+            }
+        case 1:
+            break;
+        default:
+            throw ParseError::not_Unaligned;
         }
         if (read.aligned) {
             REPORT("Aligned from SEQUENCE");

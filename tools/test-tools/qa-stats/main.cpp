@@ -478,13 +478,11 @@ private:
 };
 
 int main(int argc, char * argv[]) {
-/*
+#if 0
     Input::runTests();
-    SeqHash::test();
     exit(0);
- */
+#endif
     auto app = App{argc, argv};
 
     return app.run();
 }
-

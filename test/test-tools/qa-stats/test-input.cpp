@@ -174,6 +174,124 @@ TEST_CASE(Input_tests)
     Input::runTests(); // will abort if anything fails
 }
 
+TEST_CASE(make_input)
+{
+    /// There are 3 forms of records from `make-input.sh`:
+    /// 1. `READ,REF_NAME,REF_POS,REF_ORIENTATION,CIGAR_SHORT,SEQ_SPOT_GROUP` from an alignment table.
+    /// 2. `CMP_READ,READ_LEN,READ_START,READ_TYPE,PRIMARY_ALIGNMENT_ID,SPOT_GROUP` from the sequence table.
+    /// 3. `READ,READ_LEN,READ_START,READ_TYPE,SPOT_GROUP` from the sequence table.
+
+    { /// form 1
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "GCATCCTGCACAGCTAGAGAT\tHUMAN_1\t14358\ttrue\t21M\tA\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        REQUIRE_EQ((int)input.sequence.size(), 21);
+        REQUIRE_EQ((int)reads.size(), 1);
+        REQUIRE_EQ(reads[0].length, 21);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::aligned);
+        REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::reverse);
+        REQUIRE_EQ((int)reads[0].cigar.operations.size(), 1);
+        REQUIRE_EQ((int)reads[0].cigar.operations[0].length, 21);
+        REQUIRE_EQ((int)reads[0].cigar.operations[0].opcode, 0);
+        REQUIRE_EQ((int)reads[0].cigar.operations[0].sequenceLength(), 21);
+        REQUIRE_EQ((int)reads[0].cigar.operations[0].referenceLength(), 21);
+        REQUIRE_NE(input.group, -1);
+    }
+    { /// form 2, fully aligned
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_FORWARD, SRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_REVERSE\t11, 12\tGROUP_1\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        // FIXME: REQUIRE_EQ((int)input.sequence.size(), 293);
+        REQUIRE_EQ((int)reads.size(), 2);
+        // FIXME: REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::aligned);
+        REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::forward);
+        // FIXME: REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
+        REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
+        // FIXME: REQUIRE_NE(input.group, -1);
+    }
+    { /// form 2, half aligned
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "NTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_FORWARD, SRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_REVERSE\t0, 12\tGROUP_1\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        REQUIRE_EQ((int)input.sequence.size(), 293);
+        REQUIRE_EQ((int)reads.size(), 2);
+        REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
+        REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::forward);
+        REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
+        REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
+        // FIXME: REQUIRE_NE(input.group, -1);
+    }
+    { /// form 2, fully unaligned
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_FORWARD, SRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_REVERSE\t0, 0\tGROUP_1\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        REQUIRE_EQ((int)input.sequence.size(), 293);
+        REQUIRE_EQ((int)reads.size(), 2);
+        REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
+        REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::forward);
+        REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
+        REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
+        // FIXME: REQUIRE_NE(input.group, -1);
+    }
+    { /// form 3 with no spot group
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL|SRA_READ_TYPE_FORWARD, SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_REVERSE\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        REQUIRE_EQ((int)input.sequence.size(), 293);
+        REQUIRE_EQ((int)reads.size(), 2);
+        REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
+        REQUIRE_EQ(reads[1].type, Input::ReadType::technical);
+        REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::forward);
+        REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
+        REQUIRE_EQ(input.group, -1);
+    }
+    { /// form 3 with a spot group
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL\tGROUP_100\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        // FIXME: REQUIRE_NE(input.group, -1);
+    }
+    { /// form 3 with a numeric spot group (could be confused with form 2 with no spot group
+        auto && sourcetext = Input::Source::StringLiteralType{
+            "GTGGACATCCCTCTGTGTGNGTCANNNNNNNNNNCCAGNNNNNNNGGNNCCTCCCGANGCCNNNCNNNNNGGCTTCTAGATGGCGNNNNNNCCGTGTGNCNTCAAGTGGTCAACCCTCTGNGNGNNTCAGTGTCCTAATCCANTGGATTAGGACACTGACANNNNNNNNNNNANNTCCACTCGAGGACACACGGANNNNNCNNCATCTAGNNNNNNNGGAGAGAGGCCTCGNNNNNNNCCAGCACNNCNGNNNTNNNNNNNNNACNNNNNNNNNNNNNNNACCANTTNAGGAC\t142, 151\t0, 142\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_BIOLOGICAL\t11\n"
+        };
+        auto source = Input::newSource(sourcetext, false);
+        auto const &input = source->get();
+        auto const &reads = input.reads;
+        REQUIRE_EQ((int)reads.size(), 2);
+        REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
+        REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
+        // FIXME: REQUIRE_NE(input.group, -1);
+    }
+}
+
 int main (int argc, char *argv [])
 {
     return QaStatsInputTestSuite(argc, argv);

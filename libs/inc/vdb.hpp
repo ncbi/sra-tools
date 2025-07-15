@@ -587,6 +587,11 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Metadata{ const_cast< KMDataNode * >(node) };
         }
+        bool hasChildNode( const char * name ) const 
+        {
+            KMDataNode const *node = nullptr;
+            return KMetadataOpenNodeRead(o, &node, "%s", name) == 0;
+        }
         Metadata childNode(char const *name) const {
             KMDataNode const *node = nullptr;
             auto const rc = KMetadataOpenNodeRead(o, &node, "%s", name);

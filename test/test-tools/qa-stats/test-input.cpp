@@ -207,15 +207,15 @@ TEST_CASE(make_input)
         auto source = Input::newSource(sourcetext, false);
         auto const &input = source->get();
         auto const &reads = input.reads;
-        // FIXME: REQUIRE_EQ((int)input.sequence.size(), 293);
+        REQUIRE_EQ((int)input.sequence.size(), 293);
         REQUIRE_EQ((int)reads.size(), 2);
-        // FIXME: REQUIRE_EQ(reads[0].length, 142);
+        REQUIRE_EQ(reads[0].length, 142);
         REQUIRE_EQ(reads[0].type, Input::ReadType::aligned);
         REQUIRE_EQ(reads[0].orientation, Input::ReadOrientation::forward);
-        // FIXME: REQUIRE_EQ(reads[1].length, 151);
+        REQUIRE_EQ(reads[1].length, 151);
         REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
-        // FIXME: REQUIRE_NE(input.group, -1);
+        REQUIRE_NE(input.group, -1);
     }
     { /// form 2, half aligned
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -232,7 +232,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].length, 151);
         REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
-        // FIXME: REQUIRE_NE(input.group, -1);
+        REQUIRE_NE(input.group, -1);
     }
     { /// form 2, fully unaligned
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -249,7 +249,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].length, 151);
         REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
-        // FIXME: REQUIRE_NE(input.group, -1);
+        REQUIRE_NE(input.group, -1);
     }
     { /// form 3 with no spot group
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -274,7 +274,7 @@ TEST_CASE(make_input)
         };
         auto source = Input::newSource(sourcetext, false);
         auto const &input = source->get();
-        // FIXME: REQUIRE_NE(input.group, -1);
+        REQUIRE_NE(input.group, -1);
     }
     { /// form 3 with a numeric spot group (could be confused with form 2 with no spot group
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -288,7 +288,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].length, 151);
         REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
         REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
-        // FIXME: REQUIRE_NE(input.group, -1);
+        REQUIRE_NE(input.group, -1);
     }
 }
 

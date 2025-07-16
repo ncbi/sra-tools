@@ -146,8 +146,8 @@ struct Input {
     static std::vector<std::string> references;
     static std::vector<std::string> groups;
 
-    static int getGroup(std::string const &named);
-    static int getReference(std::string const &named);
+    static int getGroup(std::string_view const &named);
+    static int getReference(std::string_view const &named);
 
     static void SAM_HeaderLine(std::string const &line) {}
     static void runTests();

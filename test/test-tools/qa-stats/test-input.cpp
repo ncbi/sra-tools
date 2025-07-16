@@ -198,7 +198,10 @@ TEST_CASE(make_input)
         REQUIRE_EQ((int)reads[0].cigar.operations[0].opcode, 0);
         REQUIRE_EQ((int)reads[0].cigar.operations[0].sequenceLength(), 21);
         REQUIRE_EQ((int)reads[0].cigar.operations[0].referenceLength(), 21);
+        REQUIRE_NE(reads[0].reference, -1);
+        REQUIRE_EQ(std::string{"HUMAN_1"}, input.references[reads[0].reference]);
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"A"}, input.groups[input.group]);
     }
     { /// form 2, fully aligned
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -216,6 +219,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"GROUP_1"}, input.groups[input.group]);
     }
     { /// form 2, half aligned
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -233,6 +237,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].type, Input::ReadType::aligned);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"GROUP_1"}, input.groups[input.group]);
     }
     { /// form 2, fully unaligned
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -250,6 +255,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
         REQUIRE_EQ(reads[1].orientation, Input::ReadOrientation::reverse);
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"GROUP_1"}, input.groups[input.group]);
     }
     { /// form 3 with no spot group
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -275,6 +281,7 @@ TEST_CASE(make_input)
         auto source = Input::newSource(sourcetext, false);
         auto const &input = source->get();
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"GROUP_100"}, input.groups[input.group]);
     }
     { /// form 3 with a numeric spot group (could be confused with form 2 with no spot group
         auto && sourcetext = Input::Source::StringLiteralType{
@@ -289,6 +296,7 @@ TEST_CASE(make_input)
         REQUIRE_EQ(reads[0].type, Input::ReadType::biological);
         REQUIRE_EQ(reads[1].type, Input::ReadType::biological);
         REQUIRE_NE(input.group, -1);
+        REQUIRE_EQ(std::string{"11"}, input.groups[input.group]);
     }
 }
 

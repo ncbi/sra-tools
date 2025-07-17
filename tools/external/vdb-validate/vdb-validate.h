@@ -47,6 +47,7 @@ struct vdb_validate_params
     bool consist_check;
     bool exhaustive;
     bool check_redact;
+    bool blob_crc_required;
 
     // data integrity checks parameters
     bool sdc_enabled;

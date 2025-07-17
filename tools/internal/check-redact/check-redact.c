@@ -95,7 +95,7 @@ static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
     if ( 0 != rc ) {
         char buffer[ 4096 ];
         size_t num_writ;
-        
+
         va_list list;
         va_start( list, fmt );
         rc2 = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
@@ -105,7 +105,7 @@ static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
         va_end( list );
     }
     return rc2;
-} 
+}
 
 #define GENERIC_RELEASE( OBJTYPE ) \
 static rc_t OBJTYPE ## _Release( rc_t rc, const OBJTYPE * obj ) { \
@@ -162,7 +162,7 @@ static rc_t find_filter_redact( const VCursor * cur, uint32_t read_filter_idx, i
     int64_t  row;
     uint64_t count;
     uint32_t element_bits, row_len;
-    
+
     rc_t rc = VCursorIdRange( cur, read_filter_idx, &row, &count );
     ErrMsg( rc, "VCursorIdRange() failed : %R", rc );
     *found_row = -1;
@@ -193,7 +193,7 @@ static rc_t find_filter_redact( const VCursor * cur, uint32_t read_filter_idx, i
 }
 
 typedef struct columns_t {
-    uint32_t read_filter, read, read_start, read_len;    
+    uint32_t read_filter, read, read_start, read_len;
 } columns_t;
 
 static bool all_Ns( const uint8_t* read, uint32_t count ) {
@@ -212,12 +212,12 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     uint32_t filter_element_bits, filter_row_len;
     uint32_t spot_element_bits, spot_row_len;
     uint32_t read_start_element_bits, read_start_row_len;
-    uint32_t read_len_element_bits, read_len_row_len;    
+    uint32_t read_len_element_bits, read_len_row_len;
     const uint8_t *read_filters = NULL;
     const uint8_t *spot = NULL;
     const uint32_t *read_start = NULL;
     const uint32_t *read_len = NULL;
-    
+
     *correct = false;
 
     rc = VCursorCellDataDirect( cur, row_id, columns -> read_filter, &filter_element_bits,
@@ -255,11 +255,11 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     }
     if ( 0 == rc ) {
         /* check for unexpected element-counts for READ_FILTER, READ, READ_START, and READ_LEN */
-        if ( filter_element_bits != 8 || spot_element_bits != 8 || 
+        if ( filter_element_bits != 8 || spot_element_bits != 8 ||
              read_start_element_bits != 32 || read_len_element_bits != 32 ) {
             rc = RC( rcExe, rcFileFormat, rcEvaluating, rcConstraint, rcViolated );
             ErrMsg( rc, "at row %ld : unexpected element-sizes for READ_FILTER, READ, READ_START, and READ_LEN : %u / %u / %u / %u",
-                row_id, filter_element_bits, spot_element_bits, read_start_element_bits, read_len_element_bits );            
+                row_id, filter_element_bits, spot_element_bits, read_start_element_bits, read_len_element_bits );
         }
     }
     if ( 0 == rc ) {
@@ -300,7 +300,7 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
                 /* this read needs to be checked */
                 const uint8_t * read = &( spot[ read_start[ read_id ] ] );
                 if ( all_Ns( read, read_len[ read_id ] ) ) {
-                    correct_reads++;                    
+                    correct_reads++;
                 }
             } else {
                 /* this read does not need to be checked */
@@ -326,7 +326,7 @@ static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
         columns_t columns;
         int64_t redacted_row = 0;
         bool redact_found = false;
-        
+
         rc = VCursorAddColumn( cur, &columns.read_filter, "READ_FILTER" );
         ErrMsg( rc, "VCursorAddColumn( READ_FILTER ) failed : %R", rc );
         if ( 0 == rc ) {
@@ -356,7 +356,7 @@ static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
                     if ( correct ) {
                         rc = KOutMsg( "%s\tPASS\n", ctx -> path );
                     } else {
-                        rc = KOutMsg( "%s\tFAIL\n", ctx -> path );                    
+                        rc = KOutMsg( "%s\tFAIL\n", ctx -> path );
                     }
                 }
             } else {
@@ -368,7 +368,7 @@ static rc_t check_opened_table( const check_ctx* ctx, const VTable *tbl ) {
     }
     return rc;
 }
-    
+
 static rc_t check_table( const check_ctx* ctx, const VDBManager *mgr ) {
     VPath * path = NULL;
     rc_t rc = vdh_path_to_vpath( ctx -> path, &path );
@@ -480,9 +480,14 @@ static rc_t write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *n
     return 0;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
     ErrMsg( rc, "KOutHandlerSet() failed : %R", rc );
@@ -500,5 +505,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

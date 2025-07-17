@@ -1,0 +1,124 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Ion Torrent Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+include 'ncbi/clip.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+
+/* tokenize_spot_name
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:IonTorrent:tokenize_spot_name #1 ( ascii name );
+
+
+/*--------------------------------------------------------------------------
+ * table
+ */
+
+physical INSDC:position:one NCBI:SRA:IonTorrent:encoding:POSITION #1
+{
+    decode
+    {
+        I32 pos_1st_deriv = iunzip ( @ );
+        return ( INSDC:position:one ) < I32 > integral ( pos_1st_deriv );
+    }
+    encode
+    {
+        I32 pos_1st_deriv = < I32 > deriv ( @ );
+        return izip ( pos_1st_deriv );
+    }
+}
+
+/* IonTorrent:tbl
+ *
+ * history:
+ *  1.0.1 - updated ancestry
+ *  1.0.2 - updated ancestry
+ *  1.0.3 - updated ancestry
+ *  1.0.4 - updated ancestry
+ *  2.0.0 - updated ancestry
+ */
+table NCBI:SRA:IonTorrent:tbl:v2 #2
+    = INSDC:SRA:tbl:sra #1.0.4
+    , NCBI:SRA:tbl:sra_nopos #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:tbl:clip #1.0.2
+{
+    /* PLATFORM is always ION_TORRENT */
+    ascii platform_name
+        = < ascii > echo < "ION_TORRENT" > ();
+
+    /* NAME tokenizing and coordinates
+     *  most work happens in skeyname table
+     */
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:IonTorrent:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:IonTorrent:tokenize_spot_name ( NAME );
+
+    // special sequences
+    column < INSDC:dna:text > zip_encoding FLOW_CHARS;
+    column < INSDC:dna:text > zip_encoding KEY_SEQUENCE;
+
+    // position stored as normal 1-based coordinate
+    INSDC:position:one out_position = .POSITION;
+    physical column NCBI:SRA:IonTorrent:encoding:POSITION
+        .POSITION = POSITION;
+
+
+    // clips
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_LEFT = CLIP_ADAPTER_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_ADAPTER_RIGHT = CLIP_ADAPTER_RIGHT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_LEFT = CLIP_QUALITY_LEFT;
+    physical column < INSDC:coord:one > izip_encoding
+        .CLIP_QUALITY_RIGHT = CLIP_QUALITY_RIGHT;
+
+    // signal
+    column < NCBI:isamp1 > izip_encoding SIGNAL;
+};
+
+database NCBI:SRA:IonTorrent:db #1
+{
+    table NCBI:SRA:IonTorrent:tbl:v2 #2 SEQUENCE;
+};

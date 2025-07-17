@@ -452,11 +452,6 @@ namespace ncbi
 
 extern "C"
 {
-    rc_t CC Usage ( struct Args const * args )
-    {
-        return 0;
-    }
-
     const char UsageDefaultName [] = "pileup-stats";
 
     static
@@ -541,11 +536,20 @@ extern "C"
         return 0;
     }
 
-    rc_t CC KMain ( int argc, char *argv [] )
+    MAIN_DECL(argc, argv)
     {
+        VDB::Application app( argc, argv );
+        if (!app)
+        {
+            return VDB_INIT_FAILED;
+        }
+
         rc_t rc = -1;
         Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
         size_t buffer_size = DFLT_BUFFER_SIZE;
+
+        SetUsageSummary( UsageSummary );
+
         try
         {
             int num_runs = 0;
@@ -780,6 +784,7 @@ extern "C"
             }
         }
 
-        return rc;
+        app.setRc( rc );
+        return app.getExitCode();
     }
 }

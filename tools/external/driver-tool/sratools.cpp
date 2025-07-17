@@ -381,7 +381,10 @@ static bool shouldPreferLiteFormat(bool isSet, bool isFull, std::string const &t
 
 static void printHelp [[noreturn]] (bool requested = false)
 {
-    (requested ? std::cout : std::cerr) << "usage: sratools print-argbits | print-args-json | help" << std::endl;
+    (requested ? std::cout : std::cerr)
+        << "usage: sratools print-argbits | print-args-json | help\n"
+        << "Please see https://github.com/ncbi/sra-tools/wiki/sratools-driver-tool for an explanation of the sratools driver tool."
+        << std::endl;
     exit(requested ? EXIT_SUCCESS : EX_USAGE);
 }
 
@@ -392,7 +395,7 @@ static void do_sratools [[noreturn]] (CommandLine const &argv)
 
         if (arg == "help")
             printHelp(true);
-        
+
         if (arg == "print-argbits") {
             printParameterBitmasks(std::cout);
             exit(EXIT_SUCCESS);
@@ -420,6 +423,7 @@ static int main(CommandLine const &argv)
     enableLogging(argv.toolName.c_str());
 #endif
     LOG(7) << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
+    // std::cerr << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
 
     config = new Config();
     struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
@@ -439,14 +443,19 @@ static int main(CommandLine const &argv)
         exit(EX_SOFTWARE);
     }
 
-    // MARK: Check for special tools
-    if (argv.toolName == "prefetch" || argv.toolName == "srapath")
-        Process::reexec(argv);
+    if (argv.toolName == "srapath") ///< srapath is special
+        Process::reexec(argv); ///< noreturn
 
     try {
         auto const parsed = argumentsParsed(argv);
         if (parsed.countOfCommandArguments() == 0)
-            Process::reexec(argv);
+            Process::reexec(argv); ///< noreturn
+
+        // MARK: set parameters-used bitfield in environment
+        data_sources::set_param_bits_env_var(parsed.argsUsed());
+
+        if (argv.toolName == "prefetch") ///< prefetch is special
+            Process::reexec(argv); ///< noreturn
 
         // MARK: Get and set verbosity.
         auto const verbosity = parsed.countMatching("verbose");
@@ -462,7 +471,7 @@ static int main(CommandLine const &argv)
         parsed.each("debug", [](Argument const &arg) {
             KDbgSetString(arg.argument);
         });
-#endif        
+#endif
 
         // MARK: Check for special parameters that trigger immediate tool execution.
         if (parsed.any("help"))
@@ -501,10 +510,6 @@ static int main(CommandLine const &argv)
             }
             data_sources::preferNoQual();
         }
-
-        // MARK: include parameters-used bitfield in communications to SDL
-        // TODO: UNCOMMENT WHEN READY; SEE JIRA VDB-5001
-        // all_sources.set_param_bits_env_var(parsed.argsUsed());
 
         // MARK: Look for tool arguments in the file system or ask SDL about them.
         auto const &all_sources = data_sources::preload(argv, parsed);
@@ -576,6 +581,16 @@ static int main(CommandLine const &argv)
 }
 
 } // namespace sratools
+
+// BSD is defined when compiling on Mac
+// Use the MAC case below, not this one
+#if BSD && !MAC
+int main(int argc, char *argv[], char *envp[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, nullptr);
+    return sratools::main(invocation);
+}
+#endif
 
 #if MAC
 int main(int argc, char *argv[], char *envp[], char *apple[])

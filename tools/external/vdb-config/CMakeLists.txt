@@ -22,10 +22,6 @@
 #
 # ===========================================================================
 
-if (WIN32)
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-endif()
-
 set( TUI_LIBS tui_cpp tui)
 
 add_subdirectory( tui )

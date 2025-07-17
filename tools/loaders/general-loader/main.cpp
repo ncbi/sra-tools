@@ -21,7 +21,7 @@
  *  Please cite the author in any work or product based on this material.
  *
  * ===========================================================================
- * 
+ *
  */
 
 #include "general-loader.hpp"
@@ -48,7 +48,7 @@ static char const option_include_paths[] = "include";
 #define OPTION_INCLUDE_PATHS option_include_paths
 #define ALIAS_INCLUDE_PATHS  "I"
 static
-char const * include_paths_usage[] = 
+char const * include_paths_usage[] =
 {
     "Additional directories to search for schema include files. Can specify multiple paths separated by ':'.",
     NULL
@@ -58,7 +58,7 @@ static char const option_schemas[] = "schema";
 #define OPTION_SCHEMAS option_schemas
 #define ALIAS_SCHEMAS  "S"
 static
-char const * schemas_usage[] = 
+char const * schemas_usage[] =
 {
     "Schema file to use. Can specify multiple files separated by ':'.",
     NULL
@@ -68,15 +68,15 @@ static char const option_target[] = "target";
 #define OPTION_TARGET option_target
 #define ALIAS_TARGET  "T"
 static
-char const * target_usage[] = 
+char const * target_usage[] =
 {
     "Database file to create. Overrides any remote path specifications coming from the input stream",
     NULL
 };
 
-OptDef Options[] = 
+OptDef Options[] =
 {
-    /* order here is same as in param array below!!! */                 
+    /* order here is same as in param array below!!! */
                                                                           /* max#,  needs param, required */
     { OPTION_INCLUDE_PATHS, ALIAS_INCLUDE_PATHS,    NULL, include_paths_usage,  0,  true,        false },
     { OPTION_SCHEMAS,       ALIAS_SCHEMAS,          NULL, schemas_usage,        0,  true,        false },
@@ -120,7 +120,7 @@ rc_t CC Usage (const Args * args)
         progname = fullpath = UsageDefaultName;
 
     UsageSummary (progname);
-    
+
     const size_t argsQty = sizeof(Options) / sizeof(Options[0]);
     for(size_t i = 0; i < argsQty; i++ ) {
         if( Options[i].required && Options[i].help[0] != NULL ) {
@@ -134,18 +134,28 @@ rc_t CC Usage (const Args * args)
         }
     }
     XMLLogger_Usage();
-    
+
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }
 
-rc_t CC KMain (int argc, char * argv[])
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app( argc, argv );
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     Args * args;
     uint32_t pcount;
     const XMLLogger* xml_logger = NULL;
-    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 2
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    rc_t rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2
                                  , Options, sizeof Options / sizeof (OptDef)
                                  , XMLLogger_Args, XMLLogger_ArgsQty);
 
@@ -163,7 +173,7 @@ rc_t CC KMain (int argc, char * argv[])
                     MiniUsage (args);
                 }
                 else
-                { 
+                {
                     const KStream *std_in;
                     rc = KStreamMakeStdIn ( & std_in );
                     if ( rc == 0 )
@@ -173,7 +183,7 @@ rc_t CC KMain (int argc, char * argv[])
                         if ( rc == 0 )
                         {
                             GeneralLoader loader ( argv[0], *buffered );
-                            
+
                             rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
                             if ( rc == 0 )
                             {
@@ -188,7 +198,7 @@ rc_t CC KMain (int argc, char * argv[])
                                     loader . AddSchemaIncludePath ( static_cast <char const*> (value) );
                                 }
                             }
-                            
+
                             rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
                             if ( rc == 0 )
                             {
@@ -203,7 +213,7 @@ rc_t CC KMain (int argc, char * argv[])
                                     loader . AddSchemaFile( static_cast <char const*> (value) );
                                 }
                             }
-                            
+
                             rc = ArgsOptionCount (args, OPTION_TARGET, &pcount);
                             if ( rc == 0 && pcount == 1 )
                             {
@@ -214,7 +224,7 @@ rc_t CC KMain (int argc, char * argv[])
                                     loader . SetTargetOverride ( static_cast <char const*> (value) );
                                 }
                             }
-                            
+
                             if ( rc == 0 )
                             {
                                 rc = loader . Run();
@@ -227,13 +237,15 @@ rc_t CC KMain (int argc, char * argv[])
             }
         }
     }
-    
-    if ( rc != 0) 
+
+    if ( rc != 0)
     {
         LOGERR ( klogErr, rc, "load failed" );
     }
-    
+
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return rc;
+
+    app.setRc( rc );
+    return app.getExitCode();
 }

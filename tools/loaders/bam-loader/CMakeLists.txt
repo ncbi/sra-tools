@@ -44,7 +44,7 @@ if( NOT WIN32)
     set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
     set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
 
-    GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "kapp;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     target_compile_features(bam-load PRIVATE cxx_std_17)
     if (COMPILER_OPTION_SSE42_SUPPORTED)
         target_compile_options( bam-load PRIVATE -msse4.2 -DBMSSE42OPT)
@@ -55,7 +55,7 @@ if( NOT WIN32)
     MakeLinksExe( bam-load false )
 
 	# Internal
-	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	MakeLinksExe( samview false )
 
 endif()

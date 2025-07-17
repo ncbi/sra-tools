@@ -30,8 +30,11 @@ set(SRC
 	vdb-validate.c
     check-redact.c
 )
-GenerateExecutableWithDefs( vdb-validate "${SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
+set(LIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
+GenerateExecutableWithDefs( vdb-validate "${SRC}" "" "" "${LIBS}" )
 MakeLinksExe( vdb-validate false )
 
-GenerateExecutableWithDefs( check-corrupt "check-corrupt" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( check-corrupt "check-corrupt" "" "" "${LIBS}" )
 MakeLinksExe( check-corrupt false )

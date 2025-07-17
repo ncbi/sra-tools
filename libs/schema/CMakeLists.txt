@@ -1,0 +1,1 @@
+GenerateStaticLibs( sra "SraSchema.cpp" )

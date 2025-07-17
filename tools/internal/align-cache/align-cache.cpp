@@ -41,7 +41,7 @@ namespace AlignCache
         // Command line Params:
         char const* dbPathSrc;
         char const* dbPathDst;
-        
+
         // Command line options
         int64_t     id_spread_threshold;
         size_t      cursor_cache_size;
@@ -162,7 +162,7 @@ namespace AlignCache
         int64_t prev_row_id = (int64_t)p->prev_key;
         int64_t row_id = (int64_t)key;
         VDBObjects::CVCursor& cur_cache = *p->pCursorPACache;
-        
+
         p->pProgressBar->Process ( 1, false );
 
         //++p->count;
@@ -402,7 +402,7 @@ namespace AlignCache
             if ( ::Quitting() == 0 )
             {
                 PLOGMSG ( klogWarn,
-                    ( klogWarn, 
+                    ( klogWarn,
                     "The cache db will not be created because there is not "
                     "enough records to cache: $(COUNT) is found and minimum $(MIN_COUNT) is required. "
                     "The minimum required number can be changed via $(OPTION_MIN_CACHE_COUNT) parameter.",
@@ -545,8 +545,13 @@ extern "C"
         return rc;
     }
 
-    rc_t CC KMain(int argc, char* argv[])
+    MAIN_DECL(argc, argv)
     {
-        return AlignCache::create_cache_db (argc, argv);
+        VDB::Application app(argc, argv);
+
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
+        return AlignCache::create_cache_db (argc, app.getArgV() );
     }
 }

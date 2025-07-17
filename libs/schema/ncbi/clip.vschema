@@ -1,0 +1,147 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:tbl:clip
+ *  common clip column processing
+ *  shared by 454 and ion-torrent
+ *
+ *  uses spotdesc because it has a dependency upon spot_len
+ *
+ * history:
+ *  1.0.1 - base explicitly upon spotdesc #1.0.1
+ *  1.0.2 - base explicitly upon spotdesc #1.0.2
+ */
+table NCBI:SRA:tbl:clip #1.0.2 = INSDC:SRA:tbl:spotdesc #1.0.2
+{
+    /* CLIP_ADAPTER_LEFT, CLIP_ADAPTER_RIGHT
+     *  adapter clips in 1-based coordinates
+     *  when value is 0, implies that they are NOT SET
+     */
+    column INSDC:coord:one CLIP_ADAPTER_LEFT = out_clip_adapt_left;
+    column INSDC:coord:one CLIP_ADAPTER_RIGHT = out_clip_adapt_right;
+
+    // casts are required to allow multple storage formats
+    INSDC:coord:one out_clip_adapt_left = cast ( .CLIP_ADAPTER_LEFT );
+    INSDC:coord:one out_clip_adapt_right = cast ( .CLIP_ADAPTER_RIGHT );
+
+
+    /* CLIP_QUALITY_LEFT, CLIP_QUALITY_RIGHT
+     *  quality clips in 1-based coordinates
+     *  when value is 0, implies that they are NOT SET
+     */
+    column INSDC:coord:one CLIP_QUALITY_LEFT = out_clip_qual_left;
+    column INSDC:coord:one CLIP_QUALITY_RIGHT = out_clip_qual_right;
+
+    // casts are required to allow multple storage formats
+    INSDC:coord:one out_clip_qual_left
+        = cast ( .CLIP_QUALITY_LEFT )
+        | < INSDC:coord:one > echo < 1 > ();
+    INSDC:coord:one out_clip_qual_right
+        = cast ( .CLIP_QUALITY_RIGHT )
+        | cast ( spot_len );
+
+    // support for reading 16-bit clips, as in v1 schema
+    readonly column U16 CLIP_ADAPTER_LEFT
+        = .CLIP_ADAPTER_LEFT
+        | cast ( out_clip_adapt_left );
+    readonly column U16 CLIP_ADAPTER_RIGHT
+        = .CLIP_ADAPTER_RIGHT
+        | cast ( out_clip_adapt_right );
+    readonly column U16 CLIP_QUALITY_LEFT = cast ( out_clip_qual_left );
+    readonly column U16 CLIP_QUALITY_RIGHT = cast ( out_clip_qual_right );
+
+
+    /* CLIP-MANIA
+     */
+
+    // 1-based fully-closed right edge is row-length
+    INSDC:coord:one spot_right = ( INSDC:coord:one ) spot_len;
+
+    // processed 1-based coordinates >= 1
+    INSDC:coord:one lim_clip_adapt_left
+        = < INSDC:coord:one > clip < 1, 0x7FFFFFFF > ( out_clip_adapt_left );
+    INSDC:coord:one max_clip_adapt_right
+        = < INSDC:coord:one, INSDC:coord:one > map < 0, 0x7FFFFFFF > ( out_clip_adapt_right );
+    INSDC:coord:one lim_clip_adapt_right
+        = < INSDC:coord:one > min ( spot_right, max_clip_adapt_right );
+    INSDC:coord:one lim_clip_qual_left
+        = < INSDC:coord:one > clip < 1, 0x7FFFFFFF > ( out_clip_qual_left );
+    INSDC:coord:one max_clip_qual_right
+        = < INSDC:coord:one, INSDC:coord:one > map < 0, 0x7FFFFFFF > ( out_clip_qual_right );
+    INSDC:coord:one lim_clip_qual_right
+        = < INSDC:coord:one > min ( spot_right, max_clip_qual_right );
+
+    // read-only columns with 0-based coordinates
+    readonly column INSDC:coord:zero CLIP_ADAPTER_LEFT
+        = ( INSDC:coord:zero ) < I32 > diff < 1 > ( lim_clip_adapt_left );
+    readonly column INSDC:coord:zero CLIP_ADAPTER_RIGHT
+        = ( INSDC:coord:zero ) < I32 > diff < 1 > ( lim_clip_adapt_right );
+    readonly column INSDC:coord:zero CLIP_QUALITY_LEFT
+        = ( INSDC:coord:zero ) < I32 > diff < 1 > ( lim_clip_qual_left );
+    readonly column INSDC:coord:zero CLIP_QUALITY_RIGHT
+        = ( INSDC:coord:zero ) < I32 > diff < 1 > ( lim_clip_qual_right );
+
+    // combined clips
+    INSDC:coord:one max_clip_left
+        = < INSDC:coord:one > max ( lim_clip_adapt_left, lim_clip_qual_left )
+        | lim_clip_adapt_left
+        | lim_clip_qual_left;
+    INSDC:coord:zero max_zclip_left
+        = ( INSDC:coord:zero ) < I32 > diff < 1 > ( max_clip_left );
+    INSDC:coord:one min_clip_right
+        = < INSDC:coord:one > min ( lim_clip_adapt_right, lim_clip_qual_right )
+        | lim_clip_adapt_right
+        | lim_clip_qual_right;
+
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero bio_start
+        = NCBI:SRA:bio_start ( out_read_start, out_read_type );
+    INSDC:coord:zero trim_start
+        = < INSDC:coord:zero > max ( bio_start, max_zclip_left )
+        | bio_start;
+
+    INSDC:coord:zero bio_end
+        = NCBI:SRA:bio_end < false > ( out_read_start, out_read_type, out_read_len );
+
+    I32 trim_stop
+        = < I32 > max ( min_clip_right, trim_start )
+        | spot_right;
+    INSDC:coord:len trim_len
+        = ( INSDC:coord:len ) < I32 > diff ( trim_stop, trim_start );
+};

@@ -76,6 +76,7 @@ if( CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32 )
         fasterq-dump
         sam-dump
         sra-pileup
+        prefetch
     )
 endif()
 
@@ -107,6 +108,8 @@ if( WIN32 )
         libvcruntime$<$<CONFIG:Debug>:d>
         Ws2_32 Crypt32 ShLwApi PathCch
     )
+else()
+    list(APPEND compile_defs PREFIX_PATH="${CMAKE_PREFIX_PATH}" BUILD_PATH="${BINDIR}")
 endif()
 
 GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")

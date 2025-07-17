@@ -190,6 +190,21 @@ namespace ncbi
         gw -> setColMetadataNode ( 1, node, value );
     }
 
+    void testAddDBMetadataNodeAttr ( GeneralWriter *gw, const char * node, const char * attr, const char *value )
+    {
+        gw -> setDBMetadataNodeAttr ( 0, node, attr, value );
+    }
+
+    void testAddTblMetadataNodeAttr ( GeneralWriter *gw, const char * node, const char * attr, const char *value )
+    {
+        gw -> setTblMetadataNodeAttr ( 1, node, attr, value );
+    }
+
+    void testAddColMetadataNodeAttr ( GeneralWriter *gw, const char * node, const char * attr, const char *value )
+    {
+        gw -> setColMetadataNodeAttr ( 1, node, attr, value );
+    }
+
     void testProgMsg ( GeneralWriter *gw, const char *name,
                        uint32_t version, uint64_t done, uint64_t total )
     {
@@ -250,12 +265,21 @@ namespace ncbi
             testAddDBMetadataNode ( gw, "db_metadata_node", "01a2b3c4d" );
             std :: cerr << "setDBMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
-            testAddTblMetadataNode ( gw, "tbl_metadata_node", "01a2b3c4d" );
+            testAddTblMetadataNode ( gw, "tbl_metadata_node", "11a2b3c4d" );
             std :: cerr << "setTblMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
-            testAddColMetadataNode ( gw, "col_metadata_node", "01a2b3c4d" );
+            testAddColMetadataNode ( gw, "col_metadata_node", "21a2b3c4d" );
             std :: cerr << "setColMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
+
+            testAddDBMetadataNodeAttr ( gw, "db_metadata_node_attr", "attr_name", "02a2b3c4d" );
+            testAddDBMetadataNodeAttr ( gw, "db_metadata_node_attr2", "long_db_attr_name", std::string( STRING_LIMIT_8+1, '1').c_str() );
+
+            testAddTblMetadataNodeAttr ( gw, "tbl_metadata_node_attr", "attr_name", "12a2b3c4d" );
+            testAddTblMetadataNodeAttr ( gw, "tbl_metadata_node_attr2", "long_tbl_attr_name", std::string( STRING_LIMIT_8+2, '2').c_str() );
+
+            testAddColMetadataNodeAttr ( gw, "col_metadata_node_attr", "attr_name", "22a2b3c4d" );
+            testAddColMetadataNodeAttr ( gw, "col_metadata_node_attr2", "long_col_attr_name", std::string( STRING_LIMIT_8+3, '3').c_str() );
 
             testProgMsg ( gw, "name", 1, 54768, 64000 );
             std :: cerr << "setProgMsg Success" << std :: endl;
@@ -296,43 +320,16 @@ int main ( int argc, char * argv [] )
 
     try
     {
-
-        const char *outfile = "./db/";
+        const char *outfile = "./actual/test-general-writer.gw";
         const char *schema_path = "./test-general-writer.vschema";
-        int num_columns = 0;
-
-        for ( int i = 1; i < argc; ++ i )
-        {
-            const char * arg = argv [ i ];
-            if ( arg [ 0 ] != '-' )
-            {
-                // have an input column
-                argv [ num_columns ++ ] = ( char* ) arg;
-            }
-            else do switch ( ( ++ arg ) [ 0 ] )
-            {
-                case 'o':
-                    outfile = getArg ( arg, i, argc, argv );
-                    break;
-                case 's':
-                    schema_path = getArg ( arg, i, argc, argv );
-                default:
-                    throw "Invalid argument";
-            }
-            while ( arg [ 1 ] != 0 );
-        }
-
-        if ( num_columns == 0 )
-        {
-            const char * columns [ 2 ] = { "input/column01", "input/column02" };
-            ncbi :: runTest ( 2, columns, outfile, schema_path );
-        }
-        else
-        {
-            ncbi :: runTest ( num_columns, ( const char ** ) argv, outfile, schema_path );
-        }
+        const char * columns [ 2 ] = { "input/column01", "input/column02" };
+        ncbi :: runTest ( 2, columns, outfile, schema_path );
 
         status = 0;
+
+        //NB this only tests packed messages since that is what the GeneralWriter class
+        // currently supports. Unpacked messages are tested elsewhere by using
+        // general-writer.h API directly. See testsource.[h|c]pp and dependent tests
     }
     catch ( const char x [] )
     {

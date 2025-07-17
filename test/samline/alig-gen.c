@@ -133,7 +133,7 @@ OptDef Options[] =
     { OPTION_FLAGS,     ALIAS_FLAGS,    NULL, flags_usage,     1,    true,     false },
     { OPTION_HEADER,    ALIAS_HEADER,   NULL, header_usage,    1,    false,    false },
     { OPTION_CONFIG,    ALIAS_CONFIG,   NULL, config_usage,    1,    true,     false },
-    { OPTION_MDTAG,     ALIAS_MDTAG,    NULL, mdtag_usage,     1,    false,    false }        
+    { OPTION_MDTAG,     ALIAS_MDTAG,    NULL, mdtag_usage,     1,    false,    false }
 };
 
 const char UsageDefaultName[] = "samline";
@@ -228,11 +228,11 @@ typedef struct alignment
     const char * refbases;
     char read[ 4096 ];
     char sam[ 4096 ];
-    
+
     int reverse, secondary, bad, dup, prop, first, last;
 
-    uint32_t refpos, mapq, bases_in_ref, reflen;    
-    
+    uint32_t refpos, mapq, bases_in_ref, reflen;
+
     struct cigar_t * cigar;
 } alignment;
 
@@ -242,7 +242,7 @@ typedef struct gen_context
     const char * config;
     uint32_t flags, header;
     int32_t tlen;
-    
+
     alignment alig[ 2 ];
 } gen_context;
 
@@ -296,9 +296,9 @@ static uint32_t sam_flags( const alignment * alig, const alignment * other, int 
     if ( other != NULL && other->reverse ) res |= 0x20;         /* next fragment is reversed */
     if ( first ) res |= 0x40;                                    /* this is the first fragment */
     if ( last ) res |= 0x80;                                     /* this is the last fragment */
-    if ( alig->secondary != 0 ) res |= 0x100;                    /* this is a secondary alignment */    
-    if ( alig->bad != 0 ) res |= 0x200;                         /* this is did not pass quality controls */    
-    if ( alig->dup != 0 ) res |= 0x400;                        /* this is PCR or optical duplicate */    
+    if ( alig->secondary != 0 ) res |= 0x100;                    /* this is a secondary alignment */
+    if ( alig->bad != 0 ) res |= 0x200;                         /* this is did not pass quality controls */
+    if ( alig->dup != 0 ) res |= 0x400;                        /* this is PCR or optical duplicate */
     return res;
 }
 
@@ -308,7 +308,7 @@ static size_t produce_sam( char * buffer, size_t buflen,
 {
     size_t res = 0;
     if ( buffer != NULL ) buffer[ 0 ] = 0;
-    
+
     if ( buffer != NULL && gctx != NULL && alig != NULL )
     {
         char merged_cigar_str[ 4096 ];
@@ -321,7 +321,7 @@ static size_t produce_sam( char * buffer, size_t buflen,
 
         random_quality( quality, sizeof quality, cigar_t_readlen( merged_cigar ) )    ;
         cigar_t_string( merged_cigar_str, sizeof merged_cigar_str, merged_cigar );
-        
+
         if ( other != NULL && other->refname != NULL && other->refpos != 0 )
         {
             r_next = other->refalias == NULL ? other->refname : other->refalias;
@@ -368,14 +368,14 @@ static void show_alig_details( const alignment * alig )
     KOutMsg ( "DUPLICATE: %s\n", alig->dup ? "YES" : "NO" );
     KOutMsg ( "PROPERLY : %s\n", alig->prop ? "YES" : "NO" );
     KOutMsg ( "FIRST    : %s\n", alig->first ? "YES" : "NO" );
-    KOutMsg ( "LAST     : %s\n", alig->last ? "YES" : "NO" );    
+    KOutMsg ( "LAST     : %s\n", alig->last ? "YES" : "NO" );
     KOutMsg ( "REFLEN   : %d\n", alig->reflen );
-    KOutMsg ( "READLEN  : %d\n", cigar_t_readlen( alig->cigar ) );    
+    KOutMsg ( "READLEN  : %d\n", cigar_t_readlen( alig->cigar ) );
     KOutMsg ( "INSLEN   : %d\n", cigar_t_inslen( alig->cigar ) );
     KOutMsg ( "REFBASES : %s\n", alig->refbases );
     KOutMsg ( "READ     : %s\n", alig->read );
     KOutMsg ( "SAM      : %s\n", alig->sam );
-    
+
 }
 
 static void show_details( const gen_context * gctx )
@@ -398,7 +398,7 @@ static void show_details( const gen_context * gctx )
 static void show_mdtag( const gen_context * gctx )
 {
     struct cigar_t * cigar;
-    
+
     KOutMsg ( "calculating MD-TAG:\n" );
     KOutMsg ( "READ     : %s\n", gctx->alig[0].read );
     KOutMsg ( "REFBASES : %s\n", gctx->alig[0].refbases );
@@ -411,13 +411,13 @@ static void show_mdtag( const gen_context * gctx )
         {
             char merged_cigar_str[ 4096 ];
             char the_tag[ 4096 ];
-            
+
             cigar_t_string( merged_cigar_str, sizeof merged_cigar_str, merged_cigar );
             md_tag( the_tag, sizeof the_tag, merged_cigar, gctx->alig[0].read, gctx->alig[0].refbases );
-                
+
             KOutMsg ( "CIGAR    : %s\n", merged_cigar_str );
             KOutMsg ( "MD-TAG   : %s\n", the_tag );
-                
+
             free_cigar_t( merged_cigar );
         }
         free_cigar_t( cigar );
@@ -498,8 +498,8 @@ static void write_config_file( const char * filename, const alignment * alig0, c
             pos = write_config_line( dst, pos, alias0, canonical0 );
             if ( ( strcmp( alias0, alias1 ) != 0 ) )
                 write_config_line( dst, pos, alias1, canonical1 );
-            
-            KFileRelease( dst );            
+
+            KFileRelease( dst );
         }
         KDirectoryRelease( dir );
     }
@@ -511,7 +511,7 @@ static void generate_alignment( const gen_context * gctx )
     /* write reference names into config-file for bam-load */
     if ( gctx->config != NULL )
         write_config_file( gctx->config, &gctx->alig[ 0 ], &gctx->alig[ 1 ] );
-    
+
     /* procude SAM-header on stdout */
     if ( gctx->header )
     {
@@ -521,7 +521,7 @@ static void generate_alignment( const gen_context * gctx )
 
         if ( refname0 == NULL ) refname0 = gctx->alig[ 0 ].refname;
         if ( refname1 == NULL ) refname1 = gctx->alig[ 1 ].refname;
-        
+
         KOutMsg( "@HD\tVN:1.3\n" );
         KOutMsg( "@SQ\tSN:%s\tAS:%s\tLN:%d\n", refname0, refname0, bases_in_ref0 );
         if ( refname1 != NULL && ( strcmp( refname0, refname1 ) != 0 ) )
@@ -533,7 +533,7 @@ static void generate_alignment( const gen_context * gctx )
 
     /* produces SAM-line for 1st alignment */
     KOutMsg( "%s\n", gctx->alig[ 0 ].sam );
-    
+
     /* produces SAM-line for 2nd alignment ( mate ) */
     if ( gctx->tlen != 0 )
         KOutMsg( "%s\n", gctx->alig[ 1 ].sam );
@@ -548,7 +548,7 @@ static void read_alig_context( Args * args, alignment * alig, uint32_t idx )
     alig->refpos    = get_uint32_option( args, OPTION_REFPOS,   idx,    idx == 0 ? DFLT_REFPOS : 0 );
     alig->cigar_str = get_str_option( args, OPTION_CIGAR,       idx,    DFLT_CIGAR );
     alig->mapq      = get_uint32_option( args, OPTION_MAPQ,     idx,    DFLT_MAPQ );
-    
+
     alig->reverse   = get_uint32_option( args, OPTION_REVERSE,  idx,    0 );
     alig->secondary = get_uint32_option( args, OPTION_SEC,      idx,    0 );
     alig->bad       = get_uint32_option( args, OPTION_BAD,      idx,    0 );
@@ -556,7 +556,7 @@ static void read_alig_context( Args * args, alignment * alig, uint32_t idx )
     alig->prop      = get_uint32_option( args, OPTION_PROP,     idx,    0 );
     alig->first     = get_uint32_option( args, OPTION_FIRST,    idx,    0 );
     alig->last      = get_uint32_option( args, OPTION_LAST,     idx,    0 );
-    
+
     /* precalculate values need in all functions */
     alig->cigar     = make_cigar_t( alig->cigar_str );
     alig->reflen    = cigar_t_reflen( alig->cigar );
@@ -577,13 +577,13 @@ static void read_context( Args * args, gen_context * gctx )
     gctx->header    = get_bool_option( args, OPTION_HEADER );
     gctx->config    = get_str_option( args, OPTION_CONFIG,    0,   NULL );
     gctx->tlen       = 0;
-    
+
     read_alig_context( args, &gctx->alig[ 0 ], 0 );
     read_alig_context( args, &gctx->alig[ 1 ], 1 );
 
     alig0 = &gctx->alig[ 0 ];
     alig1 = &gctx->alig[ 1 ];
-    
+
     if ( gctx->alig[ 1 ].refpos > 0 )
     {
         if ( gctx->alig[ 1 ].refname == NULL )
@@ -593,13 +593,13 @@ static void read_context( Args * args, gen_context * gctx )
 
         uint32_t end = alig1->refpos + alig1->reflen;
         gctx->tlen = ( end - alig0->refpos );
-        
+
         alig0->refbases = read_refbases( alig0->refname, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
         alig1->refbases = read_refbases( alig1->refname, alig1->refpos, alig1->reflen, &alig1->bases_in_ref );
 
         cigar_t_2_read( alig0->read, sizeof alig0->read, alig0->cigar, alig0->refbases, gctx->insbases );
         cigar_t_2_read( alig1->read, sizeof alig1->read, alig1->cigar, alig1->refbases, gctx->insbases );
-        
+
         produce_sam( alig0->sam, sizeof alig0->sam, gctx, alig0, alig1 );
         produce_sam( alig1->sam, sizeof alig1->sam, gctx, alig1, alig0 );
     }
@@ -608,17 +608,19 @@ static void read_context( Args * args, gen_context * gctx )
         alig0->refbases = read_refbases( alig0->refname, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
         alig1->refbases = NULL;
         alig1->bases_in_ref    = 0;
-        
+
         cigar_t_2_read( alig0->read, sizeof alig0->read, alig0->cigar, alig0->refbases, gctx->insbases );
         alig1->read[ 0 ] = 0;
-        
+
         produce_sam( alig0->sam, sizeof alig0->sam, gctx, alig0, alig1 );
         alig1->sam[ 0 ] = 0;
     }
 }
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc == 0 )
     {
@@ -629,9 +631,9 @@ rc_t CC KMain( int argc, char *argv [] )
         if ( rc == 0 )
         {
             gen_context gctx;
-            
+
             read_context( args, &gctx );
-            
+
             if ( get_bool_option( args, OPTION_SHOW ) )
                 show_details( &gctx );
             else if ( get_bool_option( args, OPTION_REF ) )
@@ -646,10 +648,10 @@ rc_t CC KMain( int argc, char *argv [] )
             release_alig( &gctx.alig[ 0 ] );
             if ( gctx.tlen != 0 )
                 release_alig( &gctx.alig[ 1 ] );
-            
+
             ArgsWhack( args );
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

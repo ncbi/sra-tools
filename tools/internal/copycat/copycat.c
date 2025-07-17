@@ -226,36 +226,36 @@ KCreateMode cm = kcmParents | kcmCreate;
 
 
 static
-const char * extract_usage[] = 
+const char * extract_usage[] =
 { "location of extracted files", NULL };
 static
-const char * cache_usage[] = 
+const char * cache_usage[] =
 { "location of output cached files", NULL };
 static
-const char * force_usage[] = 
+const char * force_usage[] =
 { "force overwrite of existing files", NULL };
 static
-const char * dest_usage[] = 
+const char * dest_usage[] =
 { "location of output", NULL };
 static
-const char * xmldir_usage[] = 
+const char * xmldir_usage[] =
 { "XML matches extracted files", NULL };
 static
-const char * extdir_usage[] = 
+const char * extdir_usage[] =
 { "extracted directories match normal XML", NULL };
 static
-const char * xmlbase_usage[] = 
+const char * xmlbase_usage[] =
 { "use this to base the XML not destination; can only be used with a single source", NULL };
 static
-const char * inblock_usage[] = 
+const char * inblock_usage[] =
 { "system file reads are of blocks of this size", NULL };
 static
-const char * outblock_usage[] = 
+const char * outblock_usage[] =
 { "system file writes are of blocks of this size", NULL };
 static
-const char * no_bzip2_usage[] = 
+const char * no_bzip2_usage[] =
 { "do not decompress files compressed with bzip2", NULL };
-const char * no_md5_usage[] = 
+const char * no_md5_usage[] =
 { "do not calculate md5 hashes", NULL };
 
 
@@ -398,7 +398,7 @@ rc_t CC Usage (const Args * args)
 }
 
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
     /* name            alias max times oparam required fmtfunc help text loc */
     { OPTION_EXTRACT, ALIAS_EXTRACT, NULL, extract_usage, 1, true,  false },
@@ -433,7 +433,7 @@ rc_t copycat_file2file (CCTree * tree,
     do_decrypt = (VPathOption (_src, vpopt_encrypted, spath, sizeof spath, &sz) == 0);
     do_encrypt = (VPathOption (_dst, vpopt_encrypted, spath, sizeof spath, &sz) == 0);
 
-    /* we can't use the automagical nature of the VPath and its query part 
+    /* we can't use the automagical nature of the VPath and its query part
      * because copycat needs to peek under the hood; but we want the automagical
      * ability to handle it's path part.
      */
@@ -709,7 +709,7 @@ rc_t copycat_files2dir (CCTree * tree, SLList * logs, VFSManager * mgr, Vector *
         if (sleaf++ == NULL)
             sleaf = sbuff;
 
-        /* the special case destination is the null device which we treat 
+        /* the special case destination is the null device which we treat
          * as if it was a directory at first and then as a file
          */
         if (strcmp (dbuff, "/dev/null") == 0)
@@ -755,19 +755,19 @@ rc_t copycat_files2dir (CCTree * tree, SLList * logs, VFSManager * mgr, Vector *
 /* run
  *
  * dest will be set if the -o option was used.
- * 
+ *
  */
 static
-rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr, 
-                   const char *cache, VPath * _dest, const char *extract, 
+rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
+                   const char *cache, VPath * _dest, const char *extract,
                    Vector * v)
 {
-    rc_t rc;
-    int dest_type;
-    KDirectory * cwd;
-    VPath * dest;
-    size_t sz;
-    const char * pleaf;
+    rc_t rc = 0;
+    int dest_type = kptNotFound;
+    KDirectory * cwd = NULL;
+    VPath * dest = NULL;
+    size_t sz = 0;
+    const char * pleaf = NULL;
     char pbuff [4096];
 
     /* =====
@@ -777,7 +777,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 
     rc = VFSManagerGetCWD (mgr, &cwd);
     if (rc)
-        return rc;
+        goto CLEANUP;
 
     /* if there's a cache path, create directory */
     if ( cache != NULL )
@@ -790,7 +790,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
             PLOGERR (klogErr,
                      (klogErr, rc, "failed to open cache directory '$(path)'",
                       "path=%s", cache ));
-            return rc;
+            goto CLEANUP;
         }
     }
     else
@@ -804,11 +804,11 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
             rc = KDirectoryOpenDirUpdate (cwd, & edir, true, "%s", extract);
         if ( rc != 0 )
         {
-            PLOGERR (klogErr, 
+            PLOGERR (klogErr,
                      (klogErr, rc,
                       "failed to open extract directory '$(path)'",
                       "path=%s", extract ));
-            return rc;
+            goto CLEANUP;
         }
     }
     else
@@ -819,12 +819,14 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
     {
         rc = VectorRemove (v, VectorLength(v) - 1, (void**)&dest);
         if (rc)
-            return rc;
+            goto CLEANUP;
     }
+    else
+        VPathAddRef(dest);
 
     rc = VPathReadPath (dest, pbuff, sizeof pbuff, &sz);
     if (rc)
-        return rc;
+        goto CLEANUP;
 
     if (xml_base)
         pleaf = xml_base;
@@ -842,12 +844,12 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
     switch (dest_type & ~ kptAlias)
     {
     case kptNotFound:
-        /* this is the potentially ambiguous situation 
-         * if only two arguments and the last isn't definitively a directory 
+        /* this is the potentially ambiguous situation
+         * if only two arguments and the last isn't definitively a directory
          * we assume its supposed to be a file.
          *
          * If the target does not exist but it's path ends in '/' or if
-         * there is more than one source we know it is supposed to be a 
+         * there is more than one source we know it is supposed to be a
          * directory.
          */
         if ((pbuff[sz-1] != '/')
@@ -859,17 +861,19 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 /* )) */
             && (VectorLength (v) == 1))
         {
-            return copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            rc = copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            goto CLEANUP;
         }
 
         /* create a directory at the given path */
         rc = KDirectoryCreateDir ( cwd, 0775, kcmParents | kcmOpen, "%s", pbuff );
         if ( rc != 0 )
-            return rc;
+            goto CLEANUP;
 
         /* fall through */
     case kptDir:
-        return copycat_files2dir (tree, logs, mgr, v, dest);
+        rc = copycat_files2dir (tree, logs, mgr, v, dest);
+        goto CLEANUP;
 
 
     case kptCharDev:
@@ -882,24 +886,32 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 #if 0
             if (VectorLength (v) > 1)
 #endif
-                return copycat_files2dir (tree, logs, mgr, v, dest);
+            {
+                rc = copycat_files2dir (tree, logs, mgr, v, dest);
+                goto CLEANUP;
+            }
         }
         /* fall through */
     case kptBlockDev:
     case kptFIFO:
     case kptFile:
-        if (VectorLength (v) == 1)
-            return copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
-
+        if (VectorLength (v) == 1) {
+            rc = copycat_file2file (tree, logs, mgr, VectorGet (v, 0), dest, pleaf);
+            goto CLEANUP;
+        }
         rc = RC (rcExe, rcDirectory, rcAccessing, rcPath, rcNotFound);
         PLOGERR (klogFatal,
                  (klogFatal, rc, "copying multiple files, but target argument "
                   "[$(D)] is not a directory", "D=%s", pbuff));
-        return rc;
+        goto CLEANUP;
     }
 
     fprintf ( stderr, "%s: '%s': specified destination path is not a directory\n", program_name, pbuff );
-    return RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
+    rc = RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
+    
+CLEANUP:
+    VPathRelease(dest);
+    return rc;
 }
 /* dump
  */
@@ -924,13 +936,16 @@ void param_whack (void * path, void * ignored)
     (void)VPathRelease ((const VPath*)path);
 }
 
-/* KMain
- */
-
-rc_t KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+         return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc, orc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     KStsHandlerSetStdErr();
     KStsLibHandlerSetStdErr();
@@ -1223,7 +1238,7 @@ rc_t KMain ( int argc, char *argv [] )
                                 orc = KFileRelease ( fnull ), fnull = NULL;
                                 if (rc == 0)
                                     rc = orc;
-                            } 
+                            }
                             DEBUG_STATUS(("%s: Whack extracted file tree;\n", __func__));
                             CCTreeWhack (etree);
                         }
@@ -1249,6 +1264,6 @@ rc_t KMain ( int argc, char *argv [] )
             rc = orc;
     }
     DEBUG_STATUS(("%s: exit rc %R(%x);\n", __func__, rc, rc));
-    return rc;
+    return VdbTerminate( rc );
 }
 

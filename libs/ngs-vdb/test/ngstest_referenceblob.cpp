@@ -35,6 +35,8 @@
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
+#include <kapp/main.h>
+
 #include <vdb/database.h>
 
 #include <../ncbi/ngs/NGS_Cursor.h>
@@ -743,34 +745,10 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetBlobs_Slice_MultipleBlobs, ReferenceBlob
 
 //////////////////////////////////////////// Main
 
-extern "C"
-{
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_referenceblob";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[])
 {
     KConfigDisableUserSettings();
-    rc_t m_coll=NgsReferenceBlobTestSuite(argc, argv);
+    int m_coll=NgsReferenceBlobTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return m_coll;
 }
-
-}
-

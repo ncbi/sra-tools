@@ -14,7 +14,7 @@ CONV_OUT="${PWD}/tool-arguments.h"
     echo ""
 } > "${CONV_OUT}"
 (
-    for exe in 'vdb-dump' 'fasterq-dump' 'sam-dump' 'sra-pileup'
+    for exe in 'vdb-dump' 'fasterq-dump' 'sam-dump' 'sra-pileup' 'prefetch'
     do
         EXEPATH="${BINDIR}/${exe}"
         [ -x "${EXEPATH}" ] || { echo "${EXEPATH} no such executable" >&2 ; exit 1; }

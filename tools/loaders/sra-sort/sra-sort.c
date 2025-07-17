@@ -178,11 +178,11 @@ rc_t CC Usage ( const Args *args )
     rc_t rc = ArgsProgram ( args, & fullpath, & progname );
     if ( rc != 0 )
         progname = fullpath = UsageDefaultName;
-    
+
     UsageSummary ( progname );
-    
+
     KOutMsg ( "Options:\n" );
-    
+
     for ( i = 0; i < sizeof options / sizeof options [ 0 ]; ++ i )
     {
         HelpOptionLine ( options [ i ] . aliases, options [ i ] . name,
@@ -190,7 +190,7 @@ rc_t CC Usage ( const Args *args )
     }
 
     HelpOptionsStandard ();
-    
+
     HelpVersion ( fullpath, KAppVersion () );
 
     return 0;
@@ -416,17 +416,17 @@ tp->write_new_to_old=true;
         return;
     if ( count != 0 )
         tp -> map_file_random_bsize = ( size_t ) val;
-   
+
     ON_FAIL ( val = ArgsGetOptU64 ( args, ctx, OPT_MAX_IDX_IDS, & count ) )
         return;
     if ( count != 0 )
         tp -> max_idx_ids = tp -> max_ref_idx_ids = ( size_t ) val;
-   
+
     ON_FAIL ( val = ArgsGetOptU64 ( args, ctx, OPT_MAX_REF_IDX_IDS, & count ) )
         return;
     if ( count != 0 )
         tp -> max_ref_idx_ids = ( size_t ) val;
-   
+
     ON_FAIL ( val = ArgsGetOptU64 ( args, ctx, OPT_MAX_LARGE_IDX_IDS, & count ) )
         return;
     if ( count != 0 )
@@ -441,7 +441,7 @@ tp->write_new_to_old=true;
         return;
     if ( count != 0 )
         tp -> force = true;
-   
+
     ON_FAIL ( found = ArgsGetOptBool ( args, ctx, OPT_UNSORTED_OLD_NEW, & count ) )
         return;
     if ( count != 0 )
@@ -527,9 +527,14 @@ void initialize_caps ( const ctx_t *ctx, Caps *caps, Args *args )
 
 rc_t copy_stats_metadata( const char * src_path, const char * dst_path );
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     DECLARE_CTX_INFO ();
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     /* initialize context */
     Caps caps;
@@ -640,7 +645,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                                     tp . db . cmode = kcmInit | ( tp . db . cmode & ~ kcmValueMask );
                                                     tp . tbl . cmode = kcmInit | ( tp . tbl . cmode & ~ kcmValueMask );
                                                 }
-                                                
+
                                                 for ( issue_divider_line = false, i = 0; i < count - 1; issue_divider_line = true, ++ i )
                                                 {
                                                     rc = ArgsParamValue ( args, i, (const void **)& tp . src_path );
@@ -731,9 +736,9 @@ rc_t CC KMain ( int argc, char *argv [] )
                                                     }
 
                                                     if ( ! FAILED () ) {
-                                                        string_copy( cp_src_path, sizeof cp_src_path, 
+                                                        string_copy( cp_src_path, sizeof cp_src_path,
                                                                      tp . src_path, string_size( tp . src_path ) );
-                                                        string_copy( cp_dst_path, sizeof cp_dst_path, 
+                                                        string_copy( cp_dst_path, sizeof cp_dst_path,
                                                                      tp . dst_path, string_size( tp . dst_path ) );
                                                         run ( ctx );
                                                     }
@@ -757,5 +762,5 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( 0 == main_ctx . rc && 0 != cp_src_path[ 0 ] && 0 != cp_dst_path[ 0 ] ) {
         main_ctx . rc = copy_stats_metadata( cp_src_path, cp_dst_path );
     }
-    return main_ctx . rc;
+    return VDB_TERMINATE( main_ctx . rc );
 }

@@ -102,9 +102,9 @@ GLOG="-l WARN"
 ARGS=-Dvdb.System.loadLibrary=1
 
 java -version 2>&1 | grep -q 1.7
-if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
-    export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
-fi
+#if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
+#    export PATH=/nt/pn1.bemd/sratest/bin/jre1.8.0_171/bin:$PATH
+#fi
 
 CL=org.broadinstitute.gatk.engine.CommandLineGATK
 L="-L NC_000020.10:61000001-61001000"

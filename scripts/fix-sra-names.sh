@@ -1,4 +1,4 @@
-#!/bin/bash
+# bash
 
 Help () {
 echo "Usage: $0 <accession directory> [<accession directory>]..."

@@ -20,10 +20,16 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ==============================================================================
+# =============================================================================$
 
 use Cwd "cwd";
 my $root = cwd();
+
+my ($verbose) = @ARGV;
+my $VERBOSE = $verbose + 0;
+#$VERBOSE = 1; # print what's executed'
+#$VERBOSE = 2; # print commands
+#$VERBOSE = 3; # print command output
 
 `prefetch -h`; die 'no prefetch' if $?; # make sure SRA toolkit is found
 
@@ -36,8 +42,7 @@ mkdir 'tmp/kfg' || die;
 # site repo is always ignored
 $K = "$root/tmp/kfg";
 $k = "$K/k.kfg";
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'  > $k`; die if $?;
-`echo '/repository/site/disabled = "true"'                  >> $k`; die if $?;
+`echo '/repository/site/disabled = "true"'                  > $k`; die if $?;
 
 # no remote
 $rn = "$K/rn.mkfg";
@@ -82,161 +87,409 @@ $a = 'SRR619505';
 `rm -fr $a`; die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-config -on`; die if $?;
 
+#################################
 # cannot find run if remote repo is disabled
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
+print "Cannot find run if remote repo is disabled\n" if ($VERBOSE);
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+#################################
+print "Run in cwd/AD\n" if ($VERBOSE);
 # prefetch into cwd/AD
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
-`ls $a/$a.sra` ; die 'no $a.sra' if $?;
-`ls $a/NC_000005.8` ; die 'no NC_000005.8' if $?;
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+`ls $a/$a.sra`     ; die 'no $a.sra' if $?;
+`ls $a/NC_000005.8`; die 'no NC_000005.8' if $?;
 
+#################################
 # run in cwd/AD
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+if ($VERBOSE > 2)
+{ print substr $O, 0, 999; print "\n...\n";  print substr $O, -999; print "\n" }
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
 `rm $a.fastq`; die if $?;
  
+#################################
+print "Run in cwd/AD, no refseq: failures\n" if ($VERBOSE);
 # remove refseq: expect failures
 `rm $a/NC_000005.8` ; die if $?;
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 "
+                                 . "| grep \"can't open NC_000005.8\"";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
 # prefetch refseq into cwd/AD
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 `ls $a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
 `rm -fr $a`; die if $?;
 
+#################################
+print "Cannot find run if remote repo is disabled\n" if ($VERBOSE);
 # cannot find run if remote repo is disabled
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+#################################
+print "Prefetch into out-dir; run in cwd/AD\n" if ($VERBOSE);
 # prefetch into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q 2> /dev/null`; die if $?;
-`ls Q/$a/$a.sra` ; die 'no $a.sra' if $?;
-`ls Q/$a/NC_000005.8` ; die 'no NC_000005.8' if $?;
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+`ls Q/$a/$a.sra`     ; die 'no $a.sra'      if $?;
+`ls Q/$a/NC_000005.8`; die 'no NC_000005.8' if $?;
 
+#################################
 # run in cwd/AD
 chdir "$root/tmp/out/Q" || die;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a`; die if $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+if ($VERBOSE > 2)
+{ print substr $O, 0, 999; print "\n...\n";  print substr $O, -999; print "\n" }
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 `rm $a.fastq`; die if $?;
  
 chdir "$root/tmp" || die;
 
+#################################
+print "Access run via path to sra file\n" if ($VERBOSE);
 # access run via path to sra file
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z out/Q/$a/$a.sra 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z out/Q/$a/$a.sra 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump out/Q/$a/$a.sra`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump out/Q/$a/$a.sra";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+if ($VERBOSE > 2)
+{ print substr $O, 0, 999; print "\n...\n";  print substr $O, -999; print "\n" }
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra`;
-die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump out/Q/$a/$a.sra 2> /dev/null`;
-die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump out/Q/$a/$a.sra 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 `rm $a.fastq`; die if $?;
 
+#################################
+print "Access run via path to sra file: no refseq: failures\n" if ($VERBOSE);
 # remove refseq: expect failures
 `rm out/Q/$a/NC_000005.8` ; die if $?;
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra 2>&1 | grep "can't open NC_000005.8"`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra 2>&1"
+                                . " | grep \"can't open NC_000005.8\"";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+#################################
 # prefetch refseq into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 `ls Q/$a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
 `rm -fr out r`; die if $?;
 
+#################################
+print "Cannot find run if remote repo is disabled\n" if ($VERBOSE);
 # cannot find run if remote repo is disabled
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2> /dev/null`;
-die unless $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+#################################
+if ($VERBOSE)
+{ print "Cannot find run if remote repo is disabled and user repo is empty\n" }
 # cannot find run if remote repo is disabled and user repo is empty
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K srapath $a 2> /dev/null`;
-die unless $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K srapath $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
 `rm -rf Q`; die if $?;
 
+#################################
+print "sra-pileup cannot find run if remote repo is disabled\n" if ($VERBOSE);
 # cannot find run if remote repo is disabled
 $d = 'SRR341578';
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
-die unless $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+#################################
+print "Prefetch into out-dir; access run via path to AD\n" if ($VERBOSE);
 # prefetch into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
-`ls Q/$d/$d.sra          2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite`         ; die if $? }
-`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+`ls Q/$d/$d.sra          2> /dev/null`;
+if ($?) { `ls Q/$d/$d.sralite`         ; die if $? }
+
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`;
+if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
+
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
 `ls Q/$d/NC_011752.1` ; die 'no NC_011752.1' if $?;
 
+#################################
 # access run via path to AD
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d`; die if $?;
+$cmd="NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
+#################################
+if ($VERBOSE) {
+ print "Prefetch into out-dir; access run via path to AD; no refseq: failures\n"
+}
 # remove refseq: expect failures
 `rm Q/$d/NC_011748.1`     ; die if $?;
 `rm Q/$d/$d.sra*.vdbcache`; die if $?;
 
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
-die unless $?;
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+#################################
 # prefetch refseq into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
-`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
 
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`;
+if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
+
+#################################
 # prefetch into user repo
-`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
-`ls $root/tmp/r/sra/$a.sra` ; die 'no $a.sra' if $?;
-`ls $root/tmp/r/refseq/NC_000005.8` ; die 'no NC_000005.8' if $?;
+$cmd="NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+`ls $root/tmp/r/sra/$a.sra`        ; die "no $a.sra"      if $?;
+`ls $root/tmp/r/refseq/NC_000005.8`; die 'no NC_000005.8' if $?;
 
+#################################
+print "Run in user repo\n" if ($VERBOSE);
 # run in user repo
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K srapath $a`; die if $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a`; die if $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K srapath $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+if ($VERBOSE > 2)
+{ print substr $O, 0, 999; print "\n...\n";  print substr $O, -999; print "\n" }
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
 `rm $a.fastq`; die if $?;
 
+#################################
+print "Run in user repo; no refseq: failures\n" if ($VERBOSE);
 # remove refseq: expect failures
 `rm $root/tmp/r/refseq/NC_000005.8` ; die if $?;
 
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
-`NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
 
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2>&1";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die unless $?;
+print $O if ($VERBOSE > 2);
+
+$cmd="NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 "
+                                  . "| grep \"can't open NC_000005.8\"";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+
+#################################
 # prefetch refseq into user repo
-`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
-`ls $root/tmp/r/refseq/NC_000005.8` ; die 'no NC_000005.8' if $?;
+$cmd="NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a";
+print "$cmd\n" if ($VERBOSE > 1);
+$O = `$cmd`; die if $?;
+print $O if ($VERBOSE > 2);
+`ls $root/tmp/r/refseq/NC_000005.8`; die 'no NC_000005.8' if $?;
 
-`rm -r $root/tmp` ; die if $?;
+`rm -r $root/tmp`; die if $?;

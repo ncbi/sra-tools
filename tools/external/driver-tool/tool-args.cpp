@@ -207,7 +207,17 @@ public:
     void advance() const {
         assert(indarg > 0);
         indarg = 0;
-        ++argind;
+    }
+    friend std::ostream &operator <<(std::ostream &out, ArgvIterator const &arg) {
+        auto const argc = arg.parent->argc;
+        auto const argind = arg.argind;
+        auto const indarg = arg.indarg;
+        if (argind == argc)
+            return out << argind << "/" << argc << "(at end)";
+        auto const val = arg.parent->argv[argind];
+        if (indarg > 0)
+            return out << argind << "." << indarg << "/" << argc << " '" << val[indarg] << "'";
+        return out << argind << "/" << argc << " '" << val << "'";
     }
 };
 
@@ -228,7 +238,7 @@ struct CharIndexElement : public std::pair<char, unsigned>
     }
 };
 
-/// \brief Indexed Argument Definitions for a tool.
+/// \brief Base class for Argument Definitions, contains the indexed definitions and common implementation for a tool.
 struct ParamDefinitions_Common {
     using Container = UniqueOrderedList<ParameterDefinition>;
     using LongIndex = std::map<std::string, Container::Index>;
@@ -328,10 +338,20 @@ struct ParamDefinitions_Common {
         out.print("\n]\n}");
     }
 
+    /// @brief There are two flavors of args parsing, one for fastq-dump and one for all the others.
+    /// @param dst The container that will hold the parsed arguments.
+    /// @param iter An iterator on argv.
+    /// @return false if no progress could be made, e.g. all argument have beed parsed.
     virtual bool parseArg(Arguments::Container *dst, ArgvIterator const &iter) const = 0;
 
+    /// @brief Parse all arguments from the command line.
+    /// @param cmdLine the command line to be parsed.
+    /// @return a container with all the parsed arguments.
+    /// @note Generally, this function is infallible. However, if the command line doesn't
+    ///       match the definitions, it is a garbage-in/garbage-out situation.
     Arguments parse(CommandLine const &cmdLine) const {
         Arguments::Container result;
+        TRACE(cmdLine.argc);
         auto iter = ArgvIterator(cmdLine);
 
         result.reserve(cmdLine.argc);
@@ -348,6 +368,7 @@ struct ParamDefinitions_Common {
     }
 };
 
+/// @brief This is used for all tools other than fastq-dump, i.e. the tools that use klib args parsing.
 struct ParamDefinitions final : public ParamDefinitions_Common
 {
 private:
@@ -375,81 +396,111 @@ public:
         return {-1, nullptr};
     }
 
+    /// @brief Args parsing that is compatible with klib's args parser.
+    /// @param dst the container to recieve the argument and possibly its parameter.
+    /// @param i the iterator on argv.
+    /// @return false if done.
     bool parseArg(Arguments::Container *dst, ArgvIterator const &i) const override {
         auto nextIsArg = 0;
         auto index = -1;
 
+        TRACE(i);
         for ( ; ; ) {
             switch (i.next()) {
             case 0:
+                TRACE(nextIsArg);
                 if (nextIsArg) {
+                    TRACE(index);
                     dst->emplace_back(Argument({&container[index], nullptr, -1}));
+                    TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                     return true;
                 }
                 return false;
             case 1:
+                TRACE(nextIsArg);
                 if (nextIsArg) {
+                    TRACE(index);
                     dst->emplace_back(Argument({&container[index], i.get(), i.index() - 1}));
+                    TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                     return true;
                 }
                 else {
                     auto const arg = i.get();
 
+                    TRACE(arg);
+                    TRACE(i.index());
                     if (arg[0] != '-') {
                         dst->emplace_back(Argument({&ParameterDefinition::argument(), arg, i.index()}));
+                        TRACE_OUT << "added argument: " << dst->back() << std::endl;
                         return true;
                     }
                     if (arg[1] == '-') {
                         auto const f = findLong(arg + 2);
                         if (f.first >= 0) {
                             index = f.first;
+                            TRACE(index);
                             auto const &def = container[index];
+                            TRACE(def);
                             if (f.second && def.hasArgument) {
                                 dst->emplace_back(Argument({&def, f.second, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
                             if (!f.second && !def.hasArgument) {
                                 dst->emplace_back(Argument({&def, nullptr, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
                             if (def.hasArgument) {
+                                TRACE_OUT << "looking for argument" << std::endl;
                                 ++nextIsArg;
                                 continue;
                             }
                         }
+                        TRACE_OUT << "unknown parameter: " << arg << ", index: " << i.index() << std::endl;
                         dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                         return true;
                     }
                 }
+                TRACE_OUT << "parsing short argument" << std::endl;
                 // fallthrough;
             case -1:
                 {
                     auto const arg = i.getChar();
+                    TRACE(arg);
+                    TRACE(nextIsArg);
                     switch (nextIsArg) {
                     case 0:
                         {
                             auto const f = shortIndex.find(*arg);
                             if (f.first != f.second) {
                                 index = f.first->second;
+                                TRACE(index);
                                 auto const &def = container[index];
+                                TRACE(def);
                                 if (def.hasArgument) {
+                                    TRACE_OUT << "looking for argument" << std::endl;
                                     ++nextIsArg;
                                     continue;
                                 }
                                 dst->emplace_back(Argument({&def, arg, i.index()}));
+                                TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                                 return true;
                             }
+                            TRACE_OUT << "unknown parameter: " << arg << ", index: " << i.index() << std::endl;
                             dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                             return true;
                         }
                     case 1:
                         if (*arg == '=') {
+                            TRACE_OUT << "looking for argument" << std::endl;
                             ++nextIsArg;
                             continue;
                         }
                         // fallthrough;
                     case 2:
                         dst->emplace_back(Argument({&container[index], arg, i.index()}));
+                        TRACE_OUT << "added parameter: " << dst->back() << std::endl;
                         i.advance();
                         return true;
                     default:
@@ -469,12 +520,17 @@ public:
     }
 };
 
+/// @brief This is used for fastq-dump, which uses its own args parsing.
 struct ParamDefinitions_FQD final : public ParamDefinitions_Common
 {
     ParamDefinitions_FQD(ParamDefinitions_Common const &common, size_t count, ParameterDefinition const *defs)
     : ParamDefinitions_Common(common, count, defs)
     {}
 
+    /// @brief Args parsing that is unique to fastq-dump. Major differences are optional parameters and parameters must be seperated from the argument.
+    /// @param dst the container to recieve the argument and possibly its parameter.
+    /// @param i the iterator on argv.
+    /// @return false if done.
     bool parseArg(Arguments::Container *result, ArgvIterator const &iter) const override {
         int index = -1;
         bool nextMayBeArg = false;
@@ -537,8 +593,11 @@ struct ParamDefinitions_FQD final : public ParamDefinitions_Common
     }
 };
 
+/// @brief Holds the definitions for the universally supported arguments, like `--help`, `--version`, etc.
 static ParamDefinitions_Common const &commonParams = ParamDefinitions::makeCommonParams();
 
+/// Each tool has its definitions in its own namespace.
+/// This macro defines the contents of that namespace.
 #define DEFINE_ARGS(NAME, PARSE_TYPE) \
 namespace NAME { \
     using Parser = PARSE_TYPE; \
@@ -547,14 +606,25 @@ namespace NAME { \
     static ParamDefinitions_Common const &parser = Parser(commonParams, sizeof(defs)/sizeof(defs[0]) - 1, defs); \
 }
 
+/// MARK: Tool definitions here.
+/// This imports the definition from the `tool-arguments.h` file.
+/// @note When adding a tool, this list needs to be updated.
+DEFINE_ARGS(PREFETCH, ParamDefinitions)
 DEFINE_ARGS(FASTERQ_DUMP, ParamDefinitions)
 DEFINE_ARGS(SAM_DUMP, ParamDefinitions)
 DEFINE_ARGS(VDB_DUMP, ParamDefinitions)
 DEFINE_ARGS(SRA_PILEUP, ParamDefinitions)
 DEFINE_ARGS(FASTQ_DUMP, ParamDefinitions_FQD)
 
+/// @brief Finds the definitions for the given named tool.
+/// @returns a reference to the common base class containing the definitions.
+/// @throws UnknownToolException
+/// @note When adding a tool, this function needs to be updated.
 static ParamDefinitions_Common const &parserForTool(std::string const &toolName)
 {
+    if (toolName == PREFETCH::toolName)
+        return PREFETCH::parser;
+
     if (toolName == FASTERQ_DUMP::toolName)
         return FASTERQ_DUMP::parser;
 
@@ -580,16 +650,20 @@ Arguments argumentsParsed(CommandLine const &cmdLine)
 
 std::ostream &operator <<(std::ostream &out, Argument const &arg) {
     if (arg.isArgument())
-        return out << arg.argument;
+        return out << arg.argument << " (argv[" << arg.argind << "])";
     if (!arg.def->hasArgument)
-        return out << arg.def->name;
+        return out << "--" << arg.def->name << " (argv[" << arg.argind << "])";
     if (!arg.argument)
-        return out << arg.def->name << " (null)";
+        return out << "--" <<arg.def->name << "=(null)" << " (argv[" << arg.argind << "])";
     else
-        return out << arg.def->name << " " << arg.argument;
+        return out << "--" <<arg.def->name << "=" << arg.argument << " (argv[" << arg.argind << "])";
 }
 
+/// @brief Print parameter bitmasks used for every parameter of every tool.
+/// @param out the stream to write to.
+/// @note When adding a tool, this function needs to be updated.
 void printParameterBitmasks(std::ostream &out) {
+    PREFETCH::parser.printParameterBitmasks(PREFETCH::toolName, out);
     FASTERQ_DUMP::parser.printParameterBitmasks(FASTERQ_DUMP::toolName, out);
     FASTQ_DUMP::parser.printParameterBitmasks(FASTQ_DUMP::toolName, out);
     SAM_DUMP::parser.printParameterBitmasks(SAM_DUMP::toolName, out);
@@ -597,10 +671,14 @@ void printParameterBitmasks(std::ostream &out) {
     VDB_DUMP::parser.printParameterBitmasks(VDB_DUMP::toolName, out);
 }
 
+/// @brief Print parameter bitmasks used for every parameter of every tool.
+/// @param out the stream to write to.
+/// @note When adding a tool, this function needs to be updated.
 void printParameterJSON(std::ostream &out) {
     JSON_Printer printer(out);
     printer.print("[\n");
-    FASTERQ_DUMP::parser.printParameterJSON(FASTERQ_DUMP::toolName, printer, true);
+    PREFETCH::parser.printParameterJSON(PREFETCH::toolName, printer, true);
+    FASTERQ_DUMP::parser.printParameterJSON(FASTERQ_DUMP::toolName, printer);
     FASTQ_DUMP::parser.printParameterJSON(FASTQ_DUMP::toolName, printer);
     SAM_DUMP::parser.printParameterJSON(SAM_DUMP::toolName, printer);
     SRA_PILEUP::parser.printParameterJSON(SRA_PILEUP::toolName, printer);

@@ -189,7 +189,7 @@ rc_t write_rows (param_block * pb)
             }
         }
     } while (rc == 0);
-    
+
     return rc;
 }
 
@@ -274,10 +274,15 @@ rc_t open (param_block * pb)
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     rc_t rc = 0;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 0 /*1, Options, sizeof Options / sizeof (&Options[1])*/);
     if (rc)
@@ -303,7 +308,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             default:
                 rc = MiniUsage (args);
                 goto bailout;
-                
+
             case 2:
                 pb.schema_path = SCHEMASPEC;
                 break;
@@ -312,7 +317,7 @@ rc_t CC KMain ( int argc, char *argv[] )
                 pb.schema_path = NULL;
                 break;
             }
-        
+
             rc = ArgsParamValue (args, 0, (const void **)&pb.file_path);
             if (rc)
             {
@@ -346,6 +351,5 @@ rc_t CC KMain ( int argc, char *argv[] )
     else
         KStsMsg("Exit success %R");
 
-
-    return rc;
+    return VDB_TERMINATE( rc );
 }

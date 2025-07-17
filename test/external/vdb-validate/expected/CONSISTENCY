@@ -1,12 +1,12 @@
 info: Table 'SRR053990' metadata: md5 ok
-info: Column 'ALTREAD': checksums ok
-info: Column 'CLIP_QUALITY_RIGHT': checksums ok
-info: Column 'POSITION': checksums ok
-info: Column 'QUALITY': checksums ok
-info: Column 'READ': checksums ok
-info: Column 'READ_LEN': checksums ok
-info: Column 'SIGNAL': checksums ok
-info: Column 'X': checksums ok
-info: Column 'Y': checksums ok
+info: Column 'ALTREAD': md5 ok
+info: Column 'CLIP_QUALITY_RIGHT': md5 ok
+info: Column 'POSITION': md5 ok
+info: Column 'QUALITY': md5 ok
+info: Column 'READ': md5 ok
+info: Column 'READ_LEN': md5 ok
+info: Column 'SIGNAL': md5 ok
+info: Column 'X': md5 ok
+info: Column 'Y': md5 ok
 info: Columns 'READ_LEN' and 'SPOT_LEN' are consistent
 info: Table 'SRR053990' is consistent

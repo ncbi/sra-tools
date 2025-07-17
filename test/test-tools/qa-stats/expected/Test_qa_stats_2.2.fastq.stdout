@@ -1,0 +1,33 @@
+{
+	"total": {
+		"reads": {
+			"count": 1,
+			"biological": 1,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "N",
+				"biological": 20
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 1,
+				"biological": 1,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 1
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "20BF",
+				"count": 1
+			}
+		],
+		"spectra": {},
+		"references": []
+	}
+}

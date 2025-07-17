@@ -1,8 +1,8 @@
-  <container id="1" path="3.fq" name="3.fq" size="534" filetype="Compressed/GnuZip" md5="2e6418cd2ef0e62094bd239f3bfdc112" crc32="5a8093f6">
-    <archive id="2" path="3.fq/3" name="3" size="10240" filetype="Archive/TapeArchive" md5="7997cb00859fecbaefa79954f96a3b70" >
-      <file id="7" path="3.fq/3/1.fq" name="1.fq" size="14" lines="4" filetype="Read/FASTQ" md5="b7e4a472ddc29a71feb48ba48aadddc1" defline_name="D" defline_pair="3"  offset="2560"/>
-      <container id="3" path="3.fq/3/1.fq.gz" name="1.fq.gz" size="39" filetype="Compressed/GnuZip" md5="df85723128d968c1d48ed5921da5dc15"  offset="512">
-        <file id="4" path="3.fq/3/1.fq.gz/1.fq" name="1.fq" size="14" lines="4" filetype="Read/FASTQ" md5="b7e4a472ddc29a71feb48ba48aadddc1" defline_name="D" defline_pair="3" />
-      <file id="8" path="3.fq/3/2.fq" name="2.fq" size="184" lines="4" filetype="Read/FASTQ" md5="e344f0e28c10fd447a1d018307db2dd6" defline_name="654321_TEST-SHA1_s_1:2:3:456:789" defline_pair="2"  offset="3584"/>
-      <container id="5" path="3.fq/3/2.fq.gz" name="2.fq.gz" size="137" filetype="Compressed/GnuZip" md5="6d4eebf12d657b1c0bd243bff0119b6e"  offset="1536">
-        <file id="6" path="3.fq/3/2.fq.gz/2.fq" name="2.fq" size="184" lines="4" filetype="Read/FASTQ" md5="e344f0e28c10fd447a1d018307db2dd6" defline_name="654321_TEST-SHA1_s_1:2:3:456:789" defline_pair="2" />
+  <container id="1" path="3.fq.gz" name="3.fq.gz" size="534" filetype="Compressed/GnuZip" md5="2e6418cd2ef0e62094bd239f3bfdc112" crc32="5a8093f6">
+    <archive id="2" path="3.fq.gz/3.fq" name="3.fq" size="10240" filetype="Archive/TapeArchive" md5="7997cb00859fecbaefa79954f96a3b70" >
+      <file id="7" path="3.fq.gz/3.fq/1.fq" name="1.fq" size="14" lines="4" filetype="Read/FASTQ" md5="b7e4a472ddc29a71feb48ba48aadddc1" defline_name="D" defline_pair="3"  offset="2560"/>
+      <container id="3" path="3.fq.gz/3.fq/1.fq.gz" name="1.fq.gz" size="39" filetype="Compressed/GnuZip" md5="df85723128d968c1d48ed5921da5dc15"  offset="512">
+        <file id="4" path="3.fq.gz/3.fq/1.fq.gz/1.fq" name="1.fq" size="14" lines="4" filetype="Read/FASTQ" md5="b7e4a472ddc29a71feb48ba48aadddc1" defline_name="D" defline_pair="3" />
+      <file id="8" path="3.fq.gz/3.fq/2.fq" name="2.fq" size="184" lines="4" filetype="Read/FASTQ" md5="e344f0e28c10fd447a1d018307db2dd6" defline_name="654321_TEST-SHA1_s_1:2:3:456:789" defline_pair="2"  offset="3584"/>
+      <container id="5" path="3.fq.gz/3.fq/2.fq.gz" name="2.fq.gz" size="137" filetype="Compressed/GnuZip" md5="6d4eebf12d657b1c0bd243bff0119b6e"  offset="1536">
+        <file id="6" path="3.fq.gz/3.fq/2.fq.gz/2.fq" name="2.fq" size="184" lines="4" filetype="Read/FASTQ" md5="e344f0e28c10fd447a1d018307db2dd6" defline_name="654321_TEST-SHA1_s_1:2:3:456:789" defline_pair="2" />

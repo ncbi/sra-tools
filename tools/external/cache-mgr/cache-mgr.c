@@ -104,7 +104,7 @@ OptDef ToolOptions[] =
     { OPTION_CREPORT,   ALIAS_CREPORT,  NULL,   report_usage,   1,  false,  false },
     { OPTION_RREPORT,   ALIAS_RREPORT,  NULL,   rreport_usage,  1,  false,  false },
     { OPTION_DETAIL,    ALIAS_DETAIL,   NULL,   detail_usage,   1,  false,  false },
-    { OPTION_TSTZERO,   ALIAS_TSTZERO,  NULL,   tstzero_usage,  1,  false,  false },    
+    { OPTION_TSTZERO,   ALIAS_TSTZERO,  NULL,   tstzero_usage,  1,  false,  false },
     { OPTION_UNLOCK,    ALIAS_UNLOCK,   NULL,   unlock_usage,   1,  false,  false },
     { OPTION_CLEAR,     ALIAS_CLEAR,    NULL,   clear_usage,    1,  false,  false },
     { OPTION_MAXREM,    ALIAS_MAXREM,   NULL,   max_rem_usage,  1,  true,   false },
@@ -572,7 +572,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
     uint64_t checked_blocks = 0;
     uint64_t empty_blocks = 0;
     float completeness = 0.0;
-    
+
     bool locked = false;
     report_data * data = obj->data;
 
@@ -606,7 +606,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
             {
                 data->used_file_size += used_size;
             }
-            
+
             if ( rc == 0 && obj->options->tstzero )
             {
                 rc = Has_Cache_Zero_Blocks( f, &checked_blocks, &empty_blocks ); /* libs/kfs/cacheteefile.c */
@@ -616,7 +616,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
                              "Has_Cache_Zero_Blocks( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
                 }
             }
-            
+
             KFileRelease( f );
         }
     }
@@ -635,13 +635,13 @@ static rc_t on_report_cache_file( visit_ctx * obj )
             rc = KOutMsg( "%s complete by %.02f %% [%,lu of %,lu]bytes\n",
                           obj->path, completeness, used_size, file_size );
     }
-    
+
     if ( rc == 0 && obj->options->tstzero )
     {
         rc = KOutMsg( "%s has %lu blocks set in bitmap where %lu are empty\n",
                           obj->path, checked_blocks, empty_blocks );
     }
-    
+
     return rc;
 }
 
@@ -1345,8 +1345,13 @@ static rc_t explain_no_cache_found ( void )
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc != 0 )
     {
@@ -1410,6 +1415,6 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
     }
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

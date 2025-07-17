@@ -1,0 +1,36 @@
+SRR341576:database
+    3 tables
+    25 columns with checksums
+    1 column without checksums
+    1 index
+    PRIMARY_ALIGNMENT:table
+        GLOBAL_REF_START:column
+        HAS_MISMATCH:column
+        HAS_REF_OFFSET:column
+        MAPQ:column
+        MISMATCH:column
+        REF_LEN:column
+        REF_OFFSET:column
+        REF_ORIENTATION:column
+        SEQ_READ_ID:column
+        SEQ_SPOT_ID:column
+    REFERENCE:table
+        CGRAPH_HIGH:column
+        CGRAPH_INDELS:column
+        CGRAPH_LOW:column
+        CGRAPH_MISMATCHES:column
+        CIRCULAR:column
+        CS_KEY:column
+        PRIMARY_ALIGNMENT_IDS:column
+        SEQ_ID:column
+        SEQ_LEN:column
+        SEQ_START:column
+        i_name:index
+    SEQUENCE:table
+        ALIGNMENT_COUNT:column
+        CMP_ALTREAD:column
+        CMP_READ:column
+        PRIMARY_ALIGNMENT_ID:column
+        RD_FILTER:column
+        READ_TYPE:column
+

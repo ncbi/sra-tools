@@ -279,40 +279,8 @@ FIXTURE_TEST_CASE(KLoaderFile_noEolBeforeEof, LoaderFileFixture)
 //////////////////////////////////////////// Main
 
 extern "C"
-{
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion (void)
-{
-    return 0;
-}
-
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    rc_t rc=KAppTestSuite(argc, argv);
-    return rc;
-}
-
+    return KAppTestSuite(argc, argv);
 }

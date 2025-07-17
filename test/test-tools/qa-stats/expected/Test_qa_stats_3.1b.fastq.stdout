@@ -1,0 +1,102 @@
+{
+	"total": {
+		"reads": {
+			"count": 2,
+			"biological": 2,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "N",
+				"biological": 18
+			},
+			{
+				"base": "W",
+				"biological": 19
+			},
+			{
+				"base": "S",
+				"biological": 35
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 2,
+				"biological": 2,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 2
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "36BF",
+				"count": 2
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 0.125
+				},
+				{
+					"length": 1,
+					"power": 0.25
+				},
+				{
+					"length": 2,
+					"power": 0.5
+				},
+				{
+					"length": 4,
+					"power": 0.125
+				}
+			],
+			"S": [
+				{
+					"length": 0,
+					"power": 0.368421
+				},
+				{
+					"length": 1,
+					"power": 0.263158
+				},
+				{
+					"length": 3,
+					"power": 0.210526
+				},
+				{
+					"length": 5,
+					"power": 0.157895
+				}
+			],
+			"S-W": [
+				{
+					"length": 0,
+					"power": 0.631579
+				},
+				{
+					"length": 1,
+					"power": 0.368421
+				}
+			],
+			"K-M": [
+				{
+					"length": 0,
+					"power": 0.571429
+				},
+				{
+					"length": 1,
+					"power": 0.0714286
+				},
+				{
+					"length": 2,
+					"power": 0.357143
+				}
+			]
+		},
+		"references": []
+	}
+}

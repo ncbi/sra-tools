@@ -23,7 +23,7 @@
 # ===========================================================================
 
 if( NOT WIN32 )
-	GenerateExecutableWithDefs( make-read-filter make-read-filter "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+	GenerateExecutableWithDefs( make-read-filter make-read-filter "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 	if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
 		set_source_files_properties( make-read-filter PROPERTIES COMPILE_FLAGS -Wno-unused-result )
 	endif()

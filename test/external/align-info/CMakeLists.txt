@@ -26,10 +26,22 @@ add_compile_definitions( __mod__="test/external/align-info" )
 
 if ( NOT WIN32 )
 ToolsRequired(align-info)
+
     # # make sure align-info -h does not crash
-    add_test( NAME Test_Align_Info
+    add_test( NAME Test_Align_Info_H
         COMMAND ${DIRTOTEST}/align-info -h
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_Align_Info_Refseq_404
+        COMMAND
+         env
+          NC_000005.8={\"NCBI-PHID\":\"aHh\",\"result\":[{\"bundle\":\"NC_000005.8\",\"status\":404,\"msg\":\"CannotResolveAccession\"}]}
+          NCBI_SETTINGS=/
+          NCBI_VDB_NO_ETC_NCBI_KFG=1
+          VDB_CONFIG=
+          bash test-refseq-404.sh ${BINDIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 else()
 #TODO: make run on Windows
 endif()

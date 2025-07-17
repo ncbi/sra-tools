@@ -410,7 +410,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
 
                 if ( local != NULL )
                     rc = VPathMakeString( local, &s );
-                else 
+                else
                     rc = VPathMakeString( remote, &s );
                 if ( rc == 0 ) {
                     OUTMSG(("%S\n", s));
@@ -433,7 +433,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
             KPathType kpt = KDirectoryPathType( cwd, "%s", pc );
             switch ( kpt &= ~kptAlias ) {
                     case kptNotFound : STSMSG( 1, ( "'%s': not found while "
-                                                   "searching the file system", 
+                                                   "searching the file system",
                                                      pc ) );
                                         break;
 
@@ -501,7 +501,14 @@ static rc_t resolve_arguments( Args * args )
     else if ( acount < 1 && cart == NULL )
     {
         MiniUsage( args );
-        rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
+        if (ArgsOptionCount(args, OPTION_HELP, &idx) == 0 && idx > 0)
+        {
+            rc = 0;
+        }
+        else
+        {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+        }
     }
     else
     {
@@ -610,7 +617,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
             r->location   = get_str_option( args, OPTION_LOCN, NULL );
             r->search_url = NULL;
             r->search_ver = NULL;
-            
+
         }
         else
         {
@@ -678,7 +685,7 @@ static rc_t names_cgi( const Args * args )
         }
         else
             rc = names_request ( & r, fmt . cache, fmt . path );
-    
+
         destroy_request ( & r );
     }
 
@@ -708,8 +715,13 @@ static rc_t search_cgi( const Args * args )
 
 /* ---------------------------------------------------------------------------- */
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
@@ -730,5 +742,5 @@ rc_t CC KMain( int argc, char *argv [] )
         }
         ArgsWhack( args );
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

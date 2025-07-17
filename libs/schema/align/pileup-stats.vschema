@@ -1,0 +1,120 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+version 1;
+
+include 'vdb/built-in.vschema';
+include 'vdb/vdb.vschema';
+include 'insdc/insdc.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * tables
+ */
+
+table NCBI:pileup:tbl:pileup_stats #1
+{
+    /* RUN_NAME
+     *  expected to be a single value for entire object
+     */
+    extern column ascii RUN_NAME;
+
+    /* REFERENCE_SPEC
+     *  the canonical reference accession
+     *  an index is stored in 'ref_spec'.
+     */
+    extern column ascii REFERENCE_SPEC = out_reference_spec;
+    physical < ascii > zip_encoding .REFERENCE_SPEC
+        = idx:text:insert #1.0 < 'ref_spec' > ( REFERENCE_SPEC );
+    ascii out_reference_spec
+        = idx:text:project #1.0 < 'ref_spec' > ( .REFERENCE_SPEC );
+
+    /* REF_POS
+     *  we dedicate a row to every position on the reference
+     *  some rows are empty, other than their position
+     */
+    extern column I64 REF_POS = out_ref_pos;
+    physical < I64 > izip_encoding .REF_POS = in_ref_pos;
+    I64 in_ref_pos
+        = < I64 > sub_row_id ( REF_POS )
+        ;
+    I64 out_ref_pos
+        = < I64 > add_row_id ( .REF_POS )
+        | < I64 > add_row_id ( .REF_POS_TRANS )
+        ;
+
+    /* REF_POS_TRANS
+     *  records the translation between current row-id
+     *  and REF_POS, such that
+     *    row-id () + REF_POS_TRANS == REF_POS
+     */
+    extern column I64 REF_POS_TRANS = out_ref_pos_trans;
+    physical < I64 > izip_encoding .REF_POS_TRANS = in_ref_pos_trans;
+    I64 in_ref_pos_trans
+        = REF_POS_TRANS
+        ;
+    I64 out_ref_pos_trans
+        = .REF_POS_TRANS
+        | < I64 > sub_row_id ( .REF_POS )
+        ;
+
+    /* REF_BASE
+     *  this optional column records data extracted from reference
+     *  it is the base at REF_POS
+     */
+    extern column < INSDC:dna:text > zip_encoding REF_BASE;
+
+    /* DEPTH
+     *  depth of coverage at REF_POS
+     */
+    extern column < U32 > izip_encoding DEPTH;
+
+    /* MISMATCH_COUNTS
+     *  the number of pileup bases that do not match against REF_BASE
+     *  the normal vector MISMATCH_COUNTS [ 4 ] is recorded as MISMATCH_COUNTS [ 3 ]
+     *  where the element representing REF_BASE has been eliminated.
+     */
+    extern column < U32 > izip_encoding MISMATCH_COUNTS;
+
+    /* INSERTION_COUNTS
+     *  the number of insertions-before-bases
+     */
+    extern column < U32 > izip_encoding INSERTION_COUNTS;
+
+    /* DELETION_COUNT
+     *  the number of deletions at REF_POS
+     */
+    extern column < U32 > izip_encoding DELETION_COUNT;
+}
+
+/*--------------------------------------------------------------------------
+ * databases
+ */
+
+database NCBI:pileup:db:pileup_stats #1
+{
+    table NCBI:pileup:tbl:pileup_stats #1 STATS;
+}

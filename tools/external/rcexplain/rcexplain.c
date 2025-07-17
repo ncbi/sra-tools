@@ -37,13 +37,7 @@
 #include <assert.h>
 
 
-
-/*--------------------------------------------------------------------------
- * KMain
- *  invoked by platform specific "main" entrypoint
- */
 const char UsageDefaultName[] = "rcexplain";
-
 
 rc_t CC UsageSummary (const char * progname)
 {
@@ -79,10 +73,15 @@ rc_t CC Usage (const Args * args)
 }
 
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 0);
     if (rc == 0)
@@ -94,7 +93,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             rc = ArgsParamCount (args, &pcount);
             if (rc)
                 break;
-            
+
             if (pcount == 0) {
                 MiniUsage(args);
                 rc = RC(rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid);
@@ -123,5 +122,5 @@ rc_t CC KMain ( int argc, char *argv [] )
 
         ArgsWhack (args);
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

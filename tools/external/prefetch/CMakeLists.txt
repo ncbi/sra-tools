@@ -23,10 +23,7 @@
 # ===========================================================================
 
 add_compile_definitions( __mod__="tools/prefetch" )
-
-if (WIN32)
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-endif()
+add_compile_definitions( _POSIX_C_SOURCE=200809 ) # setenv with clang
 
 set( SRC
 	kfile-no-q

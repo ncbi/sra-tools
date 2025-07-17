@@ -32,39 +32,45 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 
-#include <kapp/main.h>
 #include <kapp/args.h>
 #include <kapp/args-conv.h>
+#include <kapp/vdbapp.h>
+
+#include "../../shared/toolkit.vers.h"
+#include <kapp/main.h>
 
 #include "formatter.hpp"
 
-
 using namespace std;
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
+#define DISP_RC(rc, msg) if (rc != 0) { LOGERR(klogInt, rc, msg), throw VDB::Error(msg); }
 #define DESTRUCT(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = nullptr; } while (false)
 
-#define OPTION_PLATFORM     "platform"
-#define OPTION_FORMAT       "format"
-#define OPTION_ISALIGNED    "is-aligned"
-#define OPTION_QUALITY      "quality"
-#define OPTION_SCHEMAVERS   "schema"
-#define OPTION_SPOTLAYOUT   "spot-layout"
-#define OPTION_LIMIT        "limit"
+#define OPTION_CONTENTS     "contents"
 #define OPTION_DETAIL       "detail"
-#define OPTION_SEQUENCE     "sequence"
+#define OPTION_ISALIGNED    "is-aligned"
+#define OPTION_FORMAT       "format"
+#define OPTION_LIMIT        "limit"
+#define OPTION_PLATFORM     "platform"
+#define OPTION_QUALITY      "quality"
 #define OPTION_ROWS         "rows"
+#define OPTION_SCHEMAVERS   "schema"
+#define OPTION_SEQUENCE     "sequence"
+#define OPTION_SPOTLAYOUT   "spot-layout"
+#define OPTION_FINGERPRINT  "fingerprint"
 
-#define ALIAS_PLATFORM      "P"
-#define ALIAS_FORMAT        "f"
 #define ALIAS_ISALIGNED     "A"
-#define ALIAS_QUALITY       "Q"
 #define ALIAS_SCHEMAVERS    "C"
-#define ALIAS_SPOTLAYOUT    "S"
-#define ALIAS_LIMIT         "l"
 #define ALIAS_DETAIL        "D"
-#define ALIAS_SEQUENCE      "s"
+#define ALIAS_FORMAT        "f"
+#define ALIAS_LIMIT         "l"
+#define ALIAS_PLATFORM      "P"
+#define ALIAS_QUALITY       "Q"
 #define ALIAS_ROWS          "R"
+#define ALIAS_SPOTLAYOUT    "S"
+#define ALIAS_SEQUENCE      "s"
+#define ALIAS_CONTENTS      "T"
+#define ALIAS_FINGERPRINT  "F"
 
 static const char * platform_usage[]    = { "print platform(s)", nullptr };
 static const char * format_usage[]      = { "output format:", nullptr };
@@ -74,9 +80,11 @@ static const char * schema_vers_usage[] = {
     "print schema version and dependencies", nullptr };
 static const char * spot_layout_usage[] = { "print spot layout(s). Uses CONSENSUS table if present, SEQUENCE table otherwise", nullptr };
 static const char * limit_usage[]       = { "limit output to <N> elements, e.g. <N> most popular spot layouts; <N> must be positive", nullptr };
-static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be 0 or greater", nullptr };
+static const char * detail_usage[]      = { "detail level, <0> the least detailed output; <N> must be zero or greater; default 3", nullptr };
 static const char * sequence_usage[]    = { "use SEQUENCE table for spot layouts, even if CONSENSUS table is present", nullptr };
 static const char * rows_usage[]        = { "report spot layouts for the first <N> rows of the table", nullptr };
+static const char * contents_usage[]    = { "list the contents of the run: databases, tables, columns etc.", nullptr };
+static const char * fingerprint_usage[] = { "show the fingerprint information. Detail level <0> (default) shows only the current run fingerprint. Description of fingerprint method available here: <LINK TBD>", nullptr };
 
 OptDef InfoOptions[] =
 {
@@ -90,6 +98,8 @@ OptDef InfoOptions[] =
     { OPTION_DETAIL,        ALIAS_DETAIL,       nullptr, detail_usage,      1, true,    false, nullptr },
     { OPTION_SEQUENCE,      ALIAS_SEQUENCE,     nullptr, sequence_usage,    1, false,   false, nullptr },
     { OPTION_ROWS,          ALIAS_ROWS,         nullptr, rows_usage,        1, true,    false, nullptr },
+    { OPTION_CONTENTS,      ALIAS_CONTENTS,     nullptr, contents_usage,    1, false,   false, nullptr },
+    { OPTION_FINGERPRINT,   ALIAS_FINGERPRINT,  nullptr, fingerprint_usage,1, false,   false, nullptr },
 };
 
 const char UsageDefaultName[] = "sra-info";
@@ -131,14 +141,16 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_ISALIGNED,   OPTION_ISALIGNED,   nullptr, isaligned_usage );
     HelpOptionLine ( ALIAS_SCHEMAVERS,  OPTION_SCHEMAVERS,  nullptr, schema_vers_usage );
     HelpOptionLine ( ALIAS_SPOTLAYOUT,  OPTION_SPOTLAYOUT,  nullptr, spot_layout_usage );
+    HelpOptionLine ( ALIAS_CONTENTS,    OPTION_CONTENTS,    nullptr, contents_usage );
+    HelpOptionLine ( ALIAS_FINGERPRINT, OPTION_FINGERPRINT, nullptr, fingerprint_usage );
 
     HelpOptionLine ( ALIAS_FORMAT,   OPTION_FORMAT,     "format",   format_usage );
     KOutMsg( "      csv ..... comma separated values on one line\n" );
     KOutMsg( "      xml ..... xml-style\n" );
     KOutMsg( "      json .... json-style\n" );
     KOutMsg( "      tab ..... tab-separated values on one line\n" );
-    KOutMsg( "             csv and tab formats can be used just with a single query\n" );
-    KOutMsg( "             --" OPTION_SCHEMAVERS " does npt support csv and tab\n" );
+    KOutMsg( "             csv and tab formats can only be used with a single query\n" );
+    KOutMsg( "             --" OPTION_SCHEMAVERS " does not support csv and tab\n" );
 
     HelpOptionLine ( ALIAS_LIMIT,  OPTION_LIMIT, "N", limit_usage );
     HelpOptionLine ( ALIAS_DETAIL, OPTION_DETAIL, "N", detail_usage );
@@ -146,7 +158,7 @@ rc_t CC Usage ( const Args * args )
 
     HelpOptionsStandard ();
 
-    HelpVersion ( fullpath, KAppVersion() );
+    HelpVersion ( fullpath, TOOLKIT_VERS );
 
     return rc;
 }
@@ -206,12 +218,14 @@ GetNonNegativeNumber( Args * args, const char * option )
     }
 }
 
-typedef class {
+typedef class Query {
     bool aligned;
     bool platforms;
     bool quality;
     bool schema;
     bool spots;
+    bool contents;
+    bool fingerprints;
     int count;
 
 public:
@@ -220,6 +234,8 @@ public:
     void doQuality(void) { ++count; quality = true; }
     void doSchema(void) { ++count; schema = true; }
     void doSpots(void) { ++count; spots = true; }
+    void doContents(void) { ++count; contents = true; }
+    void doFingerprints(void) { ++count; fingerprints = true; }
 
     int queries(void) const { return count; }
 
@@ -228,12 +244,19 @@ public:
     bool needQuality(void) const { return quality; }
     bool needSchema(void) const { return schema; }
     bool needSpots(void) const { return spots; }
+    bool needContents(void) const { return contents; }
+    bool needFingerprints(void) const { return fingerprints; }
 } Query;
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     Args * args;
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv,
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(),
         1, InfoOptions, sizeof InfoOptions / sizeof InfoOptions [ 0 ] );
     DISP_RC( rc, "ArgsMakeAndHandle() failed" );
     if ( rc == 0)
@@ -308,6 +331,16 @@ rc_t CC KMain ( int argc, char *argv [] )
                     DISP_RC( rc, "ArgsOptionCount() failed" );
                     if ( opt_count > 0 )
                         q.doSpots();
+
+                    rc = ArgsOptionCount( args, OPTION_CONTENTS, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doContents();
+
+                    rc = ArgsOptionCount( args, OPTION_FINGERPRINT, &opt_count );
+                    DISP_RC( rc, "ArgsOptionCount() failed" );
+                    if ( opt_count > 0 )
+                        q.doFingerprints();
                 }
 
                 if (q.queries() > 1) {
@@ -349,28 +382,30 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( q.needQuality() )
                 {
                     Output( formatter.format(
-                        info.HasPhysicalQualities()
-                            ? "STORED" : "GENERATED",
+                        info.QualityDescription(),
                         "QUALITY" ) );
+                }
+
+                SraInfo::Detail detail = SraInfo::Verbose;
+
+                // detail level
+                rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
+                DISP_RC( rc, "ArgsOptionCount() failed" );
+                bool detail_specified = opt_count > 0;
+                if ( detail_specified )
+                {
+                    switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
+                    {
+                    case 0: detail = SraInfo::Short; break;
+                    case 1: detail = SraInfo::Abbreviated; break;
+                    case 2: detail = SraInfo::Full; break;
+                    case 3: detail = SraInfo::Verbose; break;
+                    default: break; // anything higher than 2 is Verbose
+                    }
                 }
 
                 if ( q.needSpots() )
                 {
-                    SraInfo::Detail detail = SraInfo::Verbose;
-
-                    // detail level
-                    rc = ArgsOptionCount( args, OPTION_DETAIL, &opt_count );
-                    DISP_RC( rc, "ArgsOptionCount() failed" );
-                    if ( opt_count > 0 )
-                    {
-                        switch( GetNonNegativeNumber( args, OPTION_DETAIL ) )
-                        {
-                        case 0: detail = SraInfo::Short; break;
-                        case 1: detail = SraInfo::Abbreviated; break;
-                        case 2: detail = SraInfo::Full; break;
-                        default: break; // anything higher than 2 is Verbose
-                        }
-                    }
 
                     bool useConsensus = true;
                     rc = ArgsOptionCount( args, OPTION_SEQUENCE, &opt_count );
@@ -391,17 +426,29 @@ rc_t CC KMain ( int argc, char *argv [] )
                     Output ( formatter.format( info.GetSpotLayouts( detail, useConsensus, topRows ), detail ) );
                 }
 
+                if ( q.needContents() )
+                {
+                    Output( formatter.format( * info.GetContents().get(), detail ) );
+                }
+
+                if ( q.needFingerprints() )
+                {   // has its own default detail level
+                    SraInfo::Detail fp_detail = detail_specified ? detail : SraInfo::Short;
+                    Output( formatter.format( info.GetFingerprints( fp_detail ), fp_detail ) );
+                }
+
                 Output( formatter.end() );
             }
-            catch( const exception& ex )
+            catch( const exception& /*ex*/)
             {
                 //KOutMsg( "%s\n", ex.what() ); ? - should be in stderr already, at least for VDB::Error
-                rc = 3;
+                return 3;
             }
         }
 
         DESTRUCT(Args, args);
     }
 
-    return rc;
+    app.setRc( rc );
+    return app.getExitCode();
 }

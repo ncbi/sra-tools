@@ -1,0 +1,8 @@
+{
+    "name":"SRR341576",
+    "dbtype":"database",
+    "tables":"3",
+    "columnsWithChecksums":"27",
+    "columnsWithoutChecksums":"0",
+    "indices":"1"
+}

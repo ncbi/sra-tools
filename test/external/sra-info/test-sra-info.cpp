@@ -46,6 +46,7 @@ const string Accession_Refseq   = "NC_000001.10";
 const string Accession_WGS      = "AAAAAA01";
 const string Run_Multiplatform  = "./input/MultiPlatform.sra";
 const string Accession_Pacbio   = "DRR032985";
+const string Run_Fingerprints   = "./input/Test_Sra_Info_Fingerprint"; // a copy of db created by sharq for test cases DbMetaMultipleFiles_*
 
 TEST_CASE(Construction)
 {
@@ -62,6 +63,15 @@ protected:
         SraInfo::SpotLayouts sl = info.GetSpotLayouts( det );
         const Formatter f( fmt, 2 );
         return f.format( sl, det );
+    }
+
+    void verifyFingerprint( const SraInfo::Fingerprints::value_type & object, const string& exp_key, const string& exp_value )
+    {
+        if ( exp_key != object.key || exp_value != object.value )
+        {
+            cerr << "SraInfoFixture::verifyFingerprint() expected " << exp_key << " " << exp_value << " got " << object.key << " " << object.value << endl;
+            THROW_ON_FALSE( false );
+        }
     }
 
     SraInfo info;
@@ -81,14 +91,13 @@ FIXTURE_TEST_CASE(ResetAccession, SraInfoFixture)
     REQUIRE_EQ( string(Accession2), info.GetAccession() );
 }
 
-// Platform
-
-FIXTURE_TEST_CASE(PlatformInInvalidAccession, SraInfoFixture)
+FIXTURE_TEST_CASE(SetInvalidAccession, SraInfoFixture)
 {
     const string Accession = "i_am_groot";
-    info.SetAccession(Accession);
-    REQUIRE_THROW( info.GetPlatforms() );
+    REQUIRE_THROW( info.SetAccession(Accession) );
 }
+
+// Platform
 
 FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
 {
@@ -97,11 +106,6 @@ FIXTURE_TEST_CASE(NoPlatformInTable, SraInfoFixture)
     REQUIRE_EQ( size_t(1), p.size() );
     REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
 }
-
-// do such runs exist?
-// FIXTURE_TEST_CASE(NoPlatformInDatabase, SraInfoFixture)
-// {
-// }
 
 FIXTURE_TEST_CASE(SinglePlatformInTable, SraInfoFixture)
 {
@@ -118,11 +122,11 @@ FIXTURE_TEST_CASE(SinglePlatformInDatabase, SraInfoFixture)
     REQUIRE_EQ( string("SRA_PLATFORM_ILLUMINA"), *p.begin() );
 }
 FIXTURE_TEST_CASE(SinglePlatformWGS, SraInfoFixture)
-{
+{   // no PLATFORM column
     info.SetAccession(Accession_WGS);
     SraInfo::Platforms p = info.GetPlatforms();
     REQUIRE_EQ( size_t(1), p.size() );
-    REQUIRE_EQ( string("SRA_PLATFORM_UNDEFINED"), *p.begin() );
+    REQUIRE_EQ( string("none provided"), *p.begin() );
 }
 
 FIXTURE_TEST_CASE(MultiplePlatforms, SraInfoFixture)
@@ -288,7 +292,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
 
     // the most popular layouts are at the start of the vector
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(119), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -298,7 +302,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Full, SraInfoFixture)
     }
 
     {
-        class SraInfo::SpotLayout & l = sl[1];
+        SraInfo::SpotLayout & l = sl[1];
         REQUIRE_EQ( uint64_t(112), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -315,7 +319,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Abbreviated, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Abbreviated ); // ignore read lengths
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() );
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -330,7 +334,7 @@ FIXTURE_TEST_CASE(SpotLayout_MultiRow_Detail_Short, SraInfoFixture)
     SraInfo::SpotLayouts sl = info.GetSpotLayouts( SraInfo::Short ); // ignore read types
     REQUIRE_EQ( size_t(1), sl.size() );
 
-    class SraInfo::SpotLayout & l = sl[0];
+    SraInfo::SpotLayout & l = sl[0];
     REQUIRE_EQ( uint64_t(4583), l.count );
     REQUIRE_EQ( size_t(2), l.reads.size() ); // only the size is used here
     REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() ); // the default
@@ -441,7 +445,7 @@ FIXTURE_TEST_CASE(SpotLayout_TopRows, SraInfoFixture)
 
     // the top 5 rows are all different layouts
     {
-        class SraInfo::SpotLayout & l = sl[0];
+        SraInfo::SpotLayout & l = sl[0];
         REQUIRE_EQ( uint64_t(1), l.count );
         REQUIRE_EQ( size_t(2), l.reads.size() );
         REQUIRE_EQ( string("TECHNICAL"), l.reads[0].TypeAsString() );
@@ -496,36 +500,177 @@ FIXTURE_TEST_CASE(HasPhysicalQualities_Original, SraInfoFixture)
     REQUIRE( info.HasPhysicalQualities() );
 }
 
+// Contents
+FIXTURE_TEST_CASE(Contents_Table, SraInfoFixture)
+{
+    info.SetAccession(Accession_Table);
+    SraInfo::Contents cnt = info.GetContents();
+    REQUIRE_EQ( Accession_Table, string(cnt -> name) );
+    REQUIRE_EQ( (int)kptTable, (int)(cnt -> dbtype) );
+    REQUIRE_EQ( 0, (int)(cnt -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata | cta_HasIndices,
+                (int)(cnt -> attributes) );
+    REQUIRE_NULL( cnt -> parent );
+    REQUIRE_NULL( cnt -> nextSibling );
+    REQUIRE_NULL( cnt -> prevSibling );
+
+    const KDBContents * child1 = cnt -> firstChild;
+    REQUIRE_NOT_NULL( child1 );
+    REQUIRE_EQ( string("ALTREAD"), string(child1 -> name) );
+    REQUIRE_EQ( (int)kptColumn, (int)(child1 -> dbtype) );
+    REQUIRE_EQ( (int)kptDir, (int)(child1 -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasMD5_File | cca_HasMetadata,
+                (int)(child1 -> attributes) );
+    REQUIRE_EQ( (const KDBContents *)cnt.get(), child1 -> parent );
+    REQUIRE_NULL( child1 -> firstChild );
+    REQUIRE_NULL( child1 -> prevSibling );
+
+    const KDBContents * child2 = child1 -> nextSibling;
+    REQUIRE_NOT_NULL( child2 );
+    REQUIRE_EQ( string("CLIP_QUALITY_RIGHT"), string(child2 -> name) );
+    REQUIRE_EQ( (int)kptColumn, (int)(child2 -> dbtype) );
+    REQUIRE_EQ( (int)kptDir, (int)(child2 -> fstype) );
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasMD5_File | cca_HasMetadata,
+                (int)(child2 -> attributes) );
+    REQUIRE_EQ( (const KDBContents *)cnt.get(), child2 -> parent );
+    REQUIRE_NULL( child2 -> firstChild );
+    REQUIRE_EQ( child1, child2 -> prevSibling );
+
+    //etc.
+}
+
+// Contents
+FIXTURE_TEST_CASE(Contents_SRA, SraInfoFixture)
+{
+    info.SetAccession(Accession_CSRA);
+    SraInfo::Contents cnt = info.GetContents();
+    REQUIRE_EQ( Accession_CSRA, string(cnt -> name) );
+    REQUIRE_EQ( (int)kptDatabase, (int)(cnt -> dbtype) );
+    REQUIRE_EQ( 0, (int)(cnt -> fstype) ); // correct?
+    REQUIRE_EQ( cca_HasChecksum_CRC | cca_HasLock | cca_HasMD5_File | cca_HasMetadata,
+                (int)(cnt -> attributes) ); // correct?
+    REQUIRE_NULL( cnt -> parent );
+    REQUIRE_NULL( cnt -> nextSibling );
+    REQUIRE_NULL( cnt -> prevSibling );
+
+    const KDBContents * child1 = cnt -> firstChild;
+    REQUIRE_NOT_NULL( child1 );
+    REQUIRE_EQ( string("PRIMARY_ALIGNMENT"), string(child1 -> name) );
+    //etc.
+}
+
+// Fingerprints
+FIXTURE_TEST_CASE(Fingerprint_Empty, SraInfoFixture)
+{
+    info.SetAccession(Run_Multiplatform);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Verbose );
+    REQUIRE( fp.empty() );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Short, SraInfoFixture)
+{   // output fingerprint only
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Short );
+    REQUIRE_EQ( 3, (int)fp.size() ); // fingerprint + digest + algorithm
+    REQUIRE_EQ( SraInfo::TreeNode::Value, fp[0].type );
+    verifyFingerprint(
+        fp[0],
+        "fingerprint",
+        R"({"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]})");
+    verifyFingerprint(
+        fp[1],
+        "digest",
+        "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5");
+    verifyFingerprint(fp[2], "algorithm", "SHA-256");
+    }
+
+FIXTURE_TEST_CASE(Fingerprint_Abbreviated, SraInfoFixture)
+{   // output fingerprint with history
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Abbreviated );
+
+    REQUIRE_EQ( 7, (int)fp.size() ); // fingerprint, digest, algorithm, timestamp, history, version, format
+
+    verifyFingerprint( fp[3], "timestamp", "1743618335" );
+    verifyFingerprint( fp[4], "version", "1.0.0" );
+    verifyFingerprint( fp[5], "format", "json utf-8 compact" );
+
+    // history
+    const auto & h = fp[6];
+    REQUIRE_EQ( SraInfo::TreeNode::Array, h.type );
+    verifyFingerprint( h, "history", "" );
+    REQUIRE_EQ( 2, (int)h.subnodes.size() ); // 2 history entries
+
+    const auto & h1 = h.subnodes[0];
+    REQUIRE_EQ( SraInfo::TreeNode::Element, h1.type );
+    verifyFingerprint( h1, "update_1", "" );
+    REQUIRE_EQ( 7, (int)h1.subnodes.size() );  // update#, fingerprint, digest, algorithm, timestamp, version, format
+
+    verifyFingerprint( h1.subnodes[0], "update", "1" );
+    verifyFingerprint( h1.subnodes[1], "fingerprint", R"({"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]})" );
+    verifyFingerprint( h1.subnodes[2], "digest", "qwer" );
+    verifyFingerprint( h1.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( h1.subnodes[4], "timestamp", "1743618305" );
+    verifyFingerprint( h1.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( h1.subnodes[6], "format", "json utf-8 compact" );
+
+    const auto & h2 = h.subnodes[1];
+    verifyFingerprint( h2, "update_2", "" );
+    REQUIRE_EQ( 7, (int)h2.subnodes.size() );
+    verifyFingerprint( h2.subnodes[0], "update", "2" );
+    verifyFingerprint( h2.subnodes[1], "fingerprint", R"({"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]})" );
+    verifyFingerprint( h2.subnodes[2], "digest", "asdf" );
+    verifyFingerprint( h2.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( h2.subnodes[4], "timestamp", "1743618339" );
+    verifyFingerprint( h2.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( h2.subnodes[6], "format", "json utf-8 compact" );
+}
+
+FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
+{   // output fingerprint with history, input fingerprints
+    info.SetAccession(Run_Fingerprints);
+    SraInfo::Fingerprints fp = info.GetFingerprints( SraInfo::Full );
+
+    REQUIRE_EQ( 8, (int)fp.size() ); // fingerprint, digest, algorithm, timestamp, history, version, format, inputs
+
+    const auto & ins = fp[7];
+    REQUIRE_EQ( SraInfo::TreeNode::Array, ins.type );
+    verifyFingerprint( ins, "inputs", "" );
+    REQUIRE_EQ( 2, (int)ins.subnodes.size() ); // 2 input files
+
+    // inputs
+    const auto & in1 = ins.subnodes[0];
+
+    REQUIRE_EQ( SraInfo::TreeNode::Element, in1.type );
+    verifyFingerprint( in1, "file_1", "" );
+    REQUIRE_EQ( 7, (int)in1.subnodes.size() ); // file#, fingerprint, digest, algorithm, timestamp, version, format
+    verifyFingerprint( in1.subnodes[0], "file", "1" );
+    verifyFingerprint( in1.subnodes[1], "name", "input/r1.fastq" );
+    verifyFingerprint( in1.subnodes[2], "fingerprint", R"({"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( in1.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( in1.subnodes[4], "digest", "123" );
+    verifyFingerprint( in1.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( in1.subnodes[6], "format", "json utf-8 compact" );
+
+    const auto & in2 = ins.subnodes[1];
+    verifyFingerprint( in2, "file_2", "" );
+    REQUIRE_EQ( 7, (int)in2.subnodes.size() ); // fingerprint, digest, algorithm, timestamp, version, format
+    verifyFingerprint( in2.subnodes[0], "file", "2" );
+    verifyFingerprint( in2.subnodes[1], "name", "input/r2.fastq" );
+    verifyFingerprint( in2.subnodes[2], "fingerprint", R"({"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]})" );
+    verifyFingerprint( in2.subnodes[3], "algorithm", "SHA-256" );
+    verifyFingerprint( in2.subnodes[4], "digest", "456" );
+    verifyFingerprint( in2.subnodes[5], "version", "1.0.0" );
+    verifyFingerprint( in2.subnodes[6], "format", "json utf-8 compact" );
+}
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>
 
 extern "C"
-{
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-
-const char UsageDefaultName[] = "test-sra-info";
-
-rc_t CC UsageSummary (const char * progname)
-{
-    return KOutMsg ( "Usage:\n" "\t%s [options] -o path\n\n", progname );
-}
-
-rc_t CC Usage( const Args* args )
-{
-    return 0;
-}
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-
-    rc_t rc=SraInfoTestSuite(argc, argv);
-    return rc;
-}
-
+    return SraInfoTestSuite(argc, argv);
 }

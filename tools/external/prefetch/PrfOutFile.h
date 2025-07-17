@@ -30,6 +30,17 @@
 #endif
 
 typedef enum {
+    ePIStreamed,
+    ePIFiled,
+    ePIResumed,
+} EPrfInfo;
+
+typedef struct {
+    EPrfInfo info;
+    uint64_t pos;
+} PrfInfo;
+
+typedef enum {
     eTextual,
     eBinEol,
     eBin8,
@@ -53,6 +64,8 @@ typedef struct {
     KDataBuffer         _buf;
     uint32_t            _lastPos;
     KTime_t             _committed;
+
+    PrfInfo info;
 } PrfOutFile;
 
 rc_t PrfOutFileInit(
@@ -64,5 +77,6 @@ rc_t PrfOutFileCommitTry(PrfOutFile * self);
 rc_t PrfOutFileCommitDo(PrfOutFile * self);
 rc_t PrfOutFileClose(PrfOutFile * self);
 rc_t PrfOutFileWhack(PrfOutFile * self, bool success);
+const char * PrfOutFileMkLog(const PrfOutFile * self);
 
 rc_t PrfOutFileConvert(KDirectory * dir, const char * path, bool * recognized);

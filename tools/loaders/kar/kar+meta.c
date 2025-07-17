@@ -342,7 +342,7 @@ static const char * spath_usage[]        = { "Schema path.", NULL };
 /* OptDef fields : name  alias  help_gen  help
  *                 max_count  need_value  required
  */
-OptDef Options [] = 
+OptDef Options [] =
 {
     { OPTION_INFO,          NULL,   NULL, info_usage,         0, true,  false },
     { OPTION_SET_VAL,       NULL,   NULL, set_val_usage,      0, true,  false },
@@ -440,7 +440,7 @@ rc_t CC get_single_option ( const Args * args, const char * OptName, const char 
         }
 
         if ( Val != NULL ) {
-            rc = kar_stdp ( Ret, Val ); 
+            rc = kar_stdp ( Ret, Val );
         }
     }
 
@@ -500,7 +500,7 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
     rc = 0;
     value = NULL;
     count = 0;
-    
+
     /* Parameters */
     rc = ArgsParamCount ( args, &count );
     if ( rc != 0 )
@@ -518,7 +518,7 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
     rc = ArgsOptionCount ( args, OPTION_ALLOW_REMOTE, &count );
     if ( rc == 0 && count != 0 )
         p -> allow_remote = true;
-    
+
     /* Get Value Options */
     rc = get_multiply_options ( args, OPTION_INFO, p, kInfo );
     if ( rc != 0 ) {
@@ -564,7 +564,8 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
     else {
         char BF [ 1024 ];
         const char * pos = strchr ( value, '/' );
-        sprintf ( BF, ( pos == NULL ? "./%s" : "%s" ), value );
+        int n = snprintf ( BF, sizeof(BF), ( pos == NULL ? "./%s" : "%s" ), value );
+        assert(n < sizeof(BF));
         rc = kar_stdp ( & ( p -> path ), BF );
         if ( rc != 0 ) {
             LogErr ( klogFatal, rc, "Failed to allocate parameter value" );
@@ -649,8 +650,10 @@ rc_t validate_porams ( Porams *p )
  */
 static rc_t CC run ( Porams * porams );
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Porams porams;
 
     rc_t rc = kar_porams_init ( & porams );
@@ -666,7 +669,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 

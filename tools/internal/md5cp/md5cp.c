@@ -46,7 +46,7 @@
 #define DEFAULT_DIR_MODE 0775
 
 /*
-Trying to mimic cp behavior, with a few differences, 
+Trying to mimic cp behavior, with a few differences,
 mainly, that if -f not specified and target exists,
 we do not clobber files, but instead print something about it on the
 output.
@@ -115,13 +115,13 @@ char buffer[BUFSIZE];
 /*
  * out is a pre-allocated buffer.
  */
-void JustTheName(const char *in, char *out) 
+void JustTheName(const char *in, char *out)
 {
   int len;
   int end;
   int begin;
   int i;
-  
+
   len = strlen(in);
   end = len;
   end--;
@@ -153,7 +153,7 @@ bool PathIsMD5File(const KDirectory *dir, const char *inname)
   return false;
 }
 
-bool CC PathIsFile( const KDirectory *dir, const char *name, void *data ) 
+bool CC PathIsFile( const KDirectory *dir, const char *name, void *data )
 {
   uint32_t pathtype;
   pathtype = KDirectoryPathType( dir, "%s", name );
@@ -161,7 +161,7 @@ bool CC PathIsFile( const KDirectory *dir, const char *name, void *data )
 }
 
 
-bool CC PathIsDir(const KDirectory *dir, const char *name, void *data) 
+bool CC PathIsDir(const KDirectory *dir, const char *name, void *data)
 {
   uint32_t pathtype;
   pathtype = KDirectoryPathType( dir, "%s", name );
@@ -275,12 +275,13 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
   uint32_t mode = 0;
   uint32_t pathtype = 0;
   uint32_t failed = 0;
+  int n;
 
   if (PathIsMD5File(top, inname)) {
     /* Skip it */
     return 0;
   }
-  
+
   rc = KDirectoryOpenFileRead( top, &in, "%s", inname );
   if (rc != 0) {
     failed = rc;
@@ -313,7 +314,8 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
     failed = rc;
     goto FAIL;
   }
-  sprintf(md5filename, "%s.md5", outname);
+  n = snprintf(md5filename, sizeof(md5filename), "%s.md5", outname);
+  assert(n < sizeof(md5filename));
   rc = KDirectoryCreateFile( targettop, &md5file, false, DEFAULTMODE, (force? kcmInit: kcmCreate), "%s", md5filename);
   if (rc != 0) {
     failed = rc;
@@ -331,17 +333,17 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
     failed = rc;
     goto FAIL;
   }
-    
-  {  
+
+  {
     uint64_t rpos = 0;
     uint64_t wpos = 0;
-      
+
     size_t numread;
 
     while (true) {
       rc = KFileRead( in, rpos, buffer, BUFSIZE, &numread );
       /* fprintf(stderr, "Read %d bytes.\n", numread); */
-      if (rc == 0 && numread == 0) 
+      if (rc == 0 && numread == 0)
 	break;
       if (rc != 0) {
 	failed = rc;
@@ -397,10 +399,10 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
 
   return failed;
 
-}  
+}
 
 /*
- * copies top/inname (a directory) 
+ * copies top/inname (a directory)
  * to targettop/outname, i.e. creates outname as a copy of that directory.
  */
 rc_t CopyDirectoryToExistingDirectory( const KDirectory *top, const char *inname, KDirectory *targettop, const char *outname )
@@ -443,7 +445,7 @@ rc_t CopyDirectoryToExistingDirectory( const KDirectory *top, const char *inname
   KDirectoryRelease( dest );
   KDirectoryRelease( source );
   return 0;
-}  
+}
 
 #define OPTION_FORCE    "force"
 #define OPTION_RECURSE  "recursive"
@@ -461,7 +463,7 @@ static const char * preserve_usage[] = { "force replacement of existing modes on
 static const char * test_usage[]     = { "?", NULL };
 
 
-OptDef Options[] = 
+OptDef Options[] =
 {
     { OPTION_FORCE,    ALIAS_FORCE,    NULL, force_usage,    0, false, false },
     { OPTION_RECURSE,  ALIAS_RECURSE,  NULL, recurse_usage,  0, false, false },
@@ -519,7 +521,7 @@ rc_t run (Args * args)
 {
     rc_t rc;
 
-    do 
+    do
     {
         const char * outname;
         const char * source;
@@ -551,7 +553,7 @@ rc_t run (Args * args)
         pathtype = KDirectoryPathType (top, "%s", outname);
         if ((pathtype & ~kptAlias) == kptDir)
         {
-            /* 
+            /*
              * Copying things into an existing directory.
              */
             rc = KDirectoryOpenDirUpdate( top, &targettop, true, outname);
@@ -563,7 +565,7 @@ rc_t run (Args * args)
 
             for (ix = 1; ix < pcount; ++ix)
             {
-                
+
                 rc = ArgsParamValue (args, ix, (const void **)&source);
                 if (rc)
                     break;
@@ -653,12 +655,17 @@ rc_t run (Args * args)
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     rc_t rc;
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 1, 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    rc = ArgsMakeAndHandle (&args, argc, argv, 1,
                             Options, sizeof (Options) / sizeof (OptDef));
     if (rc == 0)
     {
@@ -697,6 +704,6 @@ rc_t CC KMain ( int argc, char *argv [] )
 
         ArgsWhack (args);
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

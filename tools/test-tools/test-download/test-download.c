@@ -22,7 +22,7 @@
 *
 * =========================================================================== */
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <kfs/file.h> /* KFileRelease */
 
@@ -398,7 +398,7 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
                 self -> chunkCount = n;
             }
         }
-        
+
 /* PRINT_OPTION */
         {
             rc = ArgsOptionCount ( * args, PRINT_OPTION, & pcount );
@@ -410,7 +410,7 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
             if ( pcount > 0 )
                 self -> print = true;
         }
-        
+
     } while ( false );
 
     return rc;
@@ -418,21 +418,21 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
 
 static rc_t DoMakeHttpFileAndSize ( Do * self, const char * url ) {
     rc_t rc = 0;
- 
+
     ver_t version = 0x01010000;
-    
+
     assert ( self );
-    
+
     if ( self -> file != NULL )
         return 0;
-    
+
     rc = KNSManagerMakeHttpFile ( self -> mgr, & self -> file,
                                   NULL, version, url );
     if ( rc != 0 )
         PLOGERR ( klogErr, ( klogErr, rc,
             "Cannot KNSManagerMakeHttpFile($(url)", "url=%s", url ) );
 
-    
+
     rc = KFileSize ( self -> file, & self -> fileSize );
     if ( rc == 0 &&  ( self -> max == 0 || self -> max > self -> fileSize ) )
         self -> max = self -> fileSize;
@@ -564,12 +564,18 @@ static rc_t DoStream ( const Do * self, const char * url ) {
     return rc;
 }
 
-rc_t CC KMain ( int argc, char * argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = 0;
     Args * args = NULL;
     uint32_t argCount = 0, i = 0;
     const char * url = NULL;
     Do data;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     memset ( & data, 0, sizeof data );
 
@@ -661,5 +667,5 @@ rc_t CC KMain ( int argc, char * argv [] ) {
 
     STSMSG ( STAT_USR, ( "Done with %R", rc ) );
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

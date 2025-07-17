@@ -1,3 +1,25 @@
+----
+                          PUBLIC DOMAIN NOTICE
+             National Center for Biotechnology Information
+
+This software/database is a "United States Government Work" under the
+terms of the United States Copyright Act.  It was written as part of
+the author's official duties as a United States Government employee and
+thus cannot be copyrighted.  This software/database is freely available
+to the public for use. The National Library of Medicine and the U.S.
+Government have not placed any restriction on its use or reproduction.
+
+Although all reasonable efforts have been taken to ensure the accuracy
+and reliability of the software and data, the NLM and the U.S.
+Government do not and cannot warrant the performance or results that
+may be obtained by using this software or data. The NLM and the U.S.
+Government disclaim all warranties, express or implied, including
+warranties of performance, merchantability or fitness for any particular
+purpose.
+
+Please cite the author in any work or product based on this material.
+
+----
 # The NCBI SRA (Sequence Read Archive)
 
 ### Contact:
@@ -9,11 +31,55 @@ Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading
 ### Change Log
 Please check the [CHANGES.md](CHANGES.md) file for change history.
 
+SRA Toolkit complies with [NCBI Web Policies](https://www.ncbi.nlm.nih.gov/home/about/policies/)
+
+Please visit our [wiki](https://github.com/ncbi/sra-tools/wiki) for information on using, configuring, and building the toolkit.
+
 ----
 
-## The SRA Toolkit
+## The SRA Toolkit 
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
+
+----
+_March 18, 2025_: **SRA Toolkit Release 3.2.1**
+
+Fixed fasterq-dump crash when using WGS references.
+
+Fixed fasterq-dump failures when accessing runs via HTTP.
+
+Releases built on CentOS will no longer be provided. 
+
+----
+_January 14, 2025_: **SRA Toolkit Release 3.2.0**
+
+Restored function to list contents of cart files in prefetch.
+
+Prefetch will now print a phid in error message to aid in help desk ticket diagnotics.
+
+Builds will complete on machines without a static C++ library.
+
+CMake now permits building of individual targets.
+
+----
+_May 21, 2024_: **SRA Toolkit Release 3.1.1**
+
+Improved prefetch error and information messages for users.
+
+Fixed errors and warnings when building on Windows. 
+
+----
+_March 5, 2024_: **SRA Toolkit Release 3.1.0**
+
+Using prefetch --eliminate-quals will now dowload SRA Lite data or report that a Lite version is not available.
+
+Reduced frequency of global timeouts for cloud users.
+
+vdb-validate will report an error if data (blob) checksums are missing.
+
+Added support for AlmaLinux.
+
+Fixed hanging on macOS and BSD. 
 
 ----
 _December 19, 2023_: **SRA Toolkit Release 3.0.10**
@@ -194,11 +260,4 @@ With release 2.9.1 of `sra-tools` we have finally made available the tool `faste
 
 You can get more information about `fasterq-dump` in our Wiki at [https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump](https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump).
 
-----
 
-For additional information on using, configuring, and building the toolkit,
-please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)
-or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
-
-
-SRA Toolkit Development Team

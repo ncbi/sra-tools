@@ -32,3 +32,4 @@ a.out
 a.out.dSYM
 /test/**/actual/
 core
+*.egg-info/

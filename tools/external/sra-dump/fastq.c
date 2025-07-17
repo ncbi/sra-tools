@@ -2124,13 +2124,18 @@ static rc_t FastqReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpli
                     /* fill buffer w/keys */
                     int i;
                     char* p = FastqReadSplitter_key_buf;
+                    char *end = p + nreads_max * key_offset;
                     for ( i = 1; rc == 0 && i <= nreads_max; i++ )
                     {
-                        if ( sprintf( p, "%4u", i ) <= 0 )
+                        int n = snprintf( p, end - p, "%4u", i );
+                        if ( p + n < end ) {
+                            p += key_offset;
+                        }
+                        else
                         {
                             rc = RC( rcExe, rcNode, rcExecuting, rcTransfer, rcIncomplete );
+                            break;
                         }
-                        p += key_offset;
                     }
                 }
             }
@@ -2351,13 +2356,18 @@ static rc_t Fastq3ReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpl
                     /* fill buffer w/keys */
                     int i;
                     char* p = Fastq3ReadSplitter_key_buf;
+                    char *end = p + nreads_max * key_offset;
                     for ( i = 1; rc == 0 && i <= nreads_max; i++ )
                     {
-                        if ( sprintf( p, "%4u", i ) <= 0 )
+                        int n = snprintf( p, end - p, "%4u", i );
+                        if ( p + n < end ) {
+                            p += key_offset;
+                        }
+                        else
                         {
                             rc = RC( rcExe, rcNode, rcExecuting, rcTransfer, rcIncomplete );
+                            break;
                         }
-                        p += key_offset;
                     }
                 }
             }

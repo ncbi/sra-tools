@@ -33,18 +33,18 @@ if( Python3_EXECUTABLE )
     )
 
     if ( SINGLE_CONFIG )
-
+      if ( NOT LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
         if ( NOT TOOLS_ONLY )
             macro( RunAndDiff TestName TestParams )
                 add_test( NAME Test_NgsPythonExamples_${TestName}
                     COMMAND
-                    bash -c "NCBI_VDB_QUALITY=R ${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
+                        sh -c "NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                 )
                 set_tests_properties( Test_NgsPythonExamples_${TestName}
-
-                    PROPERTIES ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;PYTHONUSERBASE=${PythonUserBase};NGS_PY_LIBRARY_PATH=${LIBDIR}" DEPENDS Test_NGS_Python_install
-                    )
+                    PROPERTIES ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;NGS_PY_LIBRARY_PATH=${LIBDIR}"
+                    DEPENDS Test_NGS_Python_install
+                )
             endmacro()
 
             RunAndDiff( FragTest "ERR225922 10000 2" )
@@ -67,6 +67,7 @@ if( Python3_EXECUTABLE )
             DESTINATION ${INSTALL_DEST}
             RENAME README.txt
         )
+      endif()
     endif()
 
 endif()

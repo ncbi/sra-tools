@@ -10,7 +10,7 @@ REPO=ncbi/sra-tools
 TAG=${DOCKER_ARCH}-${VERSION}
 
 .DEFAULT: build
-.PHONY: build push manifest clean test help
+.PHONY: build buildx push manifest clean test help
 
 help:
 	@ echo "targets are: build, test, push, manifest, and clean"
@@ -18,6 +18,10 @@ help:
 build:
 	docker pull alpine:latest
 	docker build --build-arg VDB_BRANCH=${BRANCH} --tag ${REPO}:${TAG} -f Dockerfile.build-alpine .
+
+build-debug:
+	docker pull alpine:latest
+	docker build --build-arg VDB_BRANCH=${BRANCH} --build-arg CMAKE_BUILD_TYPE=Debug --tag ${REPO}:${TAG}-debug -f Dockerfile.build-alpine .
 
 test:
 	docker run -it --rm ${REPO}:${TAG} fastq-dump -X 5 -Z SRR000001
@@ -39,3 +43,14 @@ clean:
 	docker image rm ${REPO}:${TAG}
 	docker manifest rm ${REPO}:latest
 	docker manifest rm ${REPO}:${VERSION}
+
+buildx:
+	docker build \
+	    --platform=linux/amd64,linux/arm64 \
+	    --build-arg VDB_BRANCH=${BRANCH} \
+	    --tag ${REPO}:${VERSION} \
+	    --tag ${REPO}:latest \
+	    --file Dockerfile.build-alpine \
+	    --pull \
+	    --push \
+	    .

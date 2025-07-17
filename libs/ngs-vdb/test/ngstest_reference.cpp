@@ -31,6 +31,8 @@
 #include <klib/debug.h> /* KDbgSetString */
 #include "ngs_c_fixture.hpp"
 
+#include <kapp/main.h>
+
 #include <string.h>
 
 #include <ktst/unit_test.hpp>
@@ -771,29 +773,9 @@ FIXTURE_TEST_CASE(EBI_Reference_Open_EBI_ACC, NGS_C_Fixture)
 }
 #endif
 //////////////////////////////////////////// Main
-extern "C"
+int main(int argc, char* argv[])
 {
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_reference";
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
 
     if(
@@ -808,12 +790,11 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = KConfigWriteString(kfg, "/tls/allow-all-certs", "true");
 
     if (rc == 0)
-        rc = NgsReferenceTestSuite(argc, argv);
+        rc = (rc_t)NgsReferenceTestSuite(argc, app.getArgV());
 
     KConfigRelease(kfg);
     NGS_C_Fixture::ReleaseCache();
-    return rc;
-}
 
+    app.setRc( rc );
+    return app.getExitCode();
 }
-

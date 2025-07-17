@@ -97,8 +97,11 @@ typedef struct vdb_info_data {
     const char * s_platform;
 
     char path[ 4096 ];
-    char remote_path[ 4096 ];
+    const VPath * localP;
+    char remote_path[4096];
+    const VPath * remoteP;
     char cache[ 1024 ];
+    const VPath * cacheP;
     char schema_name[ 1024 ];
     char species[ 1024 ];
     
@@ -416,6 +419,31 @@ static void get_string_cell( char * buffer, size_t buffer_size, const VTable * t
     }
 }
 
+static uint32_t get_length_cell( const VTable * tab, int64_t row, const char * column, rc_t *prc )
+{
+    uint32_t result = 0;
+    if ( has_col( tab, column ) ) {
+        const VCursor * cur;
+        rc_t rc = VTableCreateCursorRead( tab, &cur );
+        if ( 0 == rc ) {
+            uint32_t idx;
+            rc = VCursorAddColumn( cur, &idx, column );
+            if ( 0 == rc ) {
+                rc = VCursorOpen( cur );
+                if ( 0 == rc ) {
+                    void const *dummy = 0;
+                    rc = VCursorCellDataDirect( cur, row, idx, NULL, &dummy, NULL, &result );
+                    (void)dummy;
+                }
+            }
+            vdh_vcursor_release( rc, cur );
+        }
+        assert(prc);
+        *prc = rc;
+    }
+    return result;
+}
+
 static uint64_t get_rowcount( const VTable * tbl ) {
     uint64_t res = 0;
     col_defs *col_defs;
@@ -667,10 +695,17 @@ static uint64_t get_tab_row_count( const VDatabase * db, const char * table_name
     return res;
 }
 
+static bool is_local_reference(const VTable * ref_tbl, int64_t row) {
+    /* local references have data in CMP_READ */
+    rc_t rc = 0;
+    uint32_t len = get_length_cell(ref_tbl, row, "CMP_READ", &rc);
+    return rc == 0 && len != 0;
+}
+
 static void get_species( char * buffer, size_t buffer_size, const VDatabase * db, const VDBManager *mgr ) {
     const VTable * ref_tbl;
     rc_t rc = VDatabaseOpenTableRead( db, &ref_tbl, "REFERENCE" );
-    if ( 0 == rc ) {
+    if ( 0 == rc && is_local_reference(ref_tbl, 1) == false ) {
         char seq_id[ 1024 ];
         seq_id[ 0 ] = 0;
         get_string_cell( seq_id, sizeof seq_id, ref_tbl, 1, "SEQ_ID" );
@@ -1178,24 +1213,24 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
         }
 
         /* try to resolve the path locally */
-        rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, false ); /* vdb-dump-helper.c */
+        rc1 = vdh_resolve(acc_or_path,
+            &data.localP, &data.remoteP, &data.cacheP);
+        if (0 == rc1)
+            rc1 = vdh_set_local_or_remote_to_str(data.localP, data.remoteP,
+                data.path, sizeof data.path);
         if ( 0 == rc1 ) {
-            data . file_size = get_file_size( data . path, false );
-            /* not a typo, return value ignored - because it can fail and that is OK in this case */
-            vdh_resolve_remote_accession( acc_or_path, data . remote_path, sizeof data . remote_path ); /* vdb-dump-helper.c */
-        } else {
-            /* try to resolve the path remotely */
-            rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, true ); /* vdb-dump-helper.c */
-            if ( 0 == rc1 ) {
-                data . file_size = get_file_size( data . path, true );
-                /* try to find out the cache-file */
-                rc1 = vdh_resolve_cache( acc_or_path, data . cache, sizeof data . cache ); /* vdb-dump-helper.c */
-                if ( 0 == rc1 ) {
-                    /* try to find out cache completeness */
-                    vdh_check_cache_comleteness( data . cache, &data . cache_percent, &( data . bytes_in_cache ) ); /* vdh-dump-helper.c*/
-                }
+            data . file_size = get_file_size( data . path,
+                data.localP == NULL );
+            rc1 = vdh_set_VPath_to_str(data.remoteP,
+                data.remote_path, sizeof data.remote_path);
+            if (0 == rc1) {
+                rc1 = vdh_set_VPath_to_str(data.cacheP,
+                    data.cache, sizeof data.cache);
+                if (0 == rc1 && data.cacheP != NULL)
+                    vdh_check_cache_comleteness(data.cache,
+                        &data.cache_percent, &(data.bytes_in_cache));
             }
-        }
+        } 
         switch ( format ) {
             case df_xml  : rc = vdb_info_print_xml( &data ); break;
             case df_json : rc = vdb_info_print_json( &data ); break;

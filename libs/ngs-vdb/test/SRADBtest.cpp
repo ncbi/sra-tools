@@ -32,6 +32,8 @@
 
 #include <os-native.h>
 
+#include <kapp/main.h>
+
 #include <ngs/Statistics.hpp>
 
 #include <klib/text.h>
@@ -506,36 +508,13 @@ FIXTURE_TEST_CASE(SRADB_ReadGroup_GetStatistics_iteration, SRADBFixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_sradb-c++";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[])
 {
     setenv("NCBI_VDB_QUALITY", "R", 1);
     KConfigDisableUserSettings();
-    rc_t rc=NgsSradbCppTestSuite(argc, argv);
+    int rc=NgsSradbCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();
     return rc;
-}
-
 }
 
 

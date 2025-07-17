@@ -972,7 +972,11 @@ public:
             if (bm::gap_is_all_zero(res))
                 zero_gap_block_ptr(i, j);
             else
-                assign_gap(i, j, res, ++res_len, blk, tmp_buf);
+            {
+//                assign_gap(i, j, res, ++res_len, blk, tmp_buf);
+                BM_ASSERT(res[res_len] == 65535);
+                assign_gap(i, j, res, res_len, blk, tmp_buf);
+            }
         }
     }
 
@@ -988,13 +992,14 @@ public:
         int level = bm::gap_level(BMGAP_PTR(blk));
         BM_ASSERT(level >= 0);
         unsigned threshold = unsigned(this->glen(unsigned(level)) - 4u);
-        int new_level = bm::gap_calc_level(res_len, this->glen());
+        int new_level = bm::gap_calc_level(res_len+1, this->glen());
         if (new_level < 0)
         {
-            convert_gap2bitset(i, j, res);
+            BM_ASSERT(res[res_len] == 65535);
+            convert_gap2bitset(i, j, res, res_len);
             return;
         }
-        if (res_len > threshold) // GAP block needs next level up extension
+        if (res_len >= threshold) // GAP block needs next level up extension
         {
             BM_ASSERT(new_level >= 0);
             gap_word_t* new_blk = allocate_gap_block(unsigned(new_level), res);
@@ -1016,7 +1021,9 @@ public:
         // we copy it back to the gap_block (target size/level - fits)
         BM_ASSERT(blk);
         bm::set_gap_level(tmp_buf, level);
-        ::memcpy(BMGAP_PTR(blk), tmp_buf, res_len * sizeof(gap_word_t));
+        bm::gap_word_t* tblk = BMGAP_PTR(blk);
+        ::memcpy(tblk, tmp_buf, (res_len+1) * sizeof(gap_word_t));
+        BM_ASSERT(tblk[res_len] == 65535);
     }
     
     
@@ -1212,7 +1219,8 @@ public:
             block = FULL_BLOCK_FAKE_ADDR;
 
         unsigned nblk_blk = unsigned(nb >> bm::set_array_shift);
-        reserve_top_blocks(nblk_blk+1);
+        auto top_block_sz = reserve_top_blocks(nblk_blk+1); (void)top_block_sz;
+        BM_ASSERT(top_block_sz > nblk_blk);
         
         if (!top_blocks_[nblk_blk])
         {
@@ -1543,6 +1551,10 @@ public:
         BM_ASSERT(IS_VALID_ADDR((bm::word_t*)gap_block));
 
         bm::word_t* new_block = alloc_.alloc_bit_block();
+        if (!len)
+            len = bm::gap_length(gap_block)-1;
+
+        BM_ASSERT(gap_block[len] == 65535);
         bm::gap_convert_to_bitset(new_block, gap_block, len);
         
         top_blocks_[i][j] = new_block;
@@ -1710,10 +1722,10 @@ public:
     /**
         Bit count all blocks to determine if it is very sparse
     */
-    bool is_sparse_sblock(unsigned i, unsigned sparse_cut_off) const BMNOEXCEPT
+    bool is_sparse_sblock(unsigned i, unsigned sparse_cut_off,
+                          bm::bv_sub_survey& sub_stat) const BMNOEXCEPT
     {
-        if (!sparse_cut_off)
-            return false;
+        BM_ASSERT(sparse_cut_off);
         const unsigned non_sparse_cut_off = sparse_cut_off * bm::set_sub_array_size;
 
         BM_ASSERT(i < top_block_size());
@@ -1723,52 +1735,76 @@ public:
         bm::word_t** blk_blk = blk_root[i];
         if (!blk_blk || (bm::word_t*)blk_blk == FULL_BLOCK_FAKE_ADDR)
             return false;
+
         bm::id_t cnt_sum(0), effective_blocks(0), gap_len_sum(0);
         for (unsigned j = 0; j < bm::set_sub_array_size; ++j)
         {
-            const bm::word_t* blk = blk_blk[j]; //  this->get_block(i, j);
+            const bm::word_t* blk = sub_stat.blocks[j] = blk_blk[j];
             if (blk == FULL_BLOCK_FAKE_ADDR)
-                return false;
-            if (blk)
             {
-                bm::id_t cnt;
-                if (BM_IS_GAP(blk))
-                {
-                    const bm::gap_word_t* gp = BMGAP_PTR(blk);
-                    cnt = bm::gap_bit_count_unr(gp);
-                    gap_len_sum += bm::gap_length(gp);
-                }
-                else // bitset
-                {
-                    cnt = bm::bit_block_count(blk);
-                }
-                if (cnt)
-                {
-                    ++effective_blocks;
-                    cnt_sum += cnt;
-                    if (cnt_sum > non_sparse_cut_off) // too many bits set
-                        return false;
-                }
+                sub_stat.bv_count += sub_stat.bc_arr[j] = bm::gap_max_bits;
+                cnt_sum += bm::gap_max_bits;;
+                sub_stat.full_blocks++;
             }
+            else
+                if (blk)
+                {
+                    unsigned bc;
+                    if (BM_IS_GAP(blk))
+                    {
+                        const bm::gap_word_t* gp = BMGAP_PTR(blk);
+                        bc = sub_stat.bc_arr[j] = bm::gap_bit_count_unr(gp);
+                        gap_len_sum += (gp[0] >> 3); // bm::gap_length(gp);
+                        sub_stat.gap_len_sum += (gp[0] >> 3);
+                        sub_stat.gap_blocks++;
+                    }
+                    else // bitset
+                    {
+                        bm::bit_block_change_bc(blk, &sub_stat.gc_arr[j], &bc);
+                        sub_stat.bc_arr[j] = bc;
+                        sub_stat.bit_blocks++;
+                    }
+
+                    if (bc)
+                    {
+                        ++effective_blocks;
+                        sub_stat.bv_count += bc;
+                        cnt_sum += bc;
+                    }
+                }
+                else // NULL block
+                {
+                    sub_stat.empty_blocks++; sub_stat.bc_arr[j] = 0;
+                }
         } // for j
 
         BM_ASSERT(effective_blocks <= bm::set_sub_array_size);
+        BM_ASSERT(sub_stat.bit_blocks + sub_stat.gap_blocks +
+                  sub_stat.empty_blocks +
+                  sub_stat.full_blocks == bm::set_sub_array_size);
+
+        if (cnt_sum > non_sparse_cut_off /*|| sub_stat.full_blocks*/) // too many bits set
+            return false;
+
         if (effective_blocks > 1)
         {
-            if (cnt_sum < 5) // super-duper sparse ...
-                return false;
-            
-            bm::id_t blk_avg = cnt_sum / effective_blocks;
-            if (blk_avg <= sparse_cut_off)
+            if (cnt_sum < 5) // super-duper sparse, rare don't bother...
             {
-                if (gap_len_sum)
-                {
-                    gap_len_sum += effective_blocks * 3;
-                    if (gap_len_sum < cnt_sum)
-                        return false;
-                }
-                return true;
+                return false;
             }
+            if (gap_len_sum)
+            {
+                gap_len_sum += effective_blocks * 4; // 3
+                if (gap_len_sum < cnt_sum) // lens are smaller than BC
+                {
+                    unsigned diff = cnt_sum - gap_len_sum;
+                    float cut_off = cnt_sum * 0.14f;
+                    if (diff < cut_off)
+                        return true;
+                    return false;
+                }
+            }
+            return true;
         }
         return false;
     }
@@ -2444,10 +2480,8 @@ public:
     {
         BM_ASSERT(stat);
         
-        size_t safe_inc = stat->max_serialize_mem / 10; // 10% increment
-        if (!safe_inc) safe_inc = 256;
-        stat->max_serialize_mem += safe_inc;
-
+        stat->add_scorrection();
+        
         unsigned top_size = top_block_size();
         size_t blocks_mem = sizeof(*this);
         blocks_mem += sizeof(bm::word_t**) * top_size;
@@ -2692,7 +2726,7 @@ public:
                 blk_root[i] = (bm::word_t**)FULL_BLOCK_FAKE_ADDR;
                 continue;
             }
-
+            BM_ASSERT(t_blk_blk);
             blk_root[i] = t_blk_blk;
             for (unsigned j = 0; j < bm::set_sub_array_size; ++j)
             {

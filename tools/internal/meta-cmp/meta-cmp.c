@@ -115,7 +115,7 @@ static rc_t print_ctx( const struct cmp_ctx * ctx ) {
     if ( 0 == rc ) { rc = KOutMsg( "\tsrc1 = %s\n", ctx -> src1 ); }
     if ( 0 == rc ) { rc = KOutMsg( "\tsrc2 = %s\n", ctx -> src2 ); }
     if ( 0 == rc ) { rc = KOutMsg( "\tnode = %s\n", ctx -> node_path ); }
-    if ( 0 == rc && NULL != ctx -> table ) { rc = KOutMsg( "\ttbl  = %s\n", ctx -> table ); }    
+    if ( 0 == rc && NULL != ctx -> table ) { rc = KOutMsg( "\ttbl  = %s\n", ctx -> table ); }
     return rc;
 }
 
@@ -182,7 +182,7 @@ static rc_t compare_tbl( const struct cmp_ctx * ctx, const VTable * tbl1, const 
             if ( NULL == tbl_name ) {
                 rc = KOutMsg( "\tthe node(s) in both tables are equal\n" );
             } else {
-                rc = KOutMsg( "\tthe node(s) in both '%s'-tables are equal\n", tbl_name );                
+                rc = KOutMsg( "\tthe node(s) in both '%s'-tables are equal\n", tbl_name );
             }
         } else {
             if ( NULL == tbl_name ) {
@@ -214,7 +214,7 @@ static rc_t compare_one_tbl_in_db( const struct cmp_ctx * ctx,
                                 "tbl=%s,acc=%s", tbl_name, ctx ->src2 ) );
         } else {
             rc = compare_tbl( ctx, tbl1, tbl2, tbl_name );
-            VTableRelease( tbl2 );            
+            VTableRelease( tbl2 );
         }
         VTableRelease( tbl1 );
     }
@@ -242,7 +242,7 @@ static rc_t compare_all_tables_in_db( const struct cmp_ctx * ctx,
                                     "acc=%s", ctx -> src1 ) );
             } else {
                 uint32_t idx;
-                for ( idx = 0; 0 == rc && idx < count; ++idx ) { 
+                for ( idx = 0; 0 == rc && idx < count; ++idx ) {
                     const char * tbl_name;
                     rc = KNamelistGet( tables_1, idx, &tbl_name );
                     if ( 0 != rc ) {
@@ -321,9 +321,15 @@ static rc_t compare( const struct cmp_ctx * ctx )
 /***************************************************************************
     Main:
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,  NULL, 0 );
     if ( 0 != rc ) {
 		LOGERR ( klogInt, rc, "ArgsMakeAndHandle failed()" );
@@ -337,5 +343,5 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

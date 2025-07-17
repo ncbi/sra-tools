@@ -10,20 +10,20 @@ $acc = 'GSE118828';
 chdir $acc || die;
 
 # 1. fail if run without arguments
-`../../../scripts/prepare-sra-names.sh` ; die unless $?;
+`bash ../../../scripts/prepare-sra-names.sh` ; die unless $?;
 
 $acs = 'SRR7725681';
 
 # 2. don't fail if accession files do not exist
-`../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
 
 `touch $acs.1` ; die if $?;
 
 # 3. don't fail if path argument is used
-`../../../scripts/prepare-sra-names.sh ../$acp/$acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh ../$acp/$acs` ; die if $?;
 
 # 4. single run file
-`../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acs\n";
@@ -37,7 +37,7 @@ die if $d[0] ne "$acs.1\n";
 # 5. run file & vdbcache
 `touch $acs.1` ; die if $?;
 `touch $acs.vdbcache.1` ; die if $?;
-`../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acs\n";
@@ -53,7 +53,7 @@ die if $d[1] ne "$acs.vdbcache.1\n";
 $acd = 'DRR7725681';
 `touch $acd.1` ; die if $?;
 
-`../../../scripts/prepare-sra-names.sh $acd` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acd` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acd\n";
@@ -70,7 +70,7 @@ $ace = 'ERR7725681';
 
 `touch $ace.1` ; die if $?;
 `touch $ace.vdbcache.1` ; die if $?;
-`../../../scripts/prepare-sra-names.sh $ace` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $ace` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$ace\n";
@@ -86,7 +86,7 @@ die if $d[1] ne "$ace.vdbcache.1\n";
 $acp = 'SRS7725681';
 
 `touch $acp.1` ; die if $?;
-`../../../scripts/prepare-sra-names.sh $acp` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acp` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acp.1\n";
@@ -95,7 +95,7 @@ die if $d[0] ne "$acp.1\n";
 # 8. ACC dir exists
 `mkdir $acs` ; die if $?;
 `touch $acs.1` ; die if $?;
-`../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acs\n";
@@ -108,7 +108,7 @@ die if $d[0] ne "$acs.1\n";
 
 # 9. other files
 `touch $acs.foo` ; die if $?;
-`../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
+`bash ../../../scripts/prepare-sra-names.sh $acs` ; die if $?;
 @d = `ls | sort`;
 die if $#d != 0;
 die if $d[0] ne "$acs\n";

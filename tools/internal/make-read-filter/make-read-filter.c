@@ -64,7 +64,7 @@ static FilterReason shouldFilter(uint32_t const len, uint8_t const *const qual)
     uint32_t lastgood = len;
     uint32_t i;
     FilterReason reason = keep;
-    
+
     for (i = 0; i < len; ++i) {
         int const qval = qual[i];
         if (qval < 20)
@@ -76,7 +76,7 @@ static FilterReason shouldFilter(uint32_t const len, uint8_t const *const qual)
         reason |= low_quality_count;
     if (len <= 10) /* if length <= 10, then rest of rules can't apply */
         return reason;
-    
+
     if (lastgood < len - 11)
         reason |= low_quality_back;
 
@@ -137,7 +137,7 @@ static void computeReadFilter(uint8_t *const out_filter
     uint32_t const *const len = lenData->data;
     uint8_t const *const qual = qualData->data;
     int i;
-    
+
     assert(nreads == typeData->count);
     assert(nreads == startData->count);
     assert(nreads == lenData->count);
@@ -219,9 +219,9 @@ static void processCursors(VCursor *const out, VCursor const *const in, bool con
     size_t out_filter_count = 0;
     uint8_t *out_filter = NULL;
 
-    openCursor(in, "input");    
+    openCursor(in, "input");
     openCursor(out, "output");
-    
+
     count = rowCount(in, &first, cid_qual);
     assert(first == 1);
     pLogMsg(klogInfo, "progress: about to process $(rows) rows", "rows=%lu", count);
@@ -696,9 +696,9 @@ static void test(void)
     uint8_t qual[30];
     int i;
     int j;
-    
+
     assert(shouldFilter(0, NULL) == keep);
-    
+
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
     assert(shouldFilter(30, qual) == keep);
@@ -707,7 +707,7 @@ static void test(void)
         qual[i] = (i & 1) ? 30 : 3;
     qual[19] = 3;
     assert((shouldFilter(30, qual) & low_quality_count) == low_quality_count);
-    
+
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
     for (i = 0; i < 10; ++i)
@@ -727,7 +727,7 @@ static void test(void)
         qual[j] = vi;
     }
     assert(shouldFilter(30, qual) == keep);
-    
+
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
     for (i = 0; i < 10; ++i)
@@ -756,15 +756,6 @@ static OptDef Options [] = {
 };
 
 /* MARK: Mostly boilerplate from here */
-
-rc_t CC KMain(int argc, char *argv[])
-{
-#if _DEBUGGING
-    test();
-#endif
-    main_1(argc, argv);
-    return 0;
-}
 
 const char UsageDefaultName[] = "make-read-filter";
 
@@ -806,13 +797,28 @@ rc_t CC Usage ( const Args *args )
     return rc;
 }
 
+MAIN_DECL( argc, argv )
+{
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+#if _DEBUGGING
+    test();
+#endif
+    main_1(argc, argv);
+    return 0;
+}
+
 static Args *getArgs(int argc, char *argv[])
 {
     Args *args = NULL;
     rc_t const rc = ArgsMakeAndHandle(&args, argc, argv, 1, Options, OPTIONS_COUNT);
     if (rc == 0)
         return args;
-    
+
     LogErr(klogErr, rc, "failed to parse arguments");
     exit(EX_USAGE);
 }

@@ -2423,22 +2423,23 @@ rc_t run ( const Params *p )
     return kar_test_extract ( p );
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Params params;
     Args *args = NULL;
 
-    rc_t rc = parse_params ( &params, args, argc, argv );
+    rc_t rc = parse_params ( &params, &args, argc, argv );
     if ( rc == 0 )
     {
         rc = run ( &params );
-
-        ArgsWhack ( args );
     }
+    ArgsWhack ( args );
 
     if ( rc == 0 )
         STSMSG (1, ("Success: Exiting kar\n"));
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

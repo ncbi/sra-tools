@@ -95,7 +95,8 @@ rc_t IlluminaU32Splitter_GetKey(const SRASplitter* cself, const char** key, spot
                     rc = RC(rcSRA, rcType, rcConstructing, rcParam, rcInvalid);
             }
             if( rc == 0 ) {
-                sprintf(self->key, "%0*d", w, val);
+                int n = snprintf(self->key, sizeof(self->key), "%0*d", w, val);
+                assert(n < sizeof(self->key));
             }
         } else if( GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound ) {
             SRA_DUMP_DBG (3, ("%s skipped %u row\n", __func__, spot));
@@ -223,7 +224,8 @@ rc_t IlluminaFormatterSplitter_Dump(const SRASplitter* cself, spotid_t spot, con
                     int readId;
                     char key[128];
                     for(readId = 1; rc == 0 && readId <= num_reads; readId++) {
-                        sprintf(key, "%u_qcal.txt", readId);
+                        int n = snprintf(key, sizeof(key), "%u_qcal.txt", readId);
+                        assert(n < sizeof(key));
                         if( (rc = SRASplitter_FileActivate(cself, key)) == 0 ) {
                             IF_BUF((IlluminaReaderQuality1(self->reader, readId, self->b->base, KDataBufferBytes(self->b) - 1, &writ)), self->b, writ) {
                                 if( writ > 0 ) {
@@ -281,7 +283,8 @@ rc_t IlluminaFormatterSplitter_Dump(const SRASplitter* cself, spotid_t spot, con
                     uint32_t readId;
                     char key[128];
                     for(readId = 1; rc == 0 && readId <= num_reads; readId++) {
-                        sprintf(key, "%u_qseq.txt", readId);
+                        int n = snprintf(key, sizeof(key), "%u_qseq.txt", readId);
+                        assert(n < sizeof(key));
                         if( (rc = SRASplitter_FileActivate(cself, key)) == 0 ) {
                             IF_BUF((IlluminaReaderQSeq(self->reader, readId, true, self->b->base, KDataBufferBytes(self->b) - 1, &writ)), self->b, writ) {
                                 if( writ > 0 ) {

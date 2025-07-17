@@ -32,7 +32,7 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
                 ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-                ./gendata.sh ${BINDIR} ${Python3_EXECUTABLE} ${TEMPDIR} ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
+                ./gendata.sh ${DIRTOTEST} ${Python3_EXECUTABLE} ${TEMPDIR} ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
             DEPENDS generate-test-data.py
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
@@ -48,10 +48,10 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
         ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
         ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
         ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-        ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} ""
+        ./runtest.sh ${DIRTOTEST} ${NCBI_VDB_LIBDIR} ${TEMPDIR} ""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET make-read-filter-asan )
         add_test( NAME Test_MakeReadFilter-asan
             COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
@@ -60,6 +60,8 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
             ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} "-asan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+    endif()
+    if( TARGET make-read-filter-tsan )
         add_test( NAME Test_MakeReadFilter-tsan
             COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
@@ -70,6 +72,6 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
         )
     endif()
 
-    else()
+else()
 #TODO: make work on Windows/XCode
 endif()

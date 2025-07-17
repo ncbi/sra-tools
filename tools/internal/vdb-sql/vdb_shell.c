@@ -172,6 +172,8 @@ static void setTextMode( FILE * file, int isOutput )
 # define setTextMode(X,Y)
 #endif
 
+const char UsageDefaultName[] = "vdb-sql";
+
 static const char * DFLT_PROMPT = "vdb-sql> ";
 
 /* True if the timer is enabled */
@@ -783,13 +785,13 @@ static void output_quoted_string( FILE *out, const char *z )
 {
   int i;
   int nSingle = 0;
-  
+
   setBinaryMode( out, 1 );
   for ( i = 0; z[ i ]; i++ )
   {
     if ( z[ i ] == '\'' ) nSingle++;
   }
-  
+
   if ( nSingle == 0 )
   {
     utf8_printf( out, "'%s'", z );
@@ -1098,7 +1100,7 @@ static int shell_callback( void *pArg,
                        }
                        break;
                      }
-                     
+
     case MODE_Explain:
     case MODE_Column: {
       static const int aExplainWidths[] = {4, 13, 4, 4, 4, 13, 2, 13};
@@ -2396,8 +2398,8 @@ static int process_input(ShellState *p, FILE *in);
 
 /*
 ** Read the content of file zName into memory obtained from sqlite3_malloc64()
-** and return a pointer to the buffer. The caller is responsible for freeing 
-** the memory. 
+** and return a pointer to the buffer. The caller is responsible for freeing
+** the memory.
 **
 ** If parameter pnByte is not NULL, (*pnByte) is set to the number of bytes
 ** read.
@@ -3389,15 +3391,15 @@ int shellDeleteFile(const char *zFilename){
 **   fkey_collate_clause('parent-tab', 'parent-col', 'child-tab', 'child-col')
 **
 ** If either of the named tables or columns do not exist, this function
-** returns an empty string. An empty string is also returned if both tables 
+** returns an empty string. An empty string is also returned if both tables
 ** and columns exist but have the same default collation sequence. Or,
 ** if both exist but the default collation sequences are different, this
 ** function returns the string " COLLATE <parent-collation>", where
 ** <parent-collation> is the default collation sequence of the parent column.
 */
 static void shellFkeyCollateClause(
-  sqlite3_context *pCtx, 
-  int nVal, 
+  sqlite3_context *pCtx,
+  int nVal,
   sqlite3_value **apVal
 ){
   sqlite3 *db = sqlite3_context_db_handle(pCtx);
@@ -3408,7 +3410,7 @@ static void shellFkeyCollateClause(
   const char *zChildCol;
   const char *zChildSeq = 0;  /* Initialize to avoid false-positive warning */
   int rc;
-  
+
   assert( nVal==4 );
   zParent = (const char*)sqlite3_value_text(apVal[0]);
   zParentCol = (const char*)sqlite3_value_text(apVal[1]);
@@ -3529,7 +3531,7 @@ static int lintFkeyIndexes(
       return SQLITE_ERROR;
     }
   }
-  
+
   /* Register the fkey_collate_clause() SQL function */
   rc = sqlite3_create_function(db, "fkey_collate_clause", 4, SQLITE_UTF8,
       0, shellFkeyCollateClause, 0, 0
@@ -3569,9 +3571,9 @@ static int lintFkeyIndexes(
         raw_printf(stderr, "Error: internal error");
         break;
       }else{
-        if( bGroupByParent 
+        if( bGroupByParent
         && (bVerbose || res==0)
-        && (zPrev==0 || sqlite3_stricmp(zParent, zPrev)) 
+        && (zPrev==0 || sqlite3_stricmp(zParent, zPrev))
         ){
           raw_printf(out, "-- Parent table %s\n", zParent);
           sqlite3_free(zPrev);
@@ -3581,7 +3583,7 @@ static int lintFkeyIndexes(
         if( res==0 ){
           raw_printf(out, "%s%s --> %s\n", zIndent, zCI, zTarget);
         }else if( bVerbose ){
-          raw_printf(out, "%s/* no extra indexes required for %s -> %s */\n", 
+          raw_printf(out, "%s/* no extra indexes required for %s -> %s */\n",
               zIndent, zFrom, zTarget
           );
         }
@@ -5920,10 +5922,10 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   char * vdb_acc = NULL;
   char * vdb_tbl = NULL;
   char * vdb_col = NULL;
-  char * vdb_exclude = NULL;  
+  char * vdb_exclude = NULL;
   size_t vdb_cache = 0;
   /* =================== */
-  
+
   setBinaryMode( stdin, 0 );
   setvbuf( stderr, 0, _IONBF, 0 ); /* Make sure stderr is unbuffered */
   stdin_is_interactive = isatty ( 0);
@@ -6135,7 +6137,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
       vdb_cache = integerValue( cmdline_option_value( argc, argv, ++i ) );
     }
   }
-  
+
   if ( data.zDbFilename == 0 )
   {
 #ifndef SQLITE_OMIT_MEMORYDB
@@ -6163,7 +6165,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   ** try to process it.
   */
   process_sqliterc( &data, zInitFile );
-    
+
   /* Make a second pass through the command-line argument and set
   ** options.  This second pass is delayed until after the initialization
   ** file is processed so that the command-line arguments will override
@@ -6383,11 +6385,11 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     /* prototype for the extension in sqlite3vdb.c ( which has no header-file... ) */
     int sqlite3_vdbsqlite_init( sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi );
     typedef void ( *entrypoint )( void );
-    
+
     /* load the compiled-in extension for vdb */
     rc = sqlite3_auto_extension( ( entrypoint )sqlite3_vdbsqlite_init );
     if ( rc && bail_on_error ) return rc == 2 ? 0 : rc;
-    
+
     /* see if we have to 'auto'-create some virtual tables */
     if ( vdb_acc != NULL )
     {
@@ -6517,10 +6519,8 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   return rc;
 }
 
-const char UsageDefaultName[] = "vdb-sql";
-rc_t CC UsageSummary (const char * progname) { return 0; }
-rc_t CC Usage(const Args* args) { return 0; }
-rc_t CC KMain ( int argc, char *argv [] ) {
- int i = smain( argc, argv );
- return i;
+MAIN_DECL( argc, argv )
+{
+  VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+  return VDB_TERMINATE( smain( argc, argv ) );
 }

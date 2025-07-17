@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -43,10 +43,17 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 STDOUT=$TEMPDIR/stdout
 STDERR=$TEMPDIR/stderr
 
-if [ "$(uname)" == "Darwin" ]; then
-    DIFF="diff -b"
-else
-    DIFF="diff -b -Z"
+EXE="${TOOL%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
+DIFF="diff -b"
+if [ "$(uname -s)" = "Linux" ] ; then
+    if [ "$(uname -o)" = "GNU/Linux" ] ; then
+        DIFF="diff -b -Z"
+    fi
 fi
 
 echo "running $CASEID"
@@ -72,10 +79,17 @@ fi
 $DIFF $WORKDIR/expected/$CASEID.stdout $STDOUT >$TEMPDIR/diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/diff
-    echo "command executed:"
-    echo $CMD
-    exit 3
+    # there may be an alternative correct answer (e.g. for sralite runs)
+    if [ -f $WORKDIR/expected/$CASEID-alt.stdout ] ; then
+        $DIFF $WORKDIR/expected/$CASEID-alt.stdout $STDOUT >$TEMPDIR/diff
+        rc="$?"
+    fi
+    if [ "$rc" != "0" ] ; then
+        cat $TEMPDIR/diff
+        echo "command executed:"
+        echo $CMD
+        exit 3
+    fi
 fi
 
 rm -rf $TEMPDIR

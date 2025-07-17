@@ -131,17 +131,25 @@ rc_t run (const char * table_path, uint64_t N )
             LOGERR(klogInt, rc, "failed to create empty schema");
     }
     if (rc == 0) {
-        char text[512] = "table Table #1 {\n";
-        char col [128];
+        char text[512];
+        char *end = text;
+        int n = snprintf(end, &text[sizeof(text)] - end, "table Table #1 {\n");
+        assert(end + n < &text[sizeof(text)]);
+        end += n;
+
         for (i = 1; i <=  COLUMNS; ++i) {
-            sprintf(col,
-                "  column ascii C%d = .C%d; physical ascii .C%d = C%d;\n",
-                i, i, i, i);
-            strcat(text, col);
+            n = snprintf(end, &text[sizeof(text)] - end,
+                        "  column ascii C%d = .C%d; physical ascii .C%d = C%d;\n",
+                        i, i, i, i);
+            assert(end + n < &text[sizeof(text)]);
+            end += n;
         }
-        strcat(text, "};");
+        n = snprintf(end, &text[sizeof(text)] - end, "};");
+        assert(end + n < &text[sizeof(text)]);
+        end += n;
+
         STSMSG(1,("Parsing schema:\n%s", text));
-        rc = VSchemaParseText(schema, "Schema", text, strlen(text));
+        rc = VSchemaParseText(schema, "Schema", text, &text[sizeof(text)] - end);
         if (rc != 0)
             LOGERR(klogInt, rc, "failed to parse schema");
     }
@@ -160,8 +168,9 @@ rc_t run (const char * table_path, uint64_t N )
             LOGERR(klogInt, rc, "failed to create cursor");
     }
     for (i = 0; rc == 0 && i < COLUMNS; ++i) {
-        char col[3];
-        sprintf(col, "C%d", i + 1);
+        char col[16];
+        int n = snprintf(col, sizeof(col), "C%d", i + 1);
+        assert(n < sizeof(col));
         STSMSG(2,("Adding column %s to cursor", col));
         rc = VCursorAddColumn(cursor, &idx[i], "%s", col);
         if (rc != 0)
@@ -286,9 +295,9 @@ rc_t run (const char * table_path, uint64_t N )
 #define KFORMAT "$(d)/col/$(n)/data", "d=%s,n=%s"
 #undef STATUS
 #define  STATUS(action) (action FORMAT, tablePath, name)
-                char name[3];
-
-                sprintf(name, "C%d", i);
+                char name[16];
+                int n = snprintf(name, sizeof(name), "C%d", i);
+                assert(n < sizeof(name));
                 STSMSG (1, STATUS("checking "));
                 rc = KDirectoryFileSize(dir, &size, FORMAT, tablePath, "%s", name);
                 if (rc != 0) {
@@ -335,12 +344,15 @@ rc_t run (const char * table_path, uint64_t N )
 }
 
 
-
-
-rc_t CC KMain ( int argc, char *argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeStandardOptions (&args);
     if (rc == 0)
@@ -353,7 +365,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             if (rc)
                 break;
 
-            rc = ArgsParse (args, argc, argv);
+            rc = ArgsParse (args, argc, (const char**)argv);
             if (rc)
                 break;
 
@@ -430,5 +442,5 @@ rc_t CC KMain ( int argc, char *argv[] )
 
         ArgsWhack (args);
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

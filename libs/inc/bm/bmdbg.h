@@ -194,7 +194,7 @@ void LoadBVector(const char* fname, TBV& bvector, unsigned* file_size=0)
 }
 
 template<class TBV>
-void SaveBVector(const char* fname, const TBV& bvector)
+void SaveBVector(const char* fname, const TBV& bvector, bool safe_mode=false)
 {
     std::ofstream bfile (fname, std::ios::out | std::ios::binary);
     if (!bfile.good())
@@ -205,14 +205,20 @@ void SaveBVector(const char* fname, const TBV& bvector)
     typename TBV::statistics st1;
     bvector.calc_stat(&st1);
 
-    unsigned char* blob = new unsigned char[st1.max_serialize_mem];
-    size_t blob_size = bm::serialize(bvector, blob);
+    BM_DECLARE_TEMP_BLOCK(tb)
+    bm::serializer<TBV> bv_ser(tb);
+    if (safe_mode)
+    {
+        bv_ser.set_compression_level(3);
+        bv_ser.set_bic_dynamic_range_reduce(false);
+    }
 
+    typename bm::serializer<TBV>::buffer sermem_buf;
+    bv_ser.serialize(bvector, sermem_buf, 0);
+    auto blob_size = sermem_buf.size();
 
-    bfile.write((char*)blob, std::streamsize(blob_size));
+    bfile.write((char*)sermem_buf.buf(), std::streamsize(blob_size));
     bfile.close();
-
-    delete [] blob;
 }
 
 inline
@@ -1009,7 +1015,8 @@ int file_save_svector(const SV& sv, const std::string& fname,
         return -1;
     }
     const char* buf = (char*)sv_lay.buf();
-    fout.write(buf, std::streamsize(sv_lay.size()));
+    auto sz = sv_lay.size();
+    fout.write(buf, std::streamsize(sz));
     if (!fout.good())
     {
         return -1;
@@ -1107,6 +1114,17 @@ size_t getCurrentRSS( )
     return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
 }
 #endif
+
+
+template<class BV, typename TOut>
+void print_bv(TOut& tout, const BV& bv)
+{
+    tout << bv.count() << ": ";
+    typename BV::enumerator en = bv.first();
+    for (; en.valid(); ++en)
+        tout << *en << ", ";
+    tout << std::endl;
+}
 
 
 } // namespace

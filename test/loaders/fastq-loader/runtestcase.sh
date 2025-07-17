@@ -1,4 +1,4 @@
-#!/bin/bash
+#/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -45,10 +45,11 @@ RC=$5
 
 TEMPDIR=$WORKDIR/actual/$CASEID
 
-if [ "$(uname)" == "Darwin" ]; then
-    DIFF="diff -b"
-else
-    DIFF="diff -b -Z"
+DIFF="diff -b"
+if [ "$(uname -s)" = "Linux" ] ; then
+    if [ "$(uname -o)" = "GNU/Linux" ] ; then
+        DIFF="diff -b -Z"
+    fi
 fi
 
 echo "running $CASEID"
@@ -72,7 +73,7 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-if [ "$rc" == "0" ] ; then
+if [ "$rc" = "0" ] ; then
     CMD="$DUMP $TEMPDIR/obj 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     eval $CMD
     rc="$?"

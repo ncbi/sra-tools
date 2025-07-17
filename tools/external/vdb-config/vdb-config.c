@@ -217,17 +217,17 @@ static const char* USAGE_TEL[] = {
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
     uint32_t imp_count = 0;
-    
+
 /*  rc_t rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
     if (rc != 0)
         return rc; */
-    
+
     // first parameter is a directory only if OPTION_IMP is present; otherwise it is a query
     if (imp_count > 0)
     {
         return ArgsConvFilepath(args, arg_index, arg, arg_len, result, whack);
     }
-    
+
     return ArgsConvDefault(args, arg_index, arg, arg_len, result, whack);
 }
 
@@ -276,7 +276,9 @@ rc_t CC UsageSummary (const char * progname) {
         , progname, progname);
 }
 
-rc_t CC Usage(const Args* args) { 
+const char UsageDefaultName[] = "vdb-config";
+
+rc_t CC Usage(const Args* args) {
     rc_t rc = 0;
 
     const char* progname = UsageDefaultName;
@@ -343,8 +345,6 @@ rc_t CC Usage(const Args* args) {
     return rc;
 }
 
-const char UsageDefaultName[] = "vdb-config";
-
 static void Indent(bool xml, int n) {
     if (!xml)
     {   return; }
@@ -379,9 +379,9 @@ rc_t _printNodeData(const char *name, const char *data, size_t dlen)
         size_t l3 = sizeof d3 - 1;
 
         if ((string_cmp(name,
-                string_measure(name, NULL), d1, l1, (uint32_t)l1) == 0) || 
+                string_measure(name, NULL), d1, l1, (uint32_t)l1) == 0) ||
             (string_cmp(name,
-                string_measure(name, NULL), d2, l2, (uint32_t)l2) == 0) || 
+                string_measure(name, NULL), d2, l2, (uint32_t)l2) == 0) ||
             (string_cmp(name,
                 string_measure(name, NULL), d3, l3, (uint32_t)l3) == 0))
         {
@@ -2090,12 +2090,18 @@ static rc_t ProcessCloud(KConfig * cfg, const Params * prm) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char* argv[]) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
 
     Params prm;
     KConfig* cfg = NULL;
     bool configured = false;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     if (rc == 0)
         rc = ParamsConstruct(argc, argv, &prm);
@@ -2212,7 +2218,7 @@ rc_t CC KMain(int argc, char* argv[]) {
             if (rc == 0 && r != 0)
                 rc = r;
         }
-        
+
         if (prm.disableTelemetry) {
             rc_t r = KConfig_Set_SendTelemetry
                 (cfg, prm.disableTelemetry == eFalse);
@@ -2238,7 +2244,7 @@ rc_t CC KMain(int argc, char* argv[]) {
         rc = CreateConfig(argv[0]);
 
     ParamsDestruct(&prm);
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 /************************************* EOF ************************************/

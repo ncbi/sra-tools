@@ -21,6 +21,8 @@
 *  Please cite the author in any work or product based on this material.
 * =========================================================================== */
 
+#include <ascp/ascp.h> /* ascp_locate */
+
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -29,13 +31,14 @@
 #include <kfg/config.h> /* KConfigRelease */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
+#include <kfs/kfs-priv.h> /* KDirectoryPosixStringToSystemString */
+
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/rc.h> /* RC */
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* string_dup_measure */
 
-#include <ascp/ascp.h> /* ascp_locate */
 #include <kns/http.h> /* KNSManagerMakeHttpFile */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFile */
 #include <kns/manager.h> /* KNSManagerRelease */
@@ -68,7 +71,7 @@ bool _StringIsXYZ(const String *self, const char **withoutScheme,
     *withoutScheme = NULL;
 
     if (string_cmp(self->addr, self->len, scheme, scheme_size,
-        scheme_size) == 0)
+        (uint32_t)scheme_size) == 0)
     {
         *withoutScheme = self->addr + scheme_size;
         return true;
@@ -251,7 +254,7 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
         else if (rc ==
             SILENT_RC(rcKFG, rcEncryptionKey, rcRetrieving, rcItem, rcNotFound))
         {
-            STSMSG(STAT_ALWAYS,
+            STSMSG(STS_TOP,
                 ("Cannot open encrypted file '%s'", resolved->name));
             isDb = false;
             rc = 0;
@@ -318,7 +321,7 @@ static uint64_t _sizeFromString(const char *val) {
         s *= 1024L * 1024 * 1024;
     }
     else if (*val == 't' || *val == 'T') {
-        s *= 1024L * 1024 * 1024 * 1024;
+        s = s * 1024L * 1024 * 1024 * 1024;
     }
     else if (*val == 'u' || *val == 'U') {  /* unlimited */
         s = 0;
@@ -334,7 +337,7 @@ static ParamDef Parameters[] = { { ArgsConvFilepath } };
 #define ASCP_OPTION "ascp-path"
 #define ASCP_ALIAS  "a"
 static const char* ASCP_USAGE[] =
-{ "Path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
+{ "Path to ascp program and private key file (aspera_tokenauth_id_rsa)", NULL };
 
 #define ASCP_PAR_OPTION "ascp-options"
 #define ASCP_PAR_ALIAS  NULL
@@ -384,7 +387,7 @@ static const char* FAIL_ASCP_USAGE[] = {
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-/*static const char*LIST_USAGE[] = {"List the content of a kart file.", NULL};*/
+static const char* LIST_USAGE[] = {"List the content of a kart file.", NULL};
 
 #define LOCN_OPTION "location"
 #define LOCN_ALIAS  NULL
@@ -392,8 +395,8 @@ static const char* LOCN_USAGE[] = { "Location of data.", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
-/*static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers.", NULL }; */
+static const char* NM_L_USAGE[] =
+{ "List the content of a kart file with kart row numbers.", NULL };
 
 #define MINSZ_ALIAS  "N"
 static const char* MINSZ_USAGE[] =
@@ -430,9 +433,8 @@ static const char* ROWS_USAGE[] =
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
-/*static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes.", NULL }; */
-
+static const char* SZ_L_USAGE[] =
+{ "List the content of a kart file with target file sizes.", NULL };
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
 static const char* TRANS_USAGE[] = {
@@ -459,8 +461,8 @@ static const char* STRIP_QUALS_USAGE[] =
 #endif
 
 static const char* ELIM_QUALS_USAGE[] =
-{ "Force download of SRA Lite files with simplified base quality scores. "
-  "Fail if not available.", NULL };
+{ "Download SRA Lite files with simplified base quality scores, "
+  "or fail if not available.", NULL };
 
 #define CART_OPTION "perm"
 static const char* CART_USAGE[] = { "PATH to jwt cart file.", NULL };
@@ -490,11 +492,9 @@ static OptDef OPTIONS[] = {
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
 ,{ CHECK_NEW_OPTION   , CHECK_NEW_ALIAS   ,NULL,CHECK_NEW_USAGE,1, true ,false }
-/*
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-*/
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
@@ -518,6 +518,8 @@ static rc_t PrfMainProcessArgs(PrfMain *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
     assert(self);
+
+    KStsLevelSet(STAT_USR);
 
     rc = ArgsMakeAndHandle2(&self->args, argc, argv,
         Parameters, sizeof Parameters / sizeof Parameters[0],
@@ -727,7 +729,7 @@ option_name = VALIDATE_OPTION;
     }
 }
 
-#if 0
+#if 1
 /******* LIST OPTIONS BEGIN ********/
 /* LIST_OPTION */
         rc = ArgsOptionCount(self->args, LIST_OPTION, &pcount);
@@ -806,12 +808,22 @@ option_name = LOCN_OPTION;
                         "ascp-path expected in the following format:\n"
                         "--" ASCP_OPTION " \"<ascp-binary|private-key-file>\"\n"
                         "Examples:\n"
-                        "--" ASCP_OPTION " \"/usr/bin/ascp|/etc/asperaweb_id_dsa.putty\"\n"
-                        "--" ASCP_OPTION " \"C:\\Program Files\\Aspera\\ascp.exe|C:\\Program Files\\Aspera\\etc\\asperaweb_id_dsa.putty\"\n");
+"--" ASCP_OPTION " \"/usr/bin/ascp|/etc/aspera_tokenauth_id_rsa\"\n"
+"--" ASCP_OPTION " \"C:\\Program Files\\Aspera\\ascp.exe|C:\\Program Files\\Aspera\\etc\\aspera_tokenauth_id_rsa\"\n");
                     break;
                 }
                 else {
+#if WINDOWS
+                    rc_t r2 = 0;
+                    char system[PATH_MAX] = "";
+                    *sep = '\0';
+                    r2 = KDirectoryPosixStringToSystemString(
+                        self->dir, system, sizeof system, "%s", val);
+                    if (r2 == 0)
+                        self->ascp = string_dup_measure(system, NULL);
+#else
                     self->ascp = string_dup(val, sep - val);
+#endif
                     self->asperaKey = string_dup_measure(sep + 1, NULL);
                     self->ascpChecked = true;
                 }
@@ -944,7 +956,7 @@ option_name = LOCN_OPTION;
             }
             self->maxSize = _sizeFromString(val);
             if (self->maxSize == 0)
-                self->maxSize = ~0; /* unlimited */
+                self->maxSize = (uint64_t)~0; /* unlimited */
         }
 
         if (self->maxSize > 0 && self->minSize > self->maxSize) {
@@ -1374,6 +1386,11 @@ rc_t PrfMainInit(int argc, char *argv[], PrfMain *self) {
     BSTreeInit(&self->downloaded);
 
     if (rc == 0) {
+        rc = KDirectoryNativeDir(&self->dir);
+        DISP_RC(rc, "KDirectoryNativeDir");
+    }
+
+    if (rc == 0) {
         rc = PrfMainProcessArgs(self, argc, argv);
     }
 
@@ -1430,11 +1447,6 @@ rc_t PrfMainInit(int argc, char *argv[], PrfMain *self) {
     if (rc == 0) {
         rc = VDBManagerMakeRead(&self->mgr, NULL);
         DISP_RC(rc, "VDBManagerMakeRead");
-    }
-
-    if (rc == 0) {
-        rc = KDirectoryNativeDir(&self->dir);
-        DISP_RC(rc, "KDirectoryNativeDir");
     }
 
     if (rc == 0) {

@@ -1,0 +1,40 @@
+<SRA_INFO>
+ <FINGERPRINTS><fingerprint>{"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]}</fingerprint>
+<digest>67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5</digest>
+<algorithm>SHA-256</algorithm>
+<timestamp>1743618335</timestamp>
+<version>1.0.0</version>
+<format>json utf-8 compact</format>
+<history><update_1><fingerprint>{"A":[1],"C":[1],"G":[1],"T":[1],"N":[1],"EoR":[1]}</fingerprint>
+<digest>qwer</digest>
+<algorithm>SHA-256</algorithm>
+<timestamp>1743618305</timestamp>
+<version>1.0.0</version>
+<format>json utf-8 compact</format>
+</update_1>
+<update_2><fingerprint>{"A":[2],"C":[2],"G":[2],"T":[2],"N":[2],"EoR":[2]}</fingerprint>
+<digest>asdf</digest>
+<algorithm>SHA-256</algorithm>
+<timestamp>1743618339</timestamp>
+<version>1.0.0</version>
+<format>json utf-8 compact</format>
+</update_2>
+</history>
+<inputs><file_1><name>input/r1.fastq</name>
+<fingerprint>{"maximum-position":4,"A":[0,1,0,0,0],"C":[0,0,0,0,0],"G":[1,0,0,0,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]}</fingerprint>
+<algorithm>SHA-256</algorithm>
+<digest>123</digest>
+<version>1.0.0</version>
+<format>json utf-8 compact</format>
+</file_1>
+<file_2><name>input/r2.fastq</name>
+<fingerprint>{"maximum-position":4,"A":[0,0,1,0,0],"C":[1,1,0,0,0],"G":[0,0,0,1,0],"T":[0,0,0,0,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,1]}</fingerprint>
+<algorithm>SHA-256</algorithm>
+<digest>456</digest>
+<version>1.0.0</version>
+<format>json utf-8 compact</format>
+</file_2>
+</inputs>
+
+ </FINGERPRINTS>
+</SRA_INFO>

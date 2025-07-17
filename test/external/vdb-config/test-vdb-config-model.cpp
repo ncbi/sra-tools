@@ -88,8 +88,8 @@ FIXTURE_TEST_CASE( temp_cache_location, VdbModelFixture )
 {
     vdbconf_model m ( kfg );
     REQUIRE_EQ ( string(), m . get_temp_cache_location() );
-    m . set_temp_cache_location( "path" );
-    REQUIRE_EQ ( string ( "path" ),  m . get_temp_cache_location() );
+    m . set_temp_cache_location( "path" ); // converts to an absolute path
+    REQUIRE_NE ( string::npos, m . get_temp_cache_location().find( "path" ) );
     REQUIRE ( m . get_config_changed () );
 }
 
@@ -178,34 +178,10 @@ FIXTURE_TEST_CASE( Reload, VdbModelFixture )
 
 //////////////////////////////////////////// Main
 extern "C"
-{
-
-#include <kapp/args.h>
-#include <kfg/config.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "wb-test-fastq";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main( int argc, char *argv [] )
 {
     // do not disable user settings as we need to update them as part of the testing
     //KConfigDisableUserSettings();
 
-    rc_t rc=VdbConfStridesModelTestSuite(argc, argv);
-    return rc;
-}
-
+    return VdbConfStridesModelTestSuite(argc, argv);
 }

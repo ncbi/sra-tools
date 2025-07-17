@@ -75,8 +75,9 @@ chdir $BIN_DIR or die;
 my @TOOLS;
 foreach ( @_ ) {
     next if ( /^.*DumpReferenceFASTA.exe$/ );
+    next if ( /^.*samview-util.exe$/ );
     next if ( /^.*sratools.exe$/ );
-    next if ( /^.*vdb-passwd.exe$/ );
+    next if ( /^.*vdb-sql.exe$/ );
     next if ( /^.+-driver.exe$/ );
     next if ( /^.+Test.exe$/ );
     push @TOOLS, $_

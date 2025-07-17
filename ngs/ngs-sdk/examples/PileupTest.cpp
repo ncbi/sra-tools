@@ -84,7 +84,9 @@ public:
                     char buf[64];
                     if(e & PileupEvent::alignment_minus_strand)
                     {
-                        char *b = buf + sprintf(buf,"%d",c);
+                        auto n = snprintf(buf, sizeof(buf), "%d", c);
+                        assert(n < sizeof(buf));
+                        char *b = buf + n;
                         const char *s = ibases.data();
                         for(int i=0; i<c;i++,b++,s++)
                         {
@@ -92,8 +94,10 @@ public:
                         }
                         *b='\0';
                     }
-                    else
-                        sprintf(buf,"%d%.*s",c,c,ibases.data());
+                    else {
+                        auto n = snprintf(buf, sizeof(buf),"%d%.*s",c,c,ibases.data());
+                        assert(n < sizeof(buf));
+                    }
                     base += buf;
                 }
                 if ( ( e & PileupEvent::alignment_minus_strand ) != 0 )

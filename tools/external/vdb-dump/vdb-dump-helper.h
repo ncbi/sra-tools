@@ -132,9 +132,11 @@ rc_t vdh_print_col_info( dump_context *ctx,
                          const p_col_def col_def,
                          const VSchema *my_schema );
 
-rc_t vdh_resolve_remote_accession( const char * accession, char * dst, size_t dst_size );
-rc_t vdh_resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
-rc_t vdh_resolve_cache( const char * accession, char * dst, size_t dst_size );
+rc_t vdh_resolve(const char * accession,
+    const VPath ** local, const VPath ** remote, const VPath ** cache);
+rc_t vdh_set_VPath_to_str(const VPath * path, char * dst, size_t dst_size);
+rc_t vdh_set_local_or_remote_to_str(const VPath * local, const VPath * remote,
+    char * dst, size_t dst_size);
 rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );
 
 rc_t vdh_path_to_vpath( const char * path, VPath ** vpath );

@@ -67,7 +67,7 @@ static const char * append_usage[] =
     "(no parameter) this will cause to append the",
     "text file to an existing KColumn.  If the",
     "file does not already exist it will be",
-    "created.", 
+    "created.",
     NULL
 };
 static const char * force_usage [] =
@@ -78,7 +78,7 @@ static const char * force_usage [] =
     "exists and append mode is not selected",
     NULL
 };
-static const char * begin_usage [] = 
+static const char * begin_usage [] =
 {
     "Begin include only lines starting from this",
     "line in the column.  The first line is line",
@@ -93,7 +93,7 @@ static const char * end_usage   [] =
 };
 
 
-OptDef Options[] = 
+OptDef Options[] =
 {
     { OPTION_APPEND, ALIAS_APPEND, NULL, append_usage, 0, false, false },
     { OPTION_FORCE,  ALIAS_FORCE,  NULL, force_usage,  0, false, false },
@@ -263,7 +263,7 @@ rc_t txt2kdb_kfs (void)
                 {
                     PLOGERR (klogFatal, (klogFatal, rc, "Cannot open KColumn $(P) because $(R)", PLOG_2(PLOG_S(P),PLOG_S(R)),
                                          G.colpath, err));
-                }                
+                }
             }
         }
     }
@@ -352,7 +352,7 @@ rc_t txt2kdb_io()
                 }
             }
 
-            /* if we are within the selected range append this to the open blob 
+            /* if we are within the selected range append this to the open blob
              * ir might be the first append, a middle append, a last append or only append */
             if (blobopen)
             {
@@ -398,9 +398,9 @@ rc_t txt2kdb_io()
                 if ( ! rowid_upper_range (rowid))
                     break;
             }
-        }       
+        }
     }
-    
+
     /* if not in an error state and the last line was unterminated close the blob */
     if ((rc == 0) && blobopen)
     {
@@ -436,15 +436,20 @@ void CC ascii_to_u64_error_handler ( const char * arg, void * data )
 
 rc_t CC NextLogLevelCommon ( const char * level_parameter );
 
-rc_t CC KMain (int argc, char *argv [])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     rc_t   rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof Options / sizeof (OptDef));
     if (rc == 0)
     {
-        do 
+        do
         {
             uint32_t pcount;
 
@@ -572,7 +577,7 @@ rc_t CC KMain (int argc, char *argv [])
     }
 
     STSMSG (1, ("exit txt2kdb %R\n", rc));
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 

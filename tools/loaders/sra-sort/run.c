@@ -338,9 +338,9 @@ void open_tbl ( const ctx_t *ctx, const VTable **tblp )
  * invalidate the STATS-metadata-node in all tables of the output database it was
  * requested to unconditionaly copy the STATS-metadata-node of all tables of the
  * src-database into the dst-database
- * 
+ *
  * This function only succeeds if the dst-database has been closed!
- * 
+ *
  */
 rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
     VDBManager * mgr;
@@ -390,7 +390,7 @@ rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
 }
 
 /* run
- *  called from KMain
+ *  called from main
  *  determines the type of object being copied/sorted
  *  opens input object
  *  dispatches to the appropriate handler
@@ -432,7 +432,7 @@ void run ( const ctx_t *ctx )
                     open_tbl ( ctx, & tbl );
                     VTableRelease ( tbl );
                 }
-                
+
                 VSchemaRelease ( sra_dflt );
             }
         }

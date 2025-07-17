@@ -43,10 +43,12 @@ if( NOT WIN32 )
     add_test( NAME Test_Ngs_Pileup_2
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 2.0 SRR1166393
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME Test_Ngs_Pileup_2-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 2.0 SRR1166393
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME Test_Ngs_Pileup_2-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 2.0 SRR1166393
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -56,10 +58,12 @@ if( NOT WIN32 )
     add_test( NAME Test_Ngs_Pileup_3
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 3.0 ERR334733
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME Test_Ngs_Pileup_3-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 3.0 ERR334733
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME Test_Ngs_Pileup_3-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 3.0 ERR334733
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,10 +72,12 @@ if( NOT WIN32 )
     add_test( NAME Test_Ngs_Pileup_4
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 4.0 SRR1068006
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME Test_Ngs_Pileup_4-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 4.0 SRR1068006
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME Test_Ngs_Pileup_4-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 4.0 SRR1068006
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -81,10 +87,12 @@ if( NOT WIN32 )
     add_test( NAME SlowTest_Ngs_Pileup_5
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 5.0 SRR619510
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME SlowTest_Ngs_Pileup_5-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 5.0 SRR619510
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME SlowTest_Ngs_Pileup_5-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 5.0 SRR619510
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -100,10 +108,12 @@ if( NOT WIN32 )
     add_test( NAME Test_Ngs_Pileup_7
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 7.0 SRR1186012
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME Test_Ngs_Pileup_7-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 7.0 SRR1186012
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME Test_Ngs_Pileup_7-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 7.0 SRR1186012
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -125,10 +135,12 @@ if( NOT WIN32 )
     add_test( NAME Test_Ngs_Pileup_9
             COMMAND ./runtestcase.sh ${BINDIR} "" ${CMAKE_CURRENT_SOURCE_DIR} 9.0 SRR341578 -r NC_011752.1
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET Test_Ngs_Pileup-asan )
         add_test( NAME Test_Ngs_Pileup_9-asan
                 COMMAND ./runtestcase.sh ${BINDIR} "-asan" ${CMAKE_CURRENT_SOURCE_DIR} 9.0 SRR341578 -r NC_011752.1
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET Test_Ngs_Pileup-tsan )
         add_test( NAME Test_Ngs_Pileup_9-tsan
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 9.0 SRR341578 -r NC_011752.1
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

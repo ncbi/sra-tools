@@ -47,15 +47,15 @@ static const char * force_usage[] =
 static const char * longlist_usage[] =
 { "more information will be given on each file",
   "in test/list mode.", NULL };
-static const char * directory_usage[] = 
+static const char * directory_usage[] =
 { "The next token on the command line is the",
   "name of the directory to extract to or create",
   "from", NULL };
-static const char * stdout_usage[] = { "Direct output to stdout", NULL }; 
-static const char * md5_usage[] = { "create md5sum-compatible checksum file", NULL }; 
+static const char * stdout_usage[] = { "Direct output to stdout", NULL };
+static const char * md5_usage[] = { "create md5sum-compatible checksum file", NULL };
 
 
-OptDef Options [] = 
+OptDef Options [] =
 {
     { OPTION_CREATE,    ALIAS_CREATE,    NULL, create_usage, 1, true,  false },
     { OPTION_TEST,      ALIAS_TEST,      NULL, test_usage, 1, true,  false },
@@ -177,7 +177,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
     rc_t rc;
 
     uint32_t count;
-    
+
     /* Parameters */
     rc = ArgsParamCount ( args, &count );
     if ( rc != 0 )
@@ -192,7 +192,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
 
         p -> mem_count = count;
 
-        for ( i = 0; i < count; ) /*Increment in value insertion into members*/ 
+        for ( i = 0; i < count; ) /*Increment in value insertion into members*/
         {
             rc = ArgsParamValue ( args, i, ( const void ** ) &value );
             if ( rc != 0 )
@@ -209,7 +209,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
     rc = ArgsOptionCount ( args, OPTION_LONGLIST, &count );
     if ( rc == 0 && count != 0 )
         p -> long_list = true;
-    
+
     rc = ArgsOptionCount ( args, OPTION_FORCE, &count );
     if ( rc == 0 && count != 0 )
         p -> force = true;
@@ -220,7 +220,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
 
     rc = ArgsOptionCount ( args, OPTION_MD5, &count );
     if ( rc == 0 && count != 0 )
-        p -> md5sum = true;    
+        p -> md5sum = true;
 
     /* Options */
     rc = ArgsOptionCount ( args, OPTION_CREATE, & p -> c_count );
@@ -240,7 +240,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
             return rc;
         }
     }
-    
+
     rc = ArgsOptionCount ( args, OPTION_EXTRACT, &p -> x_count );
     if ( rc != 0 )
     {
@@ -258,7 +258,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
             return rc;
         }
     }
-    
+
     rc = ArgsOptionCount ( args, OPTION_TEST, &p -> t_count );
     if ( rc != 0 )
     {
@@ -289,7 +289,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
     {
         rc = ArgsOptionValue ( args, OPTION_DIRECTORY, 0, ( const void ** ) &p -> directory_path );
         if ( rc != 0 )
-        {            
+        {
             LogErr ( klogFatal, rc, "Failed to access directory path" );
             return rc;
         }
@@ -298,8 +298,11 @@ rc_t parse_params_int ( Params *p, const Args *args )
     return rc;
 }
 
-rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
+rc_t parse_params ( Params *p, Args **args, int argc, char * argv [] )
 {
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+        
     rc_t rc;
 
     p -> members = ( const char ** ) argv;
@@ -314,11 +317,11 @@ rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
     p -> force = false;
     p -> stdout = false;
 
-    rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
+    rc = ArgsMakeAndHandle ( args, argc, argv, 1,
         Options, sizeof Options / sizeof ( Options [ 0 ] ) );
     if ( rc == 0 )
     {
-        rc = parse_params_int ( p, args );
+        rc = parse_params_int ( p, *args );
 
         if ( rc == 0 )
             rc = validate_params ( p );
@@ -364,7 +367,7 @@ rc_t validate_params ( Params *p )
     {
         if ( ! ( p -> mem_count != 0 || p -> dir_count != 0 ) )
         {
-            rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );           
+            rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );
             LogErr ( klogErr, rc, "Must provide an input directory or file paths when creating " );
             return rc;
         }
@@ -375,7 +378,7 @@ rc_t validate_params ( Params *p )
     {
         if ( p -> dir_count == 0 )
         {
-            rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );           
+            rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
             LogErr ( klogErr, rc, "Must provide a directory path when extracting" );
             return rc;
         }

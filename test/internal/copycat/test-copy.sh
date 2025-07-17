@@ -5,6 +5,12 @@ tool_binary=$2
 FILE="1.xml"
 
 echo "testing ${tool_binary} copy"
+
+if ! test -f ${bin_dir}/${tool_binary}; then
+    echo "${bin_dir}/${tool_binary} does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p actual
 rm -rf actual/${FILE}
 

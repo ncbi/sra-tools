@@ -1573,10 +1573,15 @@ unsigned sse42_idx_arr_block_lookup(const unsigned* idx, unsigned size,
         __m128i idxB = _mm_loadu_si128((__m128i*)(idx+k+4));
         __m128i nbA =  _mm_srli_epi32(idxA, bm::set_block_shift); // idx[k] >> bm::set_block_shift
         __m128i nbB =  _mm_srli_epi32(idxB, bm::set_block_shift);
-        
+/*
         if (!_mm_test_all_ones(_mm_cmpeq_epi32(nbM, nbA)) |
             !_mm_test_all_ones(_mm_cmpeq_epi32 (nbM, nbB)))
             break;
+*/
+        if (!_mm_test_all_ones(_mm_and_si128(_mm_cmpeq_epi32(nbM, nbA),
+            _mm_cmpeq_epi32(nbM, nbB))))
+            break;
+
 
     } // for k
     for (; k < len; ++k)

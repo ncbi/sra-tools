@@ -73,28 +73,11 @@ void testld_load_library ( KDyld *dl, KDlset *libs, const char *libname )
     }
 }
 
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-
 #define OPTION_LOAD "lib-path"
 #define ALIAS_LOAD  "l"
 
 static
-const char * load_usage [] = 
+const char * load_usage [] =
 	{ "Path(s) for loading dynamic libraries.", NULL };
 
 static
@@ -143,10 +126,15 @@ rc_t CC Usage (const Args * args)
 }
 
 
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 1, MyOptions, sizeof MyOptions / sizeof (OptDef));
     if (rc)
@@ -245,5 +233,5 @@ rc_t CC KMain ( int argc, char *argv [] )
 
         ArgsWhack (args);
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

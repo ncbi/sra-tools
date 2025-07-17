@@ -172,7 +172,7 @@ static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2,
                 }
                 KNamelistRelease( cols_to_diff );
             }
-            
+
             KNamelistRelease( cols_2 );
         }
         KNamelistRelease( cols_1 );
@@ -190,7 +190,7 @@ static rc_t perform_database_diff_on_this_table( const VDatabase * db_1, const V
 	rc_t rc = VDatabaseOpenTableRead ( db_1, &tab_1, "%s", table_name );
 	if ( rc != 0 )
 	{
-		PLOGERR( klogInt, ( klogInt, rc, 
+		PLOGERR( klogInt, ( klogInt, rc,
 				 "VDatabaseOpenTableRead( [$(acc)].$(tab) ) failed",
 				 "acc=%s,tab=%s", dctx -> src1, table_name ) );
 	}
@@ -200,7 +200,7 @@ static rc_t perform_database_diff_on_this_table( const VDatabase * db_1, const V
 		rc = VDatabaseOpenTableRead ( db_2, &tab_2, "%s", table_name );
 		if ( rc != 0 )
 		{
-			PLOGERR( klogInt, ( klogInt, rc, 
+			PLOGERR( klogInt, ( klogInt, rc,
 					 "VDatabaseOpenTableRead( [$(acc)].$(tab) ) failed",
 					 "acc=%s,tab=%s", dctx -> src2, table_name ) );
 		}
@@ -274,7 +274,7 @@ static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_
 								{
 									/* ********************************************************************* */
 									rc = perform_database_diff_on_this_table( db_1, db_2, dctx, table_name, diffs );
-									/* ********************************************************************* */									
+									/* ********************************************************************* */
 								}
 							}
 						}
@@ -382,10 +382,16 @@ static rc_t perform_diff( const struct diff_ctx * dctx, unsigned long int * diff
 /***************************************************************************
     Main:
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     unsigned long int diffs = 0;
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
                                   MyOptions, sizeof MyOptions / sizeof ( OptDef ) );
     if ( rc != 0 )
@@ -406,7 +412,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 			{
 				/* ***************************** */
 				rc = perform_diff( &dctx, &diffs );
-				/* ***************************** */				
+				/* ***************************** */
 			}
         }
         else
@@ -431,5 +437,5 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
     }
     KOutMsg( "%lu differences discovered ( rc = %d )\n", diffs, rc );
-    return rc;
+    return VDB_TERMINATE( rc );
 }

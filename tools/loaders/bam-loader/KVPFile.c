@@ -148,11 +148,12 @@ typedef struct KTempMMap {
 static rc_t KTempMMapMake(KTempMMap *rslt, size_t initSize, size_t elemSize)
 {
     char fname[4096];
+    int n = snprintf(fname, "/tmp/kvp.%u.XXXXXX", getpid());    
+    assert(n < sizeof(fname));
     
     memset(rslt, 0, sizeof(*rslt));
     rslt->elemsize = elemSize;
     
-    sprintf(fname, "/tmp/kvp.%u.XXXXXX", getpid());
     rslt->fd = mkstemp(fname);
     if (rslt->fd < 0) {
         perror(fname);

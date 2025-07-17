@@ -724,10 +724,6 @@ FIXTURE_TEST_CASE( ConstructSDL_Encrypted_NoNGC_Skipped, DataSourcesFixture )
     // no other info; SRR000001 is ignored b/c encrypted and no NGC
 }
 
-#if WIN32
-#define main wmain
-#endif
-
 int main ( int argc, char *argv [] )
 {
     ExePath = argv[0];

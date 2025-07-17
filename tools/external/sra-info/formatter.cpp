@@ -27,6 +27,7 @@
 #include "formatter.hpp"
 
 #include <algorithm>
+#include <string_view>
 
 using namespace std;
 
@@ -38,7 +39,7 @@ Formatter::StringToFormat( const string & value )
         lowercase.begin(),
         lowercase.end(),
         lowercase.begin(),
-        [](unsigned char c){ return tolower(c); }
+        [](unsigned char c){ return (char)tolower(c); }
     );
     if ( lowercase == "csv" ) return CSV;
     if ( lowercase == "xml" ) return XML;
@@ -48,7 +49,7 @@ Formatter::StringToFormat( const string & value )
 }
 
 Formatter::Formatter( Format f, uint32_t l )
-: fmt( f ), limit( l ), first ( true ), count( 0 )
+: m_fmt( f ), m_limit( l ), m_first ( true ), m_count( 0 )
 {
 }
 
@@ -59,9 +60,9 @@ Formatter::~Formatter()
 string
 Formatter::formatJsonSeparator( void ) const
 {
-    if ( first ) {
+    if ( m_first ) {
         Formatter * ncThis = const_cast<Formatter *>(this);
-        ncThis->first = false;
+        ncThis->m_first = false;
         return "";
     }
     else
@@ -72,7 +73,7 @@ void
 Formatter::expectSingleQuery( const string & error ) const
 {
     Formatter * ncThis = const_cast<Formatter *>(this);
-    if ( ++ncThis->count > 1 )
+    if ( ++ncThis->m_count > 1 )
         throw VDB::Error( error );
 }
 
@@ -100,18 +101,18 @@ JoinPlatforms( const SraInfo::Platforms & platforms,
 string
 Formatter::format( const SraInfo::Platforms & platforms ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
         // default format, 1 value per line
         return JoinPlatforms( platforms, "\n", "PLATFORM: " );
     case CSV:
         // CSV, all values on 1 line
-        expectSingleQuery( "CVS format does not support multiple queries" );
+        expectSingleQuery( "CSV format does not support multiple queries" );
         return JoinPlatforms( platforms, "," );
     case XML:
         // XML, each value in a tag, one per line
-        return " <PLATFORMS>\n" + 
+        return " <PLATFORMS>\n" +
             JoinPlatforms( platforms, "\n", "  <platform>", "</platform>" )
             + "\n </PLATFORMS>";
     case Json:
@@ -137,7 +138,7 @@ Formatter::format( const SraInfo::Platforms & platforms ) const
 string
 Formatter::start( void ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     case CSV:
@@ -155,7 +156,7 @@ Formatter::start( void ) const
 string
 Formatter::end( void ) const
 {
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     case CSV:
@@ -175,10 +176,10 @@ Formatter::format( const string & value, const string & name ) const
 {
     const string space(" ");
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case CSV:
-        expectSingleQuery("CVS format does not support multiple queries");
+        expectSingleQuery("CSV format does not support multiple queries");
         return value;
     case Tab:
         expectSingleQuery( "TAB format does not support multiple queries" );
@@ -210,7 +211,7 @@ public:
         _space(space), _indent(indent)
     {}
     void format(
-        const struct VDB::SchemaData &d, int indent = -1, bool first = true)
+        const struct VDB::SchemaData &d, int indent = -1, bool /*first*/ = true)
     {
         if (indent < 0)
             indent = _indent;
@@ -315,18 +316,18 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 {
     ostringstream ret;
 
-    size_t count = layouts.size();
-    if ( limit != 0 && limit < count )
+    size_t cnt = layouts.size();
+    if ( m_limit != 0 && m_limit < cnt)
     {
-        count = limit;
+        cnt = m_limit;
     }
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
         {
             bool first_group = true;
-            for( size_t i = 0; i < count; ++i )
+            for( size_t i = 0; i < cnt; ++i )
             {
                 if ( first_group )
                 {
@@ -375,7 +376,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
                 ret << " " << separator << endl;
             ret << " \"SPOTS\": [" << endl;
             bool  first_layout = true;
-            for( size_t i = 0; i < count; ++i )
+            for( size_t i = 0; i < cnt; ++i )
             {
                 const SraInfo::SpotLayout & l = layouts[i];
                 if ( first_layout )
@@ -425,8 +426,8 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
         break;
 
     case CSV:
-        expectSingleQuery( "CVS format does not support multiple queries" );
-        for( size_t i = 0; i < count; ++i )
+        expectSingleQuery( "CSV format does not support multiple queries" );
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             switch( detail )
@@ -454,7 +455,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case Tab:
         expectSingleQuery("TAB format does not support multiple queries");
-        for( size_t i = 0; i < count; ++i )
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             switch( detail )
@@ -482,7 +483,7 @@ Formatter::format( const SraInfo::SpotLayouts & layouts, SraInfo::Detail detail 
 
     case XML:
         ret << " <SPOTS>" << endl;
-        for( size_t i = 0; i < count; ++i )
+        for( size_t i = 0; i < cnt; ++i )
         {
             const SraInfo::SpotLayout & l = layouts[i];
             ret << "  <layout><count>" << l.count << "</count>";
@@ -525,7 +526,7 @@ string Formatter::format(const VDB::SchemaInfo & info) const
     bool first(true);
     string out;
 
-    switch ( fmt )
+    switch ( m_fmt )
     {
     case Default:
     {
@@ -631,5 +632,575 @@ string Formatter::format(const VDB::SchemaInfo & info) const
         throw VDB::Error( "unsupported formatting option for schema" );
     }
 
+    return out;
+}
+
+static const string IndentUnit = string( 4, ' ' );
+
+static
+string
+formatJsonNamed( const string & name, const string & value )
+{
+    return "\"" + name + "\":\"" + value + "\"";
+}
+
+static
+string
+formatJsonBool( const string & name, bool value )
+{
+    return "\"" + name + "\":" + (value? "true":"false") ;
+}
+
+static
+string
+formatContentFlagJson( const string & indent, const string & name, bool value )
+{
+    return ",\n" + indent + formatJsonBool( name, value );
+}
+
+static
+string
+formatContentNamedJson( const string & indent, const string & name, const string & value )
+{
+    return ",\n" + indent + formatJsonNamed( name, value );
+}
+
+void
+Formatter::CountContents( const KDBContents & cont, unsigned int& tables, unsigned int& withChecksums, unsigned int& withoutChecksums, unsigned int& indices ) const
+{
+    switch ( cont.dbtype )
+    {
+    case kptTable:
+        tables ++;
+        break;
+    case kptDatabase:
+        break;
+    case kptColumn:
+        if ( ( cont.attributes & cca_HasChecksum_CRC ) ||
+             ( cont.attributes & cca_HasChecksum_MD5 ) )
+        {
+            withChecksums ++;
+        }
+        else
+        {
+            withoutChecksums ++;
+        }
+        break;
+    case kptIndex:
+        indices ++;
+        break;
+    default:
+        break;
+    }
+    if ( cont.firstChild != nullptr )
+    {
+        CountContents( * cont.firstChild, tables, withChecksums, withoutChecksums, indices );
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        CountContents( * cont.nextSibling, tables, withChecksums, withoutChecksums, indices );
+    }
+}
+
+string
+Formatter::FormatContentRootJson( const string & p_indent, const KDBContents & cont ) const
+{
+    string out;
+
+    unsigned int tables = 0;
+    unsigned int withChecksums = 0;
+    unsigned int withoutChecksums = 0;
+    unsigned int indices = 0;
+    CountContents( cont, tables, withChecksums, withoutChecksums, indices );
+    if ( cont.dbtype == kptDatabase )
+    {
+        out += formatContentNamedJson( p_indent, "tables", to_string(tables) );
+    }
+    out += formatContentNamedJson( p_indent, "columnsWithChecksums", to_string(withChecksums) );
+    out += formatContentNamedJson( p_indent, "columnsWithoutChecksums", to_string(withoutChecksums) );
+    out += formatContentNamedJson( p_indent, "indices", to_string(indices) );
+
+    return out;
+}
+
+string
+Formatter::FormatContentNodeJson( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail, bool root ) const
+{
+    string out = p_indent + R"("name":")"+string(cont.name) + "\"";
+    string type;
+    switch ( cont.dbtype )
+    {
+    case kptTable:      type = "table"; break;
+    case kptDatabase:   type = "database"; break;
+    case kptColumn:     type = "column"; break;
+    case kptIndex:      type = "index"; break;
+    default: type = to_string( cont.dbtype ); break;
+    }
+    out += formatContentNamedJson( p_indent, "dbtype", type );
+
+    switch ( detail )
+    {
+    case SraInfo::Short:
+        out += FormatContentRootJson( p_indent, cont );
+        return out; // not displaying children/siblings
+
+    case SraInfo::Abbreviated:
+        if ( root )
+        {
+            out += FormatContentRootJson( p_indent, cont );
+        }
+
+        break;
+
+    case SraInfo::Full:
+    case SraInfo::Verbose:
+    default:
+        type.clear();
+        switch ( cont.fstype )
+        {
+        case kptFile:   type = "file"; break;
+        case kptDir:    type = "directory"; break;
+        default: break;
+        }
+        if ( ! type.empty() )
+        {
+            out += formatContentNamedJson( p_indent, "fstype", type );
+        }
+
+        if ( root )
+        {
+            out += FormatContentRootJson( p_indent, cont );
+        }
+
+        out += formatContentFlagJson( p_indent, "hasMetadata", cont.attributes & cca_HasMetadata );
+        out += formatContentFlagJson( p_indent, "hasMD5_File", cont.attributes & cca_HasMD5_File );
+        out += formatContentFlagJson( p_indent, "isLocked", cont.attributes & cca_HasLock );
+        out += formatContentFlagJson( p_indent, "isSealed", cont.attributes & cca_HasSealed );
+        out += formatContentFlagJson( p_indent, "hasErrors", cont.attributes & cca_HasErrors );
+        switch ( cont.dbtype )
+        {
+        case kptTable:
+            out += formatContentFlagJson( p_indent, "hasColumns", cont.attributes & cta_HasColumns );
+            out += formatContentFlagJson( p_indent, "hasIndices", cont.attributes & cta_HasIndices );
+            break;
+        case kptDatabase:
+            out += formatContentFlagJson( p_indent, "hasTables", cont.attributes & cda_HasTables );
+            out += formatContentFlagJson( p_indent, "hasDatabases", cont.attributes & cda_HasDatabases );
+            break;
+        case kptColumn:
+            out += formatContentFlagJson( p_indent, "hasChecksum_CRC", cont.attributes & cca_HasChecksum_CRC );
+            out += formatContentFlagJson( p_indent, "hasChecksum_MD5", cont.attributes & cca_HasChecksum_MD5 );
+            out += formatContentFlagJson( p_indent, "reversedByteOrder", cont.attributes & cca_ReversedByteOrder );
+            out += formatContentFlagJson( p_indent, "isStatic", cont.attributes & cca_IsStatic );
+            break;
+        case kptIndex:
+            out += formatContentFlagJson( p_indent, "isTextIndex", cont.attributes & cia_IsTextIndex );
+            out += formatContentFlagJson( p_indent, "isIdIndex", cont.attributes & cia_IsIdIndex );
+            out += formatContentFlagJson( p_indent, "reverseByteOrder", cont.attributes & cia_ReversedByteOrder );
+            break;
+        }
+    }
+
+    if ( cont.firstChild != nullptr )
+    {
+        const string in = p_indent + IndentUnit;
+        out += ",\n" + p_indent + R"("children":[{)" + "\n" + FormatContentNodeJson( in, * cont.firstChild, detail, false ) + "\n" + in + "}\n" + p_indent + "]";
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        out += "\n" + p_indent + "},\n" + p_indent + "{\n" + FormatContentNodeJson( p_indent, * cont.nextSibling, detail, false );
+    }
+
+    return out;
+}
+
+string
+Formatter::FormatContentRootDefault( const string & indent, const KDBContents & cont ) const
+{
+    string out;
+
+    unsigned int tables = 0;
+    unsigned int withChecksums = 0;
+    unsigned int withoutChecksums = 0;
+    unsigned int indices = 0;
+    CountContents( cont, tables, withChecksums, withoutChecksums, indices );
+    if ( cont.dbtype == kptDatabase )
+    {
+        out += indent + to_string(tables) + (tables == 1 ? " table" : " tables") + "\n";
+    }
+    out += indent + to_string(withChecksums) + (withChecksums == 1 ? " column":" columns") + " with checksums\n";
+    out += indent + to_string(withoutChecksums) + (withoutChecksums == 1 ? " column":" columns") + " without checksums\n";
+    out += indent + to_string(indices) + (indices == 1 ? " index" : " indices") + "\n";
+
+    return out;
+}
+
+string
+Formatter::FormatContentNodeDefault( const string & p_indent, const KDBContents & cont, SraInfo::Detail detail, bool root ) const
+{
+    string out = p_indent + string(cont.name) + ":";
+    string indent = p_indent + IndentUnit;
+    string type;
+    switch ( cont.dbtype )
+    {
+    case kptTable:      type = "table"; break;
+    case kptDatabase:   type = "database"; break;
+    case kptColumn:     type = "column"; break;
+    case kptIndex:      type = "index"; break;
+    default: type = to_string( cont.dbtype ); break;
+    }
+
+    switch ( detail )
+    {
+    case SraInfo::Short:
+        {
+            out += "\n" + indent + type + "\n";
+            out += FormatContentRootDefault( indent, cont );
+        }
+        return out; // not visiting children/siblings
+
+    case SraInfo::Abbreviated:
+        {
+            out += type + "\n";
+            if ( root )
+            {
+                out += FormatContentRootDefault( indent, cont );
+            }
+        }
+        break;
+
+    case SraInfo::Full:
+    case SraInfo::Verbose:
+    default:
+        out += type;
+        type.clear();
+        switch ( cont.fstype )
+        {
+        case kptFile:   type = ", file"; break;
+        case kptDir:    type = ", directory"; break;
+        default: break;
+        }
+        out += type + "\n";
+
+        if ( root )
+        {
+            out += FormatContentRootDefault( indent, cont );
+        }
+
+        if ( cont.attributes & cca_HasMetadata )    out += indent + "has metadata\n";
+        if ( cont.attributes & cca_HasMD5_File )    out += indent + "has MD5 file\n";
+        if ( cont.attributes & cca_HasLock )        out += indent + "is locked\n";
+        if ( cont.attributes & cca_HasSealed )      out += indent + "is sealed\n";
+        if ( cont.attributes & cca_HasErrors )      out += indent + "has errors\n";
+        switch ( cont.dbtype )
+        {
+        case kptTable:
+            if ( cont.attributes & cta_HasColumns ) out += indent + "has columns\n";
+            if ( cont.attributes & cta_HasIndices ) out += indent + "has indices\n";
+            break;
+        case kptDatabase:
+            if ( cont.attributes & cda_HasTables )      out += indent + "has tables\n";
+            if ( cont.attributes & cda_HasDatabases )   out += indent + "has databases\n";
+            break;
+        case kptColumn:
+            if ( cont.attributes & cca_HasChecksum_CRC )    out += indent + "has CRC checksum\n";
+            if ( cont.attributes & cca_HasChecksum_MD5 )    out += indent + "has MD5 checksum\n";
+            if ( cont.attributes & cca_ReversedByteOrder )  out += indent + "has reverse byte order\n";
+            if ( cont.attributes & cca_IsStatic )           out += indent + "is static\n";
+            break;
+        case kptIndex:
+            if ( cont.attributes & cia_IsTextIndex )        out += indent + "is on text\n";
+            if ( cont.attributes & cia_IsIdIndex )          out += indent + "is on ID\n";
+            if ( cont.attributes & cia_IsIdIndex )          out += indent + "has reverse byte order\n";
+            break;
+        }
+
+        break;
+    }
+
+    if ( cont.firstChild != nullptr )
+    {
+        out += FormatContentNodeDefault( indent, * cont.firstChild, detail, false );
+    }
+    if ( cont.nextSibling != nullptr )
+    {
+        out += FormatContentNodeDefault( p_indent, * cont.nextSibling, detail, false );
+    }
+
+    return out;
+}
+
+string
+Formatter::format( const KDBContents & cont, SraInfo::Detail detail ) const
+{
+    string out;
+
+    switch ( m_fmt )
+    {
+    case Default:
+    {
+        out = FormatContentNodeDefault( string(), cont, detail, true );
+        break;
+    }
+    case Json:
+    {
+        out = FormatContentNodeJson( IndentUnit, cont, detail, true );
+        break;
+    }
+    case XML:
+    default:
+        throw VDB::Error( "unsupported formatting option for contents" );
+    }
+
+    return out;
+}
+
+static
+string
+formatTreeNodeDefault( size_t p_indent, const SraInfo::TreeNode & node )
+{
+    string ret = string ( p_indent, ' ' );
+    ret += node.key;
+    if ( node.type == SraInfo::TreeNode::Value )
+    {
+        ret += ": ";
+        ret += node.value;
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += "\n";
+                ret += formatTreeNodeDefault( p_indent + 1, n );
+            }
+        }
+    }
+
+    return ret;
+}
+
+static
+string
+escapeCsv( const string & input )
+{
+    string ret;
+    bool hasComma = input.find( ',', 0 ) != string::npos;
+    if ( hasComma )
+    {
+        ret += "\"";
+    }
+
+    for ( auto c : input )
+    {
+        switch ( c )
+        {
+        case '"':
+            ret += "\"\"";
+            break;
+        default:
+            ret += c;
+        }
+    }
+
+    if ( hasComma )
+    {
+        ret += "\"";
+    }
+    return ret;
+}
+
+static
+string
+formatTreeNodeCsv( size_t p_indent, const SraInfo::TreeNode & node )
+{
+    string ret = string ( p_indent, ',' );
+    ret += escapeCsv(node.key);
+    if ( node.type == SraInfo::TreeNode::Value )
+    {
+        ret += ","; // important: no space before the next value
+        ret += escapeCsv(node.value);
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += "\n";
+                ret += formatTreeNodeCsv( p_indent + 1, n );
+            }
+        }
+    }
+
+    return ret;
+}
+
+static
+string
+formatTreeNodeJson( const SraInfo::TreeNode & node, bool hasKey = true )
+{
+    string ret;
+    if ( hasKey ) // not an array element
+    {
+        ret += "\"";
+        ret += node.key;
+        ret += "\": ";
+    }
+    switch (node.type)
+    {
+    case SraInfo::TreeNode::Value:
+        {
+            bool needQuotes = node.value[0] != '{';
+            if ( needQuotes )
+            {
+                ret += "\"";
+            }
+            ret += node.value;
+            if ( needQuotes )
+            {
+                ret += "\"";
+            }
+        }
+        break;
+    case SraInfo::TreeNode::Array:
+        {
+            ret += "[ ";
+            bool first = true;
+            for ( auto n : node.subnodes )
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    ret += ", ";
+                }
+                ret += formatTreeNodeJson( n, false );
+            }
+            ret += " ]";
+        }
+        break;
+    case SraInfo::TreeNode::Element:
+        {
+            ret += "{ ";
+            bool first = true;
+            for ( auto n : node.subnodes )
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    ret += ", ";
+                }
+                ret += formatTreeNodeJson( n );
+            }
+            ret += " }";
+        }
+        break;
+    default:
+        abort();
+    }
+
+    return ret;
+}
+
+static
+string
+formatTreeNodeXml( const SraInfo::TreeNode & node )
+{
+    string ret;
+    ret += "<";
+    ret += node.key;
+    ret += ">";
+
+    if ( node.type == SraInfo::TreeNode::Value )
+    {
+        ret += node.value;
+    }
+    else
+    {
+        for ( auto n : node.subnodes )
+        {
+            if ( n.key != "update" && n.key != "file" )
+            {
+                ret += formatTreeNodeXml( n );
+            }
+        }
+    }
+
+    ret += "</";
+    ret += node.key;
+    ret += ">\n";
+
+    return ret;
+}
+
+
+string
+Formatter::format( const SraInfo::Fingerprints & fp, SraInfo::Detail /*detail*/) const
+{
+    string out;
+
+    switch ( m_fmt )
+    {
+    case Default:
+        if ( fp.empty() )
+        {
+            return "none provided";
+        }
+        for (auto p : fp)
+        {
+            out += formatTreeNodeDefault( 0, p );
+            out += "\n";
+        }
+        break;
+
+    case CSV:
+        if ( fp.empty() )
+        {
+            return "none provided";
+        }
+        for (auto p : fp)
+        {
+            out += formatTreeNodeCsv( 0, p );
+            out += "\n";
+        }
+        break;
+
+    case Json:
+        {
+            bool first = true;
+            for (auto p : fp)
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    out += ", ";
+                }
+                out += formatTreeNodeJson( p );
+            }
+        }
+        break;
+
+    case XML:
+        out += " <FINGERPRINTS>";
+        for (auto p : fp)
+        {
+            out += formatTreeNodeXml( p );
+        }
+        out += "\n </FINGERPRINTS>";
+        break;
+
+    default:
+        throw VDB::Error( "unsupported formatting option for fingerprint" );
+    }
     return out;
 }

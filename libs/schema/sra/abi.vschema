@@ -1,0 +1,243 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * NCBI ABI Sequence Read Archive schema
+ */
+version 1;
+
+include 'ncbi/sra.vschema';
+include 'ncbi/spotname.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:ABI
+ *  ABI SRA Platform
+ */
+
+/* tokenize_spot_name
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function NCBI:SRA:spot_name_token
+    NCBI:SRA:ABI:tokenize_spot_name #1 ( ascii name );
+
+
+/* NCBI:SRA:ABI:common
+ *  basic table interface based upon ABI's pipelines
+ *
+ * history:
+ *  1.0.1 - base explicitly upon changes to sra #1.0.1
+ *  1.0.2 - base explicitly upon sra #1.0.2
+ *  1.0.3 - base explicitly upon sra #1.0.3
+ *  1.0.4 - base explicitly upon sra #1.0.4
+ */
+table NCBI:SRA:ABI:common #1.0.4 = INSDC:SRA:tbl:sra #1.0.4
+{
+    // platform name is always 'ABSOLID'
+    ascii platform_name
+        = < ascii > echo < "ABSOLID" > ();
+
+    /* TRIMMED SEQUENCE
+     *  need to find the 0-based trim_start and trim_len
+     */
+    INSDC:coord:zero bio_start = NCBI:SRA:bio_start ( out_read_start, out_read_type );
+    INSDC:coord:zero trim_start = bio_start;
+    U32 trim_left = ( U32 ) trim_start;
+    INSDC:coord:len trim_len = ( INSDC:coord:len ) < U32 > diff ( spot_len, trim_left );
+
+    /* COORDINATES
+     *  in addition to X and Y,
+     *  ABI has PANEL
+     */
+    column INSDC:coord:val PANEL = out_panel_coord;
+
+    // signal
+    column NCBI:fsamp4 SIGNAL
+        = out_signal;
+
+    NCBI:fsamp4 out_signal = ( NCBI:fsamp4 )
+        < NCBI:SRA:swapped_fsamp4 > NCBI:SRA:swap ( out_signal_swapped, out_x2cs_bin );
+
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  cs_native
+	 *  in_cs_key
+	 *  out_cs_key
+	 *  out_signal_swapped
+	 *  out_2cs_bin
+	 *  out_2na_bin
+	 *  out_4na_bin
+	 *  out_dna_text
+	 *  out_x2cs_bin
+	 *  out_x2na_bin
+	 *  in_color_text
+	 *  out_2cs_packed
+	 *  out_2na_packed
+	 *  out_4na_packed
+	 *  out_color_text
+	 *  out_qual_phred
+	 *  out_color_matrix
+	 */
+
+	/* INSDC:SRA:tbl:spotname inherited productions
+	 *  out_x_coord
+	 *  out_y_coord
+	 *  out_name_fmt
+	 *  out_spot_name
+	 *  spot_ids_found
+	 */
+
+	/* INSDC:SRA:tbl:spotdesc inherited productions
+	 *  out_label
+	 *  out_nreads
+	 *  out_read_len
+	 *  out_label_len
+	 *  out_rd_filter
+	 *  out_read_type
+	 *  out_read_start
+	 *  out_label_start
+	 *  static_fixed_spot_len
+	 */
+
+	/* INSDC:SRA:tbl:stats inherited productions
+	 *  base_count
+	 *  spot_count
+	 *  max_spot_id
+	 *  min_spot_id
+	 *  in_stats_bin
+	 *  bio_base_count
+	 */
+
+	/* INSDC:SRA:tbl:sra inherited productions
+	 *  out_platform
+	 */
+
+	/* NCBI:SRA:ABI:common productions
+	 *  out_panel_coord
+	 */
+};
+
+
+/* NCBI:SRA:ABI:tbl:v2 #1
+ *  normalized v2 table
+ *
+ * history:
+ *  1.0.1 - changes to sra #1.0.1
+ *  1.0.2 - changes to common #1.0.2
+ *  1.0.3 - sra #2.1.2, color_space #2.0.2, common #1.0.3
+ *  1.0.4 - updated ancestry
+ *  1.0.5 - updated ancestry
+ */
+physical NCBI:SRA:swapped_fsamp4 NCBI:SRA:ABI:encoding:SIGNAL #2
+{
+    decode { return NCBI:SRA:fsamp4:decode #2 ( @ ); }
+    encode { return NCBI:SRA:fsamp4:encode #2 < 14, 10 > ( @ ); }
+}
+
+table NCBI:SRA:ABI:tbl:v2 #1.0.5
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:color_space #2.1.0
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:ABI:common #1.0.4
+{
+    /* NAME tokenizing and coordinates
+     *  most work happens in skeyname table
+     *  we still obtain PANEL from name
+     */
+    INSDC:coord:val out_panel_coord = ( INSDC:coord:val )
+        NCBI:SRA:extract_name_coord < NCBI:SRA:name_token:T > ( _out_name, out_spot_name_tok );
+    NCBI:SRA:spot_name_token out_spot_name_tok
+        = NCBI:SRA:ABI:tokenize_spot_name ( _out_name );
+
+    NCBI:SRA:spot_name_token in_spot_name_tok
+        = NCBI:SRA:ABI:tokenize_spot_name ( NAME );
+
+
+    /* SIGNAL
+     *  optional, no longer archived
+     */
+
+    // support for individual color inputs
+    extern column NCBI:fsamp1 FTC
+    {
+        read = out_ftc;
+        validate = < F32 > no_compare #1 ( in_ftc, out_ftc );
+    }
+    NCBI:fsamp1 in_ftc = FTC;
+    NCBI:fsamp1 out_ftc
+        = ( NCBI:fsamp1 ) < F32 > cut < 0 > ( out_signal );
+
+    extern column NCBI:fsamp1 FAM
+    {
+        read = out_fam;
+        validate = < F32 > no_compare #1 ( in_fam, out_fam );
+    }
+    NCBI:fsamp1 in_fam = FAM;
+    NCBI:fsamp1 out_fam
+        = ( NCBI:fsamp1 ) < F32 > cut < 0 > ( out_signal );
+
+    extern column NCBI:fsamp1 CY3
+    {
+        read = out_cy3;
+        validate = < F32 > no_compare #1 ( in_cy3, out_cy3 );
+    }
+    NCBI:fsamp1 in_cy3 = CY3;
+    NCBI:fsamp1 out_cy3
+        = ( NCBI:fsamp1 ) < F32 > cut < 1 > ( out_signal );
+
+    extern column NCBI:fsamp1 TXR
+    {
+        read = out_txr;
+        validate = < F32 > no_compare #1 ( in_txr, out_txr );
+    }
+    NCBI:fsamp1 in_txr = TXR;
+    NCBI:fsamp1 out_txr
+        = ( NCBI:fsamp1 ) < F32 > cut < 2 > ( out_signal );
+
+    extern column NCBI:fsamp1 CY5
+    {
+        read = out_cy5;
+        validate = < F32 > no_compare #1 ( in_cy5, out_cy5 );
+    }
+    NCBI:fsamp1 in_cy5 = CY5;
+    NCBI:fsamp1 out_cy5
+        = ( NCBI:fsamp1 ) < F32 > cut < 3 > ( out_signal );
+
+    // intermediate input (writing) production
+    NCBI:fsamp4 in_signal
+        = SIGNAL
+        | ( NCBI:fsamp4 ) < F32 > paste ( in_ftc, in_cy3, in_txr, in_cy5 )
+        | ( NCBI:fsamp4 ) < F32 > paste ( in_fam, in_cy3, in_txr, in_cy5 );
+
+    // overridden output production
+    NCBI:SRA:swapped_fsamp4 out_signal_swapped = .SIGNAL;
+
+    // rule for writing SIGNAL
+    physical column NCBI:SRA:ABI:encoding:SIGNAL #2 .SIGNAL
+        = ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_signal, in_x2cs_bin )
+        | ( NCBI:SRA:swapped_fsamp4 ) < NCBI:fsamp4 > NCBI:SRA:swap ( in_signal, in_2cs_bin );
+};

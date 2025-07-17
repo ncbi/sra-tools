@@ -992,9 +992,12 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force) {
         }
     }
 
-    if (rc == 0 && self->pos > 0)
-        STSMSG(STAT_ALWAYS, ("   Continue download of '%s%s' from %lu",
+    if (rc == 0 && self->pos > 0) {
+        STSMSG(STS_TOP, ("   Continue download of '%s%s' from %lu",
             self->_name, self->_vdbcache ? ".vdbcache" : "", self->pos));
+        self->info.info = ePIResumed;
+        self->info.pos = self->pos;
+    }
 
 #ifdef DEBUGGING
     OUTMSG(("%s: start from %lu\n", __FUNCTION__, self->pos));
@@ -1090,6 +1093,25 @@ rc_t PrfOutFileConvert(KDirectory * dir, const char * path,
             return 0;
         }
     }
+}
+
+const char * PrfOutFileMkLog(const PrfOutFile * self) {
+    rc_t rc = 0;
+    static char c[99] = "";
+    char * what = "";
+    assert(self);
+    switch (self->info.info) {
+    case ePIStreamed: what = "streamed"; break;
+    case ePIFiled   : what = "loaded"  ; break;
+    case ePIResumed : what = "resumed" ; break;
+    default         : assert(0);
+    }
+    rc = string_printf(c, sizeof c, NULL, "%lu bytes were %s from %lu",
+        self->pos, what, self->info.pos);
+    if (rc == 0)
+        return c;
+    LOGERR(klogInt, rc, "Cannot PrfInfoMkLog");
+    return "";
 }
 
 /******************************************************************************/

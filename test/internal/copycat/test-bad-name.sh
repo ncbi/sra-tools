@@ -5,6 +5,11 @@ tool_binary=$2
 
 echo "testing ${tool_binary} expected output for file name with %"
 
+if ! test -f ${bin_dir}/${tool_binary}; then
+    echo "${bin_dir}/${tool_binary} does not exist. Skipping the test."
+    exit 0
+fi
+
 TEMPDIR=$(cd ${TMPDIR:-/tmp}; pwd)
 BAD_NAME="bad%name.txt"
 echo "I'm a bad file" > ${TEMPDIR}/${BAD_NAME}

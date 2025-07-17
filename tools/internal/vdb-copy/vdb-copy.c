@@ -327,11 +327,11 @@ static rc_t vdb_copy_read_row_flags( const p_context ctx,
     if ( 0 != rc ) return rc;
 
     switch( filter ) {
-    case SRA_READ_FILTER_REJECT   : 
+    case SRA_READ_FILTER_REJECT   :
         if ( ctx -> ignore_reject == false ) { *pass = false; }
         break;
 
-    case SRA_READ_FILTER_REDACTED : 
+    case SRA_READ_FILTER_REDACTED :
         if ( ctx -> ignore_redact == false ) { *redact = true; }
         break;
     }
@@ -364,7 +364,7 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
 
     redact_buf_init( &rbuf );
     col_defs_find_redact_vals( columns, rvals );
-	
+
     count = 0;
     while ( 0 == rc && num_gen_iterator_next( iter, &row_id, &rc ) ) {
         if ( 0 != rc ) {
@@ -417,8 +417,8 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
     }
 
     /* set rc to zero for num_gen_iterator_next() reached last id */
-    if ( GetRCModule( rc ) == rcVDB && 
-         GetRCTarget( rc ) == rcNoTarg && 
+    if ( GetRCModule( rc ) == rcVDB &&
+         GetRCTarget( rc ) == rcNoTarg &&
          GetRCContext( rc ) == rcReading &&
          GetRCObject( rc ) == rcId &&
          GetRCState( rc ) == rcInvalid ) {
@@ -445,7 +445,7 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
 }
 
 static rc_t vdb_copy_make_dst_table( const p_context ctx,
-                                     VDBManager * vdb_mgr, 
+                                     VDBManager * vdb_mgr,
                                      const VSchema * src_schema,
                                      VSchema **dst_schema,
                                      KCreateMode cmode,
@@ -475,7 +475,7 @@ static rc_t vdb_copy_make_dst_table( const p_context ctx,
         *dst_schema = (VSchema *)src_schema;
         VSchemaAddRef( src_schema );
     }
-    
+
     if ( 0 == rc ) {
         rc = VDBManagerCreateTable( vdb_mgr, dst_table,
                                     *dst_schema, ctx -> dst_schema_tabname,
@@ -497,8 +497,8 @@ static rc_t vdb_copy_open_dest_table( const p_context ctx,
                                       col_defs * columns,
                                       bool is_legacy ) {
     /* copy the metadata */
-    rc_t rc = copy_table_meta( src_table, dst_table, 
-                          ctx -> config.meta_ignore_nodes, 
+    rc_t rc = copy_table_meta( src_table, dst_table,
+                          ctx -> config.meta_ignore_nodes,
                           ctx -> show_meta, is_legacy );
     if ( 0 != rc ) return rc;
 
@@ -582,7 +582,7 @@ static rc_t vdb_copy_prepare_legacy_tab( const p_context ctx,
     DISP_RC( rc, "vdb_copy_prepare_legacy_tab:helper_get_legacy_write_schema_from_config() failed" );
     {
         rc_t rc1 = KConfigRelease( config_mgr );
-        DISP_RC( rc1, "vdb_copy_prepare_legacy_tab:KConfigRelease() failed" );        
+        DISP_RC( rc1, "vdb_copy_prepare_legacy_tab:KConfigRelease() failed" );
     }
     if ( 0 != rc ) return rc;
 
@@ -596,7 +596,7 @@ static rc_t vdb_copy_prepare_legacy_tab( const p_context ctx,
 
 static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
                                                    const char * tablename,
-                                                   col_defs * columns, 
+                                                   col_defs * columns,
                                                    const char * requested,
                                                    const char * excluded ) {
     bool cols_requested = ( ( requested != NULL ) &&
@@ -651,11 +651,11 @@ static rc_t vdb_copy_detect_legacy( const p_context ctx,
         rc = helper_is_tablename_legacy( vdb_mgr, src_schema_tabname, is_legacy );
         if ( 0 == rc ) {
             if ( *is_legacy ) {
-                PLOGMSG( klogInfo, ( klogInfo, "used legacy schema: $(schema)", "schema=%s", 
+                PLOGMSG( klogInfo, ( klogInfo, "used legacy schema: $(schema)", "schema=%s",
                                      src_schema_tabname ));
                 rc = vdb_copy_prepare_legacy_tab( ctx, src_schema_tabname );
             } else {
-                PLOGMSG( klogInfo, ( klogInfo, "used schema: $(schema)", "schema=%s", 
+                PLOGMSG( klogInfo, ( klogInfo, "used schema: $(schema)", "schema=%s",
                                      src_schema_tabname ));
                 ctx -> dst_schema_tabname = string_dup_measure ( src_schema_tabname, NULL );
             }
@@ -670,7 +670,7 @@ static rc_t vdb_copy_detect_legacy( const p_context ctx,
    now we can find the columns which have to be copied
    including the right type-casts for every one of these columns */
 static rc_t vdb_copy_match_columns( const p_context ctx,
-                                    VDBManager * vdb_mgr, 
+                                    VDBManager * vdb_mgr,
                                     col_defs * columns,
                                     matcher * type_matcher ) {
     matcher_input mi;
@@ -748,7 +748,7 @@ static rc_t vdb_copy_open_source_table( const p_context ctx,
 
     /* in case of legacy table make new schema - parse matched schema
        in case on non-legacy use the src-schema as dst-schema */
-    rc = vdb_copy_make_dst_table( ctx, vdb_mgr, src_schema, dst_schema, cmode, 
+    rc = vdb_copy_make_dst_table( ctx, vdb_mgr, src_schema, dst_schema, cmode,
                                   dst_table, *is_legacy );
     if ( 0 != rc ) return rc;
 
@@ -775,14 +775,14 @@ static rc_t vdb_copy_table2( const p_context ctx,
     VTable * dst_table;
     bool is_legacy;
 
-    KCreateMode cmode = helper_assemble_CreateMode( src_table, 
+    KCreateMode cmode = helper_assemble_CreateMode( src_table,
                               ctx->force_kcmInit, ctx->md5_mode );
     rc_t rc = vdb_copy_open_source_table( ctx, vdb_mgr, src_schema, &dst_schema,
                                      src_table, src_cursor, cmode, &dst_table, columns,
                                      &is_legacy, type_matcher );
     if ( 0 == rc ) {
         VCursor * dst_cursor;
-        rc = vdb_copy_open_dest_table( ctx, src_table, dst_table, &dst_cursor, columns, 
+        rc = vdb_copy_open_dest_table( ctx, src_table, dst_table, &dst_cursor, columns,
                                        is_legacy );
         if ( 0 == rc ) {
             /* this function does not fail, because it is ok to not find
@@ -923,7 +923,7 @@ static rc_t vdb_copy_tab_2_tab( const p_context ctx,
         rc = col_defs_init( &columns );
         DISP_RC( rc, "vdb_copy_tab_2_tab:col_defs_init() failed" );
         if ( 0 == rc ) {
-            rc = vdb_copy_find_out_what_columns_to_use( src_tab, tab_name, columns, 
+            rc = vdb_copy_find_out_what_columns_to_use( src_tab, tab_name, columns,
                                                         NULL, ctx->excluded_columns );
             if ( 0 == rc ) {
                 matcher * type_matcher;
@@ -975,7 +975,7 @@ static rc_t vdb_copy_tab_2_tab( const p_context ctx,
         }
         {
             rc_t rc1 = VSchemaRelease( schema );
-            DISP_RC( rc1, "vdb_copy_tab_2_tab:VSchemaRelease() failed" );            
+            DISP_RC( rc1, "vdb_copy_tab_2_tab:VSchemaRelease() failed" );
         }
     }
     return rc;
@@ -990,10 +990,10 @@ static rc_t vdb_copy_db_tab( const p_context ctx,
     DISP_RC( rc, "vdb_copy_db_tab:VDatabaseOpenTableRead(src) failed" );
     if ( 0 == rc ) {
         VTable * dst_tab;
-        KCreateMode cmode = helper_assemble_CreateMode( src_tab, 
+        KCreateMode cmode = helper_assemble_CreateMode( src_tab,
                             ctx->force_kcmInit, ctx->md5_mode );
 
-        rc = VDatabaseCreateTable ( dst_db, &dst_tab, tab_name, 
+        rc = VDatabaseCreateTable ( dst_db, &dst_tab, tab_name,
                                     cmode, "%s", tab_name );
         DISP_RC( rc, "vdb_copy_db_tab:VDatabaseCreateTable(dst) failed" );
         if ( 0 == rc ) {
@@ -1001,8 +1001,8 @@ static rc_t vdb_copy_db_tab( const p_context ctx,
             rc = VTableColumnCreateParams ( dst_tab, cmode, cs_mode, 0 );
             DISP_RC( rc, "vdb_copy_db_tab:VTableColumnCreateParams failed" );
             if ( 0 == rc ) {
-                rc = copy_table_meta( src_tab, dst_tab, 
-                                      ctx->config.meta_ignore_nodes, 
+                rc = copy_table_meta( src_tab, dst_tab,
+                                      ctx->config.meta_ignore_nodes,
                                       ctx->show_meta, false );
                 DISP_RC( rc, "vdb_copy_db_tab:copy_table_meta failed" );
                 if ( 0 == rc ) {
@@ -1047,7 +1047,7 @@ static rc_t vdb_copy_db_sub_tables( const p_context ctx,
         {
             rc_t rc1 = KNamelistRelease( names );
             DISP_RC( rc1, "vdb_copy_db_sub_tables:KNamelistRelease() failed" );
-            
+
         }
     } else {
         /* VDatabaseListTbl() did not return any tables, this is OK */
@@ -1256,7 +1256,7 @@ static rc_t perform_vdb_copy_tab_or_db( const p_context ctx, VDBManager * vdb_mg
 
 /***************************************************************************
     vdb_copy_main:
-    * called by "KMain()"
+    * called by "main()"
     * make the "native directory"
     * make a vdb-manager for write
       all subsequent copy-functions will use this manager...
@@ -1330,19 +1330,26 @@ static rc_t perform_vdb_copy( const p_context ctx ) {
     * call copy_main() to execute the copy-operation
     * destroy the copy-context
 ***************************************************************************/
-rc_t CC KMain ( int argc, char *argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
                              MyOptions, sizeof MyOptions / sizeof ( OptDef ) );
-    DISP_RC( rc, "KMain:ArgsMakeAndHandle() failed" );
+    DISP_RC( rc, "Main:ArgsMakeAndHandle() failed" );
     if ( 0 == rc ) {
         context *ctx;
         KLogHandlerSetStdErr();
         rc = context_init( &ctx );
-        DISP_RC( rc, "KMain:copy_context_init() failed" );
+        DISP_RC( rc, "Main:copy_context_init() failed" );
         if ( 0 == rc ) {
             rc = context_capture_arguments_and_options( args, ctx );
-            DISP_RC( rc, "KMain:context_capture_arguments_and_options() failed" );
+            DISP_RC( rc, "Main:context_capture_arguments_and_options() failed" );
             if ( 0 == rc ) {
                 if ( ctx -> usage_requested ) {
                     MiniUsage( args );
@@ -1357,5 +1364,5 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         }
         ArgsWhack ( args );
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

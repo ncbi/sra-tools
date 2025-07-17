@@ -39,6 +39,8 @@
 
 using namespace std;
 
+const char UsageDefaultName[] = "sra-search";
+
 struct FragmentId_Less
 {
     bool operator() ( const string& p_a, const string& p_b ) const
@@ -187,7 +189,7 @@ static void handle_help ( const char * appName )
 }
 
 int
-run( int argc, const char *argv [] )
+run( int argc, char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -383,23 +385,8 @@ run( int argc, const char *argv [] )
     return rc;
 }
 
-
-extern "C"
+MAIN_DECL(argc, argv)
 {
-    const char UsageDefaultName[] = "sra-search";
-
-    rc_t CC UsageSummary (const char * progname)
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC Usage ( struct Args const * args )
-    {   // this is not used at this point, see handle_help()
-        return 0;
-    }
-
-    rc_t CC KMain ( int argc, char *argv [] )
-    {
-        return run ( argc, (const char**)argv );
-    }
+    VDB::Application app(argc, argv);
+    return run ( argc, app.getArgV());
 }

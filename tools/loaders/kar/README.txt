@@ -1,4 +1,4 @@
-That is README on delite process which will help with use 'sra_delite.sh' 
+That is README on delite process which will help with use 'sra_delite.sh'
 
 The delite process is three stage process :
 
@@ -74,12 +74,12 @@ User can change that behaviour by setting value in configuration file:
 in that case, script will ask utilities to put temporary data at the same
 directory where delite process is performed.
 
-Script will require two mandatory parameters path to source KAR archive, 
+Script will require two mandatory parameters path to source KAR archive,
 which could be accession, and path to directory, which will be used as working
 directory. Script will/may create different directories in working dir.
 
 
-II.  Script command line 
+II.  Script command line
 =============================================================================
 The script command line:
 
@@ -169,7 +169,7 @@ It should contain exactly four words, and it's format is:
 <translate> <schema_name> <old_version> <new_version>
 
 Line started with word 'exclude' will be treated as definition of column to
-drop during delite process. It should contain exactly two words, and it's 
+drop during delite process. It should contain exactly two words, and it's
 format is:
 
 <exclue> <column_name>
@@ -199,7 +199,7 @@ and it is located in bash function 'print_config_to_stdout()'
 
 User can provide configuration file in two ways: with argument '--config CONFIG',
 or put default config file 'sra_delite.kfg' in the directory with script.
-At the first, script will try to load user defined config, next it will try 
+At the first, script will try to load user defined config, next it will try
 to load default config, and if there is none of such it will use hardcoded
 parameters.
 
@@ -243,7 +243,7 @@ sra_delite.sh delite [ --config CONFIG ] --schema SCHEMA --target TARGET
 
 --schema parameter of that script shows path to directory where VDB schemas
 are stored. It is mandatory parameter. If You does not know where schemas
-are located, try to use vdb-config utility, or ask senpai. 
+are located, try to use vdb-config utility, or ask senpai.
 
 --target parameter is the same as target parameter for action 'import'.
 
@@ -304,7 +304,7 @@ V|II.  Physical requirements
 =============================================================================
 The delite process is quite lightweight. All utilities used does not require
 more than 1GB(usually less than 200MB) of virtual memory, and uses not
-more than 50MB(usually less than 20MB) of resident memory. However, testing 
+more than 50MB(usually less than 20MB) of resident memory. However, testing
 process could be both long and consume a lot of memory, our tests shows up to
 10G resident memory for some runs.
 
@@ -318,7 +318,7 @@ necessary disk space by this formula :
 IX.  Error codes
 =============================================================================
 If script failed and it will return some error code. There are three types of
-errors, which script could return: 
+errors, which script could return:
 
 100-122 - invalid setup or configuration
   80-89 - invalid data to process or processed
@@ -372,7 +372,7 @@ or
     RUNXXX/tbl/SEQUENCE/col/QUALITY     /* run is a database */
 
 After delite process downloaded kar archive with run and unpacked it, the first
-thing scritp does, is checking of existance of QUALITY directory. If script
+thing script does, is checking of existance of QUALITY directory. If script
 is unable to locate that directory, it will exit with return code 83.
 
 Next condition which run should comply with is: there should be substutute
@@ -387,7 +387,7 @@ doing before starting delite process. If run PLATFORM type is SRA_PLATFORM_ABSOL
 then run is colorspace, and script will exit with return code 80.
 User can configure list of platforms to reject in configuration file.
 
-Next two check are necessary to recognize non ABSOLID colorspace runs : script 
+Next two check are necessary to recognize non ABSOLID colorspace runs : script
 will check if run contains column CS_NATIVE, or it has physical column CSREAD.
 If run do have, script will fall with return code 80.
 
@@ -399,10 +399,10 @@ code 80.
 TRACE type archives can not be delited and script will exit with code 80.
 
 Delite process itself consists of several steps, during which different utility
-could be involved to modify metadata, schema, and/or build read filter. After 
+could be involved to modify metadata, schema, and/or build read filter. After
 each step, script will try to read QUALITY from freshly editet run, and if
 qualities are unreadable, script will exit with code 85
-there will be 
+there will be
 
 After that, script will run standard checks as for: vdb-validate and vdb-diff to
 be sure that delite process finished correctly
@@ -501,7 +501,7 @@ To install git, user should do that command:
 
     sudo yum install git
 
-Now everything is ready for delite process. 
+Now everything is ready for delite process.
 
 First step user should download docker file, or copy it. The simplest way to download
 docker file is clone sra-toolkit package from GITHUB:

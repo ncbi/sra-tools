@@ -43,6 +43,8 @@ typedef struct {
     bool _isUri;
     const struct KFile ** _f;
     uint64_t _size;
+    uint32_t _code;
+    int32_t _403;
 
     bool _failed;
     KTime_t _tFailed;
@@ -54,7 +56,7 @@ typedef struct {
 
 void PrfRetrierInit(PrfRetrier * self, const struct PrfMain * mane,
     const struct VPath * path, const struct String * src, bool isUri,
-    const struct KFile ** f, size_t size, uint64_t pos);
+    const struct KFile ** f, size_t size, uint64_t pos, uint32_t code);
 
 void PrfRetrierReset(PrfRetrier * self, uint64_t pos);
 

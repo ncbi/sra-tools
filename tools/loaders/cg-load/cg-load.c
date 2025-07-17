@@ -828,7 +828,7 @@ static rc_t Load( SParam* param )
 {
     rc_t rc = 0, rc1 = 0;
     BSTree slides, evidence;
-    
+
 
     param->map_dir = NULL;
     param->asm_dir = NULL;
@@ -1066,8 +1066,10 @@ rc_t CC Usage( const Args* args )
     return rc;
 }
 
-rc_t CC KMain( int argc, char* argv[] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     Args* args = NULL;
     const char* errmsg = NULL, *refseq_chunk = NULL, *min_mapq = NULL, *cluster_size = NULL;
@@ -1076,14 +1078,17 @@ rc_t CC KMain( int argc, char* argv[] )
     memset(&params, 0, sizeof(params));
     params.schema = "align/align.vschema";
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     params.argv0 = argv[0];
-    
+
     if( (rc = ArgsMakeAndHandle(&args, argc, argv, 2, MainArgs, MainArgsQty, XMLLogger_Args, XMLLogger_ArgsQty)) == 0 ) {
         uint32_t count;
         if( (rc = ArgsParamCount (args, &count)) != 0 || count != 0 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             ArgsParamValue(args, 0, (const void **)&errmsg);
-        
+
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Output].name, &count)) != 0 || count != 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
             errmsg = MainArgs[eopt_Output].name;
@@ -1267,5 +1272,5 @@ rc_t CC KMain( int argc, char* argv[] )
     }
     ArgsWhack(args);
     XMLLogger_Release(xml_logger);
-    return rc;
+    return VDB_TERMINATE( rc );
 }

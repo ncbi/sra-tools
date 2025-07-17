@@ -26,7 +26,7 @@ add_compile_definitions( __mod__="test/external/vdb-config" )
 
 if ( NOT WIN32 )
 
-	GenerateExecutableWithDefs( test-vdb-config-model "test-vdb-config-model" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( test-vdb-config-model "test-vdb-config-model" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 	add_test( NAME Test_VDB_Config_model
 		COMMAND model.sh ${TESTBINDIR}/test-vdb-config-model

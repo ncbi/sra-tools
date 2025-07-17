@@ -46,6 +46,7 @@ typedef struct temp_registry_t {
     KLock * lock;
     size_t buf_size;
     Vector lists;
+    bool keep_tmp_files;
 } temp_registry_t;
 
 static void CC destroy_list( void * item, void * data ) {
@@ -62,7 +63,8 @@ void destroy_temp_registry( temp_registry_t * self ) {
     }
 }
 
-rc_t make_temp_registry( temp_registry_t ** registry, struct CleanupTask_t * cleanup_task ) {
+rc_t make_temp_registry( temp_registry_t ** registry, struct CleanupTask_t * cleanup_task,
+                         bool keep_tmp_files) {
     KLock * lock;
     rc_t rc = KLockMake ( &lock );
     if ( 0 == rc ) {
@@ -75,6 +77,7 @@ rc_t make_temp_registry( temp_registry_t ** registry, struct CleanupTask_t * cle
             VectorInit ( &p -> lists, 0, 4 );
             p -> lock = lock;
             p -> cleanup_task = cleanup_task;
+            p -> keep_tmp_files = keep_tmp_files;
             *registry = p;
         }
     }
@@ -132,34 +135,6 @@ static uint64_t total_size( KDirectory * dir, Vector * v ) {
     return olc . res;
 }
 
-/* -------------------------------------------------------------------- */
-
-/* the purpose of this function is to skip over NULL-entries in the vector */
-/*
-typedef struct on_count_ctx_t {
-    uint32_t running_index;
-    uint32_t count_valid;
-    uint32_t first_valid;
-} on_count_ctx_t;
-
-static void CC on_count( void *item, void *data ) {
-    on_count_ctx_t * occ = data;
-    if ( NULL != item ) {
-        if ( 0 == occ -> first_valid ) {
-            occ -> first_valid = occ -> running_index;
-        }
-        occ -> count_valid++;
-    }
-    occ -> running_index ++;
-}
-
-static uint32_t count_valid_entries( Vector * v, uint32_t * first_valid ) {
-    on_count_ctx_t occ = { 0, 0, 0 };
-    VectorForEach( v, false, on_count, &occ );
-    *first_valid = occ . first_valid;
-    return occ . count_valid;
-}
-*/
 
 /* -------------------------------------------------------------------- */
 
@@ -328,6 +303,7 @@ typedef struct print_to_stdout_ctx_t
 {
     KDirectory * dir;
     size_t buf_size;
+    bool keep_tmp_files;
 } print_to_stdout_ctx_t;
 
 static void CC on_print_to_stdout( void * item, void * data ) {
@@ -357,7 +333,7 @@ static void CC on_print_to_stdout( void * item, void * data ) {
                         ft_release_file( src, "on_print_to_stdout()" );
                     }
 
-                    {
+                    if ( ! c -> keep_tmp_files ) {
                         rc_t rc1 = KDirectoryRemove( c -> dir, true, "%s", filename );
                         if ( 0 != rc1 ) {
                             ErrMsg( "on_print_to_stdout.KDirectoryRemove( '%s' ) -> %R", filename, rc1 );
@@ -371,7 +347,8 @@ static void CC on_print_to_stdout( void * item, void * data ) {
 
 rc_t temp_registry_to_stdout( temp_registry_t * self,
                               KDirectory * dir,
-                              size_t buf_size ) {
+                              size_t buf_size,
+                              bool keep_tmp_files ) {
     rc_t rc = 0;
     if ( NULL == self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
@@ -379,8 +356,10 @@ rc_t temp_registry_to_stdout( temp_registry_t * self,
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     } else {
         print_to_stdout_ctx_t c;
+
         c . dir = dir;
         c . buf_size = buf_size;
+        c . keep_tmp_files = keep_tmp_files;
 
         VectorForEach ( &( self -> lists ), false, on_print_to_stdout, &c );
     }

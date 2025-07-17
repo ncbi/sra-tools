@@ -585,10 +585,15 @@ OptDef MyOptions[] =
     { OPTION_OUTPUT, ALIAS_OUTPUT, NULL, output_usage, 1, true, true }
 };
 
-
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 2,
                                   MyOptions, sizeof MyOptions / sizeof ( OptDef ),
@@ -647,5 +652,5 @@ rc_t CC KMain ( int argc, char *argv [] )
         }
         ArgsWhack ( args );
     }
-    return rc;
+    return VdbTerminate( rc );
 }

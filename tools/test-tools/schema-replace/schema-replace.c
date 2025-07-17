@@ -299,9 +299,10 @@ static rc_t predump_schema( VSchema *schema, const char * type,
     return rc;
 }
 
-
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
 
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
@@ -338,11 +339,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                             rc = VSchemaParseFile( ctx.schema, "%s", schema_name );
                             if ( rc == 0 )
                             {
-                                rc = predump_schema( ctx.schema, ctx.db_type, 
+                                rc = predump_schema( ctx.schema, ctx.db_type,
                                         &ctx.db_schema_buff, &ctx.db_schema_len );
                                 if ( rc == 0 )
                                 {
-                                    rc = predump_schema( ctx.schema, ctx.tab_type, 
+                                    rc = predump_schema( ctx.schema, ctx.tab_type,
                                         &ctx.tab_schema_buff, &ctx.tab_schema_len );
                                     if ( rc == 0 )
                                     {
@@ -374,6 +375,6 @@ rc_t CC KMain ( int argc, char *argv [] )
             OUTMSG(( "error obtaining arguments\n" ));
         ArgsWhack( args );
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 

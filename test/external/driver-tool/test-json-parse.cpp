@@ -456,10 +456,7 @@ static void Unichar_runTests() {
 struct JSONStringTests {
     static JSONString make(char const *cstr, bool isMemberName = false)
     {
-        auto end = cstr;
-        while (*end)
-            ++end;
-        return JSONString(StringView(cstr, end), isMemberName);
+        return JSONString(cstr, isMemberName);
     }
     void testAString() {
         try {
@@ -803,10 +800,7 @@ struct JSONMemberNameConstraintsTests {
 #if PEDANTIC_MEMBER_NAMES
     static JSONString make(char const *cstr)
     {
-        auto end = cstr;
-        while (*end)
-            ++end;
-        return JSONString(StringView(cstr, end), true);
+        return JSONString(cstr, true);
     }
     void testBadMemberNameNumeric() {
         try {
@@ -946,11 +940,7 @@ static void JSONNull_runTests() {
     LOG(8) << "All JSON null tests passed." << std::endl;
 }
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
-#else
 int main ( int argc, char *argv[], char *envp[])
-#endif
 {
     try {
         JSONBool_runTests();

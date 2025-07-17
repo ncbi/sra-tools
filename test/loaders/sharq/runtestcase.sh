@@ -30,13 +30,13 @@
 # $4 - test case ID
 # $5 - expected result code from sharq
 # $6 - telemetry testing (0 - off)
-# $5, $6, ... - command line options for fastq-load.3
+# $7, $8, ... - command line options for sharq
 #
 # return codes:
 # 0 - passed
 # 1 - coud not create temp dir
 # 2 - unexpected return code from sharq
-# 3 - outputs differ
+# 3 - outputs differ (stdout/stderr)
 
 BINDIR=$1
 SHARQ_BINARY=$2
@@ -59,6 +59,11 @@ fi
 
 echo "running $CASEID"
 
+if ! test -f ${LOAD}; then
+    echo "${LOAD} does not exist. Skipping the test."
+    exit 0
+fi
+
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
@@ -71,7 +76,8 @@ CMDLINE="${CMDLINE} -t ${TEMPDIR}/telemetry"
 fi
 
 CMD="$LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-echo $CMD
+
+echo CMD=$CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
@@ -113,7 +119,7 @@ if [ "$rc" != "0" ] ; then
         echo "command executed:"
         echo $CMD
         exit 3
-    fi    
+    fi
 fi
 
 if [ "$TELEMETRY_RPT" != "0" ] ; then
@@ -126,6 +132,5 @@ if [ "$TELEMETRY_RPT" != "0" ] ; then
         exit 3
     fi
 fi
-
 
 exit 0

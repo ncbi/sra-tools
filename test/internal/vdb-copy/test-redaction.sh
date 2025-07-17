@@ -1,9 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
-# test-redaction.sh <DIRTOTEST> <VDB_BINDIR> <VDB_INCDIR>
+# test-redaction.sh <DIRTOTEST> <VDB_BINDIR> <VDB_INCDIR> <VDB_PATH>
 # DIRTOTEST is the path where vdb-copy and vdb-dump are.
 # VDB_BINDIR is the path where the ncbi-wvdb library is.
-# VDB_INCDIR 
+# VDB_INCDIR is the ':'-separated search path for the schema files
+# VDB_PATH is the root of the ncbi-vdb source tree
 
 SCRIPT_PATH=$(dirname "${0}")
 SCRIPT_PATH=$(cd "${SCRIPT_PATH}"; pwd)
@@ -20,8 +21,8 @@ TOOL_PATH=$(cd "${TOOL_PATH}"; pwd)
 VDB_LIBRARY_PATH="${2}"
 
 VDB_INCLUDE_PATH="${3}"
-VDB_PATH=$(dirname ${VDB_INCLUDE_PATH})
-VDB_PATH=$(cd "${VDB_PATH}"; pwd)
+
+VDB_PATH="${4}"
 
 VDB_COPY="${TOOL_PATH}/vdb-copy"
 if [ ! -x "${VDB_COPY}" ]; then
@@ -37,16 +38,20 @@ if [ ! -x "${VDB_DUMP}" ]; then
 fi
 #echo "using ${VDB_DUMP}"
 
+which python3 && echo "python3 found" || echo "python3 not found: skipping the test"
+which python3 || exit 0
+
 SCRATCH=$(mktemp -d) || exit 1
 (
     cd "${SCRIPT_PATH}/redact-test"
     env VDB_LIBRARY_PATH="${VDB_LIBRARY_PATH}" \
         VDB_PATH="${VDB_PATH}" \
+        VDB_INCLUDE_PATH="${VDB_INCLUDE_PATH}" \
         python3 'generate-test-data.py' "${SCRATCH}/test-data" || \
         exit $?
 
     cd ${SCRATCH} || exit 1
-    
+
     # Verify that redaction is needed. NB. this should exit 3 if awk does not exit 3.
     "${VDB_DUMP}" -f tab 'test-data' -C"READ_FILTER,(INSDC:dna:text)READ" | \
         awk 'BEGIN{ FS="\t" } $1~/REDACTED/ && $2~/[^N]/ {exit 3}' && exit 3;

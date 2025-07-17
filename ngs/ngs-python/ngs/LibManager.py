@@ -214,6 +214,8 @@ class LibManager:
             return ".dylib"
         elif platform.system() == "Linux":
             return ".so"
+        elif platform.system() == "FreeBSD":
+            return ".so"
         else:
             return ""
 

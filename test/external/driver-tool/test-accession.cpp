@@ -38,8 +38,6 @@
 #include <string>
 #include "accession.cpp"
 
-#define IGNORE(X) do { (void)(X); } while (0)
-
 struct test_failure: public std::exception
 {
     char const *test_name;
@@ -87,11 +85,7 @@ static void testAccessionType() {
     ASSERT(accessionType("SRRR00000") == unknown); // not digits
 }
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
-#else
 int main ( int argc, char *argv[], char *envp[])
-#endif
 {
     try {
         testAccessionType();

@@ -26,7 +26,7 @@
 
 use strict;
 
-my $verbose; # = 1;
+my ($verbose) = @ARGV;
 my $ALL = 1;
 my $RUN = 1;
 

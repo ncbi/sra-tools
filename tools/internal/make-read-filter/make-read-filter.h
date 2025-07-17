@@ -112,7 +112,7 @@ static CellData cellData(char const *const colName, int const col, int64_t const
     CellData result = { 0, 0, 0 };
     rc_t rc = VCursorCellDataDirect(curs, row, col, &result.elem_bits, &result.data, &bit_offset, &result.count);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to read $(col) at row ($row)", "col=%s,row=%ld", colName, row);
+        pLogErr(klogFatal, rc, "Failed to read $(col) at row $(row)", "col=%s,row=%ld", colName, row);
         exit(EX_DATAERR);
     }
     assert(bit_offset == 0);

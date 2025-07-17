@@ -1,7 +1,7 @@
 #ifndef BMCONST__H__INCLUDED__
 #define BMCONST__H__INCLUDED__
 /*
-Copyright(c) 2002-2017 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
+Copyright(c) 2002-2025 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -78,6 +78,7 @@ const unsigned set_word_mask  = 0x1Fu;
 typedef unsigned short gap_word_t;
 
 const unsigned gap_max_buff_len = 1280;
+const unsigned gap_max_safe_len = 8189; 
 const unsigned gap_max_bits = 65536;
 const unsigned gap_equiv_len = (unsigned)
    ((sizeof(bm::word_t) * bm::set_block_size) / sizeof(bm::gap_word_t));
@@ -189,10 +190,10 @@ enum set_operation
 */
 enum operation
 {
-    BM_AND = set_AND,
-    BM_OR  = set_OR,
-    BM_SUB = set_SUB,
-    BM_XOR = set_XOR
+    BM_AND = bm::set_AND,
+    BM_OR  = bm::set_OR,
+    BM_SUB = bm::set_SUB,
+    BM_XOR = bm::set_XOR
 };
 
 
@@ -213,7 +214,7 @@ enum sort_order
     @brief set representation variants
     @internal
 */
-enum set_representation
+enum class set_representation
 {
     set_bitset  = 0,  //!< Simple bitset
     set_gap     = 1,  //!< GAP-RLE compression
@@ -242,12 +243,12 @@ template<bool T> struct _copyright
     static const unsigned _v[3]; ///< MAJOR.MINOR.PATCH version components
 };
 
-#define BM_VERSION_MAJOR 7
-#define BM_VERSION_MINOR 13
-#define BM_VERSION_PATCH 4
+#define BM_VERSION_MAJOR 8
+#define BM_VERSION_MINOR 0
+#define BM_VERSION_PATCH 1
 
 template<bool T> const char _copyright<T>::_p[] = 
-    "BitMagic Library. v.7.13.4 (c) 2002-2022 Anatoliy Kuznetsov.";
+    "BitMagic Library. v.8.0.1 (c) 2002-2025 Anatoliy Kuznetsov.";
 template<bool T> const unsigned _copyright<T>::_v[3] =
                     { BM_VERSION_MAJOR, BM_VERSION_MINOR, BM_VERSION_PATCH };
 

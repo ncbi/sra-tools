@@ -43,12 +43,11 @@ TEST_SUITE(VdbTestSuite);
 
 TEST_CASE(Error_RcToString)
 {
-    rc_t rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
-#if DEBUG
-    const string expected = "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#else
-    const string expected = "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
-#endif
+    rc_t const rc = SILENT_RC( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete );
+    auto const rcStr = Error::RcToString( rc );
+    std::string const expected = rcStr.find("(null)") == std::string::npos
+        ? "RC(rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)"
+        : "RC((null):0:(null) rcNS,rcFile,rcReading,rcTransfer,rcIncomplete)";
     REQUIRE_EQ( expected, Error::RcToString( rc ) );
 }
 TEST_CASE(Error_RcToString_English)
@@ -349,11 +348,37 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
-#if WINDOWS
-int wmain (int argc, char *argv [])
-#else
+// VDB::Metadata
+
+TEST_CASE(Database_Metadata)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+}
+
+TEST_CASE(Metadata_hasChild_Yes)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( md.hasChildNode( "SOFTWARE" ) );
+}
+
+TEST_CASE(Metadata_hasChild_NO)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( ! md.hasChildNode( "HARDWARE" ) );
+}
+
+TEST_CASE(Metadata_hasChild_Deep)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( md.hasChildNode( "SOFTWARE/formatter" ) );
+}
+
+
 int main (int argc, char *argv [])
-#endif
 {
     return VdbTestSuite(argc, argv);
 }

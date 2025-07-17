@@ -22,50 +22,70 @@
 #
 # ===========================================================================
 
-($DIRTOTEST, $PREFETCH) = @ARGV;
+($DIRTOTEST, $PREFETCH, $verbose) = @ARGV;
 
-#$VERBOSE = 1;
+my $VERBOSE = $verbose + 0;
+#$VERBOSE = 1; # print what's executed'
+#$VERBOSE = 2; # print commands
+#$VERBOSE = 3; # print command output
 
 print "vdbcache download\n";
 
 $CWD = `pwd`; die if $?; chomp $CWD;
 
+`rm -frv tmp`; die if $?;
+`mkdir tmp`; die if $?;
+chdir 'tmp'  or die;
+
 $ACC = 'SRR6667190';
 
 `rm -fr $ACC*`; die if $?;
 
-`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > $ACC.kfg`;
-die if $?;
-
 print "download sra and vdbcache\n" if $VERBOSE;
-$CMD = "NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R VDB_CONFIG=$CWD $DIRTOTEST/$PREFETCH $ACC";
-print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`        ; die 'Is there DIRTOTEST?' if $?;
+$CMD = "NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R $DIRTOTEST/$PREFETCH $ACC";
+print "$CMD\n" if $VERBOSE > 1;
+$O = `$CMD`                ; die 'Is there DIRTOTEST?' if $?;
+print $O       if $VERBOSE > 2;
 `ls $ACC/$ACC.sra`         ; die if $?;
 `ls $ACC/$ACC.sra.vdbcache`; die if $?;
 
 print "second run of prefetch finds local\n" if $VERBOSE;
-$CMDL = "$CMD 2>&1 | grep \"found local\"";
-print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`; die if $?;
+$CMDL = "$CMD | grep \"found local\"";
+print "$CMDL\n" if $VERBOSE;
+$O = `$CMDL`; die if $?;
+print $O       if $VERBOSE > 2;
 
 print "download missed sra\n" if $VERBOSE;
-`rm $ACC/$ACC.sra`; die if $?;
+$RCMD = "rm $ACC/$ACC.sra";
+print "$RCMD\n" if $VERBOSE > 1;
+`$RCMD`; die if $?;
+
 print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`; die if $?;
+$O = `$CMD`; die if $?;
+print $O       if $VERBOSE > 2;
 `ls $ACC/$ACC.sra` ; die if $?;
 
 print "download missed vdbcache\n" if $VERBOSE;
-`rm $ACC/$ACC.sra.vdbcache`; die if $?;
+$RCMD = "rm $ACC/$ACC.sra.vdbcache";
+print "$RCMD\n" if $VERBOSE > 1;
+`$RCMD`; die if $?;
 print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`         ; die if $?;
-`ls $ACC/$ACC.sra.vdbcache` ; die if $?;
+$O = `$CMD`; die if $?;
+print $O       if $VERBOSE > 2;
+`ls $ACC/$ACC.sra.vdbcache`; die if $?;
 
 print "prefetch works when AD is empty\n" if $VERBOSE;
-`rm $ACC/*`; die if $?;
+$RCMD = "rm $ACC/*";
+print "$RCMD\n" if $VERBOSE > 1;
+`$RCMD`; die if $?;
 print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`         ; die if $?;
+$O = `$CMD`; die if $?;
+print $O       if $VERBOSE > 2;
 `ls $ACC/$ACC.sra` ; die if $?;
 `ls $ACC/$ACC.sra.vdbcache` ; die if $?;
 
 `rm -r $ACC*`; die if $?;
+
+chdir $CWD or die;
+
+`rmdir tmp`; die if $?;

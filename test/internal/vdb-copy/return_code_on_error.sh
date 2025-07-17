@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 VDB_COPY="vdb-copy"
 if [ ! -x $VDB_COPY ]; then

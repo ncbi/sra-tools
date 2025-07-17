@@ -1,0 +1,174 @@
+{
+	"total": {
+		"reads": {
+			"count": 1,
+			"biological": 1,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "W",
+				"biological": 37
+			},
+			{
+				"base": "S",
+				"biological": 39
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 1,
+				"biological": 1,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 1
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "76BF",
+				"count": 1
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 0.428571
+				},
+				{
+					"length": 1,
+					"power": 0.285714
+				},
+				{
+					"length": 2,
+					"power": 0.0857143
+				},
+				{
+					"length": 3,
+					"power": 0.0571429
+				},
+				{
+					"length": 4,
+					"power": 0.0285714
+				},
+				{
+					"length": 7,
+					"power": 0.0285714
+				},
+				{
+					"length": 10,
+					"power": 0.0285714
+				},
+				{
+					"length": 16,
+					"power": 0.0285714
+				},
+				{
+					"length": 31,
+					"power": 0.0285714
+				}
+			],
+			"S": [
+				{
+					"length": 0,
+					"power": 0.486486
+				},
+				{
+					"length": 1,
+					"power": 0.0810811
+				},
+				{
+					"length": 2,
+					"power": 0.216216
+				},
+				{
+					"length": 3,
+					"power": 0.027027
+				},
+				{
+					"length": 6,
+					"power": 0.027027
+				},
+				{
+					"length": 7,
+					"power": 0.0540541
+				},
+				{
+					"length": 10,
+					"power": 0.027027
+				},
+				{
+					"length": 15,
+					"power": 0.027027
+				},
+				{
+					"length": 16,
+					"power": 0.027027
+				},
+				{
+					"length": 28,
+					"power": 0.027027
+				}
+			],
+			"S-W": [
+				{
+					"length": 0,
+					"power": 0.44
+				},
+				{
+					"length": 1,
+					"power": 0.36
+				},
+				{
+					"length": 2,
+					"power": 0.04
+				},
+				{
+					"length": 4,
+					"power": 0.04
+				},
+				{
+					"length": 6,
+					"power": 0.08
+				},
+				{
+					"length": 14,
+					"power": 0.04
+				}
+			],
+			"K-M": [
+				{
+					"length": 0,
+					"power": 0.48
+				},
+				{
+					"length": 1,
+					"power": 0.16
+				},
+				{
+					"length": 2,
+					"power": 0.16
+				},
+				{
+					"length": 3,
+					"power": 0.04
+				},
+				{
+					"length": 5,
+					"power": 0.08
+				},
+				{
+					"length": 9,
+					"power": 0.04
+				},
+				{
+					"length": 15,
+					"power": 0.04
+				}
+			]
+		},
+		"references": []
+	}
+}

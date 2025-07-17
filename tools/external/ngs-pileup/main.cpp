@@ -51,7 +51,7 @@ const char * ref_usage[] = { "Filter by position on genome.",
                              "(ex: \"chr1\" or \"1\").",
                              "\"from\" and \"to\" are 1-based coordinates",
                              NULL };
-                             
+
 OptDef options[] =
 {   /*name,           alias,         hfkt, usage-help,    maxcount, needs value, required */
     { OPTION_REF,     ALIAS_REF,     NULL, ref_usage,     0,        true,        false },
@@ -89,7 +89,7 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary ( progname );
     KOutMsg ( "Options:\n" );
-   
+
     for (i = 0; i < sizeof options / sizeof options[0]; ++i) {
         const OptDef * opt = &options[i];
 
@@ -109,21 +109,26 @@ rc_t CC Usage ( const Args * args )
     KOutMsg("\n");
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion() );
-    
+
     return rc;
 }
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL(argc, argv)
 {
+    VDB::Application app(argc, argv);
+
     Args * args;
 
-    rc_t rc = ArgsMakeAndHandle( &args, argc, argv, 1, options, sizeof options / sizeof options [ 0 ] );
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(), 1, options, sizeof options / sizeof options[0]);
     if ( rc == 0 )
     {
         try
         {
             NGS_Pileup::Settings settings;
-            
+
             uint32_t pcount;
 
             void const *value = NULL;
@@ -142,7 +147,7 @@ rc_t CC KMain( int argc, char *argv [] )
                 }
                 settings . AddReference ( static_cast <char const*> (value) );
             }
-            
+
 /* OPTION_NGC */
             {
                 rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
@@ -165,14 +170,14 @@ rc_t CC KMain( int argc, char *argv [] )
                 {
                     throw ngs :: ErrorMsg ( "multiple accessions are not supported at this point" );
                 }
-                
+
                 settings . output = & std::cout;
-                
+
                 rc = ArgsParamValue ( args, 0, &value );
-                if ( rc == 0 ) 
+                if ( rc == 0 )
                 {
                     settings . AddInput ( static_cast <char const*> (value) );
-                    
+
                     NGS_Pileup ( settings ) . Run ();
                 }
                 else
@@ -186,10 +191,10 @@ rc_t CC KMain( int argc, char *argv [] )
             std :: cerr << "Program aborted: " << ex.what() << std::endl;
             exit ( -1 );
         }
-        
+
         ArgsWhack( args );
     }
-    
+
     return 0;
 }
 

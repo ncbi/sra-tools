@@ -1,0 +1,3 @@
+{
+"fingerprint": {"maximum-position":4,"A":[0,1,1,0,0],"C":[1,1,0,0,0],"G":[1,0,0,1,0],"T":[0,0,1,1,0],"N":[0,0,0,0,0],"EoR":[0,0,0,0,2]}, "digest": "67e4aef5339fee30de2f22d909494e19cffeefd900ba150bd0ed2ecf187879c5", "algorithm": "SHA-256"
+}

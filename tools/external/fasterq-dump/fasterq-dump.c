@@ -60,10 +60,6 @@
 #include "ref_inventory.h"
 #endif
 
-#ifndef _h_kapp_main_
-#include <kapp/main.h>
-#endif
-
 #ifndef _h_kapp_args_
 #include <kapp/args.h>
 #endif
@@ -80,7 +76,10 @@
 #include <klib/printf.h>
 #endif
 
+#include <kapp/main.h>
+
 #include <klib/report.h> /* ReportFinalize */
+#include <kapp/vdbapp.h> /* GetKAppVersion */
 
 /* ---------------------------------------------------------------------------------- */
 
@@ -235,10 +234,15 @@ static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for te
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
+static const char * keep_usage[] = { "keep temp. files", NULL };
+#define OPTION_KEEP              "keep"
+
+static const char * step_usage[] = { "stop after step", NULL };
+#define OPTION_STEP              "step"
+
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
-    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
     { OPTION_FORMAT,        ALIAS_FORMAT,       NULL, format_usage,         1, true,   false },
     { OPTION_OUTPUT_F,      ALIAS_OUTPUT_F,     NULL, outputf_usage,        1, true,   false },
     { OPTION_OUTPUT_D,      ALIAS_OUTPUT_D,     NULL, outputd_usage,        1, true,   false },
@@ -264,12 +268,12 @@ OptDef ToolOptions[] = {
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
     { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
     { OPTION_FASTA_REF,     NULL,               NULL, fasta_ref_tbl_usage,  1, false,  false },
-    { OPTION_FASTA_CONCAT,  NULL,               NULL, fasta_concat_all_usage,  1, false,  false },    
+    { OPTION_FASTA_CONCAT,  NULL,               NULL, fasta_concat_all_usage,  1, false,  false },
     { OPTION_REF_INT,       NULL,               NULL, ref_int_usage,        1, false,  false },
     { OPTION_REF_EXT,       NULL,               NULL, ref_ext_usage,        1, false,  false },
     { OPTION_REF_NAME,      NULL,               NULL, ref_name_usage,       0, true,   false },
     { OPTION_REF_REPORT,    NULL,               NULL, ref_report_usage,     1, false,  false },
-    { OPTION_USE_NAME,      NULL,               NULL, ref_use_name_usage,   1, false,  false },    
+    { OPTION_USE_NAME,      NULL,               NULL, ref_use_name_usage,   1, false,  false },
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,   false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
@@ -277,7 +281,10 @@ OptDef ToolOptions[] = {
     { OPTION_DISK_LIMIT_OUT,NULL,               NULL, disk_limit_out_usage, 1, true,   false },
     { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
-    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
+    { OPTION_KEEP,          NULL,               NULL, keep_usage,           1, false,  false },
+    { OPTION_STEP,          NULL,               NULL, step_usage,           1, true,   false },
+    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false }
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -301,6 +308,7 @@ rc_t CC Usage ( const Args * args ) {
     uint32_t idx, count = ( sizeof ToolOptions ) / ( sizeof ToolOptions[ 0 ] );
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
+    uint32_t shown_options = count - 3; /* supress the last 3 options - aka keep, step, and row-limit */
 
     if ( NULL == args ) {
         rc = RC( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
@@ -315,7 +323,7 @@ rc_t CC Usage ( const Args * args ) {
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
-    for ( idx = 1; idx < count; ++idx ) { /* start with 1, do not advertize row-limit */
+    for ( idx = 0; idx < shown_options; ++idx ) { /* start with 1, do not advertize row-limit */
         const OptDef * opt = &ToolOptions[ idx ];
         const char * param = NULL;
 
@@ -333,7 +341,7 @@ rc_t CC Usage ( const Args * args ) {
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump\n" );
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/08.-prefetch-and-fasterq-dump\n" );
 
-    HelpVersion( fullpath, KAppVersion() );
+    HelpVersion( fullpath, GetKAppVersion() );
 
     return rc;
 }
@@ -362,7 +370,7 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         ErrMsg( "get_user_input . VNamelistMake() -> %R", rc );
         tool_ctx -> ref_name_filter = NULL;
     }
-    
+
     tool_ctx -> cursor_cache = ahlp_get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = ahlp_get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = ahlp_get_bool_option( args, OPTION_DETAILS );
@@ -397,6 +405,8 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> only_external_refs = ahlp_get_bool_option( args, OPTION_REF_EXT );
     tool_ctx -> split_file = split_file; /* passing it though for fasta-ref-tbl */
     tool_ctx -> use_name = ahlp_get_bool_option( args, OPTION_USE_NAME );
+    tool_ctx -> keep_tmp_files = ahlp_get_bool_option( args, OPTION_KEEP );
+    tool_ctx -> stop_after_step = ahlp_get_uint32_t_option( args, OPTION_STEP, 0 );
 
     if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
         rc = ahlp_get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
@@ -425,13 +435,13 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
 
     /* fasta-concat cannot be combined with any of the other flags */
     if ( 0 == rc && fasta_concat ) {
-        if ( split_spot | split_file | split_3 | whole_spot | 
+        if ( split_spot | split_file | split_3 | whole_spot |
              fasta | fasta_us | fasta_ref_tbl ) {
             rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
             ErrMsg( "fasta-concat-all cannot be combined with other modes -> %R", rc );
         }
     }
-    
+
     tool_ctx -> fmt = hlp_get_format_t( ahlp_get_str_option( args, OPTION_FORMAT, NULL ),
                     split_spot, split_file, split_3, whole_spot, fasta,
                     fasta_us, fasta_ref_tbl, fasta_concat, ref_report );
@@ -497,6 +507,8 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         fm_args . wait_time = queue_timeout;
         fm_args . buf_size = tool_ctx -> buf_size;
         fm_args . gap = gap;
+        fm_args . details = tool_ctx -> show_details;
+        fm_args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = make_background_file_merger( &bg_file_merger, &fm_args ); /* merge_sorter.c */
     }
@@ -504,7 +516,7 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
     /* the background-vector-merger catches the KVectors produced by
        the lookup-produceer */
     if ( 0 == rc ) {
-        vector_merger_args_t vm_args; /* merge_sorter.c */
+        vector_merger_args_t vm_args; /* merge_sorter.h */
 
         vm_args . dir = tool_ctx -> dir;
         vm_args . temp_dir = tool_ctx -> temp_dir;
@@ -515,6 +527,7 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         vm_args . buf_size = tool_ctx -> buf_size;
         vm_args . gap = gap;
         vm_args . details = tool_ctx -> show_details;
+        vm_args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = make_background_vector_merger( &bg_vec_merger, &vm_args ); /* merge_sorter.c */
     }
@@ -548,14 +561,20 @@ static rc_t main_produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         args . mem_limit = tool_ctx -> mem_limit;
         args . num_threads = tool_ctx -> num_threads;
         args . show_progress = tool_ctx -> show_progress;
+        args . keep_tmp_files = tool_ctx -> keep_tmp_files;
 
         rc = execute_lookup_production( &args ); /* sorter.c */
     }
+
+    if ( 1 == tool_ctx -> stop_after_step ) { return rc; }
+
     bg_update_start( gap, "merge  : " ); /* progress_thread.c ...start showing the activity... */
 
     if ( 0 == rc ) {
         rc = wait_for_and_release_background_vector_merger( bg_vec_merger ); /* merge_sorter.c */
     }
+
+    if ( 2 == tool_ctx -> stop_after_step ) { return rc; }
 
     if ( 0 == rc ) {
         rc = wait_for_and_release_background_file_merger( bg_file_merger ); /* merge_sorter.c */
@@ -583,7 +602,9 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     join_stats_t stats; /* helper.h */
     dbj_sorted_fastq_fasta_args_t args; /* join.h */
 
-    rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+    rc_t rc = make_temp_registry( &registry,
+                                  tool_ctx -> cleanup_task,
+                                  tool_ctx -> keep_tmp_files ); /* temp_registry.c */
 
     hlp_clear_join_stats( &stats );
     /* join SEQUENCE-table with lookup-table === this is the actual purpos of the tool === */
@@ -591,7 +612,7 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
 /* --------------------------------------------------------------------------------------------
     produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
     produce fastq-output by iterating over the SEQUENCE - table:
-   -------------------------------------------------------------------------------------------- 
+   --------------------------------------------------------------------------------------------
    each thread iterates over a slice of the SEQUENCE-table
    for each SPOT it may look up an entry in the lookup-table to get the READ
    if it is not stored in the SEQ-tbl
@@ -635,7 +656,8 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
         if ( tool_ctx -> use_stdout ) {
             rc = temp_registry_to_stdout( registry,
                                           tool_ctx -> dir,
-                                          tool_ctx -> buf_size ); /* temp_registry.c */
+                                          tool_ctx -> buf_size,
+                                          tool_ctx -> keep_tmp_files ); /* temp_registry.c */
         } else {
             rc = temp_registry_merge( registry,
                               tool_ctx -> dir,
@@ -708,7 +730,7 @@ static rc_t main_process_csra( const tool_ctx_t * tool_ctx ) {
         case ft_ref_report : rc = ref_inventory_print_report( tool_ctx ); break;
         default : {
             rc = main_produce_lookup_files( tool_ctx );
-            if ( 0 == rc ) {
+            if ( 0 == rc && 0 == tool_ctx -> stop_after_step ) {
                 rc = main_produce_final_db_output( tool_ctx );
             }
         }
@@ -725,7 +747,9 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
 
     hlp_clear_join_stats( &stats ); /* helper.c */
 
-    rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+    rc = make_temp_registry( &registry,
+                             tool_ctx -> cleanup_task,
+                             tool_ctx -> keep_tmp_files ); /* temp_registry.c */
 
     if ( 0 == rc ) {
 
@@ -757,7 +781,8 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
         if ( tool_ctx -> use_stdout ) {
             rc = temp_registry_to_stdout( registry,
                                         tool_ctx -> dir,
-                                        tool_ctx -> buf_size ); /* temp_registry.c */
+                                        tool_ctx -> buf_size,
+                                        tool_ctx -> keep_tmp_files ); /* temp_registry.c */
         } else {
             rc = temp_registry_merge( registry,
                             tool_ctx -> dir,
@@ -836,16 +861,22 @@ static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_na
                     } else {
                         rc = main_process_table_fasta_unsorted( tool_ctx, tbl_name );
                     }
-                }  
+                }
     }
     return rc;
 }
 
 /* ============================================================================================ */
 
-rc_t CC KMain ( int argc, char *argv [] ) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( 0 != rc ) {
@@ -882,13 +913,13 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                         /* treat it as SRA-db with only unaligned data ( let the schema-funcions do the join ) */
                         tool_ctx . insp_output . acc_type = acc_sra_db;
                 }
-                
+
                 /* if an accession ( of any type ) has a small number of spots : */
                 if ( tool_ctx . insp_output . seq . row_count < MIN_ROWCOUNT ) {
                     /* use only 1 thread */
                     tool_ctx . num_threads = 1;
                 }
-                
+
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */
@@ -925,7 +956,9 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                 rc = tctx_release( &tool_ctx, rc );
             }
         }
+		ArgsWhack( args );
     }
+
     hlp_unread_rc_info( false );
 
     {
@@ -936,5 +969,5 @@ rc_t CC KMain ( int argc, char *argv [] ) {
 
     hlp_unread_rc_info( false );
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

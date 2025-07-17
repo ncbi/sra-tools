@@ -238,23 +238,7 @@ extern "C"
     }
 #endif
 
-    ver_t CC KAppVersion ( void )
-    {
-        return 0;
-    }
-    rc_t CC UsageSummary (const char * progname)
-    {
-        return 0;
-    }
-
-    rc_t CC Usage ( const Args * args )
-    {
-        return 0;
-    }
-
-    const char UsageDefaultName[] = "testy-the-ngs-bear";
-
-    rc_t KMain ( int argc, char * argv [] )
+    int main ( int argc, char * argv [] )
     {
         try
         {

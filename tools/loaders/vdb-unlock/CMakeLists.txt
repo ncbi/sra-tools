@@ -24,5 +24,5 @@
 
 add_compile_definitions( __mod__="tools/vdb-unlock" )
 
-GenerateExecutableWithDefs( vdb-unlock vdb-unlock "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( vdb-unlock vdb-unlock "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( vdb-unlock false )

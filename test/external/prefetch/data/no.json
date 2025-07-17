@@ -13,7 +13,7 @@
                     "size": 31838,
                     "md5": "a5a0d77255cbf7854b6ef390dfeaa3ff",
                     "modificationDate": "2019-07-03T22:15:50Z",
-                    "quality": "no",
+                    "noqual": true,
                     "locations": [
                         {
                             "service": "sra-sos",

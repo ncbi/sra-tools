@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 bin_dir=$1
 sra_stat=$2

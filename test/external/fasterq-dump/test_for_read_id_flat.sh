@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # ================================================================
 #
 #   Test #1 : flat table
@@ -13,73 +15,49 @@ set -e
 BINDIR="$1"
 
 FASTERQDUMP="${BINDIR}/fasterq-dump"
-if [[ ! -x $FASTERQDUMP ]]; then
-    echo "${FASTERQDUMP} not found - exiting..."
-    exit 3
-fi
+[ -x $FASTERQDUMP ] || { echo "${FASTERQDUMP} not found - exiting..."; exit 3; }
 
 FLAT_TABLE_ACC="ERR3487613"
 
-if [[ ! -f $FLAT_TABLE_ACC ]]; then
+[ -f $FLAT_TABLE_ACC ] || {
     echo "${FLAT_TABLE_ACC} not found here - recreating it"
 
     VDB_COPY="${BINDIR}/vdb-copy"
-    if [[ ! -x $VDB_COPY ]]; then
-        echo "${VDB_COPY} not found - exiting..."
-        exit 3
-    fi
+    [ -x "${VDB_COPY}" ] || { echo "${VDB_COPY} not found - exiting..."; exit 3; }
+
+    KAR="${BINDIR}/kar"
+    [ -x "${KAR}" ] || { echo "${KAR} not found - exiting..."; exit 3; }
+
     FLAT_TABLE_SHORT_DIR="${FLAT_TABLE_ACC}.dir"
     CMD="${VDB_COPY} ${FLAT_TABLE_ACC} ${FLAT_TABLE_SHORT_DIR} -R 1-10"
     eval "${CMD}"
 
-    KAR="${BINDIR}/kar"
-    if [[ ! -x $KAR ]]; then
-        echo "${KAR} not found - exiting..."
-        exit 3
-    fi
     CMD="${KAR} -c ${FLAT_TABLE_ACC} -d ${FLAT_TABLE_SHORT_DIR}"
     eval "${CMD}"
 
     rm -rf "${FLAT_TABLE_SHORT_DIR}"
-fi
+}
 
 FLAT_TABLE_FASTA="${FLAT_TABLE_ACC}.fasta"
 #run fasterq-dump on the short slice and produce unsorted FASTA
 CMD="${FASTERQDUMP} ./${FLAT_TABLE_ACC} --fasta-unsorted -f"
 eval "${CMD}"
 
-READ_ID1=0
-READ_ID2=0
-#read the produced FASTA-file - line by line
-while read -r LINE; do
-    #if LINE starts with '>'
-    if [[ $LINE == \>* ]]; then
-        #cut out the first 'word' aka ACCESSION.ROW_ID/READ_ID
-        LINEARRAY=($LINE)
-        FIRST_WORD="${LINEARRAY[0]}"
-        #count how many /1 and /2 we encounter
-        if [[ $FIRST_WORD == */1 ]]; then
-            READ_ID1=$(( READ_ID1 + 1 ))
-        fi
-        if [[ $FIRST_WORD == */2 ]]; then
-            READ_ID2=$(( READ_ID2 + 1 ))
-        fi
-    fi
-done <$FLAT_TABLE_FASTA
+READ_ID1=$(awk 'BEGIN{N=0} /^>/ && $1~/\/1$/ {N+=1} END{print N}' "${FLAT_TABLE_FASTA}")
+READ_ID2=$(awk 'BEGIN{N=0} /^>/ && $1~/\/2$/ {N+=1} END{print N}' "${FLAT_TABLE_FASTA}")
 
-if [[ ! $READ_ID1 -eq 10 ]]; then
+[ $READ_ID1 -eq 10 ] || {
     echo "error number of '/1' reads should be 10, but it is ${READ_ID1}"
     exit 1
-else
-    echo "READ_ID1: ${READ_ID1}"
-fi
+}
+echo "READ_ID1: ${READ_ID1}"
 
-if [[ ! $READ_ID2 -eq 10 ]]; then
+[ $READ_ID2 -eq 10 ] || {
     echo "error number of '/2' reads should be 10, but it is ${READ_ID2}"
     exit 1
-else
-    echo "READ_ID2: ${READ_ID2}"
-fi
+}
+echo "READ_ID2: ${READ_ID2}"
 
+# rm -rf "${FLAT_TABLE_FASTA}"
 echo "success testing read-id for --fasta-unsorted mode on flat table"
 

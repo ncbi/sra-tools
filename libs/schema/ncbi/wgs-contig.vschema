@@ -1,0 +1,699 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+/*==========================================================================
+ * WGS Contig
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+include 'ncbi/ncbi.vschema';
+include 'ncbi/seq.vschema';
+include 'ncbi/spotname.vschema';
+include 'ncbi/stats.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * types
+ * constants
+ */
+
+/* component_props
+ *  a signed value describing contig or gap components of scaffolds, or
+ *  gaps in contig sequences.
+ *  Positive values refer to contigs and negatives describe gaps
+ */
+typedef I16 NCBI:WGS:component_props;
+
+/* component description
+ *  the sequencing status of the component
+ *
+ *  These typically correspond to keywords in the INSDC submission.
+ *  Current acceptable values are:
+ *    A           Active Finishing
+ *    D           Draft HTG (often phase1 and phase2 are called Draft,
+ *                whether or not they have the draft keyword).
+ *    F           Finished HTG (phase3)
+ *    G           Whole Genome Finishing
+ *    O           Other sequence (typically means no HTG keyword)
+ *    P           Pre Draft
+ *    W           WGS contig
+ */
+const NCBI:WGS:component_props NCBI:WGS:component:WGS                  = 0;
+const NCBI:WGS:component_props NCBI:WGS:component:ActiveFinishing      = 1;
+const NCBI:WGS:component_props NCBI:WGS:component:DraftHTG             = 2;
+const NCBI:WGS:component_props NCBI:WGS:component:FinishedHTG          = 3;
+const NCBI:WGS:component_props NCBI:WGS:component:WholeGenomeFinishing = 4;
+const NCBI:WGS:component_props NCBI:WGS:component:OtherSequence        = 5;
+const NCBI:WGS:component_props NCBI:WGS:component:PreDraft             = 6;
+
+/* strand
+ *  specifies the orientation of the component relative to scaffold
+ *  values given allow strand to be determined as "prop / 16"
+ *  yielding:
+ *    0           unknown orientation
+ *    1           plus strand
+ *    2           negative strand
+ */
+const NCBI:WGS:component_props NCBI:WGS:strand:plus                    = 16;
+const NCBI:WGS:component_props NCBI:WGS:strand:minus                   = 32;
+
+
+/* gap description
+ *  These typically correspond to keywords in the INSDC submission.
+ *  Current acceptable values are:
+ *    N           gap with specified size
+ *    U           gap of unknown size, defaulting to 100 bases.
+ */
+const NCBI:WGS:component_props NCBI:WGS:gap:known                      = -1;
+const NCBI:WGS:component_props NCBI:WGS:gap:unknown                    = -2;
+
+/* gap type
+ *  scaffold          a gap between two sequence contigs in a scaffold
+ *  contig            an unspanned gap between two sequence contigs
+ *  centromere        a gap inserted for the centromere
+ *  short_arm         a gap inserted at the start of an acrocentric chromosome
+ *  heterochromatin   a gap inserted for an especially large region of heterochromatic sequence
+ *  telomere          a gap inserted for the telomere
+ *  repeat            an unresolvable repeat
+ */
+const NCBI:WGS:component_props NCBI:WGS:gap:scaffold                   = -4;
+const NCBI:WGS:component_props NCBI:WGS:gap:contig                     = -8;
+const NCBI:WGS:component_props NCBI:WGS:gap:centromere                 = -12;
+const NCBI:WGS:component_props NCBI:WGS:gap:short_arm                  = -16;
+const NCBI:WGS:component_props NCBI:WGS:gap:heterochromatin            = -20;
+const NCBI:WGS:component_props NCBI:WGS:gap:telomere                   = -24;
+const NCBI:WGS:component_props NCBI:WGS:gap:repeat                     = -28;
+
+/* gap_linkage
+ */
+typedef I32 NCBI:WGS:gap_linkage;
+
+/* gap linkage and linkage evidence
+ * There can be multiple linkage evidences or linkage with no evidence
+ *
+ *  paired-ends       paired sequences from the two ends of a DNA fragment
+ *  align_genus       alignment to a reference genome within the same genus
+ *  align_xgenus      alignment to a reference genome within another genus
+ *  align_trnscpt     alignment to a transcript from the same species
+ *  within_clone      sequence on both sides of the gap is derived from
+ *                    the same clone, but the gap is not spanned by paired-ends
+ *  clone_contig      linkage is provided by a clone contig in the tiling path
+ *  map               linkage asserted using a non-sequence based map
+ *                    such as RH, linkage, fingerprint or optical
+ *  strobe            strobe sequencing (PacBio)
+ *  unspecified
+ *  pcr               PCR
+ */
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage:linked                 = 1;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:paired_ends   = 2;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:align_genus   = 4;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:align_xgenus  = 8;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:align_trnscpt = 16;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:within_clone  = 32;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:clone_contig  = 64;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:map           = 128;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:strobe        = 256;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:unspecified   = 512;
+const NCBI:WGS:gap_linkage NCBI:WGS:gap:linkage_evidence:pcr           = 1024;
+
+/*--------------------------------------------------------------------------
+ * functions
+ */
+
+/* tokenize_nuc_accession
+ * tokenize_prot_accession
+ *  scans name on input
+ *  tokenizes into parts
+ */
+extern function text:token
+    NCBI:WGS:tokenize_nuc_accession #1 ( ascii acc );
+extern function text:token
+    NCBI:WGS:tokenize_prot_accession #1 ( ascii acc );
+
+const U16 NCBI:WGS:acc_token:unrecognized =  1;
+const U16 NCBI:WGS:acc_token:prefix       =  2;
+const U16 NCBI:WGS:acc_token:contig       =  3;
+
+
+/* build_scaffold_read
+ *  assembles contigs and gaps into a single row
+ *  transcribes + strand contigs as they are,
+ *  performs reverse complement of - strand contigs,
+ *  fills gaps with stated number of N
+ *
+ * build_scaffold_quality
+ *  assembles contig and gap qualities into a single row
+ *  contig qualities are taken as they are,
+ *  gap qualities are assigned a constant
+ *
+ *  "component_start" [ DATA ] - starting locations on each
+ *   component or 0 for gaps. normal starting point is 0,
+ *   but offsets are supported.
+ *  NB - ONE-BASED COORDINATES
+ *
+ *  "component_len" [ DATA ] - length of contig sequence
+ *   from component_start, or length of gap, projected onto
+ *   scaffold at scaffold_start.
+ *
+ *  "component_props" [ DATA ] - see discussion of type
+ *   distinguish between contigs and gaps, indicate strand
+ *
+ *  "component_id" [ DATA ] - foreign keys into SEQUENCE table
+ *   row_len ( component_id ) == count-of-contigs ( component_props )
+ */
+extern function INSDC:4na:bin NCBI:WGS:build_scaffold_read #1
+    ( INSDC:coord:one component_start, INSDC:coord:len component_len,
+      NCBI:WGS:component_props component_props, I64 component_id );
+
+extern function INSDC:quality:phred NCBI:WGS:build_scaffold_qual #1
+    ( INSDC:coord:one component_start, INSDC:coord:len component_len,
+      NCBI:WGS:component_props component_props, I64 component_id );
+
+
+/* build_read_type
+ *  generate standard SRA read type from component properties
+ *  contigs are biological, gaps are technical
+ *
+ *  "component_props" [ DATA ] - see discussion of type
+ *   distinguish between contigs and gaps, indicate strand
+ */
+extern function INSDC:SRA:xread_type
+    NCBI:WGS:build_read_type #1 ( NCBI:WGS:component_props component_props );
+
+
+/*--------------------------------------------------------------------------
+ * nucleotide
+ *
+ * history:
+ *  1.1.1 - update due to hierarchy
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:WGS:tbl:nucleotide #2
+    = NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.6
+    , NCBI:SRA:tbl:stats #1.2.1
+{
+    /* ACCESSION
+     *  [<opt-prefix>]<4-letter-prefix><2-digit-version><6-or-7-digit-contig>
+     */
+    extern column ascii ACCESSION = out_accession;
+    extern column U32   ACC_VERSION = .ACC_VERSION | <U32> echo <1> ();
+
+    // input
+    ascii in_accession = ACCESSION;
+
+    // parsed input
+    text:token in_acc_token
+        = NCBI:WGS:tokenize_nuc_accession ( in_accession );
+    //  [<opt-prefix>]<4-letter-prefix><2-digit-version>
+    ascii in_acc_prefix
+        = extract_token < 0 > ( in_accession, in_acc_token );
+    // <6-or-7-digit-contig>
+    ascii in_contig_text
+        = extract_token < 1 > ( in_accession, in_acc_token );
+    U32 in_contig_len
+        = row_len ( in_contig_text );
+    U64 in_contig_bin
+        = strtonum ( in_contig_text );
+
+    // physical storage
+    physical column < ascii > zip_encoding .ACC_PREFIX = in_acc_prefix;
+    physical column < U32 > izip_encoding .ACC_CONTIG_LEN = in_contig_len;
+    physical column < U64 > izip_encoding .ACC_CONTIG = in_contig_bin;
+    physical column < U32 > izip_encoding .ACC_VERSION = ACC_VERSION; //needed to back-fill WGS data from ID where version may be > 1
+
+    // output
+    ascii out_acc_prefix
+        = .ACC_PREFIX
+        | < ascii > meta:read < 'ACC_PREFIX', true > ()
+        ;
+    U32 out_acc_contig_len
+        = .ACC_CONTIG_LEN
+        | < U32 > meta:value < 'ACC_CONTIG_LEN', true > ()
+        ;
+    U64 out_acc_contig
+        = .ACC_CONTIG
+        | ( U64 ) row_id ()
+        ;
+    ascii out_accession
+        = sprintf < "%s%0*u" > ( out_acc_prefix, out_acc_contig_len, out_acc_contig );
+
+    readonly column ascii ACC_PREFIX
+        = .ACC_PREFIX
+        | < ascii > meta:read < 'ACC_PREFIX', true > ()
+        ;
+    readonly column U32 ACC_CONTIG_LEN
+        = .ACC_CONTIG_LEN
+        | < U32 > meta:value < 'ACC_CONTIG_LEN', true > ()
+        ;
+
+    /* CONTIG_NAME
+     *  principal name
+     */
+    extern column utf8 CONTIG_NAME
+        = idx:text:project #1.0 < 'contig_name' > ( .CONTIG_NAME );
+
+    physical column < utf8 > zip_encoding .CONTIG_NAME
+        = idx:text:insert #1.0 < 'contig_name' > ( CONTIG_NAME );
+
+    ascii out_contig_name = cast ( CONTIG_NAME );
+
+    // NB - this is only useful if CONTIG_NAME is unique
+    // or if clustered by CONTIG_NAME
+    readonly column vdb:row_id_range CONTIG_NAME_ROW_RANGE
+        = idx:text:lookup #1.0 < 'contig_name', 'NAME_QUERY' > ();
+
+    /* EXTRA_SEQIDS
+     *  pipe-separated list of additional names
+     */
+    extern column < ascii > zip_encoding EXTRA_SEQIDS;
+
+    /* TITLE
+     */
+    extern column < ascii > zip_encoding TITLE;
+
+    /* GI
+     *  gi is indexed in a parallel table
+     */
+    extern column < NCBI:gi > izip_encoding GI;
+
+    /* TAXID
+     *  taxonomy id
+     */
+    extern column < NCBI:taxid > izip_encoding TAXID;
+
+    /* GB_STATE
+     *  genbank state
+     */
+    extern column < NCBI:gb_state > izip_encoding GB_STATE;
+
+    /* DESCR
+     *  ASN.1 description
+     */
+    extern column < NCBI:asn:binary > zip_encoding DESCR;
+
+    /* ANNOT
+     *  ASN.1 annotation
+     */
+    extern column < NCBI:asn:binary > zip_encoding ANNOT;
+
+    /* GAP_START
+     *  Starting position of a gap
+     */
+    extern column < INSDC:coord:zero > izip_encoding GAP_START;
+
+    /* GAP_LEN
+     *  Length of a gap
+     */
+    extern column < INSDC:coord:len > izip_encoding GAP_LEN;
+
+    /* GAP_PROPS
+     *  See description of type
+     */
+    extern column < NCBI:WGS:component_props > zip_encoding GAP_PROPS;
+
+    /* GAP_LINKAGE
+     *  See description of type
+     */
+    extern column < NCBI:WGS:gap_linkage> zip_encoding GAP_LINKAGE;
+
+
+    ascii out_seqid_gi = sprintf < "gi|%u" > ( .GI );
+    ascii out_seqid_gb = sprintf < "gb|%s.%u|" > ( out_accession, ACC_VERSION )
+                       | sprintf < "gb|%s.1|" > ( out_accession );
+    ascii out_seqid_gnl = sprintf < "gnl|WGS:%s|%s" > (.ACC_PREFIX, out_contig_name ) | <ascii> echo < '' > ();
+
+
+    /* outputs to spotname */
+    ascii out_seqid_name
+        = sprintf < "%s|%s" > ( out_seqid_gi , out_seqid_gb )
+		| sprintf < "%s" > ( out_seqid_gb );
+
+    ascii out_spot_name = sprintf < "%s %s" > ( out_seqid_name, .TITLE );
+
+    readonly column ascii SEQ_ID = out_seqid_name;
+    readonly column ascii SEQ_ID_GNL = out_seqid_gnl;
+
+    /* outputs to spotdesc */
+    // INSDC:coord:len in_read_len  = (INSDC:coord:len) row_len ( in_2na_bin );
+    INSDC:coord:len  out_read_len = (INSDC:coord:len) row_len ( out_2na_bin );
+    INSDC:coord:len  trim_len = (INSDC:coord:len) row_len ( out_2na_bin );
+    INSDC:coord:zero out_read_start = <INSDC:coord:zero> echo < 0 > ();
+    INSDC:coord:zero trim_start = <INSDC:coord:zero> echo < 0 > ();
+    INSDC:SRA:read_filter out_rd_filter = < INSDC:SRA:read_filter > echo < SRA_READ_FILTER_PASS > ();
+    INSDC:SRA:xread_type  out_read_type = < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > ();
+    // help trigger statistics
+    INSDC:SRA:xread_type  _alt_in_read_type = < INSDC:SRA:xread_type > echo < SRA_READ_TYPE_BIOLOGICAL > ();
+    INSDC:coord:len       _alt_in_read_len  = (INSDC:coord:len) row_len ( in_2na_bin );
+
+    ascii out_label = < ascii > echo < "contig" > ();
+    INSDC:coord:len out_label_len = < INSDC:coord:len > echo < 6 > ();
+    INSDC:coord:zero out_label_start = < INSDC:coord:zero > echo < 0 > ();
+
+    INSDC:SRA:platform_id out_platform = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+};
+
+
+/*--------------------------------------------------------------------------
+ * protein
+ *  contig
+ */
+table NCBI:WGS:tbl:protein #1
+    = NCBI:tbl:protein #1.0.0
+{
+    /* ACCESSION
+     *  [<opt-prefix>]<4-letter-prefix><2-digit-version><6-or-7-digit-contig>
+     */
+    extern column ascii ACCESSION = out_accession;
+
+    // input
+    ascii in_accession = ACCESSION;
+
+    // parsed input
+    text:token in_acc_token
+        = NCBI:WGS:tokenize_prot_accession ( in_accession );
+    //  [<opt-prefix>]<4-letter-prefix><2-digit-version>
+    ascii in_acc_prefix
+        = extract_token < 0 > ( in_accession, in_acc_token );
+    // <6-or-7-digit-contig>
+    ascii in_contig_text
+        = extract_token < 1 > ( in_accession, in_acc_token );
+    U32 in_contig_len
+        = row_len ( in_contig_text );
+    I64 in_contig_bin
+        = strtonum ( in_contig_text );
+
+    // physical storage
+    physical column < ascii > zip_encoding .ACC_PREFIX = in_acc_prefix;
+    physical column < U32 > izip_encoding .ACC_CONTIG_LEN = in_contig_len;
+    physical column < U64 > izip_encoding .ACC_CONTIG = in_contig_bin;
+
+    // output
+    ascii out_acc_prefix
+        = .ACC_PREFIX
+        | < ascii > meta:read < 'ACC_PREFIX', true > ()
+        ;
+    U32 out_acc_contig_len
+        = .ACC_CONTIG_LEN
+        | < U32 > meta:value < 'ACC_CONTIG_LEN', true > ()
+        ;
+    U64 out_acc_contig
+        = .ACC_CONTIG
+        | ( U64 ) row_id ()
+        ;
+    ascii out_accession
+        = sprintf < "%s%0*u" > ( out_acc_prefix, out_acc_contig_len, out_acc_contig );
+
+    /* TITLE
+     */
+    extern column < ascii > zip_encoding TITLE;
+
+    /* GI
+     *  gi is indexed in a parallel table
+     */
+    extern column < NCBI:gi > izip_encoding GI;
+
+    /* GB_STATE
+     *  genbank state
+     */
+    extern column < NCBI:gb_state > izip_encoding GB_STATE;
+
+    /* DESCR
+     *  ASN.1 description
+     */
+    extern column < NCBI:asn:binary > zip_encoding DESCR;
+
+    /* ANNOT
+     *  ASN.1 annotation
+     */
+    extern column < NCBI:asn:binary > zip_encoding ANNOT;
+
+    /* outputs to spotname */
+    ascii out_seqid_name = sprintf < "TBD" > ( .ACC_PREFIX, out_accession );
+    ascii out_spot_name = sprintf < "%s %s" > ( out_seqid_name, .TITLE );
+
+    /* TBD
+     *  need to create an extension to NCBI:tbl:protein
+     *  that satisfies fastq-dump requirements for READ and QUALITY
+     */
+};
+
+
+/*--------------------------------------------------------------------------
+ * gi_idx
+ *  gi is row-id
+ */
+table NCBI:WGS:tbl:gi_idx #1
+{
+    /* NUC_ROW_ID
+     *  row-id in nucleotide table
+     */
+    extern column < I64 > izip_encoding NUC_ROW_ID;
+
+    /* PROT_ROW_ID
+     *  row-id in protein table
+     */
+    extern column < I64 > izip_encoding PROT_ROW_ID;
+};
+
+
+/*--------------------------------------------------------------------------
+ * scaffold
+ *  records AGP data
+ */
+table NCBI:WGS:tbl:scaffold #1
+{
+    /* SCAFFOLD_NAME
+     *  This is the identifier for the object being assembled.
+     *  This can be a chromosome, scaffold or contig.
+     *  If an accession.version identifier is not used to describe
+     *  the object the naming convention is to precede chromosome numbers
+     *  (e.g. chr1) and linkage group numbers  (e.g. LG3).
+     *  Contigs or scaffolds may have any identifier that is unique
+     *  within the assembly
+     */
+    extern column utf8 SCAFFOLD_NAME
+        = out_scaffold_name;
+    extern column ascii SCAFFOLD_NAME = cast (out_scaffold_name);
+    utf8 out_scaffold_name
+        = idx:text:project #1.0 < 'scaffold_name' > ( .SCAFFOLD_NAME );
+    physical column < utf8 > zip_encoding .SCAFFOLD_NAME
+        = idx:text:insert #1.0 < 'scaffold_name' > ( SCAFFOLD_NAME );
+
+    /* COMPONENT_START
+     *  starting position within the component sequence
+     */
+    extern column < INSDC:coord:one > izip_encoding COMPONENT_START;
+
+    /* COMPONENT_LEN
+     *  length of the component/gap projected onto the scaffold
+     */
+    extern column < INSDC:coord:len > izip_encoding COMPONENT_LEN;
+
+    /* COMPONENT_PROPS
+     *  see description of type
+     */
+    extern column < NCBI:WGS:component_props > zip_encoding COMPONENT_PROPS;
+
+    /* COMPONENT_ID
+     *  one row-id for each non-gap component
+     */
+    extern column < I64 > izip_encoding COMPONENT_ID;
+
+    /* COMPONENT_LINKAGE
+     *  see description of type
+     *  one row-id for each gap component
+     */
+    extern column < NCBI:WGS:gap_linkage > zip_encoding COMPONENT_LINKAGE;
+}
+
+table NCBI:WGS:view:scaffold #1 = NCBI:WGS:tbl:scaffold #1
+{
+    /* ACCESSION
+     *  scaffold accession
+     */
+    readonly column ascii ACCESSION
+        = out_accession;
+    I64 scaffold_row_id
+        = row_id ();
+    I64 acc_row_id
+        = < I64 > echo < 1 > ();
+    ascii acc_prefix
+        = < ascii > simple_sub_select < 'SEQUENCE', 'ACC_PREFIX' > ( acc_row_id );
+    U32 acc_contig_len
+        = < U32 > simple_sub_select < 'SEQUENCE', 'ACC_CONTIG_LEN' > ( acc_row_id );
+    ascii out_accession
+        = sprintf < "%sS%0*d" > ( acc_prefix, acc_contig_len, scaffold_row_id );
+
+    /* READ
+     *  base space construction of entire scaffold
+     */
+
+    // construct the read from contigs and gaps
+    INSDC:4na:bin out_4na_bin = NCBI:WGS:build_scaffold_read
+        ( .COMPONENT_START, .COMPONENT_LEN, .COMPONENT_PROPS, .COMPONENT_ID );
+
+    // various READ columns
+    default readonly column INSDC:dna:text READ
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_4na_bin );
+    readonly column INSDC:4na:bin READ
+        = out_4na_bin;
+    readonly column INSDC:4na:packed READ
+        = pack ( out_4na_bin );
+    readonly column INSDC:x2na:bin READ
+        = out_x2na_bin;
+    INSDC:x2na:bin out_x2na_bin
+        = < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( out_4na_bin );
+    readonly column INSDC:2na:bin READ
+        = out_2na_bin;
+    INSDC:2na:bin out_2na_bin
+        = < INSDC:x2na:bin, INSDC:2na:bin > map < INSDC:x2na:map:BINSET, [ 0, 1, 2, 3, 0 ] > ( out_x2na_bin );
+    readonly column INSDC:2na:packed READ
+        = pack ( out_2na_bin );
+
+
+    /* CSREAD
+     *  base space converted to color space
+     */
+    default readonly column INSDC:color:text CSREAD
+        = < INSDC:x2cs:bin, INSDC:color:text > map <  INSDC:x2cs:map:BINSET, INSDC:x2cs:map:CHARSET > ( out_x2cs_bin );
+    readonly column INSDC:x2cs:bin CSREAD
+        = out_x2cs_bin;
+    INSDC:x2cs:bin out_x2cs_bin
+        = NCBI:color_from_dna ( out_x2na_bin, out_read_start, .COMPONENT_LEN, out_cs_key, out_color_matrix );
+    readonly column INSDC:2cs:bin CSREAD
+        = out_2cs_bin;
+    INSDC:2cs:bin out_2cs_bin
+        = < INSDC:x2cs:bin, INSDC:2cs:bin > map < INSDC:x2cs:map:BINSET, [ 0, 1, 2, 3, 0 ] > ( out_x2cs_bin );
+    readonly column INSDC:2cs:packed CSREAD
+        = pack ( out_2cs_bin );
+
+    /* CS_NATIVE
+     *  is color-space the native sequence space
+     */
+    readonly column bool CS_NATIVE
+        = < bool > echo < false > ();
+
+    /* CS_KEY
+     *  leading call given in base-space
+     */
+    readonly column INSDC:dna:text CS_KEY
+        = out_cs_key;
+    INSDC:dna:text out_cs_key
+        = < INSDC:dna:text > echo < 'T' > ( .COMPONENT_LEN );
+
+    /* COLOR_MATRIX
+     *  matrix used for color-space conversions
+     */
+    readonly column U8 COLOR_MATRIX
+        = out_color_matrix;
+    U8 out_color_matrix
+        = < U8 > echo < INSDC:color:default_matrix > ();
+
+
+    /* QUALITY
+     *  base or color call qualities
+     */
+    INSDC:quality:phred out_qual_phred = NCBI:WGS:build_scaffold_qual
+        ( .COMPONENT_START, .COMPONENT_LEN, .COMPONENT_PROPS, .COMPONENT_ID );
+
+    // PHRED is default
+    default readonly column INSDC:quality:phred QUALITY
+        = out_qual_phred;
+
+    // textual encodings
+    readonly column INSDC:quality:text:phred_33 QUALITY
+        = ( INSDC:quality:text:phred_33 ) < B8 > sum < 33 > ( out_qual_phred );
+    readonly column INSDC:quality:text:phred_64 QUALITY
+        = ( INSDC:quality:text:phred_64 ) < B8 > sum < 64 > ( out_qual_phred );
+
+
+    /* PLATFORM
+     *  sequencing platform, if known
+     */
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_UNDEFINED > ();
+    readonly column INSDC:SRA:platform_id PLATFORM
+        = out_platform;
+
+    /* SPOT_ID
+     *  support for libsra
+     */
+    INSDC:SRA:spotid_t out_spot_id
+        = cast ( scaffold_row_id );
+    readonly column INSDC:SRA:spotid_t SPOT_ID
+        = out_spot_id;
+
+    /* NAME
+     *  spot name
+     */
+    readonly column ascii NAME
+        = out_scaffold_name;
+
+    /* SPOT_LEN
+     * TRIM_START
+     * TRIM_LEN
+     *  spot descriptor
+     */
+    readonly column INSDC:coord:len SPOT_LEN
+        = out_spot_len;
+    INSDC:coord:len out_spot_len
+        = < INSDC:coord:len > vec_sum ( .COMPONENT_LEN );
+    readonly column INSDC:coord:zero TRIM_START
+        = < INSDC:coord:zero > echo < 0 > ();
+    readonly column INSDC:coord:len TRIM_LEN
+        = out_spot_len;
+
+
+    /* READ_START
+     * READ_LEN
+     * READ_TYPE
+     *  read descriptor portion
+     */
+    readonly column INSDC:coord:zero READ_START
+        = out_read_start;
+    INSDC:coord:zero out_read_start
+        = ( INSDC:coord:zero ) < U32 > integral ( .COMPONENT_LEN );
+    readonly column INSDC:coord:len READ_LEN
+        = .COMPONENT_LEN;
+    readonly column INSDC:SRA:xread_type READ_TYPE
+        = out_read_type;
+    INSDC:SRA:xread_type out_read_type
+        = NCBI:WGS:build_read_type ( .COMPONENT_PROPS );
+}
+
+
+/*--------------------------------------------------------------------------
+ * contig
+ */
+database NCBI:WGS:db:contig #2
+{
+    table NCBI:WGS:tbl:nucleotide #2 SEQUENCE;
+    table NCBI:WGS:tbl:protein #1 PROTEIN;
+    table NCBI:WGS:tbl:gi_idx #1 GI_IDX;
+    table NCBI:WGS:view:scaffold #1 SCAFFOLD;
+};

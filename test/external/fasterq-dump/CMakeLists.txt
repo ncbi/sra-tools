@@ -24,29 +24,38 @@
 
 if ( NOT WIN32 )
 
-ToolsRequired(fasterq-dump sam-factory bam-load kar)
-
     add_test( NAME Test_FasterqDump_Help
-        COMMAND ${BINDIR}/fasterq-dump -h
+        COMMAND ${DIRTOTEST}/fasterq-dump -h
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_FasterqDump_NotZeroWithoutParameters
-        COMMAND ${BINDIR}/fasterq-dump
+        COMMAND ${DIRTOTEST}/fasterq-dump
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
 
+    add_test( NAME Test_FasterDump_Simple # test fetching via HTTPS
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET fasterq-dump-asan )
+      add_test( NAME Test_FasterDump_Simple-asan
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-asan
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET fasterq-dump-tsan )
+      add_test( NAME Test_FasterDump_Simple-tsan
+        COMMAND
+            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-tsan
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+
     add_test( NAME Test_FasterDump_Fasta_unsorted_flat_tbl_read_id
         COMMAND
-            bash test_for_read_id_flat.sh ${DIRTOTEST}
+            sh test_for_read_id_flat.sh ${DIRTOTEST}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
-        COMMAND
-            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    if( RUN_SANITIZER_TESTS )
+    if( TARGET fasterq-dump-asan )
         add_test( NAME Test_FasterqDump_Help-asan
             COMMAND ${BINDIR}/fasterq-dump-asan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -55,7 +64,9 @@ ToolsRequired(fasterq-dump sam-factory bam-load kar)
             COMMAND ${BINDIR}/fasterq-dump-asan
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-asan PROPERTIES WILL_FAIL TRUE)
+    endif()
 
+    if( TARGET fasterq-dump-tsan )
         add_test( NAME Test_FasterqDump_Help-tsan
             COMMAND ${BINDIR}/fasterq-dump-tsan -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -66,11 +77,23 @@ ToolsRequired(fasterq-dump sam-factory bam-load kar)
         set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-tsan PROPERTIES WILL_FAIL TRUE)
     endif()
 
-    add_test( NAME Test_Tiny_cSRA
-        COMMAND
-            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    # the following tests invoke other tools, make sure those tools are present
+    if ( BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS AND BUILD_TOOLS_INTERNAL )
+
+        ToolsRequired(fasterq-dump sam-factory bam-load kar)
+        add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_Tiny_cSRA
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    endif()
 
 else()
 #TODO: make run on Windows

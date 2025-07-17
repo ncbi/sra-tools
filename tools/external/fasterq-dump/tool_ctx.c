@@ -69,6 +69,10 @@
 #include <klib/report.h> /* ReportResetObject */
 #include <vdb/report.h> /* ReportSetVDBManager */
 
+#ifndef _h_kproc_task_
+#include <kproc/task.h>
+#endif
+
 #ifndef _h_dflt_defline_
 #include "dflt_defline.h"
 #endif
@@ -206,7 +210,11 @@ static rc_t tctx_print( const tool_ctx_t * tool_ctx ) {
 }
 
 static bool tctx_output_exists_whole( const tool_ctx_t * tool_ctx ) {
-    return ft_file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    bool res = ft_file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    if ( !res ) {
+        res = ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    }
+    return res;
 }
 
 static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
@@ -217,6 +225,9 @@ static bool tctx_output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) 
                             tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
         res = ft_file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) );
+        if ( !res ) {
+            res = ft_dir_exists( tool_ctx -> dir, "%S", &( s_filename . S ) );
+        }
         release_SBuffer( &s_filename ); /* helper.c */
     }
     return res;
@@ -313,6 +324,9 @@ static rc_t tctx_encforce_constrains( tool_ctx_t * tool_ctx ) {
 
 rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
     rc_t rc = rc_in;
+	
+	KTaskRelease( ( KTask* )tool_ctx -> cleanup_task );
+		
     if ( NULL != tool_ctx -> dir ) {
         rc_t rc2 = KDirectoryRelease( tool_ctx -> dir );
         if ( 0 != rc2 ) {
@@ -320,7 +334,11 @@ rc_t tctx_release( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
-    destroy_temp_dir( tool_ctx -> temp_dir ); /* temp_dir.c */
+
+    if ( !tool_ctx -> keep_tmp_files ) {
+        destroy_temp_dir( tool_ctx -> temp_dir ); /* temp_dir.c */
+    }
+
     if ( NULL != tool_ctx -> vdb_mgr ) {
         rc_t rc2 = VDBManagerRelease( tool_ctx -> vdb_mgr );
         if ( 0 != rc2 ) {
@@ -447,7 +465,7 @@ static rc_t tctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     if ( ft_dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) { /* helper.c */
         /* the given output-filename is an existing directory ! */
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        ErrMsg( "output >%s< already exists", tool_ctx -> output_filename );
     } else {
         rc = tctx_optionally_create_paths_in_output_filename( tool_ctx ); /* above */
     }
@@ -710,7 +728,9 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
     /* create the cleanup-taks ( for modules to add file/directories to it ) and add the tem-dir to it */
     tool_ctx -> cleanup_task = NULL;
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = clt_create( &( tool_ctx -> cleanup_task ), tool_ctx -> show_details ); /* cleanup_task.c */
+        rc = clt_create( &( tool_ctx -> cleanup_task ),
+                         tool_ctx -> show_details,
+                         tool_ctx -> keep_tmp_files ); /* cleanup_task.c */
         if ( 0 == rc ) {
             rc = clt_add_directory( tool_ctx -> cleanup_task, 
                     get_temp_dir( tool_ctx -> temp_dir ) ); /* cleanup_task.c */

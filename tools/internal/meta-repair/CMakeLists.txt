@@ -25,9 +25,10 @@
 # External
 if( NOT WIN32 )
 	set( LIBS
+		kapp
 		${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_READ}
 	)
-	GenerateExecutableWithDefs( meta-repair "meta-repair" "__mod__=\"tools/meta-repair\"" "" "${LIBS}" )
+	GenerateExecutableWithDefs( meta-repair "meta-repair" "__mod__=\"tools/meta-repair\";_POSIX_C_SOURCE=200809" "" "${LIBS}" )
 	MakeLinksExe( meta-repair false )
 endif()

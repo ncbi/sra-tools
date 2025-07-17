@@ -32,6 +32,7 @@
 #include <vdb/vdb-priv.h> /* VDBManagerOpenKDBManagerRead */
 
 #include <kapp/main.h>
+#include <kapp/vdbapp.h>
 
 #include <kfg/config.h> /* KConfig */
 
@@ -114,6 +115,8 @@ rc_t CC UsageSummary (const char * progname) {
 
 static const char* param_usage[] = { "Path to the database", NULL };
 
+const char UsageDefaultName[] = "align-info";
+
 rc_t CC Usage(const Args* args) {
     rc_t rc = 0 ;
 
@@ -148,8 +151,6 @@ rc_t CC Usage(const Args* args) {
 
     return rc;
 }
-
-const char UsageDefaultName[] = "align-info";
 
 static rc_t bam_header(const VDatabase* db) {
     rc_t rc = 0;
@@ -305,7 +306,8 @@ static rc_t qual_stats(const Params* prm, const VDatabase* db) {
                 uint64_t u = 0;
                 char name[64];
                 const KMDataNode* n = NULL;
-                sprintf(name, "PHRED_%d", quals[i]);
+                int len = snprintf(name, sizeof(name), "PHRED_%d", quals[i]);
+                assert(len < sizeof(name));
                 rc = KMDataNodeOpenNodeRead(node, &n, "%s", name);
                 DISP_RC(rc, name);
                 if (rc == 0) {
@@ -474,13 +476,19 @@ static rc_t align_info(const Params* prm) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char* argv[]) {
-    rc_t rc = 0;
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args* args = NULL;
 
     Params prm;
     memset(&prm, 0, sizeof prm);
 
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    rc_t rc = 0;
     do {
         uint32_t pcount = 0;
 
@@ -581,7 +589,7 @@ rc_t CC KMain(int argc, char* argv[]) {
     {   rc = align_info(&prm); }
 
     DESTRUCT(Args, args);
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 /************************************* EOF ************************************/

@@ -199,7 +199,7 @@ static const char * lite_usage[] = { "output an abbreviated version of the table
 static const char * force_usage[] = { "replace an existing archive if present", NULL };
 #endif
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
 #if USE_FORCE
     { OPTION_FORCE, ALIAS_FORCE, NULL, force_usage, 1, false, false },
@@ -255,24 +255,11 @@ rc_t CC Usage (const Args * args)
 }
 
 
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-    rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    if ( VdbInitialize( argc, argv, 0 ) )
+        return VDB_INIT_FAILED;
+
     Args * args;
     rc_t rc;
 
@@ -390,7 +377,7 @@ rc_t CC Usage (const Args * args)
                     if (pb.force == false)
                     {
                         rc = RC (rcExe, rcArgv, rcParsing, rcPath, rcBusy);
-                        PLOGERR (klogFatal, (klogFatal, rc, 
+                        PLOGERR (klogFatal, (klogFatal, rc,
                                              "Output file already exists $(P)",
                                              "P=%s", archive_name));
                     }
@@ -427,5 +414,5 @@ rc_t CC Usage (const Args * args)
         } while (0);
     }
     STSMSG (1, ("Exit status %u %R", rc, rc));
-    return rc;
+    return VdbTerminate( rc );
 }

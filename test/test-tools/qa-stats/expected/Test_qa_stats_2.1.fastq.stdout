@@ -1,0 +1,194 @@
+{
+	"total": {
+		"reads": {
+			"count": 2,
+			"biological": 2,
+			"technical": 0
+		},
+		"bases": [
+			{
+				"base": "W",
+				"biological": 84
+			},
+			{
+				"base": "S",
+				"biological": 64
+			}
+		],
+		"spots": [
+			{
+				"nreads": 1,
+				"total": 2,
+				"biological": 2,
+				"no-biological": 0,
+				"technical": 0,
+				"no-technical": 2
+			}
+		],
+		"spot-layouts": [
+			{
+				"descriptor": "74BF",
+				"count": 2
+			}
+		],
+		"spectra": {
+			"W": [
+				{
+					"length": 0,
+					"power": 0.2875
+				},
+				{
+					"length": 1,
+					"power": 0.25
+				},
+				{
+					"length": 2,
+					"power": 0.1625
+				},
+				{
+					"length": 3,
+					"power": 0.0125
+				},
+				{
+					"length": 4,
+					"power": 0.075
+				},
+				{
+					"length": 5,
+					"power": 0.075
+				},
+				{
+					"length": 6,
+					"power": 0.0375
+				},
+				{
+					"length": 7,
+					"power": 0.0125
+				},
+				{
+					"length": 9,
+					"power": 0.0125
+				},
+				{
+					"length": 10,
+					"power": 0.0375
+				},
+				{
+					"length": 11,
+					"power": 0.0125
+				},
+				{
+					"length": 12,
+					"power": 0.025
+				}
+			],
+			"S": [
+				{
+					"length": 0,
+					"power": 0.3
+				},
+				{
+					"length": 1,
+					"power": 0.116667
+				},
+				{
+					"length": 2,
+					"power": 0.133333
+				},
+				{
+					"length": 3,
+					"power": 0.1
+				},
+				{
+					"length": 4,
+					"power": 0.0333333
+				},
+				{
+					"length": 5,
+					"power": 0.0833333
+				},
+				{
+					"length": 6,
+					"power": 0.0833333
+				},
+				{
+					"length": 7,
+					"power": 0.0333333
+				},
+				{
+					"length": 8,
+					"power": 0.0333333
+				},
+				{
+					"length": 10,
+					"power": 0.0166667
+				},
+				{
+					"length": 11,
+					"power": 0.0166667
+				},
+				{
+					"length": 12,
+					"power": 0.0166667
+				},
+				{
+					"length": 14,
+					"power": 0.0166667
+				},
+				{
+					"length": 16,
+					"power": 0.0166667
+				}
+			],
+			"S-W": [
+				{
+					"length": 0,
+					"power": 0.455882
+				},
+				{
+					"length": 1,
+					"power": 0.279412
+				},
+				{
+					"length": 2,
+					"power": 0.147059
+				},
+				{
+					"length": 3,
+					"power": 0.0588235
+				},
+				{
+					"length": 4,
+					"power": 0.0294118
+				},
+				{
+					"length": 5,
+					"power": 0.0294118
+				}
+			],
+			"K-M": [
+				{
+					"length": 0,
+					"power": 0.486486
+				},
+				{
+					"length": 1,
+					"power": 0.324324
+				},
+				{
+					"length": 2,
+					"power": 0.0810811
+				},
+				{
+					"length": 3,
+					"power": 0.0405405
+				},
+				{
+					"length": 4,
+					"power": 0.0675676
+				}
+			]
+		},
+		"references": []
+	}
+}

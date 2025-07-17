@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -29,7 +29,7 @@ CASEID=$2
 RC=$3
 
 CMD="$TEST_CMD > \"actual/$CASEID.tmp\" 2>&1"
-#echo $CMD
+echo $CMD
 eval $CMD
 rc="$?"
 

@@ -126,7 +126,7 @@ class args_t {
         void scan( int argc, char * argv[], const str_vec_t& hints ) {
             if ( argv != nullptr ) {
                 std::string key;
-                for ( int32_t i = 1; i < argc; ++i ) {
+                for ( int i = 1; i < argc; ++i ) {
                     if ( argv[ i ] != nullptr ) {
                         std::string arg( argv[ i ] );
                         if ( ! arg . empty() ) {

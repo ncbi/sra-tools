@@ -25,7 +25,7 @@
 #include <diagnose/diagnose.h> /* KDiagnose */
 #include "test-sra-priv.h" /* PrintOS */
 
-#include <kapp/main.h> /* KMain */
+#include <kapp/main.h>
 
 #include <kfg/config.h> /* KConfig */
 #include <kfg/kart.h> /* Kart */
@@ -81,6 +81,7 @@
 #include <string.h> /* memset */
 
 #include <stdio.h> /* sscanf */
+#include <inttypes.h>
 
 VFS_EXTERN rc_t CC VResolverProtocols ( VResolver * self,
     VRemoteProtocols protocols );
@@ -252,7 +253,7 @@ bool testArg(const char *arg, TTest *testOn, TTest *testOff, uint64_t *tests)
 
     if ( isdigit ( arg[1] )) {
         assert ( tests );
-        sscanf ( arg + 1, "%lui", tests ) ;
+        sscanf ( arg + 1, "%" SCNu64 "", tests ) ;
         if ( * tests == 0 )
             * tests = KDIAGN_ALL;
         return true;
@@ -2699,11 +2700,8 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 }
 #endif
             }
-            if ( rc == 0 )
-                OUTMSG ( ( "%s", b ) );
-            else
-                OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
         }
+
         if ( rc == 0 ) {
             if ( get ) {
                 rc = KClientHttpRequestGET ( req, & rslt );
@@ -2750,7 +2748,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                         ( rslt, &b, sizeof_b, & len, "", "\n" );
                 }
             }
-            if ( rc != 0 )            
+            if ( rc != 0 )
                 OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
         }
 #endif
@@ -3948,7 +3946,7 @@ static rc_t Diagnose ( const Main * self, const Args * args ) {
     rc_t rc = 0;
 
     KDiagnose * test = NULL;
-    
+
     assert ( self );
 
     rc = KDiagnoseMakeExt ( & test, self -> cfg, self -> knsMgr,
@@ -4002,7 +4000,10 @@ static rc_t Diagnose ( const Main * self, const Args * args ) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char *argv[]) {
+MAIN_DECL( argc, argv )
+{
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = 0;
     uint32_t pcount = 0;
     uint32_t i = 0;
@@ -4011,6 +4012,9 @@ rc_t CC KMain(int argc, char *argv[]) {
     int argi = 0;
     uint32_t params = 0;
     const char * eol = "\n";
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     Main prms;
     char **argv2 = MainInit(&prms, argc, argv, &argi);
@@ -4172,5 +4176,5 @@ rc = Diagnose ( & prms, args );
     }
     free(argv2);
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

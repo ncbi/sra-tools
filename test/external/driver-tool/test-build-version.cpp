@@ -144,11 +144,7 @@ struct Test_Version {
 
 #include <cassert>
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[] )
-#else
 int main ( int argc, char *argv[], char *envp[] )
-#endif
 {
     try {
         Test_Version const test_Version;

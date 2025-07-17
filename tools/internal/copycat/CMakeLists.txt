@@ -48,9 +48,10 @@ if( ${OS} STREQUAL "linux" )
             ccsra
             ccsubchunk
             ccfile
+            ../shared/teefile.c
             ${KFF_SRC}
         )
-        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};${HAVE_MAGIC}" )
+        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};${HAVE_MAGIC}" )
         MakeLinksExe( copycat false )
 
     endif()

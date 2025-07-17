@@ -7,6 +7,7 @@
 #include <klib/rc.h>
 
 #include <stdio.h>
+#include <inttypes.h>
 
 static int64_t blob_limit = 10;
 
@@ -25,16 +26,16 @@ uint32_t dump_col ( const KColumn *col, const char *dbname, const char *tblname,
         {
             rc = KColumnBlobIdRange ( blob, & first, & count );
             if ( rc != 0 )
-                fprintf ( stderr, "failed to get row-range for blob containing row '%s.%s.%s.%ld'\n", dbname, tblname, colname, row );
+                fprintf ( stderr, "failed to get row-range for blob containing row '%s.%s.%s.%" PRId64 "'\n", dbname, tblname, colname, row );
             else
             {
                 size_t num_read, remaining;
                 rc = KColumnBlobRead ( blob, 0, & first, 0, & num_read, & remaining );
                 if ( rc != 0 )
-                    fprintf ( stderr, "failed to get size of blob containing row '%s.%s.%s.%ld'\n", dbname, tblname, colname, row );
+                    fprintf ( stderr, "failed to get size of blob containing row '%s.%s.%s.%" PRId64 "'\n", dbname, tblname, colname, row );
                 else
                 {
-                    printf ( "  %ld .. %ld ( %u rows ), %zu bytes\n", first, first + count - 1, count, remaining );
+                    printf ( "  %" PRId64 " .. %" PRId64 " ( %u rows ), %zu bytes\n", first, first + count - 1, count, remaining );
                 }
             }
 
@@ -44,7 +45,7 @@ uint32_t dump_col ( const KColumn *col, const char *dbname, const char *tblname,
             return num_blobs;
         else
         {
-            fprintf ( stderr, "failed to open blob for row '%s.%s.%s.%ld'\n", dbname, tblname, colname, row );
+            fprintf ( stderr, "failed to open blob for row '%s.%s.%s.%" PRId64 "'\n", dbname, tblname, colname, row );
         }
     }
 

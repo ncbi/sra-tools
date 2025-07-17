@@ -44,14 +44,16 @@ struct ParamDefinitions_Common;
 struct ParamDefinitions;
 struct CommandLine;
 
+/// @brief This structure holds the tool parameter definitions. Populated by TOOL_ARG macro in `tool-args.cpp`.
+/// See also `common-arguments.h`, `fastq-dump-arguments.h`, and the auto-generated `tool-arguments.h`.
 struct ParameterDefinition {
 #if USE_TOOL_HELP
     std::vector<char const *> helpText;
 #endif
-    char const *name;
-    char const *aliases;
-    uint64_t bitMask;
-    bool hasArgument;
+    char const *name;       ///< long form name
+    char const *aliases;    ///< short form aliases
+    uint64_t bitMask;       ///< the bitmask assigned to this definition.
+    bool hasArgument;       ///< true if the parameter takes an argument.
     bool argumentIsOptional; ///< only fastq-dump has parameters with optional arguments, other tools do not.
 
     /// @brief The argument appears to be a parameter, but it is not in the list of known parameters for the tool. It does not take an argument.
@@ -112,7 +114,7 @@ struct ParameterDefinition {
     }
 };
 
-/// \brief A command line argument may be an argument to the command, a parameter, or a parameter with an argument.
+/// @brief A command line argument may be an argument to the command, a parameter, or a parameter with an argument.
 struct Argument {
     using Ignore = char const *;
     static constexpr Ignore const notFound = { "file not found" };
@@ -120,9 +122,9 @@ struct Argument {
     static constexpr Ignore const duplicate = { "duplicate" };
     static constexpr Ignore const notCurrent = { "not the current tool argument" };
 
-    ParameterDefinition const *def;
-    char const *argument;
-    int argind;
+    ParameterDefinition const *def; ///< the definition that was used to construct this argument.
+    char const *argument;           ///< copied from argv, possibly offset from start of string for short form parameters.
+    int argind;                     ///< index in argv
     mutable Ignore reason;
 
     bool isArgument() const { return def->isArgument(); }
@@ -138,6 +140,7 @@ struct Argument {
     friend std::ostream &operator <<(std::ostream &out, Argument const &arg);
 };
 
+/// @brief Holds all the parameters and argument parsed from a command line.
 class Arguments {
 public:
     using Container = std::vector<Argument>;
@@ -168,8 +171,13 @@ private:
     }
 
 public:
+    /// @brief The bit flags of parameters used in the command line.
     uint64_t argsUsed() const { return argsBits; }
+
+    /// @brief The number of parameters (a parameter starts with a e.g. `-`)
     unsigned countOfParameters() const { return parameters; }
+
+    /// @brief The number of arguments (arguments don't start with `-`)
     unsigned countOfCommandArguments() const { return arguments; }
 
     std::vector<Argument>::const_iterator begin() const {
@@ -179,18 +187,31 @@ public:
         return container.end();
     }
 
+    /// @brief Do this for each (non-ignored) parameter.
+    /// @tparam F the type of `call`.
+    /// @param call the thing to do.
     template <typename F>
     void each(F && call) const {
         for (auto & arg : container)
             if (arg.reason == nullptr && !arg.isArgument())
                 call(arg);
     }
+
+    /// @brief Do this for each element that matches.
+    /// @tparam F the type of `call`.
+    /// @param matching the string to match.
+    /// @param call the thing to do.
     template <typename F>
     void each(char const *matching, F && call) const {
         for (auto & arg : container)
             if (arg == matching)
                 call(arg);
     }
+
+    /// @brief Do this for the first (non-ignored) element that matches.
+    /// @tparam F the type of `call`.
+    /// @param matching the string to match.
+    /// @param call the thing to do.
     template <typename F>
     void first(char const *matching, F && call) const {
         for (auto & arg : container)
@@ -199,6 +220,12 @@ public:
                 return;
             }
     }
+
+    /// @brief Do this for the first (non-ignored) element that matches.
+    /// @tparam F the type of `call`.
+    /// @param matching the string to match.
+    /// @param call the thing to do.
+    /// @returns true if some `call` returned true.
     template <typename F>
     bool firstWhere(char const *matching, F && call) const {
         for (auto & arg : container)
@@ -207,12 +234,19 @@ public:
         return false;
     }
 
+    /// @brief Do this for each argument (i.e. not a parameter).
+    /// @tparam F the type of `f`.
+    /// @param f the thing to do.
     template <typename F>
     void eachArgument(F && f) const {
         for (auto & arg : container)
             if (arg.isArgument())
                 f(arg);
     }
+
+    /// @brief Count the number of (non-ignored) elements that match.
+    /// @param name the string to match.
+    /// @return the count.
     unsigned countMatching(char const *name) const {
         unsigned result = 0;
         for (auto & arg : container)
@@ -220,17 +254,41 @@ public:
                 ++result;
         return result;
     }
+
+    /// @brief True if any (non-ignored) elements match.
+    /// @param name the string to match.
+    /// @returns True if any (non-ignored) elements match.
     bool any(char const *name) const {
         for (auto & arg : container)
             if (arg.reason == nullptr && arg == name)
                 return true;
         return false;
     }
-    /// \returns the indices in argv to skip, excluding the one.
+
+    /// @returns the indices in argv to skip.
+    /// If an element of argv is a plain argument (i.e. not a parameter or a param argument),
+    /// it will not be kept, unless it is == `keep`.
+    /// A parameter (and its argument) that has been marked to ignore will not be kept.
     UniqueOrderedList<int> keep(Argument const &keep) const;
 };
 
 struct UnknownToolException {};
+
+/// @brief Parses the argument from the command line using the definitions and parsing rules for the named tool.
+/// @param cmdLine the command line.
+/// @return The parsed arguments.
+/// @throws `UnknownToolException` if the named tool is not recognized.
 Arguments argumentsParsed(CommandLine const &);
+
+/// @brief Print parameter bitmasks used for every parameter of every tool.
+/// @param out the stream to write to.
+///
+/// Format is tab-delimited.
+/// Fields: tool name, '(' bit shift ')' decimal value, parameter long name
 void printParameterBitmasks(std::ostream &out);
+
+/// @brief Print parameter bitmasks used for every parameter of every tool.
+/// @param out the stream to write to.
+///
+/// Format is JSON.
 void printParameterJSON(std::ostream &out);

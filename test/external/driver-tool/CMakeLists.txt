@@ -39,7 +39,7 @@ AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "${SOURC
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "${SOURCEDIR}" )
-AddExecutableTest( Test_Drivertool_RunSource "test-run-source.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/${FILE_PATH_CPP};${SOURCEDIR}/json-parse.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/tool-args.cpp;" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
+AddExecutableTest( Test_Drivertool_RunSource "test-run-source.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/${FILE_PATH_CPP};${SOURCEDIR}/json-parse.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/tool-args.cpp;" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
 AddExecutableTest( Test_Drivertool_ToolArgs "test-tool-args.cpp;${SOURCEDIR}/tool-args.cpp;${SOURCEDIR}/command-line.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/${FILE_PATH_CPP}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "${SOURCEDIR}")
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
@@ -53,10 +53,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME ${test_name}
                 COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME ${test_name}-asan
                     COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME ${test_name}-tsan
                     COMMAND ${script_file} ${tool_name} "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -73,10 +75,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME Test_Drivertool_Container_${acc}
                 COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME Test_Drivertool_Container_${acc}-asan
                     COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME Test_Drivertool_Container_${acc}-tsan
                     COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -87,10 +91,12 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             add_test( NAME Test_Drivertool_${script_name}
                 COMMAND ${script_name}.sh "${DIRTOTEST}" sratools
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
+            if( TARGET sratools-asan )
                 add_test( NAME Test_Drivertool_${script_name}-asan
                     COMMAND ${script_name}.sh "${DIRTOTEST}" sratools-asan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            endif()
+            if( TARGET sratools-tsan )
                 add_test( NAME Test_Drivertool_${script_name}-tsan
                     COMMAND ${script_name}.sh "${DIRTOTEST}" sratools-tsan
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -114,16 +120,24 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 
         DriverToolTestNoScriptParams( no_sdl )
         DriverToolTestNoScriptParams( bogus )
+        DriverToolTestNoScriptParams( test-path )
+        DriverToolTestNoScriptParams( test-no-path )
+        DriverToolTestNoScriptParams( test-opt-bitmap )
+if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+        DriverToolTestNoScriptParams( test-opt-bitmap-Debug )
+endif()
         DriverToolTestNoScriptParams( testing )
         DriverToolTestNoScriptParams( vdbcache )
 
         add_test( NAME Test_Drivertool_2_accessions
             COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET sratools-asan )
             add_test( NAME Test_Drivertool_2_accessions-asan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET sratools-tsan )
             add_test( NAME Test_Drivertool_2_accessions-tsan
                 COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

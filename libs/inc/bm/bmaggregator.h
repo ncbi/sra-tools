@@ -2416,6 +2416,7 @@ void aggregator<BV>::combine_or_horizontal(bvector_type& bv_target,
         return;
     }
     const bvector_type* bv = bv_src[0];
+    BM_ASSERT(bv);
     bv_target.copy(*bv, bm::finalization::READWRITE);
     for (unsigned i = 1; i < src_size; ++i)
     {

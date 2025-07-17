@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # SRATOOLS_TESTING=5 and skip SDL via config, sub-tool invocation is
 # simulated to always succeed, but everything up to the exec call is real

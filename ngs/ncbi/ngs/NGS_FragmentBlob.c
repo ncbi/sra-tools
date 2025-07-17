@@ -36,7 +36,7 @@
 
 #include <vdb/cursor.h>
 #include <vdb/blob.h>
-#include <vdb/page-map-priv.h>
+#include <kdb/page-map-priv.h>
 
 #include "NGS_String.h"
 #include "NGS_Id.h"

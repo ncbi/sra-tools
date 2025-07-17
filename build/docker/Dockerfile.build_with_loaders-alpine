@@ -1,0 +1,53 @@
+FROM alpine:latest AS build
+RUN apk add build-base bzip2-dev clang cmake curl g++ git \
+            linux-headers ninja perl util-linux zlib-dev
+
+ARG VDB_BRANCH=engineering
+ARG SRA_BRANCH=${VDB_BRANCH}
+
+WORKDIR /root
+RUN \
+ git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git && \
+ git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
+
+WORKDIR /build
+RUN \
+ cmake -G "Ninja" \
+  -S /root/ncbi-vdb \
+  -D LIBS_ONLY=ON \
+  -D CMAKE_BUILD_TYPE=Release \
+  -B ncbi-vdb \
+ && \
+ cmake --build ncbi-vdb --target install
+
+RUN \
+ cmake -G "Ninja" \
+  -S /root/sra-tools \
+  -B sra-tools \
+  -D VDB_LIBDIR=/usr/local/lib64 \
+  -D TOOLS_ONLY=ON \
+  -D BUILD_TOOLS_LOADERS=ON \
+  -D BUILD_TOOLS_INTERNAL=ON \
+  -D CMAKE_BUILD_TYPE=Release\
+ && \
+ cmake --build sra-tools --target install
+
+FROM alpine:latest
+LABEL \
+ author="SRA Toolkit Team" \
+ maintainer="sra@ncbi.nlm.nih.gov" \
+ vendor="NCBI/NLM/NIH" \
+ url="https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software" \
+ vcs-url="https://github.com/ncbi/sra-tools/" \
+ description="NCBI SRA Toolkit including loaders"
+
+RUN apk add --no-cache libbz2 libgcc libstdc++
+COPY --from=build /usr/local/bin /usr/local/bin
+
+# very basic smoke test to check if runnable
+RUN touch foo && srapath ./foo && rm foo
+
+# sharq test
+RUN printf \
+ '@NB501550:336:H75GGAFXY:2:11101:10137:1038 1:N:0:CTAGGTGA\nNCTATCTAGAATTCCCTACTACTCCC' \
+ | sharq

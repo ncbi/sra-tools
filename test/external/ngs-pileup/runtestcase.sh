@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -43,7 +43,7 @@ CASEID=$4
 shift 4
 CMDLINE=$*
 
-SRA_PILEUP="$BINDIR/sra-pileup${BINARY_SUFFIX}"
+SRA_PILEUP="$BINDIR/sra-pileup" # sra-pileup is not the target of the test
 NGS_PILEUP="$BINDIR/ngs-pileup${BINARY_SUFFIX}"
 TEMPDIR=$WORKDIR/actual/$CASEID
 

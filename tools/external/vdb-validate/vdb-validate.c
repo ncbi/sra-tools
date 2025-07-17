@@ -113,6 +113,7 @@ typedef struct node_s {
     unsigned name;
     uint32_t objType;
 } node_t;
+
 typedef struct cc_context_s {
     node_t *nodes;
     char *names;
@@ -120,7 +121,9 @@ typedef struct cc_context_s {
     unsigned num_columns;
     unsigned nextNode;
     unsigned nextName;
+    unsigned missingChecksum;
 } cc_context_t;
+
 static
 rc_t report_rtn ( rc_t rc )
 {
@@ -174,6 +177,9 @@ static rc_t report_column(CCReportInfoBlock const *what, cc_context_t *ctx)
         }
         return report_rtn (what->info.done.rc);
     case ccrpt_Blob:
+        if (what->info.blob.missingChecksum) {
+            ctx->missingChecksum += 1;
+        }
         return 0; /* continue with check */
     case ccrpt_MD5:
         if (what->info.MD5.rc) {
@@ -349,15 +355,15 @@ rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
     rc_t rc = 0;
     cc_context_t ctx;
     char const *objtype;
-
+    bool const blob_crc_required = (mode & 8) != 0;
     uint32_t level = ( mode & 4 ) ? 3 : ( mode & 2 ) ? 1 : 0;
-    if (s_IndexOnly)
-        level |= CC_INDEX_ONLY;
-
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.nodes = &nodes[0];
     ctx.names = &names[0];
+
+    if (s_IndexOnly)
+        level |= CC_INDEX_ONLY;
 
     if (KDBManagerExists(mgr, kptDatabase, "%s", name))
         *pathType = kptDatabase;
@@ -411,6 +417,13 @@ rc_t kdbcc ( const KDBManager *mgr, char const name[], uint32_t mode,
         }
     }
 
+    if (rc == 0 && ctx.missingChecksum > 0) {
+        if (blob_crc_required)
+            rc = RC ( rcExe, *pathType == kptDatabase ? rcDatabase : rcTable, rcValidating, rcChecksum, rcNotFound );
+        else
+            (void)LOGMSG(klogWarn, "checksums missing");
+    }
+        
     if (rc == 0 && ctx.num_columns == 0 && !s_IndexOnly)
     {
         if (is_file)
@@ -2410,6 +2423,7 @@ rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
         uint32_t mode = ( pb -> md5_chk ? 1 : 0 )
                       | ( pb -> blob_crc ? 2 : 0 )
                       | ( pb -> index_chk ? 4 : 0 )
+                      | ( pb -> blob_crc_required ? 8 : 0 )
                       ;
         /* check as kdb object */
         if ( rc == 0 )
@@ -2651,7 +2665,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     bool bad = false;
     const String *local = NULL;
     VFSManager *mgr = NULL;
-    VResolver *resolver = NULL;
     const char *path = aPath;
     const String * ad = NULL;
     KPathType pt = kptNotFound;
@@ -2663,14 +2676,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     }
 
     assert(pb);
-
-    rc = VFSManagerGetResolver(mgr, &resolver);
-    if (rc != 0) {
-        LOGERR(klogInt, rc, "Cannot VFSManagerGetResolver");
-    }
-    else {
-        VResolverRemoteEnable(resolver, vrAlwaysDisable);
-    }
 
     /* what type of thing is this path? */
     pt = KDirectoryPathType(pb->wd, "%s", path);
@@ -2685,7 +2690,7 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
                 "VPathMake($(path)) failed", PLOG_S(path), path));
         }
         else {
-            rc = VResolverLocal(resolver, acc, &pLocal);
+            rc = VFSManagerResolveLocal(mgr, path, &pLocal);
             if (rc != 0 && NotFoundByResolver(rc)) {
                 bad = false;
                 PLOGMSG(klogInfo, (klogInfo,
@@ -2733,7 +2738,6 @@ rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
         RELEASE(VPath, path2);
     }
     RELEASE(VFSManager, mgr);
-    RELEASE(VResolver, resolver);
 
     if (rc == 0) {
         switch (pt & ~kptAlias) {

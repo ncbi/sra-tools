@@ -35,6 +35,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <limits.h>
@@ -166,47 +167,128 @@ void FilePath::changeDirectory() const {
     throw std::system_error(errno, std::system_category(), std::string("chdir: ") + path);
 }
 
-FilePath from_realpath(char const *path)
+// In Darwin, `main` takes 4 parameters, the last one being this `apple` array.
+static char const *searchExtra(char const *const *const apple)
 {
-    auto const real = realpath(path, nullptr);
-    if (real)
-    {
-        FilePath ret(real);
-        free(real);
-        return ret;
+    // In modern Darwin, some element of the `apple` array
+    // (usually the first) will be
+    // `executable_path=<path/to/exe>`
+    for (auto cur = apple; *cur; ++cur) {
+        if (strncmp(*cur, "executable_path=", 16) == 0)
+            return (*cur) + 16;
     }
-    throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
+    // In older Darwin, the first element of the `apple` array
+    // will be `<path/to/exe>`
+    return *apple;
 }
 
-#if MAC
-static char const *find_executable_path(char const *const *const extra, char const *const argv0)
+static FilePath realPathToExecutable(char const *path)
 {
-    for (auto cur = extra; extra && *cur; ++cur) {
-        if (strncmp(*cur, "executable_path=", 16) == 0) { // usually
-            return (*cur) + 16; // Usually, this is the value.
+    auto rp = realpath(path, nullptr);
+    if (rp) {
+        auto && result = FilePath(rp);
+        free(rp);
+        if (result.executable())
+            return result;
+    }
+    LOG(9) << "unable to get real path to executable " << path << std::endl;
+    throw std::runtime_error("not found");
+}
+
+static FilePath realPathToExecutable(std::string const &path)
+{
+    return realPathToExecutable(path.c_str());
+}
+
+static FilePath realPathToExecutable(FilePath const &path)
+{
+    return realPathToExecutable(std::string(path));
+}
+
+static FilePath realPathToExecutableInList(char const *pathList, FilePath const &baseName)
+{
+    for (auto path = pathList; pathList && *path; ++path) {
+        auto cur = path;
+        while (*path && *path != ':')
+            ++path;
+        assert(*path == '\0' || *path == ':');
+
+        try {
+            return realPathToExecutable(FilePath(std::string{cur, path}).append(baseName));
         }
+        catch (std::runtime_error const &e) { (void)e; }
     }
-    return (extra && extra[0]) ? extra[0] : argv0;
+    LOG(8) << "no " << baseName << " in " << pathList << std::endl;
+    throw std::runtime_error("not found");
 }
-#endif
 
+/// Find full real path to the current executable.
+///
+/// 1. Try any platform specific means.
+/// 2. Try `argv[0]` if it is not a bare name.
+/// 3. Search `PATH` environment variable.
+/// 4. Try some default install location(s).
+/// 5. Try the build output directory.
+/// 6. Return `argv[0]` as is, which will probably not be useful.
+///
+/// Platform specific means:
+/// Linux has `/proc/self/exe`.
+/// Darwin has an extra parameter to `main`.
 FilePath FilePath::fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra)
 {
-    char const *path;
-#if LINUX
-    path = "/proc/self/exe";
-#elif MAC
-    path = find_executable_path(extra, argv[0]);
-#else
-    path = argv[0];
-#endif
     try {
-        return from_realpath(path);
+#if LINUX
+        return realPathToExecutable("/proc/self/exe");
+#elif MAC
+        if (extra) {
+            auto const found = searchExtra(extra);
+            if (found)
+                return realPathToExecutable(found);
+        }
+#endif
+        // If there is any path separator in `argv[0]`, then the shell
+        // must have used that path to the executable.
+        for (auto cur = argv[0]; *cur; ++cur) {
+            if (*cur == '/')
+                return realPathToExecutable(argv[0]);
+        }
+        // `argv[0]` is a bare name.
     }
-    catch (std::system_error const &e) {
-        LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
+    catch (std::runtime_error const &e) { (void)e; }
+
+    // search PATH
+    FilePath const baseName(argv[0]);
+
+    try { return realPathToExecutableInList(getenv("PATH"), baseName); }
+    catch (std::runtime_error const &e) { (void)e; }
+    
+    // Try the default install location.
+    // On FreeBSD, assume sra-tools is installed by ports. The default
+    // prefix is /usr/local. This can be overridden by the user.
+    // In which case, the port can replace /usr/local, e.g. using sed.
+    static auto const defaultLocation = "/usr/local" "/bin";
+    try { return realPathToExecutable(FilePath(defaultLocation).append(baseName)); }
+    catch (std::runtime_error const &e) { (void)e; }
+
+#ifdef PREFIX_PATH
+
+    try { 
+        auto const binBase = FilePath("bin").append(baseName);
+        return realPathToExecutableInList(PREFIX_PATH, binBase);
     }
-    return FilePath(argv[0]);
+    catch (std::runtime_error const &e) { (void)e; }
+    
+#endif
+
+#ifdef BUILD_PATH
+
+    try { return realPathToExecutableInList(BUILD_PATH, baseName); }
+    catch (std::runtime_error const &e) { (void)e; }
+    
+#endif
+
+    LOG(2) << "unable to get real path to executable " << argv[0] << std::endl;
+    return baseName;
 }
 
 bool FilePath::isSameFileSystemObject(FilePath const &other) const

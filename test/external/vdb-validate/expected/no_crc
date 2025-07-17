@@ -1,0 +1,7 @@
+info: Database 'SRR26020762-corrupt.sralite' metadata: md5 ok
+info: Table 'SEQUENCE' metadata: md5 ok
+info: Column 'ALTREAD': md5 ok
+info: Column 'NAME_FMT': md5 ok
+info: Column 'RD_FILTER': md5 ok
+err: file corrupt while reading file within file system module - Column 'READ': failed md5 validation
+err: file corrupt while reading file within file system module - Database 'SRR26020762-corrupt.sralite' check failed

@@ -47,6 +47,7 @@ rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize 
             rc = VNamelistMake ( & self -> files, alloc_blocksize );
             if ( 0 != rc ) {
                 ErrMsg( "locked_file_list_init().VNamelistMake() -> %R", rc );
+				self -> files = NULL;
             }
         }
     }
@@ -66,11 +67,12 @@ rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir, bool
                 rc = ft_delete_files( dir, self -> files, details );
             }
         }
-        {
+        if ( NULL != self -> files ) {
             rc_t rc2 = VNamelistRelease ( self -> files );
             if ( 0 != rc2 ) {
                 ErrMsg( "locked_file_list_release().VNamelistRelease() -> %R", rc );
             }
+			self -> files = NULL;
         }
     }
     return rc;
@@ -95,10 +97,12 @@ rc_t locked_file_list_append( const locked_file_list_t * self, const char * file
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_append( '%s' ).KLockAcquire() -> %R", filename, rc );
         } else {
-            rc = VNamelistAppend ( self -> files, filename );
-            if ( 0 != rc ) {
-                ErrMsg( "locked_file_list_append( '%s' ).VNamelistAppend() -> %R", filename, rc );
-            }
+			if ( NULL != self -> files ) {
+				rc = VNamelistAppend ( self -> files, filename );
+				if ( 0 != rc ) {
+					ErrMsg( "locked_file_list_append( '%s' ).VNamelistAppend() -> %R", filename, rc );
+				}
+			}
             rc = locked_file_list_unlock( self, "locked_file_list_append", rc );
         }
     }
@@ -115,10 +119,12 @@ rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self,
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_files().KLockAcquire() -> %R", rc );
         } else {
-            rc = ft_delete_files( dir, self -> files, details );
-            if ( 0 != rc ) {
-                ErrMsg( "locked_file_list_delete_files().delete_files() -> %R", rc );
-            }
+			if ( NULL != self -> files ) {
+				rc = ft_delete_files( dir, self -> files, details );
+				if ( 0 != rc ) {
+					ErrMsg( "locked_file_list_delete_files().delete_files() -> %R", rc );
+				}
+			}
             rc = locked_file_list_unlock( self, "locked_file_list_delete_files", rc );
         }
     }
@@ -135,10 +141,12 @@ rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self, 
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_dirs().KLockAcquire() -> %R", rc );
         } else {
-            rc = ft_delete_dirs( dir, self -> files, details );
-            if ( 0 != rc ) {
-                ErrMsg( "locked_file_list_delete_dirs().delete_dirs() -> %R", rc );
-            }
+			if ( NULL != self -> files ) {
+				rc = ft_delete_dirs( dir, self -> files, details );
+				if ( 0 != rc ) {
+					ErrMsg( "locked_file_list_delete_dirs().delete_dirs() -> %R", rc );
+				}
+			}
             rc = locked_file_list_unlock( self, "locked_file_list_delete_dirs", rc );
         }
     }
@@ -155,10 +163,14 @@ rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count )
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_count().KLockAcquire() -> %R", rc );
         } else {
-            rc = VNameListCount( self -> files, count );
-            if ( 0 != rc ) {
-                ErrMsg( "locked_file_list_count().VNameListCount() -> %R", rc );
-            }
+			if ( NULL != self -> files ) {
+				rc = VNameListCount( self -> files, count );
+				if ( 0 != rc ) {
+					ErrMsg( "locked_file_list_count().VNameListCount() -> %R", rc );
+				}
+			} else {
+				*count = 0;
+			}
             rc = locked_file_list_unlock( self, "locked_file_list_count", rc );
         }
     }
@@ -176,23 +188,25 @@ rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item ) {
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_pop().KLockAcquire() -> %R", rc );
         } else {
-            const char * s;
-            rc = VNameListGet ( self -> files, 0, &s );
-            if ( 0 != rc ) {
-                ErrMsg( "locked_file_list_pop().VNameListGet() -> %R", rc );
-            } else {
-                String S;
-                StringInitCString( &S, s );
-                rc = StringCopy ( item, &S );
-                if ( 0 != rc ) {
-                    ErrMsg( "locked_file_list_pop().StringCopy() -> %R", rc );
-                } else {
-                    rc = VNamelistRemoveIdx( self -> files, 0 );
-                    if ( 0 != rc ) {
-                        ErrMsg( "locked_file_list_pop().VNamelistRemoveIdx() -> %R", rc );
-                    }
-                }
-            }
+			if ( NULL != self -> files ) {
+				const char * s;
+				rc = VNameListGet ( self -> files, 0, &s );
+				if ( 0 != rc ) {
+					ErrMsg( "locked_file_list_pop().VNameListGet() -> %R", rc );
+				} else {
+					String S;
+					StringInitCString( &S, s );
+					rc = StringCopy ( item, &S );
+					if ( 0 != rc ) {
+						ErrMsg( "locked_file_list_pop().StringCopy() -> %R", rc );
+					} else {
+						rc = VNamelistRemoveIdx( self -> files, 0 );
+						if ( 0 != rc ) {
+							ErrMsg( "locked_file_list_pop().VNamelistRemoveIdx() -> %R", rc );
+						}
+					}
+				}
+			}
             rc = locked_file_list_unlock( self, "locked_file_list_pop", rc );
         }
     }

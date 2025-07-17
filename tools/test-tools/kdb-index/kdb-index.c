@@ -187,15 +187,12 @@ void print_help ( void )
         );
 }
 
-rc_t CC Usage ( struct Args const * args )
-{
-    return 0;
-}
+const char UsageDefaultName[] = "kdb-index";
 
- const char UsageDefaultName[] = "kdb-index";
-rc_t CC UsageSummary (const char * progname) { return 0; }
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     rc_t rc = 0;
     int i, count = 0;
     const KDBManager * mgr;
@@ -258,5 +255,5 @@ rc_t CC KMain ( int argc, char *argv [] )
         KDBManagerRelease ( mgr );
     }
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

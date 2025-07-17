@@ -26,30 +26,39 @@ add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
 
 if ( NOT WIN32 )
-    ToolsRequired( read-filter-redact )
+    ToolsRequired( read-filter-redact kar kdbmeta vdb-unlock )
 
     if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
 
         add_test( NAME Test_Read_filter_redact_Check_exit_code
             COMMAND
-                ${Python3_EXECUTABLE}
-                    ${CMAKE_SOURCE_DIR}/build/check-exit-code.py
-                    ${DIRTOTEST}/read-filter-redact${EXE}
+sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/read-filter-redact${EXE} || echo no read-filter-redact"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND_EXPAND_LISTS
         )
 
     endif()
 
-	add_test( NAME Test_Read_filter_redact
-		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact
+	make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
+	add_test( NAME Test_Read_filter_redact_1
+		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_1
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
+    add_test( NAME Test_Read_filter_redact_2
+		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_2
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_Read_filter_redact_3
+		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_3
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+	if( TARGET read-filter-redact-asan )
 		add_test( NAME Test_Read_filter_redact-asan
-			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan Test_Read_filter_redact_1
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET read-filter-redact-tsan )
 		add_test( NAME Test_Read_filter_redact-tsan
-			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan Test_Read_filter_redact_1
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 

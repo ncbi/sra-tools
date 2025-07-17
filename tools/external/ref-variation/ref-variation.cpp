@@ -2017,8 +2017,13 @@ extern "C"
         return rc;
     }
 
-    rc_t CC KMain ( int argc, char *argv [] )
+    MAIN_DECL(argc, argv)
     {
+        VDB::Application app(argc, argv);
+
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
         /* command line examples:
           -r NC_011752.1 -p 2018 --query CA -l 0
           -r NC_011752.1 -p 2020 --query CA -l 0
@@ -2068,6 +2073,9 @@ extern "C"
 
        */
 
-        return NSRefVariation::find_variation_region ( argc, argv );
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
+        return NSRefVariation::find_variation_region ( argc, app.getArgV() );
     }
 }

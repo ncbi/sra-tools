@@ -1,0 +1,10 @@
+<LOAD>
+  <QC>
+    <file_1 algorithm="SHA-256" digest="e9a8558d64ba3bfb35ac31616f8fac33df26c710309279a5d213b946af7f73ea" format="json utf-8 compact" name="input/r1.fastq" version="1.0.0">
+      '{&quot;maximum-position&quot;:4,&quot;A&quot;:[0,1,0,0,0],&quot;C&quot;:[0,0,0,0,0],&quot;G&quot;:[1,0,0,0,0],&quot;T&quot;:[0,0,1,1,0],&quot;N&quot;:[0,0,0,0,0],&quot;EoR&quot;:[0,0,0,0,1]}'
+    </file_1>
+    <file_2 algorithm="SHA-256" digest="40342020c6fc1a9167112b7e843a2fb4ff5f53b76b06ec360830c61695709d1e" format="json utf-8 compact" name="input/r2.fastq" version="1.0.0">
+      '{&quot;maximum-position&quot;:4,&quot;A&quot;:[0,0,1,0,0],&quot;C&quot;:[1,1,0,0,0],&quot;G&quot;:[0,0,0,1,0],&quot;T&quot;:[0,0,0,0,0],&quot;N&quot;:[0,0,0,0,0],&quot;EoR&quot;:[0,0,0,0,1]}'
+    </file_2>
+  </QC>
+</LOAD>

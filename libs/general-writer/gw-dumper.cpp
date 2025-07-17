@@ -32,6 +32,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <tuple>
 
 #include <stdio.h>
 #include <string.h>
@@ -384,6 +385,39 @@ namespace gw_dump
             throw "failed to read column name";
         }
     }
+
+    /* read_3string
+     */
+    template < class T > static
+    std::tuple<std::string const, std::string const, std::string const> read3Strings ( const T & eh, FILE * in )
+    {
+        auto const size = std::make_tuple(size1(eh), size2(eh), size3(eh));
+        try {
+            auto const buffer = readFILE(1, std::get<0>(size) + std::get<1>(size) + std::get<2>(size), in);
+            return {buffer.substr(0, std::get<0>(size)),
+                    buffer.substr(std::get<0>(size), std::get<1>(size)),
+                    buffer.substr(std::get<0>(size)+std::get<1>(size), std::get<2>(size))};
+        }
+        catch (...) {
+            throw "failed to read triple string data";
+        }
+    }
+
+    template <>
+    std::tuple<std::string const, std::string const, std::string const> read3Strings < :: gw_3string_evt_v1 > ( const :: gw_3string_evt_v1 & eh, FILE * in )
+    {
+        auto const size = std::make_tuple(size1(eh), size2(eh), size3(eh));
+        try {
+            auto const buffer = readFILE(4, (std::get<0>(size) + std::get<1>(size) + std::get<2>(size) + 3) >> 2, in);
+            return {buffer.substr(0, std::get<0>(size)),
+                    buffer.substr(std::get<0>(size), std::get<1>(size)),
+                    buffer.substr(std::get<0>(size)+std::get<1>(size), std::get<2>(size))};
+        }
+        catch (...) {
+            throw "failed to read triple string data";
+        }
+    }
+
 
     template <>
     std::string readColname < :: gw_column_evt_v1 > ( const :: gw_column_evt_v1 & eh, FILE * in )
@@ -1352,6 +1386,58 @@ namespace gw_dump
         }
     }
 
+    /* check_metadata_node_attr
+     *
+     */
+    template < class T > static
+    void check_metadata_node_attr ( const T & eh )
+    {
+        if ( size1 ( eh ) == 0 )
+            throw "empty metadata node";
+        if ( size2 ( eh ) == 0 )
+            throw "empty value";
+    }
+
+    /* dump_metadata_node_attr
+     */
+        template < class D, class T > static
+    void dump_metadata_node_attr ( FILE * in, const D & e, metadata_node_root const mnr )
+    {
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . sz1, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read metadata_node_attr event";
+
+        check_metadata_node ( eh );
+
+        auto const objectId = id(eh.dad);
+        auto const strings = read3Strings(eh, in);
+        auto const &node_path = std::get<0>(strings);
+        auto const &attr = std::get<1>(strings);
+        auto const &value = std::get<2>(strings);
+
+        switch (display) {
+        case 1:
+            std :: cout
+                << event_num << ": metadata-node-attr\n"
+                   "  metadata_node_attr [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
+                   "  attr [ " << size2 ( eh ) << " ] = \"" << attr << "\"\n" <<
+                   "  value [ " << size3 ( eh ) << " ] = \"" << value << "\"\n";
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"metadata\""
+                   ", \"" << metadata_node_root_name(mnr) << "\": " << objectId
+                << ", \"node\": \"" << node_path << "\""
+                   ", \"attr\": \"" << attr << "\""
+                   ", \"value\": \"" << value << "\""
+                   " }\n";
+            break;
+        }
+    }
+
     /* check_add_mbr
      *
      */
@@ -1419,7 +1505,7 @@ namespace gw_dump
 
         check_add_mbr ( eh );
 
-        auto const dbid = db_id ( eh );
+        uint32_t const dbid = db_id ( eh );
         auto const cmode = create_mode ( eh );
         auto const &r2s = read2Strings(eh, in);
         auto const &member_name = r2s.first;
@@ -1880,6 +1966,21 @@ namespace gw_dump
             dump_progmsg < gw_evt_hdr_v1, gw_status_evt_v1 > ( in, e );
             break;
 
+        case evt_db_metadata_node_attr:
+            dump_metadata_node_attr < gw_evt_hdr_v1, gw_3string_evt_v1 > ( in, e, mnr_database );
+            break;
+        case evt_tbl_metadata_node_attr:
+            dump_metadata_node_attr < gw_evt_hdr_v1, gw_3string_evt_v1 > ( in, e, mnr_table );
+            break;
+        case evt_col_metadata_node_attr:
+            dump_metadata_node_attr < gw_evt_hdr_v1, gw_3string_evt_v1 > ( in, e, mnr_column );
+            break;
+
+        case evt_db_metadata_node_attr2:
+        case evt_tbl_metadata_node_attr2:
+        case evt_col_metadata_node_attr2:
+            throw "packed event id within non-packed stream";
+
         default:
             throw "unrecognized event id";
         }
@@ -1981,13 +2082,13 @@ namespace gw_dump
             dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_column );
             break;
         case evt_db_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_database );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_U16_v1 > ( in, e, mnr_database );
             break;
         case evt_tbl_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_table );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_U16_v1 > ( in, e, mnr_table );
             break;
         case evt_col_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_column );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_U16_v1 > ( in, e, mnr_column );
             break;
         case evt_add_mbr_db:
             dump_add_mbr < gwp_evt_hdr_v1, gwp_add_mbr_evt_v1 > ( in, e );
@@ -2001,6 +2102,27 @@ namespace gw_dump
         case evt_progmsg:
             dump_progmsg < gwp_evt_hdr_v1, gwp_status_evt_v1 > ( in, e );
             break;
+
+            // add in new message handlers for version 3
+        case evt_db_metadata_node_attr:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_v1 > ( in, e, mnr_database );
+            break;
+        case evt_tbl_metadata_node_attr:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_v1 > ( in, e, mnr_table );
+            break;
+        case evt_col_metadata_node_attr:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_v1 > ( in, e, mnr_column );
+            break;
+        case evt_db_metadata_node_attr2:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_U16_v1 > ( in, e, mnr_database );
+            break;
+        case evt_tbl_metadata_node_attr2:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_U16_v1 > ( in, e, mnr_table );
+            break;
+        case evt_col_metadata_node_attr2:
+            dump_metadata_node_attr < gwp_evt_hdr_v1, gwp_3string_evt_U16_v1 > ( in, e, mnr_column );
+            break;
+
 
         default:
             throw "unrecognized packed event id";
@@ -2081,6 +2203,7 @@ namespace gw_dump
         {
         case 1:
         case 2:
+        case 3:
             dump_v1_header ( in, hdr, packed );
             break;
         default:
@@ -2103,6 +2226,7 @@ namespace gw_dump
         {
         case 1:
         case 2:
+        case 3:
             if (packed)
                 dumper = dump_v1_packed_event;
 

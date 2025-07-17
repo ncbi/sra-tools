@@ -1,0 +1,30 @@
+FROM alpine:latest AS build
+RUN apk add build-base util-linux linux-headers g++ libstdc++ libgcc gdb ninja cmake git perl zlib-dev bzip2-dev
+
+ARG VDB_BRANCH=engineering
+ARG SRA_BRANCH=${VDB_BRANCH}
+
+ADD https://github.com/ncbi/ncbi-vdb.git#${VDB_BRANCH} /root/ncbi-vdb
+ADD https://github.com/ncbi/sra-tools.git#${SRA_BRANCH} /root/sra-tools
+
+WORKDIR /root
+RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' ncbi-vdb/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' ncbi-vdb/libs/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kxml\|vdb-sqlite\s*)\s*$/ d' sra-tools/libs/CMakeLists.txt && \
+    sed -i.orig -e '/\bCPACK\|CPack/ d' sra-tools/CMakeLists.txt && \
+    sed -i.orig -e 's/(_POSIX_C_SOURCE\s*>=\s*200112L)\s*&&\s*!\s*_GNU_SOURCE/1/g' ncbi-vdb/libs/klib/linux/syserrcode.c
+
+RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Debug                \
+          -S ncbi-vdb -B build/ncbi-vdb &&                  \
+    cmake --build build/ncbi-vdb
+
+RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Debug                \
+          -D VDB_LIBDIR=/root/build/ncbi-vdb/lib            \
+          -S sra-tools -B build/sra-tools &&                \
+    cmake --build build/sra-tools --target install
+
+RUN mkdir -p /usr/local/bin/ncbi && \
+    cp ncbi-vdb/interfaces/kfg/ncbi/certs.kfg ncbi-vdb/interfaces/kfg/ncbi/default.kfg /usr/local/bin/ncbi && \
+    /usr/local/bin/vdb-config -on /repository/remote > /usr/local/bin/ncbi/settings.kfg && \
+    printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` >> /usr/local/bin/ncbi/settings.kfg && \
+    printf '/libs/cloud/report_instance_identity = "true"\n' >> /usr/local/bin/ncbi/settings.kfg

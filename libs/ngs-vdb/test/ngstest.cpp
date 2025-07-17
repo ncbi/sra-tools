@@ -29,6 +29,7 @@
 */
 
 #include <ngs/StringRef.hpp>
+#include <kapp/main.h>
 
 #include <ktst/unit_test.hpp>
 
@@ -37,35 +38,8 @@ using namespace ncbi::NK;
 
 TEST_SUITE(NgsCppTestSuite);
 
-
 //////////////////////////////////////////// Main
-extern "C"
+int main( int argc, char * argv[] )
 {
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
+    return NgsCppTestSuite( argc, argv );
 }
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs-c++";
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
-    rc_t rc=NgsCppTestSuite( argc, argv );
-    return rc;
-}
-
-}
-
-

@@ -37,6 +37,11 @@ target_link_libraries ( test-general-writer
 	${COMMON_LIBS_READ}
 )
 
-add_test ( NAME GeneralWriterTest
-           COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-general-writer
-           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+ToolsRequired(gw-dumper)
+make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
+add_test ( NAME Test_GeneralWriter_RoundTrip
+            COMMAND
+            sh -c "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-general-writer && ${BINDIR}/gw-dumper -v ./actual/test-general-writer.gw | grep --text -v timestamp | grep --text -v pid >./actual/test-general-writer.stdout && diff ./actual/test-general-writer.stdout ./expected/test-general-writer.stdout"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )

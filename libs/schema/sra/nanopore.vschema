@@ -1,0 +1,92 @@
+/*===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ */
+
+/*==========================================================================
+ * NCBI Oxford Nanopore Sequence Read Archive schema
+ */
+version 1;
+
+include 'insdc/sra.vschema';
+include 'ncbi/sra.vschema';
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:Nanopore:consensus
+ *  Oxford Nanopore SRA Platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+*/
+table NCBI:SRA:Nanopore:consensus #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0
+{
+    extern column < U32 > izip_encoding #1 CHANNEL;
+
+    extern column < U32 > izip_encoding #1 READ_NUMBER;
+
+    extern column bool_encoding #1 HIGH_QUALITY;
+
+    ascii platform_name
+        = < ascii > echo < "OXFORD_NANOPORE" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_OXFORD_NANOPORE > ();
+}
+
+
+/*--------------------------------------------------------------------------
+ * NCBI:SRA:Nanopore:sequence
+ *  Oxford Nanopore SRA Platform
+ *
+ * history:
+ *  1.0.1 - base explicitly upon sra #2.1.4
+ *  2.0.0 - NCBI:tbl:base_space uses metadata RNA_Flag to support RNA reads
+ */
+table NCBI:SRA:Nanopore:sequence #2
+    = NCBI:SRA:tbl:sra #2.1.4
+    , NCBI:tbl:base_space #3
+    , NCBI:tbl:phred_quality #2.0.3
+{
+    extern column < U32 > izip_encoding #1 CHANNEL;
+
+    extern column < U32 > izip_encoding #1 READ_NUMBER;
+
+    ascii platform_name
+        = < ascii > echo < "OXFORD_NANOPORE" > ();
+
+    INSDC:SRA:platform_id out_platform
+        = < INSDC:SRA:platform_id > echo < SRA_PLATFORM_OXFORD_NANOPORE > ();
+}
+
+
+database NCBI:SRA:Nanopore:db #2
+{
+    table NCBI:SRA:Nanopore:sequence #2.0 SEQUENCE;
+    table NCBI:SRA:Nanopore:consensus #2.0 CONSENSUS;
+};

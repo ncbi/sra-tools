@@ -22,8 +22,7 @@
 #
 # ==============================================================================
 
-$verbose = 1;
-$verbose = 0;
+my ($verbose) = @ARGV;
 
 $acc = 'SRR053325';
 
@@ -32,10 +31,6 @@ print "$cmd\n" if $verbose;
 `$cmd`; die if $?;
 
 $cmd = "SRR053325=../data/full.json test-quality r $acc f";
-print "$cmd\n" if $verbose;
-`$cmd`; die if $?;
-
-$cmd = "SRR053325=../data/dbl.json test-quality r $acc d";
 print "$cmd\n" if $verbose;
 `$cmd`; die if $?;
 

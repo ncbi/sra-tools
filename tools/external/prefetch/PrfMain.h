@@ -40,7 +40,8 @@ typedef struct {
 
 typedef struct {
     ERunType type;
-    char *name; /* name to resolve */
+    char *name;     /* name to resolve */
+    const char *id; /* numeric ID for kart items */
 
     VPathStr      local;
     const struct String *cache;
@@ -168,6 +169,8 @@ typedef struct PrfMain {
 #if _DEBUGGING
     const char * textkart;
 #endif
+
+    ETernary fullQuality; // Current preference
 } PrfMain;
 
 bool _StringIsXYZ(const struct String *self, const char **withoutScheme,
@@ -188,17 +191,21 @@ rc_t PrfMainDependenciesList(const PrfMain *self,
 rc_t PrfMainInit(int argc, char *argv[], PrfMain *self);
 rc_t PrfMainFini(PrfMain *self);
 
+extern const char UsageDefaultName[];
+rc_t CC UsageSummary(const char *progname);
+
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define DISP_RC2(rc, msg, name) (void)((rc == 0) ? 0 : \
-    PLOGERR(klogInt, (klogInt,rc, "$(msg): $(name)","msg=%s,name=%s",msg,name)))
+   PLOGERR(klogInt, (klogInt,rc, "$(msg) [$(name)]","msg=%s,name=%s",msg,name)))
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
-#define STS_INFO 1
-#define STS_DBG  2
-#define STS_FIN  3
+#define STS_TOP  1
+#define STS_INFO 2
+#define STS_DBG  3
+#define STS_FIN  4
 
 #define ELIM_QUALS_OPTION "eliminate-quals"
 #define KART_OPTION "cart"

@@ -100,7 +100,7 @@ int crc32sum_check ( FILE *in, const char *fname )
             fprintf ( stderr, "badly formatted file '%s'\n", fname );
             return EINVAL;
         }
- 
+
         src = fopen ( p += 2, bin ? "rb" : "r" );
         if ( src == NULL )
         {
@@ -200,10 +200,15 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-rc_t CC KMain (int argc, char * argv [])
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args *args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 1,
                             Options, sizeof (Options) / sizeof (OptDef));
@@ -237,7 +242,7 @@ rc_t CC KMain (int argc, char * argv [])
                 uint32_t i;
 
                 CRC32Init ();
-           
+
                 for ( i = 0; i < pcount; ++ i )
                 {
 
@@ -268,5 +273,5 @@ rc_t CC KMain (int argc, char * argv [])
         } while (0);
     }
 
-    return 0;
+    return VDB_TERMINATE( 0 );
 }

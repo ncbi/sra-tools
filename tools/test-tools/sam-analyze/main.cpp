@@ -1,3 +1,31 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+#include <kapp/main.h>
+
 #include "args.hpp"
 #include "params.hpp"
 #include "sam_db.hpp"
@@ -6,13 +34,14 @@
 #include "exporter.hpp"
 #include "ref_dict.hpp"
 
-extern "C" {
+MAIN_DECL(argc, argv)
+{
+    VDB::Application app(argc, argv);
 
-int KMain( int argc, char* argv[] ) {
     int res = 0;
     args_t::str_vec_t hints;
     params_t::populate_hints( hints );
-    const args_t args( argc, argv, hints ); // in args.hpp
+    const args_t args( argc, app.getArgV(), hints); // in args.hpp
     const params_t params( args ); // in params.hpp
     if ( params . cmn . help ) {
         params . show_help();
@@ -26,7 +55,7 @@ int KMain( int argc, char* argv[] ) {
         if ( params . imp . requested() ) {     // import was requested?
             if ( params . imp . check() ) {     // import can be done?
                 /* ==============================================================
-                *  import a sam-file into the sqlite-database-file 
+                *  import a sam-file into the sqlite-database-file
                 * ============================================================== */
                 importer_t importer( db, params . imp ); // in importer.hpp
                 res = importer . run() ? 0 : 3;
@@ -64,7 +93,7 @@ int KMain( int argc, char* argv[] ) {
             }
         }
     }
-    return res;
-}
 
+    app.setRc( res );
+    return app.getExitCode();
 }

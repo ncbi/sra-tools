@@ -1,0 +1,9 @@
+<current>
+  <algorithm>'SHA-256'</algorithm>
+  <digest>'bcedb464c6968b137c870a9b7d6695d8dfc2fad1408702dfd4acf560b45bdb80'</digest>
+  <fingerprint>
+    '{&quot;maximum-position&quot;:26,&quot;A&quot;:[0,3,2,1,2,1,0,1,0,4,3,1,0,0,1,2,0,1,2,1,2,0,1,0,0,1,0],&quot;C&quot;:[0,1,0,1,1,1,1,0,1,0,0,1,0,1,2,1,1,0,1,1,0,2,1,2,2,1,0],&quot;G&quot;:[0,0,1,1,0,1,2,2,1,0,0,1,2,2,0,0,1,1,0,1,2,1,0,2,0,1,0],&quot;T&quot;:[0,0,1,1,1,1,1,1,2,0,1,1,2,1,1,1,2,2,1,1,0,1,2,0,2,1,0],&quot;N&quot;:[4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],&quot;EoR&quot;:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4]}'
+  </fingerprint>
+  <format>'json utf-8 compact'</format>
+  <version>'1.0.0'</version>
+</current>

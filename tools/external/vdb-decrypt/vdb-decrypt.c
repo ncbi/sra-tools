@@ -35,6 +35,7 @@
 #include <klib/defs.h>
 #include <klib/log.h>
 #include <klib/status.h>
+#include <kapp/main.h>
 
 #include <assert.h>
 #include <ctype.h> /* isdigit */
@@ -51,7 +52,7 @@ const char OptionSra[] = OPTION_DEC_SRA;
 
 
 static
-OptDef Options[] = 
+OptDef Options[] =
 {
     /* name            alias max times oparam required fmtfunc help text loc */
     { OPTION_DEC_SRA, ALIAS_DEC_SRA, NULL, UsageSra,      0, false, false },
@@ -60,7 +61,7 @@ OptDef Options[] =
 };
 
 
-static 
+static
 bool DecryptSraFlag = false;
 
 
@@ -188,7 +189,7 @@ rc_t CryptFile (const KFile * in, const KFile ** new_in,
     case encError:
         rc = RC (rcExe, rcFile, rcClassifying, rcFile, rcInvalid);
         break;
-        
+
     case encNone:
     copy:
         rc = KFileAddRef (in);
@@ -244,26 +245,15 @@ rc_t CryptFile (const KFile * in, const KFile ** new_in,
 }
 
 
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     KStsLevelSet (1);
 
@@ -293,7 +283,7 @@ rc_t CC KMain ( int argc, char *argv [] )
         STSMSG (1, ("exiting: %R (%u)", rc, rc));
     else
         STSMSG (1, ("exiting: success"));
-    return rc;
+    return VDB_TERMINATE( rc );
 }
 
 

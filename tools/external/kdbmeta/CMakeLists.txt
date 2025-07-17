@@ -24,5 +24,5 @@
 
 add_compile_definitions( __mod__="tools/util" )
 
-GenerateExecutableWithDefs( kdbmeta kdbmeta "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( kdbmeta kdbmeta "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( kdbmeta false )

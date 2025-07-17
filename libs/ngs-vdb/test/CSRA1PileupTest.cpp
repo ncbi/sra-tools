@@ -31,6 +31,7 @@
 #include "ngsfixture.hpp"
 
 #include <kapp/args.h> /* ArgsMakeAndHandle */
+#include <kapp/main.h>
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
@@ -718,35 +719,11 @@ static rc_t argsHandler(int argc, char* argv[]) {
     return ArgsMakeAndHandle ( NULL, argc, argv, 0, NULL, 0 );
 }
 
-extern "C"
-{
-
-#include <kapp/args.h>
-
-ver_t CC KAppVersion ( void )
-{
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "test-ngs_csra1pileup-c++";
-
-rc_t CC KMain ( int argc, char *argv [] )
+int main(int argc, char* argv[])
 {
     KConfigDisableUserSettings();
-    rc_t rc=NgsCsra1PileupCppTestSuite(argc, argv);
+    int rc=NgsCsra1PileupCppTestSuite(argc, argv);
 
     NgsFixture::ReleaseCache();
     return rc;
 }
-
-}
-

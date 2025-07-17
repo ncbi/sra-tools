@@ -30,10 +30,6 @@
 #include "err_msg.h"
 #endif
 
-#ifndef _h_lookup_writer_
-#include "lookup_writer.h"
-#endif
-
 #ifndef _h_raw_read_iter_
 #include "raw_read_iter.h"
 #endif
@@ -154,35 +150,59 @@ static const char xASCII_to_4na[ 256 ] = {
        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-static rc_t pack_read_2_4na( const String * read, SBuffer_t * packed ) {
+
+static rc_t pack_read_2_4na( const String * bases, SBuffer_t * packed_bases ) {
     rc_t rc = 0;
-    if ( read -> len < 1 ) {
+    if ( bases -> len < 1 ) {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
     } else {
-        if ( read -> len > 0xFFFF ) {
+        if ( bases -> len > 0xFFFF ) {
+            /* make sure that we have no more than max u16 bases, because we only use 2 bytes
+               for that in the lookup-file! */
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
         } else {
-            uint32_t i;
-            uint8_t * src = ( uint8_t * )read -> addr;
-            uint8_t * dst = ( uint8_t * )packed -> S . addr;
-            uint16_t dna_len = ( read -> len & 0xFFFF );
-            uint32_t len = 0;
-            dst[ len++ ] = ( dna_len >> 8 );
-            dst[ len++ ] = ( dna_len & 0xFF );
-            for ( i = 0; i < read -> len; ++i ) {
-                if ( len < packed -> buffer_size ) {
-                    uint8_t base = ( xASCII_to_4na[ src[ i ] ] & 0x0F );
-                    if ( 0 == ( i & 0x01 ) ) {
-                        dst[ len ] = ( base << 4 );
-                    } else {
-                        dst[ len++ ] |= base;
-                    }
+            /* we have to down-convert from 32-bits to 16-bits */
+            const uint16_t num_bases = ( bases -> len & 0xFFFF );
+
+             /* 2 bases per byte + 2 bytes for num_bases + 2 bytes extra */
+            const uint16_t buffer_bytes_needed = ( num_bases / 2 ) + 4;
+
+             /* enlarge the buffer if needed */
+            if ( packed_bases -> buffer_size < buffer_bytes_needed ) {
+                rc = increase_SBuffer_to( packed_bases, buffer_bytes_needed );
+                if ( 0 != rc ) {
+                    ErrMsg( "sorter.c pack_read_2_4na() cannot increase buffer from %u to %u",
+                            packed_bases -> buffer_size, buffer_bytes_needed );
                 }
             }
-            if ( read -> len & 0x01 ) {
-                len++;
+
+            if ( 0 == rc ) {
+                uint32_t src_idx = 0;
+                uint32_t dst_idx = 0;
+                const uint8_t * src = ( uint8_t * )bases -> addr;
+                uint8_t * dst = ( uint8_t * )packed_bases -> S . addr;
+
+                /* write num_bases to the target */
+                dst[ dst_idx++ ] = ( num_bases >> 8 );
+                dst[ dst_idx++ ] = ( num_bases & 0xFF );
+
+                /* for each base: encode to 4na and write ot buffer */
+                for ( src_idx = 0; src_idx < num_bases; ++src_idx ) {
+                    if ( dst_idx < packed_bases -> buffer_size ) {
+                        uint8_t base = ( xASCII_to_4na[ src[ src_idx ] ] & 0x0F );
+                        if ( 0 == ( src_idx & 0x01 ) ) {
+                            dst[ dst_idx ] = ( base << 4 );
+                        } else {
+                            dst[ dst_idx++ ] |= base;
+                        }
+                    }
+                }
+                /* if we have not finished a whole byte - increase the lenght! */
+                if ( bases -> len & 0x01 ) { dst_idx++; }
+
+                /* set the length into the String... */
+                packed_bases -> S . size = packed_bases -> S . len = dst_idx;
             }
-            packed -> S . size = packed -> S . len = len;
         }
     }
     return rc;
@@ -213,7 +233,7 @@ static rc_t write_to_store( lookup_producer_t * self,
         if ( 0 == rc &&
              self -> mem_limit > 0 &&
              self -> bytes_in_store >= self -> mem_limit ) {
-            rc = push_store_to_merger( self, false ); /* this might block ! */
+                rc = push_store_to_merger( self, false ); /* this might block ! */
         }
     }
     return rc;

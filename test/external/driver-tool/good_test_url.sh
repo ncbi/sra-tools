@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 tool=$1
 bin_dir=$2

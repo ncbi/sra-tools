@@ -276,8 +276,10 @@ static const char function_qual[] = "qual";
 static const char function_cigar[] = "cigar";
 static const char function_rlen[] = "rlen";
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE( argc, argv, VDB_INIT_FAILED );
+
     rc_t rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc == 0 )
     {
@@ -302,5 +304,5 @@ rc_t CC KMain( int argc, char *argv [] )
             ArgsWhack( args );
         }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

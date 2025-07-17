@@ -217,88 +217,39 @@ static const char * path_type_2_str( const uint32_t pt ) {
     return res;
 }
 
-/*
-static rc_t resolve_accession( VFSManager * vfs_mgr, const char * accession, const String ** path ) {
-    VResolver * resolver;
-    rc_t rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-    if ( rc != 0 ) {
-        KOutMsg( "cannot get VResolver from VFSManger for '%s'\n", accession );
-    } else {
-        VPath * vpath;
-        rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s?vdb-ctx=refseq", accession );
-        if ( rc != 0 ) {
-            KOutMsg( "cannot make VPath from VFSManger for '%s'\n", accession );
-        } else {
-            const VPath * local;
-            const VPath * remote;
-
-            rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
-            if ( rc != 0 ) {
-                KOutMsg( "cannot resolve '%s'\n", accession );
-            } else {
-                if ( local != NULL ) {
-                    rc = VPathMakeString( local, path );
-                } else {
-                    rc = VPathMakeString( remote, path );
-                }
-                if ( local != NULL ) {
-                    VPathRelease ( local );
-                }
-                if ( remote != NULL ) {
-                    VPathRelease ( remote );
-                }
-            }
-            VPathRelease ( vpath );
-        }
-        VResolverRelease( resolver );
-    }
-    return rc;
-}
-*/
-
 static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc,
-    const String ** resolved, const String * prntAcc, const String * prntPath ) {
-    VResolver * resolver;
-    rc_t rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-    if ( rc != 0 ) {
-        (void)LOGERR( klogErr, rc, "VFSManagerGetResolver() failed" );
-    } else {
+    const String ** resolved, const String * prntAcc, const String * prntPath )
+{
         VPath * acc_vpath;
-        rc = VFSManagerMakePath( vfs_mgr, &acc_vpath, "ncbi-acc:%s", acc );
+        rc_t rc = VFSManagerMakePath( vfs_mgr, &acc_vpath, "ncbi-acc:%s", acc);
         if ( rc != 0 ) {
             (void)LOGERR( klogErr, rc, "VFSManagerMakePath() failed" );
         } else {
-            const VPath * local = NULL;
-            const VPath * remote = NULL;
+            const VPath * path = NULL;
             if ( prntAcc != NULL || prntPath != NULL ) {
                 rc = VPathSetAccOfParentDb(acc_vpath, prntAcc, prntPath);
                 if (rc != 0)
                     (void)LOGERR(klogErr, rc, "VPathSetAccOfParentDb() failed");
             }
             if ( rc == 0) {
-                rc = VResolverQuery ( resolver, 0, acc_vpath,
-                    &local, &remote, NULL );
+                rc = VFSManagerResolveVPath(vfs_mgr,
+                    acc_vpath, &path);
                 if ( rc != 0 ) {
                     (void)PLOGERR( klogErr, ( klogErr, rc,
                         "VResolverQuery($(a)) failed", "a=%s", acc ) );
                 }
             }
             if ( rc == 0 ) {
-                if ( local != NULL ) {
-                    rc = VPathMakeString( local, resolved );
-                } else if ( remote != NULL ) {
-                    rc = VPathMakeString( remote, resolved );
+                if (path != NULL) {
+                    rc = VPathMakeString(path, resolved);
                 } else {
                     rc = KOutMsg( "cannot resolve '%s'\n", acc );
                 }
-                if ( local != NULL ) { VPathRelease ( local ); }
-                if ( remote != NULL ) { VPathRelease ( remote ); }
+                VPathRelease(path);
             }
             VPathRelease ( acc_vpath );
         }
-        VResolverRelease( resolver );
-    }
-    return rc;
+        return rc;
 }
 
 static rc_t report_ref_loc( const VDBManager *vdb_mgr, VFSManager * vfs_mgr,

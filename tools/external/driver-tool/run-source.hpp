@@ -138,7 +138,7 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
-    void set_param_bits_env_var(uint64_t bits) const;
+    static void set_param_bits_env_var(uint64_t bits);
     
     static void preferNoQual();
 

@@ -24,7 +24,7 @@
 *
 */
 /*
- * This program has a command line sytax that isn't suited to the 
+ * This program has a command line sytax that isn't suited to the
  * normally expected way of handling command line arguments.
  *
  * We'll use the normal Args processing for the standard options
@@ -189,13 +189,13 @@ static void value_print(char value) {
     switch (value) {
         case '\"':
             replacement = "&quot;";
-            break;   
+            break;
         case '&':
             replacement = "&amp;";
-            break;   
+            break;
         case '<':
             replacement = "&lt;";
-            break;   
+            break;
         case '>':
             replacement = "&gt;";
             break;
@@ -803,12 +803,8 @@ rc_t tbl_select ( KDBMetaParms * pb)
     }
 #endif
     if ( read_only ) {
-        if (pb->remote != NULL)
             rc = KDBManagerOpenTableReadVPath ( pb -> mgr,
-                ( const KTable** ) & tbl, pb->remote );
-        else
-            rc = KDBManagerOpenTableRead ( pb -> mgr,
-                ( const KTable** ) & tbl, "%s", pb->targ );
+                ( const KTable** ) & tbl, pb->local);
     }
     if ( rc != 0 )
         PLOGERR ( klogErr,  (klogErr, rc, "failed to open table '$(tbl)'", "tbl=%s", pb->targ ));
@@ -862,9 +858,9 @@ rc_t db_select (KDBMetaParms * pb)
     }
 #endif
     if ( read_only ) {
-        if (pb->remote != NULL)
+        if (VPathIsRemote(pb->local))
             rc = KDBManagerVPathOpenRemoteDBRead ( pb -> mgr,
-                ( const KDatabase** ) & db, pb->remote, pb->cache );
+                ( const KDatabase** ) & db, pb->local, pb->cache );
         else
             rc = KDBManagerOpenDBRead ( pb -> mgr,
                 ( const KDatabase** ) & db, "%s", pb->targ );
@@ -1120,32 +1116,20 @@ rc_t CC Usage (const Args * args)
     return rc;
 }
 
-
-/* KMain - EXTERN
- *  executable entrypoint "main" is implemented by
- *  an OS-specific wrapper that takes care of establishing
- *  signal handlers, logging, etc.
- *
- *  in turn, OS-specific "main" will invoke "KMain" as
- *  platform independent main entrypoint.
- *
- *  "argc" [ IN ] - the number of textual parameters in "argv"
- *  should never be < 0, but has been left as a signed int
- *  for reasons of tradition.
- *
- *  "argv" [ IN ] - array of NUL terminated strings expected
- *  to be in the shell-native character set: ASCII or UTF-8
- *  element 0 is expected to be executable identity or path.
- */
-rc_t CC KMain ( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
     Args * args = NULL;
     rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     rc = ArgsMakeAndHandle(&args, argc, argv, 1, opt, sizeof(opt) / sizeof(opt[0]));
     if (rc == 0)
     {
-        do 
+        do
         {
             const char * pc;
             KDirectory *curwd;
@@ -1262,11 +1246,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     else
                     {
                         const VFSManager * vfs = NULL;
-                        VResolver * resolver = NULL;
-                        VPath * query = NULL;
-                        const VPath * local = NULL;
-                        const VPath * remote = NULL;
                         const VPath * cache = NULL;
+                        const VPath * resolved = NULL;
                         char objpath [ 4096 ];
                         bool found = false;
                         uint32_t type;
@@ -1274,24 +1255,18 @@ rc_t CC KMain ( int argc, char *argv [] )
                         rc = KDBManagerGetVFSManager ( mgr,
                             ( VFSManager ** )&vfs );
                         if ( rc == 0 ) {
-                            rc = VFSManagerGetResolver ( vfs, & resolver );
                             if ( rc == 0 ) {
-                                rc = VFSManagerMakePath ( vfs, & query,
-                                    "%s", pc );
-                                if ( rc == 0 )
-                                {
-                                    rc = VResolverQuery ( resolver, 0, query,
-                                        &local, NULL, NULL );
-                                    if (rc == 0)
+                                    rc = VFSManagerResolveWithCache(vfs,
+                                        pc, &resolved, &cache);
+                                    if (rc == 0 && !VPathIsRemote(resolved))
                                     {
-                                        rc = VPathReadPath(local,
+                                        rc = VPathReadPath(resolved,
                                             objpath, sizeof objpath, NULL);
                                         if (rc == 0)
                                             found = true;
                                     }
                                     else if ( GetRCState ( rc ) == rcNotFound )
                                         rc = 0;
-                                }
                             }
                         }
 
@@ -1306,10 +1281,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                         }
 
                         if (found)
-                            type = KDBManagerPathTypeVP(mgr, local);
+                            /* resolved locally */
+                            type = KDBManagerPathTypeVP(mgr, resolved);
                         else
+                            /* check as local path */
                             type = KDBManagerPathType (mgr, "%s", objpath);
-                            
+
                         switch (type)
                         {
                         case kptDatabase:
@@ -1329,12 +1306,12 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                         case kptNotFound:
                           {
-                            if (resolver != NULL) {
-                                rc = VResolverQuery(resolver, 0, query, NULL,
-                                    &remote, &cache);
+                            if (resolved != NULL) {
                                 if (rc == 0) {
-                                    type = KDBManagerPathTypeVP(mgr, remote);
-                                    rc = VPathReadUri(remote, objpath, sizeof objpath, NULL);
+                                    /* resolved remotely */
+                                    type = KDBManagerPathTypeVP(mgr, resolved);
+                                    rc = VPathReadUri(resolved,
+                                        objpath, sizeof objpath, NULL);
                                     if (rc == 0)
                                         found = true;
                                 }
@@ -1368,7 +1345,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 rc = ArgsParamValue (args, ix, (const void **)&pc);
                                 if (rc)
                                     break;
-                                    
+
                                 rc = VectorAppend ( &q, NULL, pc );
                                 if (rc)
                                     break;
@@ -1379,17 +1356,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                             else
                             {
                                 rc = tool_select (mgr, type,
-                                    local, remote, cache, objpath, &q);
-                                
+                                    resolved, 0, cache, objpath, &q);
+
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
-
-                        VPathRelease(local);
-                        VPathRelease(remote);
+                        VPathRelease(resolved);
                         VPathRelease(cache);
-                        VPathRelease(query);
-                        VResolverRelease(resolver);
                         VFSManagerRelease(vfs);
                     }
                     KDBManagerRelease (mgr);
@@ -1398,9 +1371,9 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
         } while (0);
     }
-    
+
     ArgsWhack(args);
     args = NULL;
 
-    return rc;
+    return VDB_TERMINATE( rc );
 }

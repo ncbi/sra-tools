@@ -25,6 +25,8 @@
 #include <sstream>
 #include <cstdlib>
 
+#include <kapp/main.h>
+
 #include <vdb/manager.h> // VDBManager
 #include <vdb/table.h>
 #include <vdb/cursor.h>
@@ -37,6 +39,8 @@
 #include <kdb/table.h>
 
 #include <klib/rc.h>
+
+#include <kfg/config.h>
 
 #include <ktst/unit_test.hpp> // TEST_CASE
 
@@ -165,34 +169,10 @@ FIXTURE_TEST_CASE ( SparseFragmentBlobs, VDB_Fixture)
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
 
-#include <kapp/args.h>
-#include <kfg/config.h>
-
-ver_t CC KAppVersion ( void )
+int main(int argc, char* argv[])
 {
-    return 0x1000000;
-}
-rc_t CC UsageSummary (const char * progname)
-{
-    return 0;
-}
-
-rc_t CC Usage ( const Args * args )
-{
-    return 0;
-}
-
-const char UsageDefaultName[] = "ngs-make-db";
-
-rc_t CC KMain ( int argc, char *argv [] )
-{
+    VDB::Application app(argc, argv);
     KConfigDisableUserSettings();
-    rc_t rc=NgsMakeDbSuite(argc, argv);
-    return rc;
+    return NgsMakeDbSuite(argc, app.getArgV());
 }
-
-}
-

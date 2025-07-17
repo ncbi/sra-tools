@@ -32,5 +32,5 @@ set( SRC
 	col_by_col
 	vdb-diff
 )
-GenerateExecutableWithDefs( vdb-diff "${SRC}" "__mod__=\"tools/internal/vdb-diff\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+GenerateExecutableWithDefs( vdb-diff "${SRC}" "__mod__=\"tools/internal/vdb-diff\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-diff false )

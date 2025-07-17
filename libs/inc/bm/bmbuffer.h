@@ -1,7 +1,7 @@
 #ifndef BMBUFFER__H__INCLUDED__
 #define BMBUFFER__H__INCLUDED__
 /*
-Copyright(c) 2002-2017 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
+Copyright(c) 2002-2025 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -196,7 +196,7 @@ public:
     /// Get buffer capacity
     size_t capacity() const BMNOEXCEPT { return capacity_; }
 
-    /// adjust current size (buffer content preserved)
+    /// adjust current size (buffer content can be preserved)
     unsigned char* resize(size_t new_size, bool copy_content = true)
     {
         if (new_size <= capacity_)
@@ -210,6 +210,24 @@ public:
         this->swap(tmp_buffer);
         this->size_ = new_size;
         return data();
+    }
+
+    /// shrink current size without reallocation (buffer content preserved)
+    /// @param new_size - new size (must be within capacity) - throws an exception otherwise
+    /// @sa resize
+    unsigned char* shrink(size_t new_size)
+    {
+        BM_ASSERT(new_size <= capacity_);
+        if (new_size <= capacity_)
+        {
+            this->size_ = new_size;
+            return data();
+        }
+#ifndef BM_NO_STL
+    throw std::logic_error("BM: shrink ALLOC size >= capacity");
+#else
+    BM_THROW(BM_ERR_BADALLOC););
+#endif
     }
 
     /// adjust current size (no need to reallocate)

@@ -26,6 +26,7 @@
 if( LibXml2_FOUND )
 	if( SINGLE_CONFIG )
 		set( LIBS
+			kapp
 			${COMMON_LINK_LIBRARIES}
 			kxml
 			${COMMON_LIBS_READ}
@@ -33,6 +34,7 @@ if( LibXml2_FOUND )
 		)
 	else()
 		set( LIBS
+			kapp
 			${COMMON_LINK_LIBRARIES}
 			kxml
 			${COMMON_LIBS_READ}
@@ -43,6 +45,7 @@ if( LibXml2_FOUND )
 	if ( "mac" STREQUAL ${OS} )
 		list( APPEND LIBS iconv )
 	endif()
-	GenerateExecutableWithDefs( ccextract "ccextract" "__mod__=\"tools/ccextract\"" "" "${LIBS}" )
+    set( SRC ccextract ../shared/teefile.c )
+	GenerateExecutableWithDefs( ccextract "${SRC}" "__mod__=\"tools/ccextract\"" "" "${LIBS}" )
 	MakeLinksExe( ccextract false )
 endif()

@@ -25,7 +25,7 @@
 add_compile_definitions( __mod__="test/internal/copycat" )
 
 if ( ${OS} STREQUAL "linux"  )
-if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
         ToolsRequired(copycat)
 
@@ -36,19 +36,21 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
                 ${SRC_DIR}/kff/fileformat.c
                 ${SRC_DIR}/kff/ffmagic.c
         )
-        AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" "${SRC_DIR}" )
+        AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" "${SRC_DIR}" )
 
         add_test( NAME Test_Copycat_Help
-            COMMAND ${DIRTOTEST}/copycat -h
+            COMMAND sh -c "ls ${DIRTOTEST}/copycat>/dev/null 2>&1 && ${DIRTOTEST}/copycat -h || echo no copycat"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Copycat_Bad_Name
             COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_Bad_Name-asan
                 COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_Bad_Name-tsan
                 COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -57,10 +59,12 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         add_test( NAME Test_Copycat_IdenticalCopy
             COMMAND ./test-copy.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_IdenticalCopy-asan
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_IdenticalCopy-tsan
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -68,15 +72,32 @@ if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
         add_test( NAME Test_Copycat_FastqParser
             COMMAND ./test-fastq.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( RUN_SANITIZER_TESTS )
+        if( TARGET copycat-asan )
             add_test( NAME Test_Copycat_FastqParser-asan
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
             add_test( NAME Test_Copycat_FastqParser-tsan
                 COMMAND ./test-fastq.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
-endif()
+        add_test( NAME Test_Copycat_FastqGzipParser
+            COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+#         if( TARGET copycat-asan )
+#             add_test( NAME Test_Copycat_FastqGzipParser-asan
+#                 COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-asan
+#                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+#         endif()
+        if( TARGET copycat-tsan )
+            add_test( NAME Test_Copycat_FastqGzipParser-tsan
+                COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+    else()
+        message( "libmagic was not found; skipping copycat tests" )
+    endif()
 else()
 #TODO: make run on Windows
 endif()

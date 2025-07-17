@@ -2,6 +2,11 @@ BINDIR=$1
 ACCESSION=$2
 vdb_diff=$3
 
+if ! test -f $BINDIR/${vdb_diff}; then
+    echo "$BINDIR/${vdb_diff} does not exist. Skipping the test."
+    exit 0
+fi
+
 export NCBI_SETTINGS=/
 
 rm -rf A1 A2

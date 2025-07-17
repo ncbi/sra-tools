@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -26,12 +26,11 @@ echo "$0 $*"
 
 # $1 - path to general-loader,
 # $2 - dumper executable (vdb-dump, kdbmeta etc.; full path if not in PATH)
-# $3 - vdb-config executable (full path if not in PATH)
-# $4 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $5 - test case ID (expect a file input/$3.gl to exist)
-# $6 - expected return code
-# $7 - command line options for general-loader
-# $8 - command line options for dumper
+# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $4 - test case ID (expect a file input/$3.gl to exist)
+# $5 - expected return code
+# $6 - command line options for general-loader
+# $7 - command line options for dumper
 #
 # return codes:
 # 0 - passed
@@ -42,18 +41,22 @@ echo "$0 $*"
 
 BINDIR=$1
 DUMPER=$2
-CONFIG=$3
-WORKDIR=$4
-CASEID=$5
-RC=$6
-LOAD_OPTIONS=$7
-DUMP_OPTIONS=$8
+WORKDIR=$3
+CASEID=$4
+RC=$5
+LOAD_OPTIONS=$6
+DUMP_OPTIONS=$7
 
 DUMP="$DUMPER"
 LOAD="$BINDIR/general-loader"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 echo "running test case $CASEID"
+
+if ! test -f ${LOAD}; then
+    echo "${LOAD} does not exist. Skipping the test."
+    exit 0
+fi
 
 mkdir -p $TEMPDIR
 if [ "$?" != "0" ] ; then
@@ -63,7 +66,6 @@ fi
 
 rm -rf $TEMPDIR/*
 export NCBI_SETTINGS=$TEMPDIR/../t.mkfg
-#$CONFIG
 CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 echo $CMD
 eval $CMD
@@ -76,11 +78,24 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-if [ "$rc" == "0" ] ; then
+if [ "$rc" != "0" ] ; then
+    echo "Load failed as expected, matching stderr"
+    # remove timestamps
+    sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
+    # remove pathnames
+    sed -i -e 's=/.*/==g' $TEMPDIR/load.stderr
+    # remove source locations
+    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
+    # remove version number
+    sed -i -e 's=general-loader\(\.[0-9]*\)*=general-loader=g' $TEMPDIR/load.stderr
+    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    rc="$?"
+else
     echo "Load succeeded, dumping and matching stdout"
-    CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+
+    CMD="$DUMP $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     echo $CMD
-    eval $CMD
+    cd $TEMPDIR; eval $CMD
     rc="$?"
     if [ "$rc" != "0" ] ; then
         echo "$CMD failed"
@@ -95,25 +110,13 @@ if [ "$rc" == "0" ] ; then
 
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
-else
-    echo "Load failed as expected, matching stderr"
-    # remove timestamps
-    sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
-    # remove pathnames
-    sed -i -e 's=/.*/==g' $TEMPDIR/load.stderr
-    # remove source locations
-    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
-    # remove version number
-    sed -i -e 's=general-loader\(\.[0-9]*\)*=general-loader=g' $TEMPDIR/load.stderr
-    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
-    rc="$?"
 fi
 
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
     echo "Diff failed. Command executed:"
     echo $CMD
-cat $TEMPDIR/load.stderr
+    cat $TEMPDIR/load.stderr
     exit 4
 fi
 

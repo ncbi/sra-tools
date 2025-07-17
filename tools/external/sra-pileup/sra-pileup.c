@@ -174,7 +174,7 @@ enum {
 	sra_pileup_indels = 11
 };
 
-static const char * minmapq_usage[]         = { "Minimum mapq-value, ", 
+static const char * minmapq_usage[]         = { "Minimum mapq-value, ",
                                                 "alignments with lower mapq",
                                                 "will be ignored (default=0)", NULL };
 
@@ -193,7 +193,7 @@ static const char * seqname_usage[]         = { "use original seq-name", NULL };
 static const char * min_m_usage[]           = { "min percent of mismatches used in function mismatch, default is 5%", NULL };
 
 static const char * merge_usage[]           = { "If adjacent slices are closer than this, ",
-                                                "they are merged and a skiplist is created. ", 
+                                                "they are merged and a skiplist is created. ",
                                                 "a value of zero disables the feature, default is 10000", NULL };
 
 static const char * func_ref_usage[]        = { "list references", NULL };
@@ -204,7 +204,7 @@ static const char * func_mismatch_usage[]   = { "only lines with mismatch", NULL
 static const char * func_index_usage[]      = { "list deletion counts", NULL };
 static const char * func_indels_usage[]     = { "list only inserts/deletions", NULL };
 
-static const char * func_varcount_usage[]   = { "variation counters: ", 
+static const char * func_varcount_usage[]   = { "variation counters: ",
                                                 "ref-name, ref-pos, ref-base, coverage, ",
                                                 "mismatch A, mismatch C, mismatch G, mismatch T,",
                                                 "deletes, inserts,",
@@ -404,7 +404,7 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( ALIAS_MINMAPQ, OPTION_MINMAPQ, "min. mapq", minmapq_usage );
     HelpOptionLine ( ALIAS_DUPS, OPTION_DUPS, "dup-mode", dups_usage );
     HelpOptionLine ( ALIAS_SPOTGRP, OPTION_SPOTGRP, NULL, spotgrp_usage );
-    HelpOptionLine ( NULL, OPTION_DEPTH_PER_SPOTGRP, NULL, dpgrp_usage );	
+    HelpOptionLine ( NULL, OPTION_DEPTH_PER_SPOTGRP, NULL, dpgrp_usage );
     HelpOptionLine ( ALIAS_SEQNAME, OPTION_SEQNAME, NULL, seqname_usage );
     HelpOptionLine ( NULL, OPTION_MIN_M, NULL, min_m_usage );
     HelpOptionLine ( NULL, OPTION_MERGE, NULL, merge_usage );
@@ -418,7 +418,7 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( NULL, "function varcount", NULL, func_varcount_usage );
     HelpOptionLine ( NULL, "function deletes",  NULL, func_deletes_usage );
     HelpOptionLine ( NULL, "function indels",   NULL, func_indels_usage );
-	
+
     KOutMsg ( "\nGrouping of accessions into artificial spotgroups:\n" );
     KOutMsg ( "  sra-pileup SRRXXXXXX=a SRRYYYYYY=b SRRZZZZZZ=a\n\n" );
 
@@ -668,7 +668,7 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
         const INSDC_4na_bin *bases;
         uint32_t i;
         uint32_t n = ReferenceIteratorBasesInserted ( ref_iter, &bases );
-        
+
         rc = ds_add_fmt( line, "+%u", n );
         for ( i = 0; i < n && rc == 0; ++i ) {
             rc = ds_add_char( line, _4na_to_ascii( bases[ i ], reverse ) );
@@ -692,7 +692,7 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
     if ( ( ( state & align_iter_last ) == align_iter_last )&& ( rc == 0 ) ) {
         rc = ds_add_char( line, '$' );
     }
-    
+
     if ( options -> show_id ) {
         rc = ds_add_fmt( line, "(%,lu:%,d-%,d/%u)",
                          rec -> id, rec -> pos + 1, rec -> pos + rec -> len, seq_pos );
@@ -709,7 +709,7 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
     uint32_t depth = 0;
     rc_t rc = 0;
     bool done = false;
-    
+
     ds_reset( events );
     do {
         const PlacementRecord *rec;
@@ -727,15 +727,15 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
     if ( 0 == rc ) {
         rc = Quitting();
     }
-    
+
     if ( 0 == rc && options -> depth_per_spotgrp ) {
         rc = ds_add_fmt( line, "%d\t", depth );
     }
-    
+
     if ( 0 == rc ) {
         rc = ds_add_ds( line, events );
     }
-    
+
     if ( 0 == rc && !( options -> cmn . omit_qualities ) ) {
         uint32_t i;
         rc = ds_add_char( line, '\t' );
@@ -804,7 +804,7 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
                         char c = _4na_to_ascii( base, false );
 
                         ds_reset( line );
-                    
+
                         if ( options -> depth_per_spotgrp ) {
                             rc = ds_add_fmt( line, "%s\t%u\t%c", refname, pos + 1, c );
                         } else {
@@ -824,7 +824,7 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
                 }
             }
         }
-    } 
+    }
     return rc;
 }
 
@@ -894,7 +894,7 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
 static rc_t walk_ref_iter( ReferenceIterator *ref_iter, pileup_options *options ) {
     rc_t rc = 0;
     while( rc == 0 ) {
-        /* this is the 1st level of walking the reference-iterator: 
+        /* this is the 1st level of walking the reference-iterator:
            visiting each (requested) reference */
         struct ReferenceObj const * refobj;
         rc = ReferenceIteratorNextReference( ref_iter, NULL, NULL, &refobj );
@@ -1074,7 +1074,7 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
 
             if ( start == 0 ) { start = 1; }
             if ( ( end == 0 )||( end > len + 1 ) ) { end = ( len - start ) + 1; }
-            
+
             /* depending on ctx->select prepare primary, secondary or both... */
             if ( ctx->use_primary_alignments ) {
                 if ( ctx->prim_cur == NULL )
@@ -1235,7 +1235,7 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
                 prep . prim_cur = NULL;
                 prep . sec_cur = NULL;
                 prep . ev_cur = NULL;
-                
+
                 rc = prepare_ref_iter( &prep, ctx -> vdb_mgr, ctx -> vdb_schema, path, ctx -> ranges ); /* cmdline_cmn.c */
                 if ( rc == 0 && prep . db == NULL ) {
                     rc = RC ( rcApp, rcNoTarg, rcOpening, rcSelf, rcInvalid );
@@ -1316,7 +1316,7 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
             LOGERR( klogInt, rc, "VDBManagerDisablePagemapThread() failed" );
         }
     }
-    
+
     /* (5) make a vdb-schema */
     if ( rc == 0 ) {
         rc = VDBManagerMakeSRASchema( arg_ctx . vdb_mgr, &( arg_ctx . vdb_schema ) );
@@ -1346,7 +1346,7 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
             case sra_pileup_samtools    : options -> read_tlen = false;
                                           break;
-                                          
+
             case sra_pileup_mismatch    : options -> cmn . omit_qualities = true;
                                           options -> read_tlen = false;
                                           break;
@@ -1410,8 +1410,13 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
 /* =========================================================================================== */
 
-rc_t CC KMain( int argc, char *argv [] )
+MAIN_DECL( argc, argv )
 {
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
     rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
     ReportBuildDate( __DATE__ );
     if ( rc != 0 ) {
@@ -1433,7 +1438,7 @@ rc_t CC KMain( int argc, char *argv [] )
                     enum out_redir_mode mode;
 
                     options . skiplist = NULL;
-                    
+
                     if ( options . cmn . gzip_output ) {
                         mode = orm_gzip;
                     } else if ( options . cmn . bzip_output ) {
@@ -1441,9 +1446,9 @@ rc_t CC KMain( int argc, char *argv [] )
                     } else {
                         mode = orm_uncompressed;
                     }
-                    
+
                     rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
-                    
+
                     /*
                     if ( options . cmn . output_file != NULL ) {
                         rc = set_stdout_to( options . cmn . gzip_output,
@@ -1452,7 +1457,7 @@ rc_t CC KMain( int argc, char *argv [] )
                                             32 * 1024 );
                     }
                     */
-                    
+
                     if ( rc == 0 ) {
                         if ( options . function == sra_pileup_report_ref ||
                              options . function == sra_pileup_report_ref_ext ) {
@@ -1469,9 +1474,9 @@ rc_t CC KMain( int argc, char *argv [] )
                     }
 
                     /* if ( options . cmn . output_file != NULL ) { release_stdout_redirection(); } */
-                    
+
                     release_out_redir( &redir ); /* from out_redir.c */
-                    
+
                     if ( options . skiplist != NULL ) {
                         skiplist_release( options . skiplist );
                     }
@@ -1486,5 +1491,5 @@ rc_t CC KMain( int argc, char *argv [] )
         rc_t rc2 = ReportFinalize( rc );
         if ( rc == 0 ) { rc = rc2; }
     }
-    return rc;
+    return VDB_TERMINATE( rc );
 }

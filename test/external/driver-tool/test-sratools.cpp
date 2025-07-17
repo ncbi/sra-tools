@@ -67,11 +67,7 @@ static void testAccessionType() {
     assert(accessionType("SRRR00000") == unknown); // not digits
 }
 
-#if WINDOWS
-int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
-#else
 int main ( int argc, char *argv[], char *envp[])
-#endif
 {
     try {
         testAccessionType();

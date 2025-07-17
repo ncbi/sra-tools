@@ -106,7 +106,7 @@ struct DistanceStatEntry {
 
     DistanceStatEntry(DistanceStats::DistanceStat::Index i, uint64_t count, uint64_t total)
     : power(double(count)/total)
-    , length(i)
+    , length((unsigned)i)
     {}
 
     friend
@@ -478,12 +478,11 @@ private:
 };
 
 int main(int argc, char * argv[]) {
-/*
+#if 0
     Input::runTests();
-    SeqHash::test();
- */
+    exit(0);
+#endif
     auto app = App{argc, argv};
 
     return app.run();
 }
-

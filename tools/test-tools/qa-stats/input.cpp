@@ -303,7 +303,7 @@ struct RWLock {
     }
 };
 
-int Input::getGroup(std::string const &named) {
+int Input::getGroup(std::string_view const &named) {
     static RWLock lock;
     auto const found = lock.reader([&]{
         for (unsigned i = 0; i < groups.size(); ++i) {
@@ -316,12 +316,12 @@ int Input::getGroup(std::string const &named) {
         return found;
     return lock.writer([&]{
         auto i = (int)groups.size();
-        groups.push_back(named);
+        groups.emplace_back(std::string{named});
         return i;
     });
 }
 
-int Input::getReference(std::string const &named) {
+int Input::getReference(std::string_view const &named) {
     static RWLock lock;
     auto const found = lock.reader([&]{
         for (unsigned i = 0; i < references.size(); ++i) {
@@ -334,7 +334,7 @@ int Input::getReference(std::string const &named) {
         return found;
     return lock.writer([&]{
         auto i = (int)references.size();
-        references.push_back(named);
+        references.emplace_back(std::string{named});
         return i;
     });
 }
@@ -398,8 +398,10 @@ struct BasicSource: public Input::Source {
         auto const ci = cur < size ? std::string_view{reinterpret_cast<char *>(buffer + cur), size - cur} : std::string_view{};;
         auto const at = ci.find('\n');
         if (at != ci.npos) {
+            auto const old = next;
             next = cur + at + 1;
-            ++lines;
+            if (old != next)
+                ++lines; ///< current line number (1-based)
             return ci.substr(0, at);
         }
         if (fh < 0) {
@@ -420,14 +422,16 @@ struct BasicSource: public Input::Source {
         }
         return fill() ? peek_advance() : std::string_view{};
     }
-    /// get the current line, advancing if needed, and trimming whitespace
+    static std::string_view trimWhitespace(std::string_view str) {
+        while (!str.empty() && std::isspace(str.front()))
+            str.remove_prefix(1);
+        while (!str.empty() && std::isspace(str.back()))
+            str.remove_suffix(1);
+        return str;
+    }
+    /// get the current line, advancing if needed
     std::string_view peek() {
-        auto result = peek_advance();
-        while (!result.empty() && std::isspace(result.back()))
-            result.remove_suffix(1);
-        while (!result.empty() && std::isspace(result.front()))
-            result.remove_prefix(1);
-        return result;
+        return peek_advance();
     }
     void putback(std::string const &str) {
         assert(put_back == nullptr);
@@ -444,13 +448,15 @@ struct BasicSource: public Input::Source {
         }
         cur = next;
         auto const curline = peek();
-        if (curline.empty()) {
-            if (isEof)
-                throw std::ios_base::failure("no input");
-            if (skipEmpty)
-                return getline();
-        }
+        if (curline.empty() && isEof)
+            throw std::ios_base::failure("no input");
+        if (skipEmpty && trimWhitespace(curline).empty())
+            return getline(skipEmpty);
         return std::string(curline);
+    }
+    std::string getlineTrimmed(bool skipEmpty = true) {
+        auto const line = getline(skipEmpty);
+        return std::string{ trimWhitespace(line) };
     }
     ~BasicSource() {
         if (fh > 0)
@@ -597,8 +603,10 @@ struct BasicSource: public Input::Source {
                 catch (std::ios_base::failure const &e) {
                     ((void)e);
                 }
-                if (parsed && starts.size() != lengths.size())
+                if (parsed && starts.size() != lengths.size()) {
                     parsed = false;
+                    starts.resize(0);
+                }
                 if (!parsed) {
                     if (group != nullptr)
                         throw ParseError::not_Unaligned;
@@ -623,8 +631,10 @@ struct BasicSource: public Input::Source {
                 catch (std::ios_base::failure const &e) {
                     ((void)e);
                 }
-                if (parsed && types.size() != lengths.size())
+                if (parsed && types.size() != lengths.size()) {
                     parsed = false;
+                    types.resize(0);
+                }
                 if (!parsed) {
                     if (group != nullptr)
                         throw ParseError::not_Unaligned;
@@ -645,8 +655,10 @@ struct BasicSource: public Input::Source {
                 catch (std::ios_base::failure const &e) {
                     ((void)e);
                 }
-                if (parsed && aligned.size() != lengths.size())
+                if (parsed && aligned.size() != lengths.size()) {
                     parsed = false;
+                    aligned.resize(0);
+                }
                 if (!parsed) {
                     if (group != nullptr)
                         throw ParseError::not_Unaligned;
@@ -691,6 +703,9 @@ struct BasicSource: public Input::Source {
         default:
             throw ParseError::not_Unaligned;
         }
+        if (group)
+            result.group = Input::getGroup(*group);
+        
         if (read.aligned) {
             REPORT("Aligned from SEQUENCE");
         }
@@ -741,11 +756,11 @@ struct BasicSource: public Input::Source {
                 ((void)e);
             }
 
-            read.reference = Input::getReference(std::string(flds.part[1]));
+            read.reference = Input::getReference(flds.part[1]);
             {
                 Input result{std::string(flds.part[0]), {read}};
                 if (group)
-                    result.group = Input::getGroup(std::string(*group));
+                    result.group = Input::getGroup(*group);
 
                 REPORT("Alignment");
                 return result;
@@ -819,13 +834,13 @@ struct BasicSource: public Input::Source {
     Input readFASTQ(std::string const &defline) {
         auto const start = lines;
         auto const defline_start = defline.front();
-        auto nextline = getline(false);
+        auto nextline = getlineTrimmed(false);
         auto seq = nextline;
         try {
-            nextline = getline();
+            nextline = getlineTrimmed();
             while (nextline.front() != defline_start && nextline.front() != '+') {
                 seq.append(nextline.data(), nextline.size());
-                nextline = getline();
+                nextline = getlineTrimmed();
             }
         }
         catch (std::ios_base::failure const &e) {
@@ -837,10 +852,10 @@ struct BasicSource: public Input::Source {
         }
         else {
             try {
-                auto qual = getline(!seq.empty());
+                auto qual = getlineTrimmed(!seq.empty());
 
                 while (qual.size() < seq.size()) {
-                    nextline = getline();
+                    nextline = getlineTrimmed();
                     qual.append(nextline.data(), nextline.size());
                 }
                 if (qual.size() != seq.size())
@@ -871,6 +886,8 @@ struct BasicSource: public Input::Source {
         for ( ; ; ) {
             auto const &line = getline();
             for (auto ch : line) {
+                if (isspace(ch))
+                    continue;
                 if (ch == '#') {
                     std::cerr << line << std::endl;
                     goto READ_LINE_LOOP;
@@ -895,12 +912,13 @@ struct BasicSource: public Input::Source {
             Input::SAM_HeaderLine(line);
         }
         auto const line = peek(); ///< NOTE: this is a `peek` of the value returned by the `getline` in the loop above. `peek` must not be used without a corresponding `getline`.
+        auto const trimmed = trimWhitespace(line);
         ++records;
 
-        if (line[0] == '@' || line[0] == '>') {
-            result = readFASTQ(std::string{line});
+        if (trimmed[0] == '@' || trimmed[0] == '>') {
+            result = readFASTQ(std::string{ trimmed });
         }
-        else if (line[0] == '+' ) {
+        else if (trimmed[0] == '+' ) {
             // happens in qualities-only files
             // discard this line and the next
             std::cerr << lines << ": warning: unparsable input\n" << line << std::endl;
@@ -1127,6 +1145,18 @@ static void Input_test1a() {
     assert(reads[1].type == Input::ReadType::technical);
 }
 
+static void Input_test1b() {
+    auto src = StringSource(
+                            "GTCTGGTGGTCTCTATTCTCTTCATGATCTTCTTCTATAAGAAGTTTGGTCTGATCGCGACGTCCGCGCTGCTGGCAAACCTTGTGATGATCATCGGCATTATGTCCCTGCTGCCGGGGGCGACGCTGACCATGCCGGGTATCGCAGGTATCGTTCTGACTCTTGCGGTGGCGGTCGACGCCAACGTACTGATAAACGAACGTATCAAAGAAGAGTTGAGTAACGGTCGCTCTGTGCAACAGGCGATTGAAGAAGGCTATAAAGGGGCGTTCAGCTCCATCTTCGATGCGAACGTAGCAANGCACGGGTGCCGACAATAGCGGTAAACATCGACGTTGCAACACCGATACCGGTTGTAATTGCAAAGCCTTTGATCGCGCCAGTACCCACTGCATACAGGATAAGAACCTTAATCAGTGTTGTTACGTTCGCATCGAAGATGGAGCTGAACGCCCCTTTATAGCCTTCTTCAATCGCCTGTTGCACAGAGCGACCGTTACTCAACTCTTCTTTGATACGTTCGTTTATCAGTACGTTGGCGTCGACCGCCACCGCAAGAGTCAGAACGATACCTGCGATACCCGGCATGGTCAGCGTCGC\t300, 300\t0, 300\tSRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_BIOLOGICAL\t11\n"
+                            );
+    auto const &spot = src.get();
+    auto const &reads = spot.reads;
+    assert(reads.size() == 2);
+    assert(spot.sequence.size() == 600);
+    assert(reads[0].type == Input::ReadType::biological);
+    assert(reads[1].type == Input::ReadType::biological);
+}
+
 static void Input_test2() {
     auto src = StringSource(R"(
 # the previous line was empty and this line is a comment
@@ -1156,6 +1186,7 @@ void Input::runTests() {
     Input_test2();
     Input_test1();
     Input_test1a();
+    Input_test1b();
     Input_test3();
 }
 #endif

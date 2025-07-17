@@ -29,7 +29,7 @@
  *  Parse inputs.
  */
 
-#include <iosfwd>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
@@ -107,10 +107,32 @@ struct Input {
         technical,
         aligned
     };
+    friend std::ostream &operator <<(std::ostream &os, ReadType readType) {
+        switch (readType) {
+        case ReadType::biological:
+            return os << "read type: biological";
+        case ReadType::technical:
+            return os << "read type: technical";
+        case ReadType::aligned:
+            return os << "read type: aligned";
+        default:
+            return os << "read type: " << (int)readType << "?";
+        }
+    }
     enum struct ReadOrientation {
         forward,
         reverse
     };
+    friend std::ostream &operator <<(std::ostream &os, ReadOrientation orientation) {
+        switch (orientation) {
+        case ReadOrientation::forward:
+            return os << "read orientation: forward";
+        case ReadOrientation::reverse:
+            return os << "read orientation: reverse";
+        default:
+            return os << "read orientation: " << (int)orientation << "?";
+        }
+    }
     struct Read {
         int start, length, position = -1, reference = -1;
         ReadType type = ReadType::biological;
@@ -124,8 +146,8 @@ struct Input {
     static std::vector<std::string> references;
     static std::vector<std::string> groups;
 
-    static int getGroup(std::string const &named);
-    static int getReference(std::string const &named);
+    static int getGroup(std::string_view const &named);
+    static int getReference(std::string_view const &named);
 
     static void SAM_HeaderLine(std::string const &line) {}
     static void runTests();
@@ -165,3 +187,4 @@ struct Input {
 private:
     static std::string readLine(std::istream &);
 };
+

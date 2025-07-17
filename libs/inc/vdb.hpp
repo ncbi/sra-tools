@@ -590,7 +590,9 @@ namespace VDB {
         bool hasChildNode( const char * name ) const 
         {
             KMDataNode const *node = nullptr;
-            return KMetadataOpenNodeRead(o, &node, "%s", name) == 0;
+            bool ret = KMetadataOpenNodeRead(o, &node, "%s", name) == 0;
+            KMDataNodeRelease( node );
+            return ret;
         }
         Metadata childNode(char const *name) const {
             KMDataNode const *node = nullptr;

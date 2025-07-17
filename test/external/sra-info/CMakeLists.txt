@@ -182,6 +182,7 @@ AddQueryTest( Test_Sra_Info_Fingerprint_None 13.0 "--fingerprint input/Test_Sra_
 AddQueryTest( Test_Sra_Info_Fingerprint_Short 13.1 "--fingerprint input/Test_Sra_Info_Fingerprint" )
 AddQueryTest( Test_Sra_Info_Fingerprint_Abbreviated 13.2 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 1" )
 AddQueryTest( Test_Sra_Info_Fingerprint_Detailed 13.3 "--fingerprint input/Test_Sra_Info_Fingerprint --detail 2" )
+AddQueryTest( Test_Sra_Info_Fingerprint_Detailed_NotFound 13.4 "--fingerprint SRR000123 --detail 2" )
 
 AddQueryTest( Test_Sra_Info_Fingerprint_Csv_None 14.0 "--fingerprint input/Test_Sra_Info_Fingerprint_None.sra --format csv" )
 AddQueryTest( Test_Sra_Info_Fingerprint_Csv_Short 14.1 "--fingerprint input/Test_Sra_Info_Fingerprint --format csv" )

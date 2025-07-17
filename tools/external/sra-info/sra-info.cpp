@@ -484,17 +484,15 @@ SraInfo::GetFingerprints( Detail detail ) const
     VDB::Table seq = (*m_u.db)["SEQUENCE"];
     VDB::MetadataCollection seqmeta = seq.metadata();
 
-    try
-    {   // current output fp; if not found, there is no fingerprint info in this database
-        ret.push_back( TreeNode( "fingerprint", seqmeta["QC/current/fingerprint"].value() ) );
-        ret.push_back( TreeNode( "digest",      seqmeta["QC/current/digest"].value()) );
-        ret.push_back( TreeNode( "algorithm",   seqmeta["QC/current/algorithm"].value()) );
-    }
-    catch(VDB::Error& e)
-    {
-        e.handled = true;
+    if ( ! seqmeta.hasChildNode("QC"))
+    {   // no fingerprint info in this database
         return ret;
     }
+
+    // current output fp
+    ret.push_back( TreeNode( "fingerprint", seqmeta["QC/current/fingerprint"].value() ) );
+    ret.push_back( TreeNode( "digest",      seqmeta["QC/current/digest"].value()) );
+    ret.push_back( TreeNode( "algorithm",   seqmeta["QC/current/algorithm"].value()) );
 
     if ( detail > Short )
     {
@@ -502,66 +500,72 @@ SraInfo::GetFingerprints( Detail detail ) const
         ret.push_back( TreeNode( "version",     seqmeta["QC/current/version"].value()) );
         ret.push_back( TreeNode( "format",      seqmeta["QC/current/format"].value()) );
 
-        // history of the output fp updates
-        VDB::Metadata seq_history = seqmeta.childNode("QC/history");
-        VDB::NameList updates = seq_history.children();
-
-        TreeNode history { "history", TreeNode::Array };
-        const string start { "update_" };
-        for ( unsigned int i = 0; i < updates.count(); ++ i)
+        // history of the output fp updates (optional)
+        if ( seqmeta.hasChildNode("QC/history") )
         {
-            const string& name = updates[i];
-            if ( name.compare(0, start.size(), start) == 0 )
+            VDB::Metadata seq_history = seqmeta.childNode("QC/history");
+            VDB::NameList updates = seq_history.children();
+
+            TreeNode history { "history", TreeNode::Array };
+            const string start { "update_" };
+            for ( unsigned int i = 0; i < updates.count(); ++ i)
             {
-                TreeNode h { name, TreeNode::Element };
+                const string& name = updates[i];
+                if ( name.compare(0, start.size(), start) == 0 )
+                {
+                    TreeNode h { name, TreeNode::Element };
 
-                h.subnodes.push_back( TreeNode ( "update", to_string( i + 1 ) ) );
+                    h.subnodes.push_back( TreeNode ( "update", to_string( i + 1 ) ) );
 
-                h.subnodes.push_back( TreeNode ( "fingerprint", seq_history[ name ] [ "fingerprint" ].value() ) );
-                h.subnodes.push_back( TreeNode ( "digest",      seq_history[ name ] [ "digest" ].value() ) );
-                h.subnodes.push_back( TreeNode ( "algorithm",   seq_history[ name ] [ "algorithm"].value() ) );
-                h.subnodes.push_back( TreeNode ( "timestamp",   U64StringToDecString ( seq_history[ name ] [ "timestamp"].value() ) ) );
-                h.subnodes.push_back( TreeNode ( "version",     seq_history[ name ] [ "version"].value() ) );
-                h.subnodes.push_back( TreeNode ( "format",      seq_history[ name ] [ "format"].value() ) );
+                    h.subnodes.push_back( TreeNode ( "fingerprint", seq_history[ name ] [ "fingerprint" ].value() ) );
+                    h.subnodes.push_back( TreeNode ( "digest",      seq_history[ name ] [ "digest" ].value() ) );
+                    h.subnodes.push_back( TreeNode ( "algorithm",   seq_history[ name ] [ "algorithm"].value() ) );
+                    h.subnodes.push_back( TreeNode ( "timestamp",   U64StringToDecString ( seq_history[ name ] [ "timestamp"].value() ) ) );
+                    h.subnodes.push_back( TreeNode ( "version",     seq_history[ name ] [ "version"].value() ) );
+                    h.subnodes.push_back( TreeNode ( "format",      seq_history[ name ] [ "format"].value() ) );
 
-                history.subnodes.push_back( h );
+                    history.subnodes.push_back( h );
+                }
             }
-        }
-        if ( ! history.subnodes.empty() )
-        {
-            ret.push_back( history );
+            if ( ! history.subnodes.empty() )
+            {
+                ret.push_back( history );
+            }
         }
 
         if ( detail > Abbreviated )
         {   // input fp(s)
             VDB::MetadataCollection dbmeta = m_u.db -> metadata();
-            VDB::Metadata db_inputs = dbmeta.childNode("LOAD/QC");
-            VDB::NameList children = db_inputs.children();
-
-            TreeNode inputs { "inputs", TreeNode::Array };
-            const string start { "file_" };
-            for ( unsigned int i = 0; i < children.count(); ++ i)
+            if ( dbmeta.hasChildNode( "LOAD/QC" ) )
             {
-                const string& name = children[i];
-                if ( name.compare(0, start.size(), start) == 0 )
+                VDB::Metadata db_inputs = dbmeta.childNode("LOAD/QC");
+                VDB::NameList children = db_inputs.children();
+
+                TreeNode inputs { "inputs", TreeNode::Array };
+                const string start { "file_" };
+                for ( unsigned int i = 0; i < children.count(); ++ i)
                 {
-                    TreeNode in { name, TreeNode::Element };
+                    const string& name = children[i];
+                    if ( name.compare(0, start.size(), start) == 0 )
+                    {
+                        TreeNode in { name, TreeNode::Element };
 
-                    in.subnodes.push_back( TreeNode ( "file", to_string( i + 1 ) ) );
+                        in.subnodes.push_back( TreeNode ( "file", to_string( i + 1 ) ) );
 
-                    in.subnodes.push_back( TreeNode( "name",        db_inputs [ name ] . attributeValue("name") ) );
-                    in.subnodes.push_back( TreeNode( "fingerprint", db_inputs [ name ] . value() ) );
-                    in.subnodes.push_back( TreeNode( "algorithm",   db_inputs [ name ] . attributeValue("algorithm") ) );
-                    in.subnodes.push_back( TreeNode( "digest",      db_inputs [ name ] . attributeValue("digest") ) );
-                    in.subnodes.push_back( TreeNode( "version",      db_inputs [ name ] . attributeValue("version") ) );
-                    in.subnodes.push_back( TreeNode( "format",      db_inputs [ name ] . attributeValue("format") ) );
+                        in.subnodes.push_back( TreeNode( "name",        db_inputs [ name ] . attributeValue("name") ) );
+                        in.subnodes.push_back( TreeNode( "fingerprint", db_inputs [ name ] . value() ) );
+                        in.subnodes.push_back( TreeNode( "algorithm",   db_inputs [ name ] . attributeValue("algorithm") ) );
+                        in.subnodes.push_back( TreeNode( "digest",      db_inputs [ name ] . attributeValue("digest") ) );
+                        in.subnodes.push_back( TreeNode( "version",      db_inputs [ name ] . attributeValue("version") ) );
+                        in.subnodes.push_back( TreeNode( "format",      db_inputs [ name ] . attributeValue("format") ) );
 
-                    inputs.subnodes.push_back( in );
+                        inputs.subnodes.push_back( in );
+                    }
                 }
-            }
-            if ( ! inputs.subnodes.empty() )
-            {
-                ret.push_back( inputs );
+                if ( ! inputs.subnodes.empty() )
+                {
+                    ret.push_back( inputs );
+                }
             }
         }
     }

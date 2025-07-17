@@ -348,6 +348,36 @@ FIXTURE_TEST_CASE( RawData_value, SequenceTableFixture )
     REQUIRE_EQ( uint32_t(602), v );
 }
 
+// VDB::Metadata
+
+TEST_CASE(Database_Metadata)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+}
+
+TEST_CASE(Metadata_hasChild_Yes)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( md.hasChildNode( "SOFTWARE" ) );
+}
+
+TEST_CASE(Metadata_hasChild_NO)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( ! md.hasChildNode( "HARDWARE" ) );
+}
+
+TEST_CASE(Metadata_hasChild_Deep)
+{
+    Database d = Manager().openDatabase( DatabasePath );
+    MetadataCollection md = d.metadata();
+    REQUIRE( md.hasChildNode( "SOFTWARE/formatter" ) );
+}
+
+
 int main (int argc, char *argv [])
 {
     return VdbTestSuite(argc, argv);

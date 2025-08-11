@@ -29,10 +29,12 @@
  *  Generate SAM FLAG bits counts.
  */
 
-#include <utility>
-#include <cstdint>
+extern "C" {
+#include "flag-stat.h"
+}
 
-class FlagStat {
+struct FlagStat {
+private:
     struct Counter {
         uint64_t value;
         Counter() : value(0) {};
@@ -55,11 +57,8 @@ class FlagStat {
         }
     };
     BitsCounter raw, canonical;
-public:
-    
-    /// @brief Add the set bits to the counter.
-    /// returns true if flag bits were canonically set.
-    bool add(uint16_t const bits) {
+
+    uint16_t canonicalValue(uint16_t const bits) {
         // these bits are unassigned for not-paired-end tech
         uint16_t const singleReadMask = 0x002 | 0x008 | 0x020 | 0x040 | 0x080;
         // these bits are unassigned for unaligned records
@@ -69,7 +68,14 @@ public:
         uint16_t const mask = (isSingleRead ? singleReadMask : 0)
                             | (isUnaligned  ? unalignedMask : 0)
                             | 0xF000; // these bits are unassigned
-        uint16_t const cbits = bits & ~mask;
+        return bits & ~mask;
+    }
+public:
+    
+    /// @brief Add the set bits to the counter.
+    /// returns true if flag bits were canonically set.
+    bool add(uint16_t const bits) {
+        auto const cbits = canonicalValue(bits);
 
         raw.add(bits);
         canonical.add(cbits);
@@ -83,45 +89,9 @@ public:
         canonical.copy(&counts[0]);
     }
     static char const *flagBitSymbolicName(int const bitNumber) {
-        static char const *const values[] = {
-            "MULTIPLE_READS",
-            "PROPERLY_ALIGNED",
-            "UNMAPPED",
-            "NEXT_UNMAPPED",
-            "REVERSE_COMPLEMENTED",
-            "NEXT_REVERSE_COMPLEMENTED",
-            "FIRST_SEGMENT",
-            "LAST_SEGMENT",
-            "SECONDARY_ALIGNMENT",
-            "QC_FAILED",
-            "DUPLICATE",
-            "SUPPLEMENTARY_ALIGNMENT",
-            "BIT_12_UNUSED",
-            "BIT_13_UNUSED",
-            "BIT_14_UNUSED",
-            "BIT_15_UNUSED",
-        };
-        auto constexpr const N = unsigned(sizeof(values)/sizeof(values[0]));
-        assert(0 <= bitNumber && bitNumber < N);
-        return (bitNumber < N) ? values[bitNumber] : "INVALID_FLAG_BIT";
+        return FlagStat_flagBitSymbolicName(bitNumber);
     }
     static char const *flagBitDescription(int const bitNumber) {
-        static char const *const values[] = {
-            "template having multiple segments in sequencing",
-            "each segment properly aligned according to the aligner",
-            "segment unmapped",
-            "next segment in the template unmapped",
-            "SEQ being reverse complemented",
-            "SEQ of the next segment in the template being reverse complemented",
-            "the first segment in the template",
-            "the last segment in the template",
-            "secondary alignment",
-            "not passing filters, such as platform/vendor quality controls",
-            "PCR or optical duplicate",
-            "supplementary alignment"
-        };
-        auto constexpr const N = unsigned(sizeof(values)/sizeof(values[0]));
-        assert(0 <= bitNumber);
-        return (bitNumber < N) ? values[bitNumber] : flagBitSymbolicName(bitNumber);
+        return FlagStat_flagBitDescription(bitNumber);
     }
 };

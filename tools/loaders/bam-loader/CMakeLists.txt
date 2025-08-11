@@ -40,6 +40,7 @@ if( NOT WIN32)
         loader-imp
         mem-bank
         low-match-count
+        flag-stat
     )
     set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
     set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )

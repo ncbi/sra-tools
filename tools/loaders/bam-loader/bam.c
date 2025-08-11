@@ -63,6 +63,7 @@
 
 #include <zlib.h>
 
+#include "flag-stat.h"
 #include "bam-priv.h"
 #include "sam.h"
 
@@ -613,11 +614,6 @@ static unsigned BAM_FileMaxPeek(BAM_File const *self)
     return self->bufSize > self->bufCurrent ? self->bufSize - self->bufCurrent : 0;
 }
 
-static int32_t BAM_FilePeekI32(BAM_File *self)
-{
-    return LE2HI32(BAM_FilePeek(self, 0));
-}
-
 static rc_t BAM_FileReadI32(BAM_File *self, int32_t *rhs)
 {
     uint8_t buf[sizeof(int32_t)];
@@ -625,6 +621,16 @@ static rc_t BAM_FileReadI32(BAM_File *self, int32_t *rhs)
 
     if (rc == 0)
         *rhs = LE2HI32(buf);
+    return rc;
+}
+
+static rc_t BAM_FileReadU32(BAM_File *self, uint32_t *rhs)
+{
+    uint8_t buf[sizeof(uint32_t)];
+    rc_t rc = BAM_FileReadn(self, sizeof(uint32_t), buf);
+
+    if (rc == 0)
+        *rhs = LE2HUI32(buf);
     return rc;
 }
 
@@ -1397,6 +1403,7 @@ static void BAM_FileWhack(BAM_File *self) {
         self->vt.FileWhack(&self->file);
     KFileRelease(self->defer);
     BufferedFileWhack(&self->file.bam.file);
+    free(self->flagStat);
 }
 
 /* MARK: BAM File constructors */
@@ -1575,9 +1582,98 @@ static void ColorCheck(BAM_Alignment *const self, char const tag[2], unsigned co
     }
 }
 
-static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
-                            unsigned const xtra, unsigned const datasize)
+enum BAM_AlignmentParseError
 {
+    pe_Okay = 0,
+    pe_truncated,
+    pe_QNAME_length,
+    pe_CIGAR_count,
+    pe_SEQ_length,
+    pe_QUAL_length,
+    pe_EXTRA,
+    pe_EXTRA_unknown_type,
+    pe_EXTRA_unterminated_string,
+    pe_EXTRA_array_unknown_type,
+    pe_EXTRA_array_truncated,
+};
+
+enum BAM_AlignmentParseError BAM_AlignmentGetParseError(BAM_Alignment const *const self)
+{
+    if (self->datasize >= self->xtra 
+     && self->datasize >= self->qual
+     && self->datasize >= self->seq
+     && self->datasize >= self->cigar
+     && self->datasize >= BAM_ALIGNMENT_MIN_SIZE
+    )
+        return pe_Okay;
+
+    return self->datasize < BAM_ALIGNMENT_MIN_SIZE ? pe_truncated
+         : self->cigar > self->datasize ? pe_QNAME_length
+         : self->seq   > self->datasize ? pe_CIGAR_count
+         : self->qual  > self->datasize ? pe_SEQ_length
+         : self->xtra  > self->datasize ? pe_QUAL_length
+         : pe_EXTRA;
+}
+
+/// @brief Measure a nul-terminated OptDataField.
+/// @return 0 on error or the length in bytes.
+static unsigned ParseOptData_ValueLength_Z(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
+{
+    char const *const endp = base + size;
+    for (char const *cur = base + 3; cur < endp; ) {
+        if (*cur++ == 0)
+            return (unsigned)(cur - (base + 3));
+    }
+    *err = pe_EXTRA_unterminated_string;
+    return 0;
+}
+
+/// @brief Measure a count-prefixed OptDataField.
+/// @return 0 on error or the length in bytes.
+static unsigned ParseOptData_ValueLength_A(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
+{
+    if (offset + 2 + 1 + 1 + 4 > size) {
+        *err = pe_EXTRA;
+    }
+    else {
+        int const elem_type = base[offset + 3];
+        int const elem_size = TagTypeSize(elem_type);
+        if (elem_size > 0)
+            return (unsigned)elem_size * LE2HUI32(&base[offset + 4]);
+        *err = pe_EXTRA_array_unknown_type;
+    }
+    return 0;
+}
+
+static unsigned ParseOptData_ValueLength_1(char const *const base, size_t const size, size_t const offset, int const type, enum BAM_AlignmentParseError *err)
+{
+    int const result = TagTypeSize(type);
+
+    if (result > 0)
+        return result;
+    if (result == 0) {
+        *err = pe_EXTRA_unknown_type;
+        return 0;
+    }
+    assert(-result == 'S' || -result == 'A'); // it is null terminated or it is count-prefixed.
+    if (-result == 'S')
+        return ParseOptData_ValueLength_Z(base, size, offset, err);
+    if (-result == 'A')
+        return ParseOptData_ValueLength_A(base, size, offset, err);
+}
+
+static unsigned ParseOptData_ValueLength(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
+{
+    if (offset + 3 > size) {
+        *err = pe_EXTRA;
+        return 0;
+    }
+    return ParseOptData_ValueLength_1(base, size, offset, base[offset + 2], err);
+}
+
+static enum BAM_AlignmentParseError ParseOptData(
+    BAM_Alignment *const self, unsigned const maxsize ///< the size of self
+) {
     size_t const maxExtra = BAM_ALIGNMENT_MAX_EXTRA(maxsize);
     char const *const base = (char const *)self->data->raw;
     unsigned i = 0;
@@ -1585,65 +1681,12 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
     unsigned offset;
 
     self->numExtra = 0;
-    for (len = 0, offset = (unsigned)xtra; offset < datasize; offset += len) {
-        int const type = base[offset + 2];
-        int const valuelen1 = TagTypeSize(type);
-        unsigned valuelen;
+    for (len = 0, offset = self->xtra; offset < self->datasize; offset += len) {
+        enum BAM_AlignmentParseError err = pe_Okay;
+        unsigned const valuelen = ParseOptData_ValueLength(base, self->datasize, offset, &err);
+        if (err != pe_Okay) return err;
 
-        if (valuelen1 > 0)
-            valuelen = valuelen1;
-        else if (valuelen1 < 0) {
-            char const *const value = &base[offset + 3];
-
-            if (-valuelen1 == 'S') {
-                valuelen = 0;
-                while (value[valuelen] != '\0') {
-                    ++valuelen;
-                    if (offset + valuelen >= datasize) {
-                        rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-                        (void)LOGERR(klogErr, rc,
-                                     "Parsing BAM optional fields: "
-                                     "unterminated string");
-                        return rc;
-                    }
-                }
-                ColorCheck(self, base + offset, valuelen);
-                ++valuelen;
-            }
-            else {
-                int const elem_type = value[0];
-                int const elem_size = TagTypeSize(elem_type);
-
-                assert(-valuelen1 == 'A');
-                if (elem_size <= 0) {
-                    rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcUnexpected);
-                    (void)LOGERR(klogErr, rc,
-                                 "Parsing BAM optional fields: "
-                                 "unknown array type");
-                    return rc;
-                }
-                else {
-                    int const elem_count = LE2HI32(&value[1]);
-
-                    valuelen = elem_size * elem_count + 1 + 4;
-                    if (offset + valuelen >= datasize) {
-                        rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-                        (void)LOGERR(klogErr, rc,
-                                     "Parsing BAM optional fields: "
-                                     "array too big");
-                        return rc;
-                    }
-                }
-            }
-        }
-        else {
-            rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcUnexpected);
-            (void)LOGERR(klogErr, rc,
-                                    "Parsing BAM optional fields: "
-                                    "unknown type");
-            return rc;
-        }
-
+        ColorCheck(self, base + offset, valuelen);
         len = valuelen + 3;
         if (i < maxExtra) {
             self->extra[i].offset = offset;
@@ -1654,8 +1697,8 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
     self->numExtra = i;
     if (2 <= i && i <= maxExtra)
         ksort(self->extra, i, sizeof(self->extra[0]), OptTag_sort, self);
-
-    return 0;
+// TODO: ColorCheck
+    return pe_Okay;
 }
 
 static unsigned BAM_AlignmentSetOffsets(BAM_Alignment *const self)
@@ -1663,14 +1706,15 @@ static unsigned BAM_AlignmentSetOffsets(BAM_Alignment *const self)
     unsigned const nameLen = getReadNameLength(self);
     unsigned const cigCnt  = getCigarCount(self);
     unsigned const readLen = getReadLen(self);
-    unsigned const cigar   = (unsigned)BAM_ALIGNMENT_MIN_SIZE + nameLen;
-    unsigned const seq     = cigar + 4 * cigCnt;
-    unsigned const qual    = seq + (readLen + 1) / 2;
+    unsigned const cigar   = BAM_ALIGNMENT_MIN_SIZE + nameLen;
+    unsigned const seq     = cigar + sizeof(uint32_t) * cigCnt;
+    unsigned const qual    = seq + ((readLen + 1) >> 1);
     unsigned const xtra    = qual + readLen;
 
     self->cigar = cigar;
     self->seq   = seq;
     self->qual  = qual;
+    self->xtra  = xtra;
 
     return xtra;
 }
@@ -1694,6 +1738,15 @@ static void BAM_AlignmentDebugPrint(BAM_Alignment const *const self)
                                                 (unsigned)self->numExtra));
 }
 
+static void BAM_AlignmentInitNoParse(BAM_Alignment *const self,
+    unsigned const datasize, void const *const data)
+{
+    memset(self, 0, sizeof(*self));
+    self->data = data;
+    self->datasize = datasize;
+    BAM_AlignmentSetOffsets(self);
+}
+
 static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
                                 unsigned const datasize, void const *const data)
 {
@@ -1704,11 +1757,11 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
         unsigned const xtra = BAM_AlignmentSetOffsets(self);
 
         if (   datasize >= xtra
-            && datasize >= self->cigar
+            && datasize >= self->qual
             && datasize >= self->seq
-            && datasize >= self->qual)
+            && datasize >= self->cigar)
         {
-            rc_t const rc = ParseOptData(self, maxsize, xtra, datasize);
+            rc_t const rc = ParseOptData(self, maxsize);
 
             if (rc == 0) {
                 BAM_AlignmentDebugPrint(self);
@@ -1719,14 +1772,23 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
     }
 }
 
-static void BAM_AlignmentLogParseError(BAM_Alignment const *self)
+static void BAM_AlignmentLogParseError(enum BAM_AlignmentParseError pe)
 {
-    char const *const reason = self->cigar > self->datasize ? "BAM Record CIGAR too long"
-                             : self->seq   > self->datasize ? "BAM Record SEQ too long"
-                             : self->qual  > self->datasize ? "BAM Record QUAL too long"
-                             : self->qual + getReadLen(self) > self->datasize ? "BAM Record EXTRA too long"
-                             : "BAM Record EXTRA parsing failure";
+    char const *reason = NULL;
 
+    switch (pe) {
+    case pe_Okay: return;
+    case pe_truncated   : reason = "BAM Record truncated"; break;
+    case pe_QNAME_length: reason = "BAM Record QNAME truncated"; break;
+    case pe_CIGAR_count : reason = "BAM Record CIGAR truncated"; break;
+    case pe_SEQ_length  : reason = "BAM Record SEQ truncated"; break;
+    case pe_QUAL_length : reason = "BAM Record QUAL truncated"; break;
+    case pe_EXTRA       : reason = "BAM Record EXTRA parsing error"; break;
+    case pe_EXTRA_unknown_type       : reason = "BAM Record EXTRA: unknown type"; break;
+    case pe_EXTRA_unterminated_string: reason = "BAM Record EXTRA: unterminated string"; break;
+    case pe_EXTRA_array_unknown_type : reason = "BAM Record EXTRA: unknown array type"; break;
+    case pe_EXTRA_array_truncated    : reason = "BAM Record EXTRA: array truncated"; break;
+    }
     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), reason);
 }
 
@@ -1805,6 +1867,7 @@ OUT_OF_MEMORY:
 static
 rc_t BAM_FileReadNoCopy(BAM_File *const self)
 {
+    // Get the number of bytes remaining in the buffer.
     unsigned const maxPeek = BAM_FileMaxPeek(self);
 
     if (maxPeek == 0) {
@@ -1823,20 +1886,25 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self)
     if (maxPeek < 4)
         return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
     else {
-        int32_t const i32 = BAM_FilePeekI32(self);
-        int numExtra;
-        void *data;
-        size_t datasize;
+        uint32_t const recordSize = LE2HUI32(BAM_FilePeek(self, 0));
+        int numExtra = -1;
+        void *data = NULL;
+        size_t datasize = 0;
+        BAM_Alignment temp;
+        bool good = false;
 
-        if (i32 <= 0)
-            return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-
-        if (maxPeek < i32 + 4)
+        // Check if record fits entirely within the buffer.
+        if (maxPeek < recordSize + 4)
             return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
 
-        numExtra = BAM_AlignmentNumExtraFromData(i32, data = BAM_FilePeek(self, 4));
+        data = BAM_FilePeek(self, 4);
+        good = BAM_AlignmentInit(&temp, sizeof(temp), datasize, data);
+        if (!good) {
+
+        }
+        numExtra = BAM_AlignmentNumExtraFromData(recordSize, data);
         if (numExtra < 0) {
-            BAM_FileAdvance(self, 4 + i32);
+            BAM_FileAdvance(self, 4 + recordSize);
             return RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
         }
 
@@ -1844,8 +1912,8 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self)
         if (datasize > 0x10000)
             return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
         else {
-            BAM_FileAdvance(self, 4 + i32);
-            BAM_AlignmentInit(self->nocopy, datasize, i32, data);
+            BAM_FileAdvance(self, 4 + recordSize);
+            BAM_AlignmentInit(self->nocopy, datasize, recordSize, data);
             self->nocopy->parent = self;
             return 0;
         }
@@ -1862,9 +1930,9 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
     rc_t rc;
 
     {
-        int32_t i32;
+        uint32_t recordSize;
 
-        rc = BAM_FileReadI32(self, &i32);
+        rc = BAM_FileReadU32(self, &recordSize);
         if ( rc != 0 ) {
             if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient) {
                 self->eof = true;
@@ -1872,10 +1940,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
             }
             return rc;
         }
-        if (i32 <= 0)
-            return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
-
-        datasize = i32;
+        datasize = recordSize;
     }
     if (BAM_FileMaxPeek(self) < datasize) {
         storage = data = malloc(datasize);
@@ -2084,7 +2149,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
         rc = BAM_FileReadCopy(self, rhs, true);
     }
     else if ((int)GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
-        BAM_AlignmentLogParseError(self->nocopy);
+        BAM_AlignmentLogParseError(BAM_AlignmentGetParseError(self->nocopy));
     }
     return rc;
 }

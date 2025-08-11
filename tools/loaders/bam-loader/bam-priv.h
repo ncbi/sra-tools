@@ -26,6 +26,7 @@
 
 #include "bam.h"
 #include "bam-alignment.h"
+#include "flag-stat.h"
 
 typedef struct BAMIndex BAMIndex;
 typedef struct BufferedFile BufferedFile;
@@ -78,7 +79,7 @@ struct BAM_File {
     RawFile_vt vt;
 
     KFile *defer;
-    
+    FlagStat *flagStat;
     BAMRefSeq *refSeq;          /* pointers into headerData1 except name points into headerData2 */ 
     BAMReadGroup *readGroup;    /* pointers into headerData1 */
     char const *version;
@@ -89,6 +90,13 @@ struct BAM_File {
 
     uint64_t fpos_cur;
     uint64_t deferPos;
+    union {
+        struct BAM_DiscardCount {
+            uint64_t invalidRecordLength;
+            uint64_t unparsableOptionalFields;
+        } bam;
+        uint64_t sam;
+    } discardCount;
     
     unsigned refSeqs;
     unsigned readGroups;

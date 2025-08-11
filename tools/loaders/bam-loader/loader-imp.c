@@ -1832,6 +1832,9 @@ class FLAG_Counter {
     FlagStat flagStat;
     std::map<uint16_t, uint64_t> nonCanonicalFlags;
     
+    /// @brief Log the flag counts.
+    /// @param label which set of counts it is, original or canonical.
+    /// @param counts the array of flag counts.
     static void report(char const *const label, uint64_t const *const counts) {
         auto first = true;
         for (int i = 0; i < 16; ++i) {
@@ -1851,18 +1854,87 @@ class FLAG_Counter {
                                      , FlagStat::flagBitDescription(i)));
         }
     }
+
+    /// @brief Save a flag count in metadata.
+    /// @param node the target node into which the count will be saved.
+    /// @param flag the flag (0 is the LSB).
+    /// @param count the count.
+    /// @return 0 if successful.
+    static rc_t saveCount(KMDataNode *const node, unsigned const flag, uint64_t const count) {
+        assert(flag < 16);
+        KMDataNode *sub = nullptr;
+        auto rc = KMDataNodeOpenNodeUpdate(node, &sub, FlagStat::flagBitSymbolicName(flag));
+        if (rc) return rc;
+
+        char bit[8] = "0x0000";
+        bit[5 - flag / 4] += 1 << (flag % 4);
+        do {
+            rc = KMDataNodeWriteAttr(sub, "Bit", bit); if (rc) break;
+            rc = KMDataNodeWriteB64(sub, (void const *)&count);
+        } while (0);
+        KMDataNodeRelease(sub);
+        return rc;
+    }
+
+    /// @brief Save the flag counts in metadata.
+    /// @param node the target node into which the counts will be saved.
+    /// @param name the name of the child node which will be created in the target node.
+    /// @param counts the array of flag counts.
+    /// @return 0 if successful.
+    static rc_t saveCounts(KMDataNode *node, char const *const name, uint64_t const counts[]) {
+        rc_t rc = 0;
+        KMDataNode *sub = nullptr;
+        for (auto i = 0u; i < 16u; ++i) {
+            auto const count = counts[i];
+            if (count == 0) continue;
+            if (sub == nullptr) {
+                rc = KMDataNodeOpenNodeUpdate(node, &sub, name); if (rc) return rc;
+            }
+            rc = saveCount(sub, i, count); if (rc) break;
+        }
+        KMDataNodeRelease(sub);
+        return rc;
+    }
+
+    /// @brief Log the original flag counts.
+    /// @param showLabel should the label (i.e. "Original") be shown.
     void reportRaw(bool showLabel = true) const {
         uint64_t counts[16];
         
         flagStat.rawCounts(counts);
-        report(showLabel ? "Raw" : nullptr, counts);
+        report(showLabel ? "Original" : nullptr, counts);
     }
+
+    /// @brief Save the original flag counts into metadata.
+    /// @param node the target node into which the counts will be saved.
+    /// @return 0 if successful.
+    rc_t saveRaw(KMDataNode *node) const {
+        uint64_t counts[16];
+        
+        flagStat.rawCounts(counts);
+        return saveCounts(node, "ORIGINAL", counts);
+    }
+
+    /// @brief Log the canonicalized flag counts.
+    /// @param showLabel should the label (i.e. "Canonical") be shown.
     void reportCanonicalized(bool showLabel = true) const {
         uint64_t counts[16];
         
         flagStat.canonicalCounts(counts);
-        report(showLabel ? "Canonicalized" : nullptr, counts);
+        report(showLabel ? "Canonical" : nullptr, counts);
     }
+
+    /// @brief Save the canonicalized flag counts.
+    /// @param node the target node into which the counts will be saved.
+    /// @return 0 if successful.
+    rc_t saveCanonicalized(KMDataNode *node) const {
+        uint64_t counts[16];
+        
+        flagStat.canonicalCounts(counts);
+        return saveCounts(node, "CANONICAL", counts);
+    }
+
+    /// @brief Log the non-canonical flag counts.
     void reportNonCanonical() const {
         (void)LOGMSG(klogInfo, "SAM FLAG value counts:");
         for (auto &&[value, count] : nonCanonicalFlags) {
@@ -1880,19 +1952,58 @@ class FLAG_Counter {
                                      , desc.c_str()));
         }
     }
+
+    /// @brief Save the non-canonical flag counts.
+    /// @param node the target node into which the counts will be saved.
+    /// @return 0 if successful.
+    rc_t saveNonCanonical(KMDataNode *node) const {
+        KMDataNode *sub = nullptr;
+        auto rc = KMDataNodeOpenNodeUpdate(node, &sub, "NONCANONICAL"); if (rc) return rc;
+        
+        for (auto &&[value, count] : nonCanonicalFlags) {
+            uint16_t flag = value;
+            char bit[8] = "0x0000";
+            for (int i = 5; i > 1 && flag > 0; --i, flag >>= 4) {
+                auto const nib = flag & 0xF;
+                bit[i] = nib > 9 ? (nib - 9 + 'A') : (nib + '0');
+            }
+
+            KMDataNode *subsub = nullptr;
+            rc = KMDataNodeOpenNodeUpdate(sub, &subsub, bit); if (rc) break;
+            rc = KMDataNodeWriteB64(subsub, (void const *)&count);
+            KMDataNodeRelease(subsub);
+            if (rc) break;
+        }
+        return rc;
+    }
+
 public:
+
+    /// @brief Add a set of flags to the counts.
+    /// @param flags the set of flags to add to the counts.
     void add(uint16_t const flags) {
         if (!flagStat.add(flags))
             nonCanonicalFlags[flags] += 1;
     }
+
+    /// @brief Log the flag counts.
     void report() const {
         if (nonCanonicalFlags.empty())
             reportCanonicalized(false);
-        else {
-            reportRaw();
-            reportCanonicalized();
-            reportNonCanonical();
-        }
+        reportRaw();
+        reportCanonicalized();
+        reportNonCanonical();
+    }
+
+    /// @brief Save the flag counts.
+    /// @param node the target node into which the counts will be saved.
+    /// @return 0 if successful.
+    rc_t save(KMDataNode *node) const {
+        auto rc = saveRaw(node); if (rc) return rc;
+        if (nonCanonicalFlags.empty())
+            return 0;
+        rc = saveCanonicalized(node); if (rc) return rc;
+        return saveNonCanonical(node);
     }
 };
 

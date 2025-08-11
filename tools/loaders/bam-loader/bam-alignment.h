@@ -39,17 +39,17 @@
  * iow, multi-byte members are little-endian and not aligned
  */
 struct bam_alignment_s {
-    uint8_t rID[4];         /* int32_t */
-    uint8_t pos[4];         /* int32_t */
-    uint8_t read_name_len;
-    uint8_t mapQual;
-    uint8_t bin[2];         /* uint16_t */
-    uint8_t n_cigars[2];    /* uint16_t */
-    uint8_t flags[2];       /* uint16_t */
-    uint8_t read_len[4];    /* int32_t */
-    uint8_t mate_rID[4];    /* int32_t */
-    uint8_t mate_pos[4];    /* int32_t */
-    uint8_t ins_size[4];    /* int32_t */
+    uint8_t rID[4];         /* int32_t  [ 0 ..<  4] */
+    uint8_t pos[4];         /* int32_t  [ 4 ..<  8] */
+    uint8_t read_name_len;  /*          [    8    ] */
+    uint8_t mapQual;        /*          [    9    ] */
+    uint8_t bin[2];         /* uint16_t [10 ..< 12] */
+    uint8_t n_cigars[2];    /* uint16_t [12 ..< 14] */
+    uint8_t flags[2];       /* uint16_t [14 ..< 16] */
+    uint8_t read_len[4];    /* int32_t  [16 ..< 20] */
+    uint8_t mate_rID[4];    /* int32_t  [20 ..< 24] */
+    uint8_t mate_pos[4];    /* int32_t  [24 ..< 28] */
+    uint8_t ins_size[4];    /* int32_t  [28 ..< 32] */
 /*  uint8_t read_name[read_name_len];   // nul-terminated; length includes nul
  *  uint8_t cigar[4 * n_cigars];        // uint32_t
  *  uint8_t seq[(read_len + 1) / 2];    // packed binary 4na
@@ -57,7 +57,7 @@ struct bam_alignment_s {
  *  uint8_t extra[];
  */
 #if HAVE_C99_FAM
-    char read_name[];
+    char read_name[];       /* [32 ..< 32 + read_name_len] */
 #else
     /* the standard says it is undefined behavior to access beyond the declared
      * end of a struct, but older Microsoft compilers don't support the proper
@@ -68,7 +68,7 @@ struct bam_alignment_s {
 };
 
 /*#define BAM_ALIGNMENT_MIN_SIZE offsetof(struct bam_alignment_s, read_name[0])*/
-#define BAM_ALIGNMENT_MIN_SIZE (sizeof(struct bam_alignment_s))
+#define BAM_ALIGNMENT_MIN_SIZE (32UL)
 typedef union bam_alignment_u {
     struct bam_alignment_s cooked;
     uint8_t raw[BAM_ALIGNMENT_MIN_SIZE]; /* FAM is for structs */
@@ -135,15 +135,16 @@ struct offset_size_s {
 struct BAM_Alignment {
     struct BAM_File *parent;
     bam_alignment const *data;
-    uint8_t *storage;
+    uint8_t *storage;   ///< NULL if no storage was allocated for this object. 
 
-	uint64_t keyId;
-	bool wasInserted;
+	uint64_t keyId;     ///< spot ID from from spot assembly.
+	bool wasInserted;   ///< was the spot name a new name. 
 
     unsigned datasize;
     unsigned cigar;
     unsigned seq;
     unsigned qual;
+    unsigned xtra;
     unsigned numExtra;
     unsigned hasColor;
     unsigned platform;

@@ -618,3 +618,5 @@ rc_t BAM_FileGetHeaderText(BAM_File const *cself, char const **header, size_t *h
  */
 rc_t BAM_FileGetReadGroupByName ( const BAM_File *self,
     const char *name, const BAMReadGroup **result );
+
+struct FlagStat const *BAM_FileGetFlagStats(BAM_File const *);

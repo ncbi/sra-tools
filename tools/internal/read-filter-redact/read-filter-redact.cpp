@@ -23,16 +23,18 @@
  * =============================================================================
  */
 
+//#define NOMINMAX /* std::max on Windows */
 #include <kapp/main.h>
 
 #include <sra/wsradb.h> /* spotid_t */
 #include <sra/sradb-priv.h> /* SRASchemaMake */
 
-#include <vdb/manager.h> /* VDBManager */
-#include <vdb/table.h> /* VDBTable */
-#include <vdb/database.h> /* VDatabase */
 #include <vdb/cursor.h> /* VCursor */
+#include <vdb/database.h> /* VDatabase */
+#include <vdb/manager.h> /* VDBManager */
 #include <vdb/schema.h> /* VSchemaRelease */
+#include <vdb/table.h> /* VDBTable */
+#include <vdb/vdb-priv.h> /* VDatabaseIsCSRA */
 
 #include <kdb/manager.h> /* KDBPathType */
 #include <kdb/meta.h> /* KMetadataRelease */
@@ -64,12 +66,14 @@ using namespace std;
 
 #define DISP_RC(rc,msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
-static KDirectory* __SpotIteratorDirectory = NULL;
+static KDirectory* __SpotIteratorDirectory = nullptr;
 
 typedef struct CmdLine {
-    const char* table;
-    const char* file;
+    const char* run = nullptr;
+    const char* file = nullptr;
+    bool redactReads = false;
 } CmdLine;
+
 typedef struct SpotIterator {
     spotid_t crnSpotId;
     spotid_t spotToReduct;
@@ -89,8 +93,11 @@ typedef struct SpotIterator {
     bool hasCh;
     char ch;
 } SpotIterator;
+
 struct Db {
-    const char* table = nullptr;
+    bool redactReads = false;
+
+    const char* run = nullptr;
 
     VDBManager* mgr = nullptr;
     VTable *tbl = nullptr;
@@ -98,11 +105,16 @@ struct Db {
     const VCursor *rCursor = nullptr;
     uint32_t rFilterIdx = 0;
     uint32_t rReadIdx = 0;
+    uint32_t rReadLenIdx = 0;
 
-    Fingerprint read_fp;
+    Fingerprint update_in_fp; /* updated spots before redaction*/
+    Fingerprint update_out_fp;/* updated spots after redaction */
+    Fingerprint in_fp; /* entire input run */
+    Fingerprint out_fp;/* entire output run */
 
     VCursor *wCursor = nullptr;
-    uint32_t wIdx = 0;
+    uint32_t wFilterIdx = 0;
+    uint32_t wReadIdx = 0;
 
     KMetadata *meta = nullptr;
 
@@ -381,7 +393,6 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
     return rc;
 }
 
-
 static rc_t SpotIteratorInit(const char* redactFileName,
     const Db* db, SpotIterator* self)
 {
@@ -429,7 +440,7 @@ static rc_t SpotIteratorDestroy(SpotIterator* it)
 
     rc = KFileRelease(it->file);
 
-    it->file = NULL;
+    it->file = nullptr;
     it->inBuffer = 0;
     it->hasCh = false;
 
@@ -437,7 +448,7 @@ static rc_t SpotIteratorDestroy(SpotIterator* it)
         rc_t rc2 = KDirectoryRelease(__SpotIteratorDirectory);
         if (rc == 0)
         {   rc = rc2; }
-        __SpotIteratorDirectory = NULL;
+        __SpotIteratorDirectory = nullptr;
     }
 
     return rc;
@@ -473,39 +484,41 @@ static bool SpotIteratorNext(SpotIterator* self, rc_t* rc,
 
 static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
 {
+    const char read_name[] = "READ";
     const char read_filter_name[]   = "READ_FILTER";
-    const char read_name[]          = "READ";
+    const char read_len_name[] = "READ_LEN";
 
     assert(args && db);
 
-    db->table = args->table;
+    db->redactReads = args->redactReads;
+    db->run = args->run;
 
     if (rc == 0) {
-        rc = VDBManagerMakeUpdate(&db->mgr, NULL);
+        rc = VDBManagerMakeUpdate(&db->mgr, nullptr);
         DISP_RC(rc, "while calling VDBManagerMakeUpdate");
     }
 
     if (rc == 0) {
-        rc = VDBManagerWritable(db->mgr, args->table);
+        rc = VDBManagerWritable(db->mgr, args->run);
         if (rc != 0) {
             if (GetRCState(rc) == rcLocked)
             {
-                rc = VDBManagerUnlock(db->mgr, args->table);
+                rc = VDBManagerUnlock(db->mgr, args->run);
                 if (rc != 0) {
                     PLOGERR(klogErr, (klogErr, rc,
-                        "while calling VDBManagerUnlock('$(table)')",
-                        "table=%s", args->table));
+                        "while calling VDBManagerUnlock('$(run)')",
+                        "run=%s", args->run));
                 }
                 db->locked = true;
             }
             else {
                 PLOGERR(klogErr, (klogErr, rc,
-                    "while calling VDBManagerWritable('$(table)')",
-                    "table=%s", args->table));
+                    "while calling VDBManagerWritable('$(run)')",
+                    "run=%s", args->run));
                 if (rc == RC(rcDB, rcPath, rcAccessing, rcPath, rcReadonly)) {
                     PLOGERR(klogErr, (klogErr, rc,
-                        "N.B. It is possible '$(table)' was not locked properly"
-                        , "table=%s", args->table));
+                        "N.B. It is possible '$(run)' was not locked properly"
+                        , "run=%s", args->run));
                 }
             }
         }
@@ -513,21 +526,29 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
 
     if (rc == 0) {
         db->locked = true; /* has to be locked in production mode */
-        rc = VDBManagerOpenTableUpdate (db->mgr, &db->tbl, NULL, args->table);
+        rc = VDBManagerOpenTableUpdate (db->mgr, &db->tbl, nullptr, args->run);
         if (rc != 0) {
             VDatabase *vdb;
-            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL,
-                                                args->table );
+            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, nullptr,
+                                                args->run );
             if( rc2 == 0) {
-                rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
-                if (rc2 == 0 )
-                    rc = 0;
+                if (VDatabaseIsCSRA(vdb)) {
+                    rc2 = RC(rcExe,
+                        rcDatabase, rcAccessing, rcDatabase, rcWrongType);
+                    PLOGERR(klogErr, (klogErr, rc, "'$(run)' is cSRA",
+                        "run=%s", args->run));
+                }
+                if (rc2 == 0) {
+                    rc2 = VDatabaseOpenTableUpdate(vdb, &db->tbl, "SEQUENCE");
+                    if (rc2 == 0)
+                        rc = 0;
+                }
                 VDatabaseRelease ( vdb );
             }
         }
         if(rc != 0){
             PLOGERR(klogErr, (klogErr, rc,
-                "while opening VTable '$(table)'", "table=%s", args->table));
+                "while opening run '$(run)'", "run=%s", args->run));
         }
     }
 
@@ -539,34 +560,57 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
     if( rc == 0) {
         rc = VTableCreateCursorRead(db->tbl, &db->rCursor);
         DISP_RC(rc, "while creating read cursor");
-        if (rc == 0) {
-            rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx, "%s", read_filter_name);
-            if (rc != 0) {
-                PLOGERR(klogErr, (klogErr, rc,
-                    "while adding $(name) to read cursor", "name=%s", read_filter_name));
-            }
-            if (rc == 0) {
-                rc = VCursorAddColumn(db->rCursor, &db->rReadIdx, "%s", read_name);
-                if (rc != 0) {
-                    PLOGERR(klogErr, (klogErr, rc,
-                        "while adding $(name) to read cursor", "name=%s", read_name));
-                }
-            }
-        }
-        if (rc == 0) {
-            rc = VCursorOpen(db->rCursor);
-            DISP_RC(rc, "while opening read cursor");
+    }
+
+    if (rc == 0) {
+        rc = VCursorAddColumn(db->rCursor, &db->rFilterIdx,
+            "%s", read_filter_name);
+        if (rc != 0) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "while adding $(name) to read cursor",
+                "name=%s", read_filter_name));
         }
     }
+
+    if (rc == 0) {
+        rc = VCursorAddColumn(db->rCursor, &db->rReadIdx, "%s", read_name);
+        if (rc != 0) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "while adding $(name) to read cursor", "name=%s", read_name));
+        }
+    }
+
+    if (rc == 0) {
+        rc = VCursorAddColumn(db->rCursor, &db->rReadLenIdx,
+            "%s", read_len_name);
+        if (rc != 0) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "while adding $(name) to read cursor",
+                "name=%s", read_len_name));
+        }
+    }
+
+    if (rc == 0) {
+        rc = VCursorOpen(db->rCursor);
+        DISP_RC(rc, "while opening read cursor");
+    }
+
     if (rc == 0) {
         rc = VTableCreateCursorWrite(db->tbl, &db->wCursor, kcmInsert);
         DISP_RC(rc, "while creating write cursor");
         if (rc == 0) {
-            rc = VCursorAddColumn(db->wCursor, &db->wIdx, "%s", read_filter_name);
+            rc = VCursorAddColumn(db->wCursor, &db->wFilterIdx,
+                "%s", read_filter_name);
             if (rc != 0) {
                 PLOGERR(klogErr, (klogErr, rc,
                     "while adding $(name) to write cursor", "name=%s", read_filter_name));
             }
+        }
+        if (rc == 0 && db->redactReads) {
+            rc = VCursorAddColumn(db->wCursor, &db->wReadIdx, "%s", read_name);
+            if (rc != 0)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "while adding $(name) to write cursor", "name=%s", read_name));
         }
         if (rc == 0) {
             rc = VCursorOpen(db->wCursor);
@@ -585,41 +629,43 @@ static rc_t DbDestroy(Db* db)
 
     {
         rc_t rc2 = KMetadataRelease(db->meta);
-        db->meta = NULL;
+        db->meta = nullptr;
         if (rc == 0)
-        {   rc = rc2; }
+        {
+            rc = rc2;
+        }
     }
 
     {
         rc_t rc2 = VCursorRelease(db->rCursor);
-        db->rCursor = NULL;
+        db->rCursor = nullptr;
         if (rc == 0)
         {   rc = rc2; }
     }
 
     {
         rc_t rc2 = VCursorRelease(db->wCursor);
-        db->wCursor = NULL;
+        db->wCursor = nullptr;
         if (rc == 0)
         {   rc = rc2; }
     }
 
     {
         rc_t rc2 = VTableRelease(db->tbl);
-        db->tbl = NULL;
+        db->tbl = nullptr;
         if (rc == 0)
         {   rc = rc2; }
     }
 
     if (db->locked) {
-        rc_t rc2 = VDBManagerLock(db->mgr, "%s", db->table);
+        rc_t rc2 = VDBManagerLock(db->mgr, "%s", db->run);
         if (rc == 0)
         {   rc = rc2; }
     }
 
     {
         rc_t rc2 = VDBManagerRelease(db->mgr);
-        db->mgr = NULL;
+        db->mgr = nullptr;
         if (rc == 0)
         {   rc = rc2; }
     }
@@ -635,51 +681,136 @@ static rc_t Work(Db* db, SpotIterator* it)
     spotid_t nSpots = 0;
     spotid_t redactedSpots = 0;
 
-    uint8_t filter[64];
-    memset(filter, SRA_READ_FILTER_REDACTED, sizeof filter);
+    void* filter = nullptr;
+    uint32_t filter_nreads_max = 0;
 
-    assert(it);
+    void* read = nullptr;
+    uint32_t spot_len_max = 0;
+
+    assert(db && it);
 
     while (rc == 0 && SpotIteratorNext(it, &rc, &row_id, &toRedact)) {
-        uint8_t nreads = 0;
-        char bufferIn[64];
-        void* buffer = NULL;
-        uint32_t row_len = 0;
+        uint32_t filter_nreads = 0;
+        const void* filter_buffer = nullptr;
+        const void* filter_buffer_out = nullptr;
+
+        uint32_t spot_len = 0;
+        char* read_buffer = nullptr;
+        const char* read_buffer_out = nullptr;
+
+        uint32_t read_len_len = 0;
+        uint32_t* read_len_buffer = nullptr;
 
         rc = Quitting();
 
         ++nSpots;
 
         if (rc == 0) {
-            uint32_t elem_bits = 8;
-            rc = VCursorReadDirect(db->rCursor, row_id, db->rFilterIdx,
-                elem_bits, bufferIn, sizeof bufferIn, &row_len);
+            rc = VCursorCellDataDirect(db->rCursor, row_id, db->rFilterIdx,
+                nullptr, &filter_buffer, nullptr, &filter_nreads);
             DISP_RC(rc, "while reading READ_FILTER");
-            nreads = row_len;
         }
-        if (toRedact) {
-            buffer = filter;
+
+        if (rc == 0) {
+            rc = VCursorCellDataDirect(db->rCursor, row_id, db->rReadLenIdx,
+                nullptr, (const void**)&read_len_buffer, nullptr,
+                &read_len_len);
+            DISP_RC(rc, "while reading READ_LEN");
+        }
+
+        if (rc == 0 && db->redactReads) {
+            rc = VCursorCellDataDirect(db->rCursor, row_id, db->rReadIdx,
+                nullptr, (const void**)&read_buffer, nullptr, &spot_len);
+            DISP_RC(rc, "while reading READ");
+
+            for (uint32_t i = 0, start = 0; i < read_len_len;
+                start += read_len_buffer[i++])
+            {
+                db->in_fp.record(
+                    string(read_buffer + start, read_len_buffer[i]));
+            }
+        }
+
+        if (rc == 0 && toRedact) {
+            if (filter_nreads > filter_nreads_max) {
+                filter_nreads_max = filter_nreads * 2;
+                if (filter == nullptr)
+                    filter = malloc(filter_nreads_max);
+                else
+                    filter = realloc(filter, filter_nreads_max);
+                if (filter == nullptr)
+                    rc = RC(rcExe, rcData, rcAllocating, rcMemory, rcExhausted);
+                else
+                    memset(filter, SRA_READ_FILTER_REDACTED, filter_nreads_max);
+            }
+            filter_buffer_out = filter;
+
             ++redactedSpots;
             DBGMSG(DBG_APP,DBG_COND_1,
-                ("Redacting spot %d: %d reads\n",row_id,nreads));
+                ("Redacting spot %d: %d reads\n", row_id, filter_nreads));
 
-            const char * read_buffer = NULL;
-            rc = VCursorCellDataDirect(db->rCursor, row_id, db->rReadIdx,
-                NULL, (const void**)&read_buffer, NULL, &row_len);
-            DISP_RC(rc, "while reading READ");
-            db->read_fp.record( string( read_buffer, row_len ) );
+            if (rc == 0) {
+                if (!db->redactReads) {
+                    rc = VCursorCellDataDirect(
+                        db->rCursor, row_id, db->rReadIdx,nullptr,
+                        (const void**)&read_buffer, nullptr, &spot_len);
+                    DISP_RC(rc, "while reading READ");
+                }
+                else {
+                    if (spot_len > spot_len_max) {
+                        spot_len_max = spot_len * 2;
+                        if (read == nullptr)
+                            read = malloc(spot_len_max);
+                        else
+                            read = realloc(read, spot_len_max);
+                        if (read == nullptr)
+                            rc = RC(rcExe,
+                                rcData, rcAllocating, rcMemory, rcExhausted);
+                        else
+                            memset(read, 'N', spot_len_max);
+                    }
+                    read_buffer_out = (char*)read;
+                }
+            }
+
+            for (uint32_t i = 0, start = 0; db->redactReads && i < read_len_len;
+                start += read_len_buffer[i++])
+            {
+                db->update_in_fp.record(
+                    string(read_buffer + start, read_len_buffer[i]));
+                db->update_out_fp.record(
+                    string((char*)read + start, read_len_buffer[i]));
+            }
         }
         else {
-            buffer = bufferIn;
+            filter_buffer_out = filter_buffer;
+            read_buffer_out = read_buffer;
         }
+
+        if (rc == 0 && db->redactReads)
+            for (uint32_t i = 0, start = 0; i < read_len_len;
+                start += read_len_buffer[i++])
+            {
+                db->out_fp.record(
+                    string(read_buffer_out + start, read_len_buffer[i]));
+            }
+
         if (rc == 0) {
             rc = VCursorOpenRow(db->wCursor);
             DISP_RC(rc, "while opening row to write");
+
             if (rc == 0) {
-                rc = VCursorWrite
-                    (db->wCursor, db->wIdx, 8 * nreads, buffer, 0, 1);
+                rc = VCursorWrite(db->wCursor, db->wFilterIdx,
+                    8 * filter_nreads, filter_buffer_out, 0, 1);
                 DISP_RC(rc, "while writing READ_FILTER");
             }
+
+            if (rc == 0 && db->redactReads) {
+                rc = VCursorWrite(db->wCursor, db->wReadIdx,
+                    8 * spot_len, read_buffer_out, 0, 1);
+                DISP_RC(rc, "while writing READ");
+            }
+
             if (rc == 0) {
                 rc = VCursorCommitRow(db->wCursor);
                 DISP_RC(rc, "while committing row");
@@ -690,6 +821,9 @@ static rc_t Work(Db* db, SpotIterator* it)
             }
         }
     }
+
+    free(filter); filter = nullptr;
+    free(read); read = nullptr;
 
     db->nSpots = nSpots;
     db->redactedSpots = redactedSpots;
@@ -723,7 +857,7 @@ static rc_t fill_timestring( char * s, size_t size )
     rc_t rc;
 
     KTimeLocal ( &tr, KTimeStamp() );
-    rc = string_printf ( s, size, NULL, "%lT", &tr );
+    rc = string_printf ( s, size, nullptr, "%lT", &tr );
 
     DISP_RC( rc, "fill_timestring:string_printf( date/time ) failed" );
     return rc;
@@ -746,14 +880,14 @@ static rc_t enter_version( KMDataNode *node, const char * key )
     char buff[ 32 ];
     rc_t rc;
 
-    rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", KAppVersion() );
+    rc = string_printf ( buff, sizeof( buff ), nullptr, "%.3V", KAppVersion() );
     assert ( rc == 0 );
     rc = KMDataNodeWriteAttr ( node, key, buff );
     DISP_RC( rc, "enter_version:KMDataNodeWriteAttr() failed" );
     return rc;
 }
 
-static rc_t enter_date_name_vers( KMDataNode *node )
+static rc_t enter_date_name_vers( KMDataNode *node, bool read_updated )
 {
     rc_t rc = enter_time( node, "run" );
     DISP_RC( rc, "enter_date_name_vers:enter_time() failed" );
@@ -774,13 +908,21 @@ static rc_t enter_date_name_vers( KMDataNode *node )
             }
         }
     }
+    if (rc == 0) {
+        rc = KMDataNodeWriteAttr(node, "updated",
+            read_updated ? "READ_FILTER,READ" : "READ_FILTER");
+        DISP_RC(rc, "enter_date_name_vers:"
+            "KMDataNodeWriteAttr(updated) failed");
+    }
+
     return rc;
 }
 
-static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
+static rc_t enter_fingerprint( KMDataNode * node, Fingerprint & fp )
 {
     KMDataNode * fp_node = nullptr;
     rc_t rc = KMDataNodeOpenNodeUpdate ( node, &fp_node, "FINGERPRINT" );
+    DISP_RC(rc, "cannot KMDataNodeOpenNodeUpdate FINGERPRINT");
     if ( rc == 0 )
     {
         std::ostringstream strm;
@@ -789,27 +931,114 @@ static rc_t enter_fingerprint( KMDataNode *node, Fingerprint & fp )
         fp.canonicalForm( json );
         json << '}';
         rc = KMDataNodeWrite ( fp_node, strm.str().data(), strm.str().size() );
+        DISP_RC(rc, "cannot KMDataNodeWrite FINGERPRINT");
     }
     KMDataNodeRelease(fp_node);
     return rc;
 }
 
-static rc_t update_history ( Db & db ) {
+static
+rc_t copy_current_fingerprint(const KMDataNode* src, KMDataNode* dst)
+{
+    KMDataNode* fp_node = nullptr;
+    rc_t rc = KMDataNodeOpenNodeUpdate(dst, &fp_node, "original");
+    DISP_RC(rc, "cannot KMDataNodeOpenNodeUpdate original");
+
+    if (rc == 0) {
+        rc = KMDataNodeCopy(fp_node, src);
+        DISP_RC(rc, "cannot KMDataNodeCopy original");
+    }
+
+    rc_t r2 = KMDataNodeRelease(fp_node);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    return rc;
+}
+
+static rc_t add_meta_node(KMDataNode* current,
+    const char* name, const string& value)
+{
+    KMDataNode* node = nullptr;
+    rc_t rc = KMDataNodeOpenNodeUpdate(current, &node, name);
+    DISP_RC(rc, "cannot KMDataNodeOpenNodeUpdate QC/current");
+
+    if (rc == 0) {
+        rc = KMDataNodeWrite(node, value.c_str(), value.size());
+        DISP_RC(rc, "cannot write KMDataNode QC/current");
+    }
+
+    rc_t r2 = KMDataNodeRelease(node);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    return rc;
+}
+
+static rc_t record_fp(KMDataNode* node, const Fingerprint& fp) {
+    static string tm;
+
+    rc_t rc = add_meta_node(node, "algorithm", fp.algorithm());
+    if (rc == 0)
+        rc = add_meta_node(node, "digest", fp.digest());
+    if (rc == 0)
+        rc = add_meta_node(node, "fingerprint", fp.JSON());
+    if (rc == 0)
+        rc = add_meta_node(node, "format", fp.format());
+    if (rc == 0)
+        rc = add_meta_node(node, "version", fp.version());
+    if (rc == 0) {
+        if (tm.empty()) {
+            time_t t = time(nullptr);
+            tm = string((const char*) & t, sizeof t);
+        }
+        rc = add_meta_node(node, "timestamp", tm);
+    }
+
+    return rc;
+}
+
+static rc_t add_fp_node(KMDataNode* node,
+    const char* name,const Fingerprint& fp)
+{
+    KMDataNode* fp_node = nullptr;
+    rc_t rc = KMDataNodeOpenNodeUpdate(node, &fp_node, name);
+
+    if (rc == 0)
+        rc = record_fp(fp_node, fp);
+
+    rc_t r2 = KMDataNodeRelease(fp_node);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    return rc;
+}
+
+static rc_t add_fingerprint_event_meta ( Db & db, bool history = true  )
+{
     KMetadata *dst_meta = db.meta;
     rc_t rc = 0;
     rc_t r2 = 0;
     char event_name[ 32 ] = "";
 
-    KMDataNode *hist_node = NULL;
-    rc = KMetadataOpenNodeUpdate ( dst_meta, &hist_node, "HISTORY" );
+    const KMDataNode *cur_node = nullptr;
+    if (!history)
+        /* can be not found */
+        rc = KMetadataOpenNodeRead(dst_meta, &cur_node, "QC/current");
+
+    const char* top = history ? "HISTORY" : "QC/history";
+    const char* next = history ? "EVENT" : "event";
+
+    KMDataNode *hist_node = nullptr;
+    rc = KMetadataOpenNodeUpdate ( dst_meta, &hist_node, top );
     DISP_RC(rc, "while Opening HISTORY Metadata");
     if ( rc == 0 ) {
         uint32_t index = get_child_count( hist_node );
 
         if ( index > 0 ) { /* make sure EVENT_[i-1] exists */
-            const KMDataNode *node = NULL;
-            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
-                                                                        index );
+            const KMDataNode *node = nullptr;
+            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "%s_%u",
+                                                                  next, index );
             if ( r != 0 )
                 PLOGERR(klogErr, (klogErr, r,
                     "while opening metanode HISTORY/EVENT_'$(n)'",
@@ -821,9 +1050,9 @@ static rc_t update_history ( Db & db ) {
         ++ index;
 
         { /* make sure EVENT_[i] does not exist */
-            const KMDataNode *node = NULL;
-            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
-                                                                        index );
+            const KMDataNode *node = nullptr;
+            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "%s_%u",
+                                                                  next, index );
             if ( r == 0 ) {
                 uint32_t mx = index * 2;
                 KMDataNodeRelease ( node );
@@ -833,15 +1062,15 @@ static rc_t update_history ( Db & db ) {
                     "n=%u", index));
                 r = 0;
                 for ( ; index < mx; ++ index ) {
-                    r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
-                                                                        index);
+                    r = KMDataNodeOpenNodeRead ( hist_node, & node, "%s_%u",
+                                                                  next, index );
                     if ( r == 0 ) {
                         KMDataNodeRelease ( node );
                         r = RC ( rcExe, rcMetadata, rcReading,
                                         rcNode, rcExists );
                         PLOGERR(klogErr, (klogErr, r,
-                            "while opening metanode HISTORY/EVENT_'$(n)'",
-                            "n=%u", index));
+                            "while opening metanode HISTORY/%(N)_'$(n)'",
+                            "N=%s,n=%u", next, index));
                         r = 0;
                     }
                     else
@@ -857,25 +1086,53 @@ static rc_t update_history ( Db & db ) {
                 KMDataNodeRelease ( node );
         }
 
-        rc = string_printf ( event_name, sizeof( event_name ), NULL, "EVENT_%u",
-                                                                     index );
-        DISP_RC( rc, "update_history:string_printf(EVENT_NR) failed" );
+        rc = string_printf ( event_name, sizeof( event_name ), nullptr, "%s_%u",
+                                                               next, index );
+        DISP_RC( rc, "add_fingerprint_event_meta:string_printf(EVENT_NR) failed" );
 
         if ( rc == 0 )
         {
             KMDataNode *event_node;
             rc = KMDataNodeOpenNodeUpdate ( hist_node, &event_node,
                                             event_name );
-            DISP_RC( rc,
-                "update_history:KMDataNodeOpenNodeUpdate('EVENT_NR') failed" );
+            DISP_RC( rc, "add_fingerprint_event_meta:KMDataNodeOpenNodeUpdate"
+                "('EVENT_NR') failed" );
             if ( rc == 0 )
             {
-                rc = enter_date_name_vers( event_node );
+              if ( history) {
+                rc = enter_date_name_vers( event_node, db.redactReads );
+/*
                 if ( rc == 0 )
                 {
-                    rc = enter_fingerprint( event_node, db.read_fp );
+                    rc = enter_fingerprint ( event_node, db.update_in_fp );
                 }
-                KMDataNodeRelease ( event_node );
+*/
+              }
+              else {
+                  if (rc == 0)
+                      rc = add_meta_node(event_node, "reason", "REDACTION");
+                  if (rc == 0) {
+                      if (cur_node != nullptr)
+                          rc = copy_current_fingerprint(cur_node, event_node);
+                      else {
+                          rc = add_fp_node(event_node, "original", db.in_fp);
+                          DISP_RC(rc,
+                              "cannot create original fingerprint node");
+                      }
+                  }
+                  if (rc == 0) {
+                      rc = add_fp_node(event_node,
+                          "removed", db.update_in_fp);
+                      DISP_RC(rc, "cannot create removed fingerprint node");
+                  }
+                  if (rc == 0) {
+                      rc = add_fp_node(event_node,
+                          "added", db.update_out_fp);
+                      DISP_RC(rc, "cannot create added fingerprint node");
+                  }
+                  KMDataNodeRelease(cur_node);
+              }
+              KMDataNodeRelease ( event_node );
             }
         }
     }
@@ -883,6 +1140,33 @@ static rc_t update_history ( Db & db ) {
     r2 = KMDataNodeRelease ( hist_node );
     if ( r2 != 0 && rc == 0 )
         rc = r2;
+    return rc;
+}
+
+static rc_t add_history_meta(Db& db) {
+    return add_fingerprint_event_meta(db);
+}
+
+static rc_t add_current_meta(Db& db) {
+    return add_fingerprint_event_meta(db, false);
+}
+
+static rc_t update_current_meta(Db& db) {
+    KMDataNode* node = nullptr;
+
+    rc_t rc = KMetadataOpenNodeUpdate(db.meta, &node, "QC/current");
+    DISP_RC(rc, "while Opening QC/current Metadata");
+
+    if (rc == 0) {
+        rc = record_fp(node, db.out_fp);
+        DISP_RC(rc, "cannot create QC/current fingerprint node");
+    }
+
+    rc_t r2 = KMDataNodeRelease(node);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    DISP_RC(rc, "while writing QC/current Metadata");
     return rc;
 }
 
@@ -902,10 +1186,10 @@ static rc_t Run(const CmdLine* args)
         PLOGERR(klogErr,
             (klogErr, rc, "Cannot find '$(path)'", "path=%s", args->file));
     }
-    else if (!SpotIteratorFileExists(args->table)) {
+    else if (!SpotIteratorFileExists(args->run)) {
         rc = RC(rcExe, rcTable, rcOpening, rcTable, rcNotFound);
         PLOGERR(klogErr,
-            (klogErr, rc, "Cannot find '$(path)'", "path=%s", args->table));
+            (klogErr, rc, "Cannot find '$(path)'", "path=%s", args->run));
     }
 
     {
@@ -923,12 +1207,20 @@ static rc_t Run(const CmdLine* args)
     }
 
     if (rc == 0)
-        rc = update_history(db);
+        rc = add_history_meta(db);
+    if (rc == 0 && db.redactReads) {
+        rc = add_current_meta(db);
+    }
+    if (rc == 0 && db.redactReads)
+        rc = update_current_meta(db);
 
     if (rc == 0) {
         PLOGMSG(klogInfo, (klogInfo,
             "Success: redacted $(redacted) spots out of $(all)",
             "redacted=%d,all=%d", db.redactedSpots, db.nSpots));
+        PLOGMSG(klogInfo, (klogInfo,
+            "READ column was $(was)updated",
+            "was=%s", db.redactReads ? "" : "not "));
     }
 
     {
@@ -946,24 +1238,30 @@ static rc_t Run(const CmdLine* args)
     return rc;
 }
 
-#define OPTION_FILE  "file"
-#define ALIAS_FILE   "F"
+#define FILE_OPTION  "file"
+#define FILE_ALIAS   "F"
+static const char* FILE_USAGE []
+= { "File containing SpotId-s to redact" , nullptr };
 
-static const char* file_usage []
-    = { "File containing SpotId-s to redact" , NULL };
+#define REDACT_OPTION  "redact"
+#define REDACT_ALIAS   "r"
+static const char* REDACT_USAGE[]
+= { "Update the run to mask spots with N according to filter list" , nullptr };
 
 OptDef Options[] =  {
-     { OPTION_FILE , ALIAS_FILE , NULL, file_usage,  1, true , true }
+/* name          alias        HelpGen   help MaxCount NeedVal Required */
+{ FILE_OPTION  , FILE_ALIAS  , nullptr, FILE_USAGE  ,  1, true , true  },
+{ REDACT_OPTION, REDACT_ALIAS, nullptr, REDACT_USAGE,  1, false, false },
 };
 
 rc_t CC UsageSummary (const char* progname)
 {
     return KOutMsg (
         "Usage:\n"
-        "  %s [Options] -" ALIAS_FILE " <file> <table>\n", progname);
+        "  %s [Options] -" FILE_ALIAS " <file> <run>\n", progname);
 }
 
-const char UsageDefaultName[] = "rd-filter-redact";
+const char UsageDefaultName[] = "read-filter-redact";
 
 rc_t CC Usage(const Args* args)
 {
@@ -971,7 +1269,7 @@ rc_t CC Usage(const Args* args)
     const char * fullpath = UsageDefaultName;
     rc_t rc;
 
-    if (args == NULL)
+    if (args == nullptr)
         rc = RC (rcExe, rcArgv, rcAccessing, rcSelf, rcNull);
     else
         rc = ArgsProgram (args, &fullpath, &progname);
@@ -980,9 +1278,12 @@ rc_t CC Usage(const Args* args)
 
     UsageSummary (progname);
 
-    KOutMsg ("Options:\n");
+    KOutMsg ("\nOptions:\n");
 
-    HelpOptionLine(ALIAS_FILE, OPTION_FILE, "file", file_usage);
+    HelpOptionLine(FILE_ALIAS, FILE_OPTION, "file", FILE_USAGE);
+    HelpOptionLine(REDACT_ALIAS, REDACT_OPTION, nullptr, REDACT_USAGE);
+
+    KOutMsg("\n");
 
     HelpOptionsStandard();
 
@@ -998,52 +1299,70 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
 
     assert(args && cmdArgs);
 
-    memset(cmdArgs, 0, sizeof *cmdArgs);
-
     while (rc == 0) {
         uint32_t pcount = 0;
 
-        /* file path parameter */
-        rc = ArgsOptionCount(args, OPTION_FILE, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure parsing file name");
-            break;
-        }
-        if (pcount < 1) {
-            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
-            LOGERR(klogErr, rc, "Missing file parameter");
-            break;
-        }
-        if (pcount > 1) {
-            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcAmbiguous);
-            LOGERR(klogErr, rc, "Too many file parameters");
-            break;
-        }
-        rc = ArgsOptionValue (args, OPTION_FILE, 0, (const void **)&cmdArgs->file);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure retrieving file name");
-            break;
+        {
+            const char option_name[](FILE_OPTION);
+            /* file path parameter */
+            rc = ArgsOptionCount(args, option_name, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc, "Failure parsing $(N)",
+                    "N=%s", option_name));
+                break;
+            }
+            if (pcount < 1) {
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+                PLOGERR(klogErr, (klogErr, rc, "Missing $(N) parameter",
+                    "N=%s", option_name));
+                break;
+            }
+            if (pcount > 1) {
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcAmbiguous);
+                LOGERR(klogErr, rc, "Too many file parameters");
+                break;
+            }
+            rc = ArgsOptionValue(args, option_name, 0,
+                (const void**)&cmdArgs->file);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc, "Failure retrieving $(N)",
+                    "N=%s", option_name));
+                break;
+            }
         }
 
-        /* table path parameter */
+        {
+            const char option_name[](REDACT_OPTION);
+            /* file path parameter */
+            rc = ArgsOptionCount(args, option_name, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc, "Failure parsing $(N)",
+                    "N=%s", option_name));
+                break;
+            }
+            if (pcount > 0)
+                cmdArgs->redactReads = true;
+        }
+
+        /* run path parameter */
         rc = ArgsParamCount(args, &pcount);
         if (rc) {
-            LOGERR(klogErr, rc, "Failure parsing table name");
+            LOGERR(klogErr, rc, "Failure parsing run name");
             break;
         }
         if (pcount < 1) {
             rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
-            LOGERR(klogErr, rc, "Missing table parameter");
+            LOGERR(klogErr, rc, "Missing run parameter");
             break;
         }
         if (pcount > 1) {
             rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcAmbiguous);
-            LOGERR(klogErr, rc, "Too many table parameters");
+            LOGERR(klogErr, rc, "Too many run parameters");
             break;
         }
-        rc = ArgsParamValue(args, 0, (const void **)&cmdArgs->table);
+        rc = ArgsParamValue(args, 0, (const void **)&cmdArgs->run);
         if (rc) {
-            LOGERR(klogErr, rc, "Failure retrieving table name");
+            LOGERR(klogErr, rc, "Failure retrieving run name");
             break;
         }
 
@@ -1066,7 +1385,7 @@ MAIN_DECL(argc, argv)
     }
 
     rc_t rc = 0;
-    Args* args = NULL;
+    Args* args = nullptr;
 
     CmdLine cmdArgs;
 
@@ -1094,5 +1413,3 @@ MAIN_DECL(argc, argv)
     app.setRc( rc );
     return app.getExitCode();
 }
-
-/************************************ EOF ****************** ******************/

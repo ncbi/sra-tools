@@ -127,10 +127,11 @@ class Tool_Main {
                 cerr << "config-file '" << ini_file << "' not found" << endl;
                 cerr << "ini-dir: " << f_main_params->get_ini_file_loc() << endl;
             } else {
+                /* the same tool can be used to produce an accession or run a test */
                 if ( f_product -> is_acc() ) {
-                    res = produce_acc();    // above
+                    res = produce_acc();    // above ( we are producing an accession )
                 } else if ( f_product -> is_tst() ) {
-                    res = run_test();       // above
+                    res = run_test();       // above ( we are running a test )
                 } else {
                     cerr << "unknown product!" << endl;
                 }

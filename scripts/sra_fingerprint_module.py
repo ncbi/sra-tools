@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 
-import json, hashlib, subprocess, enum, os
+import json, hashlib, subprocess, enum, os, sys
 import xml.parsers.expat
 
 # ---------------------------------------------------------------------------------------
 
 class Process :
-    def __init__( self, cmd, ShellFlag=False ) :
+    def __init__( self, cmd ) :
         try :
-            if ShellFlag :
-                self . proc = subprocess . Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True )
-            else :
-                self . proc = subprocess . Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False )
+            self . proc = subprocess . Popen( cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, shell=False )
         except Exception as e :
             self . proc = None
 
@@ -85,7 +83,7 @@ class FingerprintExtractor :
         self . acc = acc
         self . binpath = binpath
 
-    def extract_meta( self, query ) :
+    def extract_meta_node( self, query ) :
         if self . binpath is None : return None
         if self . acc is None : return None
         if not is_executable( "kdbmeta", "-V", self . binpath ) : return None
@@ -97,10 +95,14 @@ class FingerprintExtractor :
             print( e )
         return None
 
-    def extract( self ) :
-        data   = self . extract_meta( "QC/current/fingerprint" )
+    def extract( self, metapath ) :
+        data   = self . extract_meta_node( f"{metapath}fingerprint" )
+        if data is None :
+            return None
         fp = XmlExtractor( data ) . data . strip( "'" )
-        digest = self . extract_meta( "QC/current/digest" )
+        digest = self . extract_meta_node( f"{metapath}digest" )
+        if digest is None :
+            return None
         di = XmlExtractor( digest ) . data . replace( "'", "\"" )
         return f"{{\n\"fingerprint\":{fp},\n\"fingerprint-digest\":{di}\n}}"
 
@@ -125,6 +127,34 @@ class Fingerprint :
         s += f"total   : {self . total_bases()}\n"
         return s
 
+    def __add__( self, other ) :
+        if not isinstance( other, Fingerprint ) :
+            return NotImplemented
+        fp = dict( self . content )
+        for key in [ 'A', 'C', 'G', 'T', 'N' ] :
+            fp[ key ] = [ fp[ key ][ i ] + other . content[ key][ i ] for i in range( len( fp[ key ] ) ) ]
+        data = { "fingerprint" : fp, "fingerprint-digest" : self . digest  }
+        res = Fingerprint( data, self . src )
+        res . update_digest()
+        return res
+
+    def __sub__( self, other ) :
+        if not isinstance( other, Fingerprint ) :
+            return NotImplemented
+        fp = dict( self . content )
+        for key in [ 'A', 'C', 'G', 'T', 'N' ] :
+            fp[ key ] = [ fp[ key ][ i ] - other . content[ key][ i ] for i in range( len( fp[ key ] ) ) ]
+        data = { "fingerprint" : fp, "fingerprint-digest" : self . digest  }
+        res = Fingerprint( data, self . src )
+        res . update_digest()
+        return res
+
+    def __eq__( self, other ) :
+        if not isinstance( other, Fingerprint ) : return NotImplemented
+        if not self . check_digest() : return False
+        if not other . check_digest() : return False
+        return self . digest == other . digest
+
     @classmethod
     def fromFile( cls, filename ) :
         src = f"file:{filename}"
@@ -139,20 +169,21 @@ class Fingerprint :
     def computeFromReadsOfAccession( cls, acc, binpath = "" ) :
         try :
             fpp = FingerprintProducer( acc, binpath )
-            src = f"acc:{acc} (computed)"
-            return cls( json . loads( fpp . produce() ), src )
+            return cls( json . loads( fpp . produce() ), f"acc:{acc} (computed)" )
         except Exception as e :
-            print( e )
+            print( f"Fingerprint.computeFromReadsOfAccession():{e}" )
         return None
 
     @classmethod
-    def extractFromMetaOfAccession( cls, acc, binpath = "" ) :
+    def extractFromMetaOfAccession( cls, acc, metapath = "QC/current/", binpath = "" ) :
         try :
             fpe = FingerprintExtractor( acc, binpath )
-            src = f"acc:{acc} (meta)"
-            return cls( json . loads( fpe . extract() ), src )
+            fp  = fpe . extract( metapath )
+            if fp is None :
+                return None
+            return cls( json . loads( fp ), f"acc:{acc} (meta)" )
         except Exception as e :
-            print( e )
+            print( f"Fingerprint.extractFromMetaOfAccession():{e}" )
         return None
 
     @staticmethod
@@ -174,6 +205,9 @@ class Fingerprint :
     def check_digest( self ) :
         return self . digest_from_string( self . as_string() ) == self . digest
 
+    def update_digest( self ) :
+        self . digest = self . digest_from_string( self . as_string() )
+
     def maxpos( self ) :
         return self . content[ 'maximum-position' ]
 
@@ -188,16 +222,6 @@ class Fingerprint :
 
     def total_diff( self, other ) :
         return sum( map( lambda a : self . diff( other, a ), [ 'A', 'C', 'G', 'T' ] ) )
-
-    def redacted( self, other ) :
-        if other is None : return False
-        if not self . check_digest() : return False
-        if not other . check_digest() : return False
-        if self . digest == other . digest : return False
-        if self . total_bases() != other . total_bases() : return False
-        if self . maxpos() != other . maxpos() : return False
-        if self . content[ "EoR" ] != other . content[ "EoR" ] : return False
-        return self . total_diff( other ) == -self . diff( other, 'N' )
 
 # ---------------------------------------------------------------------------------------
 
@@ -222,13 +246,11 @@ class FingerprintComp :
             self . equal_EoR    = False
             self . equal_bases  = False
             self . equal_maxpos = False
-            self . redacted = False
         else :
             self . equal_digest = A . digest == B . digest
             self . equal_EoR    = A . content[ "EoR" ]  == B . content[ "EoR" ]
             self . equal_bases  = A . total_bases() == B . total_bases()
             self . equal_maxpos = A . maxpos() == B . maxpos()
-            self . redacted = A . redacted( B )
 
     def __str__( self ) :
         s  = f"A : {self . A_src}\n"
@@ -239,90 +261,7 @@ class FingerprintComp :
         s += f"equal EoR    : {self . equal_EoR}\n"
         s += f"equal bases  : {self . equal_bases}\n"
         s += f"equal maxpos : {self . equal_maxpos}\n"
-        s += f"redacted     : {self . redacted}\n"
         return s
-
-# ---------------------------------------------------------------------------------------
-def AccessionTypeOf( acc, binpath = "" ) :
-        if acc is None : return None
-        if binpath is None : return None
-        if not is_executable( "vdb-dump", "-V", binpath ) : return None
-        vdbdump = os.path.join( binpath, "vdb-dump" )
-        tables = Process( [ vdbdump, acc, "-E" ] ) . result()
-        if tables :
-            if tables . find( "cannot enum tables" ) == 0 :
-                return "legacy"
-            elif tables . find( "SEQUENCE" ) > 0 :
-                if tables . find( "PRIMARY_ALIGNMENT" ) > 0 :
-                    return "cSRA"
-                else :
-                    return "standard"
-        return None
-
-# ---------------------------------------------------------------------------------------
-
-#this is needed because the FingerprintInserter requires an "unkar'd" accession in
-#a writable state... and kar only works on files - not directories
-def PrepareForFingerprintInsertFromFile( src, dst, binpath = "" ) :
-    if not src . endswith( ".sra" ) : return None
-    if not is_executable( "vdb-copy", "-V", binpath ) : return None
-    vdbcopy = os.path.join( binpath, "vdb-copy" )
-    s = Process( [ vdbcopy, src, dst, '-f' ], False ) . result()
-    return True
-
-def PrepareForFingerprintInsert( src, dst, binpath = "" ) :
-    if src is None : return None
-    if dst is None : return None
-    if binpath is None : return None
-    if os.path.isfile( src ) :
-        return PrepareForFingerprintInsertFromFile( src, dst, binpath )
-    if os.path.isdir( src ) :
-        hd, tl = os.path.split( src )
-        fname = os.path.join( src, tl ) + ".sra"
-        if os.path.isfile( fname ) :
-            return PrepareForFingerprintInsertFromFile( fname, dst, binpath )
-    return None
-
-# ---------------------------------------------------------------------------------------
-
-class FingerprintInserter :
-    def __init__( self, acc, binpath = "" ) :
-        self . acc = acc
-        self . binpath = binpath
-
-    def run( self ) :
-        if self . acc is None :
-            print( "FingerprintInserter: Abort acc is NONE!" )
-            return False
-        if self . binpath is None :
-            print( "FingerprintInserter: Abort binpath is NONE!" )
-            return False
-        at = AccessionTypeOf( self . acc, self . binpath )
-        if at != "standard" :
-            print( "FingerprintInserter: Abort type of accession is {at}!" )
-            return False
-        fp = Fingerprint . computeFromReadsOfAccession( self . acc, self . binpath )
-        if not fp :
-            print( "FingerprintInserter: Abort failed to compute fingerprint from bases!" )
-            return False
-        if not is_executable( "kdbmeta", "-V", self . binpath ) :
-            print( "FingerprintInserter: Abort kdbmeta not found/executable" )
-            return False
-        kdbmeta = os.path.join( self . binpath, "kdbmeta" )
-        p1 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, f"QC/current/digest={ fp . digest }" ] )
-        r1 = p1 . result()
-        print( f"r1=>{r1}<" )
-        if r1 is None: return False
-        content = json . dumps( fp . content ) . replace( " ", "" ) . replace( "\"", "&quot;" )
-        print( "------------------------------------------------------------------------------" )
-        print( content )
-        print( "------------------------------------------------------------------------------" )
-        with open( "options.txt", "w" ) as options :
-            options . write ( f"QC/current/fingerprint={ content }" )
-        p2 = Process( [ kdbmeta, "-TSEQUENCE", self . acc, "--option-file", "options.txt" ] )
-        r2 = p2 . result()
-        print( f"r2=>{r2}<" )
-        return not r2 is None
 
 # ---------------------------------------------------------------------------------------
 
@@ -331,7 +270,7 @@ class FingerprintTests :
         self . acc = acc
         self . binpath = binpath
         self . tests = [ self . test1, self . test2, self . test3, self . test4,
-                        self . test5, self . test6 ]
+                        self . test5 ]
 
     def run( self, test_numbers ) :
         for n in test_numbers :
@@ -360,27 +299,35 @@ class FingerprintTests :
         fp2 = Fingerprint . computeFromReadsOfAccession( self . acc )
         print( FingerprintComp( fp1, fp2 ) )
 
-    # test if we can detect redaction of bases between 2 fingerprints
-    def test4( self ) :
-        fp1 = Fingerprint . extractFromMetaOfAccession( self . acc, self . binpath )
-        fp2 = Fingerprint . computeFromReadsOfAccession( self . acc, self . binpath )
-        fp2 . content[ 'A' ][ 1 ] = fp2 . content[ 'A' ][ 1 ] - 1
-        fp2 . content[ 'N' ][ 1 ] = fp2 . content[ 'N' ][ 1 ] + 1
-        fp2 . digest = Fingerprint . digest_from_string( fp2 . as_string() )
-        fc = FingerprintComp( fp1, fp2 )
-        print( fc )
-
     # test if we can safely compare a fingerprint against None
-    def test5( self ) :
+    def test4( self ) :
         fp1 = Fingerprint . extractFromMetaOfAccession( self . acc )
         fc = FingerprintComp( fp1, None )
         print( fc )
 
     # test if we can supply a path to the binaries instead of relying on them
     # beeing in the search-path
-    def test6( self ) :
+    def test5( self ) :
         print( Fingerprint . computeFromReadsOfAccession( self . acc, self . binpath ) )
 
+# ---------------------------------------------------------------------------------------
+def QCCHECK( acc ) :
+    #compare fingerprint stored in metadata against fingerprint computed from bases
+    from_meta = Fingerprint . extractFromMetaOfAccession( acc )
+    from_data = Fingerprint . computeFromReadsOfAccession( acc )
+    print( f"simple comparison: { from_meta == from_data }" )
+    print( FingerprintComp( from_meta, from_data ) )
+
+    #example of verifying the history audit
+    event1 = "QC/history/event_1/"
+    hist_orig = Fingerprint . extractFromMetaOfAccession( acc, f"{event1}original/" )
+    if not hist_orig is None :
+        hist_added   = Fingerprint . extractFromMetaOfAccession( acc, f"{event1}added/" )
+        hist_removed = Fingerprint . extractFromMetaOfAccession( acc, f"{event1}removed/" )
+        res = hist_orig + hist_added - hist_removed
+        res . src += " ... history audit"
+        print( FingerprintComp( from_meta, res ) )
 
 if __name__ == "__main__":
-    pass
+    if len( sys.argv ) > 1 :
+        QCCHECK( sys.argv[ 1 ] )

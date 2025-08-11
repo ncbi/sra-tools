@@ -1,0 +1,11 @@
+<QC>
+  <current>
+    <algorithm>'SHA-256'</algorithm>
+    <digest>'858fee7fd1220acf4d89cffe5a22ee0ea3f547e6636dafa6c240f3ea6ce5b08e'</digest>
+    <fingerprint>
+      '{&quot;maximum-position&quot;:8,&quot;A&quot;:[2,3,0,2,0,1,0,1,0],&quot;C&quot;:[0,1,1,0,1,1,0,0,0],&quot;G&quot;:[1,0,0,1,0,0,1,1,0],&quot;T&quot;:[1,0,3,1,2,0,2,0,0],&quot;N&quot;:[0,0,0,0,0,1,0,0,0],&quot;EoR&quot;:[0,0,0,0,1,0,0,1,2]}'
+    </fingerprint>
+    <format>'json utf-8 compact'</format>
+    <version>'1.0.0'</version>
+  </current>
+</QC>

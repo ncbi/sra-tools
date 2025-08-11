@@ -22,16 +22,8 @@
 #
 # ===========================================================================
 
-if ( NOT WIN32 )
+TOP ?= $(abspath ../../..)
+MODULE = tools/internal/read-filter-redact
 
-    add_compile_definitions( __mod__="tools/internal/rd-filter-redact" )
-
-    # Internal
-    GenerateExecutableWithDefs( test-rd-filter-values "test-read-write-cursor" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-    MakeLinksExe( test-rd-filter-values false )
-
-    # External
-    GenerateExecutableWithDefs( read-filter-redact "read-filter-redact" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-    MakeLinksExe( read-filter-redact false )
-
-endif()
+BUILD_TOOLS_INTERNAL = ON
+include $(TOP)/build/Makefile.env

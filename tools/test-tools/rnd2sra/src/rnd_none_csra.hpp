@@ -119,6 +119,16 @@ class RndNonecSra : public Rndcmn {
             return res;
         }
 
+        static std::string_view substr_view( const std::string& source,
+                        size_t offset = 0,
+                        std::string_view::size_type count =
+                        std::numeric_limits<std::string_view::size_type>::max()) {
+            if ( offset < source . size() )
+                return std::string_view( source . data() + offset,
+                                std::min( source . size() - offset, count) );
+            return {};
+        }
+
         bool write_row( VCurPtr cur, int64_t row ) {
             if ( !cur -> open_row() ) {
                 cerr << "open_row( " << row << " ) failed\n";
@@ -133,6 +143,7 @@ class RndNonecSra : public Rndcmn {
             }
 
             auto spot_layout = f_ini -> select_spot_layout( f_rnd );
+            spot_layout -> randomize( f_rnd );
             size_t row_len = spot_layout -> get_len();
 
             // --- READ
@@ -183,6 +194,15 @@ class RndNonecSra : public Rndcmn {
                     if ( read_count > 1 ) { rl[ 1 ] += ofs; } else { rl[ 0 ] += ofs; }
                 }
                 if ( ! f_readlen_column -> write_u32arr( rl, read_count ) ) { return false; }
+
+                // --- record the fingerprint( because we have to split the SPOT into READs !!! )
+                size_t offset = 0;
+                for ( uint32_t read_idx = 0; read_idx < read_count; ++read_idx ) {
+                    size_t count = rl[ read_idx ];
+                    auto read = substr_view( bases, offset, count );
+                    f_fingerprint . record( read );
+                    offset += count;
+                }
 
                 // --- READ_FILTER
                 uint8_t rf[ 1024 ];
@@ -243,6 +263,9 @@ class RndNonecSra : public Rndcmn {
 
             //  (6) ... write the STATS-metadata
             if ( res ) { res = write_stats( tbl, f_counters, row_count ); }
+
+            //  (7) ... write the fingerprint
+            if ( res ) { res = write_fingerprint( tbl ); }
 
             return res;
         }

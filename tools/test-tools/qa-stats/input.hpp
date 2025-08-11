@@ -34,6 +34,7 @@
 #include <vector>
 #include <memory>
 #include <variant>
+#include <cstdint>
 
 struct CIGAR {
     struct OP {

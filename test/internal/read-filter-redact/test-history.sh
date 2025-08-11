@@ -52,7 +52,12 @@ if ! test -f ${bin_dir}/${read_filter_redact}; then
     exit 1
 fi
 
-RUN=./input/${TEST_CASE_ID}
+if ! test -f ${bin_dir}/vdb-unlock; then
+    echo "${bin_dir}/vdb-unlock does not exist."
+    exit 1
+fi
+
+RUN=./input/${TEST_CASE_ID}.sra
 FLT=./input/${TEST_CASE_ID}.in
 
 # remove old test files
@@ -61,21 +66,37 @@ rm -fr actual/${TEST_CASE_ID}
 
 # prepare sources
 mkdir -p actual # else kar will fail
-${bin_dir}/kar --extract ${RUN} --directory actual/${TEST_CASE_ID}
+${bin_dir}/kar --extract ${RUN} --directory actual/${TEST_CASE_ID} || exit 2
 
-# read-filter-redact
-${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} #> /dev/null 2>&1
+# read-filter-redact just READ_FILTER
+${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} \
+                                                  > /dev/null 2>&1 || exit 3
 
 # verify the HISTORY metadata
-${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY | sed 's/build=".*"//' >actual/${TEST_CASE_ID}.meta
+UPDATED=$(${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
+    | xmllint --xpath '/HISTORY/EVENT_1/@updated' -)
+if [ "$UPDATED" != ' updated="READ_FILTER"' ] ; then
+    echo "/HISTORY/EVENT_1/@updated = $UPDATED"
+    exit 4
+fi
+
+# read-filter-redact READ_FILTER and READ
+${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} -r \
+                                                  > /dev/null 2>&1 || exit 3
+UPDATED=$(${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
+    | xmllint --xpath '/HISTORY/EVENT_2/@updated' -)
+if [ "$UPDATED" != ' updated="READ_FILTER,READ"' ] ; then
+    echo "/HISTORY/EVENT_2/@updated = $UPDATED"
+    exit 4
+fi
+
+${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE \
+   QC/history/event_1/removed/fingerprint >actual/${TEST_CASE_ID}.meta || exit 3
 
 ${DIFF} actual/${TEST_CASE_ID}.meta expected/${TEST_CASE_ID}.meta
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/diff
-    echo "command executed:"
-    echo $CMD
-    exit 3
+    exit 4
 fi
 
 # remove old test files

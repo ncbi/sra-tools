@@ -36,6 +36,7 @@
 #include <string>
 #include <iosfwd>
 #include <cstring>
+#include <cstdint>
 
 #include "util.hpp"
 #define USE_TOOL_HELP 0

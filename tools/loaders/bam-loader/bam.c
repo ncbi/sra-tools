@@ -1424,6 +1424,7 @@ static rc_t BAM_FileMakeWithKFileAndHeader(BAM_File **cself,
         free(self);
         return rc;
     }
+    self->flagStat = FlagStat_Make();
 
     /* try to read it as BAM */
     rc = BGZFileInit(&self->file.bam, &self->vt);
@@ -1571,17 +1572,6 @@ static int TagTypeSize(int const type)
     return 0;
 }
 
-static void ColorCheck(BAM_Alignment *const self, char const tag[2], unsigned const len)
-{
-    if (tag[0] == 'C' && len != 0) {
-        int const ch = tag[1];
-        int const flag = ch == 'Q' ? 2 : ch == 'S' ? 1 : 0;
-
-        if (flag)
-            self->hasColor ^= (len << 2) | flag;
-    }
-}
-
 enum BAM_AlignmentParseError
 {
     pe_Okay = 0,
@@ -1615,65 +1605,102 @@ enum BAM_AlignmentParseError BAM_AlignmentGetParseError(BAM_Alignment const *con
          : pe_EXTRA;
 }
 
-/// @brief Measure a nul-terminated OptDataField.
-/// @return 0 on error or the length in bytes.
-static unsigned ParseOptData_ValueLength_Z(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
-{
-    char const *const endp = base + size;
-    for (char const *cur = base + 3; cur < endp; ) {
-        if (*cur++ == 0)
-            return (unsigned)(cur - (base + 3));
-    }
-    *err = pe_EXTRA_unterminated_string;
-    return 0;
-}
-
-/// @brief Measure a count-prefixed OptDataField.
-/// @return 0 on error or the length in bytes.
-static unsigned ParseOptData_ValueLength_A(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
-{
-    if (offset + 2 + 1 + 1 + 4 > size) {
-        *err = pe_EXTRA;
-    }
-    else {
-        int const elem_type = base[offset + 3];
-        int const elem_size = TagTypeSize(elem_type);
-        if (elem_size > 0)
-            return (unsigned)elem_size * LE2HUI32(&base[offset + 4]);
-        *err = pe_EXTRA_array_unknown_type;
-    }
-    return 0;
-}
-
-static unsigned ParseOptData_ValueLength_1(char const *const base, size_t const size, size_t const offset, int const type, enum BAM_AlignmentParseError *err)
-{
-    int const result = TagTypeSize(type);
-
-    if (result > 0)
-        return result;
-    if (result == 0) {
-        *err = pe_EXTRA_unknown_type;
-        return 0;
-    }
-    assert(-result == 'S' || -result == 'A'); // it is null terminated or it is count-prefixed.
-    if (-result == 'S')
-        return ParseOptData_ValueLength_Z(base, size, offset, err);
-    if (-result == 'A')
-        return ParseOptData_ValueLength_A(base, size, offset, err);
-}
-
 static unsigned ParseOptData_ValueLength(char const *const base, size_t const size, size_t const offset, enum BAM_AlignmentParseError *err)
 {
-    if (offset + 3 > size) {
-        *err = pe_EXTRA;
-        return 0;
+    int st = 0;
+    char const *cur = base + offset;
+    size_t esize = 0;
+    size_t count = 0;
+
+    while (cur < base + size) {
+        switch (st) {
+        case 0:
+        case 1:
+            ++cur;
+            ++st;
+            break;
+        case 2:
+            switch (*cur++) {
+            case 'A':
+            case 'c':
+            case 'C':
+                return 1;
+            case 's':
+            case 'S':
+                return 2;
+            case 'i':
+            case 'I':
+            case 'f':
+                return 4;
+            case 'H':
+            case 'Z':
+                st = 8;
+                break;
+            case 'B':
+                ++st;
+                break;
+            default:
+                *err = pe_EXTRA_unknown_type;
+                return 0;
+            }
+            break;
+        case 3:
+            switch (*cur++) {
+            case 'c':
+            case 'C':
+                esize = 1;
+                ++st;
+                break;
+            case 's':
+            case 'S':
+                esize = 2;
+                ++st;
+                break;
+            case 'i':
+            case 'I':
+            case 'f':
+                esize = 4;
+                ++st;
+                break;
+            default:
+                *err = pe_EXTRA_array_unknown_type;
+                return 0;
+            }
+            break;
+        case 4: /* Note the count is little-endian uint32_t, i.e. the first byte is the LSB */
+            count = ((size_t)*(uint8_t const *)(cur++));
+            ++st;
+            break;
+        case 5:
+            count += ((size_t)*(uint8_t const *)(cur++)) << 8;
+            ++st;
+            break;
+        case 6:
+            count += ((size_t)*(uint8_t const *)(cur++)) << 16;
+            ++st;
+            break;
+        case 7:
+            count += ((size_t)*(uint8_t const *)(cur++)) << 24;
+            ++st;
+            if (cur + esize * count > base + size)
+                *err = pe_EXTRA_array_truncated;
+            return 5 + esize * count;
+        case 8:
+            ++count;
+            if (*cur++ == 0)
+                return count;
+        }
     }
-    return ParseOptData_ValueLength_1(base, size, offset, base[offset + 2], err);
+    *err = st < 3 ? pe_EXTRA
+         : st < 8 ? pe_EXTRA_array_truncated 
+         : pe_EXTRA_unterminated_string;
+    return 0;
 }
 
 static enum BAM_AlignmentParseError ParseOptData(
     BAM_Alignment *const self, unsigned const maxsize ///< the size of self
-) {
+) 
+{
     size_t const maxExtra = BAM_ALIGNMENT_MAX_EXTRA(maxsize);
     char const *const base = (char const *)self->data->raw;
     unsigned i = 0;
@@ -1686,7 +1713,6 @@ static enum BAM_AlignmentParseError ParseOptData(
         unsigned const valuelen = ParseOptData_ValueLength(base, self->datasize, offset, &err);
         if (err != pe_Okay) return err;
 
-        ColorCheck(self, base + offset, valuelen);
         len = valuelen + 3;
         if (i < maxExtra) {
             self->extra[i].offset = offset;
@@ -1695,9 +1721,21 @@ static enum BAM_AlignmentParseError ParseOptData(
         ++i;
     }
     self->numExtra = i;
-    if (2 <= i && i <= maxExtra)
-        ksort(self->extra, i, sizeof(self->extra[0]), OptTag_sort, self);
-// TODO: ColorCheck
+    if (self->numExtra <= maxExtra) { // did we initialize all of the extra field info?
+        struct offset_size_s const *CSi = NULL;
+        struct offset_size_s const *CQi = NULL;
+
+        if (self->numExtra > 1)
+            ksort(self->extra, i, sizeof(self->extra[0]), OptTag_sort, self);
+
+        self->hasColor = 0;
+        CSi = get_CS_info(self);
+        CQi = get_CQ_info(self);
+        if (CSi && CSi->size > 0)
+            self->hasColor ^= (CSi->size << 2) | 1;
+        if (CQi && CQi->size > 0)
+            self->hasColor &= (CQi->size << 2) | 2;
+    }
     return pe_Okay;
 }
 
@@ -1738,38 +1776,22 @@ static void BAM_AlignmentDebugPrint(BAM_Alignment const *const self)
                                                 (unsigned)self->numExtra));
 }
 
-static void BAM_AlignmentInitNoParse(BAM_Alignment *const self,
+/// @brief This is equivalent checking-wise to htslib `bam_read1`.
+/// @param self The object to be initialized.
+/// @param datasize The size of the data.
+/// @param data The data.
+/// @return true if a usable BAM record.
+static bool BAM_AlignmentInitNoParse(BAM_Alignment *const self,
     unsigned const datasize, void const *const data)
 {
     memset(self, 0, sizeof(*self));
     self->data = data;
     self->datasize = datasize;
-    BAM_AlignmentSetOffsets(self);
-}
-
-static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
-                                unsigned const datasize, void const *const data)
-{
-    memset(self, 0, sizeof(*self));
-    self->data = data;
-    self->datasize = datasize;
-    {
-        unsigned const xtra = BAM_AlignmentSetOffsets(self);
-
-        if (   datasize >= xtra
-            && datasize >= self->qual
-            && datasize >= self->seq
-            && datasize >= self->cigar)
-        {
-            rc_t const rc = ParseOptData(self, maxsize);
-
-            if (rc == 0) {
-                BAM_AlignmentDebugPrint(self);
-                return true;
-            }
-        }
-        return false;
+    if (datasize >= BAM_ALIGNMENT_MIN_SIZE) {
+        (void)BAM_AlignmentSetOffsets(self);
+        return self->cigar > BAM_ALIGNMENT_MIN_SIZE && self->xtra <= datasize;
     }
+    return false;
 }
 
 static void BAM_AlignmentLogParseError(enum BAM_AlignmentParseError pe)
@@ -1784,12 +1806,35 @@ static void BAM_AlignmentLogParseError(enum BAM_AlignmentParseError pe)
     case pe_SEQ_length  : reason = "BAM Record SEQ truncated"; break;
     case pe_QUAL_length : reason = "BAM Record QUAL truncated"; break;
     case pe_EXTRA       : reason = "BAM Record EXTRA parsing error"; break;
-    case pe_EXTRA_unknown_type       : reason = "BAM Record EXTRA: unknown type"; break;
+    case pe_EXTRA_unknown_type       : reason = "BAM Record EXTRA: unknown data type"; break;
     case pe_EXTRA_unterminated_string: reason = "BAM Record EXTRA: unterminated string"; break;
     case pe_EXTRA_array_unknown_type : reason = "BAM Record EXTRA: unknown array type"; break;
     case pe_EXTRA_array_truncated    : reason = "BAM Record EXTRA: array truncated"; break;
+    default:
+        abort(); ///< unreachable!
     }
     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), reason);
+}
+
+/// @brief Initialize and parse a BAM record (parses and checks the extra fields).
+/// @param self The object to be initialized.
+/// @param maxsize The size of the object (includes array of offsets of the extra fields).
+/// @param datasize The size of the data.
+/// @param data The data.
+/// @return true if a usable BAM record.
+static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
+                                unsigned const datasize, void const *const data)
+{
+    enum BAM_AlignmentParseError ec = pe_truncated;
+    if (BAM_AlignmentInitNoParse(self, datasize, data)) {
+        ec = ParseOptData(self, maxsize);
+        if (ec == pe_Okay) {
+            BAM_AlignmentDebugPrint(self);
+            return true;
+        }
+    }
+    BAM_AlignmentLogParseError(ec);
+    return false;
 }
 
 static int BAM_AlignmentNumExtraFromData(unsigned const datasize, void const *data)
@@ -1886,34 +1931,28 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self)
     if (maxPeek < 4)
         return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
     else {
-        uint32_t const recordSize = LE2HUI32(BAM_FilePeek(self, 0));
-        int numExtra = -1;
+        uint32_t const datasize = LE2HUI32(BAM_FilePeek(self, 0));
         void *data = NULL;
-        size_t datasize = 0;
-        BAM_Alignment temp;
         bool good = false;
 
         // Check if record fits entirely within the buffer.
-        if (maxPeek < recordSize + 4)
+        if (maxPeek < datasize + 4)
             return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
 
         data = BAM_FilePeek(self, 4);
-        good = BAM_AlignmentInit(&temp, sizeof(temp), datasize, data);
-        if (!good) {
+        good = BAM_AlignmentInit(self->nocopy, 0x10000, datasize, data);
+        BAM_FileAdvance(self, 4 + datasize);
 
-        }
-        numExtra = BAM_AlignmentNumExtraFromData(recordSize, data);
-        if (numExtra < 0) {
-            BAM_FileAdvance(self, 4 + recordSize);
+        // this should match samtools logic, see htslib `bam_read1`
+        if (datasize >= BAM_ALIGNMENT_MIN_SIZE && self->nocopy->cigar > BAM_ALIGNMENT_MIN_SIZE && self->nocopy->xtra <= datasize)
+            FlagStat_Add(self->flagStat, getFlags(self->nocopy));
+
+        if (!good)
             return RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
-        }
 
-        datasize = BAM_ALIGNMENT_SIZE(numExtra);
-        if (datasize > 0x10000)
+        if (BAM_ALIGNMENT_SIZE(self->nocopy->numExtra) > 0x10000)
             return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
         else {
-            BAM_FileAdvance(self, 4 + recordSize);
-            BAM_AlignmentInit(self->nocopy, datasize, recordSize, data);
             self->nocopy->parent = self;
             return 0;
         }
@@ -1926,8 +1965,9 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
     void *data;
     void *storage = NULL;
     unsigned datasize;
-    int numExtra;
     rc_t rc;
+    bool good = false;
+    BAM_Alignment temp;
 
     {
         uint32_t recordSize;
@@ -1957,13 +1997,22 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment **const rslt, bool con
         data = BAM_FilePeek(self, 0);
         BAM_FileAdvance(self, datasize);
     }
-    numExtra = BAM_AlignmentNumExtraFromData(datasize, data);
-    if (numExtra >= 0) {
-        *rslt = BAM_FileMakeAlignment(self, datasize, data, numExtra, &rc);
-        if ((**rslt).storage == storage)
+    good = BAM_AlignmentInit(&temp, sizeof(temp), datasize, data);
+
+    // this should match samtools logic, see htslib `bam_read1`
+    if (datasize >= BAM_ALIGNMENT_MIN_SIZE && temp.cigar > BAM_ALIGNMENT_MIN_SIZE && temp.xtra <= datasize)
+        FlagStat_Add(self->flagStat, getFlags(&temp));
+
+    if (good) {
+        *rslt = BAM_FileMakeAlignment(self, datasize, data, temp.numExtra, &rc);
+        if (*rslt && (**rslt).storage == storage)
             storage = NULL; /* ownership was transfered */
     }
+    else
+        rc = RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
+
     if (storage) free(storage);
+
     return rc;
 }
 
@@ -2083,6 +2132,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
     SAM2BAM_Parser *parser = NULL;
     rc_t rc = 0;
 
+    *rslt = NULL;
     memset(&data, 0, sizeof(data));
     memset(&offsets, 0, sizeof(offsets));
 
@@ -2104,9 +2154,22 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
     }
     if (parser) {
         if (rc == 0) {
+            bool good = false;
+            BAM_Alignment temp;
+
             assert(parser->field >= 11);
-            *rslt = BAM_FileMakeAlignment(self, parser->rslt_size, parser->rslt, parser->field - 11, &rc);
-            if ((**rslt).storage == (void *)parser->rslt)
+
+            good = BAM_AlignmentInit(&temp, sizeof(temp), parser->rslt_size, parser->rslt);
+
+            // this should match samtools logic, see htslib `bam_read1`
+            if (parser->rslt_size >= BAM_ALIGNMENT_MIN_SIZE && temp.cigar > BAM_ALIGNMENT_MIN_SIZE && temp.xtra <= parser->rslt_size)
+                FlagStat_Add(self->flagStat, getFlags(&temp));
+            
+            if (good)
+                *rslt = BAM_FileMakeAlignment(self, parser->rslt_size, parser->rslt, parser->field - 11, &rc);
+            else
+                rc = RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
+            if (*rslt && (**rslt).storage == (void *)parser->rslt)
                 parser->rslt = NULL; /* ownership was transfered */
         }
         if (parser->rslt != NULL && (void *)parser->rslt != (void *)self->buffer)
@@ -2147,9 +2210,6 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
     else if ((int)GetRCObject(rc) == rcBuffer && GetRCState(rc) == rcNotAvailable)
     {
         rc = BAM_FileReadCopy(self, rhs, true);
-    }
-    else if ((int)GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
-        BAM_AlignmentLogParseError(BAM_AlignmentGetParseError(self->nocopy));
     }
     return rc;
 }

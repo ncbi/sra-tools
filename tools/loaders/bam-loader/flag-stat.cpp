@@ -29,6 +29,7 @@
  *  Generate SAM FLAG bits counts.
  */
 
+#include "flag-stat.h"
 #include "flag-stat.hpp"
 #include <cassert>
 

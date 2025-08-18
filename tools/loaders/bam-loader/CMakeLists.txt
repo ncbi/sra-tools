@@ -30,17 +30,18 @@ if( NOT WIN32)
     include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
 	include_directories(./)
 
+    add_library(bam-reader STATIC bam.c sam.c flag-stat.cpp)
+    set_target_properties(bam-reader PROPERTIES LINK_LIBRARIES "")
+    target_compile_features(bam-reader PRIVATE cxx_std_17)
+
     set( SRC
         bam-loader
-        bam
-        sam
         alignment-writer
         reference-writer
         sequence-writer
         loader-imp
         mem-bank
         low-match-count
-        flag-stat
     )
     set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
     set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
@@ -51,12 +52,13 @@ if( NOT WIN32)
         target_compile_options( bam-load PRIVATE -msse4.2 -DBMSSE42OPT)
     endif()
     target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-    target_link_libraries( bam-load  loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE})
+    target_link_libraries( bam-load bam-reader loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE})
 
     MakeLinksExe( bam-load false )
 
 	# Internal
-	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( samview "samview" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    target_link_libraries( samview bam-reader )
 	MakeLinksExe( samview false )
 
 endif()

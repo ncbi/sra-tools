@@ -141,12 +141,12 @@ struct BAM_Alignment {
 	bool wasInserted;   ///< was the spot name a new name. 
 
     unsigned datasize;
-    unsigned cigar;
-    unsigned seq;
-    unsigned qual;
-    unsigned xtra;
+    unsigned cigar;     ///< offset of CIGAR
+    unsigned seq;       ///< offset of SEQ
+    unsigned qual;      ///< offset of QUAL
+    unsigned xtra;      ///< offset of first extra field
     unsigned numExtra;
-    unsigned hasColor;
+    unsigned hasColor;  ///< should be 0 or 3, else bad colorspace data
     unsigned platform;
 #if HAVE_C99_FAM
     struct offset_size_s extra[];

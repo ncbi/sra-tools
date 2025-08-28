@@ -31,6 +31,7 @@ if ( NOT WIN32 )
     add_test( NAME Test_Align_Cache
           COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${DIRTOTEST} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# see VDB-6028
 #     if( TARGET align-cache-asan )
 #         add_test( NAME Test_Align_Cache-asan
 #               COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${BINDIR} align-cache-asan

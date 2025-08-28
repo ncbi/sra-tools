@@ -49,7 +49,7 @@ AddExecutableTest ( Test_SraSearch
     "ksrch" "" "--no-asan"
 )
 
-AddExecutableTest ( Test_SraSearchSlow
+AddExecutableTest ( SlowTest_SraSearch
     "test-sra-search-slow.cpp;../vdb-search.cpp;../searchblock.cpp;../blobmatchiterator.cpp;../fragmentmatchiterator.cpp;../referencematchiterator.cpp"
     "ksrch" ""
 )
@@ -58,12 +58,6 @@ AddExecutableTest ( Test_SraSearch_SearchBlock
     "test-searchblock.cpp;../searchblock.cpp"
     "${COMMON_LIBS_READ};ksrch;ncbi-vdb" ""
 )
-
-# white box tests
-add_test ( NAME Test_SraSearchBlockWhiteBox COMMAND Test_SraSearch_SearchBlock )
-add_test ( NAME Test_SraSearchWhiteBox COMMAND Test_SraSearch )
-add_test ( NAME SlowTest_SraSearchWhiteBox COMMAND Test_SraSearchSlow )
-set_tests_properties(SlowTest_SraSearchWhiteBox PROPERTIES TIMEOUT 5000)
 
 # command line tests
 if ( NOT WIN32)

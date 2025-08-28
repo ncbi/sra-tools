@@ -61,6 +61,7 @@ if ( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
+# see VDB-6027
 # 	if( TARGET vdb-dump-asan )
 #         add_test( NAME Test_Vdb_dump_asan
 #             COMMAND

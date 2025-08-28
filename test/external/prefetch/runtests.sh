@@ -130,7 +130,8 @@ COMMAND\
 ="export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/; $PREFETCH $SRAC -otmp/1"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
 output=\
-$(export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/; $PREFETCH $SRAC -otmp/1)
+$(NCBI_SETTINGS=/ NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= VDB_CONFIG=`pwd`/tmp \
+  $PREFETCH $SRAC -otmp/1)
 if [ "$?" != "0" ]; then
     echo "Downloading ACCESSION TO FILE: SHORT OPTION FAILED, CMD=$COMMAND"
     exit 132
@@ -143,7 +144,8 @@ COMMAND\
 ="export VDB_CONFIG=`pwd`/tmp;export NCBI_SETTINGS=/;$PREFETCH $SRAC --output-file tmp/1"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
 output=\
-$(export VDB_CONFIG=`pwd`/tmp;export NCBI_SETTINGS=/;$PREFETCH $SRAC --output-file tmp/1)
+$(NCBI_SETTINGS=/ NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= VDB_CONFIG=`pwd`/tmp \
+  $PREFETCH $SRAC --output-file tmp/1)
 if [ "$?" != "0" ]; then
     echo "Downloading ACCESSION TO FILE: LONG OPTION FAILED, CMD=$COMMAND"
     exit 145

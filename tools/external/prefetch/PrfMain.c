@@ -1320,6 +1320,7 @@ rc_t CC Usage(const Args *args) {
         else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
             param = "FILE";
             alias = OUT_FILE_ALIAS;
+            continue; /* deprecated */
         }
         else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
             continue; /* debug option */

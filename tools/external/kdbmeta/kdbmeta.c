@@ -41,6 +41,7 @@
 */
 #define ALLOW_UPDATE 1
 
+#include <stdint.h>
 #include <sra/srapath.h>
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -65,6 +66,7 @@
 #include <klib/out.h>
 #include <klib/writer.h>
 #include <klib/rc.h>
+#include <kfs/file.h>
 #include <sysalloc.h>
 #include <os-native.h>
 
@@ -549,8 +551,9 @@ rc_t md_select_expr ( const KMDataNode *node, char *path, size_t psize, int plen
 }
 
 #if ALLOW_UPDATE
+
 static
-rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, const char *expr )
+rc_t md_update_expr ( KMDataNode *node, const char *attr, const char *expr )
 {
     rc_t rc;
 
@@ -562,6 +565,8 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
         rc = RC ( rcExe, rcMetadata, rcUpdating, rcMemory, rcExhausted );
     else
     {
+        /* will get set to true if value contains an embedded '\0' */
+        bool z = false;
         size_t i, j;
         for ( i = j = 0; i < len; ++ i, ++ j )
         {
@@ -578,21 +583,21 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
                         msn += '0' - 'A' + 10;
                     if ( lsn >= 10 )
                         lsn += '0' - 'A' + 10;
-                    buff [ j ] = ( char ) ( ( msn << 4 ) | lsn );
                     i += 3;
                 }
             }
+            z = z || (buff[j] == '\0');
+            buff [ j + 1 ] = '\0';
         }
-
         if ( attr != NULL )
         {
-            /* set attribute value */
-            buff [ j ] = 0;
-            rc = KMDataNodeWriteAttr ( node, attr, buff );
+            if (z)
+                LOGERR ( klogErr, rc = RC(rcExe, rcFile, rcUpdating, rcConstraint, rcViolated), "node attribute values can not contain embedded nulls" );
+            else 
+                rc = KMDataNodeWriteAttr ( node, attr, buff );
         }
         else
         {
-            /* now set the value of the node */
             rc = KMDataNodeWrite ( node, buff, j );
         }
         free ( buff );
@@ -601,6 +606,80 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
     return rc;
 }
 #endif
+
+struct Data {
+    void *buffer;
+    size_t size;
+};
+
+static struct Data readFromKFile(KFile const *f, char const *path, rc_t *prc)
+{
+    struct Data result = { NULL, 0 };
+    uint64_t size = 0;
+    size_t numread = 0;
+    rc_t rc = KFileSize(f, &size); assert(rc == 0);
+    
+    result.size = size;
+    *prc = rc; if (rc) return result;
+    result.buffer = malloc(result.size);
+    if (result.buffer == NULL) {
+        PLOGERR (klogErr, ( klogErr, *prc = RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "failed to allocate memory to read '$(path)'", "path=%s", path ));
+        return result;
+    }
+    *prc = rc = KFileReadAll(f, 0, result.buffer, result.size, &numread);
+    if (rc == 0 && numread != size)
+        *prc = rc = RC(rcExe, rcFile, rcReading, rcSize, rcTooShort);
+    if (rc) {
+        PLOGERR (klogErr, ( klogErr, rc, "failed to read '$(path)'", "path=%s", path ));
+        free(result.buffer);
+        result.buffer = NULL;
+    }
+    return result;
+}
+
+static struct Data readFromStdIn(rc_t *prc) {
+    struct Data result = { NULL, 0 };
+    size_t cap = 0;
+    int ch = EOF;
+
+    while ((ch = fgetc(stdin)) != EOF) {
+        if (result.size == cap) {
+            void *tmp = realloc(result.buffer, cap = (cap < 4096 ? 4096 : cap * 2));
+            if (tmp == NULL) {
+                free(result.buffer);
+                result.buffer = NULL;
+                LOGERR (klogErr, *prc = RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "failed to allocate memory to read stdin");
+                return result;
+            }
+            result.buffer = tmp;
+        }
+        ((char *)result.buffer)[result.size++] = ch;
+    }
+    if (result.size == 0)
+        result.buffer = malloc(1);
+    return result;
+}
+
+static struct Data readFromFile(char const *path, rc_t *prc)
+{
+    struct Data result = {NULL, 0};
+    if (strcmp(path, "/dev/stdin") == 0)
+        result = readFromStdIn(prc);
+    else {
+        KDirectory *dir = NULL;
+        KFile const *f = NULL;
+        
+        *prc = KDirectoryNativeDir(&dir); assert(*prc == 0);
+        if (*prc == 0) {
+            *prc = KDirectoryOpenFileRead(dir, &f, "%s", path);
+            KDirectoryRelease(dir);
+            if (*prc == 0)
+                result = readFromKFile(f, path, prc);
+            KFileRelease(f);
+        }
+    }
+    return result;
+}
 
 static
 bool CC md_select ( void *item, void *data )
@@ -623,8 +702,9 @@ bool CC md_select ( void *item, void *data )
         PLOGERR ( klogErr,  (klogErr, pb -> rc, "failed to open root node for '$(path)'", "path=%s", pb -> targ ));
     else
     {
-        bool wildcard;
-        char *expr, *attr, path [ 4096 ];
+        bool wildcard = false, updating = false;
+        char *expr = NULL, *attr = NULL, path [ 4096 ];
+        struct Data data = {NULL, 0};
         size_t len = string_copy_measure ( path, sizeof path, item );
 
         /* detect assignment */
@@ -633,6 +713,18 @@ bool CC md_select ( void *item, void *data )
         {
             len = expr - path;
             * expr ++ = 0;
+            updating = true;
+        }
+        else {
+            /* detect read file */
+            char *file = string_rchr(path, len, ':');
+            if (file != NULL) {
+                len = file - path;
+                *file++ = '\0';
+                data = readFromFile(file, &pb->rc);
+                if (data.buffer != NULL)
+                    updating = true;
+            }
         }
         attr = string_rchr ( path, len, '@' );
         if ( attr != NULL )
@@ -641,7 +733,7 @@ bool CC md_select ( void *item, void *data )
             * attr ++ = 0;
         }
 
-        if ( expr != NULL )
+        if ( updating )
         {
 #if ALLOW_UPDATE
             if ( read_only )
@@ -656,10 +748,11 @@ bool CC md_select ( void *item, void *data )
             PLOGMSG ( klogWarn, ( klogWarn, "node update expressions are not supported - "
                                   "'$(expr)' treated as select.", "expr=%s", item ) );
             expr = NULL;
+            free(data.buffer);
+            data.buffer = NULL;
 #endif
         }
 
-        wildcard = false;
         if ( len >= 1 && path [ len - 1 ] == '*' )
         {
             if ( len == 1 )
@@ -675,7 +768,7 @@ bool CC md_select ( void *item, void *data )
         }
 
 #if ALLOW_UPDATE
-        if ( expr != NULL )
+        if ( updating )
         {
             KMDataNode *root = node;
 
@@ -683,7 +776,7 @@ bool CC md_select ( void *item, void *data )
             {
                 pb -> rc = RC ( rcExe, rcMetadata, rcUpdating, rcExpression, rcIncorrect );
                 PLOGERR ( klogErr, ( klogErr, pb -> rc, "node updates require explicit paths - "
-                                     "'$(expr)' cannot be evaluated", "expr=%s", item ) );
+                                     "'$(item)' cannot be evaluated", "item=%s", item ) );
                 return true;
             }
 
@@ -696,9 +789,13 @@ bool CC md_select ( void *item, void *data )
                     "failed to open node '$(node)' for '$(path)'",
                                      "node=%s,path=%s", path, pb -> targ ));
             }
-            else
+            else if (expr != NULL)
             {
-                pb -> rc = md_update_expr ( node, path, attr, expr );
+                pb -> rc = md_update_expr ( node, attr, expr );
+            }
+            else if (attr == NULL) {
+                assert(data.buffer != NULL);
+                pb -> rc = KMDataNodeWrite ( node, data.buffer, data.size );
             }
         }
         else
@@ -728,6 +825,7 @@ bool CC md_select ( void *item, void *data )
             fail = false;
 
         KMDataNodeRelease ( node );
+        free(data.buffer);
     }
 
     return fail;

@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -24,28 +22,25 @@
 #
 # =============================================================================$
 
-if [ $# -lt 2 ]; then
-    echo "Usage $0 <bin-dir> <tool-name>"
-    exit 1
-fi
-
 bin_dir=$1
 prefetch=$2
 
 PREFETCH=$bin_dir/$prefetch
 
-echo Testing ${prefetch} of a run after cSra from ${bin_dir}...
+echo Testing ${prefetch} to out file from ${bin_dir}...
 
-mkdir -p tmp
+rm -f tmpfile
 
-cd tmp || exit 1
-
-CMD="$PREFETCH SRR619505 SRR053325"
-$CMD > /dev/null 2>&1
-if [ "$?" != "0" ]; then
-    echo "...download FAILED, CMD=$CMD"; exit 2
+unset NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE
+$PREFETCH SRR053325  -otmpfile > /dev/null 2>&1
+if [ "$?" = "0" ]; then
+    echo "Downloading to outfile succeed"; exit 1
 fi
 
-cd .. || exit 3
+rm -f tmpfile
 
-rm -r tmp || exit 4
+NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= \
+    $PREFETCH SRR053325  -otmpfile > /dev/null || exit 2
+rm -f tmpfile || exit 3
+
+echo test of ${prefetch} to out file succeed.

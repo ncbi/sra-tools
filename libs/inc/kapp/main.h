@@ -71,7 +71,7 @@ ver_t CC KAppVersion ( void );
 #endif
 
 // use VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
-#define VDB_INITIALIZE(argc, argv, rc) do { if ( VdbInitialize( argc, argv, rc ) ) return rc; } while (0)
+#define VDB_INITIALIZE(argc, argv, rc) do { if ( VdbInitialize( argc, argv, KAppVersion() ) ) return rc; } while (0)
 #define VDB_TERMINATE(rc) VdbTerminate( rc )
 
 // BSD is defined when compiling on Mac

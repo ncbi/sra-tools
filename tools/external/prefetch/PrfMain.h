@@ -41,7 +41,7 @@ typedef struct {
 typedef struct {
     ERunType type;
     char *name;     /* name to resolve */
-    const char *id; /* numeric ID for kart items */
+    char *id; /* numeric ID for kart items */
 
     VPathStr      local;
     const struct String *cache;

@@ -22,5 +22,5 @@
 #
 # ===========================================================================
 
-AddExecutableTest( Test_KFile_Stream "custom_stream.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" "--no-asan" )
+AddExecutableTest( Test_KFile_Stream "custom_stream.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" "--no-asan" ) # see VDB-6023
 

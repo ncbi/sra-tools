@@ -881,6 +881,7 @@ static rc_t ResolvedFini(Resolved *self) {
     RELEASE(KSrvRespFile, self->respFile);
 
     free(self->name);
+    free(self->id);
 
     memset(self, 0, sizeof *self);
 
@@ -2144,9 +2145,9 @@ static rc_t ItemInit(Item *self, const char *obj) {
     return 0;
 }
 
-static char* ItemName(const Item *self, const char **id) {
+static char* ItemName(const Item *self, char **id) {
     char *c = NULL;
-    const char *dummy = NULL;
+    char *dummy = NULL;
     if (id == NULL)
         id = &dummy;
     assert(self);
@@ -2160,6 +2161,10 @@ static char* ItemName(const Item *self, const char **id) {
         assert(self->item);
         rc = KartItemItemId(self->item, &elem);
         *id = StringCheck(elem, rc);
+        if ( dummy != NULL )
+        {
+            free( dummy );
+        }
         /*
         rc = KartItemItemDesc(self->item, &elem);
         c = StringCheck(elem, rc);
@@ -2167,6 +2172,7 @@ static char* ItemName(const Item *self, const char **id) {
             return c;
         }
 */
+
         rc = KartItemAccession(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
@@ -3722,9 +3728,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                                     " when downloading kart file" );
             }
         }
+
         else {
             if ( self -> orderOrOutFile != NULL )
                 self -> outFile = self -> orderOrOutFile;
+
             if ( self -> outFile != NULL && pcount > 1 ) {
                 if ( ! * multiErrorReported ) {
                     rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
@@ -3737,6 +3745,26 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                                      rcParam, rcInvalid );
                 return rc;
             }
+
+	    if ( self -> outFile != NULL ) {
+#define PREFETCH_USES_OUTPUT_TO_FILE "NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE"
+		OUTMSG((
+"The --output-file option has been deprecated.\n"
+"We recommend using --output-directory\n"
+"or cd to directory where out is desired instead.\n"
+"To re-enable option you can set\n"
+"the environment variable " PREFETCH_USES_OUTPUT_TO_FILE ".\n"
+"Warning: using this option can create failures,\n"
+"for example single Runs may have more than one file to be downloaded.\n"));
+		if (getenv(PREFETCH_USES_OUTPUT_TO_FILE) == NULL) {
+                    OUTMSG(("\n"));
+		    rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+		    LOGERR ( klogErr, rc,
+			"The --output-file option has been deprecated." );
+		    return rc;
+		}
+		OUTMSG(("\n" PREFETCH_USES_OUTPUT_TO_FILE " was set.\n\n"));
+	    }
         }
     }
 

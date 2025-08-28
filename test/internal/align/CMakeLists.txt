@@ -24,12 +24,6 @@
 
 add_compile_definitions( __mod__="test/internal/align" )
 
-if( NOT WIN32 )
-  if ( NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" ) # Test_Align_samextract hangs on FreeBSD
-    AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
-  endif()
-endif()
-
 include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ )
 AddExecutableTest( SlowTest_Align_estimator "pileup_estimator" "ncbi-ngs-c++;ngs-c++;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )

@@ -52,7 +52,7 @@ print "PREFETCH ACCESSION TO SINGLE OUT-FILE\n";
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
        "$DIRTOTEST/$PREFETCH $SRAC -o tmp-file";
 print "$CMD\n" if $VERBOSE;
-`$CMD`; die 'Is there DIRTOTEST?' if $?;
+`NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= $CMD`; die 'Is there DIRTOTEST?' if $?;
 `rm tmp-file`; die if $?;
 
 print "PREFETCH ACCESSION TO OUT-FILE INSIDE OF DIR\n";
@@ -60,7 +60,7 @@ print "PREFETCH ACCESSION TO OUT-FILE INSIDE OF DIR\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
        "$DIRTOTEST/$PREFETCH $SRAC -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
-`$CMD`; die if $?;
+`NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= $CMD`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
 `echo '/libs/cloud/report_instance_identity = "false"' > tmp.mkfg`;
@@ -75,7 +75,7 @@ print "PREFETCH SRR HTTP URL TO OUT-FILE\n";
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
 	   "$DIRTOTEST/$PREFETCH $SRR -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
-`$CMD`; die if $?;
+`NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= $CMD`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
 print "PREFETCH HTTP DIRECTORY URL TO OUT-FILE\n";
@@ -83,15 +83,15 @@ print "PREFETCH HTTP DIRECTORY URL TO OUT-FILE\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
        "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
-`$CMD`; die if $?;
+`NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= $CMD`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
 print "PREFETCH HTTP FILE URL TO OUT-FILE\n";
 `rm -f tmp3/dir/file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-   "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ngs/wiki -O / -o tmp3/dir/file";
+  "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ngs/wiki -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
-`$CMD`; die if $?;
+`NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= $CMD`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
 print "downloading multiple items to file\n";

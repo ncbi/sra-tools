@@ -749,8 +749,9 @@ else()
 endif()
 
 if( WIN32 )
+    add_compile_options( /Zc:__cplusplus )      # enable C++ version variable
     add_compile_definitions( UNICODE _UNICODE USE_WIDE_API )
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
+    #set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()
@@ -856,7 +857,7 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
     # always link as c++
     set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE CXX)
     if( WIN32 )
-        target_link_options( ${target_name} PRIVATE "/ENTRY:wmainCRTStartup" )
+        #target_link_options( ${target_name} PRIVATE "/ENTRY:wmainCRTStartup" )
         target_compile_definitions( ${target_name} PRIVATE UNICODE _UNICODE USE_WIDE_API )
     endif()
 

@@ -58,11 +58,12 @@ if ( NOT WIN32 )
 		COMMAND
                perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch #VERBOSE
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	if( TARGET prefetch-asan )
-# 		add_test( NAME Test_Prefetch_out_dir_and_file-asan
-# 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
-# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	endif()
+
+	if( TARGET prefetch-asan )
+		add_test( NAME Test_Prefetch_out_dir_and_file-asan
+			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME Test_Prefetch_out_dir_and_file-tsan
 			COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR} prefetch-tsan
@@ -88,6 +89,26 @@ if ( NOT WIN32 )
 				sh -c "runtests.sh ${DIRTOTEST}" prefetch-tsan ${TESTBINDIR}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
+
+    add_test( NAME Test_Prefetch_outfile
+        COMMAND
+            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+            sh test-out-file.sh ${DIRTOTEST} prefetch # 123
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET prefetch-asan )
+        add_test( NAME Test_Prefetch_outfile-asan
+            COMMAND
+            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+            bash test-out-file.sh ${DIRTOTEST} prefetch-asan
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET prefetch-tsan )
+        add_test( NAME Test_Prefetch_outfile-tsan
+            COMMAND
+            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+            sh test-out-file.sh ${DIRTOTEST} prefetch-tsan
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
 	add_test( NAME Test_Prefetch_outs
 		COMMAND perl test-prefetch-outs.pl ${DIRTOTEST} prefetch 0  # 1234
@@ -117,59 +138,51 @@ if ( NOT WIN32 )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
+    set( BAD_KART_ENV dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
+          dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
+          dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
+          dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]})
 	add_test( NAME Test_Prefetch_Bad_Kart
         COMMAND
-         env
-          dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
-          dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
+          env ${BAD_KART_ENV}
           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	if( TARGET prefetch-asan )
-#       add_test( NAME Test_Prefetch_Bad_Kart-asan
-#         COMMAND
-#          env
-#           dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-#           dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
-#           dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-#           dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
-#           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
-#         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	endif()
-	if( TARGET prefetch-tsan )
-      add_test( NAME Test_Prefetch_Bad_Kart-tsan
+	if( TARGET prefetch-asan )
+        add_test( NAME Test_Prefetch_Bad_Kart-asan
         COMMAND
-         env
-          dbgap|110600={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110600\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110601={\"\":500,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110601\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?jwt=e\"}]}]}]}
-          dbgap|110602={\"\":404,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110602\",\"locations\":[{\"link\":\"https://www.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi?debug=not-found\"}]}]}]}
-          dbgap|110603={\"\":400,\"result\":[{\"status\":200,\"files\":[{\"object\":\"dbgap|110603\",\"locations\":[{\"link\":\"https://trace.ncbi.nlm.nih.gov/Traces/sdlr/sdlr.cgi\"}]}]}]}
+          env ${BAD_KART_ENV}
+          ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-asan
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+	if( TARGET prefetch-tsan )
+        add_test( NAME Test_Prefetch_Bad_Kart-tsan
+        COMMAND
+          env ${BAD_KART_ENV}
           ${CONFIGTOUSE}=/ ./test-bad-kart.sh ${DIRTOTEST} prefetch-tsan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        endif()
+    endif()
 
-        add_test ( NAME Test_Prefetch_download_after_csra
-                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( TARGET prefetch-asan )
-         add_test( NAME Test_Prefetch_download_after_csra-asan
-                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        endif()
-        if( TARGET prefetch-tsan )
-         add_test( NAME Test_Prefetch_download_after_csra-tsan
-                COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        endif()
+    add_test ( NAME Test_Prefetch_download_after_csra
+        COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET prefetch-asan )
+        add_test( NAME Test_Prefetch_download_after_csra-asan
+            COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+    if( TARGET prefetch-tsan )
+        add_test( NAME Test_Prefetch_download_after_csra-tsan
+            COMMAND env ${CONFIGTOUSE}=/ sh test-caching-disabled.sh ${DIRTOTEST} prefetch
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
-        add_test( NAME SlowTest_Prefetch_vdbcache
-		COMMAND perl vdbcache.pl ${DIRTOTEST} prefetch 0 # 23
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        if( TARGET prefetch-asan )
-		add_test( NAME SlowTest_Prefetch_vdbcache-asan
-			COMMAND perl vdbcache.pl ${BINDIR} prefetch-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME SlowTest_Prefetch_vdbcache
+        COMMAND perl vdbcache.pl ${DIRTOTEST} prefetch 0 # 23
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET prefetch-asan ) # see VDB-6064
+        add_test( NAME SlowTest_Prefetch_vdbcache-asan
+            COMMAND perl vdbcache.pl ${BINDIR} prefetch-asan
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET prefetch-tsan )
 		add_test( NAME SlowTest_Prefetch_vdbcache-tsan

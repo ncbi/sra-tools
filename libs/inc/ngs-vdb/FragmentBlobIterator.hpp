@@ -50,6 +50,7 @@ namespace ncbi
 
                 // C++ support
 
+                // increases refcount on the base object
                 FragmentBlobIterator ( FragmentBlobIteratorRef ref )
                     NGS_NOTHROW();
 

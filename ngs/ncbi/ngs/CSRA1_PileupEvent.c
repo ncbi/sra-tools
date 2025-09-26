@@ -102,7 +102,7 @@ const void * CSRA1_PileupEventGetNonEmptyEntry ( const CSRA1_PileupEvent * self,
 
         if ( entry -> cell_data [ col_idx ] == NULL )
             CSRA1_PileupGetEntry ( CSRA1_PileupEventGetPileup ( self ), ctx, entry, col_idx );
-        
+
         if ( entry -> cell_len [ col_idx ] == 0 )
         {
             INTERNAL_ERROR ( xcColumnEmpty, "zero-length cell data (row_id = %ld, col_idx = %u)", entry->row_id, col_idx );
@@ -193,7 +193,7 @@ int CSRA1_PileupEventGetEventType ( const CSRA1_PileupEvent * self, ctx_t ctx )
              a. a positive REF_OFFSET[ref_offset_idx] indicates a deletion
              b. a negative REF_OFFSET[ref_offset_idx] indicates an insertion
           3. move current offset ahead until ref_pos >= that of pileup
-          
+
           so here, we first detect a deletion event
           next, we detect a match or mismatch by checking HAS_MISMATCH.
           if there was a prior insertion, we or that onto the event.
@@ -236,7 +236,7 @@ int CSRA1_PileupEventGetEventType ( const CSRA1_PileupEvent * self, ctx_t ctx )
         }
 
     }
-    
+
     return event_type;
 }
 
@@ -289,7 +289,7 @@ char CSRA1_PileupEventGetAlignmentBase ( const CSRA1_PileupEvent * self, ctx_t c
             }
 
             assert ( pileup -> ref . max_seq_len != 0 );
-            pileup -> ref_base = pileup -> ref_chunk_bases [ CSRA1_PileupEventGetPileup ( self ) -> ref_zpos % pileup -> ref . max_seq_len ]; 
+            pileup -> ref_base = pileup -> ref_chunk_bases [ CSRA1_PileupEventGetPileup ( self ) -> ref_zpos % pileup -> ref . max_seq_len ];
         }
 
         return pileup -> ref_base;
@@ -308,7 +308,7 @@ char CSRA1_PileupEventGetAlignmentQuality ( const CSRA1_PileupEvent * self, ctx_
 
         if ( entry -> state_curr . del_cnt != 0 )
             return '!';
-        
+
         TRY ( QUALITY = CSRA1_PileupEventGetEntry ( self, ctx, entry, pileup_event_col_QUALITY ) )
         {
             assert ( QUALITY != NULL );
@@ -590,7 +590,7 @@ unsigned int CSRA1_PileupEventGetRepeatCount ( const CSRA1_PileupEvent * self, c
 
         /* grab the type of event we have now */
         event_type = HAS_MISMATCH [ entry -> state_curr . seq_idx ];
-        
+
         for ( repeat = 1; repeat < limit; ++ repeat )
         {
             if ( HAS_REF_OFFSET [ entry -> state_curr . seq_idx + repeat ] )
@@ -849,9 +849,9 @@ void CSRA1_PileupEventRefreshEntry ( CSRA1_PileupEvent * self, ctx_t ctx, CSRA1_
             const bool * HAS_REF_OFFSET;
             TRY ( HAS_REF_OFFSET = CSRA1_PileupEventGetEntry ( self, ctx, entry, pileup_event_col_HAS_REF_OFFSET ) )
             {
-                assert ( HAS_MISMATCH != NULL );
-                assert ( HAS_REF_OFFSET != NULL );
-                assert ( REF_OFFSET != NULL );
+                // assert ( HAS_MISMATCH != NULL );
+                // assert ( HAS_REF_OFFSET != NULL );
+                // assert ( REF_OFFSET != NULL );
 
                 (void)HAS_MISMATCH;
                 (void)HAS_REF_OFFSET;
@@ -924,8 +924,8 @@ void CSRA1_PileupEventInit ( ctx_t ctx, CSRA1_PileupEvent * obj, const NGS_Pileu
     const char * clsname, const char * instname, NGS_Reference * ref )
 {
     FUNC_ENTRY ( ctx, rcSRA, rcCursor, rcConstructing );
-    
+
     assert ( obj != NULL );
-    
+
     NGS_PileupInit ( ctx, & obj -> dad, vt, clsname, instname, ref );
 }

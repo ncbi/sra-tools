@@ -65,7 +65,7 @@ struct CSRA1_Pileup;
 
 /* Heuristic quantity for gathering maximum projected alignment length */
 #define MIN_ALIGN_OBSERVE 100
-#define _DEBUGGING 1
+
 #if _DEBUGGING
 
 #define IGNORE_OVERLAP_REF_POS 0
@@ -73,7 +73,7 @@ struct CSRA1_Pileup;
 #define IGNORE_SYSTEM_RLIMIT   0
 
 #include <stdio.h>
-static bool printing = true;
+static bool printing;
 void enable_pileup_printing ( void ) { printing = true; }
 #define PRINT( fmt, ... ) if ( printing ) fprintf ( stderr, fmt, __VA_ARGS__ )
 
@@ -96,9 +96,9 @@ void CC CSRA1_Pileup_EntryWhack ( DLNode * node, void * param )
     CSRA1_Pileup_Entry * self = ( CSRA1_Pileup_Entry * ) node;
 
     /* tear down stuff here */
-    for ( i = 0; i < sizeof self -> blob_cache / sizeof self -> blob_cache [ 0 ]; ++ i )
+    for ( i = 0; i < sizeof self -> blob / sizeof self -> blob [ 0 ]; ++ i )
     {
-        const VBlob * blob = self -> blob_cache [ i ];
+        const VBlob * blob = self -> blob [ i ];
         if ( blob != NULL )
             VBlobRelease ( blob );
     }
@@ -687,7 +687,7 @@ bool CSRA1_PileupAdvance ( CSRA1_Pileup * self, ctx_t ctx )
 
             for ( i = 0; i < sizeof entry -> cell_data / sizeof entry -> cell_data [ 0 ]; ++ i )
             {
-                if ( entry -> cell_data [ i ] != NULL && entry -> blob_cache [ i ] == NULL )
+                if ( entry -> cell_data [ i ] != NULL && entry -> blob [ i ] == NULL )
                 {
                     entry -> cell_data [ i ] = NULL;
                     entry -> cell_len [ i ] = 0;
@@ -1854,11 +1854,11 @@ const void * CSRA1_PileupGetEntry ( CSRA1_Pileup * self, ctx_t ctx,
     CSRA1_Pileup_Entry * entry, uint32_t col_idx )
 {
     FUNC_ENTRY ( ctx, rcSRA, rcCursor, rcAccessing );
-PRINT ( ">>> CSRA1_PileupGetEntry(row_id=%li, %u)\n", entry -> row_id, col_idx );
+
     rc_t rc;
     CSRA1_Pileup_AlignCursorData * cd = entry -> secondary ? & self -> sa : & self -> pa;
 
-    assert ( entry -> blob_cache [ col_idx ] == NULL );
+    assert ( entry -> blob [ col_idx ] == NULL );
 
     ON_FAIL ( CSRA1_Pileup_AlignCursorDataGetCell ( cd, ctx, entry -> row_id, col_idx ) )
         return NULL;
@@ -1905,13 +1905,12 @@ PRINT ( ">>> marking blob caching as temporary due to limits: %lu in cache, %lu 
             }
             else
             {
-//                 /* record the blob reference on entry */
-// PRINT ( ">>> caching %u\n", col_idx );
-//                 entry -> blob_cache [ col_idx ] = cd -> blob [ col_idx ];
+                /* record the blob reference on entry */
+                entry -> blob [ col_idx ] = cd -> blob [ col_idx ];
 
-//                 /* accounting */
-//                 entry -> blob_total += blob_size;
-//                 self -> cached_blob_total += blob_size;
+                /* accounting */
+                entry -> blob_total += blob_size;
+                self -> cached_blob_total += blob_size;
             }
         }
     }

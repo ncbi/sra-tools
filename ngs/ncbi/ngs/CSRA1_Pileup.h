@@ -109,7 +109,7 @@ struct CSRA1_Pileup_Entry_State
     char mismatch;
 };
 
-enum
+enum 
 {
     pileup_entry_status_INITIAL,
     pileup_entry_status_VALID,
@@ -130,7 +130,7 @@ struct CSRA1_Pileup_Entry
     int64_t xend;  /* EXCLUSIVE */
 
     /* blob cache to ensure cell-data remain valid */
-    struct VBlob const * blob_cache [ pileup_event_col_count ];
+    struct VBlob const * blob [ pileup_event_col_count ];
     size_t blob_total;
 
     /* cell data of interest to pileup event */
@@ -237,7 +237,7 @@ struct CSRA1_Pileup_AlignCursorData
 typedef struct CSRA1_Pileup CSRA1_Pileup;
 struct CSRA1_Pileup
 {
-    struct CSRA1_PileupEvent dad;
+    struct CSRA1_PileupEvent dad;   
 
     /* rows for this chromosome: [ reference_start_id, reference_last_id ] */
     int64_t reference_start_id;
@@ -304,7 +304,7 @@ struct NGS_Pileup * CSRA1_PileupIteratorMake ( ctx_t ctx, struct NGS_Reference *
  */
 struct NGS_Pileup * CSRA1_PileupIteratorMakeSlice ( ctx_t ctx, struct NGS_Reference * ref,
     struct VDatabase const * db, struct NGS_Cursor const * curs_ref,
-    int64_t first_row_id, int64_t last_row_id, uint64_t slice_start,
+    int64_t first_row_id, int64_t last_row_id, uint64_t slice_start, 
     uint64_t slice_size, bool wants_primary, bool wants_secondary,
     uint32_t filters, int32_t map_qual );
 

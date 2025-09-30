@@ -851,6 +851,10 @@ static rc_t main_no_reftbl( void ) {
 static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_name ) {
     rc_t rc = 0;
 
+    {
+        const char * fmtstr = hlp_fmt_2_string( tool_ctx -> fmt );
+        KOutMsg( "format = %s\n", fmtstr );
+    }
     switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
         case ft_fasta_ref_tbl       :
         case ft_ref_report          : rc = main_no_reftbl(); break;

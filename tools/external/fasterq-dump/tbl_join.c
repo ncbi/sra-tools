@@ -1065,7 +1065,8 @@ rc_t execute_tbl_join( const execute_tbl_join_args_t * args ) {
                     jtd -> thread_id        = thread_id;
                     jtd -> row_limit        = args -> row_limit;
                     jtd -> has_read_type    = args -> insp_output -> seq . has_read_type_column;
-                    
+
+                    ErrMsg( "args->temp_dir = %p", args -> temp_dir );
                     rc = make_joined_filename( args -> temp_dir, jtd -> part_file, sizeof jtd -> part_file,
                                 args -> accession_short, thread_id ); /* temp_dir.c */
                     if ( 0 == rc ) {

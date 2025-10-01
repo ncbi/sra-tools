@@ -123,8 +123,8 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader_t * in
 
 static rc_t read_key_and_len( struct lookup_reader_t * self, uint64_t pos, uint64_t *key, size_t *len ) {
     size_t num_read;
-    const size_t buffer_size = sizeof( *key ) + sizeof( dna_len_t );
-    uint8_t buffer[ buffer_size ];
+    /*const size_t buffer_size = sizeof( *key ) + sizeof( dna_len_t );*/
+    uint8_t buffer[ sizeof( *key ) + sizeof( dna_len_t ) ];
     rc_t rc = KFileReadAll( self -> f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 ) {
         ErrMsg( "read_key_and_len().KFileReadAll( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
@@ -255,7 +255,7 @@ rc_t lookup_reader_get( struct lookup_reader_t * self, uint64_t * key, SBuffer_t
         } else {
             size_t num_read;
             const size_t buffer1_size = sizeof( *key ) + sizeof( dna_len_t );
-            uint8_t buffer1[ buffer1_size ];
+            uint8_t buffer1[ sizeof( *key ) + sizeof( dna_len_t ) ];
 
             rc = KFileReadAll( self -> f, self -> pos, buffer1, buffer1_size, &num_read );
             if ( 0 != rc ) {

@@ -23,6 +23,19 @@ Please cite the author in any work or product based on this material.
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.3.0
+**October 14, 2025**
+
+  **fasterq-dump**: allow reads longer than 65k  
+  **kdbmeta**: added command to delete a metadata node  
+  **kdbmeta, ngs, pileup-stats, prefetch, srapath, vfs**: improved directory path handling  
+  **kfg, prefetch**: improved file type handling  
+  **ncbi-vdb, sra, sra-info**: added Salus and Geneus platforms  
+  **read-filter-redact**: sets quality score to 0 when masking filtered reads with N  
+  **SharQ**: reports version in the standard toolkit format  
+  **vdb-dump**: fixed segfault in case of a platform column with no value  
+
+
 ## SRA Toolkit 3.2.1
 **March 18, 2025**
 

@@ -24,6 +24,7 @@
 *
 */
 
+#include "helper.h"
 #ifndef _h_err_msg_
 #include "err_msg.h"
 #endif
@@ -755,24 +756,25 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
 
         execute_tbl_join_args_t args; /* tbl_join.h */
 
-        args . dir = tool_ctx -> dir;
-        args . vdb_mgr = tool_ctx -> vdb_mgr;
-        args . accession_short = tool_ctx -> accession_short;
-        args . accession_path = tool_ctx -> accession_path;
-        args . seq_defline = tool_ctx -> seq_defline;
+        args . cmn . dir = tool_ctx -> dir;
+        args . cmn . vdb_mgr = tool_ctx -> vdb_mgr;
+        args . cmn . accession_path = tool_ctx -> accession_path;
+        args . cmn . accession_short = tool_ctx -> accession_short;
+        args . cmn . seq_defline = tool_ctx -> seq_defline;
+        args . cmn . tbl_name = tbl_name;
+        args . cmn . stats = &stats;
+        args . cmn . insp_output = &( tool_ctx -> insp_output );
+        args . cmn . join_options = &( tool_ctx -> join_options );
+        args . cmn . cursor_cache = tool_ctx -> cursor_cache;
+        args . cmn . buf_size = tool_ctx -> buf_size;
+        args . cmn . num_threads = tool_ctx -> num_threads;
+        args . cmn . row_limit = tool_ctx -> row_limit;
+        args . cmn . show_progress = tool_ctx -> show_progress;
+        args . cmn . fmt = tool_ctx -> fmt;
+
         args . qual_defline = tool_ctx -> qual_defline;
-        args . tbl_name = tbl_name;
-        args . stats = &stats;
-        args . insp_output = &( tool_ctx -> insp_output );
-        args . join_options = &( tool_ctx -> join_options );
         args . temp_dir = tool_ctx -> temp_dir;
         args . registry = registry;
-        args . cursor_cache = tool_ctx -> cursor_cache;
-        args . buf_size = tool_ctx -> buf_size;
-        args . num_threads = tool_ctx -> num_threads;
-        args . show_progress = tool_ctx -> show_progress;
-        args . fmt = tool_ctx -> fmt;
-        args . row_limit = tool_ctx -> row_limit;
 
         rc = execute_tbl_join( &args ); /* tbl_join.c */
     }
@@ -810,22 +812,28 @@ static rc_t main_process_table_fasta_unsorted( const tool_ctx_t * tool_ctx, cons
 
     hlp_clear_join_stats( &stats );
 
-    args . dir = tool_ctx -> dir;
-    args . vdb_mgr = tool_ctx -> vdb_mgr;
-    args . accession_short = tool_ctx -> accession_short;
-    args . accession_path = tool_ctx -> accession_path;
+    args . cmn . dir = tool_ctx -> dir;
+    args . cmn . vdb_mgr = tool_ctx -> vdb_mgr;
+    args . cmn . accession_path = tool_ctx -> accession_path;
+    args . cmn . accession_short = tool_ctx -> accession_short;
+    args . cmn . seq_defline = tool_ctx -> seq_defline;
+    args . cmn . tbl_name = tbl_name;
+    args . cmn . stats = &stats;
+    args . cmn . insp_output = &( tool_ctx -> insp_output );
+    args . cmn . join_options = &( tool_ctx -> join_options );
+    args . cmn . cursor_cache = tool_ctx -> cursor_cache;
+    args . cmn . buf_size = tool_ctx -> buf_size;
+    args . cmn . num_threads = tool_ctx -> num_threads;
+    args . cmn . row_limit = tool_ctx -> row_limit;
+    args . cmn . show_progress = tool_ctx -> show_progress;
+    if ( acc_pacbio_native == tool_ctx -> insp_output . acc_type ) {
+        args . cmn . fmt = ft_fasta_whole_spot;
+    } else {
+        args . cmn . fmt = ft_fasta_us_split_spot;
+    }
+
     args . output_filename = tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename;
-    args . seq_defline = tool_ctx -> seq_defline;
-    args . tbl_name = tbl_name;
-    args . stats = &stats;
-    args . insp_output = &( tool_ctx -> insp_output );
-    args . join_options = &( tool_ctx -> join_options );
-    args . cursor_cache = tool_ctx -> cursor_cache;
-    args . buf_size = tool_ctx -> buf_size;
-    args . num_threads = tool_ctx -> num_threads;
-    args . show_progress = tool_ctx -> show_progress;
     args . force = tool_ctx -> force;
-    args . row_limit = tool_ctx -> row_limit;
 
     rc = execute_unsorted_fasta_tbl_join( &args ); /* tbl_join.c */
 
@@ -850,11 +858,6 @@ static rc_t main_no_reftbl( void ) {
 
 static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_name ) {
     rc_t rc = 0;
-
-    {
-        const char * fmtstr = hlp_fmt_2_string( tool_ctx -> fmt );
-        KOutMsg( "format = %s\n", fmtstr );
-    }
     switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
         case ft_fasta_ref_tbl       :
         case ft_ref_report          : rc = main_no_reftbl(); break;
@@ -866,6 +869,26 @@ static rc_t main_process_table( const tool_ctx_t * tool_ctx, const char * tbl_na
                         rc = main_process_table_fasta_unsorted( tool_ctx, tbl_name );
                     }
                 }
+    }
+    return rc;
+}
+
+/* ============================================================================================ */
+
+static rc_t main_process_native_pacbio( tool_ctx_t * tool_ctx, const char * tbl_name ) {
+    rc_t rc = 0;
+    if ( hlp_is_format_fasta( tool_ctx -> fmt ) ) {
+        /*VDB-5618: we have to distinguish between sorted and unsorted here */
+        if ( tool_ctx -> fmt == ft_fasta_us_split_spot ) {
+            tool_ctx -> fmt = ft_fasta_whole_spot;
+            rc = main_process_table_fasta_unsorted( tool_ctx, tbl_name );
+        } else {
+            tool_ctx -> fmt = ft_fasta_whole_spot;
+            rc = main_process_table_in_seq_order( tool_ctx, tbl_name );
+        }
+    } else {
+        tool_ctx -> fmt = ft_fastq_whole_spot;
+        rc = main_process_table( tool_ctx, tbl_name );
     }
     return rc;
 }
@@ -902,7 +925,7 @@ MAIN_DECL( argc, argv )
 
                 rc = main_get_user_input( &tool_ctx, args );
                 if ( 0 == rc ) {
-                    rc = tctx_populate_and_call_inspector( &tool_ctx );
+                    rc = tctx_populate_and_call_inspector( &tool_ctx ); /* tool_ctx.c */
                     /* returns rc != 0 if inspection failed, because of check-mode */
                 }
 
@@ -931,17 +954,13 @@ MAIN_DECL( argc, argv )
                                               break;
 
                         /* a native PACBIO-database */
-                        case acc_pacbio_native : // formats are in helper.h
-                                                 if ( hlp_is_format_fasta( tool_ctx . fmt ) ) {
-                                                   tool_ctx . fmt = ft_fasta_whole_spot;
-                                                 } else {
-                                                   tool_ctx . fmt = ft_fastq_whole_spot;
-                                                 }
-                                                 rc = main_process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name );
+                        case acc_pacbio_native : rc = main_process_native_pacbio( &tool_ctx,
+                                                        tool_ctx . insp_output . seq . tbl_name );
                                                 break;
 
                         /* a PACBIO-database in bam-format */
-                        case acc_pacbio_bam : rc = main_process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name );
+                        case acc_pacbio_bam : rc = main_process_table( &tool_ctx,
+                                                        tool_ctx . insp_output . seq . tbl_name );
                                                 break;
 
                         /* a flat SRA-table */
@@ -949,7 +968,8 @@ MAIN_DECL( argc, argv )
                                               break;
 
                         /* a SRA-database, containing only unaligned data */
-                        case acc_sra_db     : rc = main_process_table( &tool_ctx, tool_ctx . insp_output . seq . tbl_name );
+                        case acc_sra_db     : rc = main_process_table( &tool_ctx,
+                                                        tool_ctx . insp_output . seq . tbl_name );
                                               break;
 
                         default             : ErrMsg( "invalid accession '%s'", tool_ctx . accession_path );

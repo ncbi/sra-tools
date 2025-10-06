@@ -24,6 +24,7 @@
 *
 */
 #include "multi_writer.h"
+#include "kfc/rc.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -431,6 +432,7 @@ static rc_t mw_write( struct multi_writer_t * self, const char * src, size_t siz
     rc_t rc = 0;
     if ( NULL == self || NULL == src || 0 == size ) {
         rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+        ErrMsg( "mw_write() -> %R", rc );
     } else {
         /* first let us get a block from the empty pile */
         multi_writer_block_t * block;
@@ -440,13 +442,16 @@ static rc_t mw_write( struct multi_writer_t * self, const char * src, size_t siz
                 if ( mw_multi_writer_block_write( block, src, size ) ) {
                     rc =  mw_push( self -> write_q, block, self -> q_wait_time );
                 } else {
-                    /* TBD: error... */
+                    rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+                    ErrMsg( "mw_write().mw_multi_writer_block_write() failed -> %R", rc );
                 }
             } else {
-                /* TBD: error... */
+                rc = RC( rcExe, rcFile, rcPacking, rcItem, rcNull );
+                ErrMsg( "mw_write() block is NULL -> %R", rc );
             }
         } else {
-            /* TBD: error... */
+            rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+            ErrMsg( "mw_write() mw_get_block() failed -> %R", rc );
         }
     }
     return rc;

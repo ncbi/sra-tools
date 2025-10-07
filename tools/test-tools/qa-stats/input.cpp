@@ -771,6 +771,7 @@ struct BasicSource: public Input::Source {
     }
     Input readSAM(Delimited const &flds) {
         Input result{};
+        auto const QNAME = &flds.part[0];
         auto const FLAG = &flds.part[1];
         auto RNAME = &flds.part[2];
         auto POS = &flds.part[3];
@@ -780,6 +781,18 @@ struct BasicSource: public Input::Source {
         std::string_view const *group = nullptr;
         int flags = 0;
         int position = -1;
+
+        result.readName[0] = '\0';
+        if (QNAME && QNAME->size() > 0) {
+            auto const sz = std::min(sizeof(result.readName) - 1, QNAME->size());
+            std::memcpy(result.readName, QNAME->data(), sz);
+            result.readName[sz] = '\0';
+#if REMOVE_SPACE_IN_QNAME
+            auto const at = QNAME->find_first_of(" \t\n\v\f\r");
+            if (at != QNAME->npos && at < sizeof(result.readName) - 1)
+                result.readName[at] = '\0';
+#endif
+        }
 
         extract(*FLAG, flags);
         if ((flags & 0x001) == 0) {

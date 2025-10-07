@@ -39,6 +39,7 @@
 #include <cassert>
 #include <JSON_ostream.hpp>
 #include <hashing.hpp>
+#include <qname-stat.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
@@ -312,7 +313,8 @@ struct App {
         { "multithreaded", "t", "1" },
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
-        { "fingerprint", "f", nullptr, false }
+        { "fingerprint", "f", nullptr, false },
+        { "name", "n", nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -340,6 +342,10 @@ struct App {
             }
             if (param == "fingerprint") {
                 fingerprint = true;
+                continue;
+            }
+            if (param == "name") {
+                qnameCounter = std::unique_ptr<QNAME_Counter>(new QNAME_Counter);
                 continue;
             }
             if (param == "help") {
@@ -370,8 +376,10 @@ struct App {
             auto strm = std::ofstream(path.c_str());
             if (strm)
                 print(strm);
-            else
+            else {
                 std::cerr << "couldn't open " << path << std::endl;
+                exit(1);
+            }
         }
         else {
             print(std::cout);
@@ -391,6 +399,24 @@ private:
         {
             stats.fingerprint.canonicalForm(out);
         }
+        else if (qnameCounter) {
+            uint64_t counts[10];
+            qnameCounter->getCounts(counts);
+
+            out << JSON_Member{"readNameCounts"} << '[';
+            for (auto i = 0; i < 10; ++i) {
+                auto const name = qnameCounter->getName(i);
+                auto const desc = qnameCounter->getDescription(i);
+                
+                out << '{'
+                    << JSON_Member{"name"} << name
+                    << JSON_Member{"description"} << desc
+                    << JSON_Member{"count"} << counts[i]
+                << '}';
+            }
+            out << ']';
+            out << JSON_Member{"unnamed"} << unnamed;
+        }
         else
         {
             out << JSON_Member{"total"} << '{' << stats << '}';
@@ -409,10 +435,11 @@ private:
             }
         }
         out << '}';
-        std::cout << std::endl;
+        strm << std::endl;
     }
     void gather() {
         auto source = Input::newSource(inputStream(), multithreaded);
+        auto const nameCounter = qnameCounter.get();
         while (*source) {
             try {
                 auto const spot = source->get();
@@ -445,7 +472,14 @@ private:
                 if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
                     stats.record(spotLayout(spot), group);
                 }
-
+                if (nameCounter && spot.readName[0]) {
+                    if (spot.group < 0)
+                        nameCounter->add(spot.readName);
+                    else
+                        nameCounter->add(spot.readName, spot.groups[spot.group]);
+                }
+                else
+                    ++unnamed;
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {
@@ -462,6 +496,7 @@ private:
         return Input::Source::FilePathType{currentInput->c_str(), use_mmap};
     }
     uint64_t processed = 0;
+    uint64_t unnamed = 0;
     int multithreaded = 0;
     bool use_mmap = false;
     bool fingerprint = false;
@@ -469,6 +504,7 @@ private:
 
     Stats stats;
     std::vector<Stats> spotGroup;
+    std::unique_ptr<QNAME_Counter> qnameCounter = nullptr;
 
     Reporter reporter;
 

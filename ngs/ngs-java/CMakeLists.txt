@@ -144,5 +144,6 @@ if ( Java_FOUND )
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             )
             install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
+        endif()
     endif()
 endif()

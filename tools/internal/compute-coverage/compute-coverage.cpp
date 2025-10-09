@@ -59,8 +59,6 @@ static rc_t ReferenceObjRelease ( const ReferenceObj * self ) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static OptDef OPTIONS[] = {};
-
 rc_t CC UsageSummary(const char* progname) { return 0; }
 
 rc_t CC Usage(const Args* args)
@@ -94,8 +92,7 @@ int run ( int argc, char * argv [] ) {
     SetUsage( Usage );
 
     Args* args(NULL);
-    rc_t rc(ArgsMakeAndHandle(
-       &args, argc, argv, 1, OPTIONS, sizeof OPTIONS / sizeof OPTIONS[0]));
+    rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 1));
 
     for ( int i = 1; i < argc; ++ i )
     {

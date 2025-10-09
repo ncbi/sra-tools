@@ -27,8 +27,9 @@
 #include <align/reference.h> // ReferenceList_Release
 #include <align/unsupported_pileup_estimator.h> // ReleasePileupEstimator
 
-#include <klib/rc.h>
 #include <kapp/main.h>
+#include <klib/out.h> /* OUTMSG  */
+#include <klib/rc.h>
 
 #include <iostream> // cout
 #include <cstdlib> // EXIT_SUCCESS
@@ -58,26 +59,43 @@ static rc_t ReferenceObjRelease ( const ReferenceObj * self ) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static
-void handle_help ()
+static OptDef OPTIONS[] = {};
+
+rc_t CC UsageSummary(const char* progname) { return 0; }
+
+rc_t CC Usage(const Args* args)
 {
-    std :: cout
-        << '\n'
-        << "Usage:\n"
-        << "  " << UsageDefaultName << " [options] <accession>"
-        << "\n\n"
-        << "Options:\n"
-        << "  -h|--help                        Output brief explanation for the program. \n"
-        << "  -V|--version                     Display the version of the program then\n"
-        << "                                   quit.\n"
-        ;
+    char const* progname(UsageDefaultName);
+    char const* fullpath(UsageDefaultName);
+
+    rc_t rc(ArgsProgram(args, &fullpath, &progname));
+
+    rc_t r2(UsageSummary(progname));
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    OUTMSG(("Usage:\n"));
+    OUTMSG(("  ")); OUTMSG((UsageDefaultName));
+    OUTMSG((" [options] <accession>"));
+    OUTMSG(("\n\n"));
+
+    OUTMSG(("Options:\n"));
+    HelpOptionsStandard();
+    OUTMSG(("\n"));
+
     HelpVersion ( UsageDefaultName, KAppVersion () );
+    return rc;
 }
 
 int run ( int argc, char * argv [] ) {
     bool TESTING = getenv ( "VDB_TEST" ) != NULL;
-//    const char * accession ( "SRR543323" );
-   const char * accession = 0;
+    const char* accession(NULL); // "SRR543323" );
+
+    SetUsage( Usage );
+
+    Args* args(NULL);
+    rc_t rc(ArgsMakeAndHandle(
+       &args, argc, argv, 1, OPTIONS, sizeof OPTIONS / sizeof OPTIONS[0]));
 
     for ( int i = 1; i < argc; ++ i )
     {
@@ -91,42 +109,11 @@ int run ( int argc, char * argv [] ) {
             }
             accession = argv [ i ];
         }
-        else
-        {
-            switch ( arg [ 1 ] )
-            {
-            case 'h':
-                handle_help ();
-                return 0;
-            case 'V':
-                HelpVersion ( UsageDefaultName, KAppVersion () );
-                return 0;
-            case '-':
-                if ( strcmp ( & arg [ 2 ], "help"  ) == 0 )
-                {
-                    handle_help ();
-                    return 0;
-                }
-                else if ( strcmp ( & arg [ 2 ], "version"  ) == 0 )
-                {
-                    HelpVersion ( UsageDefaultName, KAppVersion () );
-                    return true;
-                }
-                else
-                {
-                    cerr << "Invalid argument '" << & arg [ 2 ] << "'" << endl;
-                    return EXIT_FAILURE;
-                }
-                break;
-            default:
-                cerr << "Invalid argument '" << & arg [ 1 ] << "'" << endl;
-                return EXIT_FAILURE;
-            }
-        }
     }
 
     const VDBManager * mgr = NULL;
-    rc_t rc = VDBManagerMakeRead ( & mgr, NULL );
+    if ( rc == 0 )
+        rc = VDBManagerMakeRead ( & mgr, NULL );
     if ( rc != 0 )
         cerr << rc << " while calling VDBManagerMakeRead()" << endl;
     const ReferenceList * rl = NULL;
@@ -297,6 +284,10 @@ int run ( int argc, char * argv [] ) {
     RELEASE ( PileupEstimator, pe );
     RELEASE ( ReferenceList  , rl );
     RELEASE ( VDBManager    , mgr );
+
+    rc_t r2(ArgsWhack(args));
+    if (rc == 0 && r2 != 0)
+        rc = r2;
 
     return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

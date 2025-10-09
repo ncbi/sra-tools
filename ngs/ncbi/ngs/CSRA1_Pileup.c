@@ -1858,7 +1858,7 @@ const void * CSRA1_PileupGetEntry ( CSRA1_Pileup * self, ctx_t ctx,
     rc_t rc;
     CSRA1_Pileup_AlignCursorData * cd = entry -> secondary ? & self -> sa : & self -> pa;
 
-    assert ( entry -> blob [ col_idx ] == NULL );
+    assert ( entry -> cell_len [ col_idx ] == 0 || entry -> blob [ col_idx ] == NULL );
 
     ON_FAIL ( CSRA1_Pileup_AlignCursorDataGetCell ( cd, ctx, entry -> row_id, col_idx ) )
         return NULL;

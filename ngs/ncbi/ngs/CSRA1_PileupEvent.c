@@ -798,7 +798,7 @@ void CSRA1_PileupEventEntryInit ( CSRA1_PileupEvent * self, ctx_t ctx, CSRA1_Pil
 
         TRY ( REF_OFFSET = CSRA1_PileupEventGetEntry ( self, ctx, entry, pileup_event_col_REF_OFFSET ) )
         {
-            assert( entry -> cell_len [ pileup_event_col_REF_OFFSET ] == 0 ||REF_OFFSET != NULL );
+            assert( entry -> cell_len [ pileup_event_col_REF_OFFSET ] == 0 || REF_OFFSET != NULL );
 
             const bool * HAS_REF_OFFSET;
 
@@ -855,7 +855,7 @@ void CSRA1_PileupEventRefreshEntry ( CSRA1_PileupEvent * self, ctx_t ctx, CSRA1_
         const int32_t * REF_OFFSET;
         TRY ( REF_OFFSET = CSRA1_PileupEventGetEntry ( self, ctx, entry, pileup_event_col_REF_OFFSET ) )
         {
-            assert( entry -> cell_len [ pileup_event_col_REF_OFFSET ] == 0 ||REF_OFFSET != NULL );
+            assert( entry -> cell_len [ pileup_event_col_REF_OFFSET ] == 0 || REF_OFFSET != NULL );
             (void)REF_OFFSET;
 
             const bool * HAS_REF_OFFSET;

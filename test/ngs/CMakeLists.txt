@@ -22,4 +22,4 @@
 #
 # ===========================================================================
 
-AddExecutableTest( SlowTest_CSRA1_Pileup "test-csra1_pileup.cpp" "kapp;ncbi-ngs;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )
+AddExecutableTest( Test_CSRA1_Pileup "test-csra1_pileup.cpp" "kapp;ncbi-ngs;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )

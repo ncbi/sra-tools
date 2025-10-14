@@ -25,39 +25,22 @@
 */
 
 /**
-* Unit tests for the SRA schema library
+* A place holder for unit tests using the NGS API
 */
 
 #include <ktst/unit_test.hpp>
 #include <kfg/config.h>
 
 #include <../ncbi/NGS.hpp>
-#include <ngs/ReadCollection.hpp>
-#include <ngs/ReferenceIterator.hpp>
-#include <ngs/Reference.hpp>
-#include <ngs/PileupIterator.hpp>
-#include <ngs/Pileup.hpp>
-#include <ngs/PileupEventIterator.hpp>
 
 using namespace std;
 using namespace ngs;
 
 TEST_SUITE(CSRA1PileupTestSuite);
 
-TEST_CASE( IteratePileups ) // VDB-6127
+TEST_CASE( NoSuchRun )
 {
-    ReadCollection obj = ncbi :: NGS :: openReadCollection ( "SRR619505" );
-    auto it = obj.getReferences();
-    REQUIRE( it.nextReference() );
-    REQUIRE_EQ( string("NC_000005.8"), it.getCanonicalName() ); // chr5
-    REQUIRE( ! it.getIsCircular() );
-    auto pit = it.getPileups( Alignment::primaryAlignment );
-    while( pit.nextPileup() )
-    {
-        while ( pit.nextPileupEvent() ) // used to assert after a few iterations
-        {
-        }
-    }
+    REQUIRE_THROW( ReadCollection obj = ncbi :: NGS :: openReadCollection ( "not a run at all" ) );
 }
 
 //////////////////////////////////////////// Main

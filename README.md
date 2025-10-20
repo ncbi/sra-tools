@@ -42,7 +42,7 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ----
-_October 21, 2025_: **SRA Toolkit Release 3.3.0**
+_October 28, 2025_: **SRA Toolkit Release 3.3.0**
 
 Reads longer than 65K are now supported by fasterq-dump.
 

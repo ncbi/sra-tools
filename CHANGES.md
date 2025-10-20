@@ -24,7 +24,7 @@ Please cite the author in any work or product based on this material.
 
 
 ## SRA Toolkit 3.3.0
-**October 21, 2025**
+**October 28, 2025**
 
   **fasterq-dump**: allow reads longer than 65k  
   **kdbmeta**: added command to delete a metadata node  

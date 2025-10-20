@@ -310,7 +310,14 @@ void CSRA1_Pileup_AlignCursorDataGetCell ( CSRA1_Pileup_AlignCursorData * self, 
         rc = VBlobCellData ( self -> blob [ col_idx ], row_id, & elem_bits,
             & self -> cell_data [ col_idx ], & boff, & self -> cell_len [ col_idx ] );
         if ( rc == 0 )
+        {
+            if ( self -> cell_len [ col_idx ] == 0 )
+            {   // do not cache empty blobs
+                VBlobRelease( self -> blob [ col_idx ] );
+                self -> blob [ col_idx ] = NULL;
+            }
             return;
+        }
 
         VBlobRelease ( self -> blob [ col_idx ] );
         self -> blob [ col_idx ] = NULL;
@@ -326,7 +333,14 @@ void CSRA1_Pileup_AlignCursorDataGetCell ( CSRA1_Pileup_AlignCursorData * self, 
         rc = VBlobCellData ( self -> blob [ col_idx ], row_id, & elem_bits,
             & self -> cell_data [ col_idx ], & boff, & self -> cell_len [ col_idx ] );
         if ( rc != 0 )
+        {
             INTERNAL_ERROR ( xcStorageExhausted, "VBlobCellData rc = %R", rc );
+        }
+        else if ( self -> cell_len [ col_idx ] == 0 )
+        {   // do not cache empty blobs
+            VBlobRelease( self -> blob [ col_idx ] );
+            self -> blob [ col_idx ] = NULL;
+        }
     }
 }
 

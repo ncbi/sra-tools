@@ -40,6 +40,7 @@ add_subdirectory( libs )
 add_subdirectory( vdb )
 add_subdirectory( schema )
 add_subdirectory( search )
+add_subdirectory( ngs )
 
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )

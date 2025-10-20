@@ -42,8 +42,15 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ----
-_October 14, 2025_: **SRA Toolkit Release 3.3.0**
+_October 21, 2025_: **SRA Toolkit Release 3.3.0**
 
+Reads longer than 65K are now supported by fasterq-dump.
+
+Added the Geneus and Salus platforms.
+
+Releases for all linux distributions are built using AlmaLinux 8 currently. There are versions labelled for invididual linux distributions that are tested and confirmed to build on those platforms.
+
+Javadocs for the SRA Toolkit and cache-mgr have been deprecated and will not be present in future releases.
 
 ----
 _March 18, 2025_: **SRA Toolkit Release 3.2.1**

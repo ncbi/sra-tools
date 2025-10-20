@@ -752,14 +752,20 @@ rc_t tctx_populate_and_call_inspector( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = tctx_check_available_columns( tool_ctx );
     }
-    
+
     /* create seq/qual deflines ( if they are not given at the commandline ) */
     if ( 0 == rc ) {
         bool has_name = tool_ctx -> insp_output . seq . has_name_column;
         bool use_name = true;
+        bool use_read_id;
 
-        /* use_read_id should be true if the output is a single file */
-        bool use_read_id = tctx_does_format_produce_reads_in_a_single_file( tool_ctx -> fmt );
+        /* special treatment for pacbio-native in combination with ft_fasta_us_spot_spot */
+        if ( ft_fasta_us_split_spot == tool_ctx -> fmt && acc_pacbio_native == tool_ctx -> insp_output . acc_type ) {
+            use_read_id = false;
+        } else {
+            /* use_read_id should be true if the output is a single file */
+            use_read_id = tctx_does_format_produce_reads_in_a_single_file( tool_ctx -> fmt );
+        }
 
         if ( NULL == tool_ctx -> seq_defline ) {
             tool_ctx -> seq_defline  = dflt_seq_defline( has_name, use_name, use_read_id, fasta ); /* dflt_defline.c */

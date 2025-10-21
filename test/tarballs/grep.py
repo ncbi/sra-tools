@@ -1,7 +1,9 @@
 import re
 import sys
 
-#print(sys.argv[1])
+num_arguments = len(sys.argv)
+print(f"grep.py: Total number of command-line arguments: {num_arguments}")
+print("grep.py: sys.argv[1]='" + sys.argv[1] + "'")
 found = 0
 version = ""
 

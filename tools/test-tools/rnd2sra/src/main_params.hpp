@@ -21,6 +21,7 @@ namespace sra_convert {
     * --testbin TESTBINDIR  -T TESTBINDIR
     * --filter FILTER
     * --help                -h HELP
+    * --version             -V HELP
 */
 
 class CmdLineParser {
@@ -34,6 +35,7 @@ class CmdLineParser {
         string f_testbin_dir;
         string f_filter;
         bool f_help;
+        bool f_version;
 
         enum class State{ BASE, INI, INIDIR, OUT, BIN, TESTBIN, FILTER };
 
@@ -45,6 +47,8 @@ class CmdLineParser {
             if ( "--testbin" == arg || "-T" == arg ) { return State::TESTBIN; }
             if ( "--filter" == arg || "-F" == arg ) { return State::FILTER; }
             if ( "--help" == arg || "-h" ==arg ) { f_help = true; return State::BASE; }
+            if ( "--version" == arg || "-V" ==arg ) { f_version = true; return State::BASE; }
+
             switch ( f_argnum++ ) {
                 case 0 : f_prog = arg; break;
                 case 1 : f_ini_file = arg; break;
@@ -88,6 +92,7 @@ class CmdLineParser {
         CmdLineParser( const vector< string >& args ) : f_argnum( 0 ) {
             State state{ State::BASE };
             f_help = false;
+            f_version = false;
             // a little state-machine to capture the values...
             for ( auto& item : args ) {
                 switch ( state ) {
@@ -116,6 +121,7 @@ class CmdLineParser {
         const string& testbin_dir( void ) const { return f_testbin_dir; }
         const string& filter( void ) const { return f_filter; }
         const bool is_help( void ) const { return f_help; }
+        const bool is_version( void ) const { return f_version; }
 };
 
 class MainParams;
@@ -132,6 +138,7 @@ class MainParams {
         string f_ini_loc;
         string f_output;
         bool f_help;
+        bool f_version;
 
         // Ctor(s)
         MainParams( int argc, const char** argv, int sub_level )
@@ -203,12 +210,14 @@ class MainParams {
         }
 
         const bool is_help( void ) const { return f_help; }
+        const bool is_version( void ) const { return f_version; }
 
         void parse_args( void ) {
             CmdLineParser parser( f_args );
             f_ini_file = parser . ini_file();
             f_ini_file_loc = parser . ini_dir();
             f_help = parser . is_help();
+            f_version = parser . is_version();
             set_output( parser . out_dir() );
             set_bin_loc( parser . bin_dir() );
         }
@@ -220,7 +229,8 @@ class MainParams {
             os << "--bin BINDIR          -B BINDIR      (where are binaries to run)\n";
             os << "--testbin TESTBINDIR  -T TESTBINDIR  (where are test-binaries)\n";
             os << "--filter FILTER                      (what tests to run if filtering)\n";
-            os << "--help                -h\n";
+            os << "--help                -h             print help\n";
+            os << "--version             -V             print version\n";
             os << "=========================================================================\n";
             os << "INIFILE:\n";
             os << "\tproduct = flat | db | csra | test ( the only mandatory entry )\n";
@@ -249,6 +259,11 @@ class MainParams {
             os << "\t\tF ... Aligned2Reads      N ... Unaligned2Reads\n";
             os << "\t\t1 ... AlignedUnaligned   2 ... UnalignedAligned\n";
             os << "\t\tA ... Aligned1Read       U ... Unaligned1Read\n";
+            print_version( os );
+        }
+
+        void print_version( ostream& os ) const {
+            os << "rnd2sa : 1.0.0 ( 1.0.0-rc )\n";
         }
 
         friend auto operator<<( ostream& os, MainParamsPtr o ) -> ostream& {

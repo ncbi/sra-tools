@@ -73,7 +73,7 @@ class Rndcmn {
         }
 
         bool write_stats( VTblPtr tbl, base_counters& counters, uint64_t row_count ) {
-            if ( f_ini -> get_do_not_write_meta() ) { return true; }
+            if ( !f_ini -> get_write_meta() ) { return true; }
             auto meta = tbl -> open_meta_for_update();
             if ( *meta ) {
                 auto stats = meta -> open_node_update( "STATS/TABLE" );
@@ -101,7 +101,7 @@ class Rndcmn {
         }
 
         bool write_fingerprint( VTblPtr tbl ) {
-            if ( f_ini -> get_do_not_write_meta() ) { return true; }
+            if ( !f_ini -> get_write_meta() ) { return true; }
             auto meta = tbl -> open_meta_for_update();
             if ( *meta ) {
                 auto fp = meta -> open_node_update( "QC/current" );

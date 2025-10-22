@@ -221,6 +221,34 @@ class MainParams {
             os << "--testbin TESTBINDIR  -T TESTBINDIR  (where are test-binaries)\n";
             os << "--filter FILTER                      (what tests to run if filtering)\n";
             os << "--help                -h\n";
+            os << "=========================================================================\n";
+            os << "INIFILE:\n";
+            os << "\tproduct = flat | db | csra | test ( the only mandatory entry )\n";
+            os << "\tout = PATH ( default: empty )\n";
+            os << "\tseed = NUMBER ( default: 1010101 )\n";
+            os << "\trows = NUMBER ( default: 10 )\n";
+            os << "\twith_name = yes | no ( default: yes )\n";
+            os << "\tname_len = NUMBER ( default: 25 )\n";
+            os << "\tname_pattern = PATTERN ( default: empty )\n";
+            os << "\t\t# ... auto-inc value\n";
+            os << "\t\t% ... random value 1..100\n";
+            os << "\t\t$ ... random char a..z\n";
+            os << "\t\t& ... random char A..Z\n";
+            os << "\tchecksum = crc32 | md5 | none ( default: none )\n";
+            os << "\twrite_meta = yes | no ( default: yes )\n";
+            os << "\techo = yes | no ( default: no )\n";
+            os << "\tspotgroup = NAME ( can be repeated )\n";
+            os << "\tlayout = PATTERN ( for flat and db, can be repeated )\n";
+            os << "\t\texample: T5 : B30-50 : T5 : B44|R\n";
+            os << "\t\tB70 ...... biological, 70 bases\n";
+            os << "\t\tB55|R .... biological, 55 bases, reversed\n";
+            os << "\t\tB40|RJ ... biological, 40 bases, reversed, rejected\n";
+            os << "\t\tflags: F=forward, R=reversed, P=pass, J=reject, C=criteria, A=redacted\n";
+            os << "\tspots = PATTERN ( for csra, can be repeated )\n";
+            os << "\t\texample: F : 12 : 70000 : 80000 ( type : count : min : max )\n";
+            os << "\t\tF ... Aligned2Reads      N ... Unaligned2Reads\n";
+            os << "\t\t1 ... AlignedUnaligned   2 ... UnalignedAligned\n";
+            os << "\t\tA ... Aligned1Read       U ... Unaligned1Read\n";
         }
 
         friend auto operator<<( ostream& os, MainParamsPtr o ) -> ostream& {

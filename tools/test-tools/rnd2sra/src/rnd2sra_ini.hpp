@@ -342,7 +342,7 @@ class rnd2sra_ini {
         uint32_t f_name_len;
         bool f_with_name;
         bool f_echo_values;
-        bool f_do_not_write_meta;
+        bool f_write_meta;
         Product_ptr f_product;
         Checksum_ptr f_checksum;
         vector< spot_layout_ptr > f_layouts;
@@ -363,7 +363,7 @@ class rnd2sra_ini {
             f_name_pattern = f_ini -> get( "name_pattern", "" );
             f_with_name = f_ini -> get( "with_name", "yes" ) == "yes";
             f_echo_values = f_ini -> get( "echo", "no" ) == "yes";
-            f_do_not_write_meta = f_ini -> get( "do_not_write_meta", "no" ) == "yes";
+            f_write_meta = f_ini -> get( "write_meta", "yes" ) == "yes";
             f_product = Product::make( f_ini -> get( "product", "flat" ) );
             f_checksum = Checksum::make( f_ini -> get( "checksum", "none" ) );
             f_qual_len_offset = row_offset_pair::make( f_ini -> get( "qual_len_offset", "" ) );
@@ -398,7 +398,7 @@ class rnd2sra_ini {
         uint64_t get_seed( void ) const { return f_seed; }
         bool get_with_name( void ) const { return f_with_name; }
         bool get_echo_values( void ) const { return f_echo_values; }
-        bool get_do_not_write_meta( void ) const { return f_do_not_write_meta; }
+        bool get_write_meta( void ) const { return f_write_meta; }
         Product_ptr get_product( void ) const { return f_product; }
         Checksum_ptr get_checksum( void ) const { return f_checksum; }
         const vector< spot_layout_ptr >& get_layouts( void ) const { return f_layouts; }
@@ -476,7 +476,7 @@ class rnd2sra_ini {
             os << "rows     = " << o -> get_rows() << endl;
             os << "seed     = " << o -> get_seed() << endl;
             os << "name     = " << yes_no( o -> get_with_name() ) << endl;
-            os << "no meta  = " << yes_no( o -> get_do_not_write_meta() ) << endl;
+            os << "eta      = " << yes_no( o -> get_write_meta() ) << endl;
             os << "prod     = " << o -> get_product() << endl;
             os << "checks   = " << o -> get_checksum() << endl;
             os << "q-ofs    = " << o -> get_qual_len_offset() << endl;

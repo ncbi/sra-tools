@@ -3,13 +3,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
-#include <list>
-#include <map>
 #include <vector>
-#include <sstream>
 #include <fstream>
 #include <cctype>
-#include <algorithm>
 #include "str_tools.hpp"
 #include "values.hpp"
 
@@ -58,13 +54,22 @@ class Ini {
 
         void load( const string_view& filename ) {
             string fn{ filename };
-            ifstream f( fn );
-            if ( f ) {
-                string line;
-                while ( getline( f, line ) ) {
+            string line;
+            if ( fn == "stdin" ) {
+                while ( getline( cin, line ) ) {
                     StrTool::trim_line( line );
                     if ( ! StrTool::is_comment( line ) ) {
                         load_line( line );
+                    }
+                }
+            } else {
+                ifstream f( fn );
+                if ( f ) {
+                    while ( getline( f, line ) ) {
+                        StrTool::trim_line( line );
+                        if ( ! StrTool::is_comment( line ) ) {
+                            load_line( line );
+                        }
                     }
                 }
             }

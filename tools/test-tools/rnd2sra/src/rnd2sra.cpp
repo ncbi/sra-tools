@@ -20,6 +20,9 @@ int main( int argc, char* argv[] ) {
     if ( params -> is_help() ) {
         params -> print_help( cout );
         return EXIT_SUCCESS;
+    } else if ( params -> is_version() ) {
+        params -> print_version( cout );
+        return EXIT_SUCCESS;
     } else {
         bool res = sra_convert::run_tool( params ); // above
         return res ? EXIT_SUCCESS : EXIT_FAILURE;

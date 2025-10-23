@@ -39,6 +39,7 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cassert>
 #include <queue>
 #include <atomic>

@@ -33,6 +33,7 @@
 #include <vector>
 #include <map>
 #include <tuple>
+#include <cstring>
 
 struct QNAME_Counter final
 {

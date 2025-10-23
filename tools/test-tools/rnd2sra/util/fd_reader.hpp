@@ -51,6 +51,10 @@ class fd_reader {
     public :
         static fd_reader_ptr make( int fd ) { return fd_reader_ptr( new fd_reader( fd ) ); }
 
+        virtual ~fd_reader( void ) {
+            // we do not own the file-descriptor!
+        }
+
         void show_status( void ) const {
             switch( f_status ) {
                 case State_E::DONE : cout << "DONE\n"; break;

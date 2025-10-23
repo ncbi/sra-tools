@@ -918,7 +918,7 @@ struct BasicSource: public Input::Source {
                 break;
 
             // could it be a SAM header
-            if (nrecs == 1 && line.substr(0, 7) != "@HD\tVN:")
+            if (nrecs == 1 && !(line.substr(0, 7) == "@HD\tVN:" || line.substr(0, 4) == "@CO\t"))
                 break;
 
             // it's a SAM header line

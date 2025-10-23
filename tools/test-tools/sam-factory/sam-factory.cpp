@@ -24,6 +24,7 @@
  */
 
 #include <kapp/main.h>
+#include <klib/out.h>
 
 #include <iostream>
 #include <fstream>
@@ -469,15 +470,18 @@ class t_progline {
             }
         }
 
-        static void consume_lines( int argc, char *argv[], t_proglines& proglines ) {
-            if ( argc > 1 ) {
+        static void consume_lines( const std::vector<std::string> & inputs, t_proglines& proglines ) {
+            if ( ! inputs.empty() ) {
                 // looping through the file( s ) given at the commandline...
-                for ( int i = 1; i < argc; i++ ) {
+                for ( auto arg : inputs ) {
                     std::fstream inputfile;
-                    inputfile.open( argv[ i ], std::ios::in );
+                    inputfile.open( arg, std::ios::in );
                     if ( inputfile.is_open() ) {
-                        t_progline::consume_stream( inputfile, argv[ 1 ], proglines );
+                        t_progline::consume_stream( inputfile, arg.c_str(), proglines );
                         inputfile.close();
+                    }
+                    else {
+                        throw std::logic_error( std::string( "cannot open file " ) + arg );
                     }
                 }
             } else {
@@ -1187,24 +1191,94 @@ class t_factory {
         }
 };
 
+const char UsageDefaultName[] = "sam-factory";
+
+rc_t CC UsageSummary (const char * progname)
+{
+    return KOutMsg("\n"
+                   "Usage:\n"
+                   "  %s [Options] [File ...]\n"
+                   "\n"
+                   "Summary:\n"
+                   "  a tool to create SAM output from input-file(s) or stdin,\n"
+                   "    if no files are specified\n"
+                   "  SAM output will be produced on stdout\n"
+                   "\n", progname);
+}
+
+rc_t CC Usage ( const Args * args )
+{
+    const char * progname = UsageDefaultName;
+    const char * fullpath = UsageDefaultName;
+    rc_t rc;
+
+    if (args == NULL)
+        rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
+    else
+        rc = ArgsProgram (args, &fullpath, &progname);
+
+    UsageSummary (progname);
+
+    KOutMsg ("Options\n");
+
+    HelpOptionsStandard ();
+
+    HelpVersion (fullpath, KAppVersion());
+
+    return rc;
+}
+
 MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv);
 
-    int res = 3;
-    try {
-        t_proglines proglines;
-        t_progline::consume_lines( argc, app.getArgV(), proglines);
-        if ( !proglines.empty() ) {
-            t_errors errors;
-            t_factory factory( proglines, errors );
-            res = factory . produce();
-            errors . print();
+    Args *args;
+    rc_t rc;
+
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    rc = ArgsMakeAndHandle (&args, argc, argv, 1, nullptr, 0 );
+    if (rc == 0)
+    {
+        uint32_t pcount;
+        rc = ArgsParamCount (args, &pcount);
+        if (rc == 0 )
+        {
+            try
+            {
+                std::vector<std::string> inputs;
+                for ( uint32_t i = 0; i < pcount; ++ i )
+                {
+                    const char *fname;
+                    rc = ArgsParamValue (args, i, (const void **)&fname);
+                    if ( rc == 0 )
+                    {
+                        inputs.push_back( fname );
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                t_proglines proglines;
+                t_progline::consume_lines( inputs, proglines);
+                if ( !proglines.empty() ) {
+                    t_errors errors;
+                    t_factory factory( proglines, errors );
+                    rc = (rc_t) factory . produce();
+                    errors . print();
+                }
+
+            } catch ( std::exception &e ) {
+                std::cerr << "error: " << e.what() << std::endl;
+            }
         }
-    } catch ( std::bad_alloc &e ) {
-        std::cerr << "error: " << e.what() << std::endl;
     }
 
-    app.setRc( res );
+    ArgsWhack (args);
+
+    app.setRc( rc );
     return app.getExitCode();
 }

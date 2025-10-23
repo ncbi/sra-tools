@@ -27,6 +27,7 @@
 #include <kapp/args.h>
 #include <kapp/main.h>
 #include <klib/log.h>
+#include <klib/out.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -63,19 +64,64 @@ void samview(char const file[])
 
 const char UsageDefaultName[] = "samview-util";
 
+rc_t CC UsageSummary ( const char * progname )
+{
+    return KOutMsg ("\n"
+                    "Usage:\n"
+                    "  %s <path> [options]\n"
+                    "\n", progname);
+}
+
+
+rc_t CC Usage( const Args * args  )
+{
+    const char * progname = UsageDefaultName;
+    const char * fullpath = UsageDefaultName;
+    rc_t rc;
+
+    if ( args == NULL )
+        rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
+    else
+        rc = ArgsProgram( args, &fullpath, &progname );
+    if (rc)
+        progname = fullpath = UsageDefaultName;
+
+    UsageSummary( progname );
+
+    KOutMsg ("Options:\n");
+
+    HelpOptionsStandard();
+
+    HelpVersion( fullpath, KAppVersion() );
+    return rc;
+}
+
 MAIN_DECL( argc, argv )
 {
     VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
-    while (--argc) {
-        const char * arg = *++argv;
-        if ( arg [ 0 ] == '-' ) {
-            if (arg [ 1 ] == 'V') {
-                HelpVersion ( UsageDefaultName, KAppVersion () );
-                return 0;
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
+
+    Args * args;
+
+    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, NULL, 0 );
+    if ( rc == 0 )
+    {
+        uint32_t pcount;
+        rc = ArgsParamCount (args, &pcount);
+        if (rc == 0 )
+        {
+            if (pcount == 0)
+            {
+                OUTMSG (( "missing BAM file path\n" ));
+                MiniUsage (args);
+                ArgsWhack(args);
+                return VDB_TERMINATE( EXIT_FAILURE );
             }
+
+            samview(*argv);
         }
-        samview(*argv);
     }
-    return VDB_TERMINATE( 0 );
+    return VDB_TERMINATE( rc ? EXIT_FAILURE : 0 );
 }

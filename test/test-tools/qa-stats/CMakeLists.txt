@@ -24,6 +24,16 @@
 
 if( NOT WIN32 )
 
+    ToolsRequired(qa-stats)
+
+    add_test ( Test_qa-stats-Version
+        sh -c "${BINDIR}/qa-stats -V |
+            grep -q `head -n 1 ${CMAKE_SOURCE_DIR}/shared/toolkit.vers`"
+    )
+    add_test ( Test_qa-stats-Help
+        sh -c "${BINDIR}/qa-stats -h | grep -q Usage"
+    )
+
     make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
     AddExecutableTest( Test_qa-stats_Input "test-input;../../../tools/test-tools/qa-stats/input.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
@@ -71,5 +81,5 @@ if( NOT WIN32 )
             COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan --multithreaded 1 input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-    
+
 endif()

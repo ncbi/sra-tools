@@ -302,6 +302,8 @@ static rc_t predump_schema( VSchema *schema, const char * type,
 MAIN_DECL( argc, argv )
 {
     VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
+    SetUsage( Usage );
+    SetUsageSummary( UsageSummary );
 
     Args * args;
 

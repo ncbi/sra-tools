@@ -23,3 +23,18 @@
 # ===========================================================================
 
 add_subdirectory( qa-stats )
+add_subdirectory( crc32sum )
+add_subdirectory( test-download )
+add_subdirectory( kdb-index )
+add_subdirectory( pacbio-correct )
+add_subdirectory( schema-replace )
+add_subdirectory( sortreadtest )
+add_subdirectory( rowwritetest )
+add_subdirectory( samview-util )
+add_subdirectory( testld )
+add_subdirectory( txt2kdb )
+add_subdirectory( sam-factory )
+if( NOT WIN32 )
+    add_subdirectory( pileup-stats )
+    add_subdirectory( rnd2sra )
+endif()

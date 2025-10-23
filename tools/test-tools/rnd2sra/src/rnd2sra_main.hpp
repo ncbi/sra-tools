@@ -111,6 +111,10 @@ class Tool_Main {
             f_product = Product::make( s_product );
         }
 
+        bool check_ini_file( const string& ini_file ) const {
+            if ( ini_file == "stdin" ) return true;
+            return FileTool::exists( ini_file );
+        }
     public:
         static Tool_MainPtr make( const MainParamsPtr params ) {
             return Tool_MainPtr( new Tool_Main( params ) );
@@ -122,7 +126,7 @@ class Tool_Main {
             if ( ini_file . empty() ) {
                 // without a config/ini - file we cannot do anything ...
                 cerr << "missing: config/ini-file" << endl;
-            } else if ( ! FileTool::exists( ini_file ) ) {
+            } else if ( ! check_ini_file( ini_file ) ) {
                 // there is a config-file specified, but it cannot be found
                 cerr << "config-file '" << ini_file << "' not found" << endl;
                 cerr << "ini-dir: " << f_main_params->get_ini_file_loc() << endl;

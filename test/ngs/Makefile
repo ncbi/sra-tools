@@ -22,18 +22,9 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs(
-    pileup-stats
-    pileup-stats
-    ""
-    "${CMAKE_SOURCE_DIR}/ngs;${CMAKE_SOURCE_DIR}/libs/inc"
-    "kapp;general-writer;ncbi-ngs;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}"
-)
+default: runtests
 
-add_dependencies ( pileup-stats general-writer )
+TOP ?= $(abspath ../..)
+MODULE = test/ngs
 
-MakeLinksExe ( pileup-stats false )
-
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( test )
-endif()
+include $(TOP)/build/Makefile.env

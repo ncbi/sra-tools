@@ -54,6 +54,10 @@ AddExecutableTest ( SlowTest_SraSearch
     "ksrch" ""
 )
 set_tests_properties(SlowTest_SraSearch PROPERTIES TIMEOUT 9000)
+if( RUN_SANITIZER_TESTS )
+    set_tests_properties(SlowTest_SraSearch-asan PROPERTIES TIMEOUT 9000)
+    set_tests_properties(SlowTest_SraSearch-tsan PROPERTIES TIMEOUT 9000)
+endif()
 
 AddExecutableTest ( Test_SraSearch_SearchBlock
     "test-searchblock.cpp;../searchblock.cpp"

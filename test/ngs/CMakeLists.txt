@@ -22,18 +22,4 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs(
-    pileup-stats
-    pileup-stats
-    ""
-    "${CMAKE_SOURCE_DIR}/ngs;${CMAKE_SOURCE_DIR}/libs/inc"
-    "kapp;general-writer;ncbi-ngs;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}"
-)
-
-add_dependencies ( pileup-stats general-writer )
-
-MakeLinksExe ( pileup-stats false )
-
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( test )
-endif()
+AddExecutableTest( Test_CSRA1_Pileup "test-csra1_pileup.cpp" "kapp;ncbi-ngs;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )

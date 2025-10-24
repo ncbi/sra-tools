@@ -92,7 +92,7 @@ int run ( int argc, char * argv [] ) {
     SetUsage( Usage );
 
     Args* args(NULL);
-    rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 1));
+    rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 0));
 
     for ( int i = 1; i < argc; ++ i )
     {

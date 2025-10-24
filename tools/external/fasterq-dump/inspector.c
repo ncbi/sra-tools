@@ -767,6 +767,9 @@ static rc_t insp_seq_columns( const VTable * tbl, const insp_input_t * input, in
         seq -> has_read_type_column = insp_list_contains( columns, "READ_TYPE" );
         seq -> has_quality_column = insp_list_contains( columns, "QUALITY" );
         seq -> has_read_column = insp_list_contains( columns, "READ" );
+        seq -> has_base_count_column = insp_list_contains( columns, "BASE_COUNT" );
+        seq -> has_bio_base_count_column = insp_list_contains( columns, "BIO_BASE_COUNT" );
+        seq -> has_spot_count_column = insp_list_contains( columns, "SPOT_COUNT" );
         rc = insp_release_VNamelist( columns, rc, "inspect_seq_columns",
                                      input -> accession_short );
     }
@@ -874,9 +877,9 @@ static rc_t insp_seq_data( const VTable * tbl, const insp_input_t * input, insp_
         rc = insp_add_column( cur, &id_read, "READ" );
         if ( 0 == rc && seq -> has_name_column ) { rc = insp_add_column( cur, &id_name, "NAME" ); }
         if ( 0 == rc && seq -> has_spot_group_column ) { rc = insp_add_column( cur, &id_spot_group, "SPOT_GROUP" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_base_count, "BASE_COUNT" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
+        if ( 0 == rc && seq -> has_base_count_column ) { rc = insp_add_column( cur, &id_base_count, "BASE_COUNT" ); }
+        if ( 0 == rc && seq -> has_bio_base_count_column ) { rc = insp_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
+        if ( 0 == rc && seq -> has_spot_count_column ) { rc = insp_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
         if ( 0 == rc && seq -> has_read_type_column ) { rc = insp_add_column( cur, &id_read_type, "READ_TYPE" ); }
         if ( 0 == rc ) {
             rc = VCursorOpen( cur );
@@ -890,15 +893,15 @@ static rc_t insp_seq_data( const VTable * tbl, const insp_input_t * input, insp_
                 ErrMsg( "insp_seq_data().VCursorIdRange( '%s' ) -> %R", seq -> tbl_name, rc );
             }
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_base_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_base_count, "BASE_COUNT",
                                 &( seq -> total_base_count ) );
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_bio_base_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_bio_base_count, "BIO_BASE_COUNT",
                                 &( seq -> bio_base_count ) );
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_spot_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_spot_count, "SPOT_COUNT",
                                 &( seq -> spot_count ) );
         }

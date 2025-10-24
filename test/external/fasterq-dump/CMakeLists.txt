@@ -100,6 +100,11 @@ if ( NOT WIN32 )
         COMMAND sh -c "./longreads.sh ${BINDIR}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    # test if fasterq-dump can handle missing seq-tbl-metadata / VDB-5670
+    add_test( NAME Test_FasterqDump_NoSeqTblMeta
+        COMMAND sh -c "./no_seq_tbl_meta.sh ${BINDIR}"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 else()
 #TODO: make run on Windows
 endif()

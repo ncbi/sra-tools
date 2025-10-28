@@ -438,48 +438,53 @@ private:
         strm << std::endl;
     }
     void gather() {
-        auto source = Input::newSource(inputStream(), multithreaded);
         auto const nameCounter = qnameCounter.get();
+        auto source = Input::newSource(inputStream(), multithreaded);
         while (*source) {
             try {
                 auto const spot = source->get();
-                unsigned naligned = 0;
 
-                if (spotGroup.size() < Input::groups.size())
-                    spotGroup.resize(Input::groups.size(), Stats{});
-
-                auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
-
-                for (auto const &read : spot.reads) {
-                    if (read.type == Input::ReadType::aligned && !read.cigar) {
-                        // This is the sequence record for an aligned read.
-                        // The sequence and alignment details have/will be handled
-                        // by the alignment record.
-                        continue;
+                if (nameCounter) {
+                    if (spot.readName[0]) {
+                        if (spot.group < 0)
+                            nameCounter->add(spot.readName);
+                        else
+                            nameCounter->add(spot.readName, spot.groups[spot.group]);
                     }
-                    auto const seq = spot.sequence.substr(read.start, read.length);
-                    auto const bio = read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned;
-
-                    stats.record(seq, bio, group);
-                    if (read.type == Input::ReadType::aligned) {
-                        assert(read.reference >= 0);
-                        assert(read.position >= 0);
-                        unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
-                        stats.record(read.reference, read.position, strand, seq, read.cigar, group);
-                        ++naligned;
-                    }
-                }
-                if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-                    stats.record(spotLayout(spot), group);
-                }
-                if (nameCounter && spot.readName[0]) {
-                    if (spot.group < 0)
-                        nameCounter->add(spot.readName);
                     else
-                        nameCounter->add(spot.readName, spot.groups[spot.group]);
+                        ++unnamed;
                 }
-                else
-                    ++unnamed;
+                else {
+                    unsigned naligned = 0;
+
+                    if (spotGroup.size() < Input::groups.size())
+                        spotGroup.resize(Input::groups.size(), Stats{});
+
+                    auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
+
+                    for (auto const &read : spot.reads) {
+                        if (read.type == Input::ReadType::aligned && !read.cigar) {
+                            // This is the sequence record for an aligned read.
+                            // The sequence and alignment details have/will be handled
+                            // by the alignment record.
+                            continue;
+                        }
+                        auto const seq = spot.sequence.substr(read.start, read.length);
+                        auto const bio = read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned;
+
+                        stats.record(seq, bio, group);
+                        if (read.type == Input::ReadType::aligned) {
+                            assert(read.reference >= 0);
+                            assert(read.position >= 0);
+                            unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                            stats.record(read.reference, read.position, strand, seq, read.cigar, group);
+                            ++naligned;
+                        }
+                    }
+                    if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
+                        stats.record(spotLayout(spot), group);
+                    }
+                }
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {

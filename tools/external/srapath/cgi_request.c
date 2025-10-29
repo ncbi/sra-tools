@@ -396,7 +396,6 @@ typedef struct reply_parse_ctx
 
 enum request_type { request_type_names, request_type_search };
 
-static const char * names_cgi_url = "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
 static const char * search_cgi_url = "https://trace.ncbi.nlm.nih.gov/Traces/names/search.cgi";
 
 static const char * validate_url( const char * src, enum request_type request_type )
@@ -406,7 +405,7 @@ static const char * validate_url( const char * src, enum request_type request_ty
     {
         switch( request_type )
         {
-            case request_type_names  : res = names_cgi_url; break;
+            case request_type_names  : res = NULL; break;
             case request_type_search : res = search_cgi_url; break;
         }
     }
@@ -434,7 +433,6 @@ static const char * validate_ver( const char * src, enum request_type request_ty
 
 static void validate_request_params( const request_params * src, request_params * dst )
 {
-    dst->names_url      = validate_url( src->names_url,  request_type_names );
     dst->names_ver      = validate_ver( src->names_ver,  request_type_names );
     dst->search_url     = validate_url( src->search_url, request_type_search );
     dst->search_ver     = validate_ver( src->search_ver, request_type_search );

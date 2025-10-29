@@ -685,7 +685,7 @@ int CFastqParseApp::xRun()
     for (auto& group : data["groups"])
         total_spots += group["estimated_spots"].get<size_t>();
     if (total_spots > mMaxSpotsInLinearMode)
-        throw fastq_error(250, "SRAE-70: Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
+        throw fastq_error(250, "Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
     spot_name_check name_checker(total_spots);
 
     fastq_parser<fastq_writer> parser(m_writer);

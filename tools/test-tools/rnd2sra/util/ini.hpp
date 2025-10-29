@@ -56,7 +56,7 @@ class Ini {
             string fn{ filename };
             string line;
             if ( fn == "stdin" ) {
-                while ( getline( cin, line ) ) {
+                while ( getline( std::cin, line ) ) {
                     StrTool::trim_line( line );
                     if ( ! StrTool::is_comment( line ) ) {
                         load_line( line );

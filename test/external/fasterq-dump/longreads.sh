@@ -28,14 +28,11 @@ set -e
 
 FASTERQDUMPBIN="$1/fasterq-dump"
 RND2SRABIN="$1/rnd2sra"
-
 SANDBOX="LONGREAD_SANDBOX"
-RND2SRAINI="LONGREAD.INI"
 ACC="LONGREADS"
 
 OS=$(uname -s)
-#echo "$OS"
-if [ "$OS" == "Darwin" ] ; then
+if [ $OS = "Darwin" ] ; then
     MD5="/sbin/md5 -q"
 else
     MD5="md5sum"
@@ -48,7 +45,7 @@ cd $SANDBOX
 # using rnd2sra to create an artificial accession with long reads
 # =============================================================================$
 
-cat << EOF > $RND2SRAINI
+$RND2SRABIN --ini stdin --out "$ACC" << EOF
 seed = 10101
 product = csra
 spots = F : 12 : 170000 : 180000
@@ -57,9 +54,6 @@ spots = 1 : 3 : 57 : 102
 spots = 2 : 4 : 56 : 103
 spotgroup = SG1
 EOF
-echo "testing for long-reads: INI-file created"
-
-$RND2SRABIN --ini $RND2SRAINI --out $ACC
 echo "testing for long-reads: sample-accession generated"
 
 # =============================================================================$
@@ -79,7 +73,8 @@ ${MD5} "${ACC}_2.fastq" >> actual.txt
 # =============================================================================$
 EXP1="8c78fbf96bd6b19bd3008854e171c7f4"
 EXP2="13600705c5119afd4fdba22631777786"
-if [ "$OS" == "Darwin" ] ; then
+
+if [ $OS = "Darwin" ] ; then
 cat << EOF > expected.txt
 $EXP1
 $EXP2

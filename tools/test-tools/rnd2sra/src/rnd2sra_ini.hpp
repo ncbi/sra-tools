@@ -340,6 +340,7 @@ class rnd2sra_ini {
         uint64_t f_rows;
         uint64_t f_seed;
         uint32_t f_name_len;
+        uint8_t f_platform;
         bool f_with_name;
         bool f_echo_values;
         bool f_write_meta;
@@ -354,28 +355,28 @@ class rnd2sra_ini {
         row_offset_pair_ptr f_cmp_rd_fault;
 
         // >>>>> Ctor <<<<<
-        rnd2sra_ini( const string_view& ini_filename ) {
-            IniPtr f_ini = Ini::make( ini_filename );
-            f_output_dir = f_ini -> get( "out", "" );
-            f_rows = f_ini -> get_u64( "rows", 10 );
-            f_seed = f_ini -> get_u64( "seed", 1010101 );
-            f_name_len = f_ini -> get_u32( "name_len", 25 );
-            f_name_pattern = f_ini -> get( "name_pattern", "" );
-            f_with_name = f_ini -> get( "with_name", "yes" ) == "yes";
-            f_echo_values = f_ini -> get( "echo", "no" ) == "yes";
-            f_write_meta = f_ini -> get( "write_meta", "yes" ) == "yes";
-            f_product = Product::make( f_ini -> get( "product", "flat" ) );
-            f_checksum = Checksum::make( f_ini -> get( "checksum", "none" ) );
-            f_qual_len_offset = row_offset_pair::make( f_ini -> get( "qual_len_offset", "" ) );
-            f_read_len_offset = row_offset_pair::make( f_ini -> get( "read_len_offset", "" ) );
-            f_cmp_rd_fault = row_offset_pair::make( f_ini -> get( "cmp_rd_fault", "" ) );
-            for ( const string & layout : f_ini -> get_definitions_of( "layout" ) ) {
+        rnd2sra_ini( IniPtr ini ) {
+            f_platform = 2; // for now hardcoded as Illumina
+            f_output_dir = ini -> get( "out", "" );
+            f_rows = ini -> get_u64( "rows", 10 );
+            f_seed = ini -> get_u64( "seed", 1010101 );
+            f_name_len = ini -> get_u32( "name_len", 25 );
+            f_name_pattern = ini -> get( "name_pattern", "" );
+            f_with_name = ini -> get( "with_name", "yes" ) == "yes";
+            f_echo_values = ini -> get( "echo", "no" ) == "yes";
+            f_write_meta = ini -> get( "write_meta", "yes" ) == "yes";
+            f_product = Product::make( ini -> get( "product", "flat" ) );
+            f_checksum = Checksum::make( ini -> get( "checksum", "none" ) );
+            f_qual_len_offset = row_offset_pair::make( ini -> get( "qual_len_offset", "" ) );
+            f_read_len_offset = row_offset_pair::make( ini -> get( "read_len_offset", "" ) );
+            f_cmp_rd_fault = row_offset_pair::make( ini -> get( "cmp_rd_fault", "" ) );
+            for ( const string & layout : ini -> get_definitions_of( "layout" ) ) {
                 f_layouts . push_back( spot_layout::make( layout ) );
             }
-            for ( const string & spot_group : f_ini -> get_definitions_of( "spotgroup" ) ) {
+            for ( const string & spot_group : ini -> get_definitions_of( "spotgroup" ) ) {
                 f_spot_groups . push_back( spot_group );
             }
-            for ( const string& layout : f_ini -> get_definitions_of( "spots" ) ) {
+            for ( const string& layout : ini -> get_definitions_of( "spots" ) ) {
                 f_csra_layouts . push_back( csra_spot_layout::make( layout ) );
             }
             f_autoinc_name = 1;
@@ -386,11 +387,11 @@ class rnd2sra_ini {
         row_offset_pair_ptr get_cmp_rd_fault( void ) const { return f_cmp_rd_fault; }
 
     public:
-
-        static rnd2sra_ini_ptr make( const string_view& ini_filename ) {
-            return rnd2sra_ini_ptr( new rnd2sra_ini( ini_filename ) );
+        static rnd2sra_ini_ptr make( IniPtr ini ) {
+            return rnd2sra_ini_ptr( new rnd2sra_ini( ini ) );
         }
 
+        uint8_t get_platform( void ) const { return f_platform; }
         bool has_output_dir( void ) const { return !f_output_dir . empty(); }
         void set_output_dir( const string& value ) { f_output_dir = value; }
         const string& get_output_dir( void ) const { return f_output_dir; }

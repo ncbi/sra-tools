@@ -247,8 +247,7 @@ class RndNonecSra : public Rndcmn {
 
             //  (3) ... set the default-value for the PLATFORM-column
             if ( res ) {
-                uint8_t platform = 2; // ILLUMINA
-                res = f_platform_column -> dflt_u8( platform );
+                res = f_platform_column -> dflt_u8( f_ini -> get_platform() );
             }
 
             //  (4) ... write the rows  [[[ the main loop ]]]

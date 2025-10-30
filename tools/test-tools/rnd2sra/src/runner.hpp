@@ -9,6 +9,7 @@
 #include "../util/process.hpp"
 #include "../util/file_rename.hpp"
 #include "../util/file_diff.hpp"
+#include "../vdb/VdbObj.hpp"
 #include "runner_ini.hpp"
 #include "main_params.hpp"
 #include "normalizer.hpp"
@@ -34,7 +35,10 @@ class runner {
 
 /* -------------------------------------------------------------------------------------------- */
         bool compare_values( vector< string >& args, bool silent ) const {
-            if ( args . size() < 2 ) { return false; }
+            if ( args . size() < 2 ) {
+                cerr << ":cmp needs 2 values!\n";
+                return false;
+            }
             const string_view value1{ f_values -> get( args[ 0 ] ) };
             const string_view value2{ f_values -> get( args[ 1 ] ) };
             if ( !silent ) {
@@ -95,6 +99,39 @@ class runner {
                 }
             }
             return res;
+        }
+
+/* -------------------------------------------------------------------------------------------- */
+        bool check_md5( vector< string >& args ) {
+            if ( args . size() < 2 ) {
+                cerr << ":md5 needs 2 values!\n";
+                return false;
+            }
+            const string filename{ args[ 0 ] };
+            const string expected_md5{ args[ 1 ] };
+            cout << "md5.filename: " << filename << endl;
+            cout << "md5.expected: " << expected_md5 << endl;
+
+            std::ifstream inputFile( filename, std::ios::binary | std::ios::in );
+            if ( inputFile . is_open() ) {
+                    uint8_t buffer[ 1024 * 1024 ];
+                    vdb::MD5 md5;
+                    while ( inputFile.read( ( char* )buffer, sizeof( buffer ) ) ) {
+                        md5.append( buffer, sizeof buffer );
+                    }
+                    size_t remaining = inputFile . gcount();
+                    if ( remaining > 0 ) {
+                        inputFile.read( ( char* )buffer, remaining );
+                        md5.append( buffer, remaining );
+                    }
+                    inputFile . close();
+                    const string computed_md5 = md5.digest();
+                    cout << "md5.computed: " << computed_md5 << endl;
+                    return ( expected_md5 == computed_md5 );
+            } else {
+                cerr << "cannot open : " << filename << endl;
+                return false;
+            }
         }
 
 /* -------------------------------------------------------------------------------------------- */
@@ -161,7 +198,10 @@ class runner {
                 res = change_dir( args );
             } else if ( executable . compare( ":run" ) == 0 ) {
                 res = run_sub( section_ini, args );
+            } else if ( executable . compare( ":md5" ) == 0 ) {
+                res = check_md5( args );
             } else {
+
                 if ( section_ini -> get_silent() ) {
                     cout << "unknown: >" << executable << "<\n";
                 }

@@ -2,6 +2,7 @@
 
 #include "../util/ini.hpp"
 #include "../util/random_toolbox.hpp"
+#include "platform.hpp"
 #include "product.hpp"
 #include "bio_or_tech.hpp"
 #include "fwd_or_rev.hpp"
@@ -340,12 +341,12 @@ class rnd2sra_ini {
         uint64_t f_rows;
         uint64_t f_seed;
         uint32_t f_name_len;
-        uint8_t f_platform;
         bool f_with_name;
         bool f_echo_values;
         bool f_write_meta;
         Product_ptr f_product;
         Checksum_ptr f_checksum;
+        Platform_ptr f_platform;
         vector< spot_layout_ptr > f_layouts;
         vector< csra_spot_layout_ptr > f_csra_layouts;
         vector< string > f_spot_groups;
@@ -356,7 +357,6 @@ class rnd2sra_ini {
 
         // >>>>> Ctor <<<<<
         rnd2sra_ini( IniPtr ini ) {
-            f_platform = 2; // for now hardcoded as Illumina
             f_output_dir = ini -> get( "out", "" );
             f_rows = ini -> get_u64( "rows", 10 );
             f_seed = ini -> get_u64( "seed", 1010101 );
@@ -367,6 +367,7 @@ class rnd2sra_ini {
             f_write_meta = ini -> get( "write_meta", "yes" ) == "yes";
             f_product = Product::make( ini -> get( "product", "flat" ) );
             f_checksum = Checksum::make( ini -> get( "checksum", "none" ) );
+            f_platform = Platform::make( ini -> get( "platform", "ILLUMINA" ) );
             f_qual_len_offset = row_offset_pair::make( ini -> get( "qual_len_offset", "" ) );
             f_read_len_offset = row_offset_pair::make( ini -> get( "read_len_offset", "" ) );
             f_cmp_rd_fault = row_offset_pair::make( ini -> get( "cmp_rd_fault", "" ) );
@@ -391,7 +392,7 @@ class rnd2sra_ini {
             return rnd2sra_ini_ptr( new rnd2sra_ini( ini ) );
         }
 
-        uint8_t get_platform( void ) const { return f_platform; }
+        uint8_t get_platform( void ) const { return f_platform -> to_u8(); }
         bool has_output_dir( void ) const { return !f_output_dir . empty(); }
         void set_output_dir( const string& value ) { f_output_dir = value; }
         const string& get_output_dir( void ) const { return f_output_dir; }

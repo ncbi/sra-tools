@@ -148,6 +148,8 @@ class Platform {
             };
         }
 
+        uint8_t to_u8( void ) const { return (uint8_t)f_type; }
+
         static std::string list_all( void ) {
             std::stringstream ss;
             ss << S_UNDEFINED << endl;

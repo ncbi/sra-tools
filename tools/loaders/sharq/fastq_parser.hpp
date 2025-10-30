@@ -1275,7 +1275,7 @@ int s_find_duplicates(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& 
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at index {}", terms[i], i);
+            fastq_error e(170, "Collation check. Duplicate spot '{}' at index {}", terms[i], i);
             error_checker(e);
         }
     }
@@ -1301,7 +1301,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
+            fastq_error e(170, "Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
             error_checker(e);
         }
     }
@@ -2257,17 +2257,21 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
     m_telemetry.assembly_metrics.number_of_far_reads = m_spot_assembly.m_total_spots - m_spot_assembly.m_hot_spot_ids.count();
     spdlog::info("Building took {:.3}, far reads: {:L}", sw, m_telemetry.assembly_metrics.number_of_far_reads);
 
-    int max_reads = 0;
+    unsigned max_reads = 0;
     for (auto& it : m_spot_assembly.m_reads_counts) {
         spdlog::info("{:L} spots with {} reads", it.second, it.first);
         m_telemetry.assembly_metrics.reads_stats = m_spot_assembly.m_reads_counts;
-        max_reads = max(max_reads, (int)it.first);
+        max_reads = max<int>(max_reads, (int)it.first);
     }
+
+    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max()) 
+        throw fastq_error(260, "Spots with more than {} reads are not supported.", std::numeric_limits<typename svector_u32::value_type>::max());
+
     if (m_read_types.empty()) {
         if (m_IsIllumina10x)
-            m_read_types.resize(min(max_reads, 4), 'A');
+            m_read_types.resize(min<int>(max_reads, 4), 'A');
         else
-            m_read_types.resize(min(max_reads, 2), 'B');
+            m_read_types.resize(min<int>(max_reads, 2), 'B');
     }
     m_read_type_sz = m_read_types.size();
 }
@@ -2345,15 +2349,16 @@ template<typename TWriter>
 void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vector<fastq_read>& assembled_spot)
 {
     sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) {
-        if (l.ReadNum() == r.ReadNum()) {
-            int c = l.Sequence().compare(r.Sequence());
-            if (c == 0) {
-                if (l.GetQualScores() != r.GetQualScores())
-                    c = -1;
-            }
+        // Cache values to avoid repeated method calls
+        auto l_read_num = l.ReadNum();
+        auto r_read_num = r.ReadNum();
+        
+        if (l_read_num != r_read_num) 
+            return l_read_num < r_read_num;
+        int c = l.Sequence().compare(r.Sequence());
+        if (c != 0) 
             return c < 0;
-        }
-        return l.ReadNum() < r.ReadNum();
+        return l.GetQualScores() < r.GetQualScores();
     });
    // same as std::unique but captures stat of the removed duplicates
     auto uniq = [&] (vector<fastq_read>::iterator first, vector<fastq_read>::iterator last) -> vector<fastq_read>::iterator

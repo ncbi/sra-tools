@@ -21,7 +21,8 @@ namespace sra_convert {
     * --testbin TESTBINDIR  -T TESTBINDIR
     * --filter FILTER
     * --help                -h HELP
-    * --version             -V HELP
+    * --version             -V VERSION
+    * --platforms           -p PLATFORMS
 */
 
 class CmdLineParser {

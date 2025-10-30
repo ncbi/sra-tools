@@ -84,7 +84,7 @@ public:
         : m_error_code(error_code)
     {
         const auto& srae_code = std::get<2>(SHARQ_ERR_CODES.at(error_code));
-        std::string str = fmt::format("{}: {} [code:{}] ", srae_code, message, error_code);
+        std::string str = fmt::format("{}: {} [code:{}]", srae_code, message, error_code);
         mMessage = fmt::format(str, args...);
     }
 
@@ -93,7 +93,7 @@ public:
     {
         const auto& srae_code = std::get<2>(SHARQ_ERR_CODES.at(error_code));
         const auto& message = std::get<0>(SHARQ_ERR_CODES.at(error_code));
-        mMessage = fmt::format("{}: {} [code:{}] ", srae_code, message, error_code);
+        mMessage = fmt::format("{}: {} [code:{}]", srae_code, message, error_code);
     }
 
     const char* what() const noexcept

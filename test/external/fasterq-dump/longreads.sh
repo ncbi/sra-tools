@@ -31,20 +31,12 @@ RND2SRABIN="$1/rnd2sra"
 SANDBOX="LONGREAD_SANDBOX"
 ACC="LONGREADS"
 
-OS=$(uname -s)
-if [ $OS = "Darwin" ] ; then
-    MD5="/sbin/md5 -q"
-else
-    MD5="md5sum"
-fi 
-
 mkdir -p $SANDBOX
 cd $SANDBOX
 
 # =============================================================================$
 # using rnd2sra to create an artificial accession with long reads
 # =============================================================================$
-
 $RND2SRABIN --ini stdin --out "$ACC" << EOF
 seed = 10101
 product = csra
@@ -63,35 +55,15 @@ $FASTERQDUMPBIN $ACC
 echo "testing for long-reads: FASTQ-files produced"
 
 # =============================================================================$
-# produce MD5-sums of the 2 FASTQ-files
+# compare produced vs expected MD5-sums of the 2 FASTQ-files
 # =============================================================================$
-${MD5} "${ACC}_1.fastq" > actual.txt
-${MD5} "${ACC}_2.fastq" >> actual.txt
-
-# =============================================================================$
-# produce expected MD5-sums of the 2 FASTQ-files
-# =============================================================================$
-EXP1="8c78fbf96bd6b19bd3008854e171c7f4"
-EXP2="13600705c5119afd4fdba22631777786"
-
-if [ $OS = "Darwin" ] ; then
-cat << EOF > expected.txt
-$EXP1
-$EXP2
+$RND2SRABIN --ini stdin << EOF
+product = test
+run = T1 T2
+T1.exe = :md5 ${ACC}_1.fastq 8c78fbf96bd6b19bd3008854e171c7f4
+T2.exe = :md5 ${ACC}_2.fastq 13600705c5119afd4fdba22631777786
 EOF
-else
-cat << EOF > expected.txt
-$EXP1  LONGREADS_1.fastq
-$EXP2  LONGREADS_2.fastq
-EOF
-fi
-
-# =============================================================================$
-# compare actual against expected
-# =============================================================================$
-diff -s actual.txt expected.txt
-
 echo "testing for long-reads: success"
-
+echo "-------------------------------------------------------------------------"
 cd ..
 rm -rf $SANDBOX

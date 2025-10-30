@@ -34,11 +34,14 @@ bool run_tool( MainParamsPtr params ) {
 int main( int argc, char* argv[] ) {
 
     sra_convert::MainParamsPtr params = sra_convert::MainParams::make( argc, ( const char ** )argv, 0 );
-    if ( params -> is_help() ) {
+    if ( params -> print_help() ) {
         params -> print_help( cout );
         return EXIT_SUCCESS;
-    } else if ( params -> is_version() ) {
+    } else if ( params -> print_version() ) {
         params -> print_version( cout );
+        return EXIT_SUCCESS;
+    } else if ( params -> print_platforms() ) {
+        cout << sra_convert::Platform::list_all();
         return EXIT_SUCCESS;
     } else {
         bool res = sra_convert::run_tool( params ); // above

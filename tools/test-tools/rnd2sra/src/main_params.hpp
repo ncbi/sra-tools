@@ -34,8 +34,9 @@ class CmdLineParser {
         string f_bin_dir;
         string f_testbin_dir;
         string f_filter;
-        bool f_help;
-        bool f_version;
+        bool f_print_help;
+        bool f_print_version;
+        bool f_print_platforms;
 
         enum class State{ BASE, INI, INIDIR, OUT, BIN, TESTBIN, FILTER };
 
@@ -46,8 +47,9 @@ class CmdLineParser {
             if ( "--bin" == arg || "-B" == arg ) { return State::BIN; }
             if ( "--testbin" == arg || "-T" == arg ) { return State::TESTBIN; }
             if ( "--filter" == arg || "-F" == arg ) { return State::FILTER; }
-            if ( "--help" == arg || "-h" ==arg ) { f_help = true; return State::BASE; }
-            if ( "--version" == arg || "-V" ==arg ) { f_version = true; return State::BASE; }
+            if ( "--help" == arg || "-h" ==arg ) { f_print_help = true; return State::BASE; }
+            if ( "--version" == arg || "-V" ==arg ) { f_print_version = true; return State::BASE; }
+            if ( "--platforms" == arg || "-p" ==arg ) { f_print_platforms = true; return State::BASE; }
 
             switch ( f_argnum++ ) {
                 case 0 : f_prog = arg; break;
@@ -91,8 +93,9 @@ class CmdLineParser {
     public :
         CmdLineParser( const vector< string >& args ) : f_argnum( 0 ) {
             State state{ State::BASE };
-            f_help = false;
-            f_version = false;
+            f_print_help = false;
+            f_print_version = false;
+            f_print_platforms = false;
             // a little state-machine to capture the values...
             for ( auto& item : args ) {
                 switch ( state ) {
@@ -120,8 +123,9 @@ class CmdLineParser {
         const string& bin_dir( void ) const { return f_bin_dir; }
         const string& testbin_dir( void ) const { return f_testbin_dir; }
         const string& filter( void ) const { return f_filter; }
-        const bool is_help( void ) const { return f_help; }
-        const bool is_version( void ) const { return f_version; }
+        const bool print_help( void ) const { return f_print_help; }
+        const bool print_version( void ) const { return f_print_version; }
+        const bool print_platforms( void ) const { return f_print_platforms; }
 };
 
 class MainParams;
@@ -137,8 +141,9 @@ class MainParams {
         string f_bin_loc;
         string f_ini_loc;
         string f_output;
-        bool f_help;
-        bool f_version;
+        bool f_print_help;
+        bool f_print_version;
+        bool f_print_platforms;
 
         // Ctor(s)
         MainParams( int argc, const char** argv, int sub_level )
@@ -209,15 +214,17 @@ class MainParams {
             f_values -> import_values( src );
         }
 
-        const bool is_help( void ) const { return f_help; }
-        const bool is_version( void ) const { return f_version; }
+        const bool print_help( void ) const { return f_print_help; }
+        const bool print_version( void ) const { return f_print_version; }
+        const bool print_platforms( void ) const { return f_print_platforms; }
 
         void parse_args( void ) {
             CmdLineParser parser( f_args );
             f_ini_file = parser . ini_file();
             f_ini_file_loc = parser . ini_dir();
-            f_help = parser . is_help();
-            f_version = parser . is_version();
+            f_print_help = parser . print_help();
+            f_print_version = parser . print_version();
+            f_print_platforms = parser . print_platforms();
             set_output( parser . out_dir() );
             set_bin_loc( parser . bin_dir() );
         }
@@ -231,6 +238,7 @@ class MainParams {
             os << "--filter FILTER                      (what tests to run if filtering)\n";
             os << "--help                -h             print help\n";
             os << "--version             -V             print version\n";
+            os << "--platforms           -p             print all supported platforms\n";
             os << "=========================================================================\n";
             os << "INIFILE:\n";
             os << "\tproduct = flat | db | csra | test ( the only mandatory entry )\n";
@@ -245,6 +253,7 @@ class MainParams {
             os << "\t\t$ ... random char a..z\n";
             os << "\t\t& ... random char A..Z\n";
             os << "\tchecksum = crc32 | md5 | none ( default: none )\n";
+            os << "\tplatform = UNDEFINED | 454 | ILLUMINA | ... ( default: ILLUMINA - 'rnd2sra --platforms')\n";
             os << "\twrite_meta = yes | no ( default: yes )\n";
             os << "\techo = yes | no ( default: no )\n";
             os << "\tspotgroup = NAME ( can be repeated )\n";

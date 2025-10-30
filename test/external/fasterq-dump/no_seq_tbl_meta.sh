@@ -32,6 +32,13 @@ RND2SRABIN="$1/rnd2sra"
 SANDBOX="NO_SEQ_TBL_META_SANDBOX"
 ACC="NO_SEQ_TBL"
 
+OS=$(uname -s)
+if [ $OS = "Darwin" ] ; then
+    MD5="/sbin/md5 -q"
+else
+    MD5="md5sum"
+fi
+
 rm -rf $SANDBOX
 mkdir -p $SANDBOX
 cd $SANDBOX
@@ -52,3 +59,37 @@ echo "testing for seq-tbl-no-meta: sample-accession generated"
 # =============================================================================$
 $FASTERQDUMPBIN $ACC
 echo "testing for seq-tbl-no-meta: FASTQ-files produced"
+
+# =============================================================================$
+# produce MD5-sums of the 2 FASTQ-files
+# =============================================================================$
+${MD5} "${ACC}_1.fastq" > actual.txt
+${MD5} "${ACC}_2.fastq" >> actual.txt
+
+# =============================================================================$
+# produce expected MD5-sums of the 2 FASTQ-files
+# =============================================================================$
+EXP1="7487310afa8a9fd021274cf054c38bba"
+EXP2="21848fed2e4625a4f19f504b41730274"
+
+if [ $OS = "Darwin" ] ; then
+cat << EOF > expected.txt
+$EXP1
+$EXP2
+EOF
+else
+cat << EOF > expected.txt
+$EXP1  ${ACC}_1.fastq
+$EXP2  ${ACC}_2.fastq
+EOF
+fi
+
+# =============================================================================$
+# compare actual against expected
+# =============================================================================$
+diff -s actual.txt expected.txt
+
+echo "testing for long-reads: success"
+
+cd ..
+rm -rf $SANDBOX

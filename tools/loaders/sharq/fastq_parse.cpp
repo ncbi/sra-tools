@@ -133,6 +133,7 @@ private:
     shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
     json  mReport;                      ///< Telemetry report
     uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
+    uint32_t mMaxReadCount{10000};      ///< Maximum number of reads per spot allowed
     atomic<uint32_t> mErrorCount{0};            ///< Global error counter
     size_t mHotReadsThreshold{10000000};      ///< Threshold for hot reads
     uint8_t m_platform_code{0};         ///< Platform code set from the parameters
@@ -268,6 +269,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_option("--max-err-count", mMaxErrCount, "Maximum number of errors allowed")
             ->default_val(100)
             ->check(CLI::Range(uint32_t(0), numeric_limits<uint32_t>::max()));
+        app.add_option("--max-reads-allowed", mMaxReadCount, "Maximum number of reads per spot allowed")
+            ->default_val("10000")
+            ->check(CLI::Range(uint32_t(5), numeric_limits<uint32_t>::max()));
 
         vector<string> input_files;
         app.add_option("files", input_files, "FastQ files to parse");
@@ -759,7 +763,7 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     if (num_rows > numeric_limits<uint32_t>::max()) {
         spdlog::info("Using 64-bit spot ids");
         vector<uint64_t> read_index(num_rows);
-        parser.assign_spot_id(read_names, read_index);
+        parser.assign_spot_id(read_names, read_index, mMaxReadCount);
         read_names.clear();
 
 
@@ -771,7 +775,7 @@ void CFastqParseApp::xParseWithAssembly(json& group, parser_t& parser)
     } else {
         spdlog::info("Using 32-bit spot ids");
         vector<uint32_t> read_index(num_rows);
-        parser.assign_spot_id(read_names, read_index);
+        parser.assign_spot_id(read_names, read_index, mMaxReadCount);
         read_names.clear();
 
         if (is_nanopore)

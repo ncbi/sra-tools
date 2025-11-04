@@ -578,7 +578,7 @@ public:
     void first_pass(str_sv_type& read_names, ErrorChecker&& error_checker);
 
     template<typename T>
-    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index);
+    void assign_spot_id(str_sv_type& read_names, vector<T>& read_index, uint32_t max_reads_per_spot);
 
     /**
      * @brief second step of spot-assembly mode
@@ -2250,7 +2250,7 @@ void fastq_parser<TWriter>::first_pass(str_sv_type& read_names, ErrorChecker&& e
 
 template<typename TWriter>
 template<typename T>
-void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& read_index)
+void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& read_index, uint32_t max_reads_per_spot)
 {
     spdlog::stopwatch sw;
     m_spot_assembly.assign_spot_id(read_names, read_index);
@@ -2264,8 +2264,8 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
         max_reads = max<int>(max_reads, (int)it.first);
     }
 
-    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max()) 
-        throw fastq_error(260, "Spots with more than {} reads are not supported.", std::numeric_limits<typename svector_u32::value_type>::max());
+    if (max_reads > max_reads_per_spot) 
+        throw fastq_error(260, "Spot with {} reads found. Maximum allowed reads per spot is {}. Use --max-reads-allowed option to change this limit.", max_reads, max_reads_per_spot);
 
     if (m_read_types.empty()) {
         if (m_IsIllumina10x)

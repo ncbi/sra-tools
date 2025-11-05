@@ -52,7 +52,7 @@ LOAD="$BINDIR/${SHARQ_BINARY}"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 if [ "$(uname)" == "Darwin" ]; then
-    DIFF="diff"
+    DIFF="diff -b"
 else
     DIFF="diff -Z"
 fi
@@ -101,8 +101,8 @@ if [ "$rc" == "0" ] ; then
     OUT=stdout
 else
     OUT=stderr
-    sed -i"" -e '/\[info\]/d' $TEMPDIR/load.$OUT
-    sed -i"" -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
+    sed -e '/\[info\]/d' $TEMPDIR/load.$OUT
+    sed -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
 fi
 
 $DIFF $WORKDIR/expected/$expected.$OUT $TEMPDIR/load.$OUT >$TEMPDIR/diff

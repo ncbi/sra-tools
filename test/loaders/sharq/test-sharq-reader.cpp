@@ -163,7 +163,7 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
         reader.parse_read<>(read);
         FAIL("Should not reach this point");
     } catch (fastq_error& err) {
-        CHECK_EQ(err.Message(), string("[code:100] Defline not recognized"));
+        CHECK_EQ(err.Message(), string("SRAE-199: Defline not recognized [code:100]"));
     }
 }
 

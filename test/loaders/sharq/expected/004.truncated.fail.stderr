@@ -1,1 +1,1 @@
-[error] [code:180] input/004.truncated_1.fq.gz ended early at line 35772. Use '--allowEarlyFileEnd' to allow load to finish.
+[error] SRAE-208: input/004.truncated_1.fq.gz ended early at line 35772. Use '--allowEarlyFileEnd' to allow load to finish. [code:180] 

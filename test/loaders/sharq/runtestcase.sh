@@ -101,8 +101,8 @@ if [ "$rc" == "0" ] ; then
     OUT=stdout
 else
     OUT=stderr
-    sed -e '/\[info\]/d' $TEMPDIR/load.$OUT
-    sed -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
+    sed -i"-bak" -e '/\[info\]/d' $TEMPDIR/load.$OUT
+    #sed  -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
 fi
 
 $DIFF $WORKDIR/expected/$expected.$OUT $TEMPDIR/load.$OUT >$TEMPDIR/diff

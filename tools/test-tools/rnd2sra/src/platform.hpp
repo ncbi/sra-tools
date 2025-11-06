@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <memory>
-#include <bits/stdc++.h>
+#include <string>
+#include<algorithm>
+#include<sstream>
 
 using namespace std;
 

@@ -600,6 +600,11 @@ struct ParamDefinitions_FQD final : public ParamDefinitions_Common
 /// @brief Holds the definitions for the universally supported arguments, like `--help`, `--version`, etc.
 static ParamDefinitions_Common const &commonParams = ParamDefinitions::makeCommonParams();
 
+namespace FASTQ_DUMP_defs {
+	static auto const toolName = TOOL_NAME_FASTQ_DUMP;
+	static ParameterDefinition const defs[] = TOOL_ARGS_FASTQ_DUMP;
+}
+
 /// Each tool has its definitions in its own namespace.
 /// This macro defines the contents of that namespace.
 /// See also the definitions of `TOOL_ARGS_BEGIN` and `TOOL_ARGS_END` above.

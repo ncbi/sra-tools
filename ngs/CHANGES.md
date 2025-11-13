@@ -23,6 +23,12 @@ Please cite the author in any work or product based on this material.
 # NCBI External Developer Release:
 
 
+### NGS SDK 3.3.0
+**November 18, 2025**
+
+  SRA toolkit release 3.3.0.
+
+
 ### NGS SDK 3.2.1
 **March 18, 2025**
 

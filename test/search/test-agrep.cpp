@@ -47,15 +47,7 @@
 
 using namespace std;
 
-static rc_t argsHandler(int argc, char* argv[]);
-TEST_SUITE_WITH_ARGS_HANDLER(TestSuiteSearch, argsHandler);
-
-static rc_t argsHandler(int argc, char* argv[]) {
-    Args* args = NULL;
-    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
-    ArgsWhack(args);
-    return rc;
-}
+TEST_SUITE(TestSuiteSearch);
 
 void trim_eol(char* psz)
 {

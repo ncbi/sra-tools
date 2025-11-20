@@ -23,7 +23,6 @@
 # ===========================================================================
 
 set( SRC
-	branch-engineering
 	NCBI-NGS
 	CSRA1_PileupEvent
 	CSRA1_Pileup

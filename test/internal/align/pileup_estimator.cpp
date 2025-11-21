@@ -587,8 +587,7 @@ TEST_CASE ( Estimator_9 )
 
         rc = RunPileupEstimator( estim, NULL, slice1_start, slice1_len, &res );
         REQUIRE_RC_FAIL( rc );
-        if ( rc == 0 )
-            ReleasePileupEstimator( estim );
+        REQUIRE_RC( ReleasePileupEstimator( estim ) );
     }
 }
 
@@ -608,8 +607,7 @@ TEST_CASE ( Estimator_10 )
 
         rc = RunPileupEstimator( estim, &rname, slice1_start, 0, &res );
         REQUIRE_RC_FAIL( rc );
-        if ( rc == 0 )
-            ReleasePileupEstimator( estim );
+        REQUIRE_RC( ReleasePileupEstimator( estim ) );
     }
 }
 
@@ -629,8 +627,7 @@ TEST_CASE ( Estimator_11 )
 
         rc = RunPileupEstimator( estim, &rname, slice1_start * 2, slice1_len, &res );
         REQUIRE_RC_FAIL( rc );
-        if ( rc == 0 )
-            ReleasePileupEstimator( estim );
+        REQUIRE_RC( ReleasePileupEstimator( estim ) );
     }
 }
 
@@ -650,8 +647,7 @@ TEST_CASE ( Estimator_12 )
 
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len * 100000, &res );
         REQUIRE_RC_FAIL( rc );
-        if ( rc == 0 )
-            ReleasePileupEstimator( estim );
+        REQUIRE_RC( ReleasePileupEstimator( estim ) );
     }
 }
 
@@ -669,8 +665,7 @@ TEST_CASE ( Estimator_13 )
 
         rc = RunPileupEstimator( estim, &rname, slice1_start, slice1_len, NULL );
         REQUIRE_RC_FAIL( rc );
-        if ( rc == 0 )
-            ReleasePileupEstimator( estim );
+        REQUIRE_RC( ReleasePileupEstimator( estim ) );
     }
 }
 

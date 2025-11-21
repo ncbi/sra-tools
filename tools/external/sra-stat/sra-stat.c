@@ -4361,9 +4361,12 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                             dREAD_LEN, dREAD_TYPE);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );
-                        rc = Quitting();
-                        if (rc != 0)
+                        rc_t rc2 = Quitting();
+                        if (rc2 != 0)
+                        {
                             LOGMSG(klogWarn, "Interrupted");
+                            rc = rc2;
+                        }
                     }
 
                     if (rc == 0) {

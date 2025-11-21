@@ -24,7 +24,7 @@ Please cite the author in any work or product based on this material.
 
 
 ### NGS SDK 3.3.0
-**November 18, 2025**
+**November 25, 2025**
 
   SRA toolkit release 3.3.0.
 

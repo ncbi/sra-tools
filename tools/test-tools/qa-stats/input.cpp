@@ -778,7 +778,7 @@ struct BasicSource: public Input::Source {
         auto POS = &flds.part[3];
         auto CIGAR = &flds.part[5];
         auto const SEQ = &flds.part[9];
-        std::string_view RG;
+        std::string_view RG = {};
         std::string_view const *group = nullptr;
         int flags = 0;
         int position = -1;
@@ -818,7 +818,7 @@ struct BasicSource: public Input::Source {
 
         result.sequence = *SEQ;
         if (group)
-            result.group = Input::getGroup(std::string(*group));
+            result.group = Input::getGroup(*group);
         else
             result.group = -1;
 
@@ -829,7 +829,7 @@ struct BasicSource: public Input::Source {
         if (RNAME) {
             read.type = Input::ReadType::aligned;
             read.orientation = (flags & 0x010) == 0 ? Input::ReadOrientation::forward : Input::ReadOrientation::reverse;
-            read.reference = Input::getReference(std::string(*RNAME));
+            read.reference = Input::getReference(*RNAME);
             try {
                 extract(*CIGAR, read.cigar);
             }

@@ -145,11 +145,11 @@ private:
                 auto const fpr = false_positive_rate();
                 sum_false_positive += fpr;
                 ++dups;
-                if (fpr >= 0.999)
+                if (fpr < 0.001)
                     ++uniq[1];
-                else if (fpr >= 0.99)
+                else if (fpr < 0.01)
                     ++uniq[2];
-                else if (fpr >= 0.9)
+                else if (fpr < 0.1)
                     ++uniq[3];
             }
             else {

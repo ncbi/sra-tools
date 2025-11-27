@@ -905,14 +905,7 @@ TEST_CASE ( Nucstrstr_NonPositional_4NA_Found_InMiddle )
 
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return TestSuiteSearch(argc, argv);
 }
-
-} // end of extern "C"

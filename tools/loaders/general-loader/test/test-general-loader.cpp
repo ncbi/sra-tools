@@ -70,13 +70,18 @@ using namespace std;
 using namespace ncbi::NK;
 
 static KLogLevel l = 4;
-static rc_t argsHandler(int argc, char* argv[]) {
-    Args* args = NULL;
-    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
-    ArgsWhack(args);
-    KLogLevel lv = KLogLevelGet();
-    if (lv != 4) {
-        l = lv;
+static rc_t argsHandler(int argc, char* argv[])
+{
+    rc_t rc = VdbInitialize(argc, argv, 0);
+    if ( rc == 0 )
+    {
+        Args* args = NULL;
+        rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
+        ArgsWhack(args);
+        KLogLevel lv = KLogLevelGet();
+        if (lv != 4) {
+            l = lv;
+        }
     }
     return rc;
 }
@@ -1764,16 +1769,8 @@ FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-
 int main ( int argc, char *argv [] )
 {
-//    TestEnv::verbosity = LogLevel::e_all;
-    KConfigDisableUserSettings();
-
     ClearScratchDir();
 
     GeneralLoaderFixture :: argv0 = argv[0];
@@ -1794,6 +1791,3 @@ int main ( int argc, char *argv [] )
 
     return rc;
 }
-
-}
-

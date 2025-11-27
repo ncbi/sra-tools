@@ -257,9 +257,7 @@ FIXTURE_TEST_CASE(KLoaderFile_noEolBeforeEof, LoaderFileFixture)
 
 //////////////////////////////////////////// Main
 
-extern "C"
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return KAppTestSuite(argc, argv);
 }

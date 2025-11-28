@@ -309,5 +309,6 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
 
 MAIN_DECL(argc, argv)
 {
-    return KAppTestSuite(argc, argv);
+    VDB::Application app(argc, argv);
+    return KAppTestSuite(app.getArgC(), app.getArgV());
 }

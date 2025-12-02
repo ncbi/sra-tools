@@ -38,8 +38,6 @@
 
 #include <kdb/manager.h>
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <vdb/manager.h>
 #include <vdb/vdb-priv.h>
 
@@ -714,7 +712,6 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReadCollectionGetStats, CSRA1_Fixture)
 //////////////////////////////////////////// Main
 int main(int argc, char* argv[])
 {
-    KConfigDisableUserSettings();
     int ret=NgsCsra1ReadCollectionTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;

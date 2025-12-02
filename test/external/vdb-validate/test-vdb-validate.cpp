@@ -77,11 +77,7 @@ TEST_CASE(is_sorted_unsorted)
 }
 
 //////////////////////////////////////////// Main
-#include <kfg/config.h>
-
-extern "C"
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return VdbValidateTestSuite(argc, argv);
 }

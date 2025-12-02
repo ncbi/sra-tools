@@ -40,8 +40,6 @@
 
 #include <kdb/manager.h>
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <vdb/manager.h>
 #include <vdb/vdb-priv.h>
 
@@ -843,7 +841,6 @@ FIXTURE_TEST_CASE(SRADB_GetFragmentBlobs, SRADB_Fixture)
 //////////////////////////////////////////// Main
 int main(int argc, char* argv[])
 {
-    KConfigDisableUserSettings();
     setenv("NCBI_VDB_QUALITY", "R", 1);
     int ret=NgsSradbTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();

@@ -79,7 +79,7 @@ message(RE2_FOUND=${RE2_FOUND})
 
         # test-sharq-writer
         add_executable(test-sharq-writer test-sharq-writer.cpp )
-        add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests 
+        add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests
         target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -281,6 +281,8 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaSingleFile_output "${IN}001.R1.fastq" "tbl/SEQUENCE QC/current")
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
+
+        SharqTest(017.readname_format_change 1 "${IN}017.fastq") # error out when readname format changes mid-file
 
     endif()
 

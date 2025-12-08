@@ -32,7 +32,7 @@ if ( NOT WIN32 )
 
         add_test( NAME Test_Read_filter_redact_Check_exit_code
             COMMAND
-sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/read-filter-redact${EXE} || echo no read-filter-redact"
+sh -c "ls ${BINDIR}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${BINDIR}/read-filter-redact${EXE} || echo no read-filter-redact"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND_EXPAND_LISTS
         )
@@ -40,7 +40,7 @@ sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}>/dev/null 2>&1 && ${Python3_EXEC
 	    if( TARGET read-filter-redact-asan )
 		  add_test( NAME Test_Read_filter_redact_Check_exit_code-asan
             COMMAND
-sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}-asan>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/read-filter-redact${EXE}-asan || echo no read-filter-redact"
+sh -c "ls ${BINDIR}/read-filter-redact${EXE}-asan>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${BINDIR}/read-filter-redact${EXE}-asan || echo no read-filter-redact"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND_EXPAND_LISTS
           )
@@ -48,7 +48,7 @@ sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}-asan>/dev/null 2>&1 && ${Python3
 	    if( TARGET read-filter-redact-tsan )
 		  add_test( NAME Test_Read_filter_redact_Check_exit_code-tsan
             COMMAND
-sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}-tsan>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/read-filter-redact${EXE}-tsan || echo no read-filter-redact"
+sh -c "ls ${BINDIR}/read-filter-redact${EXE}-tsan>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${BINDIR}/read-filter-redact${EXE}-tsan || echo no read-filter-redact"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND_EXPAND_LISTS
           )
@@ -58,103 +58,103 @@ sh -c "ls ${DIRTOTEST}/read-filter-redact${EXE}-tsan>/dev/null 2>&1 && ${Python3
 	make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
 	add_test( NAME Test_Read_filter_redact_h1
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_1
+		COMMAND test-history.sh ${BINDIR} read-filter-redact Test_Read_filter_redact_1
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_h1-asan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-asan Test_Read_filter_redact_1
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-asan Test_Read_filter_redact_1
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_h1-tsan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-tsan Test_Read_filter_redact_1
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-tsan Test_Read_filter_redact_1
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
     add_test( NAME Test_Read_filter_redact_h2
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_2
+		COMMAND test-history.sh ${BINDIR} read-filter-redact Test_Read_filter_redact_2
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_h2-asan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-asan Test_Read_filter_redact_2
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-asan Test_Read_filter_redact_2
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_h2-tsan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-tsan Test_Read_filter_redact_2
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-tsan Test_Read_filter_redact_2
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
     add_test( NAME Test_Read_filter_redact_h3
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact Test_Read_filter_redact_3
+		COMMAND test-history.sh ${BINDIR} read-filter-redact Test_Read_filter_redact_3
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_h3-asan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-asan Test_Read_filter_redact_3
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-asan Test_Read_filter_redact_3
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_h3-tsan
-		COMMAND test-history.sh ${DIRTOTEST} read-filter-redact-tsan Test_Read_filter_redact_3
+		COMMAND test-history.sh ${BINDIR} read-filter-redact-tsan Test_Read_filter_redact_3
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
 	# 2 spots, each with one read
 	add_test( NAME Test_Read_filter_redact_qtwo_spots_qc
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact 2spots
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact 2spots
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_qtwo_spots_qc-asan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-asan 2spots
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-asan 2spots
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_qtwo_spots_qc-tsan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-tsan 2spots
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-tsan 2spots
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
 	# 2 spots, each with one reds, no loaded QC meta
 	add_test( NAME Test_Read_filter_redact_qno_qc
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact no_qc NO_QC
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact no_qc NO_QC
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_qno_qc-asan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-asan no_qc NO_QC
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-asan no_qc NO_QC
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_qno_qc-tsan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-tsan no_qc NO_QC
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-tsan no_qc NO_QC
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
 	# 2 spots, each has 2 reads
 	add_test( NAME Test_Read_filter_redact_qtwo_reads_qc
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact 2reads
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact 2reads
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
       add_test( NAME Test_Read_filter_redact_qtwo_reads_qc-asan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-asan 2reads
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-asan 2reads
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
       add_test( NAME Test_Read_filter_redact_qtwo_reads_qc-tsan
-		COMMAND sh test-qc.sh ${DIRTOTEST} read-filter-redact-tsan 2reads
+		COMMAND sh test-qc.sh ${BINDIR} read-filter-redact-tsan 2reads
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
 	add_test( NAME Test_Read_filter_redact_u_quality
-		COMMAND sh test-upd-qual.sh ${DIRTOTEST} read-filter-redact
+		COMMAND sh test-upd-qual.sh ${BINDIR} read-filter-redact
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET read-filter-redact-asan )
 		add_test( NAME Test_Read_filter_redact_u_quality-asan
-			COMMAND sh test-upd-qual.sh ${DIRTOTEST} read-filter-redact-asan
+			COMMAND sh test-upd-qual.sh ${BINDIR} read-filter-redact-asan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 	if( TARGET read-filter-redact-tsan )
 		add_test( NAME Test_Read_filter_redact_u_quality-tsan
-			COMMAND sh test-upd-qual.sh ${DIRTOTEST} read-filter-redact-tsan
+			COMMAND sh test-upd-qual.sh ${BINDIR} read-filter-redact-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 endif()

@@ -72,17 +72,8 @@ TEST_CASE ( ListColumns )
 //TODO: cover View1<View2 v>{ v2.c; (see TODO in prod-expr.c:VProdResolveMembExpr())}
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-#include <klib/debug.h>
-
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
-//KDbgSetString ( "VDB" );
     return VdbDumpViewAliasTestSuite(argc, argv);
 }
 
-}

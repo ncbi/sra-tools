@@ -39,7 +39,7 @@
 
 #include <kfc/xc.h>
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
+#include <kfg/config.h>
 
 #include "../ncbi/ngs/NGS_Pileup.h"
 #include "../ncbi/ngs/NGS_ReferenceSequence.h"
@@ -775,13 +775,6 @@ FIXTURE_TEST_CASE(EBI_Reference_Open_EBI_ACC, NGS_C_Fixture)
 //////////////////////////////////////////// Main
 int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv);
-    KConfigDisableUserSettings();
-
-    if(
-0)
-        assert(!KDbgSetString("KNS-HTTP"));
-
     KConfig * kfg = NULL;
     rc_t rc = KConfigMake(&kfg, NULL);
 
@@ -790,11 +783,10 @@ int main(int argc, char* argv[])
         rc = KConfigWriteString(kfg, "/tls/allow-all-certs", "true");
 
     if (rc == 0)
-        rc = (rc_t)NgsReferenceTestSuite(argc, app.getArgV());
+        rc = (rc_t)NgsReferenceTestSuite(argc, argv);
 
     KConfigRelease(kfg);
     NGS_C_Fixture::ReleaseCache();
 
-    app.setRc( rc );
-    return app.getExitCode();
+    return VdbTerminate( rc );
 }

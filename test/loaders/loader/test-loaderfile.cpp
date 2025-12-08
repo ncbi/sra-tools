@@ -49,27 +49,6 @@ TEST_SUITE(KAppTestSuite);
 
 const char UsageDefaultName[] = "Test_LOADERFILE";
 
-extern "C"
-{
-    rc_t CC UsageSummary ( const char *progname )
-    {
-        return TestEnv::UsageSummary ( progname );
-    }
-
-    rc_t CC Usage ( const Args *args )
-    {
-        const char* progname = UsageDefaultName;
-        const char* fullpath = UsageDefaultName;
-
-        rc_t rc = (args == NULL) ?
-            RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull):
-            ArgsProgram(args, &fullpath, &progname);
-        if ( rc == 0 )
-            rc = TestEnv::Usage ( progname );
-        return rc;
-    }
-}
-
 TEST_CASE(KQueueFile_ReadTimeout_FGsleeps)
 {
     KDirectory *dir;
@@ -278,9 +257,7 @@ FIXTURE_TEST_CASE(KLoaderFile_noEolBeforeEof, LoaderFileFixture)
 
 //////////////////////////////////////////// Main
 
-extern "C"
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return KAppTestSuite(argc, argv);
 }

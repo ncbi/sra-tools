@@ -40,6 +40,7 @@
 #include <JSON_ostream.hpp>
 #include <hashing.hpp>
 #include <qname-stat.hpp>
+#include <flag-stat.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
@@ -314,7 +315,8 @@ struct App {
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
-        { "name", "n", nullptr, false }
+        { "name", "n", nullptr, false },
+        { "flag", "f", nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -346,6 +348,10 @@ struct App {
             }
             if (param == "name") {
                 qnameCounter = std::unique_ptr<QNAME_Counter>(new QNAME_Counter);
+                continue;
+            }
+            if (param == "flag") {
+                flagCounter = std::unique_ptr<FLAG_Counter>(new FLAG_Counter);
                 continue;
             }
             if (param == "help") {
@@ -391,7 +397,14 @@ private:
         gather();
         return !(arguments.empty() || nextInput == arguments.end());
     }
+    void printFlagStat(std::ostream &strm) {
+        strm << FlagStatText{*flagCounter, FlagStatText::v_1_3}.defaultText;
+    }
     void print(std::ostream &strm) {
+        if (flagCounter) {
+            printFlagStat(strm);
+            return;
+        }
         auto out = JSON_ostream{strm};
 
         out << '{';
@@ -439,12 +452,22 @@ private:
     }
     void gather() {
         auto const nameCounter = qnameCounter.get();
+        auto const flagCntr = flagCounter.get();
         auto source = Input::newSource(inputStream(), multithreaded);
         while (*source) {
             try {
                 auto const spot = source->get();
 
-                if (nameCounter) {
+                if (flagCntr) {
+                    for (auto const &read : spot.reads) {
+                        flagCntr->add(read.flags);
+                        if (read.flags < 0) {
+                            std::cerr << "--flag can only be used with SAM input." << std::endl;
+                            exit(1);
+                        }
+                    }
+                }
+                else if (nameCounter) {
                     if (spot.readName[0]) {
                         if (spot.group < 0)
                             nameCounter->add(spot.readName);
@@ -510,6 +533,7 @@ private:
     Stats stats;
     std::vector<Stats> spotGroup;
     std::unique_ptr<QNAME_Counter> qnameCounter = nullptr;
+    std::unique_ptr<FLAG_Counter> flagCounter = nullptr;
 
     Reporter reporter;
 

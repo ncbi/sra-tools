@@ -697,7 +697,7 @@ struct BasicSource: public Input::Source {
             result.reads.reserve(lengths.size());
             for (auto const &len : lengths) {
                 auto const i = &len - &lengths[0];
-                result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
+                result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
             }
         case 1:
             break;
@@ -782,6 +782,7 @@ struct BasicSource: public Input::Source {
         std::string_view const *group = nullptr;
         int flags = 0;
         int position = -1;
+        Input::Read read{};
 
         result.readName[0] = '\0';
         if (QNAME && QNAME->size() > 0) {
@@ -796,6 +797,7 @@ struct BasicSource: public Input::Source {
         }
 
         extract(*FLAG, flags);
+        read.flags = flags;
         if ((flags & 0x001) == 0) {
             flags ^= flags & 0x002 & 0x008 & 0x020 & 0x040 & 0x080;
         }
@@ -821,8 +823,6 @@ struct BasicSource: public Input::Source {
             result.group = Input::getGroup(*group);
         else
             result.group = -1;
-
-        Input::Read read{};
 
         read.start = 0;
         read.length = (int)result.sequence.length();

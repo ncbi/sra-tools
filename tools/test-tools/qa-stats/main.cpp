@@ -35,6 +35,7 @@
 #include <sstream>
 #include <chrono>
 #include <tuple>
+#include <string>
 #include <cmath>
 #include <cassert>
 #include <JSON_ostream.hpp>
@@ -316,7 +317,7 @@ struct App {
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
         { "name", "n", nullptr, false },
-        { "flag", nullptr, nullptr, false }
+        { "flag", nullptr, "1.3", false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -351,11 +352,26 @@ struct App {
                 continue;
             }
             if (param == "flag") {
+                assert(value.has_value());
+                auto const &vers = value.value();
+                int maj = 0, min = 0;
+                int end = 0;
+                int n = sscanf(vers.c_str(), "%i.%i%n", &maj, &min, &end);
+
+                if (n == 2 && (size_t)end == vers.size()) {
+                    if (maj >= 1 && min >= 13) {
+                        flagStatTextVersion = FlagStatText::v_1_13;
+                    }
+                }
+                else {
+                    std::cerr << "usage: --flag <major>.<minor>" << std::endl;
+                    exit(1);
+                }
                 flagCounter = std::unique_ptr<FLAG_Counter>(new FLAG_Counter);
                 continue;
             }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-n|--name] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-n|--name] [--flag] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             if (param == "version") {
@@ -398,7 +414,7 @@ private:
         return !(arguments.empty() || nextInput == arguments.end());
     }
     void printFlagStat(std::ostream &strm) {
-        strm << FlagStatText{*flagCounter, FlagStatText::v_1_3}.defaultText;
+        strm << FlagStatText{*flagCounter, flagStatTextVersion}.defaultText;
     }
     void print(std::ostream &strm) {
         if (flagCounter) {
@@ -528,6 +544,7 @@ private:
     int multithreaded = 0;
     bool use_mmap = false;
     bool fingerprint = false;
+    FlagStatText::Version flagStatTextVersion = FlagStatText::v_1_3;
     std::optional<std::string> output;
 
     Stats stats;

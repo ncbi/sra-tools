@@ -316,7 +316,7 @@ struct App {
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
         { "name", "n", nullptr, false },
-        { "flag", "f", nullptr, false }
+        { "flag", nullptr, nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())

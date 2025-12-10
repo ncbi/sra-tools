@@ -97,7 +97,7 @@ TEST_CASE( Sharing )
 TEST_CASE( ConsumeLineByLine_LocalFileFromURL )
 {
     std::string url = "file://";
-    url += std::filesystem::current_path();
+    url += std::filesystem::current_path().string();
     url += "/Makefile";
 
     auto src = vdb::KFileFactory::make_from_vpath( url );

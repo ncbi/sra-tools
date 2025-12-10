@@ -797,16 +797,17 @@ struct BasicSource: public Input::Source {
         }
 
         extract(*FLAG, flags);
+        if (*RNAME == "*" || *CIGAR == "*" || *POS == "0")
+            flags |= 0x004;
         read.flags = flags;
         if ((flags & 0x001) == 0) {
             flags ^= flags & 0x002 & 0x008 & 0x020 & 0x040 & 0x080;
         }
-        if (*RNAME == "*" || *CIGAR == "*" || *POS == "0")
-            flags |= 0x004;
         if ((flags & 0x004) != 0) {
             flags ^= flags & 0x002 & 0x100 & 0x800;
             RNAME = POS = CIGAR = nullptr;
         }
+
         if (POS)
             extract(*POS, position);
 

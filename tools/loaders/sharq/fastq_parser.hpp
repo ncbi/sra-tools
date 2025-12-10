@@ -68,8 +68,10 @@
 #include "rwqueue/readerwriterqueue.h"
 #include <condition_variable>
 #include <chrono>
+#include <regex>
 
 #include <fingerprint.hpp>
+#include <kfile_stream/kfile_stream.hpp>
 
 using namespace std::chrono_literals;
 
@@ -468,13 +470,55 @@ private:
 };
 
 //  ----------------------------------------------------------------------------
+// Function to check if a string is a valid URL
+static
+bool isValidURL(const std::string &url)
+{
+    // Basic URL regex pattern (covers http, https, file)
+    static const std::regex urlPattern(
+        R"(^(https?|file)://[^\s$.?#].[^\s]*$)",
+        std::regex::icase
+    );
+
+    return std::regex_match(url, urlPattern);
+}
+
+// bxz::istream does not delete its streambuf;
+// this class makes sure it is deleted on destruction
+class istreambuf_holder : public bxz::istream
+{
+public:
+    istreambuf_holder( std::streambuf * sb )
+    : bxz::istream(sb), held_streambuf( sb )
+    {}
+    virtual ~istreambuf_holder()
+    {
+        delete held_streambuf;
+    }
+private:
+    std::streambuf * held_streambuf;
+};
+
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
-    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin));
-    if (!is->good())
-        throw runtime_error("Failure to open '" + filename + "'");
-    return is;
+    if ( isValidURL( filename ) )
+    {
+        const vdb::KFile * kfile = vdb::KFileFactory::make_from_vpath( filename );
+        if ( kfile == nullptr )
+        {
+            throw runtime_error("Failure to open URL '" + filename + "'");
+        }
+        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
+    }
+    else
+    {
+        shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin));
+        if (!is->good())
+            throw runtime_error("Failure to open '" + filename + "'");
+        return is;
+    }
 }
 
 struct spot_read_t {
@@ -2264,7 +2308,7 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
         max_reads = max<int>(max_reads, (int)it.first);
     }
 
-    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max()) 
+    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max())
         throw fastq_error(260, "Spots with more than {} reads are not supported.", std::numeric_limits<typename svector_u32::value_type>::max());
 
     if (m_read_types.empty()) {
@@ -2352,11 +2396,11 @@ void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vecto
         // Cache values to avoid repeated method calls
         auto l_read_num = l.ReadNum();
         auto r_read_num = r.ReadNum();
-        
-        if (l_read_num != r_read_num) 
+
+        if (l_read_num != r_read_num)
             return l_read_num < r_read_num;
         int c = l.Sequence().compare(r.Sequence());
-        if (c != 0) 
+        if (c != 0)
             return c < 0;
         return l.GetQualScores() < r.GetQualScores();
     });

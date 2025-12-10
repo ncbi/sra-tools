@@ -194,8 +194,8 @@ string VersionString()
     {
         ret += cSra;
     }
-    else 
-    {   
+    else
+    {
         ret += SHARQ_VERSION + HASH_SRA_TOOLS + " ( " + cSra + HASH_NCBI_VDB + " )\n";
     }
     return ret;
@@ -434,7 +434,7 @@ void CFastqParseApp::xReportTelemetry()
 void CFastqParseApp::xCheckInputFiles(vector<string>& files)
 {
     for (auto& f : files) {
-        if (f == "-" || fs::exists(f)) continue;
+        if (f == "-" || isValidURL( f ) || fs::exists(f)) continue;
         bool not_found = true;
         auto ext = fs::path(f).extension();
         if (ext != ".gz" && ext != ".bz2") {

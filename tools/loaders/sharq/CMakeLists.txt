@@ -38,16 +38,16 @@
 ## ===========================================================================
 
 if( SINGLE_CONFIG )
-    
+
     cmake_minimum_required(VERSION 3.16)
     project(sharq)
-    
+
     # prefer static linkage
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib .tbd)
     find_package(ZLIB)
     find_package(BZip2)
     find_package (Threads)
-    
+
     # check whether RE2 is accessible
     set(RE2_URL https://github.com/google/re2)
     execute_process(COMMAND curl -Is ${RE2_URL}
@@ -62,25 +62,25 @@ if( SINGLE_CONFIG )
     endif()
     message(RE2_FOUND = ${RE2_FOUND} )
     # RE2_FOUND will be used by sharQ tests
-    
+
     if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
         #set(CMAKE_VERBOSE_MAKEFILE ON)
         set(CMAKE_CXX_STANDARD 17)
-        
+
         #specific to BitMagic
         if (COMPILER_OPTION_SSE42_SUPPORTED)
             add_definitions(-msse4.2 -DBMSSE42OPT)
         endif()
-        
+
         set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
         set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
         set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
         set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
-        
+
         # Google RE2 release
         set(RE2_TAG 2021-09-01)
         #set(RE2_TAG 2023-03-01)
-        
+
         include (ExternalProject)
         ExternalProject_Add(RE2
           PREFIX ${LOCAL_BUILD_DIR}
@@ -102,14 +102,14 @@ if( SINGLE_CONFIG )
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
         )
         set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
-        
+
         add_custom_target(
           sharq.py
           DEPENDS ${CMAKE_SOURCE_DIR}/tools/loaders/sharq/sharq.py
           COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_SOURCE_DIR}/tools/loaders/sharq/sharq.py
             ${BINDIR}/sharq.py)
-        
+
         add_executable(sharq fastq_parse.cpp)
         add_dependencies(sharq RE2 sharq.py)
         target_include_directories(sharq PUBLIC ${LOCAL_INCDIR} ${CMAKE_SOURCE_DIR}/libs/inc ./ ../../../)
@@ -118,25 +118,25 @@ if( SINGLE_CONFIG )
         endif()
         target_link_libraries(sharq ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
         MakeLinksExe( sharq false )
-        
-#        if( RUN_SANITIZER_TESTS )
-#            set( asan_defs "-fsanitize=address" )
-#            add_executable(sharq-asan fastq_parse.cpp )
-#            add_dependencies(sharq-asan RE2 sharq.py)
-#            target_include_directories(sharq-asan PUBLIC ${LOCAL_INCDIR} ${CMAKE_SOURCE_DIR}/libs/inc ./ ../../../)
-#            target_link_libraries(sharq-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-#            target_compile_options( sharq-asan PRIVATE ${asan_defs} )
-#            target_link_options( sharq-asan PRIVATE ${asan_defs} )
-#        
-#            set( tsan_defs "-fsanitize=thread" )
-#            add_executable(sharq-tsan fastq_parse.cpp )
-#            add_dependencies(sharq-tsan RE2 sharq.py)
-#            target_include_directories(sharq-tsan PUBLIC ${LOCAL_INCDIR} ${CMAKE_SOURCE_DIR}/libs/inc ./ ../../../)
-#            target_link_libraries(sharq-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-#            target_compile_options( sharq-tsan PRIVATE ${tsan_defs} )
-#            target_link_options( sharq-tsan PRIVATE ${tsan_defs} )
-#        endif()
-    
+
+       if( RUN_SANITIZER_TESTS )
+           set( asan_defs "-fsanitize=address" )
+           add_executable(sharq-asan fastq_parse.cpp )
+           add_dependencies(sharq-asan RE2 sharq.py)
+           target_include_directories(sharq-asan PUBLIC ${LOCAL_INCDIR} ${CMAKE_SOURCE_DIR}/libs/inc ./ ../../../)
+           target_link_libraries(sharq-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
+           target_compile_options( sharq-asan PRIVATE ${asan_defs} )
+           target_link_options( sharq-asan PRIVATE ${asan_defs} )
+
+           set( tsan_defs "-fsanitize=thread" )
+           add_executable(sharq-tsan fastq_parse.cpp )
+           add_dependencies(sharq-tsan RE2 sharq.py)
+           target_include_directories(sharq-tsan PUBLIC ${LOCAL_INCDIR} ${CMAKE_SOURCE_DIR}/libs/inc ./ ../../../)
+           target_link_libraries(sharq-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
+           target_compile_options( sharq-tsan PRIVATE ${tsan_defs} )
+           target_link_options( sharq-tsan PRIVATE ${tsan_defs} )
+       endif()
+
     else()
       message( "SharQ is not built:" )
       message( ZLIB_FOUND=${ZLIB_FOUND} )

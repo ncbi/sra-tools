@@ -512,9 +512,19 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
         return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
     }
+    else if ( filename != "-" )
+    {
+        const vdb::KFile * kfile = vdb::KFileFactory::make_from_path( filename );
+        if ( kfile == nullptr )
+        {
+            throw runtime_error("Failure to open file '" + filename + "'");
+        }
+        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
+    }
     else
     {
-        shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin));
+        shared_ptr<istream> is = shared_ptr<istream>(new bxz::istream(std::cin));
         if (!is->good())
             throw runtime_error("Failure to open '" + filename + "'");
         return is;

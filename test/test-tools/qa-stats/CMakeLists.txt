@@ -73,11 +73,21 @@ if( NOT WIN32 )
     endif()
 
     add_test( NAME Test_qa_stats_FlagStat_older
-        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.9" "." "1.9"
+        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats" "." "1.9"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET qa-stats-asan )
+        add_test( NAME Test_qa_stats-asan_FlagStat_older
+            COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats-asan" "." "1.9"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
     add_test( NAME Test_qa_stats_FlagStat_newer
-        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.18" "." "1.18"
+        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats" "." "1.18"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( TARGET qa-stats-asan )
+        add_test( NAME Test_qa_stats-asan_FlagStat_newer
+            COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats-asan" "." "1.18"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 
 endif()

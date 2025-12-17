@@ -65,9 +65,9 @@ rm -rf "${TEMPDIR}"/*
 if [ "$?" != "0" ] ; then
     exit 1
 fi
-CMD="${TOOL} --flag ${CASEID} 1>${STDOUT} 2>${STDERR}"
+CMD="${TOOL} --flag ${CASEID} input/1000.err.sam 1>${STDOUT} 2>${STDERR}"
 # echo "${CMD}"
-"${TOOL}" --flag "${CASEID}" 1>"${STDOUT}" 2>"${STDERR}"
+"${TOOL}" --flag "${CASEID}" input/1000.err.sam 1>"${STDOUT}" 2>"${STDERR}"
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
     echo "$TOOL returned $rc, expected $RC"
@@ -77,7 +77,7 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-"${DIFF}" "${WORKDIR}"/expected/"${CASEID}".txt "${STDOUT}" >"${TEMPDIR}"/diff
+${DIFF} "${WORKDIR}"/expected/"${CASEID}".txt "${STDOUT}" >"${TEMPDIR}"/diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
     cat "${TEMPDIR}"/diff

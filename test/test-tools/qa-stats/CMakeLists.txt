@@ -77,7 +77,7 @@ if( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_qa_stats_FlagStat_newer
-        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.18" "." "1.18"
+        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.18" "." "1.18"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 endif()

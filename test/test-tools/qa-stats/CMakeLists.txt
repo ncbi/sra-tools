@@ -71,5 +71,13 @@ if( NOT WIN32 )
             COMMAND "./runtestcase.sh" "${BINDIR}/qa-stats-tsan --multithreaded 1 input/001.R1.fastq -f" "." Test_qa_stats_Finger_2
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-    
+
+    add_test( NAME Test_qa_stats_FlagStat_older
+        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.9" "." "1.9"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_qa_stats_FlagStat_newer
+        COMMAND "./runtest-flagstat.sh" "${BINDIR}/qa-stats 1000.err.sam --flag 1.18" "." "1.18"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 endif()

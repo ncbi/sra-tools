@@ -282,10 +282,8 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
-        # read from a URL
-        SharqTest(016.read.plain 0 "file://${CMAKE_CURRENT_SOURCE_DIR}/${IN}001.R1.fastq" "no-sa")
-        SharqTest(016.read.gz 0    "file://${CMAKE_CURRENT_SOURCE_DIR}/${IN}003.t2_R1.fastq.gz" "no-sa")
-
+        # more tests in asm-trace 
+        
     endif()
 
 endif()

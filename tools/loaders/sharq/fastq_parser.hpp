@@ -263,6 +263,23 @@ struct data_output_metrics_t {
     size_t spot_count = 0;
 };
 
+// bxz::istream does not delete its streambuf;
+// this class makes sure it is deleted on destruction
+class istreambuf_holder : public bxz::istream
+{
+public:
+    istreambuf_holder( std::streambuf * sb )
+    : bxz::istream(sb), held_streambuf( sb )
+    {
+    }
+    virtual ~istreambuf_holder()
+    {
+        delete held_streambuf;
+    }
+private:
+    std::streambuf * held_streambuf;
+};
+
 class fastq_reader
 /// FASTQ reader
 {
@@ -392,17 +409,27 @@ public:
      */
     bool is_compressed() const {
         auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compression() != bxz::plaintext : false;
-    }
-
-    /**
-     * @brief returns current stream position
-     *
-     * @return size_t
-     */
-    size_t tellg() const {
-        auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compressed_tellg() : m_stream->tellg();
+        if ( fstream )
+        {
+            return fstream->compression() != bxz::plaintext;
+        }
+        else
+        {
+            auto holder = dynamic_cast<istreambuf_holder*>(&*m_stream);
+            if ( holder )
+            {
+                auto fstream = dynamic_cast<bxz::istream*>(holder);
+                if ( fstream )
+                {
+                    auto bxz_sb = dynamic_cast<bxz::istreambuf*>(fstream->rdbuf());
+                    if ( bxz_sb )
+                    {
+                        return bxz_sb->compression() != bxz::plaintext;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes(); } ///< retruns set of defline types processed by the reader
@@ -483,33 +510,17 @@ bool isValidURL(const std::string &url)
     return std::regex_match(url, urlPattern);
 }
 
-// bxz::istream does not delete its streambuf;
-// this class makes sure it is deleted on destruction
-class istreambuf_holder : public bxz::istream
-{
-public:
-    istreambuf_holder( std::streambuf * sb )
-    : bxz::istream(sb), held_streambuf( sb )
-    {}
-    virtual ~istreambuf_holder()
-    {
-        delete held_streambuf;
-    }
-private:
-    std::streambuf * held_streambuf;
-};
-
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
     if ( isValidURL( filename ) )
     {
-        const vdb::KFile * kfile = vdb::KFileFactory::make_from_vpath( filename );
-        if ( kfile == nullptr )
+        const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
+        if ( kstream == nullptr )
         {
             throw runtime_error("Failure to open URL '" + filename + "'");
         }
-        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream ) );
         return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
     }
     else if ( filename != "-" )
@@ -1885,13 +1896,8 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             f["reads_processed"] = reads_processed;
             f["spots_processed"] = spots_processed;
             f["lines_processed"] = reader.line_number();
-            double bytes_read = reader.tellg();
-            if (bytes_read && spots_processed && file_size) {
-                double fsize = file_size;
-                double bytes_per_spot = bytes_read/spots_processed;
-                estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
-                f["name_size_avg"] = spot_name_sz/spots_processed;
-            }
+            estimated_spots = max<size_t>(spots_processed, estimated_spots);
+            f["name_size_avg"] = spot_name_sz/spots_processed;
             group_j["files"].push_back(f);
         }
         group_j["is_10x"] = group_reads >= 3 && has_I_file && has_R_file;

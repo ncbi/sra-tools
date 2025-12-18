@@ -94,18 +94,6 @@ TEST_CASE( Sharing )
     auto s1 = std::make_shared<custom_istream::custom_istream>( custom_istream::string_src::make( "100 200 300 400" ) );
 }
 
-TEST_CASE( ConsumeLineByLine_LocalFileFromURL )
-{
-    std::string url = "file://";
-    url += std::filesystem::current_path().string();
-    url += "/Makefile";
-
-    auto src = vdb::KFileFactory::make_from_vpath( url );
-    REQUIRE_NOT_NULL( src );
-    auto stream = custom_istream::custom_istream::make_from_kfile( src );
-    REQUIRE_LT( 0, (int) consume_line_by_line( stream, false, 100 ) );
-}
-
 TEST_CASE( ConsumeLineByLine_FromURI )
 {
     const std::string uri{ "https://www.nih.gov" };

@@ -28,6 +28,8 @@
 
 #include <ktst/unit_test.hpp>
 
+#include <filesystem>
+
 //using namespace std;
 
 TEST_SUITE(KFileStreamTestSuite);
@@ -79,6 +81,17 @@ TEST_CASE( ConsumeLineByLine_FromURL )
     REQUIRE_NOT_NULL( src );
     auto stream = custom_istream::custom_istream::make_from_kfile( src );
     REQUIRE_LT( 0, (int) consume_line_by_line( stream, false, 100 ) );
+}
+
+TEST_CASE( MoveConstruction )
+{
+    auto stream = custom_istream::custom_istream::make_from_string( "100 200 300 400" );
+    auto s1( std::move( stream ) );
+}
+
+TEST_CASE( Sharing )
+{
+    auto s1 = std::make_shared<custom_istream::custom_istream>( custom_istream::string_src::make( "100 200 300 400" ) );
 }
 
 TEST_CASE( ConsumeLineByLine_FromURI )

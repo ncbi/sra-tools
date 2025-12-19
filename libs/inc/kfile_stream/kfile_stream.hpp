@@ -151,7 +151,7 @@ template < class CharT, class Traits = std::char_traits< CharT > >
 
     private :
         const std::streamsize f_pbSize = 4;
-        const std::streamsize f_bufSize;
+        std::streamsize f_bufSize;
         src_interface_ptr f_src;
         CharT * f_buffer;
 
@@ -255,19 +255,37 @@ template < class CharT, class Traits = std::char_traits< CharT > >
                     begin_of_get_area, next_read_position, end_of_get_area );
         }
 
+        // move Ctor
+        custom_streambuf( custom_streambuf && src )
+            : std::basic_streambuf<CharT, Traits>( std::move(src) ),
+              f_bufSize{ std::move( src.f_bufSize ) },
+              f_src{ std::move( src.f_src ) },
+              f_buffer{ std::move( src.f_buffer ) }
+        {
+            // empty the source object
+            src.f_bufSize = 0;
+            src.f_src = nullptr;
+            src.f_buffer = nullptr;
+        }
+
         // Dtor
-        ~custom_streambuf( void ) {
+        virtual ~custom_streambuf( void ) override
+        {
             delete [] f_buffer;
         }
 
 }; // end of class "custom_streambuf"
 
 // a class derived from the istream and the custom_streambuf
-class custom_istream : private custom_streambuf< char >, public std::istream {
+class custom_istream : public custom_streambuf< char >, public std::istream {
     public:
         // Ctor - takes a src-buf-pointer to create
         explicit custom_istream( src_interface_ptr src )
             : custom_streambuf< char >( src ), std::istream( this ) {}
+
+        // Move ctor
+        custom_istream( custom_istream&& src )
+            : custom_streambuf< char >( std::move( src ) ), std::istream( this ) {}
 
         // Factory - takes a string and creates a custom_istream
         static custom_istream make_from_string( const std::string& src ) {

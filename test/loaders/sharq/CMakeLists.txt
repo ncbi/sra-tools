@@ -79,7 +79,7 @@ message(RE2_FOUND=${RE2_FOUND})
 
         # test-sharq-writer
         add_executable(test-sharq-writer test-sharq-writer.cpp )
-        add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests 
+        add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests
         target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -251,7 +251,7 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(005.offset0 0 "${IN}005.offset0_1.fq ${IN}005.offset0_2.fq")
         SharqTest(005.offset64 0 "${IN}005.offset64_1.fq ${IN}005.offset64_2.fq")
         SharqTestNoSA(006.duplicate 1 "--max-err-count 0 ${IN}006.duplicate.fq")
-        SharqTest(007.digest.udenfined 0 "--digest ${IN}001.read.unsupported.fq")
+        SharqTest(007.digest.undefined 0 "--digest ${IN}001.read.unsupported.fq")
         SharqTest(007.digest.multiple 0 "--digest ${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
         SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq" "no-sa")
         SharqTest(007.digest.error 0 "--max-err-count 0 --digest ${IN}001.read.invalid_quality0.fq")
@@ -282,6 +282,8 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
+        # more tests in asm-trace 
+        
     endif()
 
 endif()

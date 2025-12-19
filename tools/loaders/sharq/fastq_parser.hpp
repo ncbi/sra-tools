@@ -68,8 +68,10 @@
 #include "rwqueue/readerwriterqueue.h"
 #include <condition_variable>
 #include <chrono>
+#include <regex>
 
 #include <fingerprint.hpp>
+#include <kfile_stream/kfile_stream.hpp>
 
 using namespace std::chrono_literals;
 
@@ -261,6 +263,23 @@ struct data_output_metrics_t {
     size_t spot_count = 0;
 };
 
+// bxz::istream does not delete its streambuf;
+// this class makes sure it is deleted on destruction
+class istreambuf_holder : public bxz::istream
+{
+public:
+    istreambuf_holder( std::streambuf * sb )
+    : bxz::istream(sb), held_streambuf( sb )
+    {
+    }
+    virtual ~istreambuf_holder()
+    {
+        delete held_streambuf;
+    }
+private:
+    std::streambuf * held_streambuf;
+};
+
 class fastq_reader
 /// FASTQ reader
 {
@@ -390,17 +409,27 @@ public:
      */
     bool is_compressed() const {
         auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compression() != bxz::plaintext : false;
-    }
-
-    /**
-     * @brief returns current stream position
-     *
-     * @return size_t
-     */
-    size_t tellg() const {
-        auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compressed_tellg() : m_stream->tellg();
+        if ( fstream )
+        {
+            return fstream->compression() != bxz::plaintext;
+        }
+        else
+        {
+            auto holder = dynamic_cast<istreambuf_holder*>(&*m_stream);
+            if ( holder )
+            {
+                auto fstream = dynamic_cast<bxz::istream*>(holder);
+                if ( fstream )
+                {
+                    auto bxz_sb = dynamic_cast<bxz::istreambuf*>(fstream->rdbuf());
+                    if ( bxz_sb )
+                    {
+                        return bxz_sb->compression() != bxz::plaintext;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes(); } ///< retruns set of defline types processed by the reader
@@ -468,13 +497,49 @@ private:
 };
 
 //  ----------------------------------------------------------------------------
+// Function to check if a string is a valid URL
+static
+bool isValidURL(const std::string &url)
+{
+    // Basic URL regex pattern (covers http, https, file)
+    static const std::regex urlPattern(
+        R"(^(https?|file)://[^\s$.?#].[^\s]*$)",
+        std::regex::icase
+    );
+
+    return std::regex_match(url, urlPattern);
+}
+
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
-    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin));
-    if (!is->good())
-        throw runtime_error("Failure to open '" + filename + "'");
-    return is;
+    if ( isValidURL( filename ) )
+    {
+        const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
+        if ( kstream == nullptr )
+        {
+            throw runtime_error("Failure to open URL '" + filename + "'");
+        }
+        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
+    }
+    else if ( filename != "-" )
+    {
+        const vdb::KFile * kfile = vdb::KFileFactory::make_from_path( filename );
+        if ( kfile == nullptr )
+        {
+            throw runtime_error("Failure to open file '" + filename + "'");
+        }
+        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
+    }
+    else
+    {
+        shared_ptr<istream> is = shared_ptr<istream>(new bxz::istream(std::cin));
+        if (!is->good())
+            throw runtime_error("Failure to open '" + filename + "'");
+        return is;
+    }
 }
 
 struct spot_read_t {
@@ -1831,13 +1896,8 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             f["reads_processed"] = reads_processed;
             f["spots_processed"] = spots_processed;
             f["lines_processed"] = reader.line_number();
-            double bytes_read = reader.tellg();
-            if (bytes_read && spots_processed && file_size) {
-                double fsize = file_size;
-                double bytes_per_spot = bytes_read/spots_processed;
-                estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
-                f["name_size_avg"] = spot_name_sz/spots_processed;
-            }
+            estimated_spots = max<size_t>(spots_processed, estimated_spots);
+            f["name_size_avg"] = spot_name_sz/spots_processed;
             group_j["files"].push_back(f);
         }
         group_j["is_10x"] = group_reads >= 3 && has_I_file && has_R_file;
@@ -2264,7 +2324,7 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
         max_reads = max<int>(max_reads, (int)it.first);
     }
 
-    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max()) 
+    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max())
         throw fastq_error(260, "Spots with more than {} reads are not supported.", std::numeric_limits<typename svector_u32::value_type>::max());
 
     if (m_read_types.empty()) {
@@ -2352,11 +2412,11 @@ void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vecto
         // Cache values to avoid repeated method calls
         auto l_read_num = l.ReadNum();
         auto r_read_num = r.ReadNum();
-        
-        if (l_read_num != r_read_num) 
+
+        if (l_read_num != r_read_num)
             return l_read_num < r_read_num;
         int c = l.Sequence().compare(r.Sequence());
-        if (c != 0) 
+        if (c != 0)
             return c < 0;
         return l.GetQualScores() < r.GetQualScores();
     });

@@ -27,19 +27,17 @@
 /**
 * Unit tests for SHARQ loader
 */
-#include <ktst/unit_test.hpp>
-#include <klib/rc.h>
-#include <loader/common-writer.h>
-#include <kfs/directory.h>
-#include <kfs/file.h>
-#include <sstream>
-
-#include <fingerprint.hpp>
-
 #include "../../tools/loaders/sharq/fastq_utils.hpp"
 #include "../../tools/loaders/sharq/fastq_parser.hpp"
 #include "../../tools/loaders/sharq/fastq_read.hpp"
 #include "../../tools/loaders/sharq/fastq_error.hpp"
+
+#include <ktst/unit_test.hpp>
+#include <klib/rc.h>
+#include <loader/common-writer.h>
+#include <sstream>
+
+#include <fingerprint.hpp>
 
 #include <sysalloc.h>
 #include <stdlib.h>

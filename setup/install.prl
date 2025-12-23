@@ -5,7 +5,6 @@ sub BINS     { qw (abi-dump
                    abi-load
                    align-info
                    bam-load
-                   cache-mgr
                    cg-load
                    fastq-dump
                    fastq-load

@@ -69,6 +69,7 @@
 #include <condition_variable>
 #include <chrono>
 #include <regex>
+#include <variant>
 
 #include <fingerprint.hpp>
 #include <kfile_stream/kfile_stream.hpp>
@@ -268,16 +269,49 @@ struct data_output_metrics_t {
 class istreambuf_holder : public bxz::istream
 {
 public:
-    istreambuf_holder( std::streambuf * sb )
-    : bxz::istream(sb), held_streambuf( sb )
+    istreambuf_holder( std::streambuf * sb, const vdb::KFileMD5ReadObserver * obs )
+    : bxz::istream(sb), held_streambuf( sb ), md5( obs )
+    {
+    }
+    istreambuf_holder( std::streambuf * sb, const vdb::KStreamMD5ReadObserver * obs )
+    : bxz::istream(sb), held_streambuf( sb ), md5( obs )
     {
     }
     virtual ~istreambuf_holder()
     {
+        if ( std::holds_alternative<const vdb::KFileMD5ReadObserver *>( md5 ) )
+        {
+            KFileMD5ReadObserverRelease( std::get<const vdb::KFileMD5ReadObserver *>( md5 ) );
+        }
+        else if ( std::holds_alternative<const vdb::KStreamMD5ReadObserver *>( md5 ) )
+        {
+            KStreamMD5ReadObserverRelease( std::get<const vdb::KStreamMD5ReadObserver *>( md5 ) );
+        }
         delete held_streambuf;
     }
+
+    void get_md5( uint8_t digest [ 16 ] ) const
+    {
+        rc_t rc = 0;
+        const char * error = nullptr;
+        if ( std::holds_alternative<const vdb::KFileMD5ReadObserver *>( md5 ) )
+        {
+            rc = KFileMD5ReadObserverGetDigest ( std::get<const vdb::KFileMD5ReadObserver *>( md5 ), digest, & error);
+        }
+        else if ( std::holds_alternative<const vdb::KStreamMD5ReadObserver *>( md5 ) )
+        {
+            rc = KStreamMD5ReadObserverGetDigest ( std::get<const vdb::KStreamMD5ReadObserver *>( md5 ), digest, & error);
+        }
+        if ( rc != 0 )
+        {
+            throw runtime_error(string("Failure reading MD5 from input: '") + error + "'");
+        }
+    }
+
 private:
     std::streambuf * held_streambuf;
+
+    std::variant< const vdb::KFileMD5ReadObserver *, const vdb::KStreamMD5ReadObserver * > md5;
 };
 
 class fastq_reader
@@ -513,6 +547,7 @@ bool isValidURL(const std::string &url)
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
+    custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
         const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
@@ -520,25 +555,49 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         {
             throw runtime_error("Failure to open URL '" + filename + "'");
         }
-        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream ) );
-        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
+
+        const vdb::KStreamMD5ReadObserver * observer = nullptr;
+        if ( KStreamMakeMD5ReadObserver ( kstream, & observer ) != 0 )
+        {
+            throw runtime_error("Failure to create observer for '" + filename + "'");
+        }
+
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
-    else if ( filename != "-" )
+    else if ( filename == "-" )
+    {
+        const vdb::KStream * kin = nullptr;
+        if ( KStreamMakeStdIn ( &kin ) != 0 )
+        {
+            throw runtime_error("Failure to open stdin");
+        }
+
+        const vdb::KStreamMD5ReadObserver * observer = nullptr;
+        if ( KStreamMakeMD5ReadObserver ( kin, & observer ) != 0 )
+        {
+            throw runtime_error("Failure to create observer for stdin");
+        }
+
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kin ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
+    }
+    else
     {
         const vdb::KFile * kfile = vdb::KFileFactory::make_from_path( filename );
         if ( kfile == nullptr )
         {
             throw runtime_error("Failure to open file '" + filename + "'");
         }
-        auto c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
-        return shared_ptr<istream>( new istreambuf_holder( c_istream ) );
-    }
-    else
-    {
-        shared_ptr<istream> is = shared_ptr<istream>(new bxz::istream(std::cin));
-        if (!is->good())
-            throw runtime_error("Failure to open '" + filename + "'");
-        return is;
+
+        const vdb::KFileMD5ReadObserver * observer = nullptr;
+        if ( KFileMakeMD5ReadObserver ( kfile, & observer ) != 0 )
+        {
+            throw runtime_error("Failure to create observer for '" + filename + "'");
+        }
+
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
 }
 

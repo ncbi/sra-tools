@@ -482,6 +482,90 @@ typedef struct ColumnInfo_s {
     uint32_t elem_count;
 } ColumnInfo;
 
+/**
+ * \brief Read a column.
+ * \param ci the column info object, it gets updated with the value read.
+ * \param row the row to read.
+ * \param curs the cursor to read.
+ * \return 0 if no error else the error.
+ */
+static rc_t readColumn(ColumnInfo *const result, int64_t const row, VCursor const *const curs)
+{
+    return VCursorCellDataDirect(curs, row, result->idx, &result->elem_bits, &result->value.vp, NULL, &result->elem_count);
+}
+
+/**
+ * \brief Read a `bool` column.
+ * \param result pointer to recieve the value.
+ * \param ci the column info object.
+ * \param row the row to read.
+ * \param curs the cursor to read.
+ * \return 0 if no error else the error.
+ */
+static rc_t read1Value_bool(bool *const result, ColumnInfo *const ci, int64_t const row, VCursor const *const curs)
+{
+    rc_t const rc = readColumn(ci, row, curs);
+    if (rc) return rc;
+    assert(ci->elem_count == 1);
+    assert(ci->elem_bits == 8 * sizeof(*result));
+    memmove(result, ci->value.vp, sizeof(*result));
+    return 0;
+}
+
+/**
+ * \brief Read a `uint32_t` column.
+ * \param result pointer to recieve the value.
+ * \param ci the column info object.
+ * \param row the row to read.
+ * \param curs the cursor to read.
+ * \return 0 if no error else the error.
+ */
+static rc_t read1Value_u32(uint32_t *const result, ColumnInfo *const ci, int64_t const row, VCursor const *const curs)
+{
+    rc_t const rc = readColumn(ci, row, curs);
+    if (rc) return rc;
+    assert(ci->elem_count == 1);
+    assert(ci->elem_bits == 8 * sizeof(*result));
+    memmove(result, ci->value.vp, sizeof(*result));
+    return 0;
+}
+
+/**
+ * \brief Read a string column and compare it to its previous value.
+ * \param result pointer to the previous value and reciever of the new value if changed.
+ * \param ci the column info object.
+ * \param row the row to read.
+ * \param curs the cursor to read.
+ * \param prc pointer to recieve any error.
+ * \return true if the value changed, false if not changed or error.
+ */
+static bool readCompare_string(char **const result, ColumnInfo *const ci, int64_t const row, VCursor const *const curs, rc_t *prc)
+{
+    assert(result != NULL);
+    *prc = readColumn(ci, row, curs);
+    if (*prc == 0) {
+        void *tmp;
+        if (*result != NULL) {
+            uint32_t i;
+            for (i = 0; i < ci->elem_count; ++i) {
+                if ((*result)[i] != ci->value.string[i])
+                    break;
+            }
+            if (i == ci->elem_count && (*result)[i] == '\0')
+                return false;
+        }
+        tmp = realloc(*result, ci->elem_count + 1);
+        if (tmp) {
+            *result = (char *)tmp;
+            memmove(*result, ci->value.string, ci->elem_count);
+            (*result)[ci->elem_count] = '\0';
+            return true;
+        }
+        *prc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
+    }
+    return false;
+}
+
 struct CountSize {
 	unsigned count;
 	size_t size;
@@ -1212,6 +1296,14 @@ static size_t work_chunk(uint64_t const count)
     return chunk;
 }
 
+struct RefInfo {
+    int64_t firstRow;
+    uint64_t rowCount;
+    uint32_t refLength;
+    bool circular;
+};
+typedef struct RefInfo RefInfo;
+
 /* use the KSORT macro so the compiler can optimize everything */
 static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 {
@@ -1334,6 +1426,36 @@ static bool is_sorted(uint32_t const N, int64_t const key[/* N */])
     return true;
 }
 
+/**
+ * \brief Search a `RefInfo` array for the entry that contains the query.
+ * \param query the row to find.
+ * \param N the number of entries.
+ * \param refInfo the array to search.
+ * \return the index of the entry containing the query, or `N` if not found.
+ */
+unsigned findRefInfo(int64_t const query, unsigned const N, RefInfo const *const refInfo)
+{
+    unsigned f = 0;
+    unsigned e = N;
+    
+    while (f < e) {
+        unsigned const m = f + ((e - f) >> 1);
+        int64_t const first = refInfo[m].firstRow;
+        int64_t const end = first + refInfo[m].rowCount;
+        if (end <= query) {
+            f = m + 1;
+            continue;
+        }
+        else if (query < first) {
+            e = m;
+            continue;
+        }
+        assert(first <= query && query < end);
+        return m;
+    }
+    return N;
+}
+
 static rc_t ric_align_generic(int64_t const startId,
                               uint64_t const count,
                               size_t const pairs,
@@ -1341,24 +1463,28 @@ static rc_t ric_align_generic(int64_t const startId,
                               void *scratch[],
                               VCursor const *const acurs,
                               ColumnInfo *const aci,
+                              ColumnInfo *const refPos_ci,
+                              ColumnInfo *const refLen_ci,
                               VCursor const *const bcurs,
-                              ColumnInfo *const bci
+                              ColumnInfo *const bci,
+                              unsigned const nRefs,
+                              RefInfo const *ref
                               )
 {
     int64_t chunk;
     int64_t const endId = startId + count;
     size_t scratch_size = 0;
     bool show_complete = false;
-
+    bool const checkRefPos = ref != NULL && nRefs > 0;
+    
     for (chunk = startId; chunk < endId; ) {
         rc_t rc = 0;
         int64_t last = 0;
         size_t const n = load_key_pairs(chunk, endId, pairs, pair, acurs, aci, &last, &rc);
         size_t i;
         int64_t cur_fkey = 0;
-        uint32_t elem_count = 0;
-        uint32_t current = 0;
-        int64_t const *id = 0;
+        uint32_t current_id = 0;
+        RefInfo const *curRef = NULL;
 
         if (rc) return rc;
         if (chunk == last)
@@ -1374,61 +1500,75 @@ static rc_t ric_align_generic(int64_t const startId,
         }
         chunk = last;
         for (i = 0; i < n; ++i) {
-            int64_t const fkey = pair[i].first;
-            int64_t const row = pair[i].second;
+            int64_t const fkey = pair[i].first; /**< the reference row id */
+            int64_t const row = pair[i].second; /**< the alignment id */
 
             if (cur_fkey != fkey) {
-                uint32_t dummy;
-
                 CHECK_QUITTING;
 
-                rc = VCursorCellDataDirect(bcurs, fkey, bci->idx,
-                                           &dummy, (void const **)&id,
-                                           NULL, &elem_count);
-
-                if (GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound){
+                rc = readColumn(bci, fkey, bcurs);
+                if (GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
 					(void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
                                      "$(aname) <-> $(bname)"
                                      " failed to retrieve pair $(first) -> $(second)",
                                      "aname=%s,bname=%s,first=%ld,second=%ld",
                                      aci->name, bci->name,
-                                     pair[i].first,pair[i].second));
-
+                                     fkey, row));
                     return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
-                } else if (rc)
+                }
+                else if (rc)
                     return rc;
 
-                if (elem_count > 0 && !is_sorted(elem_count, id)) {
-                    if (scratch_size < elem_count) {
-                        void *const temp = realloc(scratch[0], elem_count * sizeof(id[0]));
+                if (!is_sorted(bci->elem_count, bci->value.i64)) {
+                    if (scratch_size < bci->elem_count) {
+                        void *const temp = realloc(scratch[0], bci->elem_count * sizeof(bci->value.i64[0]));
 
                         if (temp == NULL)
                             return RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
 
                         scratch[0] = temp;
-                        scratch_size = elem_count;
+                        scratch_size = bci->elem_count;
                     }
-                    memmove(scratch[0], id, elem_count * sizeof(id[0]));
-                    sort_keys(elem_count, (int64_t *)scratch[0]);
-                    id = (int64_t const *)scratch[0];
+                    memmove(scratch[0], bci->value.i64, bci->elem_count * sizeof(bci->value.i64[0]));
+                    sort_keys(bci->elem_count, (int64_t *)scratch[0]);
+                    bci->value.i64 = (int64_t const *)scratch[0];
                 }
-                current = 0;
-                cur_fkey = fkey;
-                while (current < elem_count && id[current] < row) {
-                    ++current;
+                current_id = 0;
+                while (current_id < bci->elem_count && bci->value.i64[current_id] < row) {
+                    ++current_id;
                 }
+                if (checkRefPos) {
+                    unsigned const fnd = findRefInfo(fkey, nRefs, ref);
+                    assert(fnd < nRefs); /**< Since we verified above that `fkey` is valid ... */
+                    curRef = &ref[fnd];
+                }
+                else
+                    curRef = NULL;
             }
-            if (current >= elem_count || id[current] != row) {
+            cur_fkey = fkey;
+            if (current_id >= bci->elem_count || bci->value.i64[current_id] != row) {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
                                          "$(aname) <-> $(bname) "
                                          "inconsistent pair $(first) -> $(second)",
                                          "aname=%s,bname=%s,first=%ld,second=%ld",
                                          aci->name, bci->name,
-                                         pair[i].first,pair[i].second));
-
+                                         fkey, row));
                 return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
 			}
-            ++current;
+            if (curRef != NULL && curRef->circular == false) {
+                uint32_t refPos = 0;
+                uint32_t refLen = 0;
+                rc = read1Value_u32(&refPos, refPos_ci, row, acurs); if (rc) return rc;
+                rc = read1Value_u32(&refLen, refLen_ci, row, acurs); if (rc) return rc;
+                if (refPos >= curRef->refLength || refPos + refLen > curRef->refLength) {
+                    (void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
+                                             "alignment $(second) [$(refPos)-$(refEnd)] is beyond the end of the reference chunk $(first) of length $(refLen)",
+                                             "first=%ld,second=%ld,refPos=%u,refEnd=%u,refLen=%u",
+                                             fkey, row, refPos, refPos + refLen - 1, curRef->refLength));
+                    return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                }
+            }
+            ++current_id;
         }
     }
     if (show_complete) {
@@ -1442,6 +1582,100 @@ static rc_t ric_align_generic(int64_t const startId,
     return 0;
 }
 
+/**
+ * \brief Get the row ranges and reference lengths of all of the references in the table.
+ * \param N pointer to recieve the number of references found.
+ * \param result pointer to recieve the resulting array.
+ * \param tbl the table to scan.
+ * \param dbname the name of the file (for error messages).
+ *
+ * This information is needed to verify that alignment positions are valid.
+ * Since the references are broken up into small chunks, there is no
+ * single to find the information about a reference as a whole.
+ * It must be computed from the chunks.
+ *
+ * This function would be equivalent to something like:
+ * \code
+ * SELECT
+ *      FIRST(ROW_ID),
+ *      COUNT(*),
+ *      FIRST(CIRCULAR),
+ *      SUM(READ_LEN)
+ * FROM
+ *      REFERENCE
+ * GROUP BY
+ *      NAME
+ * \endcode
+ */
+static rc_t loadRefInfo(unsigned *const N, RefInfo **const result, VTable const *tbl, char const dbname[])
+{
+    VCursor const *curs;
+    ColumnInfo name;
+    ColumnInfo readLen;
+    ColumnInfo circular;
+    unsigned cap = 32;
+    rc_t rc = 0;
+    char *refName = NULL;
+    int64_t startId;
+    uint64_t count;
+    uint64_t row;
+    
+    assert(N != NULL && result != NULL);
+    *N = 0;
+    if ((*result = (RefInfo *)malloc(cap * sizeof(**result))) == NULL)
+        return RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
+
+    rc = VTableCreateCursorRead(tbl, &curs);
+    if (rc == 0)
+        rc = VCursorAddColumn(curs, &name.idx, "NAME");
+    if (rc == 0)
+        rc = VCursorAddColumn(curs, &readLen.idx, "READ_LEN");
+    if (rc == 0)
+        rc = VCursorAddColumn(curs, &circular.idx, "CIRCULAR");
+    if (rc == 0)
+        rc = VCursorOpen(curs);
+    if (rc == 0)
+        rc = VCursorIdRange(curs, name.idx, &startId, &count);
+    if (rc)
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "reference table can not be read", "name=%s", dbname));
+    
+    for (row = 0; rc == 0 && row < count; ++row) {
+        bool circ = false;
+        uint32_t rl = 0;
+        bool differentRef = false;
+        
+        rc = read1Value_u32(&rl, &readLen, row + startId, curs);
+        if (rc) break;
+        rc = read1Value_bool(&circ, &circular, row + startId, curs);
+        if (rc) break;
+        
+        differentRef = readCompare_string(&refName, &name, row + startId, curs, &rc) != 0;
+        if (rc) break;
+        if (differentRef) {
+            if (*N == cap) {
+                void *const tmp = realloc(*result, cap * 2 * sizeof(**result));
+                if (tmp == NULL) {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
+                    break;
+                }
+                cap *= 2;
+                *result = (RefInfo *)tmp;
+            }
+            (*result)[(*N)].firstRow = row + startId;
+            (*result)[(*N)].rowCount = 0;
+            (*result)[(*N)].refLength = 0;
+            (*result)[(*N)].circular = circ;
+            ++*N;
+        }
+        (*result)[(*N) - 1].rowCount += 1;
+        (*result)[(*N) - 1].refLength += rl;
+    }
+    free(refName);
+    VCursorRelease(curs);
+    return rc;
+}
+
 static rc_t ric_align_ref_and_align(char const dbname[],
                                     VTable const *ref,
                                     VTable const *align,
@@ -1451,37 +1685,48 @@ static rc_t ric_align_ref_and_align(char const dbname[],
                                   : which == 1 ? "SECONDARY_ALIGNMENT_IDS"
                                   : which == 2 ? "EVIDENCE_ALIGNMENT_IDS"
                                   : NULL;
-    rc_t rc;
+    rc_t rc = 0;
     VCursor const *acurs = NULL;
     VCursor const *bcurs = NULL;
     ColumnInfo aci;
     ColumnInfo bci;
+    ColumnInfo refPos;
+    ColumnInfo refLen;
     int64_t startId;
     uint64_t count;
+    unsigned nRefs = 0;
+    RefInfo *ri = NULL;
 
     aci.name = "REF_ID";
     bci.name = id_col_name;
     
-	rc = VTableCreateCursorRead(align, &acurs);
-	if (rc == 0)
-	    rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
-	if (rc == 0)
-		rc = VCursorOpen(acurs);
-	if (rc == 0)
-		rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
-	if (rc)
-		(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-								"alignment table can not be read", "name=%s", dbname));
-	else {
-		rc = VTableCreateCursorRead(ref, &bcurs);
-		if (rc == 0)
-			rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
-		if (rc == 0)
-			rc = VCursorOpen(bcurs);
-		if (rc)
-			(void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-									"reference table can not be read", "name=%s", dbname));
-	}
+    if (which < 2)
+        rc = loadRefInfo(&nRefs, &ri, ref, dbname);
+    if (rc == 0)
+        rc = VTableCreateCursorRead(align, &acurs);
+    if (rc == 0)
+        rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
+    if (rc == 0)
+        rc = VCursorAddColumn(acurs, &refPos.idx, "REF_POS");
+    if (rc == 0)
+        rc = VCursorAddColumn(acurs, &refLen.idx, "REF_LEN");
+    if (rc == 0)
+        rc = VCursorOpen(acurs);
+    if (rc == 0)
+        rc = VCursorIdRange(acurs, aci.idx, &startId, &count);
+    if (rc)
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "alignment table can not be read", "name=%s", dbname));
+    else {
+        rc = VTableCreateCursorRead(ref, &bcurs);
+        if (rc == 0)
+            rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
+        if (rc == 0)
+            rc = VCursorOpen(bcurs);
+        if (rc)
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                    "reference table can not be read", "name=%s", dbname));
+    }
 	if (rc == 0) {
         size_t const chunk = work_chunk(count);
         id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
@@ -1489,8 +1734,10 @@ static rc_t ric_align_ref_and_align(char const dbname[],
         if (pair) {
             void *scratch = NULL;
 
-            rc = ric_align_generic(startId, count, chunk, pair, &scratch,
-                                   acurs, &aci, bcurs, &bci);
+            rc = ric_align_generic(startId, count, chunk, pair, &scratch
+                                   , acurs, &aci, &refPos, &refLen
+                                   , bcurs, &bci
+                                   , nRefs, ri);
             if (scratch)
                 free(scratch);
 
@@ -1511,7 +1758,6 @@ static rc_t ric_align_ref_and_align(char const dbname[],
             else if (rc)
                 (void)PLOGERR(klogErr, (klogErr, rc,
                                         "Database '$(name)': reference table can not be read", "name=%s", dbname));
-
             free(pair);
         }
         else
@@ -1524,6 +1770,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
                 "name=%s", dbname));
         }
     }
+    free(ri);
     VCursorRelease(acurs);
     VCursorRelease(bcurs);
     return rc;
@@ -1571,8 +1818,9 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
         if (pair) {
             void *scratch = NULL;
 
-            rc = ric_align_generic(startId, count, chunk, pair, &scratch,
-                                   acurs, &aci, bcurs, &bci);
+            rc = ric_align_generic(startId, count, chunk, pair, &scratch
+                                   , acurs, &aci, NULL, NULL
+                                   , bcurs, &bci, 0, NULL);
             if (scratch)
                 free(scratch);
 

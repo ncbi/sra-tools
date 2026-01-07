@@ -51,6 +51,7 @@
 #include <insdc/sra.h>
 #include <json.hpp>
 #include <fstream>
+#include <iomanip>
 
 #define LOCALDEBUG
 
@@ -214,9 +215,15 @@ public:
         m_has_messages = false;
     }
 
-    void set_fingerprint( const string & source, const Fingerprint & fp )
+    void set_checksums( const string & source, const Fingerprint & fp, const uint8_t md5[16] )
     {
-        m_source_fp.push_back( make_pair(source, fp ) );
+        ostringstream md5str;
+        for( size_t i = 0; i < 16; ++i )
+        {
+            md5str << setfill('0') << setw(2) << hex << (int)md5[i];
+        }
+
+        m_source_sums.push_back( make_pair(source, make_pair( fp , md5str.str() ) ) );
     }
 
 protected:
@@ -227,7 +234,8 @@ protected:
     vector<string> m_err_messages; ///< Messages
     vector<string> m_log_messages; ///< Messages
     atomic<bool> m_has_messages{false}; ///< Messages
-    vector< pair<string, Fingerprint> > m_source_fp; ///< read fingerprints per input file
+    typedef pair< Fingerprint, string > Checksums;
+    vector< pair<string, Checksums > > m_source_sums; ///< fingerprints+md5s per input file
 };
 
 class fastq_writer_debug : public fastq_writer
@@ -277,7 +285,7 @@ public:
         }
     }
     bool m_quality_as_string{false};
-    using fastq_writer::m_source_fp;
+    using fastq_writer::m_source_sums;
 };
 
 
@@ -498,14 +506,15 @@ void fastq_writer_vdb::close()
 
         // save fingerprints in the metadata
         // input fingerprint(s)
-        for( size_t i = 0;  i < m_source_fp.size(); ++i )
+        for( size_t i = 0;  i < m_source_sums.size(); ++i )
         {
             ostringstream key;
             key << "LOAD/QC/file_" << (i+1);
-            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_fp[i].second.JSON() );
-            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_fp[i].first );
-            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "digest", m_source_fp[i].second.digest() );
-            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "algorithm", m_source_fp[i].second.algorithm() );
+            m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_sums[i].second.first.JSON() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_sums[i].first );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "digest", m_source_sums[i].second.first.digest() );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "md5", m_source_sums[i].second.second );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "algorithm", m_source_sums[i].second.first.algorithm() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "version", Fingerprint::version() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "format", Fingerprint::format() );
         }

@@ -55,7 +55,7 @@ public:
 };
 
 FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
-{   // parser register the fingerprints of incoming reads with the writer
+{   // parser registers the fingerprints of incoming reads with the writer
     json readers = json::parse(
         R"( {
                 "files" : [
@@ -80,11 +80,50 @@ FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
     // this will not read anything but should save readers' (empty) fingerprints
     // on the writer
 
-    REQUIRE_EQ( string("input/r1.fastq"), wr->m_source_fp[0].first);
-    REQUIRE_EQ( string("input/r2.fastq"), wr->m_source_fp[1].first);
+    REQUIRE_EQ( string("input/r1.fastq"), wr->m_source_sums[0].first);
+    REQUIRE_EQ( string("input/r2.fastq"), wr->m_source_sums[1].first);
 
     wr->close();
 }
+
+FIXTURE_TEST_CASE(ReaderMd5, LoaderFixture)
+{   // parser calculates md5 of inputs
+    json readers = json::parse(
+        R"( {
+                "files" : [
+                    { "file_path" : "input/r1.fastq", "platform_code" : 1, "quality_encoding" : 33, "max_reads" : 1 }
+                ],
+                "is_10x" : false
+            }
+        )"
+    );
+    auto wr = make_shared<fastq_writer_debug>();
+    fastq_parser<fastq_writer_debug> parser( wr );
+    //wr->open();
+    parser.set_readers( readers ); // will open files
+
+    auto err_checker = [this](fastq_error& e) -> void {};
+    spot_name_check name_checker(10);
+    parser.parse< validator_options<eNumeric, 33, 126> > (
+        name_checker,
+        err_checker
+    );
+
+    auto in0 = dynamic_cast<const istreambuf_holder*>( & parser.get_readers()[0].get_stream() );
+    REQUIRE_NOT_NULL( in0);
+
+    uint8_t digest [ 16 ];
+    in0 -> get_md5( digest );
+    ostringstream md5str;
+    for( auto b: digest )
+    {
+        md5str << setfill('0') << setw(2) << hex << (int)b;
+    }
+    REQUIRE_EQ( string("29eb1d7f05c030570fa3671ee13feb7b"), md5str.str() );
+
+    wr->close();
+}
+
 ////////////////////////////////////////////
 
 int main (int argc, char *argv [])

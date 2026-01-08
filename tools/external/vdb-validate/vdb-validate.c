@@ -1590,9 +1590,9 @@ static rc_t ric_align_generic(int64_t const startId,
  * \param dbname the name of the file (for error messages).
  *
  * This information is needed to verify that alignment positions are valid.
- * Since the references are broken up into small chunks, there is no
- * single to find the information about a reference as a whole.
- * It must be computed from the chunks.
+ * Since references are broken up into small chunks, there is no simple way
+ * to find the information about a reference as a whole. It must be
+ * computed from the chunks.
  *
  * This function would be equivalent to something like:
  * \code
@@ -1700,16 +1700,21 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     aci.name = "REF_ID";
     bci.name = id_col_name;
     
+    memset(&refPos, 0, sizeof(refPos));
+    memset(&refLen, 0, sizeof(refLen));
+
     if (which < 2)
         rc = loadRefInfo(&nRefs, &ri, ref, dbname);
     if (rc == 0)
         rc = VTableCreateCursorRead(align, &acurs);
     if (rc == 0)
         rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
-    if (rc == 0)
-        rc = VCursorAddColumn(acurs, &refPos.idx, "REF_POS");
-    if (rc == 0)
-        rc = VCursorAddColumn(acurs, &refLen.idx, "REF_LEN");
+    if (which < 2) {
+        if (rc == 0)
+            rc = VCursorAddColumn(acurs, &refPos.idx, "REF_POS");
+        if (rc == 0)
+            rc = VCursorAddColumn(acurs, &refLen.idx, "REF_LEN");
+    }
     if (rc == 0)
         rc = VCursorOpen(acurs);
     if (rc == 0)

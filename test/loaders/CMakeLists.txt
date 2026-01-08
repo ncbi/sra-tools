@@ -29,4 +29,6 @@ add_subdirectory(loader)
 if (TARGET sharq)
     add_subdirectory(sharq)
 endif ()
-add_subdirectory(sra-sort) # TODO: it's not clear if the test itself was running, now it's not.
+if (TARGET sra-sort AND TARGET kar AND TARGET bam-load AND TARGET sra-stat AND TARGET sam-factory)
+    add_subdirectory(sra-sort)
+endif ()

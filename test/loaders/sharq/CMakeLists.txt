@@ -63,6 +63,13 @@ message(RE2_FOUND=${RE2_FOUND})
         target_link_libraries(test-regexpr ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
         add_test( NAME Test_regexpr COMMAND test-regexpr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        # test-defline
+        add_executable(test-defline test-defline.cpp )
+        add_dependencies(test-defline RE2)
+        target_include_directories(test-defline PUBLIC ${LOCAL_INCDIR})
+        target_link_libraries(test-defline ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
+        add_test( NAME Test_defline COMMAND test-defline WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
         # test-sharq-reader
         add_executable(test-sharq-reader test-sharq-reader.cpp )
         add_dependencies(test-sharq-reader RE2 sharq)
@@ -282,8 +289,8 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
-        # more tests in asm-trace 
-        
+        # more tests in asm-trace
+
     endif()
 
 endif()

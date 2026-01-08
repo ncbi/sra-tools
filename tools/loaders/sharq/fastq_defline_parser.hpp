@@ -61,10 +61,10 @@ public:
 
     /**
      * @brief Check if defline matches last matched pattern
-     * 
-     * @param defline 
-     * @return true 
-     * @return false 
+     *
+     * @param defline
+     * @return true
+     * @return false
      */
     bool MatchLast(const string_view& defline);
 
@@ -106,9 +106,9 @@ private:
 CDefLineParser::CDefLineParser()
 {
     Reset();
-    // NoMtach mathcher should be the first one so that 
+    // NoMtach mathcher should be the first one so that
     // mIndexLastSuccessfulMatch always points to a valid matcher
-     
+
     mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
@@ -118,11 +118,14 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix);
+
+    mDefLineMatchers.emplace_back(new CDefLineMatcherElementBio);
+
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldColon);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
+    mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);

@@ -35,10 +35,12 @@
 #include <sstream>
 #include <chrono>
 #include <tuple>
+#include <string>
 #include <cmath>
 #include <cassert>
 #include <JSON_ostream.hpp>
 #include <hashing.hpp>
+#include <flag-stat.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
@@ -312,7 +314,8 @@ struct App {
         { "multithreaded", "t", "1" },
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
-        { "fingerprint", "f", nullptr, false }
+        { "fingerprint", "f", nullptr, false },
+        { "flag", nullptr, "1.3", false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -342,8 +345,27 @@ struct App {
                 fingerprint = true;
                 continue;
             }
+            if (param == "flag") {
+                assert(value.has_value());
+                auto const &vers = value.value();
+                int maj = 0, min = 0;
+                int end = 0;
+                int n = sscanf(vers.c_str(), "%i.%i%n", &maj, &min, &end);
+
+                if (n == 2 && (size_t)end == vers.size()) {
+                    if (maj >= 1 && min >= 13) {
+                        flagStatTextVersion = FlagStatText::v_1_13;
+                    }
+                }
+                else {
+                    std::cerr << "usage: --flag <major>.<minor>" << std::endl;
+                    exit(1);
+                }
+                flagCounter = std::unique_ptr<FLAG_Counter>(new FLAG_Counter);
+                continue;
+            }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [--flag] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             if (param == "version") {
@@ -370,8 +392,10 @@ struct App {
             auto strm = std::ofstream(path.c_str());
             if (strm)
                 print(strm);
-            else
+            else {
                 std::cerr << "couldn't open " << path << std::endl;
+                exit(1);
+            }
         }
         else {
             print(std::cout);
@@ -383,7 +407,14 @@ private:
         gather();
         return !(arguments.empty() || nextInput == arguments.end());
     }
+    void printFlagStat(std::ostream &strm) {
+        strm << FlagStatText{*flagCounter, flagStatTextVersion}.defaultText;
+    }
     void print(std::ostream &strm) {
+        if (flagCounter) {
+            printFlagStat(strm);
+            return;
+        }
         auto out = JSON_ostream{strm};
 
         out << '{';
@@ -409,43 +440,55 @@ private:
             }
         }
         out << '}';
-        std::cout << std::endl;
+        strm << std::endl;
     }
     void gather() {
+        auto const flagCntr = flagCounter.get();
         auto source = Input::newSource(inputStream(), multithreaded);
         while (*source) {
             try {
                 auto const spot = source->get();
-                unsigned naligned = 0;
 
-                if (spotGroup.size() < Input::groups.size())
-                    spotGroup.resize(Input::groups.size(), Stats{});
-
-                auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
-
-                for (auto const &read : spot.reads) {
-                    if (read.type == Input::ReadType::aligned && !read.cigar) {
-                        // This is the sequence record for an aligned read.
-                        // The sequence and alignment details have/will be handled
-                        // by the alignment record.
-                        continue;
-                    }
-                    auto const seq = spot.sequence.substr(read.start, read.length);
-                    auto const bio = read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned;
-
-                    stats.record(seq, bio, group);
-                    if (read.type == Input::ReadType::aligned) {
-                        assert(read.reference >= 0);
-                        assert(read.position >= 0);
-                        unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
-                        stats.record(read.reference, read.position, strand, seq, read.cigar, group);
-                        ++naligned;
+                if (flagCntr) {
+                    for (auto const &read : spot.reads) {
+                        flagCntr->add(read.flags);
+                        if (read.flags < 0) {
+                            std::cerr << "--flag can only be used with SAM input." << std::endl;
+                            exit(1);
+                        }
                     }
                 }
-                if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
-                    stats.record(spotLayout(spot), group);
-                }
+                else {
+                    unsigned naligned = 0;
 
+                    if (spotGroup.size() < Input::groups.size())
+                        spotGroup.resize(Input::groups.size(), Stats{});
+
+                    auto const group = spot.group >= 0 ? &spotGroup[spot.group] : nullptr;
+
+                    for (auto const &read : spot.reads) {
+                        if (read.type == Input::ReadType::aligned && !read.cigar) {
+                            // This is the sequence record for an aligned read.
+                            // The sequence and alignment details have/will be handled
+                            // by the alignment record.
+                            continue;
+                        }
+                        auto const seq = spot.sequence.substr(read.start, read.length);
+                        auto const bio = read.type == Input::ReadType::biological || read.type == Input::ReadType::aligned;
+
+                        stats.record(seq, bio, group);
+                        if (read.type == Input::ReadType::aligned) {
+                            assert(read.reference >= 0);
+                            assert(read.position >= 0);
+                            unsigned const strand = read.orientation == Input::ReadOrientation::reverse ? 1 : 0;
+                            stats.record(read.reference, read.position, strand, seq, read.cigar, group);
+                            ++naligned;
+                        }
+                    }
+                    if (spot.reads.size() > 0 && spot.reads.size() != naligned) {
+                        stats.record(spotLayout(spot), group);
+                    }
+                }
                 reporter.update(++processed);
             }
             catch (std::ios_base::failure const &e) {
@@ -465,10 +508,12 @@ private:
     int multithreaded = 0;
     bool use_mmap = false;
     bool fingerprint = false;
+    FlagStatText::Version flagStatTextVersion = FlagStatText::v_1_3;
     std::optional<std::string> output;
 
     Stats stats;
     std::vector<Stats> spotGroup;
+    std::unique_ptr<FLAG_Counter> flagCounter = nullptr;
 
     Reporter reporter;
 

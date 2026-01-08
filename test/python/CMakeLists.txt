@@ -26,7 +26,7 @@ if( NOT WIN32 )
 
     make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
-    if( Python3_EXECUTABLE )
+    if( Python3_EXECUTABLE AND TARGET gw-dumper )
         add_test( NAME Test_GeneralWriterPy
             COMMAND sh -c "${Python3_EXECUTABLE} GeneralWriter_Test.py >actual/Test_GeneralWriterPy.gw && ${BINDIR}/gw-dumper -v actual/Test_GeneralWriterPy.gw >actual/Test_GeneralWriterPy.stdout && diff actual/Test_GeneralWriterPy.stdout expected/Test_GeneralWriterPy.stdout"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

@@ -28,7 +28,8 @@ enum
     SRA_PLATFORM_PACBIO_SMRT       = 6,
     SRA_PLATFORM_ION_TORRENT       = 7,
     SRA_PLATFORM_CAPILLARY         = 8,
-    SRA_PLATFORM_OXFORD_NANOPORE   = 9
+    SRA_PLATFORM_OXFORD_NANOPORE   = 9,
+    SRA_PLATFORM_ELEMENT_BIO       = 10
 };
 */
 class CDefLineMatcher
@@ -1253,10 +1254,29 @@ public:
     CDefLineMatcherElementBio() :
         CDefLineMatcher(
             "ElementBio",
-            R"(^[@>+]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+\.?\d*)([-:])(-?\d+\.\d+|-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\[12345])?(\s+|$))")
+            R"(^@([0-9A-z_]+)(:)([0-9A-z\-_]+)(:)([0-9A-z]+)(:)([12])(:)([0-9]+)(:)([0-9]+)(:)([0-9]+))")
     {}
 
-    virtual void GetMatch(CFastqRead& read) override  {}
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        read.SetSpot(re.GetMatch()[1]);
+        m_tmp_spot.clear();
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //instrument
+        s_add_sep(m_tmp_spot, re.GetMatch()[1]);
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //run
+        s_add_sep(m_tmp_spot, re.GetMatch()[3]);
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); // flow cell ID
+        s_add_sep(m_tmp_spot, re.GetMatch()[5]);
+        re.GetMatch()[6].AppendToString(&m_tmp_spot); // lane
+        s_add_sep(m_tmp_spot, re.GetMatch()[7]);
+        re.GetMatch()[8].AppendToString(&m_tmp_spot); // tile
+        s_add_sep(m_tmp_spot, re.GetMatch()[9]);
+        re.GetMatch()[10].AppendToString(&m_tmp_spot); // X
+        s_add_sep(m_tmp_spot, re.GetMatch()[11]);
+        re.GetMatch()[12].AppendToString(&m_tmp_spot); // Y
+//        re.GetMatch()[4].AppendToString(&m_tmp_spot); // read number
+        read.MoveSpot(std::move(m_tmp_spot));
+    }
     virtual uint8_t GetPlatform() const override { return SRA_PLATFORM_ELEMENT_BIO;}
 };
 

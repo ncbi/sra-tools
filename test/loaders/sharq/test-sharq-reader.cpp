@@ -165,6 +165,18 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
     }
 }
 
+FIXTURE_TEST_CASE(UnrecognizedDeflineError, LoaderFixture)
+{
+    fastq_reader reader("test", create_stream("@qqq"));
+    CFastqRead read;
+    try {
+        reader.parse_read<>(read);
+        FAIL("Should not reach this point");
+    } catch (fastq_error& err) {
+        CHECK_EQ(err.Message(), string("SRAE-199: Defline not recognized [code:100]"));
+    }
+}
+
 const string cSPOT1 = "NB501550:336:H75GGAFXY:2:11101:10137:1038";
 const string cSPOT_GROUP = "CTAGGTGA";
 const string cDEFLINE1 = cSPOT1 + " 1:N:0:" + cSPOT_GROUP;
@@ -811,7 +823,7 @@ public:
     {
         fastq_reader reader("test", create_stream(_READ(defline,"AAGT", "IIII")), {}, 2);
         THROW_ON_FALSE( reader.get_read(m_read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
         m_type = reader.defline_type();
     }
 
@@ -1053,8 +1065,8 @@ FIXTURE_TEST_CASE(IonTorrentTests, LoaderFixture)
         const auto& readNum = get<3>(test_case);
         cout << "IonTorrent" << ", case " << i << ": " << defline << endl;
         fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
-        THROW_ON_FALSE( reader.get_read(read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ION_TORRENT);
+        REQUIRE( reader.get_read(read) );
+        REQUIRE_EQ( (int)reader.platform(), (int)SRA_PLATFORM_ION_TORRENT);
         REQUIRE_EQ(read.Spot(), spot);
         REQUIRE_EQ(read.SpotGroup(), spot_group);
         REQUIRE_EQ(read.ReadNum(), readNum);
@@ -1152,22 +1164,6 @@ vector<tuple<string, vector<illumina_old_t>>> cIlluminaOldCases = {
 };
 
 
-class IlluminaOldFixture : public LoaderFixture
-{
-public:
-    void IlluminaOld(const string& defline)
-    {
-
-
-        fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
-        THROW_ON_FALSE( reader.get_read(m_read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
-        m_type = reader.defline_type();
-    }
-
-    string m_type;
-    CFastqRead m_read;
-};
 FIXTURE_TEST_CASE(IlluminaOldTests, LoaderFixture)
 {
     CFastqRead read;
@@ -1177,8 +1173,8 @@ FIXTURE_TEST_CASE(IlluminaOldTests, LoaderFixture)
             const auto& defline_type = get<0>(case_set);
             cout << defline_type << ", case " << i << ": " << base.defline << endl;
             fastq_reader reader("test", create_stream(_READ(base.defline, "AAGT", "IIII")), {}, 2);
-            THROW_ON_FALSE( reader.get_read(read) );
-            THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
+            REQUIRE( reader.get_read( read ) );
+            REQUIRE_EQ( (int)reader.platform(), (int)SRA_PLATFORM_ILLUMINA);
             REQUIRE_EQ(reader.defline_type(), defline_type);
             REQUIRE_EQ(read.Spot(), base.spot);
             REQUIRE_EQ(read.SpotGroup(), base.spot_group);
@@ -1206,10 +1202,10 @@ FIXTURE_TEST_CASE(PacBioTests, LoaderFixture)
         const auto& defline_type = get<0>(test_case);
         const auto& defline = get<1>(test_case);
         const auto& spot = get<2>(test_case);
-        cout << defline_type << ", case " << i << ": " << defline << endl;
+        //cout << defline_type << ", case " << i << ": " << defline << endl;
         fastq_reader reader("test", create_stream(_READ(defline, "AAGT", "IIII")), {}, 2);
-        THROW_ON_FALSE( reader.get_read(read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_PACBIO_SMRT);
+        REQUIRE( reader.get_read(read) );
+        REQUIRE_EQ( (int)reader.platform(), (int)SRA_PLATFORM_PACBIO_SMRT);
         REQUIRE_EQ(reader.defline_type(), defline_type);
         REQUIRE_EQ(read.Spot(), spot);
     }
@@ -1219,8 +1215,8 @@ FIXTURE_TEST_CASE(illuminaOldBcRnOnly, LoaderFixture)
 {
     fastq_reader reader("test", create_stream(_READ("_2_#GATCAGAT/1", "GAAA", "IIII")), {}, 2);
     CFastqRead read;
-    THROW_ON_FALSE( reader.get_read(read) );
-    THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_UNDEFINED);
+    REQUIRE( reader.get_read(read) );
+    REQUIRE_EQ( (int)reader.platform(), (int)SRA_PLATFORM_UNDEFINED);
     REQUIRE_EQ(reader.defline_type(), string("illuminaOldBcRnOnly"));
     REQUIRE_EQ(read.Spot(), string("_2_"));
     REQUIRE_EQ(read.SpotGroup(), string("GATCAGAT"));
@@ -1231,11 +1227,24 @@ FIXTURE_TEST_CASE(illuminaOldBcOnly, LoaderFixture)
 {
     fastq_reader reader("test", create_stream(_READ("@Read_190546#BC005 length=1419", "GAAA", "IIII")), {}, 2);
     CFastqRead read;
-    THROW_ON_FALSE( reader.get_read(read) );
-    THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_UNDEFINED);
+    REQUIRE( reader.get_read(read) );
+    REQUIRE_EQ( (int)reader.platform(), (int)SRA_PLATFORM_UNDEFINED);
     REQUIRE_EQ(reader.defline_type(), string("illuminaOldBcOnly"));
     REQUIRE_EQ(read.Spot(), string("Read_190546"));
     REQUIRE_EQ(read.SpotGroup(), string("BC005"));
+    REQUIRE(read.ReadNum().empty());
+}
+
+FIXTURE_TEST_CASE(ElementBio, LoaderFixture)
+{
+    fastq_reader reader("test", create_stream(_READ("@AV240401:AVT0059:2409682889:1:10602:5169:0001", "GAAA", "IIII")), {}, 2);
+    CFastqRead read;
+    REQUIRE( reader.get_read(read) );
+    REQUIRE_EQ( string("ElementBio"), reader.defline_type() );
+    REQUIRE_EQ( (int)SRA_PLATFORM_ELEMENT_BIO, (int)reader.platform() );
+    REQUIRE_EQ(reader.defline_type(), string("ElementBio"));
+    REQUIRE_EQ(read.Spot(), string("AV240401:AVT0059:2409682889:1:10602:5169:0001"));
+    REQUIRE_EQ(read.SpotGroup(), string(""));
     REQUIRE(read.ReadNum().empty());
 }
 

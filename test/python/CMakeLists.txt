@@ -28,8 +28,12 @@ if( NOT WIN32 )
 
     if( Python3_EXECUTABLE AND TARGET gw-dumper )
         add_test( NAME Test_GeneralWriterPy
-            COMMAND sh -c "test -x ${BINDIR}/gw-dumper && ${Python3_EXECUTABLE} GeneralWriter_Test.py >actual/Test_GeneralWriterPy.gw && ${BINDIR}/gw-dumper -v actual/Test_GeneralWriterPy.gw >actual/Test_GeneralWriterPy.stdout && diff actual/Test_GeneralWriterPy.stdout expected/Test_GeneralWriterPy.stdout"
+            COMMAND sh -c "test -x ${BINDIR}/gw-dumper || { echo 'Skipped'; exit 0; }; ${Python3_EXECUTABLE} GeneralWriter_Test.py >actual/Test_GeneralWriterPy.gw && ${BINDIR}/gw-dumper -v actual/Test_GeneralWriterPy.gw >actual/Test_GeneralWriterPy.stdout && diff actual/Test_GeneralWriterPy.stdout expected/Test_GeneralWriterPy.stdout"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        set_tests_properties ( Test_GeneralWriterPy
+            PROPERTIES
+                SKIP_REGULAR_EXPRESSION "^Skipped"
         )
     endif()
 

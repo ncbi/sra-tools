@@ -823,7 +823,7 @@ public:
     {
         fastq_reader reader("test", create_stream(_READ(defline,"AAGT", "IIII")), {}, 2);
         THROW_ON_FALSE( reader.get_read(m_read) );
-        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_ILLUMINA );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
         m_type = reader.defline_type();
     }
 
@@ -1237,7 +1237,7 @@ FIXTURE_TEST_CASE(illuminaOldBcOnly, LoaderFixture)
 
 FIXTURE_TEST_CASE(ElementBio, LoaderFixture)
 {
-    fastq_reader reader("test", create_stream(_READ("@AV240401:AVT0059:2409682889:1:10602:5169:0001", "GAAA", "IIII")), {}, 2);
+    fastq_reader reader("test", create_stream(_READ("@AV240401:AVT0059:2409682889:1:10602:5169:0001", "GAAA", "IIII")), {}, SRA_PLATFORM_ELEMENT_BIO);
     CFastqRead read;
     REQUIRE( reader.get_read(read) );
     REQUIRE_EQ( string("ElementBio"), reader.defline_type() );

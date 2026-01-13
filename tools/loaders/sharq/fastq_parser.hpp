@@ -295,7 +295,8 @@ public:
      * @param[in] match_all if True no failure on unsupported deflines
      */
     fastq_reader(const string& file_name, shared_ptr<istream> _stream, vector<char> read_type = {'B'}, int platform = 0, bool match_all = false)
-        : m_file_name(file_name)
+        : m_defline_parser( platform )
+        , m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
         , m_read_type_sz(m_read_type.size())

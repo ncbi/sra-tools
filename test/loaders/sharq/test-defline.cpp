@@ -37,8 +37,16 @@ TEST_SUITE(DefLineTestSuite);
 
 TEST_CASE(ElementBio)
 {
-    CDefLineParser p;
+    CDefLineParser p( SRA_PLATFORM_ELEMENT_BIO );
     REQUIRE( p.Match( "@AV240401:AVT0059:2409682889:1:10602:5169:0001", true ) );
+    REQUIRE_EQ( string("ElementBio"), p.GetDeflineType() );
+    REQUIRE_EQ( (int)SRA_PLATFORM_ELEMENT_BIO, (int)p.GetPlatform() );
+}
+
+TEST_CASE(ElementBio_BarCode)
+{
+    CDefLineParser p( SRA_PLATFORM_ELEMENT_BIO );
+    REQUIRE( p.Match( "@AV234203:AVITI_0003_A:2327482621:1:10102:0605:0003 1:N:0:TCGCCAGA+CGAGCTTT", true ) );
     REQUIRE_EQ( string("ElementBio"), p.GetDeflineType() );
     REQUIRE_EQ( (int)SRA_PLATFORM_ELEMENT_BIO, (int)p.GetPlatform() );
 }

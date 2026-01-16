@@ -38,6 +38,66 @@
 struct QNAME_Counter final
 {
 private:
+    struct NameHasher {
+        /// two 64-bit FNV-1a hashes
+        uint64_t h1, h2;
+
+        /// a 32-bit FNV-1a hash,
+        /// initialized with the length of the name,
+        /// used like a counter,
+        /// to make h2 diverge from h1.
+        uint32_t h3;
+        
+        NameHasher(size_t const size)
+        : h1(UINT64_C(0xcbf29ce484222325))
+        , h2(UINT64_C(0xcbf29ce484222325))
+        , h3((uint32_t)size ^ UINT32_C(0x811c9dc5))
+        {}
+        
+        void update(char const ch) {
+            auto const chu = (uint8_t)ch;
+
+            // normal FNV-1a
+            h1 = (h1 ^ chu) * UINT64_C(0x100000001B3);
+        
+            // add h3 to make h1 and h2 diverge
+            h2 = (h2 ^ chu ^ h3) * UINT64_C(0x100000001B3);
+
+            h3 *= UINT32_C(0x01000193);
+        }
+        void update(std::string_view from) {
+            for (auto ch : from)
+                update(ch);
+        }
+        /// FNV-1a hashes have poor mixing in the low order byte
+        /// and should be folded; there are 2 hashes and thus
+        /// 4 halves that can be mixed together to make 4 32-bit hashes.
+        void getValue(uint32_t result[4]) const {
+            uint32_t const h1_hi = h1 >> 32;
+            uint32_t const h1_lo = h1;
+            uint32_t const h2_hi = h2 >> 32;
+            uint32_t const h2_lo = h2;
+
+            result[0] = h1_hi ^ h1_lo;
+            result[1] = h2_hi ^ h2_lo;
+            result[2] = h2_hi ^ h1_lo;
+            result[3] = h1_hi ^ h2_lo;
+        }
+        static void hash(uint32_t result[4], std::string_view qname, std::string_view group, bool grouped) {
+            auto const size = (uint32_t)qname.size() + (grouped ? (uint32_t)(group.size() + 1) : 0);
+            auto hasher = NameHasher(size);
+            
+            if (grouped) {
+                hasher.update(group);
+                hasher.update('\t');
+            }
+            hasher.update(qname);
+            hasher.getValue(result);
+        }
+    };
+    static void hash(uint32_t result[4], std::string_view qname, std::string_view group, bool grouped) {
+        NameHasher::hash(result, qname, group, grouped);
+    }
     class Counter {
     public:
         static constexpr auto MASK_BITS = 30;
@@ -94,51 +154,8 @@ private:
             filter.resize(1UL << (MASK_BITS - 6), 0);
         }
         void add(std::string_view qname, std::string_view group, bool grouped) {
-            auto const size = (uint32_t)qname.size() + (grouped ? (uint32_t)(group.size() + 1) : 0);
-
-            // two 64-bit FNV-1a hashes
-            uint64_t h1{UINT64_C(0xcbf29ce484222325)};
-            uint64_t h2{UINT64_C(0xcbf29ce484222325)};
-            
-            // a 32-bit FNV-1a hash, initialized with the length of the name, used like a counter
-            uint32_t h3{size ^ UINT32_C(0x811c9dc5)};
-            
-            auto const && append_byte = [&](char const ch) {
-                auto const chu = (uint8_t)ch;
-
-                // normal FNV-1a
-                h1 = (h1 ^ chu) * UINT64_C(0x100000001B3);
-            
-                // add h3 to make h1 and h2 diverge
-                h2 = (h2 ^ chu ^ h3) * UINT64_C(0x100000001B3);
-
-                h3 *= UINT32_C(0x01000193);
-            };
-            auto const && append = [&](std::string_view from) {
-                for (auto ch : from)
-                    append_byte(ch);
-            };
-            
-            if (grouped) {
-                append(group);
-                append_byte('\t');
-            }
-            append(qname);
-
-            // FNV-1a hashes have poor mixing in the low order byte
-            // and should be folded; there are 2 hashes and thus
-            // 4 halves that can be mixed together to make 4 32-bit hashes.
-
-            uint32_t const h1_hi = h1 >> 32;
-            uint32_t const h1_lo = h1;
-            uint32_t const h2_hi = h2 >> 32;
-            uint32_t const h2_lo = h2;
-
-            auto const bit1 = h1_hi ^ h1_lo;
-            auto const bit2 = h2_hi ^ h2_lo;
-            auto const bit3 = h2_hi ^ h1_lo;
-            auto const bit4 = h1_hi ^ h2_lo;
-            auto const same = test(bit1, bit2, bit3, bit4);
+            uint32_t bit[4]; hash(bit, qname, group, grouped);
+            auto const same = test(bit[0], bit[1], bit[2], bit[3]);
 
             if (same == 4) {
                 // a possibly-false hit

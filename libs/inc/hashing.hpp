@@ -29,6 +29,19 @@
  *  Compute expected invariant hashes.
  */
 
+/**
+ \file hashing.hpp
+ \brief Header-only hash functions.
+ 
+ Provides the following hash functions:
+ * `FNV1a`: 64-bit FNV-1a
+ * `SHA224`: SHA-224
+ * `SHA256`: SHA-256
+ * `SHA384`: SHA-384
+ * `SHA512`: SHA-512
+ 
+ All of the hash functions have the same interface. See `struct HashFunction` below.
+ */
 #pragma once
 
 #ifndef hashing_hpp
@@ -652,7 +665,7 @@ struct SHA_512 : public SHA_64 {
     }
 };
 
-}
+} // namespace SHA2
 
 typedef struct HashFunction< SHA2::SHA_224 > SHA224;
 typedef struct HashFunction< SHA2::SHA_256 > SHA256;

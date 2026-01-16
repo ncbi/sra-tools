@@ -4345,11 +4345,13 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     {
                         rc = BasesAdd(&total->bases_count, spotid, true,
                             dREAD_LEN, dREAD_TYPE);
-                        if ( rc == 0 && pb->progress )
-                            KLoadProgressbar_Process ( pr, 1, false );
-                        rc = Quitting();
-                        if (rc != 0)
-                            LOGMSG(klogWarn, "Interrupted");
+                        if ( rc == 0 ) {
+                            if ( pb->progress )
+                                KLoadProgressbar_Process ( pr, 1, false );
+                            rc = Quitting();
+                            if (rc != 0)
+                                LOGMSG(klogWarn, "Interrupted");
+                        }
                     }
 
                     for (spotid = total->bases_count.startSEQUENCE;

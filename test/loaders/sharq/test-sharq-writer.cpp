@@ -132,6 +132,7 @@ public:
         THROW_ON_FALSE( root    == get<0>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( id      == get<1>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( key     == get<2>(m_tw->m_metadataAttrs[idx]) );
+cout<<attr<<" "<< get<3>(m_tw->m_metadataAttrs[idx]) << endl;
         THROW_ON_FALSE( attr    == get<3>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( value   == get<4>(m_tw->m_metadataAttrs[idx]) );
     }
@@ -233,7 +234,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
         verifyMetaAttr(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "name", File1);
         verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "digest", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
-        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "md5", "000102030405060708090a0b0c0d0e0f");
+        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "content-md5", "000102030405060708090a0b0c0d0e0f");
         verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "algorithm",Fingerprint::algorithm());
         verifyMetaAttr(4, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "version", Fingerprint::version());
         verifyMetaAttr(5, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "format", Fingerprint::format());
@@ -245,7 +246,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
         verifyMetaAttr(6, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
         verifyMetaAttr(7, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
-        verifyMetaAttr(8, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "md5", "08090a0b0c0d0e0f0001020304050607");
+        verifyMetaAttr(8, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "content-md5", "08090a0b0c0d0e0f0001020304050607");
         verifyMetaAttr(9, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "algorithm", Fingerprint::algorithm());
         verifyMetaAttr(10, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "version", Fingerprint::version());
         verifyMetaAttr(11, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "format", Fingerprint::format());

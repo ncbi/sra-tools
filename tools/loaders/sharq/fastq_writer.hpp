@@ -513,7 +513,7 @@ void fastq_writer_vdb::close()
             m_writer->setMetadata( VDB::Writer::MetaNodeRoot::database, 0, key.str(), m_source_sums[i].second.first.JSON() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "name", m_source_sums[i].first );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "digest", m_source_sums[i].second.first.digest() );
-            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "md5", m_source_sums[i].second.second );
+            m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "content-md5", m_source_sums[i].second.second );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "algorithm", m_source_sums[i].second.first.algorithm() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "version", Fingerprint::version() );
             m_writer->setMetadataAttr( VDB::Writer::MetaNodeRoot::database, 0, key.str(), "format", Fingerprint::format() );

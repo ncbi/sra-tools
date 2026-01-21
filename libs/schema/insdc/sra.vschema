@@ -425,6 +425,9 @@ const INSDC:SRA:platform_id SRA_PLATFORM_GENEUS_TECH        = 19;
 const INSDC:SRA:platform_id SRA_PLATFORM_SALUS              = 20;
 const INSDC:SRA:platform_id SRA_PLATFORM_AMCARE             = 21;
 const INSDC:SRA:platform_id SRA_PLATFORM_DAAN_GENE          = 22;
+const INSDC:SRA:platform_id SRA_PLATFORM_GENEPLUS           = 23;
+const INSDC:SRA:platform_id SRA_PLATFORM_QITAN_TECH         = 24;
+const INSDC:SRA:platform_id SRA_PLATFORM_CAPITAL_BIOTECH    = 25;
 
 table INSDC:SRA:tbl:sra #1.0.4 =
     INSDC:tbl:sequence #1.0.1,

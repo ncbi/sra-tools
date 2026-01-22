@@ -40,6 +40,9 @@ not locate the schema files.
 > make-platform-test /path/to/ncbi-vdb/interfaces
 Will add include path '/path/to/ncbi-vdb/interfaces'.
 Wrote 27 platform values + 5 undefined.
+> kar -d input/platforms -c input/platforms.kar
+> rm -rf input/platforms
+> mv input/platforms.kar input/platforms
 > vdb-dump input/platforms > expected/7.0.stdout
 ```
 

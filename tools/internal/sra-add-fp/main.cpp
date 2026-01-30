@@ -1,0 +1,403 @@
+/*==============================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+#include <string>
+#include <iostream>
+#include <sstream>
+
+#include <klib/out.h>
+#include <klib/log.h>
+
+#include <kapp/main.h>
+#include <kapp/args.h>
+
+#include <kdb/manager.h>
+#include <kdb/meta.h>
+
+#include <vdb/manager.h>
+#include <vdb/database.h>
+#include <vdb/table.h>
+#include <vdb/cursor.h>
+
+#include <insdc/insdc.h>
+
+#include <fingerprint.hpp>
+
+#include "../../shared/toolkit.vers.h"
+
+using namespace std;
+using namespace VDB;
+
+#define DISP_RC(rc, msg) if (rc != 0) { LOGERR(klogInt, rc, msg), throw msg; }
+
+static
+uint32_t
+AddColumn( const VCursor * cursor, const char * name )
+{
+    uint32_t idx = 0;
+    rc_t rc = VCursorAddColumn( cursor, &idx, name);
+    if ( rc != 0 )
+    {
+        ostringstream ex;
+        ex << "Error adding column " << name << ", rc = " << rc;
+        throw logic_error( ex.str() );
+    }
+    return idx;
+}
+
+static
+rc_t
+VTableAddFingerprint( VTable * tbl)
+{
+    KMetadata * meta;
+    rc_t rc = VTableOpenMetadataUpdate ( tbl, & meta );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Cannot open metadata" ) );
+    }
+
+    KMDataNode * node;
+    if ( KMetadataOpenNodeRead( meta, (const KMDataNode **) & node, "QC/current/fingerprint" ) == 0 )
+    {
+        throw logic_error( string( "Fingerprinting data already exists") );
+    }
+    KMDataNodeRelease( node );
+
+    rc = KMetadataOpenNodeUpdate( meta, &node, "QC/current/fingerprint" );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Error opening node QC/current/fingerprint" ) );
+    }
+
+    const VCursor * cur = nullptr;
+    rc = VTableCreateCursorRead( tbl, & cur );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Error creating cursor" ) );
+    }
+
+    uint32_t colReadIdx  = AddColumn( cur, "READ" );
+    uint32_t colStartIdx = AddColumn( cur, "READ_START" );
+    uint32_t colLenIdx   = AddColumn( cur, "READ_LEN" );
+    uint32_t colTypeIdx  = AddColumn( cur, "READ_TYPE" );
+
+    rc = VCursorOpen( cur );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Error opening cursor" ) );
+    }
+
+    int64_t firstRow = 0;
+    uint64_t rowCount = 0;
+    rc = VCursorIdRange ( cur, colReadIdx, & firstRow, & rowCount );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Error calling VCursorIdRange" ) );
+    }
+
+    Fingerprint fp;
+
+    for ( uint64_t i = 0; i < rowCount; ++i )
+    {
+        int64_t rowId = firstRow + i;
+
+        const char * spot_buffer = nullptr;
+        uint32_t spot_len = 0;
+        rc = VCursorCellDataDirect( cur, rowId, colReadIdx, nullptr, (const void**)&spot_buffer, nullptr, &spot_len);
+        if ( rc != 0 )
+        {
+            throw logic_error( string( "Error reading READ" ) );
+        }
+
+        uint32_t* read_start_buffer = nullptr;
+        uint32_t read_start_len = 0;
+        rc = VCursorCellDataDirect( cur, rowId, colStartIdx, nullptr, (const void**)&read_start_buffer, nullptr, &read_start_len);
+        if ( rc != 0 )
+        {
+            throw logic_error( string( "Error reading READ_START" ) );
+        }
+
+        uint32_t* read_len_buffer = nullptr;
+        uint32_t read_len_len = 0;
+        rc = VCursorCellDataDirect( cur, rowId, colLenIdx, nullptr, (const void**)&read_len_buffer, nullptr, &read_len_len);
+        if ( rc != 0 )
+        {
+            throw logic_error( string( "Error reading READ_LEN" ) );
+        }
+
+        uint8_t* read_type_buffer = nullptr;
+        uint32_t read_type_len = 0;
+        rc = VCursorCellDataDirect( cur, rowId, colTypeIdx, nullptr, (const void**)&read_type_buffer, nullptr, &read_type_len);
+        if ( rc != 0 )
+        {
+            throw logic_error( string( "Error reading READ_TYPE" ) );
+        }
+
+        //cout << rowId << ": " << string( spot_buffer, spot_len ) << endl;
+        for( uint32_t i = 0; i < read_len_len; ++i )
+        {
+            // const char * type = "";
+            // switch(read_type_buffer[i])
+            // {
+            // case SRA_READ_TYPE_TECHNICAL: type = "TECH"; break;
+            // case SRA_READ_TYPE_BIOLOGICAL: type = "BIO"; break;
+            // default:
+            //     throw logic_error( string( "Unknown read type" ) );
+            // }
+            // cout << i << ": START=" << read_start_buffer[i] <<
+            //             " LEN=" << read_len_buffer[i] <<
+            //             " " << type << endl;
+
+            if ( read_type_buffer[i] == SRA_READ_TYPE_BIOLOGICAL )
+            {
+                string read = string( spot_buffer + read_start_buffer[i], read_len_buffer[i] );
+                // cout << "recording " << read << endl;
+
+                fp.record( read );
+            }
+        }
+    }
+
+    ostringstream out;
+    JSON_ostream j ( out, true );
+    j << '{';
+    fp.canonicalForm( j );
+    j << '}';
+
+    //cout << out.str() << endl;
+
+    rc = KMDataNodeWriteCString ( node, out.str().c_str() );
+    if ( rc != 0 )
+    {
+        throw logic_error( string( "Error reading READ_LEN" ) );
+    }
+
+    KMDataNodeRelease( node );
+    VCursorRelease( cur );
+    KMetadataRelease( meta );
+
+    return rc;
+}
+
+static
+rc_t
+HandleTable( VDBManager * mgr, const char * path )
+{
+    VTable * tbl;
+
+    rc_t rc = VDBManagerOpenTableUpdate ( mgr, & tbl, nullptr, path );
+    if ( rc != 0 )
+    {
+        throw logic_error( string("Cannot open for update: '") + path + "'" );
+    }
+
+    rc = VTableAddFingerprint( tbl );
+
+    VTableRelease( tbl );
+
+    return rc;
+}
+
+static
+rc_t
+HandleDatabase( VDBManager * mgr, const char * path )
+{
+    VDatabase *db;
+    rc_t rc = VDBManagerOpenDBUpdate ( mgr, &db, nullptr, path );
+
+    if ( rc != 0 )
+    {
+        throw logic_error( string("Cannot open for update: '") + path + "'" );
+    }
+
+    VTable * tbl = nullptr;
+    rc = VDatabaseOpenTableUpdate( db, & tbl, "SEQUENCE" );
+    if ( rc != 0 )
+    {
+        throw logic_error( string("Cannot open SEQUENCE table for update: '") + path + "'" );
+    }
+
+    rc = VTableAddFingerprint( tbl );
+
+    VTableRelease( tbl );
+    VDatabaseRelease ( db );
+
+    return rc;
+}
+
+static
+rc_t
+AddFingerprint( const char * run )
+{
+    VDBManager * mgr = nullptr;
+    rc_t rc = VDBManagerMakeUpdate( & mgr, nullptr );
+    DISP_RC(rc, "VDBManagerMakeUpdate failed");
+
+    rc = VDBManagerWritable( mgr, run );
+    if (rc != 0)
+    {
+        if (GetRCState(rc) == rcNotFound)
+        {
+            throw logic_error( string("Accession not found: '") + run + "'" );
+        }
+        if (GetRCState(rc) == rcIncorrect)
+        {
+            throw logic_error( string("Invalid accession file: '") + run + "'" );
+        }
+        else if (GetRCState(rc) == rcLocked)
+        {
+            rc = VDBManagerUnlock( mgr, run );
+            if (rc != 0)
+            {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "cannot unlock '$(run)'",
+                    "run=%s", run));
+            }
+        }
+        else
+        {
+            PLOGERR(klogErr, (klogErr, rc,
+                "'$(run)' is read-only",
+                "run=%s", run));
+        }
+    }
+
+    if ( rc == 0 )
+    {
+        switch ( VDBManagerPathType( mgr, "%s", run ) & ~ kptAlias )
+        {
+        case kptDatabase :
+            rc = HandleDatabase( mgr, run );
+            break;
+        case kptTable :
+            rc = HandleTable( mgr, run );
+            break;
+        case kptPrereleaseTbl :
+            throw logic_error( string( "Prerelase Tables are not suported" ) );
+        default:
+            throw logic_error( string( "Invalid accession path" ) );
+        }
+    }
+
+    return rc;
+}
+
+OptDef Options[] =
+{
+};
+
+const char UsageDefaultName[] = "sra-add-fp";
+
+rc_t CC UsageSummary ( const char * progname )
+{
+    return KOutMsg ("\n"
+                    "Usage:\n"
+                    "  %s <path> [options]\n"
+                    "Summary:\n"
+                    "  Add fingerprinting data to the SEQUENCE table of the given accession.\n"
+                    "\n", progname);
+}
+
+rc_t CC Usage ( const Args * args )
+{
+    const char * progname = UsageDefaultName;
+    const char * fullpath = UsageDefaultName;
+    rc_t rc;
+
+    if ( args == nullptr )
+    {
+        rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
+    }
+    else
+    {
+        rc = ArgsProgram ( args, &fullpath, &progname );
+    }
+
+    if ( rc )
+    {
+        progname = fullpath = UsageDefaultName;
+    }
+
+    UsageSummary ( progname );
+
+    KOutMsg ( "Options:\n" );
+
+    HelpOptionsStandard ();
+
+    HelpVersion ( fullpath, TOOLKIT_VERS );
+
+    return rc;
+}
+
+MAIN_DECL(argc, argv)
+{
+    VDB::Application app(argc, argv);
+
+    try
+    {
+        SetUsage( Usage );
+        SetUsageSummary( UsageSummary );
+
+        Args * args;
+        rc_t rc = ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 );
+        DISP_RC( rc, "ArgsMakeAndHandle() failed" );
+        if ( rc == 0)
+        {
+            uint32_t param_count = 0;
+            rc = ArgsParamCount(args, &param_count);
+            DISP_RC( rc, "ArgsParamCount() failed" );
+            if ( rc == 0 )
+            {
+                if ( param_count == 0 || param_count > 1 )
+                {
+                    MiniUsage(args);
+                    app.setRc( 1 );
+                }
+                else
+                {
+                    const char * accession = nullptr;
+                    rc = ArgsParamValue( args, 0, ( const void ** )&( accession ) );
+                    DISP_RC( rc, "ArgsParamValue() failed" );
+                    if ( rc == 0 )
+                    {
+                        rc = AddFingerprint( accession );
+                    }
+                }
+            }
+
+            ArgsRelease( args );
+        }
+
+        app.setRc( rc );
+    }
+    catch ( exception & x )
+    {
+        cerr <<  x.what () << endl;
+        app.setRc( 1 );
+    }
+
+    return app.getExitCode();
+}

@@ -34,14 +34,19 @@
 #include <klib/data-buffer.h>
 #endif
 
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
+
+#define __FN__ "fq_seq_csra_iter.c"
 
 typedef struct fq_seq_csra_iter_t {
     struct cmn_iter_t * cmn;
     KDataBuffer qual_buffer;  /* klib/databuffer.h */
     fq_seq_csra_opt_t opt;
-    uint32_t name_id, prim_alig_id, read_id, quality_id, read_len_id, read_type_id, spotgroup_id;
+    uint32_t name_id, prim_alig_id, read_id, quality_id, read_start_id, read_len_id, read_type_id, spotgroup_id;
     char qual_2_ascii_lut[ 256 ];
+    uint32_t thread_id;
 } fq_seq_csra_iter_t;
 
 rc_t fq_seq_csra_iter_make( const cmn_iter_params_t * params,
@@ -59,6 +64,7 @@ rc_t fq_seq_csra_iter_make( const cmn_iter_params_t * params,
             ErrMsg( "make_fastq_csra_iter.KDataBufferMakeBytes() -> %R", rc );
         } else {
             self -> opt = opt;
+            self -> thread_id = params -> thread_id;
             rc = cmn_iter_make( params, "SEQUENCE", &( self -> cmn ) );
 
             if ( 0 == rc && opt . with_name ) {
@@ -79,6 +85,10 @@ rc_t fq_seq_csra_iter_make( const cmn_iter_params_t * params,
 
             if ( 0 == rc && opt . with_quality ) {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) );
+            }
+
+            if ( 0 == rc && opt . with_read_len ) {
+                rc = cmn_iter_add_column( self -> cmn, "READ_START", &( self -> read_start_id ) );
             }
 
             if ( 0 == rc && opt . with_read_len ) {
@@ -153,7 +163,7 @@ static rc_t fq_seq_csra_iter_read_bounded_quality( struct cmn_iter_t * cmn,
     }
     return rc;
 }
-                                  
+
 bool fq_seq_csra_iter_get_data( fq_seq_csra_iter_t * self, fq_seq_csra_rec_t * rec, rc_t * rc ) {
     rc_t rc2 = 0;
     bool res = cmn_iter_get_next( self -> cmn, &rc2 );
@@ -183,6 +193,13 @@ bool fq_seq_csra_iter_get_data( fq_seq_csra_iter_t * self, fq_seq_csra_rec_t * r
                                         &( rec -> quality ) );
         } else {
             StringInit( &( rec -> quality ), NULL, 0, 0 );
+        }
+
+        if ( 0 == rc1 && self -> opt . with_read_len ) {
+            rc1 = cmn_iter_read_uint32_array( self -> cmn, self -> read_start_id,
+                                              &rec -> read_start, &( rec -> num_read_start ) );
+        } else {
+            rec -> num_read_start = 1;
         }
 
         if ( 0 == rc1 && self -> opt . with_read_len ) {

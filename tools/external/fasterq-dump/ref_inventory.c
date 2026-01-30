@@ -1023,7 +1023,7 @@ rc_t ref_inventory_print_concatenated( const tool_ctx_t * tool_ctx, const char *
                                            tool_ctx -> accession_short,
                                            tool_ctx -> accession_path,
                                            tool_ctx -> cursor_cache,
-                                           0, 0 ) ) {
+                                           0, 0, 0 ) ) {
                 struct simple_fasta_iter_t * iter;
                 rc = sfai_create( &iter_params, tbl_name, &iter );
                 if ( 0 == rc ) {

@@ -650,7 +650,7 @@ bool hlp_filter_2na_2( filter_2na_t * self, const String * bases1, const String 
 /* -------------------------------------------------------------------------------- */
 
 rc_t hlp_make_thread( KThread ** self,
-                      rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                      rc_t ( * run_thread ) ( const KThread * self, void * data ),
                       void * data,
                       size_t stacksize ) {
     rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );

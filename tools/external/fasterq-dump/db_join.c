@@ -46,10 +46,6 @@
 #include "lookup_reader.h"
 #endif
 
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
-#endif
-
 #ifndef _h_fq_seq_csra_iter_
 #include "fq_seq_csra_iter.h"
 #endif
@@ -194,7 +190,7 @@ static void dbj_slice_rec( const String * src, String * S1, String * S2, uint32_
     }
 }
 
-static uint32_t dbj_calc_spot_len( const fq_seq_csra_rec_t * rec ) {
+static uint32_t dbj_calc_spot_len_from_read_len( const fq_seq_csra_rec_t * rec ) {
     uint32_t res = 0;
     uint32_t i;
     for ( i = 0; i < rec -> num_read_len; i++ ) {
@@ -253,6 +249,8 @@ typedef enum dbj_split_mode_t { sm_none, sm_file, sm_3 } dbj_split_mode_t;
 
 /* ------------------------------------------------------------------------------------------ */
 
+/* FASTQ | the SPOT is unaligned and has only 1 READ :
+ *      READ and QUALITY are taken from the SEQUENCE-table */
 static rc_t dbj_print_fastq_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -275,11 +273,16 @@ static rc_t dbj_print_fastq_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                              /* R2 */ NULL,
                              /* Q  */ QUALITY );
             if ( 0 == rc ) { j -> stats -> reads_written++; }
+        } else {
+            /* Is it an error if CMP_READ is empty? Can that even happen? */
         }
     }
     return rc;
 }
 
+/* FASTQ | the SPOT is aligned and has only 1 READ :
+ *      READ is taken from the tmp. lookup-table,
+ *      QUALITY is taken from the SEQUENCE-table */
 static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -309,6 +312,7 @@ static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | the SPOT has only 1 READ */
 static rc_t dbj_print_fastq_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -324,6 +328,8 @@ static rc_t dbj_print_fastq_1_read( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT is unaligned and has only 1 READ :
+ *      READ is taken from the SEQUENCE-table */
 static rc_t dbj_print_fasta_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -344,6 +350,8 @@ static rc_t dbj_print_fasta_1_read_unaligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT is aligned and has only 1 READ :
+ *      READ is taken from the tmp. lookup-table */
 static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -366,6 +374,7 @@ static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT has only 1 READ */
 static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
@@ -383,10 +392,11 @@ static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
 
 /* ------------------------------------------------------------------------------------------ */
 
+/* FASTQ | the SPOT is unaligned and has 2 READs :
+ *      READ and QUALITY are taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> FULLY UNALIGNED <<<<<
-        print what is in rec -> read ( no lookups! ) */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
@@ -408,11 +418,13 @@ static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> HALF ALIGNED <<<<<
-        A0 is unaligned ( read and quality from rec )
-        A1 is aligned   ( read form j -> lookup, quality from rec ) */
     const String * LOOKED_UP = NULL;
     rc_t rc = dbj_lookup2( j, rec, &LOOKED_UP );
     if ( 0 == rc ) {
@@ -444,11 +456,13 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t *
     return rc;
 }
 
+/* FASTQ | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> HALF ALIGNED <<<<<
-        A0 is aligned ( read and quality from rec )
-        A1 is unaligned ( read form lookup quality from rec */
     const String * LOOKED_UP = NULL;
     rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
     if ( 0 == rc ) {
@@ -480,9 +494,12 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t *
     return rc;
 }
 
+/* FASTQ | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> FULLY ALIGNED <<<<<  2 lookups! */
     const String * LOOKED_UP1 = NULL;
     const String * LOOKED_UP2 = NULL;
     rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
@@ -511,6 +528,7 @@ static rc_t dbj_print_fastq_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | with 2 READs, printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
@@ -530,10 +548,13 @@ static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* ------------------------------------------------------------------------------------------ */
+
+/* FASTA | the SPOT is unaligned and has 2 READs :
+ *      READ is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* both unaligned, print what is in row->read ( no lookup )
-        also no check for READ.len == QUAL.len, because FASTA, aka no QUALITY */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
@@ -548,16 +569,19 @@ static rc_t dbj_print_fasta_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
     const String * LOOKED_UP = NULL;
     rc_t rc = dbj_lookup2( j, rec, &LOOKED_UP );
     if ( 0 == rc ) {
         const String * CMP_READ = &( rec -> read );
         String sliced;
         /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
+        if ( CMP_READ -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
             dbj_slice_read( rec, &sliced, NULL );
             CMP_READ = &sliced;
         }
@@ -574,17 +598,19 @@ static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fq_seq_csra_rec_t *
     return rc;
 }
 
+/* FASTA | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
     const String * LOOKED_UP = NULL;
-
     rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
     if ( 0 == rc ) {
         const String * CMP_READ = &( rec -> read );
         String sliced;
         /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
+        if ( CMP_READ -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
             dbj_slice_read( rec, NULL, &sliced );
             CMP_READ = &sliced;
         }
@@ -601,9 +627,11 @@ static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fq_seq_csra_rec_t *
     return rc;
 }
 
+/* FASTA | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 and A1 are aligned ( 2 lookups ) */
     const String * LOOKED_UP1 = NULL;
     const String * LOOKED_UP2 = NULL;
     rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
@@ -624,6 +652,7 @@ static rc_t dbj_print_fasta_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | with 2 READs, printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
@@ -699,6 +728,10 @@ static rc_t dbj_print_fastq_splitted_cmn( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | the SPOT is fully unaligned and has 2 READs :
+ *      both READs are taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -706,7 +739,6 @@ static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* fully unaligned */
     String CMP_READ1, CMP_READ2;
     dbj_slice_read( rec, &CMP_READ1, &CMP_READ2 );
     if ( process_0 ) {
@@ -727,6 +759,11 @@ static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                    &CMP_READ1, &CMP_READ2, Q1, Q2 );
 }
 
+/* FASTQ | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      1st READ is taken from the SEQUENCE-table
+ *      2nd READ is taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -734,12 +771,11 @@ static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * r
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-    uint32_t spot_len = dbj_calc_spot_len( rec );
+    uint32_t spot_len = dbj_calc_spot_len_from_read_len( rec );
     /* special case: CMP_READ contains both! */
     if ( CMP_READ -> len == spot_len ) {
         dbj_slice_read( rec, &sliced, NULL );
@@ -771,6 +807,11 @@ static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * r
     return rc;
 }
 
+/* FASTQ | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      1st READ is taken from the lookup-table
+ *      2nd READ is taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -778,12 +819,11 @@ static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * r
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-    uint32_t spot_len = dbj_calc_spot_len( rec );
+    uint32_t spot_len = dbj_calc_spot_len_from_read_len( rec );
     /* special case: CMP_READ contains both! */
     if ( CMP_READ -> len == spot_len ) {
         dbj_slice_read( rec, NULL, &sliced );
@@ -815,6 +855,10 @@ static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * r
     return rc;
 }
 
+/* FASTQ | the SPOT is fully-aligned :
+ *      both READs are taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -822,7 +866,6 @@ static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 and A1 are aligned (2 lookups) */
     rc_t rc = 0;
     const String * LOOKED_UP1 = NULL;
     const String * LOOKED_UP2 = NULL;
@@ -853,6 +896,7 @@ static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | with 2 READs, splitting the SPOT */
 static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
@@ -897,6 +941,8 @@ static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* ------------------------------------------------------------------------------------------ */
+
 static rc_t dbj_print_fasta_splitted_cmn( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -929,6 +975,9 @@ static rc_t dbj_print_fasta_splitted_cmn( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT is fully unaligned and has 2 READs :
+ *      both READs are taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -942,18 +991,21 @@ static rc_t dbj_print_fasta_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                      &CMP_READ1, &CMP_READ2 );
 }
 
+/* FASTA | the SPOT is half-aligned ( 1st READ is unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
     /* test for special case: CMP_READ contains BOTH halfs: */
-    if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
+    if ( CMP_READ -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
         dbj_slice_read( rec, &sliced, NULL );
         CMP_READ = &sliced;
     }
@@ -965,18 +1017,21 @@ static rc_t dbj_print_fasta_splitted_half_aligned_1( const fq_seq_csra_rec_t * r
     return rc;
 }
 
+/* FASTA | the SPOT is half-aligned ( 2nd READ is unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
     /* test for special case: CMP_READ contains BOTH halfs: */
-    if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
+    if ( CMP_READ -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
         dbj_slice_read( rec, NULL, &sliced );
         CMP_READ = &sliced;
     }
@@ -988,6 +1043,9 @@ static rc_t dbj_print_fasta_splitted_half_aligned_2( const fq_seq_csra_rec_t * r
     return rc;
 }
 
+/* FASTA | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -1010,6 +1068,7 @@ static rc_t dbj_print_fasta_splitted_aligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | with 2 READs, splitting the SPOT */
 static rc_t dbj_print_fasta_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
@@ -1041,6 +1100,8 @@ static rc_t dbj_print_fasta_splitted( const fq_seq_csra_rec_t * rec,
     }
     return rc;
 }
+
+/* ------------------------------------------------------------------------------------------ */
 
 static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                                      dbj_cmn_t * j ) {
@@ -1475,7 +1536,7 @@ typedef struct dbj_thread_data_t {
     struct multi_writer_t * multi_writer;
 } dbj_thread_data_t;
 
-static rc_t CC dbj_sorted_thread( const KThread * self, void * data ) {
+static rc_t dbj_sorted_thread( const KThread * self, void * data ) {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
@@ -1504,7 +1565,8 @@ static rc_t CC dbj_sorted_thread( const KThread * self, void * data ) {
                                   jtd -> accession_path,
                                   jtd -> cur_cache,
                                   jtd -> first_row,
-                                  jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                                  jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                                  jtd -> thread_id );
         rc = dbj_init_cmn_data( &j,
                         &jtd -> stats,
                         jtd -> join_options,
@@ -1751,7 +1813,7 @@ rc_t dbj_check_lookup_this( const KDirectory * dir,
    ====================================================================================================================== */
 
 /* iterate over the ALIGN-table, using the align-iter from fastq_iter.c */
-static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
+static rc_t dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
 {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
@@ -1768,7 +1830,8 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
    
     flex_printer = flp_create_2( jtd -> multi_writer,          /* passed in multi-writer */
                             jtd -> accession_short,       /* the accession to be printed */
@@ -1890,7 +1953,7 @@ static rc_t dbj_create_unsorted_fasta_from_align( KDirectory * dir,
 }
 
 /* iterate over the SEQ-table, but only use what is half/fully unaligned... */
-static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
+static rc_t dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
@@ -1908,7 +1971,8 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
     
     opt . with_read_len = true;
     opt . with_name = false;

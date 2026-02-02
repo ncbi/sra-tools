@@ -1076,27 +1076,21 @@ static rc_t unsorted_fasta_split_spot_thread_func( const KThread *self, void *da
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 uint32_t read_id_0 = 0;
-                uint32_t read_len_sum = 0;
-                uint32_t offset = 0;
 
-                /* check if the READ-columns has as many bases as the READ_LEN-column 'asks' for */
-                while ( read_id_0 < rec . num_read_len ) { read_len_sum += rec . read_len[ read_id_0++ ]; }
-                if ( rec . read . len != read_len_sum ) {
-                    ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec . row_id, rec . read . len, read_len_sum );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-                }
+                /* check for READ.len == sum( READ_LEN ) removed because it is already checked in
+                 *  fq_seq_ua_iter_get_data() */
 
                 /* iterate over the fragments of the SPOT */
-                read_id_0 = 0;
                 while ( 0 == rc && read_id_0 < rec . num_read_len ) {
                     if ( rec . read_len[ read_id_0 ] > 0 ) {
                         if ( filter( stats, &rec, jo, read_id_0 ) ) {
                             flp_data_t data;
+                            uint32_t start = rec . read_start[ read_id_0 ];
+                            uint32_t len = rec . read_len[ read_id_0 ];
                             String R;
-                            R . addr = &rec . read . addr[ offset ];
-                            R . size = rec . read_len[ read_id_0 ];
-                            R . len  = ( uint32_t )R . size;
+                            R . addr = &rec . read . addr[ start ];
+                            R . size = len;
+                            R . len  = len;
 
                             /* fill out the data-record for the flex-printer */
                             data . row_id = rec . row_id;
@@ -1113,7 +1107,6 @@ static rc_t unsorted_fasta_split_spot_thread_func( const KThread *self, void *da
                             rc = flp_print( flex_printer, &data );
                             if ( 0 == rc ) { stats -> reads_written++; }
                         }
-                        offset += rec . read_len[ read_id_0 ];
                     }
                     else { stats -> reads_zero_length++; }
                     read_id_0++;
@@ -1180,16 +1173,8 @@ static rc_t unsorted_fasta_whole_spot_thread_func( const KThread *self, void *da
         {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
-                uint32_t read_id_0 = 0;
-                uint32_t read_len_sum = 0;
-
-                /* check if the READ-columns has as many bases as the READ_LEN-column 'asks' for */
-                while ( read_id_0 < rec . num_read_len ) { read_len_sum += rec . read_len[ read_id_0++ ]; }
-                if ( rec . read . len != read_len_sum ) {
-                    ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec . row_id, rec . read . len, read_len_sum );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-                }
+                /* check for READ.len == sum( READ_LEN ) removed because it is already checked in
+                 *  fq_seq_ua_iter_get_data() */
 
                 /* process the whole SPOT */
                 if ( rec . read . len > 0 ) {

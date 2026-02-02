@@ -177,19 +177,6 @@ static bool dbj_filter( join_stats_t * stats,
     return process;
 }
 
-static void dbj_slice_rec( const String * src, String * S1, String * S2, uint32_t * l ) {
-    if ( NULL != S1 ) {
-        S1 -> addr = src -> addr;
-        S1 -> size = l[ 0 ];
-        S1 -> len  = l[ 0 ];
-    }
-    if ( NULL != S2 ) {
-        S2 -> addr = &( src -> addr[ l[ 0 ] ] );
-        S2 -> size = l[ 1 ];
-        S2 -> len  = l[ 1 ];
-    }
-}
-
 static uint32_t dbj_calc_spot_len_from_read_len( const fq_seq_csra_rec_t * rec ) {
     uint32_t res = 0;
     uint32_t i;
@@ -199,12 +186,38 @@ static uint32_t dbj_calc_spot_len_from_read_len( const fq_seq_csra_rec_t * rec )
     return res;
 }
 
-static void dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
-    dbj_slice_rec( &( rec -> read ), S1, S2, rec -> read_len );
+static void dbj_init_str( const String * src, String * dst, uint32_t start, uint32_t len ) {
+    dst -> addr = &( src -> addr[ start ] );
+    dst -> size = len;
+    dst -> len  = len;
 }
 
-static void dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
-    dbj_slice_rec( &( rec -> quality ), S1, S2, rec -> read_len );
+static bool dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
+    bool res = ( rec -> num_read_start > 0 && rec -> num_read_len > 0 );
+    if ( res ) {
+        /* we have a read-start and read-len */
+        if ( NULL != S1 ) {
+            dbj_init_str( &( rec -> read ), S1, rec -> read_start[ 0 ], rec -> read_len[ 0 ] );
+        }
+        if ( NULL != S2 ) {
+            dbj_init_str( &( rec -> read ), S1, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
+        }
+    }
+    return res;
+}
+
+static bool dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
+    bool res = ( rec -> num_read_start > 0 && rec -> num_read_len > 0 );
+    if ( res ) {
+        /* we have a read-start and read-len */
+        if ( NULL != S1 ) {
+            dbj_init_str( &( rec -> quality ), S1, rec -> read_start[ 0 ], rec -> read_len[ 0 ] );
+        }
+        if ( NULL != S2 ) {
+            dbj_init_str( &( rec -> quality ), S1, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
+        }
+    }
+    return res;
 }
 
 static rc_t dbj_print_data( struct flp_t * printer,
@@ -256,27 +269,44 @@ static rc_t dbj_print_fastq_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        const String * QUALITY = &( rec -> quality );
-        if ( CMP_READ -> len != QUALITY -> len ) {
-            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", rec -> row_id,
-                    CMP_READ -> len, QUALITY -> len );
-            j -> stats -> reads_invalid++;
-            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-        }
-        if ( CMP_READ -> len > 0 ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                             /* read_id */ 1,
-                             /* dst_id */ ( sm_file == sm ) ? 1 : 0,
-                             /* R1 */ CMP_READ,
-                             /* R2 */ NULL,
-                             /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written++; }
-        } else {
-            /* Is it an error if CMP_READ is empty? Can that even happen? */
-        }
+    const String * READ = &( rec -> read );
+    const String * QUALITY = &( rec -> quality );
+
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", rec -> row_id,
+                READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : CMP_READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                        /* read_id */ 1,
+                        /* dst_id */ ( sm_file == sm ) ? 1 : 0,
+                        /* R1 */ READ,
+                        /* R2 */ NULL,
+                        /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
@@ -287,28 +317,46 @@ static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_1( j -> filter, LOOKED_UP ) ) {
-            const String * QUALITY = &( rec -> quality );
-            if ( LOOKED_UP -> len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
-                            LOOKED_UP -> len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            if ( LOOKED_UP -> len > 0 ) {
-                rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                                /* read_id */ 1,
-                                 /* dst_id */ ( sm_file == sm ) ? 1 : 0,
-                                /* R1 */ LOOKED_UP,
-                                /* R2 */ NULL,
-                                /* Q  */ QUALITY );
-                if ( 0 == rc ) { j -> stats -> reads_written++; }
-            }
-        }
+    const String * READ = NULL;
+    const String * QUALITY = &( rec -> quality );
+
+    rc_t rc = dbj_lookup1( j, rec, &READ );
+    if ( 0 != rc ) { return rc; }
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
+                    READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if looked up READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                        /* dst_id */ ( sm_file == sm ) ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
@@ -316,16 +364,11 @@ static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
 static rc_t dbj_print_fastq_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
-    rc_t rc = 0;
-    bool process = dbj_filter( j -> stats, rec, j -> join_options, 0 );
-    if ( process ) {
-        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-            rc = dbj_print_fastq_1_read_unaligned( rec, j, sm );
-        } else {
-            rc = dbj_print_fastq_1_read_aligned( rec, j, sm );
-        }
+    if ( !dbj_filter( j -> stats, rec, j -> join_options, 0 ) ) { return 0; }
+    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+        return dbj_print_fastq_1_read_unaligned( rec, j, sm );
     }
-    return rc;
+    return dbj_print_fastq_1_read_aligned( rec, j, sm );
 }
 
 /* FASTA | the SPOT is unaligned and has only 1 READ :
@@ -335,18 +378,36 @@ static rc_t dbj_print_fasta_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        if ( CMP_READ -> len > 0 ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ sm == sm_file ? 1 : 0,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL );
-            if ( 0 == rc ) { j -> stats -> reads_written++; }
-        }
+    const String * READ = &( rec -> read );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ sm == sm_file ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
@@ -356,21 +417,38 @@ static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_1( j -> filter, LOOKED_UP ) ) {
-            if ( LOOKED_UP -> len > 0 ) {
-                rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                                /* read_id */ 1,
-                                /* dst_id */ sm == sm_file ? 1 : 0,
-                                /* R1 */ LOOKED_UP,
-                                /* R2 */ NULL,
-                                /* Q  */ NULL );
-                if ( 0 == rc ) { j -> stats -> reads_written++; }
-            }
-        }
+    const String * READ = NULL;
+    rc_t rc = dbj_lookup1( j, rec, &READ );
+    if ( 0 != rc ) { return rc; }
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ sm == sm_file ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
@@ -378,16 +456,11 @@ static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
 static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
-    rc_t rc = 0;
-    bool process = dbj_filter( j -> stats, rec, j -> join_options, 0 );
-    if ( process ) {
-        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-            rc = dbj_print_fasta_1_read_unaligned( rec, j, sm );
-        } else {
-            rc = dbj_print_fasta_1_read_aligned( rec, j, sm );
-        }
+    if ( !dbj_filter( j -> stats, rec, j -> join_options, 0 ) ) { return 0; }
+    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+            return dbj_print_fasta_1_read_unaligned( rec, j, sm );
     }
-    return rc;
+    return dbj_print_fasta_1_read_aligned( rec, j, sm );
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -398,23 +471,40 @@ static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
 static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        const String * QUALITY = &( rec -> quality );
-        if ( CMP_READ -> len != QUALITY -> len ) {
-            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", rec -> row_id,
-                    CMP_READ -> len, QUALITY -> len );
-            j -> stats -> reads_invalid++;
-            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-        }
-        rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                        /* read_id */ 1,
-                         /* dst_id */ 0,
-                        /* R1 */ CMP_READ,
-                        /* R2 */ NULL,
-                        /* Q  */ QUALITY );
-        if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+    const String * READ = &( rec -> read );
+    const String * QUALITY = &( rec -> quality );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != ( rec -> read_len[ 0 ] + rec -> read_len[ 1 ] ) ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) != READ_LEN[0](%u) + READ_LEN[1](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ], rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", rec -> row_id,
+                READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 

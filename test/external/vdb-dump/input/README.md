@@ -6,7 +6,7 @@ as 'undefined'.
 
 When a new platform is added, it is usually only necessary to update the
 expected results file in `../expected/7.0.stdout`. But occasionally, we
-will run out of values, and need to add more columns to this table. After
+will run out of values, and need to add more rows to this table. After
 updating the expected results file, remember to inspect it and verify
 its contents before checking it in.
 

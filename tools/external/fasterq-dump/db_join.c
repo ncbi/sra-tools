@@ -200,21 +200,21 @@ static bool dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String *
             dbj_init_str( &( rec -> read ), S1, rec -> read_start[ 0 ], rec -> read_len[ 0 ] );
         }
         if ( NULL != S2 ) {
-            dbj_init_str( &( rec -> read ), S1, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
+            dbj_init_str( &( rec -> read ), S2, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
         }
     }
     return res;
 }
 
-static bool dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
+static bool dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * Q1, String * Q2 ) {
     bool res = ( rec -> num_read_start > 0 && rec -> num_read_len > 0 );
     if ( res ) {
         /* we have a read-start and read-len */
-        if ( NULL != S1 ) {
-            dbj_init_str( &( rec -> quality ), S1, rec -> read_start[ 0 ], rec -> read_len[ 0 ] );
+        if ( NULL != Q1 ) {
+            dbj_init_str( &( rec -> quality ), Q1, rec -> read_start[ 0 ], rec -> read_len[ 0 ] );
         }
-        if ( NULL != S2 ) {
-            dbj_init_str( &( rec -> quality ), S1, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
+        if ( NULL != Q2 ) {
+            dbj_init_str( &( rec -> quality ), Q2, rec -> read_start[ 1 ], rec -> read_len[ 1 ] );
         }
     }
     return res;
@@ -323,13 +323,13 @@ static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
     rc_t rc = dbj_lookup1( j, rec, &READ );
     if ( 0 != rc ) { return rc; }
     if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
     if ( READ -> len != QUALITY -> len ) {
         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
                     READ -> len, QUALITY -> len );
         j -> stats -> reads_invalid++;
         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
-
     if ( 1 != rec -> num_read_start ) {
         ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
         j -> stats -> reads_invalid++;
@@ -508,6 +508,39 @@ static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+static rc_t dbj_fastq_check_invariants_for_2_reads( const String * READ1, const String * READ2, const String * QUALITY,
+                                const fq_seq_csra_rec_t * rec, dbj_cmn_t * j ) {
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ1 -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ1.len(%u) != READ_LEN[0](%u)\n",
+                rec -> row_id, READ1 -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ2 -> len != rec -> read_len[ 1 ] ) {
+        ErrMsg( "row #%ld : looked up READ2.len(%u) != READ_LEN[1](%u)\n",
+                rec -> row_id, READ2 -> len, rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( QUALITY -> len != ( READ1 -> len + READ2 -> len ) ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", rec -> row_id,
+                READ1 -> len + READ2 -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    return 0;
+}
+
 /* FASTQ | the SPOT is half-aligned ( 1st READ unaligned ) :
  *      the 1st READ is taken from the SEQUENCE-table
  *      the 2nd READ is taken from the lookup-table
@@ -515,34 +548,31 @@ static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
         printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup2( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        const String * QUALITY  = &( rec -> quality );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == QUALITY -> len ) {
-            dbj_slice_read( rec, &sliced, NULL );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, CMP_READ, LOOKED_UP ) ) {
-            uint32_t combined_len = CMP_READ -> len + LOOKED_UP -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ LOOKED_UP,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    rc_t rc;
+    const String * READ1 = &( rec -> read );
+    const String * READ2 = NULL;
+    const String * QUALITY  = &( rec -> quality );
+    String sliced;
+    /* test for special case: CMP_READ contains BOTH halfs: */
+    if ( READ1 -> len == QUALITY -> len ) {
+        dbj_slice_read( rec, &sliced, NULL );
+        READ1 = &sliced;
     }
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
@@ -553,34 +583,32 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t *
         printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        const String * QUALITY  = &( rec -> quality );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == QUALITY -> len ) {
-            dbj_slice_read( rec, NULL, &sliced );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP, CMP_READ ) ) {
-            uint32_t combined_len = LOOKED_UP -> len + CMP_READ -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ CMP_READ,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    const String * READ1 = NULL;
+    const String * READ2 = &( rec -> read );
+    const String * QUALITY  = &( rec -> quality );
+    String sliced;
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+
+    /* test for special case: CMP_READ contains BOTH halfs: */
+    if ( READ2 -> len == QUALITY -> len ) {
+        dbj_slice_read( rec, NULL, &sliced );
+        READ2 = &sliced;
     }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+
     return rc;
 }
 
@@ -590,31 +618,26 @@ static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t *
         printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
-    if ( 0 == rc ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP2 );
-    }
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP1, LOOKED_UP2 ) ) {
-            const String * QUALITY = &( rec -> quality );
-            uint32_t combined_len = LOOKED_UP1 -> len + LOOKED_UP2 -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP1,
-                            /* R2 */ LOOKED_UP2,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
-    }
+    const String * READ1 = NULL;
+    const String * READ2 = NULL;
+    const String * QUALITY = &( rec -> quality );
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
@@ -646,16 +669,33 @@ static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
 static rc_t dbj_print_fasta_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                        /* read_id */ 1,
-                        /* dst_id */ 0,
-                        /* R1 */ CMP_READ,
-                        /* R2 */ NULL,
-                        /* Q  */ NULL );
-        if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+    const String * READ = &( rec -> read );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != ( rec -> read_len[ 0 ] + rec -> read_len[ 1 ] ) ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) != READ_LEN[0](%u) + READ_LEN[1](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ], rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 

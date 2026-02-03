@@ -36,11 +36,15 @@
 #   -DCMAKE_BUILD_TYPE=<Debug|Release>
 #
 ## ===========================================================================
-
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if( SINGLE_CONFIG )
 
     cmake_minimum_required(VERSION 3.16)
     project(sharq)
+
+    # Include cloud filesystem support module
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CloudFilesystem.cmake)
 
     # prefer static linkage
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib .tbd)
@@ -116,7 +120,17 @@ if( SINGLE_CONFIG )
         if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
                 set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
         endif()
-        target_link_libraries(sharq ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
+        target_link_libraries(sharq PRIVATE ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
+        
+        # Set rpath to exclude crc32c path and prevent dynamic linking
+        set_target_properties(sharq PROPERTIES 
+            INSTALL_RPATH_USE_LINK_PATH FALSE
+            SKIP_BUILD_RPATH TRUE
+            SKIP_INSTALL_RPATH TRUE)
+        
+        # Add cloud storage support if enabled
+        sharq_add_cloud_support(sharq)
+        
         MakeLinksExe( sharq false )
 
        if( RUN_SANITIZER_TESTS )

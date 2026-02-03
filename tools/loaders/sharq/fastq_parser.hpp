@@ -73,6 +73,13 @@
 
 #include <fingerprint.hpp>
 #include <kfile_stream/kfile_stream.hpp>
+#include "istreambuf_holder.hpp"
+#ifdef SHARQ_USE_NATIVE_CLOUD
+#ifdef CC
+#undef CC
+#endif
+#include "fastq_stream_factory.hpp"
+#endif
 
 using namespace std::chrono_literals;
 
@@ -264,55 +271,6 @@ struct data_output_metrics_t {
     size_t spot_count = 0;
 };
 
-// bxz::istream does not delete its streambuf;
-// this class makes sure it is deleted on destruction
-class istreambuf_holder : public bxz::istream
-{
-public:
-    istreambuf_holder( std::streambuf * sb, const vdb::KFileMD5ReadObserver * obs )
-    : bxz::istream(sb), held_streambuf( sb ), md5( obs )
-    {
-    }
-    istreambuf_holder( std::streambuf * sb, const vdb::KStreamMD5ReadObserver * obs )
-    : bxz::istream(sb), held_streambuf( sb ), md5( obs )
-    {
-    }
-    virtual ~istreambuf_holder()
-    {
-        if ( std::holds_alternative<const vdb::KFileMD5ReadObserver *>( md5 ) )
-        {
-            KFileMD5ReadObserverRelease( std::get<const vdb::KFileMD5ReadObserver *>( md5 ) );
-        }
-        else if ( std::holds_alternative<const vdb::KStreamMD5ReadObserver *>( md5 ) )
-        {
-            KStreamMD5ReadObserverRelease( std::get<const vdb::KStreamMD5ReadObserver *>( md5 ) );
-        }
-        delete held_streambuf;
-    }
-
-    void get_md5( uint8_t digest [ 16 ] ) const
-    {
-        rc_t rc = 0;
-        const char * error = nullptr;
-        if ( std::holds_alternative<const vdb::KFileMD5ReadObserver *>( md5 ) )
-        {
-            rc = KFileMD5ReadObserverGetDigest ( std::get<const vdb::KFileMD5ReadObserver *>( md5 ), digest, & error);
-        }
-        else if ( std::holds_alternative<const vdb::KStreamMD5ReadObserver *>( md5 ) )
-        {
-            rc = KStreamMD5ReadObserverGetDigest ( std::get<const vdb::KStreamMD5ReadObserver *>( md5 ), digest, & error);
-        }
-        if ( rc != 0 )
-        {
-            throw runtime_error(string("Failure reading MD5 from input: '") + error + "'");
-        }
-    }
-
-private:
-    std::streambuf * held_streambuf;
-
-    std::variant< const vdb::KFileMD5ReadObserver *, const vdb::KStreamMD5ReadObserver * > md5;
-};
 
 class fastq_reader
 /// FASTQ reader
@@ -450,17 +408,13 @@ public:
         }
         else
         {
-            auto holder = dynamic_cast<istreambuf_holder*>(&*m_stream);
-            if ( holder )
+            auto fstream = dynamic_cast<bxz::istream*>(&*m_stream);
+            if ( fstream )
             {
-                auto fstream = dynamic_cast<bxz::istream*>(holder);
-                if ( fstream )
+                auto bxz_sb = dynamic_cast<bxz::istreambuf*>(fstream->rdbuf());
+                if ( bxz_sb )
                 {
-                    auto bxz_sb = dynamic_cast<bxz::istreambuf*>(fstream->rdbuf());
-                    if ( bxz_sb )
-                    {
-                        return bxz_sb->compression() != bxz::plaintext;
-                    }
+                    return bxz_sb->compression() != bxz::plaintext;
                 }
             }
         }
@@ -535,17 +489,49 @@ private:
 
 //  ----------------------------------------------------------------------------
 // Function to check if a string is a valid URL
-static
-bool isValidURL(const std::string &url)
+// Extended URL pattern that includes S3 and GCS
+static bool isValidURL(const std::string &url)
 {
-    // Basic URL regex pattern (covers http, https, file)
     static const std::regex urlPattern(
-        R"(^(https?|file)://[^\s$.?#].[^\s]*$)",
+        R"(^(https?|file|s3|gs)://[^\s$.?#].[^\s]*$)",
         std::regex::icase
     );
-
     return std::regex_match(url, urlPattern);
 }
+
+// Check if URL is a cloud storage URL (S3 or GCS)
+static bool isCloudURL(const std::string &url)
+{
+    return url.rfind("s3://", 0) == 0 || 
+           url.rfind("S3://", 0) == 0 ||
+           url.rfind("gs://", 0) == 0 || 
+           url.rfind("GS://", 0) == 0;
+}
+
+using istreambuf_holder = sharq::istreambuf_holder;
+
+#ifdef SHARQ_USE_NATIVE_CLOUD
+static shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size = 4096)
+{
+    // Handle cloud URLs (S3 and GCS)
+    try {
+        // Use the cloud filesystem factory
+        return sharq::open_fastq_stream(filename, buffer_size);
+    }
+    catch (const sharq::fs::FileNotFoundError& e) {
+        throw runtime_error("File not found: " + filename);
+    }
+    catch (const sharq::fs::AccessDeniedError& e) {
+        throw runtime_error("Access denied: " + filename + 
+                            ". Check your cloud credentials.");
+    }
+    catch (const sharq::fs::CloudStorageError& e) {
+        throw runtime_error("Cloud storage error for '" + filename + 
+                            "': " + e.what());
+    }
+}
+#else
+
 
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
@@ -565,7 +551,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
             throw runtime_error("Failure to create observer for '" + filename + "'");
         }
 
-        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream ) );
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream, buffer_size ) );
         return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
     else if ( filename == "-" )
@@ -582,7 +568,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
             throw runtime_error("Failure to create observer for stdin");
         }
 
-        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kin ) );
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kin, buffer_size ) );
         return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
     else
@@ -599,10 +585,13 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
             throw runtime_error("Failure to create observer for '" + filename + "'");
         }
 
-        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile ) );
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile, buffer_size ) );
         return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
 }
+
+#endif // SHARQ_USE_NATIVE_CLOUD
+
 
 struct spot_read_t {
     fastq_read read;
@@ -1513,7 +1502,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         if ( input != nullptr )
         {
             input -> get_md5( md5 );
-        }
+        } 
         else
         {
             memset( md5, 0, 16 );
@@ -1875,7 +1864,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             else
                 has_non_10x_files = true;
 
-            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, 0, true);
+            fastq_reader reader(fn, s_OpenStream(fn, (1024 * 1024) * 2), {}, 0, true);
             vector<CFastqRead> reads;
             int max_reads = 0;
             bool has_orphans = false;
@@ -2042,7 +2031,7 @@ void fastq_parser<TWriter>::set_readers(json& group, bool update_telemetry)
             read_types = data["readType"];
         else
             read_types.clear();
-        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), read_types, data["platform_code"].front());
+        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 8), read_types, data["platform_code"].front());
         if (!data["readNums"].empty())
             ++files_with_read_numbers;
     }

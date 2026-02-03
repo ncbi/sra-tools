@@ -378,6 +378,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         spdlog::error(e.Message());
         mReport["error"] = e.Message();
         ret_code = 1;
+    } catch (std::ios_base::failure& e) {
+        string error = fmt::format("SRAE-238: {} [code:{}]", e.what(), 270);
+        spdlog::error(error);
+        mReport["error"] = error;
+        ret_code = 1;
     } catch(std::exception const& e) {
         string error = fmt::format("[code:0] Runtime error: {}", e.what());
         spdlog::error(error);

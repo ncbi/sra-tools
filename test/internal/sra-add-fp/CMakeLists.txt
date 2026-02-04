@@ -48,23 +48,24 @@ add_test( NAME Test_Sra_Add_Fp_readonly_run
 set_tests_properties(Test_Sra_Add_Fp_readonly_run PROPERTIES WILL_FAIL TRUE)
 
 # business logic
+if ( NOT WIN32 )
+    # database
+    add_test( NAME Test_Sra_Add_Fp_database_unaligned
+            COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_DB
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-# database
-add_test( NAME Test_Sra_Add_Fp_database_unaligned
-	      COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_DB
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    # table; filtering out tech reads
+    # NB.Test_Table is a copy of SRR139146
+    add_test( NAME Test_Sra_Add_Fp_table_with_tech
+            COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_Table
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-# table; filtering out tech reads
-# NB.Test_Table is a copy of SRR139146
-add_test( NAME Test_Sra_Add_Fp_table_with_tech
-	      COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_Table
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    #fp already present
+    add_test( NAME Test_Sra_Add_Fp_database_fp_already_present
+            COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_DB_with_fp
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-#fp already present
-add_test( NAME Test_Sra_Add_Fp_database_fp_already_present
-	      COMMAND ./runtestcase.sh ${DIRTOTEST} . Test_DB_with_fp
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-#TODO:
-# aligned database run
-#
+    #TODO:
+    # aligned database run
+    #
+endif()

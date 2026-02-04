@@ -62,7 +62,7 @@ fi
 
 run_cmd() {
     CMD="$* 1>>$STDOUT 2>>$STDERR"
-    echo $CMD
+    #echo $CMD
     eval $CMD
     rc="$?"
     if [ "$rc" != "0" ] ; then
@@ -83,8 +83,7 @@ run_cmd() {
 
 run_cmd ${BINDIR}/kar -x input/$CASEID.sra -d $TEMPDIR/$CASEID
 run_cmd ${BINDIR}/sra-add-fp $TEMPDIR/$CASEID
-run_cmd ${BINDIR}/fastq-dump $TEMPDIR/$CASEID --split-spot -O $TEMPDIR
-run_cmd "kdbmeta -X t $TEMPDIR/$CASEID -T SEQUENCE QC/current/fingerprint | sed s'|<fingerprint>||g' | sed s'|</fingerprint>||g'"
+run_cmd ${BINDIR}/kdbmeta -X t $TEMPDIR/$CASEID -T SEQUENCE QC/current/fingerprint
 
 $DIFF $WORKDIR/expected/$CASEID.stdout $STDOUT >$TEMPDIR/diff
 rc="$?"
@@ -99,6 +98,6 @@ if [ "$rc" != "0" ] ; then
     fi
 fi
 
-rm -rf $TEMPDIR
+#rm -rf $TEMPDIR
 
 exit 0

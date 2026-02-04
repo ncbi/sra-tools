@@ -68,16 +68,22 @@ AddColumn( const VCursor * cursor, const char * name )
     return idx;
 }
 
+void
+CheckRc( rc_t rc, const string& message )
+{
+    if ( rc != 0 )
+    {
+        LOGERR(klogErr, rc, message.c_str() );
+        throw logic_error( message );
+    }
+}
+
 static
-rc_t
+void
 VTableAddFingerprint( VTable * tbl)
 {
     KMetadata * meta;
-    rc_t rc = VTableOpenMetadataUpdate ( tbl, & meta );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Cannot open metadata" ) );
-    }
+    CheckRc( VTableOpenMetadataUpdate ( tbl, & meta ), "Cannot open metadata" );
 
     KMDataNode * node;
     if ( KMetadataOpenNodeRead( meta, (const KMDataNode **) & node, "QC/current/fingerprint" ) == 0 )
@@ -86,37 +92,20 @@ VTableAddFingerprint( VTable * tbl)
     }
     KMDataNodeRelease( node );
 
-    rc = KMetadataOpenNodeUpdate( meta, &node, "QC/current/fingerprint" );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Error opening node QC/current/fingerprint" ) );
-    }
-
+    CheckRc( KMetadataOpenNodeUpdate( meta, &node, "QC/current/fingerprint" ), "Error opening node QC/current/fingerprint" );
     const VCursor * cur = nullptr;
-    rc = VTableCreateCursorRead( tbl, & cur );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Error creating cursor" ) );
-    }
+    CheckRc( VTableCreateCursorRead( tbl, & cur ), "Error creating cursor" );
 
     uint32_t colReadIdx  = AddColumn( cur, "READ" );
     uint32_t colStartIdx = AddColumn( cur, "READ_START" );
     uint32_t colLenIdx   = AddColumn( cur, "READ_LEN" );
     uint32_t colTypeIdx  = AddColumn( cur, "READ_TYPE" );
 
-    rc = VCursorOpen( cur );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Error opening cursor" ) );
-    }
+    CheckRc( VCursorOpen( cur ), "Error opening cursor" );
 
     int64_t firstRow = 0;
     uint64_t rowCount = 0;
-    rc = VCursorIdRange ( cur, colReadIdx, & firstRow, & rowCount );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Error calling VCursorIdRange" ) );
-    }
+    CheckRc( VCursorIdRange ( cur, colReadIdx, & firstRow, & rowCount ), "Error calling VCursorIdRange" );
 
     Fingerprint fp;
 
@@ -126,35 +115,19 @@ VTableAddFingerprint( VTable * tbl)
 
         const char * spot_buffer = nullptr;
         uint32_t spot_len = 0;
-        rc = VCursorCellDataDirect( cur, rowId, colReadIdx, nullptr, (const void**)&spot_buffer, nullptr, &spot_len);
-        if ( rc != 0 )
-        {
-            throw logic_error( string( "Error reading READ" ) );
-        }
+        CheckRc( VCursorCellDataDirect( cur, rowId, colReadIdx, nullptr, (const void**)&spot_buffer, nullptr, &spot_len), "Error reading READ" );
 
         uint32_t* read_start_buffer = nullptr;
         uint32_t read_start_len = 0;
-        rc = VCursorCellDataDirect( cur, rowId, colStartIdx, nullptr, (const void**)&read_start_buffer, nullptr, &read_start_len);
-        if ( rc != 0 )
-        {
-            throw logic_error( string( "Error reading READ_START" ) );
-        }
+        CheckRc( VCursorCellDataDirect( cur, rowId, colStartIdx, nullptr, (const void**)&read_start_buffer, nullptr, &read_start_len), "Error reading READ_START" );
 
         uint32_t* read_len_buffer = nullptr;
         uint32_t read_len_len = 0;
-        rc = VCursorCellDataDirect( cur, rowId, colLenIdx, nullptr, (const void**)&read_len_buffer, nullptr, &read_len_len);
-        if ( rc != 0 )
-        {
-            throw logic_error( string( "Error reading READ_LEN" ) );
-        }
+        CheckRc( VCursorCellDataDirect( cur, rowId, colLenIdx, nullptr, (const void**)&read_len_buffer, nullptr, &read_len_len), "Error reading READ_LEN" );
 
         uint8_t* read_type_buffer = nullptr;
         uint32_t read_type_len = 0;
-        rc = VCursorCellDataDirect( cur, rowId, colTypeIdx, nullptr, (const void**)&read_type_buffer, nullptr, &read_type_len);
-        if ( rc != 0 )
-        {
-            throw logic_error( string( "Error reading READ_TYPE" ) );
-        }
+        CheckRc( VCursorCellDataDirect( cur, rowId, colTypeIdx, nullptr, (const void**)&read_type_buffer, nullptr, &read_type_len), "Error reading READ_TYPE" );
 
         //cout << rowId << ": " << string( spot_buffer, spot_len ) << endl;
         for( uint32_t i = 0; i < read_len_len; ++i )
@@ -189,125 +162,88 @@ VTableAddFingerprint( VTable * tbl)
 
     //cout << out.str() << endl;
 
-    rc = KMDataNodeWriteCString ( node, out.str().c_str() );
-    if ( rc != 0 )
-    {
-        throw logic_error( string( "Error reading READ_LEN" ) );
-    }
+    CheckRc( KMDataNodeWriteCString ( node, out.str().c_str() ), "Error writing fingerprint" );
 
     KMDataNodeRelease( node );
     VCursorRelease( cur );
     KMetadataRelease( meta );
-
-    return rc;
 }
 
 static
-rc_t
+void
 HandleTable( VDBManager * mgr, const char * path )
 {
     VTable * tbl;
 
-    rc_t rc = VDBManagerOpenTableUpdate ( mgr, & tbl, nullptr, path );
-    if ( rc != 0 )
-    {
-        throw logic_error( string("Cannot open for update: '") + path + "'" );
-    }
+    CheckRc( VDBManagerOpenTableUpdate ( mgr, & tbl, nullptr, path ), string("Cannot open for update: '") + path + "'" );
 
-    rc = VTableAddFingerprint( tbl );
+    VTableAddFingerprint( tbl );
 
     VTableRelease( tbl );
-
-    return rc;
 }
 
 static
-rc_t
+void
 HandleDatabase( VDBManager * mgr, const char * path )
 {
     VDatabase *db;
-    rc_t rc = VDBManagerOpenDBUpdate ( mgr, &db, nullptr, path );
-
-    if ( rc != 0 )
-    {
-        throw logic_error( string("Cannot open for update: '") + path + "'" );
-    }
+    CheckRc( VDBManagerOpenDBUpdate ( mgr, &db, nullptr, path ), string("Cannot open for update: '") + path + "'" );
 
     VTable * tbl = nullptr;
-    rc = VDatabaseOpenTableUpdate( db, & tbl, "SEQUENCE" );
-    if ( rc != 0 )
-    {
-        throw logic_error( string("Cannot open SEQUENCE table for update: '") + path + "'" );
-    }
+    CheckRc( VDatabaseOpenTableUpdate( db, & tbl, "SEQUENCE" ), string("Cannot open SEQUENCE table for update: '") + path + "'" );
 
-    rc = VTableAddFingerprint( tbl );
+    VTableAddFingerprint( tbl );
 
     VTableRelease( tbl );
     VDatabaseRelease ( db );
-
-    return rc;
 }
 
 static
-rc_t
+void
 AddFingerprint( const char * run )
 {
     VDBManager * mgr = nullptr;
-    rc_t rc = VDBManagerMakeUpdate( & mgr, nullptr );
-    DISP_RC(rc, "VDBManagerMakeUpdate failed");
+    CheckRc( VDBManagerMakeUpdate( & mgr, nullptr ), "VDBManagerMakeUpdate failed" );
 
-    rc = VDBManagerWritable( mgr, run );
+    rc_t rc = VDBManagerWritable( mgr, run );
     if (rc != 0)
     {
-        if (GetRCState(rc) == rcNotFound)
+        switch ( GetRCState(rc) )
         {
+        case rcNotFound:
             throw logic_error( string("Accession not found: '") + run + "'" );
-        }
-        if (GetRCState(rc) == rcIncorrect)
-        {
+        case rcIncorrect:
             throw logic_error( string("Invalid accession file: '") + run + "'" );
-        }
-        else if (GetRCState(rc) == rcLocked)
-        {
-            rc = VDBManagerUnlock( mgr, run );
-            if (rc != 0)
+        case rcLocked:
             {
-                PLOGERR(klogErr, (klogErr, rc,
-                    "cannot unlock '$(run)'",
-                    "run=%s", run));
+                CheckRc( VDBManagerUnlock( mgr, run ),
+                        string( "cannot unlock '" ) + run + "'" );
+                CheckRc( VDBManagerWritable( mgr, run ), string( "failed to unlock '" ) + run + "'" );
+                break;
             }
-        }
-        else
-        {
-            PLOGERR(klogErr, (klogErr, rc,
-                "'$(run)' is read-only",
-                "run=%s", run));
-        }
-    }
-
-    if ( rc == 0 )
-    {
-        switch ( VDBManagerPathType( mgr, "%s", run ) & ~ kptAlias )
-        {
-        case kptDatabase :
-            rc = HandleDatabase( mgr, run );
-            break;
-        case kptTable :
-            rc = HandleTable( mgr, run );
-            break;
-        case kptPrereleaseTbl :
-            throw logic_error( string( "Prerelase Tables are not suported" ) );
         default:
-            throw logic_error( string( "Invalid accession path" ) );
+            CheckRc( rc, string( run ) + " is red-only" );
         }
     }
 
-    return rc;
+    switch ( VDBManagerPathType( mgr, "%s", run ) & ~ kptAlias )
+    {
+    case kptDatabase :
+        HandleDatabase( mgr, run );
+        break;
+    case kptTable :
+        HandleTable( mgr, run );
+        break;
+    case kptPrereleaseTbl :
+        throw logic_error( string( "Prerelase Tables are not suported" ) );
+    default:
+        throw logic_error( string( "Invalid accession path" ) );
+    }
 }
 
-OptDef Options[] =
-{
-};
+// OptDef Options[] =
+// {
+// };
 
 const char UsageDefaultName[] = "sra-add-fp";
 
@@ -317,7 +253,7 @@ rc_t CC UsageSummary ( const char * progname )
                     "Usage:\n"
                     "  %s <path> [options]\n"
                     "Summary:\n"
-                    "  Add fingerprinting data to the SEQUENCE table of the given accession.\n"
+                    "  Add fingerprinting data to the SEQUENCE table in the given accession directory.\n"
                     "\n", progname);
 }
 
@@ -383,7 +319,7 @@ MAIN_DECL(argc, argv)
                     DISP_RC( rc, "ArgsParamValue() failed" );
                     if ( rc == 0 )
                     {
-                        rc = AddFingerprint( accession );
+                        AddFingerprint( accession );
                     }
                 }
             }

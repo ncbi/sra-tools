@@ -222,7 +222,7 @@ AddFingerprint( const char * run )
                 break;
             }
         default:
-            CheckRc( rc, string( run ) + " is red-only" );
+            CheckRc( rc, string( run ) + " is read-only" );
         }
     }
 
@@ -298,36 +298,24 @@ MAIN_DECL(argc, argv)
         SetUsageSummary( UsageSummary );
 
         Args * args;
-        rc_t rc = ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 );
-        DISP_RC( rc, "ArgsMakeAndHandle() failed" );
-        if ( rc == 0)
-        {
-            uint32_t param_count = 0;
-            rc = ArgsParamCount(args, &param_count);
-            DISP_RC( rc, "ArgsParamCount() failed" );
-            if ( rc == 0 )
-            {
-                if ( param_count == 0 || param_count > 1 )
-                {
-                    MiniUsage(args);
-                    app.setRc( 1 );
-                }
-                else
-                {
-                    const char * accession = nullptr;
-                    rc = ArgsParamValue( args, 0, ( const void ** )&( accession ) );
-                    DISP_RC( rc, "ArgsParamValue() failed" );
-                    if ( rc == 0 )
-                    {
-                        AddFingerprint( accession );
-                    }
-                }
-            }
+        CheckRc( ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 ), "ArgsMakeAndHandle() failed" );
 
-            ArgsRelease( args );
+        uint32_t param_count = 0;
+        CheckRc( ArgsParamCount( args, &param_count ), "ArgsParamCount() failed" );
+
+        if ( param_count == 0 || param_count > 1 )
+        {
+            MiniUsage(args);
+            app.setRc( 1 );
+        }
+        else
+        {
+            const char * accession = nullptr;
+            CheckRc( ArgsParamValue( args, 0, ( const void ** )&( accession ) ), "ArgsParamValue() failed" );
+            AddFingerprint( accession );
         }
 
-        app.setRc( rc );
+        ArgsRelease( args );
     }
     catch ( exception & x )
     {

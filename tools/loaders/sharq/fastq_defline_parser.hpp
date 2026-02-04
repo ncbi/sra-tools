@@ -27,7 +27,7 @@ public:
      *
      * Registers a list of supported matchers
      */
-    CDefLineParser();
+    CDefLineParser( uint8_t p_platform = 0 );
 
     /**
      * @brief Destroy the CDefLineParser object
@@ -61,10 +61,10 @@ public:
 
     /**
      * @brief Check if defline matches last matched pattern
-     * 
-     * @param defline 
-     * @return true 
-     * @return false 
+     *
+     * @param defline
+     * @return true
+     * @return false
      */
     bool MatchLast(const string_view& defline);
 
@@ -103,42 +103,49 @@ private:
 };
 
 
-CDefLineParser::CDefLineParser()
+CDefLineParser::CDefLineParser( uint8_t p_platform )
 {
     Reset();
-    // NoMtach mathcher should be the first one so that 
+    // NoMatch matcher should be the first one so that
     // mIndexLastSuccessfulMatch always points to a valid matcher
-     
+
     mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewNoPrefix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldColon);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);    
-    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio4);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);
-    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
-    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
-    mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3_1);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore4);
+
+    // if ElementBio is specified, do not try other platforms
+    if ( p_platform != SRA_PLATFORM_ELEMENT_BIO )
+    {
+        mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewNoPrefix);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldColon);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldUnderscore);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldWithSuffix2);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaOldNoPrefix);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherLS454);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio2);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio3);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherPacBio4);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent2);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIonTorrent);
+        mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcRn);
+        mDefLineMatchers.emplace_back(new CDefLineIlluminaOldBcOnly);
+        mDefLineMatchers.emplace_back(new CDefLineIlluminaOldRnOnly);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3_1);
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
+        mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore4);
+    }
+
+    mDefLineMatchers.emplace_back(new CDefLineMatcherElementBio);
 }
 
 CDefLineParser::~CDefLineParser()

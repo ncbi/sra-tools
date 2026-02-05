@@ -121,16 +121,16 @@ if( SINGLE_CONFIG )
                 set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
         endif()
         target_link_libraries(sharq PRIVATE ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS_READ})
-        
+
         # Set rpath to exclude crc32c path and prevent dynamic linking
-        set_target_properties(sharq PROPERTIES 
+        set_target_properties(sharq PROPERTIES
             INSTALL_RPATH_USE_LINK_PATH FALSE
             SKIP_BUILD_RPATH TRUE
             SKIP_INSTALL_RPATH TRUE)
-        
+
         # Add cloud storage support if enabled
         sharq_add_cloud_support(sharq)
-        
+
         MakeLinksExe( sharq false )
 
        if( RUN_SANITIZER_TESTS )

@@ -110,7 +110,8 @@ TEST_CASE( MoveConstruction )
 
 TEST_CASE( Sharing )
 {
-    auto s1 = std::make_shared<custom_istream::custom_istream>( custom_istream::string_src::make( "100 200 300 400" ) );
+    custom_istream::src_interface_ptr s = custom_istream::string_src::make( "100 200 300 400" );
+    auto s1 = std::make_shared<custom_istream::custom_istream>( s, 4096 );
 }
 
 TEST_CASE( ConsumeLineByLine_FromURI )

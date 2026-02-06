@@ -49,7 +49,7 @@ set(SHARQ_CLOUD_AVAILABLE FALSE)
 set(SHARQ_HAS_AWS FALSE)
 set(SHARQ_HAS_GCS FALSE)
 
-find_library(CRC32C NAMES crc32c.a ${SHARQ_CLOUD_SDK_PREFIX}/lib ${SHARQ_CLOUD_SDK_PREFIX}/lib64)
+find_library(CRC32C NAMES libcrc32c.a PATHS "${SHARQ_CLOUD_SDK_PREFIX}/lib" "${SHARQ_CLOUD_SDK_PREFIX}/lib64")
 
 if(SHARQ_ENABLE_CLOUD)
     # Add custom prefix to CMake search paths if specified

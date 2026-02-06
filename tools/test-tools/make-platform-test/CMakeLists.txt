@@ -22,21 +22,5 @@
 #
 # ===========================================================================
 
-add_subdirectory( crc32sum )
-add_subdirectory( test-download )
-add_subdirectory( kdb-index )
-add_subdirectory( pacbio-correct )
-add_subdirectory( schema-replace )
-add_subdirectory( sortreadtest )
-add_subdirectory( samview-util )
-add_subdirectory( testld )
-add_subdirectory( txt2kdb )
-add_subdirectory( sam-factory )
-add_subdirectory( sam-analyze )
-if( NOT WIN32 )
-    add_subdirectory( pileup-stats )
-    add_subdirectory( qa-stats )
-    add_subdirectory( rnd2sra )
-    add_subdirectory( make-platform-test )
-endif()
-
+GenerateExecutableWithDefs( make-platform-test make-platform-test.cpp "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+MakeLinksExe( make-platform-test false )

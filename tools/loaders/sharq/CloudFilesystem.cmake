@@ -76,9 +76,9 @@ if(SHARQ_ENABLE_CLOUD)
 
         # Find static libcrc32c library for static linking
         if(CRC32C)
-            message(STATUS "  Found static libcrc32c: libcrc32c.a")
+            message(STATUS "  Found static libcrc32c: libcrc32c.a ${CRC32C}")
             # Add static libcrc32c immediately after AWS libraries to resolve dependencies
-            list(APPEND SHARQ_CLOUD_LIBS "${SHARQ_CLOUD_SDK_PREFIX}/lib/libcrc32c.a")
+            list(APPEND SHARQ_CLOUD_LIBS ${CRC32C})
             message(STATUS "  Added static libcrc32c after AWS SDK libraries")
             set(SHARQ_CRC32C_STATIC_AVAILABLE TRUE)
         else()
@@ -180,9 +180,11 @@ if(SHARQ_ENABLE_CLOUD)
             file(GLOB ABSL_LIBS "${SHARQ_CLOUD_SDK_PREFIX}/lib64/libabsl_*.a"
                                 "${SHARQ_CLOUD_SDK_PREFIX}/lib/libabsl_*.a")
 
+            message(STATUS "  ABSL_LIBS: ${ABSL_LIBS}")
+
             # Find static libcrc32c library for static linking (Google Cloud)
             if(CRC32C)
-                set(CRC32C_STATIC_LIB "${SHARQ_CLOUD_SDK_PREFIX}/lib/libcrc32c.a")
+                set(CRC32C_STATIC_LIB "${CRC32C}")
                 message(STATUS "  Found static libcrc32c: ${CRC32C_STATIC_LIB}")
             else()
                 message(WARNING "Static libcrc32c library not found at ...")
@@ -255,7 +257,8 @@ endfunction()
 # ===========================================================================
 
 # Create local install directory:
-#   mkdir -p ~/local/{lib,include,bin}
+#   export SDK=<local path>
+#   mkdir -p $SDK/{lib,include,bin}
 #
 # AWS SDK for C++: (requires libcurl, one of:
 #                       libcurl4-openssl-dev
@@ -263,46 +266,34 @@ endfunction()
 #                       libcurl4-gnutls-dev)
 
 #   cd /tmp && git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp
-#   cd aws-sdk-cpp && cmake -S . -B build \
-#       -DCMAKE_BUILD_TYPE=Release \
-#       -DCMAKE_INSTALL_PREFIX=$HOME/local \
-#       -DBUILD_ONLY="s3" \
-#       -DBUILD_SHARED_LIBS=OFF \
-#       -DENABLE_TESTING=OFF
+#   cd aws-sdk-cpp && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SDK -DBUILD_ONLY="s3" -DBUILD_SHARED_LIBS=OFF -DENABLE_TESTING=OFF
 #   cmake --build build -j$(nproc) && cmake --install build
 #
 # Google Cloud C++ Client (requires abseil, nlohmann/json, googletest, crc32c):
 #   # Install abseil
 #   cd /tmp && git clone https://github.com/abseil/abseil-cpp
-#   cd abseil-cpp && cmake -S . -B build \
-#       -DCMAKE_BUILD_TYPE=Release \
-#       -DCMAKE_INSTALL_PREFIX=$HOME/local \
-#       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-#       -DABSL_BUILD_TESTING=OFF \
-#       -DABSL_PROPAGATE_CXX_STD=ON
+#   cd abseil-cpp && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SDK -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DABSL_BUILD_TESTING=OFF -DABSL_PROPAGATE_CXX_STD=ON
 #   cmake --build build -j$(nproc) && cmake --install build
 #
 #   # Install nlohmann/json
 #   cd /tmp && git clone --depth 1 --branch v3.11.3 https://github.com/nlohmann/json.git nlohmann_json
-#   cd nlohmann_json && cmake -S . -B build \
-#       -DCMAKE_INSTALL_PREFIX=$HOME/local -DJSON_BuildTests=OFF
+#   cd nlohmann_json && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$SDK -DJSON_BuildTests=OFF
 #   cmake --install build
 
 #   # Install crc32c
 #   cd /tmp && git clone https://github.com/google/crc32c.git
-#   cd crc32c && mkdir build && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$HOME/local -DCRC32C_USE_GLOG=NO -DCRC32C_BUILD_TESTS=NO -DCRC32C_BUILD_BENCHMARKS=NO
+#   cd crc32c && mkdir build && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$SDK -DCRC32C_USE_GLOG=NO -DCRC32C_BUILD_TESTS=NO -DCRC32C_BUILD_BENCHMARKS=NO
 #   cmake --install build
 
 #
 #   # Install googletest
 #   cd /tmp && git clone --depth 1 --branch v1.14.0 https://github.com/google/googletest.git
-#   cd googletest && cmake -S . -B build
-#       -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/local
+#   cd googletest && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SDK
 #   cmake --build build -j$(nproc) && cmake --install build
 #
 #   # Install Google Cloud C++
 #   cd /tmp && git clone https://github.com/googleapis/google-cloud-cpp
-#   cd google-cloud-cpp && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/local -DCMAKE_PREFIX_PATH="$HOME/local;$HOME/local/share/cmake/nlohmann_json" -DBUILD_TESTING=OFF -DGOOGLE_CLOUD_CPP_ENABLE_EXAMPLES=OFF -DGOOGLE_CLOUD_CPP_ENABLE=storage
+#   cd google-cloud-cpp && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SDK -DCMAKE_PREFIX_PATH="$SDK;$SDK/share/cmake/nlohmann_json" -DBUILD_TESTING=OFF -DGOOGLE_CLOUD_CPP_ENABLE_EXAMPLES=OFF -DGOOGLE_CLOUD_CPP_ENABLE=storage
 #   cmake --build build -j$(nproc) && cmake --install build
 #
 # Build sharq with cloud support:

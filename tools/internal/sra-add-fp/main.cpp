@@ -82,12 +82,13 @@ static
 void
 VTableAddFingerprint( VTable * tbl)
 {
-    KMetadata * meta;
+    KMetadata * meta = nullptr;
     CheckRc( VTableOpenMetadataUpdate ( tbl, & meta ), "Cannot open metadata" );
 
-    KMDataNode * node;
+    KMDataNode * node = nullptr;
     if ( KMetadataOpenNodeRead( meta, (const KMDataNode **) & node, "QC/current/fingerprint" ) == 0 )
     {
+        KMDataNodeRelease( node );
         throw logic_error( string( "Fingerprinting data already exists") );
     }
     KMDataNodeRelease( node );
@@ -173,7 +174,7 @@ static
 void
 HandleTable( VDBManager * mgr, const char * path )
 {
-    VTable * tbl;
+    VTable * tbl = nullptr;
 
     CheckRc( VDBManagerOpenTableUpdate ( mgr, & tbl, nullptr, path ), string("Cannot open for update: '") + path + "'" );
 
@@ -186,7 +187,7 @@ static
 void
 HandleDatabase( VDBManager * mgr, const char * path )
 {
-    VDatabase *db;
+    VDatabase *db = nullptr;
     CheckRc( VDBManagerOpenDBUpdate ( mgr, &db, nullptr, path ), string("Cannot open for update: '") + path + "'" );
 
     VTable * tbl = nullptr;
@@ -241,10 +242,6 @@ AddFingerprint( const char * run )
     }
 }
 
-// OptDef Options[] =
-// {
-// };
-
 const char UsageDefaultName[] = "sra-add-fp";
 
 rc_t CC UsageSummary ( const char * progname )
@@ -297,7 +294,7 @@ MAIN_DECL(argc, argv)
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
 
-        Args * args;
+        Args * args = nullptr;
         CheckRc( ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 ), "ArgsMakeAndHandle() failed" );
 
         uint32_t param_count = 0;

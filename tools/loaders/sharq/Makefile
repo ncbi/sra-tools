@@ -26,6 +26,9 @@ TOP ?= $(abspath ../../..)
 MODULE = tools/loaders/sharq
 
 BUILD_TOOLS_LOADERS = ON
+SHARQ_CLOUD=ON
+SHARQ_CLOUD_SDK_PREFIX=${CLOUD_SDK_BUILD_PATH}
+
 include $(TOP)/build/Makefile.env
 
 

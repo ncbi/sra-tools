@@ -1,3 +1,5 @@
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ncbi/sra-tools)
+
 ----
                           PUBLIC DOMAIN NOTICE
              National Center for Biotechnology Information

@@ -245,7 +245,7 @@ template < class CharT, class Traits = std::char_traits< CharT > >
         // Ctor
         custom_streambuf( src_interface_ptr src, std::streamsize bufSize = 4096 )
             : std::basic_streambuf<CharT, Traits>(),
-              f_bufSize{ 4096 },
+              f_bufSize{ bufSize },
               f_src{ src } {
                 f_buffer = new CharT [ f_bufSize ];
                 char_type* begin_of_get_area = f_buffer + f_pbSize;
@@ -280,26 +280,26 @@ template < class CharT, class Traits = std::char_traits< CharT > >
 class custom_istream : public custom_streambuf< char >, public std::istream {
     public:
         // Ctor - takes a src-buf-pointer to create
-        explicit custom_istream( src_interface_ptr src )
-            : custom_streambuf< char >( src ), std::istream( this ) {}
+        explicit custom_istream( src_interface_ptr src, size_t buffer_size )
+            : custom_streambuf< char >( src, buffer_size ), std::istream( this ) {}
 
         // Move ctor
         custom_istream( custom_istream&& src )
             : custom_streambuf< char >( std::move( src ) ), std::istream( this ) {}
 
         // Factory - takes a string and creates a custom_istream
-        static custom_istream make_from_string( const std::string& src ) {
-            return custom_istream( string_src::make( src ) );
+        static custom_istream make_from_string( const std::string& src, size_t buffer_size = 4096 ) {
+            return custom_istream( string_src::make( src ), buffer_size );
         }
 
         // Factory - takes a KFile and creates a custom_istream
-        static custom_istream make_from_kfile( const vdb::KFile * src ) {
-            return custom_istream( kfile_src::make( src ) );
+        static custom_istream make_from_kfile( const vdb::KFile * src, size_t buffer_size = 4096 ) {
+            return custom_istream( kfile_src::make( src ), buffer_size );
         }
 
         // Factory - takes a KStream and creates a custom_istream
-        static custom_istream make_from_kstream( const vdb::KStream * src ) {
-            return custom_istream( kstream_src::make( src ) );
+        static custom_istream make_from_kstream( const vdb::KStream * src, size_t buffer_size = 4096 ) {
+            return custom_istream( kstream_src::make( src ), buffer_size );
         }
 };
 

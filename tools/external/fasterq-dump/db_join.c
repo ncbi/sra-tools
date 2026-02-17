@@ -1970,7 +1970,9 @@ static rc_t dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
     struct alit_t * align_iter;
     uint64_t loop_nr = 0;
     struct flp_t * flex_printer;
-    
+    bool uses_read_id;
+    alit_rec_t rec;
+
     cmn_iter_populate_params( &cp,
                               jtd -> dir,
                               jtd -> vdb_mgr,
@@ -1987,54 +1989,56 @@ static rc_t dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
                             NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
                             true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
-        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
-    else {
-        bool uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
-        rc = alit_create( &cp, &align_iter, uses_read_id ); /* fastq-iter.c */
-        if ( 0 != rc ) {
-            ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
-        } else {
-            alit_rec_t rec;
-            while ( 0 == rc && alit_get_rec( align_iter, &rec, &rc ) ) { /* fastq-iter.c */
-                rc = hlp_get_quitting(); /* helper.c */
 
-                if ( 0 == rc ) {
-                    if ( rec . read . len > 0 ) {
-                        flp_data_t data;
-                        stats -> reads_read += 1;
-
-                        /* fill out the data-record for the flex-printer */
-                        data . row_id = rec . spot_id;
-                        data . read_id = rec . read_id;
-                        data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
-
-                        data . spotname = NULL;     /* we do not have the spot-name in the align-table */
-                        data . spotgroup = NULL;    /* align-rec does not have spot-group! */
-                        data . read1 = &( rec . read );
-                        data . read2 = NULL;
-                        data . quality = NULL;
-
-                        /* finally print it out */
-                        rc = flp_print( flex_printer, &data ); /* flex_printer.c */
-                        if ( 0 == rc ) { stats -> reads_written++; }
-                    } else {
-                        stats -> reads_zero_length++;
-                    }
-
-                    if ( 0 == rc ) {
-                        loop_nr ++;
-                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
-                    } else {
-                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                        hlp_set_quitting(); /* helper.c */
-                    }
-                }
-            }
-            alit_release( align_iter );
-        }
+    uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
+    rc = alit_create( &cp, &align_iter, uses_read_id ); /* fastq-iter.c */
+    if ( 0 != rc ) {
+        ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
         flp_release( flex_printer );
+        return rc;
     }
+
+    /* iterate over the aligned READS in the given row-range */
+    while ( 0 == rc && alit_get_rec( align_iter, &rec, &rc ) ) { /* fastq-iter.c */
+        rc = hlp_get_quitting(); /* helper.c */
+        if ( 0 != rc ) {
+            ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+            hlp_set_quitting(); /* helper.c */
+            break;
+        }
+
+        if ( rec . read . len > 0 ) {
+            flp_data_t data;
+            stats -> reads_read += 1;
+
+            /* fill out the data-record for the flex-printer */
+            data . row_id = rec . spot_id;
+            data . read_id = rec . read_id;
+            data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
+
+            data . spotname = NULL;     /* we do not have the spot-name in the align-table */
+            data . spotgroup = NULL;    /* align-rec does not have spot-group! */
+            data . read1 = &( rec . read );
+            data . read2 = NULL;
+            data . quality = NULL;
+
+            /* finally print it out */
+            rc = flp_print( flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written++; }
+        } else {
+            stats -> reads_zero_length++;
+        }
+
+        if ( 0 == rc ) {
+            loop_nr ++;
+            bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+        }
+    } /* END of iterate over the aligned READS */
+
+    alit_release( align_iter );
+    flp_release( flex_printer );
     return rc;
 }
 
@@ -2111,6 +2115,7 @@ static rc_t dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
     fq_seq_csra_opt_t opt;
     uint64_t loop_nr = 0;
     struct flp_t * flex_printer = NULL;
+    fq_seq_csra_rec_t rec;
 
     cmn_iter_populate_params( &cp,
                               jtd -> dir,
@@ -2121,7 +2126,7 @@ static rc_t dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
                               jtd -> first_row,
                               jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
                               jtd -> thread_id );
-    
+
     opt . with_read_len = true;
     opt . with_name = false;
     opt . with_read_type = true;
@@ -2136,67 +2141,87 @@ static rc_t dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
                     NULL,                         /* qual-defline not used ( FASTA! ) */
                     true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
-        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
-    else {
-        rc = fq_seq_csra_iter_make( &cp, opt, &iter );
-        if ( 0 != rc ) {
-            ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
-        } else {
-            fq_seq_csra_rec_t rec;
-            while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
-                rc = hlp_get_quitting(); /* helper.c */
-                if ( 0 == rc ) {
-                    uint32_t read_id_0 = 0;
-                    uint32_t offset = 0;
-                    stats -> spots_read++;
 
-                    while ( 0 == rc && read_id_0 < rec . num_read_len ) {
-                        if ( rec . read_len[ read_id_0 ] > 0 ) {
-                            if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
-                                String R;
-                                flp_data_t data;
+    rc = fq_seq_csra_iter_make( &cp, opt, &iter );
+    if ( 0 != rc ) {
+        ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
+        flp_release( flex_printer );
+        return rc;
+    }
 
-                                stats -> reads_read += 1;
+    /* iterate over the SPOTs of the given row-range */
+    while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
+        uint32_t read_id_0, offset;
+        stats -> spots_read++;
+        rc = hlp_get_quitting(); /* helper.c */
+        if ( 0 != rc ) { break; } /* the user has interrupted the tool */
 
-                                R . addr = &rec . read . addr[ offset ];
-                                R . size = rec . read_len[ read_id_0 ];
-                                R . len  = ( uint32_t )R . size;
+        if ( rec . num_read_start != rec . num_read_len ) {
+            ErrMsg( "row #%ld : num-read-start (%u) != num-read-len(%u)\n",
+                    rec . row_id, rec . num_read_start, rec . num_read_len );
+            rc = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
 
-                                /* fill out the data-record for the flex-printer */
-                                data . row_id = rec . row_id;
-                                data . read_id = read_id_0 + 1;
-                                data . dst_id = 0;  /* not used, because registry=NULL - output to common final file */
+        /* iterate over the READ's of the SPOT */
+        for ( read_id_0 = 0, offset = 0; 0 == rc && read_id_0 < rec . num_read_start; read_id_0++ ) {
+            uint32_t read_len = rec . read_len[ read_id_0 ];
+            if ( read_len > 0 ) {
+                if ( 0 == rec . prim_alig_id[ read_id_0 ] )  {
+                    String READ;
+                    flp_data_t data;
 
-                                data . spotname  = &( rec . name );
-                                data . spotgroup = &( rec . spotgroup );
-                                data . read1 = &R;
-                                data . read2 = NULL;
-                                data . quality = NULL;
-
-                                /* finally print it out */
-                                rc = flp_print( flex_printer, &data ); /* flex_printer.c */
-                                if ( 0 == rc ) { stats -> reads_written++; }
-                                offset += rec . read_len[ read_id_0 ];
-                            }
-                        }
-                        else { stats -> reads_zero_length++; }
-                        read_id_0++;
-                    }
-
-                    if ( 0 == rc ) {
-                        loop_nr ++;
-                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                    /* this is the out-of-bounds check */
+                    if ( offset + read_len > rec .read . len ) {
+                        ErrMsg( "row #%ld : offset[%u] (%u) + read-len[%u] (%u) > READ.len (%u)\n",
+                                rec . row_id,
+                                read_id_0, offset,
+                                read_id_0, read_len,
+                                rec .read . len );
+                        rc = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     } else {
-                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                        hlp_set_quitting(); /* helper.c */
+                        stats -> reads_read += 1;
+
+                        READ . addr = &rec . read . addr[ offset ];
+                        READ . len  = read_len;
+                        READ . size = READ . len;
+
+                        /* fill out the data-record for the flex-printer */
+                        data . row_id = rec . row_id;
+                        data . read_id = read_id_0 + 1;
+                        data . dst_id = 0;  /* not used, because registry=NULL - output to common final file */
+
+                        data . spotname  = &( rec . name );
+                        data . spotgroup = &( rec . spotgroup );
+                        data . read1 = &READ;
+                        data . read2 = NULL;
+                        data . quality = NULL;
+
+                        offset += read_len;
+
+                        /* finally print it out */
+                        rc = flp_print( flex_printer, &data ); /* flex_printer.c */
+                        if ( 0 == rc ) { stats -> reads_written++; }
                     }
                 }
+            } else {
+                stats -> reads_zero_length++;
             }
-            fq_seq_csra_iter_release( iter );
+        } /* END of iterating over the READS's of the SPOT */
+
+        if ( 0 == rc ) {
+            loop_nr ++;
+            bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+        } else {
+            ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+            hlp_set_quitting(); /* helper.c */
         }
-        flp_release( flex_printer );
-    }
+
+    } /* END of iterating over the SPOTs in the given row-range */
+    fq_seq_csra_iter_release( iter );
+
+    flp_release( flex_printer );
     return rc;
 }
 

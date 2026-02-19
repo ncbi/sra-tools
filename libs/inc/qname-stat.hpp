@@ -95,87 +95,62 @@ private:
             hasher.getValue(result);
         }
     };
-    static void hash(uint32_t result[4], std::string_view qname, std::string_view group, bool grouped) {
-        NameHasher::hash(result, qname, group, grouped);
-    }
     class Counter {
-    public:
-        static constexpr auto MASK_BITS = 30;
-        static constexpr auto MASK = (1UL << MASK_BITS) - 1;
-        uint64_t total; ///< total number of `add`s
-        uint64_t uniq[4];
-        uint64_t matches[3];
-        uint64_t dups;
-        double sum_false_positive;
-    private:
-        std::vector<uint64_t> filter;
-        
-        void set(uint32_t bit) {
-            auto const elem = (bit & MASK) >> 6;
-            auto const mask = UINT64_C(1) << (bit & 0x3F);
-            filter[elem] |= mask;
-        }
-        template<typename... Ts>
-        void set(uint32_t bit1, Ts... bits) {
-            set(bit1);
-            set(bits...);
-        }
-        int test(uint32_t bit) {
-            auto const elem = (bit & MASK) >> 6;
-            auto const mask = UINT64_C(1) << (bit & 0x3F);
-            return (filter[elem] & mask) ? 1 : 0;
-        }
-        template<typename... Ts>
-        int test(uint32_t bit1, Ts... bits) {
-            return test(bit1) + test(bits...);
-        }
-        size_t size() const {
-            return (1ULL << (MASK_BITS - 6)) * sizeof(uint64_t);
-        }
-        double capacity() const {
-            return (1ULL << MASK_BITS);
-        }
-        double filled() const {
-            return double(uniq[0]) / capacity();
-        }
-        double false_positive_rate() const {
-            return pow(1.0 - exp(-4.0 * filled()), 4.0);
-        }
+        class gf128 {
+            uint64_t lo, hi;
+            
+            void mod() {
+                uint64_t constexpr mod[2] = { /** TODO: values for the modulus */ };
+                lo ^= mod[0];
+                hi ^= mod[1];
+            }
+            void timesX() {
+                auto const m = (bool)(hi >> 63);
+                hi <<= 1;
+                hi ^= lo >> 63;
+                lo <<= 1;
+                if (m) mod();
+            }
+            bool divX() {
+                auto const m = lo & 1;
+                lo >>= 1;
+                lo ^= hi << 63;
+                hi >>= 1;
+                return m == 1;
+            }
+            gf128 operator ^=(gf128 const &rhs) {
+                lo ^= other.lo;
+                hi ^= other.hi;
+            }
+        public:
+            gf128(gf128 const &rhs) : lo(rhs.lo), hi(rhs.hi) {}
+            explicit gf128(uint64_t p_lo, uint64_t p_hi = 0)
+            : lo(p_lo), hi(p_hi) {}
+            bool operator !() const { return lo == 0 && hi == 0; }
+            operator bool() const { return !!*this; }
+            gf128 &operator *=(gf128 const &rhs) {
+                auto a = *this;
+                auto b = rhs;
+                lo = hi = 0;
+                while (a && b) {
+                    if (b.divX())
+                        *this ^= a;
+                    a.timesX();
+                }
+                return *this;
+            }
+        };
     public:
         Counter()
-        : total(0)
-        , dups(0)
-        , sum_false_positive(0.0)
-        {
-            matches[0] = matches[1] = matches[2] = 0;
-            uniq[0] = uniq[1] = uniq[2] = uniq[3] = 0;
-
-            static_assert(MASK_BITS < sizeof(int) * 8);
-            filter.resize(1UL << (MASK_BITS - 6), 0);
-        }
+        {}
         void add(std::string_view qname, std::string_view group, bool grouped) {
-            uint32_t bit[4]; hash(bit, qname, group, grouped);
-            auto const same = test(bit[0], bit[1], bit[2], bit[3]);
-
-            if (same == 4) {
-                // a possibly-false hit
-                auto const fpr = false_positive_rate();
-                sum_false_positive += fpr;
-                ++dups;
-                if (fpr < 0.001)
-                    ++uniq[1];
-                else if (fpr < 0.01)
-                    ++uniq[2];
-                else if (fpr < 0.1)
-                    ++uniq[3];
-            }
-            else {
-                set(bit1, bit2, bit3, bit4);
-                ++uniq[0];
-                if (same > 0)
-                    matches[same - 1] += 1;
-            }
-            ++total;
+            uint32_t bit[4]; NameHasher::hash(bit, qname, group, grouped);
+            uint64_t u64[4] = {
+                ((UINT64_C(0x100000000) ^ bit[0]) << 1) ^ 1,
+                ((UINT64_C(0x100000000) ^ bit[1]) << 1) ^ 1,
+                ((UINT64_C(0x100000000) ^ bit[2]) << 1) ^ 1,
+                ((UINT64_C(0x100000000) ^ bit[3]) << 1) ^ 1,
+            };
         }
     };
     Counter counter;

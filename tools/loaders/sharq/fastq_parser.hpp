@@ -70,6 +70,7 @@
 #include <chrono>
 #include <regex>
 #include <variant>
+#include <sys/wait.h>
 
 #include <fingerprint.hpp>
 #include <kfile_stream/kfile_stream.hpp>
@@ -502,9 +503,9 @@ static bool isValidURL(const std::string &url)
 // Check if URL is a cloud storage URL (S3 or GCS)
 static bool isCloudURL(const std::string &url)
 {
-    return url.rfind("s3://", 0) == 0 || 
+    return url.rfind("s3://", 0) == 0 ||
            url.rfind("S3://", 0) == 0 ||
-           url.rfind("gs://", 0) == 0 || 
+           url.rfind("gs://", 0) == 0 ||
            url.rfind("GS://", 0) == 0;
 }
 
@@ -522,16 +523,127 @@ static shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_si
         throw runtime_error("File not found: " + filename);
     }
     catch (const sharq::fs::AccessDeniedError& e) {
-        throw runtime_error("Access denied: " + filename + 
+        throw runtime_error("Access denied: " + filename +
                             ". Check your cloud credentials.");
     }
     catch (const sharq::fs::CloudStorageError& e) {
-        throw runtime_error("Cloud storage error for '" + filename + 
+        throw runtime_error("Cloud storage error for '" + filename +
                             "': " + e.what());
     }
 }
 #else
 
+// spanws a child and waits for it to fihish.
+// returns the child's exit code
+int SpawnAndWait( const std::string& program, const std::vector<std::string>& args, bool quiet = true )
+{
+    int ret = 0;
+    pid_t child_pid = fork();
+    if (child_pid < 0)
+    {
+        throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
+    }
+    else if (child_pid == 0)
+    {   // --- CHILD PROCESS ---
+        if ( quiet )
+        {
+            // Open /dev/null for writing
+            int devNull = open("/dev/null", O_WRONLY);
+            if (devNull == -1)
+            {
+                throw std::runtime_error( program + ": Failed to open /dev/null: " + strerror(errno) );
+            }
+
+            // Redirect stdout and stderr to /dev/null
+            dup2(devNull, STDOUT_FILENO);
+            dup2(devNull, STDERR_FILENO);
+            close(devNull);
+        }
+
+        // Prepare arguments for execvp
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 2);
+        argv.push_back(const_cast<char*>(program.c_str()));
+        for (const auto& arg : args)
+        {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+
+        // Replace process image
+        if (execvp(program.c_str(), argv.data()) == -1)
+        {
+            throw std::runtime_error( program + ": execvp() failed: " + strerror(errno) );
+        }
+        // will not get here
+    }
+    else {
+        // --- PARENT PROCESS ---
+        int status = 0;
+        if (waitpid(child_pid, &status, 0) == -1)
+        {
+            throw std::runtime_error(std::string("waitpid() failed: ") + strerror(errno));
+        }
+
+        if (WIFEXITED(status))
+        {
+            ret = WEXITSTATUS(status);
+        }
+        else if (WIFSIGNALED(status))
+        {
+            ret = 128 + WTERMSIG(status); // Common convention
+        }
+    }
+    return ret;
+}
+
+// returns fd of readable pipe representing child's stdout
+int Spawn( const std::string& program, const std::vector<std::string>& args )
+{
+    int pipefd[2];
+    if (pipe(pipefd) == -1)
+    {
+        throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
+    }
+
+    pid_t child_pid = fork();
+    if (child_pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
+    }
+    else if (child_pid == 0) {
+        // --- CHILD PROCESS ---
+        close(pipefd[0]); // Close read end in child
+        // Redirect stdout to pipe
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            std::cerr << "dup2() failed: " << strerror(errno) << "\n";
+            _exit(EXIT_FAILURE);
+        }
+        close(pipefd[1]); // Not needed after dup2
+
+        // Prepare arguments for execvp
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 2);
+        argv.push_back(const_cast<char*>(program.c_str()));
+        for (const auto& arg : args) {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+
+        // Replace process image
+        if (execvp(program.c_str(), argv.data()) == -1) {
+            std::cerr << "execvp() failed: " << strerror(errno) << "\n";
+            _exit(EXIT_FAILURE);
+        }
+        return 0; // will not get here
+    }
+    else {
+        // --- PARENT PROCESS ---
+        close(pipefd[1]); // Close write end in parent
+        return pipefd[0];
+    }
+}
 
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
@@ -539,10 +651,32 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
     custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
-        const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
+        const vdb::KStream * kstream = nullptr;
+
+        if ( isCloudURL( filename ) )
+        {
+            // AWS: check if CLI is available
+            //NOTE: Posix only
+            if ( SpawnAndWait( "which", {"aws"} ) == 0 )
+            {
+                int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
+                vdb::KStream * child_stream = nullptr;
+                if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                {
+                    kstream = child_stream;
+                }
+            }
+
+            // if fails, fall through to handling like a regular URL
+        }
+
         if ( kstream == nullptr )
         {
-            throw runtime_error("Failure to open URL '" + filename + "'");
+            kstream = vdb::KStreamFactory::make_from_uri( filename );
+            if ( kstream == nullptr )
+            {
+                throw runtime_error("Failure to open URL '" + filename + "'");
+            }
         }
 
         const vdb::KStreamMD5ReadObserver * observer = nullptr;
@@ -1502,7 +1636,7 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
         if ( input != nullptr )
         {
             input -> get_md5( md5 );
-        } 
+        }
         else
         {
             memset( md5, 0, 16 );

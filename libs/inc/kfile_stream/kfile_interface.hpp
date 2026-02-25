@@ -104,6 +104,8 @@ rc_t VPathRelease( const VPath *self );
 rc_t KStreamRelease ( const KStream *self );
 rc_t KStreamRead ( const KStream *self, void *buffer, size_t bsize, size_t *num_read );
 rc_t KStreamMakeStdIn ( const KStream **std_in );
+rc_t KStdIOStreamMake ( KStream **sp, int fd, const char *strname,
+    bool read_enabled, bool write_enabled );
 
 rc_t KFileMakeMD5ReadObserver ( const struct KFile * self, const KFileMD5ReadObserver ** observer );
 rc_t KFileMD5ReadObserverRelease ( const KFileMD5ReadObserver *self );

@@ -501,11 +501,15 @@ static bool isValidURL(const std::string &url)
 }
 
 // Check if URL is a cloud storage URL (S3 or GCS)
-static bool isCloudURL(const std::string &url)
+static bool isAWSURL(const std::string &url)
 {
     return url.rfind("s3://", 0) == 0 ||
-           url.rfind("S3://", 0) == 0 ||
-           url.rfind("gs://", 0) == 0 ||
+           url.rfind("S3://", 0) == 0;
+}
+
+static bool isGCSURL(const std::string &url)
+{
+    return url.rfind("gs://", 0) == 0 ||
            url.rfind("GS://", 0) == 0;
 }
 
@@ -664,7 +668,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
     custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
-        if ( isCloudURL( filename ) )
+        if ( isAWSURL( filename ) )
         {
             // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
@@ -672,6 +676,25 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                {
+                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                }
+                else
+                {
+                    throw runtime_error("KStdIOStreamMake() failed");
+                }
+            }
+
+            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+        }
+        else if ( isGCSURL( filename ) )
+        {
+            // GCS: check if CLI is available. NOTE: Posix only
+            if ( SpawnAndWait( "which", {"gcloud"} ) == 0 )
+            {
+                int child = Spawn( "gsutil", { "cp", filename, "-" } );
+                vdb::KStream * child_stream = nullptr;
+                if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
                 {
                     return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
                 }

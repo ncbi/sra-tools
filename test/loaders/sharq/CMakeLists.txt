@@ -300,6 +300,9 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
+        # inputs from cloud
+        SharqTest(018.cloud.badbucket 1 "s3://notabucket/notafile" "only-sa")
+
         # more tests in asm-trace
 
     endif()

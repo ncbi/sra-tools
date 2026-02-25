@@ -646,47 +646,52 @@ int Spawn( const std::string& program, const std::vector<std::string>& args )
 }
 
 static
+shared_ptr<istream> OpenObservedStream( const string& filename, const vdb::KStream * kstream, custom_istream::custom_istream&& stream )
+{
+    const vdb::KStreamMD5ReadObserver * observer = nullptr;
+    if ( KStreamMakeMD5ReadObserver ( kstream, & observer ) != 0 )
+    {
+        throw runtime_error("Failure to create observer for '" + filename + "'");
+    }
+
+    custom_istream::custom_istream * c_istream = new custom_istream::custom_istream( std::move( stream ) );
+    return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ) );
+}
+
+static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
     custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
-        const vdb::KStream * kstream = nullptr;
-
         if ( isCloudURL( filename ) )
         {
-            // AWS: check if CLI is available
-            //NOTE: Posix only
+            // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
             {
                 int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
                 {
-                    kstream = child_stream;
+                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                }
+                else
+                {
+                    throw runtime_error("KStdIOStreamMake() failed");
                 }
             }
 
-            // if fails, fall through to handling like a regular URL
+            throw runtime_error("Failure to open cloud URL '" + filename + "'");
         }
-
-        if ( kstream == nullptr )
+        else
         {
-            kstream = vdb::KStreamFactory::make_from_uri( filename );
+            const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
             if ( kstream == nullptr )
             {
                 throw runtime_error("Failure to open URL '" + filename + "'");
             }
+            return OpenObservedStream( filename, kstream, custom_istream::custom_istream::make_from_kstream( kstream, buffer_size ) );
         }
-
-        const vdb::KStreamMD5ReadObserver * observer = nullptr;
-        if ( KStreamMakeMD5ReadObserver ( kstream, & observer ) != 0 )
-        {
-            throw runtime_error("Failure to create observer for '" + filename + "'");
-        }
-
-        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kstream, buffer_size ) );
-        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
     else if ( filename == "-" )
     {
@@ -695,15 +700,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         {
             throw runtime_error("Failure to open stdin");
         }
-
-        const vdb::KStreamMD5ReadObserver * observer = nullptr;
-        if ( KStreamMakeMD5ReadObserver ( kin, & observer ) != 0 )
-        {
-            throw runtime_error("Failure to create observer for stdin");
-        }
-
-        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kstream( kin, buffer_size ) );
-        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
+        return OpenObservedStream( filename, kin, custom_istream::custom_istream::make_from_kstream( kin, buffer_size ) );
     }
     else
     {

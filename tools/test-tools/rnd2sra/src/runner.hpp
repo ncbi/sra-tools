@@ -294,7 +294,13 @@ class runner {
             proc -> set_stdout_file( f_values -> replace( section_ini -> get_stdout() ) );
             proc -> set_stderr_file( f_values -> replace( section_ini -> get_stderr() ) );
             proc -> set_silent( section_ini -> get_silent() );
-            return ( proc -> run() == EXIT_SUCCESS );
+            uint32_t result = proc -> run();
+            uint32_t expected = section_ini -> get_expected_result();
+            if ( section_ini -> get_expected_failure() ) {
+                return ( result != expected );
+            } else {
+                return ( result == expected );
+            }
         }
 
         bool is_excluded( const string_view exclude, string_view title ) const {

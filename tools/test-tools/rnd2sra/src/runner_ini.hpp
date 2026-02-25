@@ -23,6 +23,8 @@ class runner_ini {
         string f_stderr;
         bool f_silent;
         bool f_ignore_err;
+        bool f_expect_failure;
+        int32_t f_expected_result;
 
         // >>>>> Ctor <<<<<
         runner_ini( const IniPtr ini, const string_view& prefix )
@@ -50,6 +52,8 @@ class runner_ini {
             f_stderr = ini -> get( prefixed( "stderr" ) );
             f_silent = !ini -> has_value( prefixed( "echo" ), "yes" );
             f_ignore_err = ini -> has_value( prefixed( "ignore" ), "yes" );
+            f_expected_result = ini -> get_i32( prefixed( "expected" ), 0 );
+            f_expect_failure = ini -> has_value( prefixed( "expect_failure" ), "yes" );
         }
 
         string prefixed( const string& key ) const {
@@ -72,6 +76,8 @@ class runner_ini {
         const string_view get_stderr( void ) const { return f_stderr; }
         bool get_silent( void ) const { return f_silent; }
         bool get_ignore_err( void ) const { return f_ignore_err; }
+        uint32_t get_expected_result( void ) const { return f_expected_result; }
+        bool get_expected_failure( void ) const { return f_expect_failure; }
 
         bool valid( void ) const { return !f_executable . empty(); }
 

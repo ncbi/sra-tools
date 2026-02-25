@@ -2,8 +2,9 @@
 
 #include <cstdlib>
 #include <chrono>
-
 #include <thread>
+#include <iterator>
+
 #include "../util/values.hpp"
 #include "../util/file_deleter.hpp"
 #include "../util/process.hpp"
@@ -135,6 +136,78 @@ class runner {
         }
 
 /* -------------------------------------------------------------------------------------------- */
+        bool fasta1l( vector< string >& args ) {
+            if ( args . size() < 2 ) {
+                cerr << ":fasta1l needs 2 values!\n";
+                return false;
+            }
+            const string src{ args[ 0 ] };
+            const string dst{ args[ 1 ] };
+            cout << "fasta1l( " << src << ") --> " << dst << endl;
+
+            uint64_t line_nr = 0;
+            ifstream f_src( src );
+            if ( f_src . is_open() ) {
+                ofstream f_dst( dst );
+                if ( f_dst . is_open() ) {
+                    std::string line_in;
+                    std::string line_out;
+                    while ( getline( f_src, line_in ) ) {
+                        StrTool::trim_line( line_in );
+                        line_out += line_in;
+                        if ( ( line_nr & 1 ) == 1 ) {
+                            f_dst << line_out << std::endl;
+                            line_out . clear();
+                        } else {
+                            line_out += " ";
+                        }
+                        line_nr++;
+                    }
+                } else {
+                    cerr << "cannot open : " << dst << endl;
+                    return false;
+                }
+            } else {
+                cerr << "cannot open : " << src << endl;
+                return false;
+            }
+            return true;
+        }
+
+/* -------------------------------------------------------------------------------------------- */
+        bool sort( vector< string >& args ) {
+            if ( args . size() < 2 ) {
+                cerr << ":sort needs 2 values!\n";
+                return false;
+            }
+            const string src{ args[ 0 ] };
+            const string dst{ args[ 1 ] };
+            cout << "sort( " << src << ") --> " << dst << endl;
+
+            ifstream f_src( src );
+            if ( f_src . is_open() ) {
+                std::vector< std::string > lines;
+                std::string line;
+                while ( getline( f_src, line ) ) {
+                    StrTool::trim_line( line );
+                    lines . push_back( line );
+                }
+                std::sort( lines . begin(), lines . end() );
+                ofstream f_dst( dst );
+                if ( f_dst . is_open() ) {
+                    std::copy( lines.begin(), lines.end(), std::ostream_iterator<std::string>( f_dst, "\n" ) );
+                } else {
+                    cerr << "cannot open : " << dst << endl;
+                    return false;
+                }
+            } else {
+                cerr << "cannot open : " << src << endl;
+                return false;
+            }
+            return true;
+        }
+
+/* -------------------------------------------------------------------------------------------- */
         bool run_sub( const runner_ini_ptr section_ini, vector< string >& args ) {
             // make a new MainParams-instance for the sub-process ( one level deeper )
             auto sub_params = MainParams::make( f_params -> get_sub_level() + 1 );
@@ -200,8 +273,11 @@ class runner {
                 res = run_sub( section_ini, args );
             } else if ( executable . compare( ":md5" ) == 0 ) {
                 res = check_md5( args );
+            } else if ( executable . compare( ":fasta1l" ) == 0 ) {
+                res = fasta1l( args );
+            } else if ( executable . compare( ":sort" ) == 0 ) {
+                res = sort( args );
             } else {
-
                 if ( section_ini -> get_silent() ) {
                     cout << "unknown: >" << executable << "<\n";
                 }

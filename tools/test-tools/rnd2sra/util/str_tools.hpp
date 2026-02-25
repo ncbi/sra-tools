@@ -2,7 +2,8 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <list>
+//#include <list>
+#include <iostream>
 #include <map>
 #include <string_view>
 #include <vector>
@@ -28,11 +29,40 @@ class StrTool {
                                 []( unsigned char ch ) { return !::isspace( ch ); } ) );
         }
 
+        static void ltrim( string &s, unsigned char c ) {
+            s . erase( s . begin(),
+                       find_if( s . begin(),
+                                s . end(),
+                                [&]( unsigned char ch ) { return ( ch != c ); } ) );
+        }
+
         static void rtrim( string &s ) {
             s . erase( find_if( s . rbegin(),
                                 s . rend(),
                                 [](unsigned char ch) { return !::isspace( ch ); } ) . base(),
                                 s . end() );
+        }
+
+        static void rtrim( string &s, unsigned char c ) {
+            s . erase( find_if( s . rbegin(),
+                                s . rend(),
+                                [&](unsigned char ch) { return ( ch != c ); } ) . base(),
+                                s . end() );
+        }
+
+        // "$ABC" -> "ABC" | "${ABC}" -> "ABC"
+        static string unwrap_var( const string_view& src ) {
+            string res{ src };
+            if ( startsWith( res, '$' ) ) {
+                ltrim( res, '$' );
+                if ( startsWith( res, '{' ) ) {
+                    ltrim( res, '{' );
+                }
+                if ( endsWith( res, '}' ) ) {
+                    rtrim( res, '}' );
+                }
+            }
+            return res;
         }
 
         static void trim_line( string& s ) {
@@ -132,12 +162,31 @@ class StrTool {
             }
         }
 
-        template <typename T> static T convert( const string_view& s, T dflt ) {
-            if ( s . empty() ) { return dflt; }
+        template <typename T> static bool is( const string_view& s ) {
+            bool res = true;
+            T value;
             stringstream ss;
+            ss . exceptions( std::stringstream::failbit );
             ss << s;
-            T res;
-            ss >> res;
+            try {
+                ss >> value;
+            } catch ( const std::stringstream::failure& fail ) {
+                res = false;
+            }
+            return res;
+
+        }
+
+        template <typename T> static T convert( const string_view& s, T dflt ) {
+            T res = dflt;
+            stringstream ss;
+            ss . exceptions( std::stringstream::failbit );
+            ss << s;
+            try {
+                ss >> res;
+            } catch ( const std::stringstream::failure& fail ) {
+                res = dflt;
+            }
             return res;
         }
 

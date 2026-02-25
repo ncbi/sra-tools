@@ -7,6 +7,7 @@
 #include "bio_or_tech.hpp"
 #include "fwd_or_rev.hpp"
 #include "RdFilter.hpp"
+#include "main_params.hpp"
 #include "../vdb/checksum.hpp"
 #include <cstdint>
 #include <iostream>
@@ -355,11 +356,27 @@ class rnd2sra_ini {
         row_offset_pair_ptr f_read_len_offset;
         row_offset_pair_ptr f_cmp_rd_fault;
 
+        static uint64_t get_u64( const IniPtr ini, const MainParamsPtr main_params, const string& key, uint64_t dflt ) {
+            if ( ini -> has( key ) ) {
+                string ini_value = ini -> get( key );
+                bool is_u64 = StrTool::is< uint64_t >( ini_value );
+                if ( is_u64 ) {
+                    return ini -> get_u64( key, dflt );
+                }
+                string key2 = StrTool::unwrap_var( ini_value );
+                if ( main_params -> has_value( key2 ) ) {
+                    string value2 = main_params -> get_value( key2 );
+                    return StrTool::convert< uint64_t >( value2, dflt );
+                }
+            }
+            return dflt;
+        }
+
         // >>>>> Ctor <<<<<
-        rnd2sra_ini( IniPtr ini ) {
+        rnd2sra_ini( const IniPtr ini, const MainParamsPtr main_params ) {
             f_output_dir = ini -> get( "out", "" );
-            f_rows = ini -> get_u64( "rows", 10 );
-            f_seed = ini -> get_u64( "seed", 1010101 );
+            f_rows = get_u64( ini, main_params, "rows", 10 );
+            f_seed = get_u64( ini, main_params, "seed", 1010101 );
             f_name_len = ini -> get_u32( "name_len", 25 );
             f_name_pattern = ini -> get( "name_pattern", "" );
             f_with_name = ini -> get( "with_name", "yes" ) == "yes";
@@ -388,8 +405,8 @@ class rnd2sra_ini {
         row_offset_pair_ptr get_cmp_rd_fault( void ) const { return f_cmp_rd_fault; }
 
     public:
-        static rnd2sra_ini_ptr make( IniPtr ini ) {
-            return rnd2sra_ini_ptr( new rnd2sra_ini( ini ) );
+        static rnd2sra_ini_ptr make( const IniPtr ini, const MainParamsPtr main_params ) {
+            return rnd2sra_ini_ptr( new rnd2sra_ini( ini, main_params ) );
         }
 
         uint8_t get_platform( void ) const { return f_platform -> to_u8(); }

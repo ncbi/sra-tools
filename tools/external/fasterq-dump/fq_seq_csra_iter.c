@@ -25,6 +25,7 @@
 */
 
 #include "fq_seq_csra_iter.h"
+#include "kfc/rc.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -214,6 +215,24 @@ bool fq_seq_csra_iter_get_data( fq_seq_csra_iter_t * self, fq_seq_csra_rec_t * r
                                              &rec -> read_type, &( rec -> num_read_type ) );
         } else {
             rec -> num_read_type = 0;
+        }
+
+        if ( 0 == rc1 ) {
+            bool n_rd_start_n_rd_len = true;
+            bool n_rd_start_n_rd_type = true;
+
+            if ( self -> opt . with_read_len ) {
+                n_rd_start_n_rd_len = ( rec -> num_read_start == rec -> num_read_len );
+            }
+            if ( self -> opt . with_read_len && self -> opt . with_read_type ) {
+                n_rd_start_n_rd_type = ( rec -> num_read_start == rec -> num_read_type );
+            }
+            if ( !( n_rd_start_n_rd_len && n_rd_start_n_rd_type ) ) {
+                /* we have a problem with read-start/read-len/read-type */
+                rc1 = RC( rcVDB, rcNoTarg, rcConstructing, rcData, rcInvalid );
+                ErrMsg( "SEQ[ #%ld ] num-read-start %u, num-read-len %u, num-read-type %u\n",
+                        rec -> row_id, rec -> num_read_start, rec -> num_read_len, rec -> num_read_type );
+            }
         }
 
         if ( 0 == rc1 && self -> opt . with_spotgroup ) {

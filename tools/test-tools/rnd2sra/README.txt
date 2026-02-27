@@ -132,8 +132,8 @@ For testing purposes, it may be necessary to introduce errors in the length
 of the READ and/or QUALITY columns - example:
 ----------------------------------------------------------------------------
 product = db
-qual_len_offset = 1, 3
-read_len_offset = 4, 1
+qual_offset = 1, 3
+read_offset = 4, 1
 ----------------------------------------------------------------------------
 In row number 1 the QUALITY column will be 3 Phred values longer than the
 READ column.

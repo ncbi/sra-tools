@@ -352,9 +352,12 @@ class rnd2sra_ini {
         vector< csra_spot_layout_ptr > f_csra_layouts;
         vector< string > f_spot_groups;
         uint64_t f_autoinc_name;
-        row_offset_pair_ptr f_qual_len_offset;
-        row_offset_pair_ptr f_read_len_offset;
+        row_offset_pair_ptr f_qual_offset;
+        row_offset_pair_ptr f_read_offset;
         row_offset_pair_ptr f_cmp_rd_fault;
+        row_offset_pair_ptr f_read_start_offset;
+        row_offset_pair_ptr f_read_len_offset;
+        row_offset_pair_ptr f_read_type_offset;
 
         static uint64_t get_u64( const IniPtr ini, const MainParamsPtr main_params, const string& key, uint64_t dflt ) {
             if ( ini -> has( key ) ) {
@@ -385,9 +388,12 @@ class rnd2sra_ini {
             f_product = Product::make( ini -> get( "product", "flat" ) );
             f_checksum = Checksum::make( ini -> get( "checksum", "none" ) );
             f_platform = Platform::make( ini -> get( "platform", "ILLUMINA" ) );
-            f_qual_len_offset = row_offset_pair::make( ini -> get( "qual_len_offset", "" ) );
-            f_read_len_offset = row_offset_pair::make( ini -> get( "read_len_offset", "" ) );
+            f_qual_offset = row_offset_pair::make( ini -> get( "qual_offset", "" ) );
+            f_read_offset = row_offset_pair::make( ini -> get( "read_offset", "" ) );
             f_cmp_rd_fault = row_offset_pair::make( ini -> get( "cmp_rd_fault", "" ) );
+            f_read_start_offset = row_offset_pair::make( ini -> get( "read_start_offset", "" ) );
+            f_read_len_offset = row_offset_pair::make( ini -> get( "read_len_offset", "" ) );
+            f_read_type_offset = row_offset_pair::make( ini -> get( "read_type_offset", "" ) );
             for ( const string & layout : ini -> get_definitions_of( "layout" ) ) {
                 f_layouts . push_back( spot_layout::make( layout ) );
             }
@@ -400,9 +406,12 @@ class rnd2sra_ini {
             f_autoinc_name = 1;
         }
 
-        row_offset_pair_ptr get_qual_len_offset( void ) const { return f_qual_len_offset; }
-        row_offset_pair_ptr get_read_len_offset( void ) const { return f_read_len_offset; }
+        row_offset_pair_ptr get_qual_offset( void ) const { return f_qual_offset; }
+        row_offset_pair_ptr get_read_offset( void ) const { return f_read_offset; }
         row_offset_pair_ptr get_cmp_rd_fault( void ) const { return f_cmp_rd_fault; }
+        row_offset_pair_ptr get_read_start_offset( void ) const { return f_read_start_offset; }
+        row_offset_pair_ptr get_read_len_offset( void ) const { return f_read_len_offset; }
+        row_offset_pair_ptr get_read_type_offset( void ) const { return f_read_type_offset; }
 
     public:
         static rnd2sra_ini_ptr make( const IniPtr ini, const MainParamsPtr main_params ) {
@@ -423,16 +432,28 @@ class rnd2sra_ini {
         const vector< spot_layout_ptr >& get_layouts( void ) const { return f_layouts; }
         const vector< csra_spot_layout_ptr >& get_csra_layouts( void ) const { return f_csra_layouts; }
 
-        int32_t qual_len_offset( int64_t row ) const {
-            return get_qual_len_offset() -> offset( row );
+        int32_t qual_offset( int64_t row ) const {
+            return get_qual_offset() -> offset( row );
+        }
+
+        int32_t read_offset( int64_t row ) const {
+            return get_read_offset() -> offset( row );
+        }
+
+        bool cmp_rd_fault( int64_t row ) const {
+            return ( 0 != get_cmp_rd_fault() -> offset( row ) );
+        }
+
+        int32_t read_start_offset( int64_t row ) const {
+            return get_read_start_offset() -> offset( row );
         }
 
         int32_t read_len_offset( int64_t row ) const {
             return get_read_len_offset() -> offset( row );
         }
 
-        bool cmp_rd_fault( int64_t row ) const {
-            return ( 0 != get_cmp_rd_fault() -> offset( row ) );
+        int32_t read_type_offset( int64_t row ) const {
+            return get_read_type_offset() -> offset( row );
         }
 
         spot_layout_ptr select_spot_layout( RandomPtr r ) {
@@ -498,8 +519,11 @@ class rnd2sra_ini {
             os << "eta      = " << yes_no( o -> get_write_meta() ) << endl;
             os << "prod     = " << o -> get_product() << endl;
             os << "checks   = " << o -> get_checksum() << endl;
-            os << "q-ofs    = " << o -> get_qual_len_offset() << endl;
-            os << "r-ofs    = " << o -> get_read_len_offset() << endl;
+            os << "q-ofs    = " << o -> get_qual_offset() << endl;
+            os << "r-ofs    = " << o -> get_read_offset() << endl;
+            os << "rs-ofs   = " << o -> get_read_start_offset() << endl;
+            os << "rl-ofs   = " << o -> get_read_len_offset() << endl;
+            os << "rt-ofs   = " << o -> get_read_type_offset() << endl;
             os << "cmp-rd   = " << o -> get_cmp_rd_fault() << endl;
             for ( auto const& layout : o -> get_layouts() ) {
                 os << "layout   = " << layout << endl;

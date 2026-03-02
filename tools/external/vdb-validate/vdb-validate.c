@@ -460,7 +460,7 @@ rc_t vdbcc ( const VDBManager *mgr, char const name[], uint32_t mode,
     return 0;
 }
 
-typedef struct ColumnInfo_s {
+struct ColumnInfo_s {
     char const *name;
     union {
         void     const *vp;
@@ -477,10 +477,14 @@ typedef struct ColumnInfo_s {
         float    const *f32;
         double   const *f64;
     } value;
+    int64_t firstRow;
+    uint64_t rowCount;
     uint32_t idx;
     uint32_t elem_bits;
     uint32_t elem_count;
-} ColumnInfo;
+};
+
+typedef struct ColumnInfo_s ColumnInfo;
 
 /**
  * \brief Read a column.
@@ -491,7 +495,14 @@ typedef struct ColumnInfo_s {
  */
 static rc_t readColumn(ColumnInfo *const result, int64_t const row, VCursor const *const curs)
 {
-    return VCursorCellDataDirect(curs, row, result->idx, &result->elem_bits, &result->value.vp, NULL, &result->elem_count);
+    rc_t rc = VCursorCellDataDirect(curs, row, result->idx, &result->elem_bits, &result->value.vp, NULL, &result->elem_count);
+    if (rc == 0 && result->value.vp == NULL)
+        rc = RC(rcExe, rcTable, rcValidating, rcData, rcNull);
+    if (rc) {
+        result->elem_count = 0;
+        result->value.vp = NULL;
+    }
+    return rc;
 }
 
 /**
@@ -508,6 +519,7 @@ static rc_t read1Value_bool(bool *const result, ColumnInfo *const ci, int64_t co
     if (rc) return rc;
     assert(ci->elem_count == 1);
     assert(ci->elem_bits == 8 * sizeof(*result));
+    assert(ci->value.vp != NULL);
     memmove(result, ci->value.vp, sizeof(*result));
     return 0;
 }
@@ -526,9 +538,36 @@ static rc_t read1Value_u32(uint32_t *const result, ColumnInfo *const ci, int64_t
     if (rc) return rc;
     assert(ci->elem_count == 1);
     assert(ci->elem_bits == 8 * sizeof(*result));
+    assert(ci->value.vp != NULL);
     memmove(result, ci->value.vp, sizeof(*result));
     return 0;
 }
+
+static int32_t get1Value_i32(ColumnInfo *const ci, int64_t row, VCursor const *const curs, rc_t *prc)
+{
+    if ((*prc = readColumn(ci, row, curs)) == 0) {
+        int32_t value = 0;
+        assert(ci->elem_count == 1);
+        assert(ci->elem_bits == 8 * sizeof(value));
+        assert(ci->value.vp != NULL);
+        memmove(&value, ci->value.vp, sizeof(value));
+        return value;
+    }
+    return 0;
+} 
+
+static uint32_t get1Value_u32(ColumnInfo *const ci, int64_t row, VCursor const *const curs, rc_t *prc)
+{
+    if ((*prc = readColumn(ci, row, curs)) == 0) {
+        uint32_t value = 0;
+        assert(ci->elem_count == 1);
+        assert(ci->elem_bits == 8 * sizeof(value));
+        assert(ci->value.vp != NULL);
+        memmove(&value, ci->value.vp, sizeof(value));
+        return value;
+    }
+    return 0;
+} 
 
 /**
  * \brief Read a string column and compare it to its previous value.
@@ -564,6 +603,27 @@ static bool readCompare_string(char **const result, ColumnInfo *const ci, int64_
         *prc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
     }
     return false;
+}
+
+/**
+ * \brief Add a column to a cursor.
+ * \param ci the target column info object.
+ * \param curs the cursor.
+ * \param name the name (or expression) of the column to add.
+ * \return 0 if no error else the error.
+ */
+static rc_t addColumn(ColumnInfo *const ci, VCursor const *const curs, char const *const name) {
+    return VCursorAddColumn(curs, &ci->idx, "%s", ci->name = name);
+}
+
+/**
+ * \brief Get the row range of a column.
+ * \param ci the target column info.
+ * \param curs the cursor.
+ * \return 0 if no error else the error.
+ */
+static rc_t getRowRange(ColumnInfo *const ci, VCursor const *const curs) {
+    return VCursorIdRange(curs, ci->idx, &ci->firstRow, &ci->rowCount);
 }
 
 struct CountSize {
@@ -777,186 +837,235 @@ static rc_t get_db_schema_info(VDatabase const *db, char buffer[], size_t bsz,
     return rc;
 }
 
+static rc_t verifySameRowRange(VCursor const *curs, ColumnInfo *const ci, ColumnInfo const *const r, rc_t const rce) {
+    rc_t rc = getRowRange(ci, curs);
+    if (rc) return rc;
+    if (ci->firstRow == r->firstRow && ci->rowCount == r->rowCount)
+        return 0;
+    if (ci->firstRow != r->firstRow)
+        PLOGERR(klogErr, (klogErr, rce, "The first ID-s "
+            "in $(src) and $(other) columns do not match", "src=%s,other=%s", r->name, ci->name));
+    else
+        PLOGERR(klogErr, (klogErr, rce, "The ID ranges "
+            "in $(src) and $(other) columns do not match", "src=%s,other=%s", r->name, ci->name));
+    return rce;
+}
+
 static rc_t sra_dbcc_454(VTable const *tbl, char const name[])
 {
     /* TODO: complete this */
     return 0;
 }
 
-static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
+enum tcc_HasColumn {
+    tcc_has_READ = 1,
+    tcc_has_QUALITY = 2,
+    tcc_has_SPOT_LEN = 4,
+    tcc_has_READ_START = 8,
+    tcc_has_READ_LEN = 16,
+    tcc_has_READ_TYPE = 32
+};
+static char const *const cn_FastQ[] = {
+    "READ", "QUALITY", "SPOT_LEN", "READ_START", "READ_LEN", "READ_TYPE"
+};
+
+static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, int colBits)
 {
     rc_t rce = 0;
 
     const VCursor *curs = NULL;
-
-    int64_t firstREAD_LEN = 0;
-    uint64_t countREAD_LEN = 0;
 
     uint64_t i = 0;
 
     ColumnInfo readLen;
     ColumnInfo spotLen;
     ColumnInfo read;
+    ColumnInfo readStart;
+    ColumnInfo readType;
 
-    memset(&readLen, 0, sizeof readLen);
-    memset(&spotLen, 0, sizeof spotLen);
-    memset(&read   , 0, sizeof read   );
+    memset(&readLen  , 0, sizeof readLen  );
+    memset(&spotLen  , 0, sizeof spotLen  );
+    memset(&read     , 0, sizeof read     );
+    memset(&readStart, 0, sizeof readStart);
+    memset(&readType , 0, sizeof readType );
+
+    read.name      = cn_FastQ[0]; /* "READ" */
+    spotLen.name   = cn_FastQ[2]; /* "SPOT_LEN" */;
+    readStart.name = cn_FastQ[3]; /* "READ_START" */;
+    readLen.name   = cn_FastQ[4]; /* "READ_LEN" */
+    readType.name  = cn_FastQ[5]; /* "READ_TYPE" */
 
     assert(pb);
 
     if (!pb->consist_check) {
         return 0;
     }
+    assert((colBits & 0x15) == 0x15);
 
-    rce = VTableCreateCursorRead(tbl, &curs);
-    if (rce != 0) {
-        return rce;
+    rce = VTableCreateCursorRead(tbl, &curs); assert(rce == 0); if (rce) abort();
+    rce = VCursorAddColumn(curs, &readLen.idx, "%s", readLen.name); assert(rce == 0); if (rce) abort();
+    rce = VCursorAddColumn(curs, &spotLen.idx, "%s", spotLen.name); assert(rce == 0); if (rce) abort();
+    rce = VCursorAddColumn(curs, &read   .idx, "%s", read   .name); assert(rce == 0); if (rce) abort();
+    if ((colBits & tcc_has_READ_START) != 0) {
+        rce = VCursorAddColumn(curs, &readStart.idx, "%s", readStart.name); assert(rce == 0); if (rce) abort();
     }
-    if (rce == 0) {
-        readLen.name = "READ_LEN";
-        rce = VCursorAddColumn(curs, &readLen.idx, "%s", readLen.name);
-    }
-    if (rce == 0) {
-        spotLen.name = "SPOT_LEN";
-        rce = VCursorAddColumn(curs, &spotLen.idx, "%s", spotLen.name);
-    }
-    if (rce == 0) {
-        read.name = "READ";
-        rce = VCursorAddColumn(curs, &read.idx, "%s", read.name);
+    if ((colBits & tcc_has_READ_TYPE) != 0) {
+        rce = VCursorAddColumn(curs, &readType.idx, "%s", readType.name); assert(rce == 0); if (rce) abort();
     }
 
-    if (rce == 0) {
-        assert(readLen.idx && spotLen.idx && read.idx);
-        if (readLen.idx == 0) {
-            rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
-            LOGERR(klogErr, rce, "Cannot find 'READ_LEN' column");
-        }
-        else if (spotLen.idx == 0) {
-            rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
-            LOGERR(klogErr, rce, "Cannot find 'SPOT_LEN' column");
-        }
-        else if (read.idx == 0) {
-            rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
-            LOGERR(klogErr, rce, "Cannot find 'READ' column");
-        }
+    rce = VCursorOpen(curs); assert(rce == 0); if (rce) abort();
+    rce = getRowRange(&read, curs);
+    if (rce) {
+        LOGERR(klogErr, rce, "Can't get row count!");
+        rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid);
+    }
+    else {
+        rce = verifySameRowRange(curs, &readLen, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
+        if (rce == 0)
+            rce = verifySameRowRange(curs, &spotLen, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
+        if (rce == 0 && (colBits & tcc_has_READ_START) != 0)
+            rce = verifySameRowRange(curs, &readStart, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
+        if (rce == 0 && (colBits & tcc_has_READ_TYPE) != 0)
+            rce = verifySameRowRange(curs, &readType, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
     }
 
-    if (rce == 0) {
-        rce = VCursorOpen(curs);
-    }
-    if (rce == 0) {
-        rce =
-            VCursorIdRange(curs, readLen.idx, &firstREAD_LEN, &countREAD_LEN);
-    }
-    if (rce == 0) {
-        int64_t firstSPOT_LEN = 0;
-        uint64_t countSPOT_LEN = 0;
-        rce =
-            VCursorIdRange(curs, spotLen.idx, &firstSPOT_LEN, &countSPOT_LEN);
-        if (rce == 0) {
-            if (firstREAD_LEN != firstSPOT_LEN) {
-                rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid);
-                LOGERR(klogErr, rce, "The first ID-s "
-                    "in READ_LEN and SPOT_LEN columns do not match");
-            }
-            else if (countREAD_LEN != countSPOT_LEN) {
-                rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid);
-                LOGERR(klogErr, rce, "ID ranges "
-                    "in READ_LEN and SPOT_LEN columns do not match");
-            }
-        }
-    }
-
-    for (i = 0; i < countREAD_LEN; ++i) {
-        uint32_t n = 0;
-        uint32_t j = 0;
-        rc_t rc = VCursorCellDataDirect(curs, firstREAD_LEN + i,
-            readLen.idx, &readLen.elem_bits,
-            &readLen.value.vp, NULL, &readLen.elem_count);
+    for (i = 0; rce == 0 && i < read.rowCount; ++i) {
+        int64_t const row = read.firstRow + i;
+        rc_t rc = readColumn(&read, row, curs);
+        uint32_t spLen = 0;
+        
         if (rc != 0) {
             PLOGERR(klogErr, (klogErr, rc,
-                "Cannot read 'READ_LEN' column at row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
+                "Cannot read '$(col)' column at row $(row)",
+                "col=%s,row=%ld", read.name, row));
+            if (rce == 0)
                 rce = rc;
-            }
-            if (!pb->exhaustive) {
+            if (!pb->exhaustive)
                 break;
-            }
-        }
-        rc = VCursorCellDataDirect(curs, firstREAD_LEN + i,
-            spotLen.idx, &spotLen.elem_bits,
-            &spotLen.value.vp, NULL, &spotLen.elem_count);
-        if (rc != 0) {
-            PLOGERR(klogErr, (klogErr, rc,
-                "Cannot read 'SPOT_LEN' column at row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
-                rce = rc;
-            }
-            if (!pb->exhaustive) {
-                break;
-            }
-        }
-        rc = VCursorCellDataDirect(curs, firstREAD_LEN + i,
-            read.idx, &read.elem_bits,
-            &read.value.vp, NULL, &read.elem_count);
-        if (rc != 0) {
-            PLOGERR(klogErr, (klogErr, rc,
-                "Cannot read 'READ' column at row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
-                rce = rc;
-            }
-            if (!pb->exhaustive) {
-                break;
-            }
         }
 
-        if (readLen.value.vp == NULL || spotLen.value.vp == NULL) {
-            rc = RC(rcExe, rcTable, rcValidating, rcData, rcNull);
+        spLen = get1Value_u32(&spotLen, row, curs, &rc);
+        if (rc != 0) {
             PLOGERR(klogErr, (klogErr, rc,
-                "Invalid 'READ_LEN' or 'SPOT_LEN' value at row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
+                "Cannot read '$(col)' column at row $(row)",
+                "col=%s,row=%ld", spotLen.name, row));
+            if (rce == 0)
                 rce = rc;
-            }
-            if (!pb->exhaustive) {
+            if (!pb->exhaustive)
                 break;
+        }
+        else if (spLen != read.elem_count) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "SPOT_LEN != length(READ) in row $(row)",
+                "row=%ld", row));
+            if (rce == 0)
+                rce = rc;
+            if (!pb->exhaustive)
+                break;
+            spLen = read.elem_count;
+        }
+
+        if ((colBits & tcc_has_READ_START) != 0) {
+            rc = readColumn(&readStart, row, curs);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot read '$(col)' column at row $(row)",
+                    "col=%s,row=%ld", readStart.name, row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
             }
         }
-        for (j = 0; j < readLen.elem_count; ++j) {
-            n += readLen.value.u32[j];
+        else {
+            assert(readStart.elem_count == 0);
         }
-        if (n != *(spotLen.value.u32)) {
-            rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt);
-            PLOGERR(klogErr, (klogErr, rc,
-                "Sum(READ_LEN) != SPOT_LEN in row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
-                rce = rc;
-            }
-            if (!pb->exhaustive) {
-                break;
+
+        if ((colBits & tcc_has_READ_TYPE) != 0) {
+            rc = readColumn(&readType, row, curs);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot read '$(col)' column at row $(row)",
+                    "col=%s,row=%ld", readType.name, row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
             }
         }
-        if (n != read.elem_count) {
-            rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt);
+        else {
+            assert(readType.elem_count == 0);
+        }
+
+        rc = readColumn(&readLen, row, curs);
+        if (rc != 0) {
             PLOGERR(klogErr, (klogErr, rc,
-                "Sum(READ_LEN) != length(READ) in row $(row)",
-                "row=%ld", firstREAD_LEN + i));
-            if (rce == 0) {
+                "Cannot read '$(col)' column at row $(row)",
+                "col=%s,row=%ld", readLen.name, row));
+            if (rce == 0)
                 rce = rc;
-            }
-            if (!pb->exhaustive) {
+            if (!pb->exhaustive)
                 break;
+        }
+        if ((colBits & tcc_has_READ_TYPE) != 0 && readLen.elem_count != readType.elem_count) {
+            PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
+                "Count(READ_LEN) ($(a)) != Count(READ_TYPE) ($(b)) in row $(row)",
+                "a=%u,b=%u,row=%ld", readLen.elem_count, readType.elem_count, row));
+            if (rce == 0)
+                rce = rc;
+            if (!pb->exhaustive)
+                break;
+        }
+        if ((colBits & tcc_has_READ_START) != 0 && readLen.elem_count != readStart.elem_count) {
+            PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
+                "Count(READ_LEN) ($(a)) != Count(READ_START) ($(b)) in row $(row)",
+                "a=%u,b=%u,row=%ld", readLen.elem_count, readStart.elem_count, row));
+            if (rce == 0)
+                rce = rc;
+            if (!pb->exhaustive)
+                break;
+        }
+        if ((colBits & tcc_has_READ_START) != 0 && readLen.elem_count == readStart.elem_count) {
+            uint32_t i;
+            for (i = 0; i < readLen.elem_count; ++i) {
+                uint32_t rl = 0;
+                uint32_t rs = 0;
+                memmove(&rl, &readLen.value.u32[i], sizeof(rl));
+                if (rl == 0)
+                    continue;
+                memmove(&rs, &readStart.value.u32[i], sizeof(rs));
+                if (rs < spLen && rs + rl <= spLen)
+                    continue;
+                PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
+                    "READ [$(rs)-$(re)) outside of READ of length ($(rl)) in row $(row)",
+                    "rs=%u,re=%u,rl=%u,row=%ld", rs, rs + rl, spLen, row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
+            }
+        }
+        else {
+            uint32_t i;
+            uint32_t len = 0;
+            for (i = 0; i < readLen.elem_count; ++i) {
+                uint32_t rl = 0;
+                memmove(&rl, &readLen.value.u32[i], sizeof(rl));
+                len += rl;
+            }
+            if (len != spLen) {
+                PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
+                    "Sum(READ_LEN) ($(a)) != length(READ) ($(b)) in row $(row)",
+                    "a=%u,b=%u,row=%ld", len, spLen, row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
             }
         }
     }
-
-    if (rce == 0) {
+    if (rce == 0)
         LOGMSG(klogInfo, "Columns 'READ_LEN' and 'SPOT_LEN' are consistent");
-    }
 
     VCursorRelease(curs);
 
@@ -966,51 +1075,56 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
 static rc_t sra_dbcc_fastq(const vdb_validate_params *pb,
     const VTable *tbl, char const name[])
 {
-    static char const *const cn_FastQ[] = {
-        "READ", "QUALITY", "SPOT_LEN", "READ_START", "READ_LEN", "READ_TYPE"
-    };
-
+    int colBits = 0;
     VCursor const *curs;
     rc_t rc = VTableCreateCursorRead(tbl, &curs);
 
     if (rc == 0) {
         unsigned const n = sizeof(cn_FastQ)/sizeof(cn_FastQ[0]);
-        ColumnInfo cols[sizeof(cn_FastQ)/sizeof(cn_FastQ[0])];
+        uint32_t cols[n];
         unsigned i;
 
         memset(cols, 0, sizeof(cols));
-        for (i = 0; i < n; ++i) {
-            cols[i].name = cn_FastQ[i];
-            VCursorAddColumn(curs, &cols[i].idx, "%s", cols[i].name);
-        }
+        for (i = 0; i < n; ++i)
+            VCursorAddColumn(curs, &cols[i], "%s", cn_FastQ[i]);
+
         rc = VCursorOpen(curs);
         if (rc == 0) {
+            int m = 1;
             rc = VCursorOpenRow(curs);
-            for (i = 0; i < n && rc == 0; ++i) {
-                VCursorCellData(curs, cols[i].idx, &cols[i].elem_bits,
-                    &cols[i].value.vp, NULL, &cols[i].elem_count);
-            }
-            if (   cols[0].idx == 0 || cols[0].elem_bits == 0
-                                                    || cols[0].value.vp == NULL
-                || cols[1].idx == 0 || cols[1].elem_bits == 0
-                                                    || cols[1].value.vp == NULL)
-            {
-                rc = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
-            }
-            else if (cols[2].idx == 0 || cols[2].elem_bits == 0
-                                                    || cols[2].value.vp == NULL)
-            {
-                (void)PLOGERR(klogWarn, (klogWarn,
-                    RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound),
-                    "Table '$(name)' is usable for fasta only; no quality data",
-                    "name=%s", name));
+            for (i = 0; i < n && rc == 0; ++i, m <<= 1) {
+                if (cols[i] != 0) {
+                    void const *vp = NULL;
+                    uint32_t elem_bits = 0;
+                    uint32_t elem_count = 0;
+                    if (VCursorCellData(curs, cols[i], &elem_bits, &vp, NULL, &elem_count) == 0 && elem_bits != 0 && vp != NULL)
+                        colBits |= m;
+                }
             }
         }
         VCursorRelease(curs);
     }
+    
+    if ((colBits & tcc_has_QUALITY) == 0)
+    {
+        (void)PLOGERR(klogWarn, (klogWarn,
+            RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound),
+            "Table '$(name)' is usable for fasta only; no quality data",
+            "name=%s", name));
+    }
+    if ((colBits & tcc_has_READ) == 0 || (colBits & tcc_has_SPOT_LEN) == 0 || (colBits & tcc_has_READ_LEN) == 0)
+    {
+        rc = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
+    }
+    if ((colBits & tcc_has_READ) == 0)
+        LOGERR(klogErr, rc, "Cannot find 'READ' column");
+    if ((colBits & tcc_has_READ_LEN) == 0)
+        LOGERR(klogErr, rc, "Cannot find 'READ_LEN' column");
+    if ((colBits & tcc_has_SPOT_LEN) == 0)
+        LOGERR(klogErr, rc, "Cannot find 'SPOT_LEN' column");
 
     if (rc == 0) {
-        rc = tableConsistCheck(pb, tbl);
+        rc = tableConsistCheck(pb, tbl, colBits);
     }
 
     if (rc) {
@@ -1133,14 +1247,77 @@ static rc_t verify_mgr_table(const vdb_validate_params *pb, char const name[])
     return rc;
 }
 
-#if 0
-static rc_t verify_db_table(VDatabase const *db, char const name[])
+enum table_bits {
+    tbEvidenceInterval   = ( 1u << 0 ),
+    tbEvidenceAlignment  = ( 1u << 1 ),
+    tbPrimaryAlignment   = ( 1u << 2 ),
+    tbReference          = ( 1u << 3 ),
+    tbSequence           = ( 1u << 4 ),
+    tbSecondaryAlignment = ( 1u << 5 )
+};
+
+static int database_tables(char const name[], node_t const nodes[], char const names[])
+{
+    int tables = 0;
+    if (nodes[0].firstChild) {
+        node_t const *tbl = &nodes[nodes[0].firstChild];
+        for ( ; ; ) {
+            char const *tname = &names[tbl->name];
+            unsigned this_table = 0;
+
+            if (tbl->objType == kptTable) {
+                switch (tname[0]) {
+                case 'E':
+                    if (strcmp(tname, "EVIDENCE_INTERVAL") == 0)
+                        this_table |= tbEvidenceInterval;
+                    else if (strcmp(tname, "EVIDENCE_ALIGNMENT") == 0)
+                        this_table |= tbEvidenceAlignment;
+                    break;
+                case 'P':
+                    if (strcmp(tname, "PRIMARY_ALIGNMENT") == 0)
+                        this_table |= tbPrimaryAlignment;
+                    break;
+                case 'R':
+                    if (strcmp(tname, "REFERENCE") == 0)
+                        this_table |= tbReference;
+                    break;
+                case 'S':
+                    if (strcmp(tname, "SEQUENCE") == 0)
+                        this_table |= tbSequence;
+                    else if (strcmp(tname, "SECONDARY_ALIGNMENT") == 0)
+                        this_table |= tbSecondaryAlignment;
+                    break;
+                }
+                if (this_table == 0) {
+                    (void)PLOGERR(klogWarn, (klogWarn, RC(
+                        rcExe, rcDatabase, rcValidating, rcTable, rcUnexpected),
+                      "Database '$(name)' contains unexpected table '$(table)'",
+                      "name=%s,table=%s", name, tname));
+                }
+                tables |= this_table;
+            }
+            else {
+                (void)PLOGERR(klogWarn, (klogWarn, RC(
+                    rcExe, rcDatabase, rcValidating, rcType, rcUnexpected),
+                    "Database '$(name)' contains unexpected object '$(obj)'",
+                    "name=%s,obj=%s", name, tname));
+            }
+            if (tbl->nxtSibl > 0)
+                tbl = &nodes[tbl->nxtSibl];
+            else
+                break;
+        }
+    }
+    return tables;
+}
+
+static rc_t verify_db_table(vdb_validate_params const *const pb, VDatabase const *db, char const name[])
 {
     VTable const *tbl;
     rc_t rc = VDatabaseOpenTableRead(db, &tbl, "%s", name);
 
     if (rc == 0) {
-        rc = verify_table(tbl, name);
+        rc = verify_table(pb, tbl, name);
         VTableRelease(tbl);
     }
     else {
@@ -1150,6 +1327,7 @@ static rc_t verify_db_table(VDatabase const *db, char const name[])
     return rc;
 }
 
+#if 0
 static rc_t align_dbcc_primary_alignment(VTable const *tbl, char const name[])
 {
     VCursor const *curs;
@@ -2382,74 +2560,15 @@ static rc_t dbric_align(const vdb_validate_params *pb,
     return rc;
 }
 
-
-static rc_t verify_database_align(const vdb_validate_params *pb, VDatabase const *db,
+static rc_t verify_database_align(vdb_validate_params const *const pb, VDatabase const *db,
     char const name[], node_t const nodes[], char const names[])
 {
     rc_t rc = 0;
-    unsigned tables = 0;
-    node_t const *tbl = &nodes[nodes[0].firstChild];
-    enum table_bits {
-        tbEvidenceInterval   = ( 1u << 0 ),
-        tbEvidenceAlignment  = ( 1u << 1 ),
-        tbPrimaryAlignment   = ( 1u << 2 ),
-        tbReference          = ( 1u << 3 ),
-        tbSequence           = ( 1u << 4 ),
-        tbSecondaryAlignment = ( 1u << 5 )
-    };
+    int const tables = database_tables(name, nodes, names);
 
-    if (nodes[0].firstChild) {
-        for ( ; ; ) {
-            char const *tname = &names[tbl->name];
-            unsigned this_table = 0;
-
-            if (tbl->objType == kptTable) {
-                switch (tname[0]) {
-                case 'E':
-                    if (strcmp(tname, "EVIDENCE_INTERVAL") == 0)
-                        this_table |= tbEvidenceInterval;
-                    else if (strcmp(tname, "EVIDENCE_ALIGNMENT") == 0)
-                        this_table |= tbEvidenceAlignment;
-                    break;
-                case 'P':
-                    if (strcmp(tname, "PRIMARY_ALIGNMENT") == 0)
-                        this_table |= tbPrimaryAlignment;
-                    break;
-                case 'R':
-                    if (strcmp(tname, "REFERENCE") == 0)
-                        this_table |= tbReference;
-                    break;
-                case 'S':
-                    if (strcmp(tname, "SEQUENCE") == 0)
-                        this_table |= tbSequence;
-                    else if (strcmp(tname, "SECONDARY_ALIGNMENT") == 0)
-                        this_table |= tbSecondaryAlignment;
-                    break;
-                }
-                if (this_table == 0) {
-                    (void)PLOGERR(klogWarn, (klogWarn, RC(
-                        rcExe, rcDatabase, rcValidating, rcTable, rcUnexpected),
-                      "Database '$(name)' contains unexpected table '$(table)'",
-                      "name=%s,table=%s", name, tname));
-                }
-                tables |= this_table;
-            }
-            else {
-                (void)PLOGERR(klogWarn, (klogWarn, RC(
-                    rcExe, rcDatabase, rcValidating, rcType, rcUnexpected),
-                    "Database '$(name)' contains unexpected object '$(obj)'",
-                    "name=%s,obj=%s", name, tname));
-            }
-            if (tbl->nxtSibl > 0)
-                tbl = &nodes[tbl->nxtSibl];
-            else
-                break;
-        }
-    }
     if (tables == tbSequence) {
         /* sequence data only */
-        (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(name)' "
-            "contains only unaligned reads", "name=%s", name));
+        return verify_db_table(pb, db, "SEQUENCE");
     }
     else if (   (tables & tbReference) == 0
              || (tables & tbPrimaryAlignment) == 0)
@@ -2525,31 +2644,41 @@ static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     else if (strncmp(schemaName, "NCBI:align:db:", 14) == 0) {
         rc = verify_database_align(pb, db, name, nodes, names);
     }
-    else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
-        /* TODO: verify NCBI:SRA:PacBio:smrt:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:Illumina:db") == 0) {
-        /* TODO: verify NCBI:SRA:Illumina:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:Nanopore:db") == 0) {
-        /* TODO: verify NCBI:SRA:Nanopore:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:GenericFastq:db") == 0) {
-        /* TODO: verify NCBI:SRA:GenericFastq:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqAbsolid:db") == 0) {
-        /* TODO: verify NCBI:SRA:GenericFastqAbsolid:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqLogOdds:db") == 0) {
-        /* TODO: verify NCBI:SRA:GenericFastqLogOdds:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNanopore:db") == 0) {
-        /* TODO: verify NCBI:SRA:GenericFastqNanopore:db */
-    }
-    else if (strcmp(schemaName, "NCBI:SRA:GenericFastqNoNames:db") == 0) {
-        /* TODO: verify NCBI:SRA:GenericFastqNoNames:db */
+    else if (strncmp(schemaName, "NCBI:SRA:", 9) == 0) {
+        rc = verify_db_table(pb, db, "SEQUENCE");
+        if (rc == 0) {
+            char const *const subtype = &schemaName[9];
+            if (strcmp(subtype, "PacBio:smrt:db") == 0) {
+                /* TODO: verify PacBio:smrt:db */
+            }
+            else if (strcmp(subtype, "Illumina:db") == 0) {
+                /* TODO: verify Illumina:db */
+            }
+            else if (strcmp(subtype, "Nanopore:db") == 0) {
+                /* TODO: verify Nanopore:db */
+            }
+            else if (strcmp(subtype, "GenericFastq:db") == 0) {
+                /* TODO: verify GenericFastq:db */
+            }
+            else if (strcmp(subtype, "GenericFastqAbsolid:db") == 0) {
+                /* TODO: verify GenericFastqAbsolid:db */
+            }
+            else if (strcmp(subtype, "GenericFastqLogOdds:db") == 0) {
+                /* TODO: verify GenericFastqLogOdds:db */
+            }
+            else if (strcmp(subtype, "GenericFastqNanopore:db") == 0) {
+                /* TODO: verify GenericFastqNanopore:db */
+            }
+            else if (strcmp(subtype, "GenericFastqNoNames:db") == 0) {
+                /* TODO: verify GenericFastqNoNames:db */
+            }
+            else {
+                goto UNRECOGNIZED_TYPE_WARNING;
+            }
+        }
     }
     else {
+UNRECOGNIZED_TYPE_WARNING:
         (void)PLOGERR(klogWarn, (klogWarn,
             RC(rcExe, rcDatabase, rcValidating, rcType, rcUnrecognized),
             "Database '$(name)' has unrecognized type '$(type)'",

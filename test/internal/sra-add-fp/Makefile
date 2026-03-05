@@ -22,19 +22,12 @@
 #
 # ===========================================================================
 
-add_subdirectory( align-cache )
-add_subdirectory( ccextract )
-add_subdirectory( check-redact )
-add_subdirectory( compute-coverage )
-add_subdirectory( copycat )
-add_subdirectory( dump_ref_fasta )
-add_subdirectory( make-read-filter )
-add_subdirectory( md5cp )
-add_subdirectory( meta-cmp )
-add_subdirectory( meta-copy )
-add_subdirectory( meta-repair )
-add_subdirectory( read-filter-redact )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( vdb-sql )
-add_subdirectory( sra-add-fp )
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/internal/sra-add-fp
+
+BUILD_TOOLS_INTERNAL=ON
+BUILD_TOOLS_LOADERS=ON
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

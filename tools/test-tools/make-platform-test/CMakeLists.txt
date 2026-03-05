@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( make-platform-test make-platform-test.cpp "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( make-platform-test false )
+MakeLinksExe_NoInstall( make-platform-test )

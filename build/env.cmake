@@ -612,6 +612,45 @@ if ( NOT DYNAMIC_LINK )
     endif()
 endif()
 
+function(MakeLinksExe_NoInstall target)
+    if ( NOT DYNAMIC_LINK )
+        if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
+            if ( HAVE_STATIC_LIBGCC )
+                target_link_options( ${target} PRIVATE -static-libgcc )
+            endif()
+            if ( HAVE_STATIC_LIBSTDCXX )
+                target_link_options( ${target} PRIVATE -static-libstdc++ )
+            endif()
+        endif()
+    endif()
+
+    if( SINGLE_CONFIG )
+        add_custom_command(TARGET ${target}
+            POST_BUILD
+            COMMAND rm -f ${target}.${VERSION}
+            COMMAND mv ${target} ${target}.${VERSION}
+            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}"
+        )
+
+    else()
+
+        install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_BINDIR} )
+
+        if (WIN32) # copy the .pdb files if any
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+        endif()
+
+    endif()
+endfunction()
+
 function(MakeLinksExe target install_via_driver)
 
     if ( NOT DYNAMIC_LINK )

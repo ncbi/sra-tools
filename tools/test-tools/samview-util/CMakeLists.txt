@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( samview-util samview "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( samview-util false )
+MakeLinksExe_NoInstall( samview-util )

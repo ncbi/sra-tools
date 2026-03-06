@@ -469,7 +469,7 @@ namespace AlignCache
             if ( param_count != 2 )
             {
                 MiniUsage (args.GetArgs());
-                return 0;
+                return 3;
             }
 
             g_Params.dbPathSrc = args.GetParamValue (0);

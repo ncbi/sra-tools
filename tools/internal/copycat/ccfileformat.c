@@ -37,6 +37,7 @@
 #include <klib/text.h>
 #include <klib/printf.h>
 #include <kfs/file.h>
+#include <zlib.h>
 #include <kff/fileformat.h>
 #include <kff/ffext.h>
 #include <kff/ffmagic.h>
@@ -57,6 +58,26 @@ static const uint8_t defline_allowed_chars[256] =
   1, /* P */  1, /* Q */  1, /* R */  1, /* S */  1, /* T */  1, /* U */  1, /* V */  1, /* W */  1, /* X */  1, /* Y */  1, /* Z */  0, /* [ */  0, /* \ */  0, /* ] */  0, /* ^ */  1, /* _ */
   0, /* ` */  1, /* a */  1, /* b */  1, /* c */  1, /* d */  1, /* e */  1, /* f */  1, /* g */  1, /* h */  1, /* i */  1, /* j */  1, /* k */  1, /* l */  1, /* m */  1, /* n */  1, /* o */
   1, /* p */  1, /* q */  1, /* r */  1, /* s */  1, /* t */  1, /* u */  1, /* v */  1, /* w */  1, /* x */  1, /* y */  1, /* z */  0, /* { */  0, /* | */  0, /* } */  0, /* ~ */  0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0
+};
+
+static const uint8_t fasta_sequence_chars[256] =
+{
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+  0, /*   */  0, /* ! */  0, /* " */  0, /* # */  0, /* $ */  0, /* % */  0, /* & */  0, /* ' */  0, /* ( */  0, /* ) */  1, /* * */  0, /* + */  0, /* , */  1, /* - */  0, /* . */  0, /* / */
+  0, /* 0 */  0, /* 1 */  0, /* 2 */  0, /* 3 */  0, /* 4 */  0, /* 5 */  0, /* 6 */  0, /* 7 */  0, /* 8 */  0, /* 9 */  0, /* : */  0, /* ; */  0, /* < */  0, /* = */  0, /* > */  0, /* ? */
+  0, /* @ */  1, /* A */  1, /* B */  1, /* C */  1, /* D */  0, /* E */  0, /* F */  1, /* G */  1, /* H */  0, /* I */  0, /* J */  1, /* K */  0, /* L */  1, /* M */  1, /* N */  0, /* O */
+  0, /* P */  0, /* Q */  1, /* R */  1, /* S */  1, /* T */  1, /* U */  1, /* V */  1, /* W */  0, /* X */  1, /* Y */  0, /* Z */  0, /* [ */  0, /* \ */  0, /* ] */  0, /* ^ */  0, /* _ */
+  0, /* ` */  1, /* a */  1, /* b */  1, /* c */  1, /* d */  0, /* e */  0, /* f */  1, /* g */  1, /* h */  0, /* i */  0, /* j */  1, /* k */  0, /* l */  1, /* m */  1, /* n */  0, /* o */
+  0, /* p */  0, /* q */  1, /* r */  1, /* s */  1, /* t */  1, /* u */  1, /* v */  1, /* w */  0, /* x */  1, /* y */  0, /* z */  0, /* { */  0, /* | */  0, /* } */  0, /* ~ */  0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
@@ -92,6 +113,103 @@ bool CCFileFormatIsSff ( void  * buffer )
     static const char file_sig[] = ".sff";
 
     return (memcmp (buffer, file_sig, 4) == 0);
+}
+
+/* ======================================================================
+   Validates BAM file by checking BGZF structure and BAM header signature
+   It checks:
+     1. BGZF gzip header structure (magic number, compression method, flags, extra field)
+     2. BAM header signature ("BAM\1") in decompressed data
+   Returns: true if valid BAM file, false otherwise
+*/
+bool CCFileFormatIsBAM ( void * buffer, size_t buffer_size )
+{
+    const uint8_t *data = (const uint8_t *)buffer;
+    z_stream zs;
+    uint8_t decompressed[512];  /* Enough for BAM header signature validation */
+    int zr;
+
+    /* We need at least up through BSIZE at offsets 0..17 to perform header tests */
+    if (buffer_size < 18)
+        return false;
+
+    /* Check GZIP magic number (0x1f 0x8b) */
+    if (data[0] != 0x1f || data[1] != 0x8b)
+        return false;
+
+    /* Check compression method (0x08 = deflate) */
+    if (data[2] != 0x08)
+        return false;
+
+    /* Check for presence of FEXTRA flag, required for BGZF */
+    if ((data[3] & 0x04) == 0)
+        return false;
+
+    /* Extra field length for BGZF at offsets 10..11 (little-endian) */
+    uint16_t xlen = ((uint16_t)data[10] | ((uint16_t)data[11] << 8));
+    if (xlen < 6)
+        return false;
+
+    /* Ensure the full extra area is present before inspecting it:
+       extra field starts at offset 12 and spans xlen bytes */
+    if (buffer_size < ((size_t)12 + xlen))
+        return false;
+
+    /* Verify BC subfield header at offsets 12..15:
+       SI1='B'(0x42), SI2='C'(0x43), SLEN=2 (0x02 0x00 LE) */
+    if ((data[12] != 'B' || data[13] != 'C' || data[14] != 0x02 || data[15] != 0x00))
+        return false;
+
+    /* Require non-zero BSIZE (practical BGZF blocks are non-zero) */
+    if (((uint16_t)data[16] | ((uint16_t)data[17] << 8)) == 0)
+        return false;
+
+    /* Initialize zlib for gzip decompression (wbits = 15 + 16 for gzip).
+       Works for both BGZF and plain gzip-compressed BAM files. */
+    memset(&zs, 0, sizeof(zs));
+    zr = inflateInit2(&zs, 15 + 16);
+    if (zr != Z_OK)
+    {
+        DEBUG_STATUS(("%s: inflateInit2 failed with %d\n", __func__, zr));
+        return false;
+    }
+
+    /* Set up zlib input and output streams */
+    zs.next_in = (Bytef *)data;
+    zs.avail_in = (uInt)buffer_size;
+    zs.next_out = (Bytef *)decompressed;
+    zs.avail_out = sizeof(decompressed);
+
+    /* Decompress the first block */
+    zr = inflate(&zs, Z_SYNC_FLUSH);
+    if (zr != Z_STREAM_END && zr != Z_OK)
+    {
+        inflateEnd(&zs);
+        DEBUG_STATUS(("%s: inflate failed with %d\n", __func__, zr));
+        return false;
+    }
+
+    inflateEnd(&zs);
+
+    /* Check for BAM signature: "BAM\1" at the start of decompressed data
+       Bytes 0-2: ASCII 'B' (0x42), 'A' (0x41), 'M' (0x4D)
+       Byte 3: Version 0x01 */
+    if (zs.total_out < 4)
+    {
+        DEBUG_STATUS(("%s: Decompressed data too small (%lu bytes)\n", __func__, zs.total_out));
+        return false;
+    }
+
+    if (decompressed[0] != 'B' || decompressed[1] != 'A' ||
+        decompressed[2] != 'M' || decompressed[3] != 0x01)
+    {
+        DEBUG_STATUS(("%s: Invalid BAM signature: expected 'BAM\\1', got 0x%02x%02x%02x%02x\n",
+                      __func__, decompressed[0], decompressed[1], decompressed[2], decompressed[3]));
+        return false;
+    }
+
+    DEBUG_STATUS(("%s: Valid BAM file detected (BGZF decompressed, BAM signature verified)\n", __func__));
+    return true;
 }
 
 void CCFileFormatExtractDefline(const char * line, size_t line_len, CCFileNode *node)
@@ -183,8 +301,7 @@ void CCFileFormatExtractDefline(const char * line, size_t line_len, CCFileNode *
     }
 }
 
-/** Scans buffer for FASTQ format compliance
- */
+/* Scans buffer for FASTQ format compliance */
 bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
 {
     const char * newline;
@@ -212,7 +329,6 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
         else
             newline = line;
         if(line==buffer) firstline_len = (newline-line);
-//        DEBUG_STATUS(("%s: line at pos %d, new line at pos %d\n",__func__,(void*)line-buffer,(void*)newline-buffer));
         switch(curLineType)
         {
             case ccfqfltIdentifier:
@@ -315,13 +431,114 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
     if(seqCount>0 && firstline_len>1 && (curLineType == ccfqfltIdentifier || newline == limit))
     {
         CCFileFormatExtractDefline(buffer+1, firstline_len-1, node);
+        DEBUG_STATUS(("%s: Valid FASTQ content detected\n", __func__));
         return true;
     }
     return false;
 }
 
+/* Scans buffer for FASTA format compliance */
+bool CCFileFormatIsFasta (void * buffer, size_t buffer_size)
+{
+    const char *data = (const char *)buffer;
+    const char *limit = data + buffer_size;
+    const char *line_start;
+    const char *line_end;
+    size_t line_len;
+    bool expecting_header = true;  /* state: expecting header line starting with '>' */
+    bool found_complete_sequence = false;   /* found at least one header + sequence start */
 
+    DEBUG_STATUS(("%s: buffer size = %zu\n", __func__, buffer_size));
 
+    if (buffer_size < 4)  /* Minimum FASTA content is 4 characters like: ">A\nA" */
+        return false;
+
+    line_start = data;
+
+    /* Process buffer line by line */
+    while (line_start < limit)
+    {
+        /* Find end of current line */
+        line_end = line_start;
+        while (line_end < limit && *line_end != '\n' && *line_end != '\r')
+            line_end++;
+
+        line_len = line_end - line_start;
+
+        /* Skip empty lines */
+        if (line_len == 0)
+        {
+            /* Skip line ending characters */
+            if (line_end < limit && (*line_end == '\r' || *line_end == '\n'))
+                line_end++;
+            line_start = line_end;
+            continue;
+        }
+
+        if (expecting_header)
+        {
+            /* Header line must start with '>' */
+            if (*line_start != '>')
+            {
+                DEBUG_STATUS(("%s: expected header line starting with '>'\n", __func__));
+                return false;
+            }
+
+            /* Check that rest of header contains only printable characters */
+            for (size_t i = 1; i < line_len; i++)
+            {
+                if (!isprint((unsigned char)line_start[i]))
+                {
+                    DEBUG_STATUS(("%s: non-printable character in header\n", __func__));
+                    return false;
+                }
+            }
+
+            DEBUG_STATUS(("%s: header line found: %.*s\n", __func__, (int)line_len-1, line_start+1));
+            expecting_header = false;
+        }
+        else
+        {
+            /* Sequence line: either continues current sequence or starts new one */
+            if (*line_start == '>')
+            {
+                expecting_header = true;
+                /* Re-process this line as header */
+                continue;
+            }
+
+            /* Current line must start with and contain only allowed characters (case-insensitive) */
+            /* Since sequence can extend beyond buffer, check characters up to line_len */
+            for (size_t i = 0; i < line_len; i++)
+            {
+                if (fasta_sequence_chars[(uint8_t)line_start[i]] == 0)
+                {
+                    DEBUG_STATUS(("%s: invalid character in sequence: 0x%02x\n", __func__, (unsigned char)line_start[i]));
+                    return false;
+                }
+            }
+
+            /* Found at least one sequence line after a header */
+            found_complete_sequence = true;
+            DEBUG_STATUS(("%s: valid FASTA sequence found\n", __func__));
+        }
+
+        /* Move to next line */
+        if (line_end < limit && (*line_end == '\r' || *line_end == '\n'))
+            line_end++;
+        line_start = line_end;
+    }
+
+    /* Must have found at least one complete sequence (header + sequence start) */
+    if (!found_complete_sequence)
+    {
+        DEBUG_STATUS(("%s: no complete FASTA sequence found in buffer\n", __func__));
+        return false;
+    }
+
+    DEBUG_STATUS(("%s: Valid FASTA content detected\n", __func__));
+    return true;
+}
 
 CCFileFormat *filefmt;
 
@@ -355,6 +572,7 @@ static const char magictable [] =
     "tar archive\tTapeArchive\n"
     "Zip archive data\tWinZip\n"
 };
+
 static const char exttable [] =
 {
     "Unknown\tUnknown\n"
@@ -363,6 +581,8 @@ static const char exttable [] =
     "bz2\tBzip\n"
     "cram\tCompressedReferenceOrientedAlignment\n"
     "crai\tCRAMIndex\n"
+    "fa\tFASTA\n"
+    "fasta\tFASTA\n"
     "fastq\tFASTQ\n"
     "fq\tFASTQ\n"
     "gz\tGnuZip\n"
@@ -384,6 +604,7 @@ static const char formattable [] =
     "CompressedReferenceOrientedAlignment\tRead\n"
     "CRAMIndex\tRead\n"
     "ExtensibleMarkupLanguage\tCached\n"
+    "FASTA\tRead\n"
     "FASTQ\tRead\n"
     "GnuZip\tCompressed\n"
     "HD5\tRead\n"
@@ -481,7 +702,10 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
     char	mtypebuf	[256];
     char	eclassbuf	[256];
     char	etypebuf	[256];
-    uint8_t	preread	[8192];
+    /* Read buffer for initial inspection.
+       BGZF blocks may compress up to ~64K, so allocate enough
+       space to hold an entire block. */
+    uint8_t	preread	[64 * 1024];
     char * buffer;
     size_t buffsize;
 
@@ -507,6 +731,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
             *pclass = ccffcArchive;
             *ptype = ccfftaSra;
             strncpy (buffer, "Archive/SequenceReadArchive", buffsize);
+            DEBUG_STATUS(("%s: SRA file identified by content\n", __func__));
             return 0;
         }
         if (num_read > 7 && CCFileFormatIsNCBIEncrypted (preread))
@@ -514,6 +739,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
             *pclass = ccffcEncoded;
             *ptype = ccffteNCBI;
             strncpy (buffer, "Encoded/NCBI", buffsize);
+            DEBUG_STATUS(("%s: NCBI encrypted format identified by content\n", __func__));
             return 0;
         }
         /* Sorta kinda hack to see if the file is WGA encrypted
@@ -524,11 +750,13 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
             *pclass = ccffcEncoded;
             *ptype = ccffteWGA;
             strncpy (buffer, "Encoded/WGA", buffsize);
+            DEBUG_STATUS(("%s: WGA format identified by content\n", __func__));
             return 0;
         }
         if (num_read > 3 && CCFileFormatIsSff (preread))
         {
             strncpy (buffer, "Read/StandardFlowgramFormat", buffsize);
+            DEBUG_STATUS(("%s: SFF format identified by content\n", __func__));
             return 0;
         }
         /* Identify FASTQ file by its content
@@ -536,6 +764,7 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
         if (num_read > 6 && CCFileFormatIsFastq (preread, num_read, node))
         {
             strncpy (buffer, "Read/FASTQ", buffsize);
+            DEBUG_STATUS(("%s: FASTQ format identified by content\n", __func__));
             return 0;
         }
         else
@@ -544,6 +773,21 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
             node->defline_pair = 0;
         }
 
+        /* Identify BAM file by its content (needs preread buffer to be at least 64K to accomodate first BGZF block) */
+        if (num_read >= 512 && CCFileFormatIsBAM (preread, num_read))
+        {
+            strncpy (buffer, "Read/BinaryAlignmentMap", buffsize);
+            DEBUG_STATUS(("%s: BAM format identified by content\n", __func__));
+            return 0;
+        }
+
+        /* Identify FASTA file by its content */
+        if (num_read > 3 && CCFileFormatIsFasta (preread, num_read))
+        {
+            strncpy (buffer, "Read/FASTA", buffsize);
+            DEBUG_STATUS(("%s: FASTA format identified by content\n", __func__));
+            return 0;
+        }
 
         rc = KFileFormatGetTypePath (self->ext, NULL, path, &etype, &eclass,
                                  etypebuf, sizeof (etypebuf), &etz);
@@ -612,21 +856,22 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                             if(node->lines > 0)
                             {
                                 PLOGMSG (klogWarn,
-                                        (klogWarn, "Text file '$(path)' has a FASTQ extension but failed built-in FASTQ format validation",
+                                        (klogWarn, "File '$(path)' has a FASTQ extension but failed built-in FASTQ format validation",
                                         "path=%s", path));
                                 strcpy (mclassbuf, eclassbuf);
                                 strcpy (mtypebuf, etypebuf);
                             }
-/*
-                            else
+                        }
+                        else if (strcmp("FASTA", etypebuf) == 0)
+                        {
+                            if(node->lines > 0)
                             {
-                                PLOGMSG (klogErr,
-                                        (klogErr, "File '$(path)' has a FASTQ extension but is not a text file",
+                                PLOGMSG (klogWarn,
+                                        (klogWarn, "File '$(path)' has a FASTA extension but failed built-in FASTA format validation",
                                         "path=%s", path));
-                                strcpy (mclassbuf, "Unknown");
-                                strcpy (mtypebuf, "Unknown");
+                                strcpy (mclassbuf, eclassbuf);
+                                strcpy (mtypebuf, etypebuf);
                             }
-*/
                         }
 
                         /* now that we've fixed a few cases use the magic derived
@@ -702,3 +947,4 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
     }
     return orc;
 }
+

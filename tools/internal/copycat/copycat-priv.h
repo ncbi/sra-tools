@@ -213,6 +213,8 @@ rc_t KFileMakeChunkRead (const struct KFile ** pself,
 
 bool CCFileFormatIsNCBIEncrypted ( void  * buffer );
 bool CCFileFormatIsWGAEncrypted ( void  * buffer );
+bool CCFileFormatIsBAM ( void  * buffer, size_t buffer_size );
+bool CCFileFormatIsFasta ( void  * buffer, size_t buffer_size );
 /*
  * Use as DEBUG_STATUS(("format",arg,...))
  */
@@ -235,3 +237,4 @@ rc_t CC CCFileMakeWrite (struct KFile ** self,
 #endif
 
 #endif /* _h_copycat_priv_ */
+

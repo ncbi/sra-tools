@@ -444,7 +444,7 @@ static rc_t background_vector_merger_process_batch( background_vector_merger_t *
     return rc;
 }
 
-static rc_t CC background_vector_merger_thread_func( const KThread * thread, void *data ) {
+static rc_t background_vector_merger_thread_func( const KThread * thread, void *data ) {
     rc_t rc = 0;
     background_vector_merger_t * self = data;
     bool done = false;
@@ -744,7 +744,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
     return rc;
 }
 
-static rc_t CC background_file_merger_thread_func( const KThread * thread, void *data ) {
+static rc_t background_file_merger_thread_func( const KThread * thread, void *data ) {
     rc_t rc = 0;
     background_file_merger_t * self = data;
     bool done = false;

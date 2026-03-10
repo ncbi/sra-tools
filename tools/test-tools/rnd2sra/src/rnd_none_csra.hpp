@@ -145,19 +145,21 @@ class RndNonecSra : public Rndcmn {
             auto spot_layout = f_ini -> select_spot_layout( f_rnd );
             spot_layout -> randomize( f_rnd );
             size_t row_len = spot_layout -> get_len();
+            size_t num_bases = row_len + f_ini -> read_offset( row );
+            size_t num_qualities = row_len + f_ini -> qual_offset( row );
 
             // --- READ
-            auto bases = f_rnd -> random_bases( row_len );
+            auto bases = f_rnd -> random_bases( num_bases );
             if ( ! f_read_column -> write_string( bases ) ) {
                 return false;
             }
 
             // --- QUALITY
-            if ( row_len > qual_arr . len ) {
+            if ( num_qualities > qual_arr . len ) {
                 if ( nullptr != qual_arr . data ) { free( ( void * ) qual_arr . data ); }
-                qual_arr . data = ( uint8_t * ) malloc( row_len );
+                qual_arr . data = ( uint8_t * ) malloc( num_qualities );
                 if ( nullptr != qual_arr . data ) {
-                    qual_arr .  len = row_len;
+                    qual_arr .  len = num_qualities;
                 } else {
                     qual_arr .  len = 0;
                 }
@@ -166,7 +168,7 @@ class RndNonecSra : public Rndcmn {
                 return false;
             }
             // optionally introduce an error in the quality length
-            size_t q_row_len = make_random_qual( ( uint8_t * )qual_arr . data, row, row_len );
+            size_t q_row_len = make_random_qual( ( uint8_t * )qual_arr . data, row, num_qualities );
             if ( ! f_qual_column -> write_u8arr( ( uint8_t * )qual_arr . data, q_row_len ) ) {
                 return false;
             }
@@ -182,16 +184,19 @@ class RndNonecSra : public Rndcmn {
             if ( read_count > 0 ) {
                 // --- READ_START
                 int32_t rs[ 1024 ];
+                int32_t rs_offset = f_ini -> read_start_offset( row );
                 spot_layout -> populate_read_start( rs );
+                if ( rs_offset > 0 ) {
+                    rs[ read_count - 1 ] += rs_offset;
+                }
                 if ( ! f_readstart_column -> write_i32arr( rs, read_count ) ) { return false; }
 
                 // --- READ_LEN
                 uint32_t rl[ 1024 ];
+                int32_t rl_offset = f_ini -> read_len_offset( row );
                 spot_layout -> populate_read_len( rl );
-                // optional fault injection!
-                int32_t ofs = f_ini -> read_len_offset( row );
-                if ( ofs != 0 ) {
-                    if ( read_count > 1 ) { rl[ 1 ] += ofs; } else { rl[ 0 ] += ofs; }
+                if ( rl_offset > 0 ) {
+                    rl[ read_count - 1 ] += rl_offset;
                 }
                 if ( ! f_readlen_column -> write_u32arr( rl, read_count ) ) { return false; }
 
@@ -212,7 +217,8 @@ class RndNonecSra : public Rndcmn {
                 // --- READ_TYPE
                 uint8_t rt[ 1024 ];
                 spot_layout -> populate_read_type( rt );
-                if ( ! f_readtype_column -> write_u8arr( rt, read_count ) ) { return false; }
+                uint32_t read_type_offset = f_ini -> read_type_offset( row );
+                if ( ! f_readtype_column -> write_u8arr( rt, read_count + read_type_offset ) ) { return false; }
             } else {
                 cerr << "no sections in spot-layout in row : " << row << endl;
                 return false;

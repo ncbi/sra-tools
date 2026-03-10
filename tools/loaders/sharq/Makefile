@@ -28,6 +28,7 @@ MODULE = tools/loaders/sharq
 BUILD_TOOLS_LOADERS = ON
 SHARQ_CLOUD=ON
 SHARQ_CLOUD_SDK_PREFIX=${CLOUD_SDK_BUILD_PATH}
+#SHARQ_CLOUD=OFF
 
 include $(TOP)/build/Makefile.env
 

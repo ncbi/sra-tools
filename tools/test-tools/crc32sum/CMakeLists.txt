@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( crc32sum "crc32sum" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( crc32sum false )
+MakeLinksExe_NoInstall( crc32sum )

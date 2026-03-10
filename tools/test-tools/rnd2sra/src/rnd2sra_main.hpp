@@ -5,7 +5,6 @@
 #include <iostream>
 #include "../util/ini.hpp"
 #include "../util/file_tool.hpp"
-#include "../vdb/wvdb.hpp"
 #include "product.hpp"
 #include "rnd2sra_ini.hpp"
 #include "main_params.hpp"
@@ -42,7 +41,7 @@ class Tool_Main {
         // produce an artificial accession
         bool produce_acc( void ) {
             bool res = true;
-            rnd2sra_ini_ptr special_ini = rnd2sra_ini::make( f_ini );
+            rnd2sra_ini_ptr special_ini = rnd2sra_ini::make( f_ini, f_main_params );
             string parent_out_path, out_leaf;
             auto output_dir = FileTool::remove_traling_separator( f_main_params -> get_output() );
             if ( special_ini -> has_output_dir() ) {
@@ -97,12 +96,6 @@ class Tool_Main {
             return res;
         }
 
-        // run a test of a tool against an artificial accession
-        bool run_test( void ) {
-            auto r = runner::make( f_ini, f_main_params );
-            return r -> run();
-        }
-
         // Ctor
         Tool_Main( const MainParamsPtr params, const IniPtr ini ) : f_main_params( params ), f_ini( ini ) {
             f_product = Product::make( ini -> get( "product", "" ) );
@@ -118,7 +111,8 @@ class Tool_Main {
             if ( f_product -> is_acc() ) {
                 return produce_acc();    // above ( we are producing an accession )
             } else if ( f_product -> is_tst() ) {
-                return run_test();       // above ( we are running a test )
+                auto r = runner::make( f_ini, f_main_params );
+                return r -> run();
             } else {
                 cerr << "unknown product!" << endl;
             }

@@ -145,7 +145,7 @@ const char * hlp_check_mode_2_string( check_mode_t cm );
 
 /* -------------------------------------------------------------------------------- */
 
-rc_t CC Quitting(); /* to avoid including kapp/main.h */
+rc_t Quitting(); /* to avoid including kapp/main.h */
 rc_t hlp_get_quitting( void );
 void hlp_set_quitting( void );
 
@@ -194,7 +194,7 @@ bool hlp_filter_2na_2( struct filter_2na_t * self, const String * bases1, const 
 
 /* common-function to create a thread with a given thread-size */
 rc_t hlp_make_thread( KThread ** self,
-                      rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                      rc_t ( * run_thread ) ( const KThread * self, void * data ),
                       void * data,
                       size_t stacksize );
 

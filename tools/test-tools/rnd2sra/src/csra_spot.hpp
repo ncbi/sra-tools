@@ -80,7 +80,7 @@ class cSRASpot {
         }
 
         size_t make_random_qual( uint8_t * buffer, int64_t row, size_t read_len ) {
-            size_t res = read_len + f_ini -> qual_len_offset( row );
+            size_t res = read_len;
             f_rnd -> random_diff_quals( buffer, res );
             return res;
         }
@@ -126,15 +126,15 @@ class cSRASpot {
             rec . set_read_type( 1, 1 ); // BIO
             rec . set_read_filter( 0, 0 ); // PASS
 
-            rec . set_read_start( 0, f_read1 -> get_len() );
             // optional fault injection!
-            size_t rd_len_ofs = f_ini -> read_len_offset( rec . get_row_id() );
-            rec . set_read_len( f_read1 -> get_len() + rd_len_ofs, f_read2 -> get_len() );
+            int32_t s_offset = f_ini -> read_start_offset( rec . get_row_id() );
+            int32_t l_offset = f_ini -> read_len_offset( rec . get_row_id() );
+            rec . set_read_start( 0, f_read1 -> get_len() + s_offset );
+            rec . set_read_len( f_read1 -> get_len(), f_read2 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id(), f_read2 -> get_align_id() );
         }
 
         void populate_seq_rec1( SeqRec& rec ) {
-            // concatenate the 2 reads for the 'computed' READ-column
             rec . set_read( f_read1 -> get_bases() );
             if ( f_read1 -> is_aligned() ) {
                 rec . clear_cmp_read();
@@ -144,8 +144,12 @@ class cSRASpot {
             rec . set_read_type( 1 ); // BIO
             rec . set_read_filter( 0 ); // PASS
 
-            rec . set_read_start( 0 );
-            rec . set_read_len( f_read1 -> get_len() );
+            // optional fault injection!
+            int32_t s_offset = f_ini -> read_start_offset( rec . get_row_id() );
+            int32_t l_offset = f_ini -> read_len_offset( rec . get_row_id() );
+
+            rec . set_read_start( s_offset );
+            rec . set_read_len( f_read1 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id() );
         }
 
@@ -167,8 +171,10 @@ class cSRASpot {
                 rec . set_cmp_read( rec . get_read() );
             }
 
-            // optional fault injection!
-            size_t spot_len = rec . get_read() . length() + f_ini -> qual_len_offset( rec . get_row_id() );
+            // optional fault injection ( for the quality column )!
+            int32_t r_offset = f_ini -> read_offset( rec . get_row_id() );
+            int32_t q_offset = f_ini -> qual_offset( rec . get_row_id() );
+            size_t spot_len = rec . get_read() . length() + q_offset - r_offset;
             rec . make_random_qual( f_rnd, spot_len );
 
             bc . bio += rec . get_read() . length();

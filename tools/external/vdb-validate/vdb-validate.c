@@ -880,18 +880,21 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
     ColumnInfo readLen;
     ColumnInfo spotLen;
     ColumnInfo read;
+    ColumnInfo qual;
     ColumnInfo readStart;
     ColumnInfo readType;
 
     memset(&readLen  , 0, sizeof readLen  );
     memset(&spotLen  , 0, sizeof spotLen  );
     memset(&read     , 0, sizeof read     );
+    memset(&qual     , 0, sizeof qual     );
     memset(&readStart, 0, sizeof readStart);
     memset(&readType , 0, sizeof readType );
 
     read.name      = cn_FastQ[0]; /* "READ" */
-    spotLen.name   = cn_FastQ[2]; /* "SPOT_LEN" */;
-    readStart.name = cn_FastQ[3]; /* "READ_START" */;
+    qual.name      = cn_FastQ[1]; /* "QUALITY" */
+    spotLen.name   = cn_FastQ[2]; /* "SPOT_LEN" */
+    readStart.name = cn_FastQ[3]; /* "READ_START" */
     readLen.name   = cn_FastQ[4]; /* "READ_LEN" */
     readType.name  = cn_FastQ[5]; /* "READ_TYPE" */
 
@@ -906,6 +909,9 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
     rce = VCursorAddColumn(curs, &readLen.idx, "%s", readLen.name); assert(rce == 0); if (rce) abort();
     rce = VCursorAddColumn(curs, &spotLen.idx, "%s", spotLen.name); assert(rce == 0); if (rce) abort();
     rce = VCursorAddColumn(curs, &read   .idx, "%s", read   .name); assert(rce == 0); if (rce) abort();
+    if ((colBits & tcc_has_QUALITY) != 0) {
+        rce = VCursorAddColumn(curs, &qual.idx, "%s", qual.name); assert(rce == 0); if (rce) abort();
+    }
     if ((colBits & tcc_has_READ_START) != 0) {
         rce = VCursorAddColumn(curs, &readStart.idx, "%s", readStart.name); assert(rce == 0); if (rce) abort();
     }
@@ -923,6 +929,8 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
         rce = verifySameRowRange(curs, &readLen, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
         if (rce == 0)
             rce = verifySameRowRange(curs, &spotLen, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
+        if (rce == 0 && (colBits & tcc_has_QUALITY) != 0)
+            rce = verifySameRowRange(curs, &qual, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
         if (rce == 0 && (colBits & tcc_has_READ_START) != 0)
             rce = verifySameRowRange(curs, &readStart, &read, RC(rcExe, rcTable, rcValidating, rcColumn, rcInvalid));
         if (rce == 0 && (colBits & tcc_has_READ_TYPE) != 0)
@@ -963,6 +971,31 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
             if (!pb->exhaustive)
                 break;
             spLen = read.elem_count;
+        }
+
+        if ((colBits & tcc_has_QUALITY) != 0) {
+            rc = readColumn(&qual, row, curs);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot read '$(col)' column at row $(row)",
+                    "col=%s,row=%ld", qual.name, row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
+            }
+            else if (qual.elem_count != read.elem_count) {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "length(QUALITY) != length(READ) in row $(row)",
+                    "row=%ld", row));
+                if (rce == 0)
+                    rce = rc;
+                if (!pb->exhaustive)
+                    break;
+            }
+        }
+        else {
+            assert(qual.elem_count == 0);
         }
 
         if ((colBits & tcc_has_READ_START) != 0) {

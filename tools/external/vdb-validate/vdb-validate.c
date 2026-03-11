@@ -1072,7 +1072,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
                 if (rs < spLen && rs + rl <= spLen)
                     continue;
                 PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
-                    "READ [$(rs)-$(re)) outside of READ of length ($(rl)) in row $(row)",
+                    "READ [$(rs)-$(re)) outside of spot of length ($(rl)) in row $(row)",
                     "rs=%u,re=%u,rl=%u,row=%ld", rs, rs + rl, spLen, row));
                 if (rce == 0)
                     rce = rc;

@@ -877,11 +877,11 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
 
     uint64_t i = 0;
 
-    ColumnInfo readLen;
-    ColumnInfo spotLen;
     ColumnInfo read;
     ColumnInfo qual;
+    ColumnInfo spotLen;
     ColumnInfo readStart;
+    ColumnInfo readLen;
     ColumnInfo readType;
 
     memset(&readLen  , 0, sizeof readLen  );
@@ -903,7 +903,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
     if (!pb->consist_check) {
         return 0;
     }
-    assert((colBits & 0x15) == 0x15);
+    assert((colBits & 0x15) == 0x15); /* need READ, SPOT_LEN, & READ_LEN columns */
 
     rce = VTableCreateCursorRead(tbl, &curs); assert(rce == 0); if (rce) abort();
     rce = VCursorAddColumn(curs, &readLen.idx, "%s", readLen.name); assert(rce == 0); if (rce) abort();
@@ -950,6 +950,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
                 rce = rc;
             if (!pb->exhaustive)
                 break;
+            continue;
         }
 
         spLen = get1Value_u32(&spotLen, row, curs, &rc);
@@ -984,7 +985,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
                 if (!pb->exhaustive)
                     break;
             }
-            else if (qual.elem_count != read.elem_count) {
+            else if (qual.elem_count != spLen) {
                 PLOGERR(klogErr, (klogErr, rc,
                     "length(QUALITY) != length(READ) in row $(row)",
                     "row=%ld", row));
@@ -996,6 +997,18 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
         }
         else {
             assert(qual.elem_count == 0);
+        }
+
+        rc = readColumn(&readLen, row, curs);
+        if (rc != 0) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot read '$(col)' column at row $(row)",
+                "col=%s,row=%ld", readLen.name, row));
+            if (rce == 0)
+                rce = rc;
+            if (!pb->exhaustive)
+                break;
+            continue;
         }
 
         if ((colBits & tcc_has_READ_START) != 0) {
@@ -1028,17 +1041,6 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
         }
         else {
             assert(readType.elem_count == 0);
-        }
-
-        rc = readColumn(&readLen, row, curs);
-        if (rc != 0) {
-            PLOGERR(klogErr, (klogErr, rc,
-                "Cannot read '$(col)' column at row $(row)",
-                "col=%s,row=%ld", readLen.name, row));
-            if (rce == 0)
-                rce = rc;
-            if (!pb->exhaustive)
-                break;
         }
         if ((colBits & tcc_has_READ_TYPE) != 0 && readLen.elem_count != readType.elem_count) {
             PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),

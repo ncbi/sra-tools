@@ -44,6 +44,10 @@ using data in the INSDC Sequence Read Archives.
 ----
 _March 17, 2026_: **SRA Toolkit Release 3.4.0**
 
+Improved error messages and handling of invalid data in fasterq-dump.
+
+The cache-mgr utility has been retired and will no longer be updated.
+
 ----
 _December 2, 2025_: **SRA Toolkit Release 3.3.0**
 

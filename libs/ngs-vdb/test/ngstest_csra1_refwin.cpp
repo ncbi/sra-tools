@@ -587,7 +587,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceWindow_Slice_Filtered, CSRA1_Fixture)
 
     const bool wants_primary = true;
     const bool wants_secondary = true;
-#pragma message ( "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags." )
+// "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags."
     const uint32_t filters = NGS_AlignmentFilterBits_pass_bad | NGS_AlignmentFilterBits_pass_dups |
         NGS_AlignmentFilterBits_no_wraparound | NGS_AlignmentFilterBits_start_within_window;
     const int32_t no_map_qual = 0;
@@ -665,7 +665,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetFilteredAlignmentSlice_Wraparound, CSRA1
 
     const bool wants_primary = true;
     const bool wants_secondary = true;
-#pragma message ( "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags." )
+// "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags."
     const uint32_t no_filters = NGS_AlignmentFilterBits_pass_bad | NGS_AlignmentFilterBits_pass_dups;
     const int32_t no_map_qual = 0;
 
@@ -692,7 +692,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetFilteredAlignmentSlice_Wraparound_StartI
 
     const bool wants_primary = true;
     const bool wants_secondary = true;
-#pragma message ( "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags." )
+// "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags."
     const uint32_t filters = NGS_AlignmentFilterBits_pass_bad | NGS_AlignmentFilterBits_pass_dups |
         NGS_AlignmentFilterBits_start_within_window;
     const int32_t no_map_qual = 0;
@@ -715,7 +715,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetFilteredAlignmentSlice_NoWraparound, CSR
 
     const bool wants_primary = true;
     const bool wants_secondary = true;
-#pragma message ( "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags." )
+// "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags."
     const uint32_t filters = NGS_AlignmentFilterBits_pass_bad | NGS_AlignmentFilterBits_pass_dups |
         NGS_AlignmentFilterBits_no_wraparound;
     const int32_t no_map_qual = 0;
@@ -736,7 +736,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetFilteredAlignmentSlice_NoWraparound_Star
 
     const bool wants_primary = true;
     const bool wants_secondary = true;
-#pragma message ( "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags." )
+// "filtering did not work prior to today's changes. I have set filter bits to allow this test to pass. the test should be fixed so that filters are set to the two desired flags."
     const uint32_t filters = NGS_AlignmentFilterBits_pass_bad | NGS_AlignmentFilterBits_pass_dups |
         NGS_AlignmentFilterBits_no_wraparound | NGS_AlignmentFilterBits_start_within_window;
     const int32_t no_map_qual = 0;

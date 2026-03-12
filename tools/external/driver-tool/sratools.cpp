@@ -555,10 +555,10 @@ static int main(CommandLine const &argv)
                     if( exit_code > 0xFF || exit_code < 0 )
                     {   // possible on Windows
                         std::cerr << "0x"
-                                  << std::hex       // switch to hexadecimal format
-                                  << std::uppercase // use uppercase letters A-F
-                                  << exit_code
-                                  << std::dec;      // switch back to decimal for future outputs
+                            << std::hex       // switch to hexadecimal format
+                            << std::uppercase // use uppercase letters A-F
+                            << exit_code
+                            << std::dec << " (" << exit_code << ")";
                     }
                     else
                     {

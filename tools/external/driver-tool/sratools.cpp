@@ -550,13 +550,21 @@ static int main(CommandLine const &argv)
                         LOG(1) << "Failed to get data for " << acc << " from " << src.service << std::endl;
                         continue;
                     }
-                     std::cerr << argv.toolName << " quit with error code "
-                        << "0x"
-                        << std::hex          // switch to hexadecimal format
-                        << std::uppercase     // use uppercase letters A-F
-                        << exit_code
-                        << std::dec          // switch back to decimal for future outputs
-                        << std::endl;
+
+                    std::cerr << argv.toolName << " quit with error code ";
+                    if( exit_code > 0xFF || exit_code < 0 )
+                    {   // possible on Windows
+                        std::cerr << "0x"
+                                  << std::hex       // switch to hexadecimal format
+                                  << std::uppercase // use uppercase letters A-F
+                                  << exit_code
+                                  << std::dec;      // switch back to decimal for future outputs
+                    }
+                    else
+                    {
+                        std::cerr << exit_code;
+                    }
+                    std::cerr << std::endl;
                     exit(exit_code);
                 }
                 // was killed or something (POSIX)

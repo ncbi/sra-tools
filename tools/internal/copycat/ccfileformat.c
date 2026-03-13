@@ -74,10 +74,10 @@ static const uint8_t fasta_sequence_chars[256] =
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
   0, /*   */  0, /* ! */  0, /* " */  0, /* # */  0, /* $ */  0, /* % */  0, /* & */  0, /* ' */  0, /* ( */  0, /* ) */  1, /* * */  0, /* + */  0, /* , */  1, /* - */  0, /* . */  0, /* / */
   0, /* 0 */  0, /* 1 */  0, /* 2 */  0, /* 3 */  0, /* 4 */  0, /* 5 */  0, /* 6 */  0, /* 7 */  0, /* 8 */  0, /* 9 */  0, /* : */  0, /* ; */  0, /* < */  0, /* = */  0, /* > */  0, /* ? */
-  0, /* @ */  1, /* A */  1, /* B */  1, /* C */  1, /* D */  0, /* E */  0, /* F */  1, /* G */  1, /* H */  0, /* I */  0, /* J */  1, /* K */  0, /* L */  1, /* M */  1, /* N */  0, /* O */
-  0, /* P */  0, /* Q */  1, /* R */  1, /* S */  1, /* T */  1, /* U */  1, /* V */  1, /* W */  0, /* X */  1, /* Y */  0, /* Z */  0, /* [ */  0, /* \ */  0, /* ] */  0, /* ^ */  0, /* _ */
-  0, /* ` */  1, /* a */  1, /* b */  1, /* c */  1, /* d */  0, /* e */  0, /* f */  1, /* g */  1, /* h */  0, /* i */  0, /* j */  1, /* k */  0, /* l */  1, /* m */  1, /* n */  0, /* o */
-  0, /* p */  0, /* q */  1, /* r */  1, /* s */  1, /* t */  1, /* u */  1, /* v */  1, /* w */  0, /* x */  1, /* y */  0, /* z */  0, /* { */  0, /* | */  0, /* } */  0, /* ~ */  0,
+  0, /* @ */  1, /* A */  1, /* B */  1, /* C */  1, /* D */  1, /* E */  1, /* F */  1, /* G */  1, /* H */  1, /* I */  0, /* J */  1, /* K */  1, /* L */  1, /* M */  1, /* N */  0, /* O */
+  1, /* P */  1, /* Q */  1, /* R */  1, /* S */  1, /* T */  1, /* U */  1, /* V */  1, /* W */  0, /* X */  1, /* Y */  0, /* Z */  0, /* [ */  0, /* \ */  0, /* ] */  0, /* ^ */  0, /* _ */
+  0, /* ` */  1, /* a */  1, /* b */  1, /* c */  1, /* d */  1, /* e */  1, /* f */  1, /* g */  1, /* h */  1, /* i */  0, /* j */  1, /* k */  1, /* l */  1, /* m */  1, /* n */  0, /* o */
+  1, /* p */  1, /* q */  1, /* r */  1, /* s */  1, /* t */  1, /* u */  1, /* v */  1, /* w */  0, /* x */  1, /* y */  0, /* z */  0, /* { */  0, /* | */  0, /* } */  0, /* ~ */  0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
   0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
@@ -115,101 +115,52 @@ bool CCFileFormatIsSff ( void  * buffer )
     return (memcmp (buffer, file_sig, 4) == 0);
 }
 
-/* ======================================================================
-   Validates BAM file by checking BGZF structure and BAM header signature
-   It checks:
-     1. BGZF gzip header structure (magic number, compression method, flags, extra field)
-     2. BAM header signature ("BAM\1") in decompressed data
-   Returns: true if valid BAM file, false otherwise
-*/
-bool CCFileFormatIsBAM ( void * buffer, size_t buffer_size )
+/* Validates BGZF structure and decompresses the first block into caller-supplied buffer.
+   Returns number of decompressed bytes on success, 0 on failure. */
+size_t CCFileFormatDecompressFirstBGZFBlock ( const void * buffer, size_t buffer_size, uint8_t * out, size_t out_size )
 {
     const uint8_t *data = (const uint8_t *)buffer;
     z_stream zs;
-    uint8_t decompressed[512];  /* Enough for BAM header signature validation */
     int zr;
 
-    /* We need at least up through BSIZE at offsets 0..17 to perform header tests */
     if (buffer_size < 18)
-        return false;
-
-    /* Check GZIP magic number (0x1f 0x8b) */
+        return 0;
     if (data[0] != 0x1f || data[1] != 0x8b)
-        return false;
-
-    /* Check compression method (0x08 = deflate) */
+        return 0;
     if (data[2] != 0x08)
-        return false;
-
-    /* Check for presence of FEXTRA flag, required for BGZF */
+        return 0;
     if ((data[3] & 0x04) == 0)
-        return false;
+        return 0;
 
-    /* Extra field length for BGZF at offsets 10..11 (little-endian) */
     uint16_t xlen = ((uint16_t)data[10] | ((uint16_t)data[11] << 8));
     if (xlen < 6)
-        return false;
-
-    /* Ensure the full extra area is present before inspecting it:
-       extra field starts at offset 12 and spans xlen bytes */
+        return 0;
     if (buffer_size < ((size_t)12 + xlen))
-        return false;
-
-    /* Verify BC subfield header at offsets 12..15:
-       SI1='B'(0x42), SI2='C'(0x43), SLEN=2 (0x02 0x00 LE) */
-    if ((data[12] != 'B' || data[13] != 'C' || data[14] != 0x02 || data[15] != 0x00))
-        return false;
-
-    /* Require non-zero BSIZE (practical BGZF blocks are non-zero) */
+        return 0;
+    if (data[12] != 'B' || data[13] != 'C' || data[14] != 0x02 || data[15] != 0x00)
+        return 0;
     if (((uint16_t)data[16] | ((uint16_t)data[17] << 8)) == 0)
-        return false;
+        return 0;
 
-    /* Initialize zlib for gzip decompression (wbits = 15 + 16 for gzip).
-       Works for both BGZF and plain gzip-compressed BAM files. */
     memset(&zs, 0, sizeof(zs));
     zr = inflateInit2(&zs, 15 + 16);
     if (zr != Z_OK)
-    {
-        DEBUG_STATUS(("%s: inflateInit2 failed with %d\n", __func__, zr));
-        return false;
-    }
+        return 0;
 
-    /* Set up zlib input and output streams */
-    zs.next_in = (Bytef *)data;
-    zs.avail_in = (uInt)buffer_size;
-    zs.next_out = (Bytef *)decompressed;
-    zs.avail_out = sizeof(decompressed);
+    zs.next_in   = (Bytef *)data;
+    zs.avail_in  = (uInt)buffer_size;
+    zs.next_out  = (Bytef *)out;
+    zs.avail_out = (uInt)out_size;
 
-    /* Decompress the first block */
     zr = inflate(&zs, Z_SYNC_FLUSH);
-    if (zr != Z_STREAM_END && zr != Z_OK)
-    {
-        inflateEnd(&zs);
-        DEBUG_STATUS(("%s: inflate failed with %d\n", __func__, zr));
-        return false;
-    }
-
     inflateEnd(&zs);
 
-    /* Check for BAM signature: "BAM\1" at the start of decompressed data
-       Bytes 0-2: ASCII 'B' (0x42), 'A' (0x41), 'M' (0x4D)
-       Byte 3: Version 0x01 */
-    if (zs.total_out < 4)
-    {
-        DEBUG_STATUS(("%s: Decompressed data too small (%lu bytes)\n", __func__, zs.total_out));
-        return false;
-    }
+    if (zr != Z_STREAM_END && zr != Z_OK)
+        return 0;
 
-    if (decompressed[0] != 'B' || decompressed[1] != 'A' ||
-        decompressed[2] != 'M' || decompressed[3] != 0x01)
-    {
-        DEBUG_STATUS(("%s: Invalid BAM signature: expected 'BAM\\1', got 0x%02x%02x%02x%02x\n",
-                      __func__, decompressed[0], decompressed[1], decompressed[2], decompressed[3]));
-        return false;
-    }
+    DEBUG_STATUS(("%s: Valid BGZF header detected, first block decompressed\n", __func__));
 
-    DEBUG_STATUS(("%s: Valid BAM file detected (BGZF decompressed, BAM signature verified)\n", __func__));
-    return true;
+    return (size_t)zs.total_out;
 }
 
 void CCFileFormatExtractDefline(const char * line, size_t line_len, CCFileNode *node)
@@ -309,7 +260,8 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
     const char * limit;
     const char * seq_id;
     size_t len = buffer_size;
-    size_t seq_len,quality_values_len,seq_id_len;
+    size_t seq_len=0;
+    size_t quality_values_len,seq_id_len;
     size_t seqCount=0;
     size_t firstline_len=0;
 
@@ -329,6 +281,7 @@ bool CCFileFormatIsFastq (void * buffer, size_t buffer_size, CCFileNode *node)
         else
             newline = line;
         if(line==buffer) firstline_len = (newline-line);
+        DEBUG_STATUS(("%s: line at pos %d, new line at pos %d\n",__func__,(void*)line-buffer,(void*)newline-buffer));
         switch(curLineType)
         {
             case ccfqfltIdentifier:
@@ -513,7 +466,7 @@ bool CCFileFormatIsFasta (void * buffer, size_t buffer_size)
             {
                 if (fasta_sequence_chars[(uint8_t)line_start[i]] == 0)
                 {
-                    DEBUG_STATUS(("%s: invalid character in sequence: 0x%02x\n", __func__, (unsigned char)line_start[i]));
+                    DEBUG_STATUS(("%s: invalid character in sequence: 0x%02x at pos: %zu\n", __func__, (unsigned char)line_start[i], i+(line_start-data)));
                     return false;
                 }
             }
@@ -556,9 +509,9 @@ struct CCFileFormat
 static const char magictable [] =
 {
     "Binary Alignment Map Index\tBAMIndex\n"
-    "Binary Alignment Map\tBinaryAlignmentMap\n"
     "bzip2 compressed data\tBzip\n"
     "Compressed Reference-oriented Alignment Map\tCompressedReferenceOrientedAlignment\n"
+    "Coordinate Sorted Index\tCoordinateSortedIndex\n"
     "XML document\tExtensibleMarkupLanguage\n"
     "XML 1.0 document\tExtensibleMarkupLanguage\n"
     "gzip compressed data\tGnuZip\n"
@@ -581,13 +534,16 @@ static const char exttable [] =
     "bz2\tBzip\n"
     "cram\tCompressedReferenceOrientedAlignment\n"
     "crai\tCRAMIndex\n"
+    "csi\tCoordinateSortedIndex\n"
     "fa\tFASTA\n"
+    "fai\tFASTAIndex\n"
     "fasta\tFASTA\n"
     "fastq\tFASTQ\n"
     "fq\tFASTQ\n"
     "gz\tGnuZip\n"
     "h5\tHD5\n"
     "pbi\tPacBioBAMIndex\n"
+    "sam\tSequenceAlignmentMap\n"
     "sff\tStandardFlowgramFormat\n"
     "sra\tSequenceReadArchive\n"
     "srf\tSequenceReadFormat\n"
@@ -603,12 +559,15 @@ static const char formattable [] =
     "Bzip\tCompressed\n"
     "CompressedReferenceOrientedAlignment\tRead\n"
     "CRAMIndex\tRead\n"
+    "CoordinateSortedIndex\tRead\n"    
     "ExtensibleMarkupLanguage\tCached\n"
     "FASTA\tRead\n"
+    "FASTAIndex\tRead\n"
     "FASTQ\tRead\n"
     "GnuZip\tCompressed\n"
     "HD5\tRead\n"
     "PacBioBAMIndex\tRead\n"
+    "SequenceAlignmentMap\tRead\n"
     "SequenceReadArchive\tArchive\n"
     "SequenceReadFormat\tRead\n"
     "StandardFlowgramFormat\tRead\n"
@@ -773,12 +732,28 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
             node->defline_pair = 0;
         }
 
-        /* Identify BAM file by its content (needs preread buffer to be at least 64K to accomodate first BGZF block) */
-        if (num_read >= 512 && CCFileFormatIsBAM (preread, num_read))
+        /* Identify BGZF-based formats (BAM, CSI) — decompress first block once */
+        if (num_read >= 512)
         {
-            strncpy (buffer, "Read/BinaryAlignmentMap", buffsize);
-            DEBUG_STATUS(("%s: BAM format identified by content\n", __func__));
-            return 0;
+            uint8_t decompressed[512];
+            size_t n = CCFileFormatDecompressFirstBGZFBlock(preread, num_read, decompressed, sizeof decompressed);
+            if (n >= 4)
+            {
+                if (decompressed[0]=='B' && decompressed[1]=='A' &&
+                    decompressed[2]=='M' && decompressed[3]==0x01)
+                {
+                    strncpy(buffer, "Read/BinaryAlignmentMap", buffsize);
+                    DEBUG_STATUS(("%s: BAM format identified by content\n", __func__));
+                    return 0;
+                }
+                if (decompressed[0]=='C' && decompressed[1]=='S' &&
+                    decompressed[2]=='I' && decompressed[3]==0x01)
+                {
+                    strncpy(buffer, "Read/CoordinateSortedIndex", buffsize);
+                    DEBUG_STATUS(("%s: CSI format identified by content\n", __func__));
+                    return 0;
+                }
+            }
         }
 
         /* Identify FASTA file by its content */
@@ -822,6 +797,12 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                             strcpy (mclassbuf, eclassbuf);
                             strcpy (mtypebuf, etypebuf);
                         }
+                        else if (strcmp("CoordinateSortedIndex", etypebuf) == 0 && strcmp ("GnuZip", mtypebuf) == 0)
+                        {
+                            /* csi files have gnuzip magic, treat them as data files */
+                            strcpy (mclassbuf, eclassbuf);
+                            strcpy (mtypebuf, etypebuf);
+                        }                        
                         else if (strcmp("PacBioBAMIndex", etypebuf) == 0 && strcmp("GnuZip", mtypebuf) == 0)
                         {
                             /* pbi files have gnuzip magic, we need to treat them as data files ***/
@@ -872,6 +853,11 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
                                 strcpy (mclassbuf, eclassbuf);
                                 strcpy (mtypebuf, etypebuf);
                             }
+                        }
+                        else if ((strcmp("FASTAIndex", etypebuf) == 0) && (strcmp("Unknown", mtypebuf) == 0))
+                        {
+                            strcpy (mclassbuf, eclassbuf);
+                            strcpy (mtypebuf, etypebuf);
                         }
 
                         /* now that we've fixed a few cases use the magic derived
@@ -947,4 +933,3 @@ rc_t CCFileFormatGetType (const CCFileFormat *self, const KFile *file,
     }
     return orc;
 }
-

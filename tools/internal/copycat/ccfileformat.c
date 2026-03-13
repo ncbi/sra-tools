@@ -511,7 +511,6 @@ static const char magictable [] =
     "Binary Alignment Map Index\tBAMIndex\n"
     "bzip2 compressed data\tBzip\n"
     "Compressed Reference-oriented Alignment Map\tCompressedReferenceOrientedAlignment\n"
-    "Coordinate Sorted Index\tCoordinateSortedIndex\n"
     "XML document\tExtensibleMarkupLanguage\n"
     "XML 1.0 document\tExtensibleMarkupLanguage\n"
     "gzip compressed data\tGnuZip\n"

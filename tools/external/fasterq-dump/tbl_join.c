@@ -121,11 +121,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
                                 uint32_t read_id,
                                 uint32_t dst_id ) {
     rc_t rc = 0;
-    if ( rec -> read . len != rec -> quality . len ) {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (A)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
+    /* check for rec -> read . len == rec -> quality . len removed - because that is already checked in fq_seq_ua_iter.c */
     if ( filter1( stats, rec, jo ) ) { /* above */
         if ( hlp_filter_2na_1( filter, &( rec -> read ) ) ) {
             rc = print_data( printer, rec, jo, read_id, dst_id,
@@ -159,44 +155,31 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
 }
 
 /* ------------------------------------------------------------------------------------------ */
+
 static rc_t print_fastq_n_reads_split( join_stats_t * stats,
                                        struct flp_t * printer,
                                        struct filter_2na_t * basefilter,
                                        const fq_seq_ua_rec_t * rec,
                                        const join_options_t * jo ) {
     rc_t rc = 0;
-    String R, Q;
     uint32_t read_id_0 = 0;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
-    if ( rec -> read . len != rec -> quality . len ) {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (B)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
+    /* check for rec -> read . len == rec -> quality . len removed - because that is already checked in fq_seq_ua_iter.c */
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
 
-    while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0++ ];
-    }
-
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-
-    read_id_0 = 0;
     while ( 0 == rc && read_id_0 < rec -> num_read_len ) {
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             if ( filter( stats, rec, jo, read_id_0 ) ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
+                String R, Q;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
-                    Q . addr = &rec -> quality . addr[ offset ];
-                    Q . size = rec -> read_len[ read_id_0 ];
-                    Q . len  = ( uint32_t )Q . size;
+                    Q . addr = &rec -> quality . addr[ start ];
+                    Q . size = len;
+                    Q . len  = len;
                     if ( hlp_filter_2na_1( basefilter, &( rec -> read ) ) ) {
                         rc = print_data( printer, rec, jo, read_id_0 + 1, 0,
                                         &R,
@@ -206,7 +189,6 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
         else { stats -> reads_zero_length++; }
         read_id_0++;
@@ -220,26 +202,19 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
                                        const fq_seq_ua_rec_t * rec,
                                        const join_options_t * jo ) {
     rc_t rc = 0;
-    String R;
     uint32_t read_id_0 = 0;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
-    while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0++ ];
-    }
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-    read_id_0 = 0;
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
+
     while ( 0 == rc && read_id_0 < rec -> num_read_len ) {
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             if ( filter( stats, rec, jo, read_id_0 ) ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
+                String R;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
                     if ( hlp_filter_2na_1( basefilter, &( rec -> read ) ) ) {
                         rc = print_data( printer, rec, jo, read_id_0 + 1, 0,
@@ -250,7 +225,6 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
         else { stats -> reads_zero_length++; }
         read_id_0++;
@@ -264,41 +238,27 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
                                             const fq_seq_ua_rec_t * rec,
                                             const join_options_t * jo ) {
     rc_t rc = 0;
-    String R, Q;
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
-    if ( rec -> read . len != rec -> quality . len ) {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (D)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
+    /* check for rec -> read . len == rec -> quality . len removed - because that is already checked in fq_seq_ua_iter.c */
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
 
-    while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0++ ];
-    }
-
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (E)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-
-    read_id_0 = 0;
     while ( 0 == rc && read_id_0 < rec -> num_read_len ) {
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             bool process = filter( stats, rec, jo, read_id_0 ); /* above */
             if ( process ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
+                String R, Q;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
 
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
-                    Q . addr = &rec -> quality . addr[ offset ];
-                    Q . size = rec -> read_len[ read_id_0 ];
-                    Q . len  = ( uint32_t )Q . size;
+                    Q . addr = &rec -> quality . addr[ start ];
+                    Q . size = len;
+                    Q . len  = len;
                     rc = print_data( printer, rec, jo, read_id_0 + 1, write_id_1,
                                     &R,
                                     NULL,
@@ -306,10 +266,10 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
-        else { stats -> reads_zero_length++; }
-
+        else {
+            stats -> reads_zero_length++;
+        }
         write_id_1++;
         read_id_0++;
     }
@@ -322,30 +282,21 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
                                             const fq_seq_ua_rec_t * rec,
                                             const join_options_t * jo ) {
     rc_t rc = 0;
-    String R;
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
-    while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0++ ];
-    }
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
 
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (E)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-
-    read_id_0 = 0;
     while ( 0 == rc && read_id_0 < rec -> num_read_len ) {
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             bool process = filter( stats, rec, jo, read_id_0 );
             if ( process ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
+                String R;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
                     rc = print_data( printer, rec, jo, read_id_0 + 1, write_id_1,
                                     &R,
@@ -354,7 +305,6 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
         else { stats -> reads_zero_length++; }
         write_id_1++;
@@ -369,22 +319,15 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
                                          const fq_seq_ua_rec_t * rec,
                                          const join_options_t * jo ) {
     rc_t rc = 0;
-    String R, Q;
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
     uint32_t valid_reads = 0;
     uint32_t valid_bio_reads = 0;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
-    if ( rec -> read . len != rec -> quality . len ) {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (F)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
+    /* check for rec -> read . len == rec -> quality . len removed - because that is already checked in fq_seq_ua_iter.c */
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
 
     while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0 ];
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             valid_reads++;
             if ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) {
@@ -397,12 +340,6 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
         read_id_0++;
     }
 
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (G)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-
     if ( 0 == valid_reads ) { return rc; }
 
     read_id_0 = 0;
@@ -410,13 +347,16 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             bool process = filter( stats, rec, jo, read_id_0 ); /* above */
             if ( process ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
+                String R, Q;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
-                    Q . addr = &rec -> quality . addr[ offset ];
-                    Q . size = rec -> read_len[ read_id_0 ];
-                    Q . len  = ( uint32_t )Q . size;
+                    Q . addr = &rec -> quality . addr[ start ];
+                    Q . size = len;
+                    Q . len  = len;
                     if ( valid_bio_reads < 2 ) { write_id_1 = 0; }
                     rc = print_data( printer, rec, jo, read_id_0 + 1, write_id_1,
                                     &R,
@@ -426,7 +366,6 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
                 }
                 if ( write_id_1 > 0 ) { write_id_1++; }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
         else { stats -> reads_zero_length++; }
         read_id_0++;
@@ -440,16 +379,13 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
                                          const fq_seq_ua_rec_t * rec,
                                          const join_options_t * jo ) {
     rc_t rc = 0;
-    String R;
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
     uint32_t valid_reads = 0;
     uint32_t valid_bio_reads = 0;
-    uint32_t offset = 0;
-    uint32_t read_len_sum = 0;
 
+    /* check for rec -> read . len == read_len_sum removed - because that is already checked in fq_seq_ua_iter.c */
     while ( read_id_0 < rec -> num_read_len ) {
-        read_len_sum += rec -> read_len[ read_id_0 ];
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             valid_reads++;
             if ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) {
@@ -462,12 +398,6 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
         read_id_0++;
     }
 
-    if ( rec -> read . len != read_len_sum ) {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (G)\n", rec -> row_id, rec -> read . len, read_len_sum );
-        stats -> reads_invalid++;
-        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    }
-
     if ( 0 == valid_reads ) { return rc; }
 
     read_id_0 = 0;
@@ -475,10 +405,12 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
         if ( rec -> read_len[ read_id_0 ] > 0 ) {
             bool process = filter( stats, rec, jo, read_id_0 ); /* above */
             if ( process ) {
-                R . addr = &rec -> read . addr[ offset ];
-                R . size = rec -> read_len[ read_id_0 ];
-                R . len  = ( uint32_t )R . size;
-
+                String R;
+                uint32_t start = rec -> read_start[ read_id_0 ];
+                uint32_t len = rec -> read_len[ read_id_0 ];
+                R . addr = &rec -> read . addr[ start ];
+                R . size = len;
+                R . len  = len;
                 if ( hlp_filter_2na_1( basefilter, &R ) ) {
                     if ( valid_bio_reads < 2 ) { write_id_1 = 0; }
                     rc = print_data( printer, rec, jo, read_id_0 + 1, write_id_1,
@@ -489,7 +421,6 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
                 }
                 if ( write_id_1 > 0 ) { write_id_1++; }
             }
-            offset += rec -> read_len[ read_id_0 ];
         }
         else { stats -> reads_zero_length++; }
         read_id_0++;
@@ -770,7 +701,7 @@ static rc_t perform_fasta_split_spot_join( table_join_t * tj ) {
     } else {
         rc_t rc_iter;
         fq_seq_ua_rec_t rec;
-        while ( 0 == rc && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && 0 == rc_iter ) {
+        while ( ( 0 == rc ) && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && ( 0 == rc_iter ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 tj -> stats -> spots_read++;
@@ -817,7 +748,7 @@ static rc_t perform_fasta_split_file_join( table_join_t * tj ) {
     } else {
         rc_t rc_iter;
         fq_seq_ua_rec_t rec;
-        while ( 0 == rc && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && 0 == rc_iter ) {
+        while ( ( 0 == rc ) && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && ( 0 == rc_iter ) ) {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 tj -> stats -> spots_read++;
@@ -872,7 +803,7 @@ static rc_t perform_fasta_split_3_join( table_join_t * tj ) {
             tj -> jo -> filter_bases
         };
 
-        while ( 0 == rc && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && 0 == rc_iter ) {
+        while ( ( 0 == rc ) && fq_seq_ua_iter_get_data( iter, &rec, &rc_iter ) && ( 0 == rc_iter ) ) {
             rc = hlp_get_quitting();
             if ( 0 == rc ) {
                 tj -> stats -> spots_read++;
@@ -935,7 +866,7 @@ typedef struct join_thread_data_t {
 
 } join_thread_data_t;
 
-static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data ) {
+static rc_t sorted_fastq_fasta_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     flp_args_t file_args;
@@ -948,7 +879,8 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
     
     flp_initialize_args( &file_args,
                          jtd -> dir,
@@ -1115,7 +1047,8 @@ static rc_t unsorted_fasta_split_spot_thread_func( const KThread *self, void *da
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
     
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
@@ -1143,27 +1076,21 @@ static rc_t unsorted_fasta_split_spot_thread_func( const KThread *self, void *da
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 uint32_t read_id_0 = 0;
-                uint32_t read_len_sum = 0;
-                uint32_t offset = 0;
 
-                /* check if the READ-columns has as many bases as the READ_LEN-column 'asks' for */
-                while ( read_id_0 < rec . num_read_len ) { read_len_sum += rec . read_len[ read_id_0++ ]; }
-                if ( rec . read . len != read_len_sum ) {
-                    ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec . row_id, rec . read . len, read_len_sum );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-                }
+                /* check for READ.len == sum( READ_LEN ) removed because it is already checked in
+                 *  fq_seq_ua_iter_get_data() */
 
                 /* iterate over the fragments of the SPOT */
-                read_id_0 = 0;
                 while ( 0 == rc && read_id_0 < rec . num_read_len ) {
                     if ( rec . read_len[ read_id_0 ] > 0 ) {
                         if ( filter( stats, &rec, jo, read_id_0 ) ) {
                             flp_data_t data;
+                            uint32_t start = rec . read_start[ read_id_0 ];
+                            uint32_t len = rec . read_len[ read_id_0 ];
                             String R;
-                            R . addr = &rec . read . addr[ offset ];
-                            R . size = rec . read_len[ read_id_0 ];
-                            R . len  = ( uint32_t )R . size;
+                            R . addr = &rec . read . addr[ start ];
+                            R . size = len;
+                            R . len  = len;
 
                             /* fill out the data-record for the flex-printer */
                             data . row_id = rec . row_id;
@@ -1180,7 +1107,6 @@ static rc_t unsorted_fasta_split_spot_thread_func( const KThread *self, void *da
                             rc = flp_print( flex_printer, &data );
                             if ( 0 == rc ) { stats -> reads_written++; }
                         }
-                        offset += rec . read_len[ read_id_0 ];
                     }
                     else { stats -> reads_zero_length++; }
                     read_id_0++;
@@ -1219,7 +1145,8 @@ static rc_t unsorted_fasta_whole_spot_thread_func( const KThread *self, void *da
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
 
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
@@ -1246,16 +1173,8 @@ static rc_t unsorted_fasta_whole_spot_thread_func( const KThread *self, void *da
         {
             rc = hlp_get_quitting(); /* helper.c */
             if ( 0 == rc ) {
-                uint32_t read_id_0 = 0;
-                uint32_t read_len_sum = 0;
-
-                /* check if the READ-columns has as many bases as the READ_LEN-column 'asks' for */
-                while ( read_id_0 < rec . num_read_len ) { read_len_sum += rec . read_len[ read_id_0++ ]; }
-                if ( rec . read . len != read_len_sum ) {
-                    ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec . row_id, rec . read . len, read_len_sum );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-                }
+                /* check for READ.len == sum( READ_LEN ) removed because it is already checked in
+                 *  fq_seq_ua_iter_get_data() */
 
                 /* process the whole SPOT */
                 if ( rec . read . len > 0 ) {

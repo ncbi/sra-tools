@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( pacbio-correct pacbio-correct "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( pacbio-correct false )
+MakeLinksExe_NoInstall( pacbio-correct )

@@ -231,7 +231,7 @@ static rc_t cm_run( copy_machine_t * self ) {
     return rc;
 }
 
-static rc_t CC cm_writer_thread( const KThread * thread, void *data ) {
+static rc_t cm_writer_thread( const KThread * thread, void *data ) {
     rc_t rc = 0;
     copy_machine_t * self = data;
     bool done = false;

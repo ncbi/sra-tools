@@ -63,7 +63,7 @@ rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter_t ** i
             rc = cmn_iter_add_column( i -> cmn, "SEQ_READ_ID", &i -> seq_read_id );
         }
         if ( 0 == rc ) {
-            rc = cmn_iter_add_column( i -> cmn, /*"(INSDC:4na:bin)RAW_READ"*/"READ", &i -> read_id );
+            rc = cmn_iter_add_column( i -> cmn, "READ", &i -> read_id );
         }
         if ( 0 == rc ) {
             rc = cmn_iter_detect_range( i -> cmn, i -> seq_spot_id );

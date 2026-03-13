@@ -32,7 +32,7 @@
 # $4 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $5 - test case ID
 # $6 - command line options for the loader
-# $7 - command line options for kdbmeta
+# $7 - command line options for kdbmeta (starts with the path to a table or ., treated as relative to $4/actual/$5/db/)
 
 # return codes:
 # 0 - passed
@@ -84,6 +84,7 @@ if [ "$rc" != "0" ] ; then
     exit 2
 fi
 
+# KDBMETA_ARGS starts with a relative path, so there's no space between $TEMPDIR/db/ and ${KDBMETA_ARGS} below
 CMD_META="${KDBMETA_BINARY} $TEMPDIR/db/${KDBMETA_ARGS} | grep -v timestamp >$TEMPDIR/meta"
 echo CMD_META=$CMD_META
 eval $CMD_META

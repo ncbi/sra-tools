@@ -36,10 +36,6 @@
 #include "file_tools.h"
 #endif
 
-#ifndef _h_dflt_defline_
-#include "dflt_defline.h"
-#endif
-
 #ifndef _h_err_msg_
 #include "err_msg.h"
 #endif
@@ -64,7 +60,7 @@ void flp_initialize_args( flp_args_t * self,
     self -> buffer_size = buffer_size;
 }
 
-static void CC flp_release_fwrap( void * item, void * data ) {
+static void flp_release_fwrap( void * item, void * data ) {
     if ( NULL != item ) {
         fwrap_t * p = item;
         if ( NULL != p -> f ) { ft_release_file( p -> f, "flp_release_fwrap()" ); }

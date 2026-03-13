@@ -229,7 +229,7 @@ static rc_t write_to_store( lookup_producer_t * self,
     return rc;
 }
 
-static rc_t CC producer_thread_func( const KThread *self, void *data ) {
+static rc_t producer_thread_func( const KThread *self, void *data ) {
     rc_t rc1, rc = 0;
     lookup_producer_t * producer = data;
     raw_read_rec_t rec;

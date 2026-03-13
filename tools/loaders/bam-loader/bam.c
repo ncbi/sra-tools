@@ -1367,7 +1367,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
         rc = ProcessHeaderText(self, headerText, false);
     else {
         rc = RC(rcAlign, rcFile, rcConstructing, rcHeader, rcNotFound);
-        (void)LOGERR(klogErr, rc, "SAM header required");
+        (void)LOGERR(klogErr, rc, "SRAE-243: SAM header required");
     }
     if (rc == 0) {
         unsigned i;
@@ -1602,7 +1602,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
                     if (offset + valuelen >= datasize) {
                         rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
                         (void)LOGERR(klogErr, rc,
-                                     "Parsing BAM optional fields: "
+                                     "SRAE-244: Parsing BAM optional fields: "
                                      "unterminated string");
                         return rc;
                     }
@@ -1618,7 +1618,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
                 if (elem_size <= 0) {
                     rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcUnexpected);
                     (void)LOGERR(klogErr, rc,
-                                 "Parsing BAM optional fields: "
+                                 "SRAE-244: Parsing BAM optional fields: "
                                  "unknown array type");
                     return rc;
                 }
@@ -1629,7 +1629,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
                     if (offset + valuelen >= datasize) {
                         rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
                         (void)LOGERR(klogErr, rc,
-                                     "Parsing BAM optional fields: "
+                                     "SRAE-244: Parsing BAM optional fields: "
                                      "array too big");
                         return rc;
                     }
@@ -1639,7 +1639,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
         else {
             rc_t const rc = RC(rcAlign, rcFile, rcReading, rcData, rcUnexpected);
             (void)LOGERR(klogErr, rc,
-                                    "Parsing BAM optional fields: "
+                                    "SRAE-244: Parsing BAM optional fields: "
                                     "unknown type");
             return rc;
         }
@@ -1721,11 +1721,11 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
 
 static void BAM_AlignmentLogParseError(BAM_Alignment const *self)
 {
-    char const *const reason = self->cigar > self->datasize ? "BAM Record CIGAR too long"
-                             : self->seq   > self->datasize ? "BAM Record SEQ too long"
-                             : self->qual  > self->datasize ? "BAM Record QUAL too long"
-                             : self->qual + getReadLen(self) > self->datasize ? "BAM Record EXTRA too long"
-                             : "BAM Record EXTRA parsing failure";
+    char const *const reason = self->cigar > self->datasize ? "SRAE-245: BAM Record CIGAR too long"
+                             : self->seq   > self->datasize ? "SRAE-245: BAM Record SEQ too long"
+                             : self->qual  > self->datasize ? "SRAE-245: BAM Record QUAL too long"
+                             : self->qual + getReadLen(self) > self->datasize ? "SRAE-245: BAM Record EXTRA too long"
+                             : "SRAE-245: BAM Record EXTRA parsing failure";
 
     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), reason);
 }

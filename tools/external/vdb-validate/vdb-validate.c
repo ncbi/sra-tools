@@ -986,7 +986,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
                     break;
             }
             else if (qual.elem_count != spLen) {
-                PLOGERR(klogErr, (klogErr, rc,
+                PLOGERR(klogErr, (klogErr, rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt),
                     "length(QUALITY) != length(READ) in row $(row)",
                     "row=%ld", row));
                 if (rce == 0)

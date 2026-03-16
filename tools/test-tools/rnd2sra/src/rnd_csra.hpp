@@ -30,7 +30,7 @@ function < type A, type B > B map #1.0 < A from, B to > ( A in, * B src ) = vdb:
 function < type T > T meta:read #1.0 < ascii node, * bool deterministic > ();
 function < type T > T meta:value #1.0 < ascii node, * bool deterministic > ();
 
-table SEQ_TBL #1 {
+table NCBI:align:seq #1 {
 
     column ascii NAME;
     column INSDC:SRA:platform_id PLATFORM;
@@ -63,15 +63,15 @@ table SEQ_TBL #1 {
 
 };
 
-table PRIM_TBL #1 {
+table NCBI:align:prim #1 {
     column U64 SEQ_SPOT_ID;
     column U32 SEQ_READ_ID;
     column ascii RAW_READ;
 };
 
-database MAIN_DB #1 {
-    table SEQ_TBL  #1 SEQUENCE;
-    table PRIM_TBL #1 PRIMARY_ALIGNMENT;
+database NCBI:align:db #1 {
+    table NCBI:align:seq  #1 SEQUENCE;
+    table NCBI:align:prim #1 PRIMARY_ALIGNMENT;
 };
 
 )";
@@ -150,7 +150,7 @@ class RndcSRA : public Rndcmn {
             // we create a spot-list from the parsed ini and the random-generator:
             auto spots = cSRASpotList::make( f_ini, f_rnd );
 
-            auto db = f_mgr -> create_db( f_schema, "MAIN_DB", f_output_dir, f_ini -> get_checksum() );
+            auto db = f_mgr -> create_db( f_schema, "NCBI:align:db", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( res ) { res = write_seq_tbl( db, spots ); }
             if ( res ) { res = write_prim_tbl( db, spots ); }

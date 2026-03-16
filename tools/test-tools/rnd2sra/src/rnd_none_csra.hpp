@@ -31,7 +31,7 @@ function < type A, type B > B map #1.0 < A from, B to > ( A in, * B src ) = vdb:
 function < type T > T meta:read #1.0 < ascii node, * bool deterministic > ();
 function < type T > T meta:value #1.0 < ascii node, * bool deterministic > ();
 
-table SEQ_TBL #1 {
+table NCBI:SRA:GenericFastq_Tbl #1 {
 
     column ascii NAME;
     column INSDC:SRA:platform_id PLATFORM;
@@ -62,8 +62,8 @@ table SEQ_TBL #1 {
 
 };
 
-database MAIN_DB #1 {
-    table SEQ_TBL #1 SEQUENCE;
+database NCBI:SRA:GenericFastq_Db #1 {
+    table NCBI:SRA:GenericFastq_Tbl #1 SEQUENCE;
 };
 
 )";
@@ -295,7 +295,9 @@ class RndNonecSraFlat : public RndNonecSra {
         }
 
         bool run( void ) {
-            auto tbl = f_mgr -> create_tbl( f_schema, "SEQ_TBL", f_output_dir, f_ini -> get_checksum() );
+            string schema_name = f_ini -> get_seq_tbl_schema_name();
+
+            auto tbl = f_mgr -> create_tbl( f_schema, "NCBI:SRA:GenericFastq_Tbl", f_output_dir, f_ini -> get_checksum() );
             if ( ! *tbl ) {
                 cerr << "make tbl failed for " << f_output_dir << endl;
                 return false;
@@ -322,14 +324,14 @@ class RndNonecSraDb : public RndNonecSra {
         }
 
         bool run( void ) {
-            auto db = f_mgr -> create_db( f_schema, "MAIN_DB", f_output_dir, f_ini -> get_checksum() );
+            auto db = f_mgr -> create_db( f_schema, "NCBI:SRA:GenericFastq_Db", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( !res ) {
                 cerr << "make db failed for " << f_output_dir << endl;
                 return res;
             }
 
-            auto tbl = db -> create_tbl( "SEQUENCE", "SEQUENCE", f_ini -> get_checksum() );
+            auto tbl = db -> create_tbl( "SEQUENCE", "NCBI:SRA:GenericFastq_Tbl", f_ini -> get_checksum() );
             res = ( *tbl );
             if ( !res ) { cerr << "make tbl SEQUENCE failed\n"; return res; }
 

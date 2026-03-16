@@ -57,10 +57,11 @@ class Rndcmn {
             if ( ! *res ) {
                 cerr << "error creating schema" << endl;
             } else {
-                res -> ParseText( schema_txt );
-                if ( ! *res ) {
+                bool ok = res -> ParseText( schema_txt );
+                if ( ! ok ) {
                     cerr << "error parsing schema" << endl;
                     cerr << res -> error() << endl;
+                    res = nullptr;
                 }
             }
             return res;

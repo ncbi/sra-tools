@@ -1100,7 +1100,7 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl, 
         }
     }
     if (rce == 0)
-        LOGMSG(klogInfo, "Columns 'READ_LEN' and 'SPOT_LEN' are consistent");
+        LOGMSG(klogInfo, "SRA spot layout columns are consistent");
 
     VCursorRelease(curs);
 

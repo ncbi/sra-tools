@@ -512,7 +512,7 @@ static rc_t MMArrayGet(MMArray *const self, void **const value, uint64_t const e
 
             self->fsize = new_fsize;
             if (base == MAP_FAILED) {
-                PLOGMSG(klogErr, (klogErr, "Failed to construct map for bin $(bin), subbin $(subbin)", "bin=%u,subbin=%u", bin_no, subbin));
+                PLOGMSG(klogErr, (klogErr, "SRAE-250: Fatal error: Failed to construct map for bin $(bin), subbin $(subbin)", "bin=%u,subbin=%u", bin_no, subbin));
                 return RC(rcExe, rcMemMap, rcConstructing, rcMemory, rcExhausted);
             }
             else {
@@ -767,7 +767,7 @@ rc_t GetKeyID(context_t *const ctx,
         } else {
             // Created new read group
             if (group_id >= MAX_GROUPS_ALLOWED) {
-                (void)PLOGMSG(klogErr, (klogErr, "too many read groups: max is $(max)", "max=%d", (int) NUM_ID_SPACES));
+                (void)PLOGMSG(klogErr, (klogErr, "SRAE-251: Data error: too many read groups: max is $(max)", "max=%d", (int) NUM_ID_SPACES));
                 return RC(rcExe, rcTree, rcAllocating, rcConstraint, rcViolated);
             }
             ctx->add_read_group().m_platform = GetINSDCPlatform(bam, key);
@@ -1067,7 +1067,7 @@ static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
     KFileRelease(defer); /* it was retained by BAM file */
 
     if (rc) {
-        (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
+        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-253: Failed to open '$(file)'", "file=%s", bamFile));
     }
     else if (db) {
         KMetadata *dbmeta;
@@ -1233,7 +1233,7 @@ rc_t CheckLimitAndLogError(void)
 {
     unsigned const count = ++G.errCount;
     if (G.maxErrCount > 0 && count > G.maxErrCount) {
-        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", count, G.maxErrCount));
+        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "SRAE-251: Data error: Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", count, G.maxErrCount));
         return RC(rcAlign, rcFile, rcReading, rcError, rcExcessive);
     }
     return 0;
@@ -1271,7 +1271,7 @@ rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsi
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
                                  "occurred=%u", count));
-        (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
+        (void)PLOGMSG(klogErr, (klogErr, "SRAE-251: Data error: Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
                                  "name=%s,ref=%s,pos=%u,count=%u", readName, refName, rpos, matches));
         return rc;
     }
@@ -1709,7 +1709,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
     rw_done.store(true);
 #endif
     if (rc) {
-        (void)LOGERR(klogErr, rc, "bamread_thread done");
+        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: bamread_thread done");
     }
     else {
         (void)PLOGMSG(klogInfo, (klogInfo, "bamread_thread done; read $(NR) records", "NR=%lu", NR));
@@ -2073,7 +2073,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 #ifdef HAS_CTX_VALUE
         rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
             goto LOOP_END;
         }
 #endif
@@ -2085,7 +2085,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 if (isNotColorSpace) {
 MIXED_BASE_AND_COLOR:
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-                    (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains base space and color space", "file=%s", bamFile));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains base space and color space", "file=%s", bamFile));
                     goto LOOP_END;
                 }
                 /* COLORSPACE is disabled!
@@ -2161,7 +2161,7 @@ MIXED_BASE_AND_COLOR:
         if (wasInserted) {
             if (G.mode == mode_Remap) {
                 (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "Spot '$(name)' is a new spot, not a remapping",
+                                         "SRAE-251: Data error: Spot '$(name)' is a new spot, not a remapping",
                                          "name=%s", name));
                 goto LOOP_END;
             }
@@ -2202,7 +2202,7 @@ MIXED_BASE_AND_COLOR:
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             // FATAL ERROR, DATA ERROR, NOT FIXABLE
-            (void)LOGERR(klogErr, rc, "Invalid CG data");
+            (void)LOGERR(klogErr, rc, "SRAE-251: Data error: Invalid CG data");
             goto LOOP_END;
         }
         if (rc == 0) {
@@ -2211,7 +2211,7 @@ MIXED_BASE_AND_COLOR:
             rc = KDataBufferResize(&cigBuf, opCount * 2 + 5);
             if (rc) {
                 // FATAL ERROR, OUT OF MEMORY
-                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
             rc = AlignmentRecordInit(&data, readlen);
@@ -2219,7 +2219,7 @@ MIXED_BASE_AND_COLOR:
                 rc = KDataBufferResize(&buf, readlen);
             if (rc) {
                 // FATAL ERROR, OUT OF MEMORY
-                (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
                 goto LOOP_END;
             }
 
@@ -2232,7 +2232,7 @@ MIXED_BASE_AND_COLOR:
             }
             if (rc) {
                 // FATAL ERROR, DATA ERROR, NOT FIXABLE
-                (void)LOGERR(klogErr, rc, "Failed to read CG data");
+                (void)LOGERR(klogErr, rc, "SRAE-251: Data error: Failed to read CG data");
                 goto LOOP_END;
             }
             data.data.align_group.elements = 0;
@@ -2251,7 +2251,7 @@ MIXED_BASE_AND_COLOR:
             assert(rc == 0);
             if (rc) {
                 // FATAL ERROR, OUT OF MEMORY
-                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
             memmove(cigBuf.base, tmp, opCount * sizeof(uint32_t));
@@ -2263,7 +2263,7 @@ MIXED_BASE_AND_COLOR:
                     if (!G.acceptHardClip) {
                         // FATAL ERROR, DATA ERROR, CAN BE FORCED WITH COMMAND LINE OPTION
                         rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                 }
@@ -2278,7 +2278,7 @@ MIXED_BASE_AND_COLOR:
                     if (lpad + rpad == 0) {
                         // FATAL ERROR, DATA ERROR
                         rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                     if (lpad != 0) {
@@ -2318,7 +2318,7 @@ MIXED_BASE_AND_COLOR:
                         assert(rc == 0);
                         if (rc) {
                             // FATAL ERROR, OUT OF MEMORY
-                            (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize CIGAR buffer");
                             goto LOOP_END;
                         }
                         if (rpad > 0 && lpad == 0) {
@@ -2343,7 +2343,7 @@ MIXED_BASE_AND_COLOR:
             assert(rc == 0);
             if (rc) {
                 // FATAL ERROR, OUT OF MEMORY
-                (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
                 goto LOOP_END;
             }
 
@@ -2367,7 +2367,7 @@ MIXED_BASE_AND_COLOR:
                 rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);
                 if (rc) {
                     // FATAL ERROR; DATA INCONSISTENT
-                    (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
                     goto LOOP_END;
                 }
                 if (qoffset) {
@@ -2392,13 +2392,13 @@ MIXED_BASE_AND_COLOR:
         rc = KDataBufferResize(&seqBuffer, readlen);
         if (rc) {
             // FATAL ERROR, OUT OF MEMORY
-            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
             goto LOOP_END;
         }
         rc = KDataBufferResize(&qualBuffer, readlen);
         if (rc) {
             // FATAL ERROR, OUT OF MEMORY
-            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
             goto LOOP_END;
         }
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;
@@ -2425,7 +2425,7 @@ MIXED_BASE_AND_COLOR:
         if (aligned && align == NULL) {
             // FATAL ERROR, COMMAND AND DATA ARE INCONSISTENT
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains aligned records", "file=%s", bamFile));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains aligned records", "file=%s", bamFile));
             goto LOOP_END;
         }
         while (aligned) {
@@ -2443,7 +2443,7 @@ MIXED_BASE_AND_COLOR:
                 if (refSeq == NULL) {
                     // NOT FATAL ERROR, DATA ERROR, LIKELY IMPOSSIBLE
                     rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-251: File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
                     DISCARD_UNKNOWN_REFERENCE;
                     goto LOOP_END;
@@ -2481,11 +2481,11 @@ MIXED_BASE_AND_COLOR:
                         int const level = G.limit2config ? klogWarn : klogErr;
 
                         // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
-                        (void)PLOGMSG(level, (level, "Could not find a Reference to match { name: '$(name)', length: $(rlen) }", "name=%s,rlen=%u", refSeq->name, (unsigned)refSeq->length));
+                        (void)PLOGMSG(level, (level, "SRAE-251: Data error: Could not find a Reference to match { name: '$(name)', length: $(rlen) }", "name=%s,rlen=%u", refSeq->name, (unsigned)refSeq->length));
                     }
                     else if (!G.limit2config) {
                         // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
-                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
                     }
                     if (G.limit2config) {
                         rc = 0;
@@ -2496,13 +2496,13 @@ MIXED_BASE_AND_COLOR:
             }
             else if (refSeqId < 0) {
                 // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference id = $(id) is invalid", "name=%.*s,id=%i", namelen, name, refSeqId));
+                (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-251: Data error: Spot '$(name)' was marked aligned, but reference id = $(id) is invalid", "name=%.*s,id=%i", namelen, name, refSeqId));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
                 UNALIGNED_INVALID_REF;
             }
             else {
                 // FATAL IF TOO MANY, DATA ERROR, POSSIBLE CONFIGURATION ERROR
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference position = $(pos) is invalid", "name=%.*s,pos=%i", namelen, name, rpos));
+                (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-251: Data error: Spot '$(name)' was marked aligned, but reference position = $(pos) is invalid", "name=%.*s,pos=%i", namelen, name, rpos));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
                 UNALIGNED_INVALID_REF_POS;
             }
@@ -2569,7 +2569,7 @@ MIXED_BASE_AND_COLOR:
             if (mated && v_unmated) {
                 // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                 (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "Spot '$(name)', which was first seen without mate info, now has mate info",
+                                         "SRAE-251: Data error: Spot '$(name)', which was first seen without mate info, now has mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
                 DISCARD_BAD_FRAGMENT_INFO;
@@ -2578,7 +2578,7 @@ MIXED_BASE_AND_COLOR:
             else if (!mated && !v_unmated) {
                 // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                 (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "Spot '$(name)', which was first seen with mate info, now has no mate info",
+                                         "SRAE-251: Data error: Spot '$(name)', which was first seen with mate info, now has no mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
                 DISCARD_BAD_FRAGMENT_INFO;
@@ -2733,13 +2733,13 @@ MIXED_BASE_AND_COLOR:
                         if (isPrimary) {
                             // FATAL ERROR, DATA ERROR, INCONSISTENT DATA
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
                             // FATAL IF TOO MANY, DATA ERROR, INCONSISTENT DATA
                             rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Non-primary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding non-primary alignment.",
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-251: Data error: Non-primary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding non-primary alignment.",
                                                      "name=%s,len=%d", name, readlen));
                             DISCARD_BAD_SECONDARY;
                             rc = CheckLimitAndLogError();
@@ -2776,14 +2776,14 @@ MIXED_BASE_AND_COLOR:
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
                     // FATAL IF TOO MANY, DATA ERROR
                     UNALIGNED_INVALID_INFO;
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-251: Data error: Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     /* Data errors may get reset; alignment will be unmapped at any rate */
                     rc = CheckLimitAndLogError();
                 }
                 else {
                     // FATAL IF TOO MANY, DATA ERROR
                     UNALIGNED_INVALID_REF_POS;
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': error reading reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-251: Data error: Spot '$(name)': error reading reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     rc = CheckLimitAndLogError();
                 }
                 if (rc) goto LOOP_END;
@@ -2949,7 +2949,7 @@ WRITE_SEQUENCE:
 
                         if (rc) {
                             // FATAL ERROR, OUT OF MEMORY
-                            (void)LOGERR(klogErr, rc, "KMemBankAlloc failed");
+                            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KMemBankAlloc failed");
                             goto LOOP_END;
                         }
                         /*printf("IN:%10d\tcnt2=%ld\tcnt1=%ld\n",value->fragmentId,fcountBoth,fcountOne);*/
@@ -2957,7 +2957,7 @@ WRITE_SEQUENCE:
                         rc = KDataBufferResize(&fragBuf, sz);
                         if (rc) {
                             // FATAL ERROR, OUT OF MEMORY
-                            (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
+                            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize fragment buffer");
                             goto LOOP_END;
                         }
                         {{
@@ -2977,7 +2977,7 @@ WRITE_SEQUENCE:
                         rc = MemBankWrite(ctx->frags, fragmentId, 0, fragBuf.base, sz, &rsize);
                         if (rc) {
                             // FATAL ERROR, RUNTIME ERROR, LIKELY IMPOSSIBLE
-                            (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankWrite failed writing fragment $(id)", "id=%u", fragmentId));
+                            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: KMemBankWrite failed writing fragment $(id)", "id=%u", fragmentId));
                             goto LOOP_END;
                         }
                         if (revcmp) {
@@ -3000,7 +3000,7 @@ WRITE_SEQUENCE:
                             rc = MemBankSize(ctx->frags, fragmentId, &banked_size);
                             if (rc) {
                                 // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                                (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
+                                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
 
@@ -3008,14 +3008,14 @@ WRITE_SEQUENCE:
                             fip = (FragmentInfo *)fragBuf.base;
                             if (rc) {
                                 // FATAL ERROR, OUT OF MEMORY
-                                (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
+                                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-250: Fatal error: Failed to resize fragment buffer", ""));
                                 goto LOOP_END;
                             }
 
                             rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, banked_size, &size2);
                             if (rc) {
                                 // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                                (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
+                                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
                             assert(banked_size == size2);
@@ -3044,13 +3044,13 @@ WRITE_SEQUENCE:
                             rc = KDataBufferResize(&seqBuffer, readlen + fip->readlen);
                             if (rc) {
                                 // FATAL ERROR, OUT OF MEMORY
-                                (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
                                 goto LOOP_END;
                             }
                             rc = KDataBufferResize(&qualBuffer, readlen + fip->readlen);
                             if (rc) {
                                 // FATAL ERROR, OUT OF MEMORY
-                                (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                                (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize record buffer");
                                 goto LOOP_END;
                             }
                             if (readNo < fip->readNo) {
@@ -3129,7 +3129,7 @@ WRITE_SEQUENCE:
                             rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
                             if (rc) {
                                 // FATAL ERROR, VDB I/O ERROR
-                                (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                                (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: SequenceWriteRecord failed");
                                 goto LOOP_END;
                             }
                             ++ctx->spotId;
@@ -3144,7 +3144,7 @@ WRITE_SEQUENCE:
                             rc = MemBankFree(ctx->frags, fragmentId);
                             if (rc) {
                                 // FATAL ERROR, RUNTIME ERROR, LIKELY IMPOSSIBLE
-                                (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
+                                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
                                 goto LOOP_END;
                             }
 
@@ -3179,7 +3179,7 @@ WRITE_SEQUENCE:
                     }
                     else {
                         // FATAL INTERNAL CONSISTENCY ERROR
-                        (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
+                        (void)PLOGMSG(klogErr, (klogErr, "SRAE-252: Internal error: Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
                         assert("this should never happen");
                         abort();
                     }
@@ -3246,7 +3246,7 @@ WRITE_SEQUENCE:
                 rc = SequenceWriteRecord(seq, &srec, isColorSpace, v_pcr_dup, rec->platform);
                 if (rc) {
                     // FATAL ERROR, VDB I/O ERROR
-                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", NULL));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: SequenceWriteRecord failed", NULL));
                     goto LOOP_END;
                 }
                 ++ctx->spotId;
@@ -3357,7 +3357,7 @@ WRITE_ALIGNMENT:
                 rc = ReferenceAddAlignId(ref, data.alignId, isPrimary);
                 if (rc) {
                     // FATAL ERROR, VDB I/O ERROR
-                    (void)PLOGERR(klogErr, (klogErr, rc, "ReferenceAddAlignId failed", NULL));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: ReferenceAddAlignId failed", NULL));
                 }
                 else {
                     *had_alignments = true;
@@ -3365,7 +3365,7 @@ WRITE_ALIGNMENT:
             }
             else {
                 // FATAL ERROR, VDB I/O ERROR
-                (void)PLOGERR(klogErr, (klogErr, rc, "AlignmentWriteRecord failed", NULL));
+                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: AlignmentWriteRecord failed", NULL));
             }
         }
         /**************************************************************/
@@ -3439,7 +3439,7 @@ WRITE_ALIGNMENT:
     }
     if (rc == 0 && recordsProcessed == 0) {
         (void)LOGMSG(klogWarn, (G.limit2config || G.refFilter != NULL) ?
-                     "All records from the file were filtered out" :
+                     "SRAE-251: Data error: All records from the file were filtered out" :
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
@@ -3483,7 +3483,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
 
     rc = KDataBufferMake(&fragBuf, 8, 0);
     if (rc) {
-        (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
+        (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KDataBufferMake failed");
         return rc;
     }
 //    for (idCount = 0, j = 0; j < ctx->keyToID.key2id_count; ++j) {
@@ -3506,17 +3506,17 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
 
         rc = MemBankSize(ctx->frags, value->fragmentId, &sz);
         if (rc) {
-            (void)LOGERR(klogErr, rc, "KMemBankSize failed");
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankSize failed");
             return;
         }
         rc = KDataBufferResize(&fragBuf, (size_t)sz);
         if (rc) {
-            (void)LOGERR(klogErr, rc, "KDataBufferResize failed");
+            (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KDataBufferResize failed");
             return;
         }
         rc = MemBankRead(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
         if (rc) {
-            (void)LOGERR(klogErr, rc, "KMemBankRead failed");
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankRead failed");
             return;
         }
         assert( rsize == sz );
@@ -3558,7 +3558,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
         rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, value->pcr_dup, value->platform);
         if (rc) {
             // FATAL ERROR, VDB I/O ERROR
-            (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: SequenceWriteRecord failed");
             return;
         }
         rc = KMemBankFree(frags, id);
@@ -3583,12 +3583,12 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "Failed to get key for row $(row)", "row=%u", (unsigned)row));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: Failed to get key for row $(row)", "row=%u", (unsigned)row));
             break;
         }
         rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "Failed to read info for row $(row), index $(idx)", "row=%u,idx=%u", (unsigned)row, (unsigned)keyId));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: Failed to read info for row $(row), index $(idx)", "row=%u,idx=%u", (unsigned)row, (unsigned)keyId));
             break;
         }
         if (G.mode == mode_Remap) {
@@ -3596,7 +3596,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         if (row != CTX_VALUE_GET_S_ID(*value)) {
             rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
-            (void)PLOGMSG(klogErr, (klogErr, "Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)CTX_VALUE_GET_S_ID(*value), (unsigned)row, (unsigned)keyId));
+            (void)PLOGMSG(klogErr, (klogErr, "SRAE-252: Internal error: Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)CTX_VALUE_GET_S_ID(*value), (unsigned)row, (unsigned)keyId));
             break;
         }
         {{
@@ -3608,7 +3608,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 
             if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
                 rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
+                (void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
             }
             if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
                 rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
@@ -3622,7 +3622,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                                          value->alignmentCount);
         }}
         if (rc) {
-            (void)LOGERR(klogErr, rc, "Failed updating Alignment data in sequence table");
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Failed updating Alignment data in sequence table");
             break;
         }
         KLoadProgressbar_Process(ctx->progress[ctx->pass - 1], 1, false);
@@ -3658,7 +3658,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
 
             if (spotId == 0) {
                 rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
+                (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
                 break;
             }
 #ifndef NO_METADATA
@@ -3703,7 +3703,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     rc = KDataBufferMake(&fragBuf, 8, 0);
     if (rc) {
         // FATAL ERROR, OUT OF MEMORY
-        (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
+        (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KDataBufferMake failed");
         return rc;
     }
 
@@ -3736,19 +3736,19 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 rc = MemBankSize(ctx->frags, fragment_it.value(), &sz);
                 if (rc) {
                     // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                    (void)LOGERR(klogErr, rc, "KMemBankSize failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankSize failed");
                     break;
                 }
                 rc = KDataBufferResize(&fragBuf, (size_t)sz);
                 if (rc) {
                     // FATAL ERROR, OUT OF MEMORY
-                    (void)LOGERR(klogErr, rc, "KDataBufferResize failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KDataBufferResize failed");
                     break;
                 }
                 rc = MemBankRead(ctx->frags, fragment_it.value(), 0, fragBuf.base, sz, &rsize);
                 if (rc) {
                     // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                    (void)LOGERR(klogErr, rc, "KMemBankRead failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankRead failed");
                     break;
                 }
                 assert( rsize == sz );
@@ -3791,7 +3791,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id), platform_id);
                 if (rc) {
                     // FATAL ERROR, VDB I/O ERROR
-                    (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: SequenceWriteRecord failed");
                     break;
                 }
                 assert(metadata.get<u64_t>(metadata_t::e_spotId).get_no_check(row_id) == 0);
@@ -3829,17 +3829,17 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 FragmentInfo const *fip;
                 rc = MemBankSize(ctx->frags, fragment_it.value(), &sz);
                 if (rc) {
-                    (void)LOGERR(klogErr, rc, "KMemBankSize failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankSize failed");
                     break;
                 }
                 rc = KDataBufferResize(&fragBuf, (size_t)sz);
                 if (rc) {
-                    (void)LOGERR(klogErr, rc, "KDataBufferResize failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: KDataBufferResize failed");
                     break;
                 }
                 rc = MemBankRead(ctx->frags, fragment_it.value(), 0, fragBuf.base, sz, &rsize);
                 if (rc) {
-                    (void)LOGERR(klogErr, rc, "KMemBankRead failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: KMemBankRead failed");
                     break;
                 }
                 assert( rsize == sz );
@@ -3881,7 +3881,7 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                     metadata.get<u16_t>(metadata_t::e_platform).get(row_id) : ctx->m_read_groups[group_id]->m_platform;
                 rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id), platform_id);
                 if (rc) {
-                    (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                    (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: SequenceWriteRecord failed");
                     break;
                 }
                 assert(metadata.get<u64_t>(metadata_t::e_spotId).get_no_check(row_id) == 0);
@@ -4045,13 +4045,13 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     if (batch.primaryId[i * 2] == 0 && batch.alignmentCount[i * 2] != 0) {
                         rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
                         // WARNING
-                        (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", batch.keys[i]));
+                        (void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 1 never had a primary alignment", "id=%lx", batch.keys[i]));
                     }
                     bool is_unmated = batch.unmated[i];
                     if (!is_unmated && batch.primaryId[i * 2 + 1] == 0 && batch.alignmentCount[i * 2 + 1] != 0) {
                         rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
                         // WARNING
-                        (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", batch.keys[i]));
+                        (void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 2 never had a primary alignment", "id=%lx", batch.keys[i]));
                     }
                     if (rc != 0 && logLevel == klogErr) {
                         exit_on_error = true;
@@ -4061,7 +4061,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     if (rc) {
                         exit_on_error = true;
                         // FATAL ERROR, VDB I/O ERROR
-                        (void)LOGERR(klogErr, rc, "Failed updating Alignment data in sequence table");
+                        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Failed updating Alignment data in sequence table");
                         break;
                     }
                 }
@@ -4082,7 +4082,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
             // FATAL ERROR, VDB I/O ERROR
-            (void)PLOGERR(klogErr, (klogErr, rc, "Failed to get key for row $(row)", "row=%u", (unsigned)row));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: Failed to get key for row $(row)", "row=%u", (unsigned)row));
             break;
         }
         if (G.mode != mode_Remap) {
@@ -4092,7 +4092,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 //  auto spotId = metadata->get<u64_t>(metadata_t::e_spotId).get_no_check(local_row_id);
                 rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
                 // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                (void)PLOGMSG(klogErr, (klogErr, "Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)spotId, (unsigned)row, (unsigned)keyId));
+                (void)PLOGMSG(klogErr, (klogErr, "SRAE-252: Internal error: Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)spotId, (unsigned)row, (unsigned)keyId));
                 break;
             }
         }
@@ -4187,7 +4187,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
         if (spotId == 0) {
             rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
             // FATAL ERROR, DATA ERROR, CAN BE FIXED WITH COMMAND LINE OPTIONS
-            (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
             break;
         }
         rc = AlignmentWriteSpotId(align, spotId);
@@ -4386,7 +4386,7 @@ rc_t WriteLoaderSignature(KMetadata *meta, char const progName[])
         KMDataNodeRelease(node);
     }
     if (rc) {
-        (void)LOGERR(klogErr, rc, "Cannot update loader meta");
+        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
     }
     return rc;
 }
@@ -4431,7 +4431,7 @@ rc_t run(char const progName[],
 
     rc = VDBManagerMakeUpdate(&mgr, NULL);
     if (rc) {
-        (void)LOGERR (klogErr, rc, "failed to create VDB Manager!");
+        (void)LOGERR (klogErr, rc, "SRAE-250: Fatal error: failed to create VDB Manager!");
     }
     else {
         bool has_alignments = false;
@@ -4448,13 +4448,13 @@ rc_t run(char const progName[],
 
                 rc = VDBManagerMakeSchema(mgr, &schema);
                 if (rc) {
-                    (void)LOGERR (klogErr, rc, "failed to create schema");
+                    (void)LOGERR (klogErr, rc, "SRAE-250: Fatal error: failed to create schema");
                 }
                 else {
                     (void)(rc = VSchemaAddIncludePath(schema, "%s", G.schemaIncludePath));
                     rc = VSchemaParseFile(schema, "%s", G.schemaPath);
                     if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "failed to parse schema file $(file)", "file=%s", G.schemaPath));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: failed to parse schema file $(file)", "file=%s", G.schemaPath));
                     }
                     else {
                         VDatabase *db;
@@ -4544,7 +4544,7 @@ rc_t run(char const progName[],
         }
         rc2 = VDBManagerRelease(mgr);
         if (rc2)
-            (void)LOGERR(klogWarn, rc2, "Failed to release VDB Manager");
+            (void)LOGERR(klogWarn, rc2, "SRAE-252: Internal error: Failed to release VDB Manager");
         if (rc == 0)
             rc = rc2;
     }
@@ -4554,7 +4554,7 @@ rc_t run(char const progName[],
         std::ofstream f(G.telemetryPath, std::ios::out);
         f << GlobalContext.mTelemetry.dump(4, ' ', true) << endl;
     } catch(std::exception const& e) {
-        (void)PLOGMSG(klogErr, (klogWarn, "Failed to write telemetry", "%s", e.what()));
+        (void)PLOGMSG(klogErr, (klogWarn, "SRAE-254: Failed to write telemetry", "%s", e.what()));
     }
 
     return rc;

@@ -28,8 +28,6 @@
  #   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
 #endif ()
 
-include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
-
 add_executable        ( compute-coverage compute-coverage.cpp )
 
 target_link_libraries ( compute-coverage
@@ -39,14 +37,4 @@ target_link_libraries ( compute-coverage
     ${COMMON_LINK_LIBRARIES}
 )
 
-add_executable        ( compute-coverage-ngs compute-coverage-ngs.cpp )
-
-target_link_libraries ( compute-coverage-ngs
-    kapp
-    ncbi-ngs
-    ${COMMON_LIBS_READ}
-    ${COMMON_LINK_LIBRARIES}
-)
-
 MakeLinksExe ( compute-coverage     false )
-MakeLinksExe ( compute-coverage-ngs false )

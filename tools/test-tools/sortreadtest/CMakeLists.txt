@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( sortreadtest sortreadtest "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( sortreadtest false )
+MakeLinksExe_NoInstall( sortreadtest )

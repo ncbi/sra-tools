@@ -33,4 +33,4 @@ GenerateExecutableWithDefs( rnd2sra
     ""
     ""
     "${LIBS}" )
-MakeLinksExe( rnd2sra false )
+MakeLinksExe_NoInstall( rnd2sra )

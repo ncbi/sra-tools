@@ -21,6 +21,8 @@ namespace sra_convert {
     * --testbin TESTBINDIR  -T TESTBINDIR
     * --filter FILTER
     * --help                -h HELP
+    * --version             -V VERSION
+    * --platforms           -p PLATFORMS
 */
 
 class CmdLineParser {
@@ -33,7 +35,9 @@ class CmdLineParser {
         string f_bin_dir;
         string f_testbin_dir;
         string f_filter;
-        bool f_help;
+        bool f_print_help;
+        bool f_print_version;
+        bool f_print_platforms;
 
         enum class State{ BASE, INI, INIDIR, OUT, BIN, TESTBIN, FILTER };
 
@@ -44,7 +48,10 @@ class CmdLineParser {
             if ( "--bin" == arg || "-B" == arg ) { return State::BIN; }
             if ( "--testbin" == arg || "-T" == arg ) { return State::TESTBIN; }
             if ( "--filter" == arg || "-F" == arg ) { return State::FILTER; }
-            if ( "--help" == arg || "-h" ==arg ) { f_help = true; return State::BASE; }
+            if ( "--help" == arg || "-h" ==arg ) { f_print_help = true; return State::BASE; }
+            if ( "--version" == arg || "-V" ==arg ) { f_print_version = true; return State::BASE; }
+            if ( "--platforms" == arg || "-p" ==arg ) { f_print_platforms = true; return State::BASE; }
+
             switch ( f_argnum++ ) {
                 case 0 : f_prog = arg; break;
                 case 1 : f_ini_file = arg; break;
@@ -87,7 +94,9 @@ class CmdLineParser {
     public :
         CmdLineParser( const vector< string >& args ) : f_argnum( 0 ) {
             State state{ State::BASE };
-            f_help = false;
+            f_print_help = false;
+            f_print_version = false;
+            f_print_platforms = false;
             // a little state-machine to capture the values...
             for ( auto& item : args ) {
                 switch ( state ) {
@@ -115,7 +124,9 @@ class CmdLineParser {
         const string& bin_dir( void ) const { return f_bin_dir; }
         const string& testbin_dir( void ) const { return f_testbin_dir; }
         const string& filter( void ) const { return f_filter; }
-        const bool is_help( void ) const { return f_help; }
+        const bool print_help( void ) const { return f_print_help; }
+        const bool print_version( void ) const { return f_print_version; }
+        const bool print_platforms( void ) const { return f_print_platforms; }
 };
 
 class MainParams;
@@ -131,7 +142,9 @@ class MainParams {
         string f_bin_loc;
         string f_ini_loc;
         string f_output;
-        bool f_help;
+        bool f_print_help;
+        bool f_print_version;
+        bool f_print_platforms;
 
         // Ctor(s)
         MainParams( int argc, const char** argv, int sub_level )
@@ -183,6 +196,13 @@ class MainParams {
             }
         }
 
+        const bool has_value( const std::string& key ) const {
+            return f_values -> has( key );
+        }
+        const std::string get_value( const std::string& key, const string& dflt = "" ) const {
+            return f_values -> get( key, dflt );
+        }
+
         const string& get_ini_file( void ) const { return f_ini_file; }
 
         const string& get_output( void ) const { return f_output; }
@@ -202,13 +222,17 @@ class MainParams {
             f_values -> import_values( src );
         }
 
-        const bool is_help( void ) const { return f_help; }
+        const bool print_help( void ) const { return f_print_help; }
+        const bool print_version( void ) const { return f_print_version; }
+        const bool print_platforms( void ) const { return f_print_platforms; }
 
         void parse_args( void ) {
             CmdLineParser parser( f_args );
             f_ini_file = parser . ini_file();
             f_ini_file_loc = parser . ini_dir();
-            f_help = parser . is_help();
+            f_print_help = parser . print_help();
+            f_print_version = parser . print_version();
+            f_print_platforms = parser . print_platforms();
             set_output( parser . out_dir() );
             set_bin_loc( parser . bin_dir() );
         }
@@ -220,7 +244,43 @@ class MainParams {
             os << "--bin BINDIR          -B BINDIR      (where are binaries to run)\n";
             os << "--testbin TESTBINDIR  -T TESTBINDIR  (where are test-binaries)\n";
             os << "--filter FILTER                      (what tests to run if filtering)\n";
-            os << "--help                -h\n";
+            os << "--help                -h             print help\n";
+            os << "--version             -V             print version\n";
+            os << "--platforms           -p             print all supported platforms\n";
+            os << "=========================================================================\n";
+            os << "INIFILE:\n";
+            os << "\tproduct = flat | db | csra | test ( the only mandatory entry )\n";
+            os << "\tout = PATH ( default: empty )\n";
+            os << "\tseed = NUMBER ( default: 1010101 )\n";
+            os << "\trows = NUMBER ( default: 10 )\n";
+            os << "\twith_name = yes | no ( default: yes )\n";
+            os << "\tname_len = NUMBER ( default: 25 )\n";
+            os << "\tname_pattern = PATTERN ( default: empty )\n";
+            os << "\t\t# ... auto-inc value\n";
+            os << "\t\t% ... random value 1..100\n";
+            os << "\t\t$ ... random char a..z\n";
+            os << "\t\t& ... random char A..Z\n";
+            os << "\tchecksum = crc32 | md5 | none ( default: none )\n";
+            os << "\tplatform = UNDEFINED | 454 | ILLUMINA | ... ( default: ILLUMINA - 'rnd2sra --platforms')\n";
+            os << "\twrite_meta = yes | no ( default: yes )\n";
+            os << "\techo = yes | no ( default: no )\n";
+            os << "\tspotgroup = NAME ( can be repeated )\n";
+            os << "\tlayout = PATTERN ( for flat and db, can be repeated )\n";
+            os << "\t\texample: T5 : B30-50 : T5 : B44|R\n";
+            os << "\t\tB70 ...... biological, 70 bases\n";
+            os << "\t\tB55|R .... biological, 55 bases, reversed\n";
+            os << "\t\tB40|RJ ... biological, 40 bases, reversed, rejected\n";
+            os << "\t\tflags: F=forward, R=reversed, P=pass, J=reject, C=criteria, A=redacted\n";
+            os << "\tspots = PATTERN ( for csra, can be repeated )\n";
+            os << "\t\texample: F : 12 : 70000 : 80000 ( type : count : min : max )\n";
+            os << "\t\tF ... Aligned2Reads      N ... Unaligned2Reads\n";
+            os << "\t\t1 ... AlignedUnaligned   2 ... UnalignedAligned\n";
+            os << "\t\tA ... Aligned1Read       U ... Unaligned1Read\n";
+            print_version( os );
+        }
+
+        void print_version( ostream& os ) const {
+            os << "rnd2sa : 1.0.0 ( 1.0.0-rc )\n";
         }
 
         friend auto operator<<( ostream& os, MainParamsPtr o ) -> ostream& {

@@ -47,15 +47,7 @@
 
 using namespace std;
 
-static rc_t argsHandler(int argc, char* argv[]);
-TEST_SUITE_WITH_ARGS_HANDLER(TestSuiteSearch, argsHandler);
-
-static rc_t argsHandler(int argc, char* argv[]) {
-    Args* args = NULL;
-    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
-    ArgsWhack(args);
-    return rc;
-}
+TEST_SUITE(TestSuiteSearch);
 
 void trim_eol(char* psz)
 {
@@ -913,14 +905,7 @@ TEST_CASE ( Nucstrstr_NonPositional_4NA_Found_InMiddle )
 
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return TestSuiteSearch(argc, argv);
 }
-
-} // end of extern "C"

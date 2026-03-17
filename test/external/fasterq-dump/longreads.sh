@@ -28,18 +28,8 @@ set -e
 
 FASTERQDUMPBIN="$1/fasterq-dump"
 RND2SRABIN="$1/rnd2sra"
-
 SANDBOX="LONGREAD_SANDBOX"
-RND2SRAINI="LONGREAD.INI"
 ACC="LONGREADS"
-
-OS=$(uname -s)
-#echo "$OS"
-if [ "$OS" == "Darwin" ] ; then
-    MD5="/sbin/md5 -q"
-else
-    MD5="md5sum"
-fi 
 
 mkdir -p $SANDBOX
 cd $SANDBOX
@@ -47,20 +37,15 @@ cd $SANDBOX
 # =============================================================================$
 # using rnd2sra to create an artificial accession with long reads
 # =============================================================================$
-
-cat << EOF > $RND2SRAINI
+$RND2SRABIN --ini stdin --out "$ACC" << EOF
 seed = 10101
 product = csra
-out = $ACC
 spots = F : 12 : 170000 : 180000
 spots = N : 7 : 50 : 100
 spots = 1 : 3 : 57 : 102
 spots = 2 : 4 : 56 : 103
 spotgroup = SG1
 EOF
-echo "testing for long-reads: INI-file created"
-
-$RND2SRABIN --ini $RND2SRAINI
 echo "testing for long-reads: sample-accession generated"
 
 # =============================================================================$
@@ -70,32 +55,15 @@ $FASTERQDUMPBIN $ACC
 echo "testing for long-reads: FASTQ-files produced"
 
 # =============================================================================$
-# produce MD5-sums of the 2 FASTQ-files
+# compare produced vs expected MD5-sums of the 2 FASTQ-files
 # =============================================================================$
-${MD5} "${ACC}_1.fastq" > actual.txt
-${MD5} "${ACC}_2.fastq" >> actual.txt
-
-# =============================================================================$
-# produce expected MD5-sums of the 2 FASTQ-files
-# =============================================================================$
-if [ "$OS" == "Darwin" ] ; then
-cat << EOF > expected.txt
-3f7af3bd91953afd553291708d5eb181
-6f42f3ec7449c54d810a4fbaa07aa19f
+$RND2SRABIN --ini stdin << EOF
+product = test
+run = T1 T2
+T1.exe = :md5 ${ACC}_1.fastq 8c78fbf96bd6b19bd3008854e171c7f4
+T2.exe = :md5 ${ACC}_2.fastq 13600705c5119afd4fdba22631777786
 EOF
-else
-cat << EOF > expected.txt
-24cc3655c79ef01c23d96cc5a595b138  LONGREADS_1.fastq
-d0b6299ab49f6dbc1ba42ec6056df70d  LONGREADS_2.fastq
-EOF
-fi
-
-# =============================================================================$
-# compare actual against expected
-# =============================================================================$
-diff -s actual.txt expected.txt
-
 echo "testing for long-reads: success"
-
+echo "-------------------------------------------------------------------------"
 cd ..
 rm -rf $SANDBOX

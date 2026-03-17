@@ -135,7 +135,7 @@ struct Input {
         }
     }
     struct Read {
-        int start, length, position = -1, reference = -1;
+        int start, length, position = -1, reference = -1, flags = -1;
         ReadType type = ReadType::biological;
         ReadOrientation orientation = ReadOrientation::forward;
         CIGAR cigar;

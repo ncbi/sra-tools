@@ -9,6 +9,7 @@
 
 #include "fastq_read.hpp"
 #include "regexpr.hpp"
+#include "fastq_utils.hpp"
 #include <insdc/sra.h>
 
 using namespace std;
@@ -27,7 +28,8 @@ enum
     SRA_PLATFORM_PACBIO_SMRT       = 6,
     SRA_PLATFORM_ION_TORRENT       = 7,
     SRA_PLATFORM_CAPILLARY         = 8,
-    SRA_PLATFORM_OXFORD_NANOPORE   = 9
+    SRA_PLATFORM_OXFORD_NANOPORE   = 9,
+    SRA_PLATFORM_ELEMENT_BIO       = 10
 };
 */
 class CDefLineMatcher
@@ -94,7 +96,7 @@ public:
 protected:
     string mDefLineName;             ///< Defline description
     CRegExprMatcher re;              ///< regexpr matcher
-    string m_tmp_spot;               ///< variable for spot name assembly 
+    string m_tmp_spot;               ///< variable for spot name assembly
 
 };
 
@@ -205,7 +207,7 @@ private:
 };
 
 
-static 
+static
 bool s_is_number(const string_view& s)
 {
     return !s.empty() && find_if(s.begin(), s.end(), [](unsigned char c) { return !isdigit(c); }) == s.end();
@@ -215,10 +217,10 @@ bool s_is_number(const string_view& s)
 class CDefLineMatcherIlluminaOldBase : public CDefLineMatcher
 /// Base class for IlluminaNew matchers
 {
-    CRegExprMatcher sub_re1;              ///< additional regex to support numDiscards matching 
+    CRegExprMatcher sub_re1;              ///< additional regex to support numDiscards matching
     CRegExprMatcher sub_re2;              ///< additional regex to support numDiscards matching
     CRegExprMatcher sub_re3;              ///< additional regex to support numDiscards matching
-    CRegExprMatcher illuminaOldSuffix2;   ///< additional regex for suffix matching 
+    CRegExprMatcher illuminaOldSuffix2;   ///< additional regex for suffix matching
     CRegExprMatcher illuminaOldSuffix;    ///< additional regex for suffix matching
 
 public:
@@ -231,7 +233,7 @@ public:
         illuminaOldSuffix2(R"((-?\d+\.\d+|-?\d+)([^\d\s.][!-~]+))"),
         illuminaOldSuffix(R"((/[12345])([^\d\s][!-~]+))")
     {
-        
+
     }
 
     uint8_t GetPlatform() const override {
@@ -239,7 +241,7 @@ public:
     };
 
     //prefix, sep1, lane, sep2, tile, sep3, x, sep4, y, spotGroup, readNum, endSep
-    //0       1     2     3     4     5     6  7     8  9          10       11 
+    //0       1     2     3     4     5     6  7     8  9          10       11
 
     virtual void GetMatch(CFastqRead& read) override
     {
@@ -258,11 +260,11 @@ public:
             if (suffix.size() >= 3) {
                 if (suffix.starts_with("/1") || suffix.starts_with("/2"))
                     suffix.remove_prefix(2);
-                m_tmp_suffix = suffix;                    
-            }         
+                m_tmp_suffix = suffix;
+            }
         } else if (!readNum.empty() && illuminaOldSuffix.Matches(readNum)) {
-            readNum = illuminaOldSuffix.GetMatch()[0];    
-            if (illuminaOldSuffix.GetMatch()[1].size() >= 3) 
+            readNum = illuminaOldSuffix.GetMatch()[0];
+            if (illuminaOldSuffix.GetMatch()[1].size() >= 3)
                 m_tmp_suffix = illuminaOldSuffix.GetMatch()[1];
         }
 
@@ -275,7 +277,7 @@ public:
             if (numDiscards == 2 && x.find('.') != re2::StringPiece::npos) {
                 string new_suffix;
                 re.GetMatch()[5].AppendToString(&new_suffix); // sep3
-                x.AppendToString(&new_suffix); //x 
+                x.AppendToString(&new_suffix); //x
                 re.GetMatch()[7].AppendToString(&new_suffix); // sep4
                 y.AppendToString(&new_suffix); //y
                 new_suffix.append(read.Suffix());
@@ -360,7 +362,7 @@ public:
             return 0;
         const char sep = (sep_str[0] == '-') ? ':' : sep_str[0];
         // Determine how many numbers at the end of prefix
-        // separated by sep 
+        // separated by sep
         sharq::split(prefix, m_tmp_strlist, sep);
         int numCount = 0;
 
@@ -383,7 +385,7 @@ public:
                 discardCount += 1;
                 if (numCount == 2) {
                     sharq::split(x, m_tmp_strlist, '.');
-                    if (!m_tmp_strlist.empty() && atoi(m_tmp_strlist.front().data()) < 4) 
+                    if (!m_tmp_strlist.empty() && atoi(m_tmp_strlist.front().data()) < 4)
                         discardCount += 1;
                 }
             }
@@ -1023,7 +1025,7 @@ public:
     {
         // runId, sep1, row, sep2, column, readNum, endSep
         // runId, sep1, row, sep2, column, suffix, spotGroup, readNum, endSep
-        // 0      1     2    3     4       5       6          7        8 
+        // 0      1     2    3     4       5       6          7        8
         m_tmp_spot.clear();
 
         re.GetMatch()[0].AppendToString(&m_tmp_spot); //runId
@@ -1037,7 +1039,7 @@ public:
         auto& spotGroup = re.GetMatch()[6];
         if (!spotGroup.empty()) {
             spotGroup.remove_prefix(1);
-            read.SetSpotGroup(spotGroup);            
+            read.SetSpotGroup(spotGroup);
         }
 
         auto& readNum = re.GetMatch()[7];
@@ -1049,7 +1051,7 @@ public:
             read.SetReadNum( suffix == "L" ? readNum1 : readNum2 );
         } else {
             read.SetSuffix(suffix);
-            if (readNum.starts_with("/") || readNum.starts_with("\\")) 
+            if (readNum.starts_with("/") || readNum.starts_with("\\"))
                 readNum.remove_prefix(1);
             else if (readNum == "L")
                 readNum = "1";
@@ -1080,7 +1082,7 @@ public:
 
         // runId, sep1, row, sep2, column, suffix, sep3, readNum, filterRead, reserved, spotGroup, endSep
         // 0      1     2    3     4       5       6     7         8          9         10         11
-        
+
 
 
         m_tmp_spot.clear();
@@ -1125,7 +1127,7 @@ public:
     virtual void GetMatch(CFastqRead& read) override
     {
         // Name
-        // 0   
+        // 0
 
         m_tmp_spot.clear();
 
@@ -1175,7 +1177,7 @@ public:
 //self.illuminaOldBcRnOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+?)(/[12345]|\\[12345])(\s+|$)")
 
 class CDefLineIlluminaOldBcRn : public CDefLineMatcher
-/// IlluminaOld BarCode and ReadNum only 
+/// IlluminaOld BarCode and ReadNum only
 {
 public:
     CDefLineIlluminaOldBcRn() :
@@ -1222,7 +1224,7 @@ public:
 
 //self.illuminaOldBcOnly = re.compile(r"^[@>+]([!-~]+?)(#[!-~]+)(\s+|$)(.?)")
 class CDefLineIlluminaOldBcOnly : public CDefLineIlluminaOldBcRn
-/// IlluminaOld BarCode only 
+/// IlluminaOld BarCode only
 {
 public:
     CDefLineIlluminaOldBcOnly() :
@@ -1235,7 +1237,7 @@ public:
 
 //self.illuminaOldRnOnly = re.compile(r"^[@>+]([!-~]+?)(/[12345]|\\[12345])(\s+|$)(.?)")
 class CDefLineIlluminaOldRnOnly : public CDefLineIlluminaOldBcRn
-/// IlluminaOld ReadNum only 
+/// IlluminaOld ReadNum only
 {
 public:
     CDefLineIlluminaOldRnOnly() :
@@ -1246,5 +1248,36 @@ public:
     }
 };
 
+class CDefLineMatcherElementBio : public CDefLineMatcher
+{
+public:
+    CDefLineMatcherElementBio() :
+        CDefLineMatcher(
+            "ElementBio",
+            R"(^@([0-9A-z_]+)(:)([0-9A-z\-_]+)(:)([0-9A-z]+)(:)([12])(:)([0-9]+)(:)([0-9]+)(:)([0-9]+))")
+    {}
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        read.SetSpot(re.GetMatch()[1]);
+        m_tmp_spot.clear();
+        re.GetMatch()[0].AppendToString(&m_tmp_spot); //instrument
+        s_add_sep(m_tmp_spot, re.GetMatch()[1]);
+        re.GetMatch()[2].AppendToString(&m_tmp_spot); //run
+        s_add_sep(m_tmp_spot, re.GetMatch()[3]);
+        re.GetMatch()[4].AppendToString(&m_tmp_spot); // flow cell ID
+        s_add_sep(m_tmp_spot, re.GetMatch()[5]);
+        re.GetMatch()[6].AppendToString(&m_tmp_spot); // lane
+        s_add_sep(m_tmp_spot, re.GetMatch()[7]);
+        re.GetMatch()[8].AppendToString(&m_tmp_spot); // tile
+        s_add_sep(m_tmp_spot, re.GetMatch()[9]);
+        re.GetMatch()[10].AppendToString(&m_tmp_spot); // X
+        s_add_sep(m_tmp_spot, re.GetMatch()[11]);
+        re.GetMatch()[12].AppendToString(&m_tmp_spot); // Y
+//        re.GetMatch()[4].AppendToString(&m_tmp_spot); // read number
+        read.MoveSpot(std::move(m_tmp_spot));
+    }
+    virtual uint8_t GetPlatform() const override { return SRA_PLATFORM_ELEMENT_BIO;}
+};
 
 #endif

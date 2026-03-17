@@ -97,7 +97,7 @@ class RndcSRA : public Rndcmn {
                     if ( ! *seq_cols ) {
                         cerr << "write_seq_tbl() - SeqCols::make() failed!\n";
                     } else {
-                        if ( ! seq_cols -> set_dflt_platform( 2 ) ) {
+                        if ( ! seq_cols -> set_dflt_platform( f_ini -> get_platform() ) ) {
                             cerr << "write_seq_tbl() - SeqCols::set_dflt_platform() failed!\n";
                         } else {
                             // ---------------------------------------------------------

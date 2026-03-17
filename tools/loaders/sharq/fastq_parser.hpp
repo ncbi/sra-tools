@@ -68,8 +68,19 @@
 #include "rwqueue/readerwriterqueue.h"
 #include <condition_variable>
 #include <chrono>
+#include <regex>
+#include <variant>
+#include <sys/wait.h>
 
 #include <fingerprint.hpp>
+#include <kfile_stream/kfile_stream.hpp>
+#include "istreambuf_holder.hpp"
+#ifdef SHARQ_USE_NATIVE_CLOUD
+#ifdef CC
+#undef CC
+#endif
+#include "fastq_stream_factory.hpp"
+#endif
 
 using namespace std::chrono_literals;
 
@@ -261,6 +272,7 @@ struct data_output_metrics_t {
     size_t spot_count = 0;
 };
 
+
 class fastq_reader
 /// FASTQ reader
 {
@@ -276,7 +288,8 @@ public:
      * @param[in] match_all if True no failure on unsupported deflines
      */
     fastq_reader(const string& file_name, shared_ptr<istream> _stream, vector<char> read_type = {'B'}, int platform = 0, bool match_all = false)
-        : m_file_name(file_name)
+        : m_defline_parser( platform )
+        , m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
         , m_read_type_sz(m_read_type.size())
@@ -390,17 +403,23 @@ public:
      */
     bool is_compressed() const {
         auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compression() != bxz::plaintext : false;
-    }
-
-    /**
-     * @brief returns current stream position
-     *
-     * @return size_t
-     */
-    size_t tellg() const {
-        auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
-        return fstream ? fstream->compressed_tellg() : m_stream->tellg();
+        if ( fstream )
+        {
+            return fstream->compression() != bxz::plaintext;
+        }
+        else
+        {
+            auto fstream = dynamic_cast<bxz::istream*>(&*m_stream);
+            if ( fstream )
+            {
+                auto bxz_sb = dynamic_cast<bxz::istreambuf*>(fstream->rdbuf());
+                if ( bxz_sb )
+                {
+                    return bxz_sb->compression() != bxz::plaintext;
+                }
+            }
+        }
+        return false;
     }
 
     const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes(); } ///< retruns set of defline types processed by the reader
@@ -437,6 +456,8 @@ public:
 
     data_input_metrics_t m_input_metrics;
 
+    const istream & get_stream() const { return * m_stream; }
+
 private:
     CDefLineParser      m_defline_parser;       ///< Defline parser
     string              m_file_name;            ///< Corresponding file name
@@ -468,14 +489,240 @@ private:
 };
 
 //  ----------------------------------------------------------------------------
+// Function to check if a string is a valid URL
+// Extended URL pattern that includes S3 and GCS
+static bool isValidURL(const std::string &url)
+{
+    static const std::regex urlPattern(
+        R"(^(https?|file|s3|gs)://[^\s$.?#].[^\s]*$)",
+        std::regex::icase
+    );
+    return std::regex_match(url, urlPattern);
+}
+
+// Check if URL is a cloud storage URL (S3 or GCS)
+static bool isCloudURL(const std::string &url)
+{
+    return url.rfind("s3://", 0) == 0 ||
+           url.rfind("S3://", 0) == 0 ||
+           url.rfind("gs://", 0) == 0 ||
+           url.rfind("GS://", 0) == 0;
+}
+
+using istreambuf_holder = sharq::istreambuf_holder;
+
+#ifdef SHARQ_USE_NATIVE_CLOUD
+static shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size = 4096)
+{
+    // Handle cloud URLs (S3 and GCS)
+    try {
+        // Use the cloud filesystem factory
+        return sharq::open_fastq_stream(filename, buffer_size);
+    }
+    catch (const sharq::fs::FileNotFoundError& e) {
+        throw runtime_error("File not found: " + filename);
+    }
+    catch (const sharq::fs::AccessDeniedError& e) {
+        throw runtime_error("Access denied: " + filename +
+                            ". Check your cloud credentials.");
+    }
+    catch (const sharq::fs::CloudStorageError& e) {
+        throw runtime_error("Cloud storage error for '" + filename +
+                            "': " + e.what());
+    }
+}
+#else
+
+// spanws a child and waits for it to fihish.
+// returns the child's exit code
+int SpawnAndWait( const std::string& program, const std::vector<std::string>& args, bool quiet = true )
+{
+    int ret = 0;
+    pid_t child_pid = fork();
+    if (child_pid < 0)
+    {
+        throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
+    }
+    else if (child_pid == 0)
+    {   // --- CHILD PROCESS ---
+        if ( quiet )
+        {
+            // Open /dev/null for writing
+            int devNull = open("/dev/null", O_WRONLY);
+            if (devNull == -1)
+            {
+                throw std::runtime_error( program + ": Failed to open /dev/null: " + strerror(errno) );
+            }
+
+            // Redirect stdout and stderr to /dev/null
+            dup2(devNull, STDOUT_FILENO);
+            dup2(devNull, STDERR_FILENO);
+            close(devNull);
+        }
+
+        // Prepare arguments for execvp
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 2);
+        argv.push_back(const_cast<char*>(program.c_str()));
+        for (const auto& arg : args)
+        {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+
+        // Replace process image
+        if (execvp(program.c_str(), argv.data()) == -1)
+        {
+            throw std::runtime_error( program + ": execvp() failed: " + strerror(errno) );
+        }
+        // will not get here
+    }
+    else {
+        // --- PARENT PROCESS ---
+        int status = 0;
+        if (waitpid(child_pid, &status, 0) == -1)
+        {
+            throw std::runtime_error(std::string("waitpid() failed: ") + strerror(errno));
+        }
+
+        if (WIFEXITED(status))
+        {
+            ret = WEXITSTATUS(status);
+        }
+        else if (WIFSIGNALED(status))
+        {
+            ret = 128 + WTERMSIG(status); // Common convention
+        }
+    }
+    return ret;
+}
+
+// returns fd of readable pipe representing child's stdout
+int Spawn( const std::string& program, const std::vector<std::string>& args )
+{
+    int pipefd[2];
+    if (pipe(pipefd) == -1)
+    {
+        throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
+    }
+
+    pid_t child_pid = fork();
+    if (child_pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
+    }
+    else if (child_pid == 0) {
+        // --- CHILD PROCESS ---
+        close(pipefd[0]); // Close read end in child
+        // Redirect stdout to pipe
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            std::cerr << "dup2() failed: " << strerror(errno) << "\n";
+            _exit(EXIT_FAILURE);
+        }
+        close(pipefd[1]); // Not needed after dup2
+
+        // Prepare arguments for execvp
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 2);
+        argv.push_back(const_cast<char*>(program.c_str()));
+        for (const auto& arg : args) {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+
+        // Replace process image
+        if (execvp(program.c_str(), argv.data()) == -1) {
+            std::cerr << "execvp() failed: " << strerror(errno) << "\n";
+            _exit(EXIT_FAILURE);
+        }
+        return 0; // will not get here
+    }
+    else {
+        // --- PARENT PROCESS ---
+        close(pipefd[1]); // Close write end in parent
+        return pipefd[0];
+    }
+}
+
+static
+shared_ptr<istream> OpenObservedStream( const string& filename, const vdb::KStream * kstream, custom_istream::custom_istream&& stream )
+{
+    const vdb::KStreamMD5ReadObserver * observer = nullptr;
+    if ( KStreamMakeMD5ReadObserver ( kstream, & observer ) != 0 )
+    {
+        throw runtime_error("Failure to create observer for '" + filename + "'");
+    }
+
+    custom_istream::custom_istream * c_istream = new custom_istream::custom_istream( std::move( stream ) );
+    return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ) );
+}
+
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 {
-    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin));
-    if (!is->good())
-        throw runtime_error("Failure to open '" + filename + "'");
-    return is;
+    custom_istream::custom_istream * c_istream = nullptr;
+    if ( isValidURL( filename ) )
+    {
+        if ( isCloudURL( filename ) )
+        {
+            // AWS: check if CLI is available. NOTE: Posix only
+            if ( SpawnAndWait( "which", {"aws"} ) == 0 )
+            {
+                int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
+                vdb::KStream * child_stream = nullptr;
+                if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                {
+                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                }
+                else
+                {
+                    throw runtime_error("KStdIOStreamMake() failed");
+                }
+            }
+
+            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+        }
+        else
+        {
+            const vdb::KStream * kstream = vdb::KStreamFactory::make_from_uri( filename );
+            if ( kstream == nullptr )
+            {
+                throw runtime_error("Failure to open URL '" + filename + "'");
+            }
+            return OpenObservedStream( filename, kstream, custom_istream::custom_istream::make_from_kstream( kstream, buffer_size ) );
+        }
+    }
+    else if ( filename == "-" )
+    {
+        const vdb::KStream * kin = nullptr;
+        if ( KStreamMakeStdIn ( &kin ) != 0 )
+        {
+            throw runtime_error("Failure to open stdin");
+        }
+        return OpenObservedStream( filename, kin, custom_istream::custom_istream::make_from_kstream( kin, buffer_size ) );
+    }
+    else
+    {
+        const vdb::KFile * kfile = vdb::KFileFactory::make_from_path( filename );
+        if ( kfile == nullptr )
+        {
+            throw runtime_error("Failure to open file '" + filename + "'");
+        }
+
+        const vdb::KFileMD5ReadObserver * observer = nullptr;
+        if ( KFileMakeMD5ReadObserver ( kfile, & observer ) != 0 )
+        {
+            throw runtime_error("Failure to create observer for '" + filename + "'");
+        }
+
+        c_istream = new custom_istream::custom_istream( custom_istream::custom_istream::make_from_kfile( kfile, buffer_size ) );
+        return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
+    }
 }
+
+#endif // SHARQ_USE_NATIVE_CLOUD
+
 
 struct spot_read_t {
     fastq_read read;
@@ -505,9 +752,13 @@ public:
     fastq_parser(shared_ptr<TWriter> writer, vector<char> read_types = {'B'}) :
         m_writer(writer),
         m_read_types(std::move(read_types)),
-        m_read_type_sz(m_read_types.size())
+        m_read_type_sz(m_read_types.size()),
+        m_logger(spdlog::get("parser_logger"))
     {
-        m_logger = spdlog::stderr_logger_mt("parser_logger"); // send log to stderr
+        if ( m_logger == nullptr )
+        {
+            m_logger = spdlog::stderr_logger_mt("parser_logger"); // send log to stderr
+        }
     }
 
     ~fastq_parser() {
@@ -686,6 +937,7 @@ public:
         m_spot_assembly.m_hot_reads_threshold = threshold;
     }
 
+    const vector<fastq_reader> & get_readers() const { return m_readers; }
 private:
 
     /**
@@ -1275,7 +1527,7 @@ int s_find_duplicates(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& 
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at index {}", terms[i], i);
+            fastq_error e(170, "Collation check. Duplicate spot '{}' at index {}", terms[i], i);
             error_checker(e);
         }
     }
@@ -1301,7 +1553,7 @@ void fastq_parser<TWriter>::check_duplicate_spot_names(const vector<search_term_
     auto& cnt_vect = pipe.get_bv_count_vector();
     for (size_t i = 0; i < sz; ++i) {
         if (cnt_vect[i] > 1) {
-            fastq_error e(170, "SRAE-75: Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
+            fastq_error e(170, "Collation check. Duplicate spot '{}' at file {}, line {}", terms[i].spot_name, m_readers[terms[i].reader_idx].file_name(), terms[i].line_no);
             error_checker(e);
         }
     }
@@ -1372,10 +1624,22 @@ void fastq_parser<TWriter>::parse(spot_name_check& name_checker, ErrorChecker&& 
     if (! m_telemetry.groups.empty() && m_telemetry.groups.back().rejected_spots > 0)
         spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
 
-    // register readers' fingerprints with the writer
+    // register readers' fingerprints and md5s with the writer
     for ( auto r = m_readers.begin(); r != m_readers.end(); ++r )
     {
-        m_writer->set_fingerprint( r->file_name(), r->fingerprint() );
+        auto input = dynamic_cast<const istreambuf_holder*>( & r->get_stream() );
+
+        uint8_t md5 [ 16 ];
+        if ( input != nullptr )
+        {
+            input -> get_md5( md5 );
+        }
+        else
+        {
+            memset( md5, 0, 16 );
+        }
+
+        m_writer->set_checksums( r->file_name(), r->fingerprint(), md5 );
     }
 
     spdlog::debug("parsing time: {}", sw);
@@ -1731,7 +1995,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             else
                 has_non_10x_files = true;
 
-            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, 0, true);
+            fastq_reader reader(fn, s_OpenStream(fn, (1024 * 1024) * 2), {}, 0, true);
             vector<CFastqRead> reads;
             int max_reads = 0;
             bool has_orphans = false;
@@ -1831,13 +2095,8 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             f["reads_processed"] = reads_processed;
             f["spots_processed"] = spots_processed;
             f["lines_processed"] = reader.line_number();
-            double bytes_read = reader.tellg();
-            if (bytes_read && spots_processed && file_size) {
-                double fsize = file_size;
-                double bytes_per_spot = bytes_read/spots_processed;
-                estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
-                f["name_size_avg"] = spot_name_sz/spots_processed;
-            }
+            estimated_spots = max<size_t>(spots_processed, estimated_spots);
+            f["name_size_avg"] = spot_name_sz/spots_processed;
             group_j["files"].push_back(f);
         }
         group_j["is_10x"] = group_reads >= 3 && has_I_file && has_R_file;
@@ -1903,7 +2162,7 @@ void fastq_parser<TWriter>::set_readers(json& group, bool update_telemetry)
             read_types = data["readType"];
         else
             read_types.clear();
-        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), read_types, data["platform_code"].front());
+        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 8), read_types, data["platform_code"].front());
         if (!data["readNums"].empty())
             ++files_with_read_numbers;
     }
@@ -2257,17 +2516,21 @@ void fastq_parser<TWriter>::assign_spot_id(str_sv_type& read_names, vector<T>& r
     m_telemetry.assembly_metrics.number_of_far_reads = m_spot_assembly.m_total_spots - m_spot_assembly.m_hot_spot_ids.count();
     spdlog::info("Building took {:.3}, far reads: {:L}", sw, m_telemetry.assembly_metrics.number_of_far_reads);
 
-    int max_reads = 0;
+    unsigned max_reads = 0;
     for (auto& it : m_spot_assembly.m_reads_counts) {
         spdlog::info("{:L} spots with {} reads", it.second, it.first);
         m_telemetry.assembly_metrics.reads_stats = m_spot_assembly.m_reads_counts;
-        max_reads = max(max_reads, (int)it.first);
+        max_reads = max<int>(max_reads, (int)it.first);
     }
+
+    if (max_reads > std::numeric_limits<typename svector_u32::value_type>::max())
+        throw fastq_error(260, "Spots with more than {} reads are not supported.", std::numeric_limits<typename svector_u32::value_type>::max());
+
     if (m_read_types.empty()) {
         if (m_IsIllumina10x)
-            m_read_types.resize(min(max_reads, 4), 'A');
+            m_read_types.resize(min<int>(max_reads, 4), 'A');
         else
-            m_read_types.resize(min(max_reads, 2), 'B');
+            m_read_types.resize(min<int>(max_reads, 2), 'B');
     }
     m_read_type_sz = m_read_types.size();
 }
@@ -2345,15 +2608,16 @@ template<typename TWriter>
 void fastq_parser<TWriter>::remove_duplicate_reads(const string& spot_name,vector<fastq_read>& assembled_spot)
 {
     sort(assembled_spot.begin(), assembled_spot.end(), [](const auto& l, const auto& r) {
-        if (l.ReadNum() == r.ReadNum()) {
-            int c = l.Sequence().compare(r.Sequence());
-            if (c == 0) {
-                if (l.GetQualScores() != r.GetQualScores())
-                    c = -1;
-            }
+        // Cache values to avoid repeated method calls
+        auto l_read_num = l.ReadNum();
+        auto r_read_num = r.ReadNum();
+
+        if (l_read_num != r_read_num)
+            return l_read_num < r_read_num;
+        int c = l.Sequence().compare(r.Sequence());
+        if (c != 0)
             return c < 0;
-        }
-        return l.ReadNum() < r.ReadNum();
+        return l.GetQualScores() < r.GetQualScores();
     });
    // same as std::unique but captures stat of the removed duplicates
     auto uniq = [&] (vector<fastq_read>::iterator first, vector<fastq_read>::iterator last) -> vector<fastq_read>::iterator

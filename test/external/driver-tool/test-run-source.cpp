@@ -36,7 +36,6 @@
 #include <klib/text.h>
 
 #include "run-source.hpp"
-#include "tool-arguments.h"
 #include "config.hpp"
 #include "service.hpp"
 #include "debug.hpp"
@@ -158,11 +157,11 @@ string ExeName;
 
 TEST_CASE(CopmmandLine_GetToolPath)
 {
-    const char* argv[] = { TOOL_NAME_SRA_PILEUP };
+    const char* argv[] = { "sra-pileup" };
     char* env[] = { (char*)"a=b", nullptr };
     char* extra[] = { (char*)"a1=b1", nullptr };
     CommandLine cl(1, (char**)argv, env, extra);
-    REQUIRE_NE( string::npos, ((string)cl.toolPath).find( TOOL_NAME_SRA_PILEUP ) );
+    REQUIRE_NE( string::npos, ((string)cl.toolPath).find( "sra-pileup" ) );
     //cout << "toolPath=" << (string)cl.toolPath << endl;
 }
 

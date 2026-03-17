@@ -80,7 +80,7 @@ if ( NOT WIN32 )
     # the following tests invoke other tools, make sure those tools are present
     if ( BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS AND BUILD_TOOLS_INTERNAL )
 
-        ToolsRequired(fasterq-dump sam-factory bam-load kar)
+        ToolsRequired(fasterq-dump sam-factory bam-load kar rnd2sra)
         add_test( NAME Test_FasterqDump_Fasta_unsorted_cSRA_read_id
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
@@ -93,12 +93,17 @@ if ( NOT WIN32 )
                 sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    endif()
+        # test if fasterq-dump can handle long reads ( longer than 64k ) / VDB-6105
+        add_test( NAME Test_FasterqDump_LongReads
+            COMMAND sh -c "./longreads.sh ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    # test if fasterq-dump can handle long reads ( longer than 64k ) / VDB-6105
-    add_test( NAME Test_FasterqDump_LongReads
-        COMMAND sh -c "./longreads.sh ${BINDIR}"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        # test if fasterq-dump can handle missing seq-tbl-metadata / VDB-5670
+        add_test( NAME Test_FasterqDump_NoSeqTblMeta
+            COMMAND sh -c "./no_seq_tbl_meta.sh ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    endif()
 
 else()
 #TODO: make run on Windows

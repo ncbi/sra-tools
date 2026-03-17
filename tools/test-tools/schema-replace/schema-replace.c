@@ -140,8 +140,8 @@ typedef struct ctx
 } ctx;
 typedef ctx* p_ctx;
 
-
-static rc_t write_schema( KMetadata *meta, const char * schema_dump, size_t schema_len )
+static rc_t write_schema(
+    KMetadata *meta, const char * schema_dump, size_t schema_len )
 {
     KMDataNode *schema_node;
     rc_t rc = KMetadataOpenNodeUpdate ( meta, &schema_node, "schema" );
@@ -240,7 +240,8 @@ typedef struct dump_ctx
 typedef dump_ctx* p_dump_ctx;
 
 
-static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
+static rc_t CC schema_dump_flush(
+    void *dst, const void *buffer, size_t bsize )
 {
     rc_t rc = -1;
     p_dump_ctx ctx = dst;
@@ -299,14 +300,18 @@ static rc_t predump_schema( VSchema *schema, const char * type,
     return rc;
 }
 
+
 MAIN_DECL( argc, argv )
 {
     VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
+    SetUsage( Usage );
+
     Args * args;
 
-    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
-            SchemaUpOptions, sizeof SchemaUpOptions / sizeof SchemaUpOptions [ 0 ] );
+    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, SchemaUpOptions,
+        sizeof SchemaUpOptions / sizeof SchemaUpOptions [ 0 ] );
+
     if ( rc == 0 )
     {
         ctx ctx;

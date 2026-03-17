@@ -1667,32 +1667,12 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
 
         RELEASE(VPath, remote);
 
-#ifdef NAMESCGI
-        rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
-            true);
-        if (rc2 != 0 && rc == 0) {
-            rc = rc2;
-        }
-
-        rc2 = MainResolveCache(self, resolver, name, remote, true);
-        if (rc2 != 0 && rc == 0) {
-            rc = rc2;
-        }
-#endif
-
         OUTMSG(("\n"));
 
         rc2 = MainResolveQuery(self, resolver, name, acc, false);
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
-
-#ifdef NAMESCGI
-        rc2 = MainResolveQuery(self, resolver, name, acc, true);
-        if (rc2 != 0 && rc == 0) {
-            rc = rc2;
-        }
-#endif
 
         RELEASE(VPath, remote);
 
@@ -2040,50 +2020,6 @@ static rc_t MainPrintAscp(const Main *self) {
     return 0;
 }
 
-#ifdef NAMESCGI
-static rc_t PrintCurl(bool full, bool xml) {
-    const char *b = xml ? "  <Curl>"  : "";
-    const char *e = xml ? "</Curl>" : "";
-
-    KNSManager *mgr = NULL;
-
-    rc_t rc = KNSManagerMake(&mgr);
-    if (rc != 0) {
-        OUTMSG(("%sKNSManagerMake = %R%s\n", b, rc, e));
-    }
-    else {
-        rc_t rc = KNSManagerAvail(mgr);
-        OUTMSG(("%s", b));
-
-        if (full) {
-            OUTMSG(("KNSManagerAvail = %R. ", rc));
-        }
-
-        if (rc == 0) {
-            const char *version_string = NULL;
-            rc = KNSManagerCurlVersion(mgr, &version_string);
-            if (rc == 0) {
-                if (full) {
-                    OUTMSG(("Curl Version = %s", version_string));
-                }
-            }
-            else {
-                OUTMSG(("KNSManagerCurlVersion = %R", rc));
-            }
-        }
-
-        if (rc == 0 && !full) {
-            OUTMSG(("libcurl: found"));
-        }
-        OUTMSG(("%s\n", e));
-    }
-
-    RELEASE(KNSManager, mgr);
-
-    return rc;
-}
-#endif
-
 #define kptKartITEM (kptAlias - 1)
 
 static rc_t _KartItemPrint(const KartItem *self, bool xml) {
@@ -2232,22 +2168,6 @@ static rc_t ipc_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
 	return string_printf( buffer, buflen, NULL, "ipc: %s", ep->u.ipc_name );
 }
 
-#ifdef NAMESCGI
-static
-rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
-{
-	rc_t rc;
-	switch( ep->type )
-	{
-		case epIPV4 : rc = ipv4_endpoint_to_string( buffer, buflen, ep ); break;
-		case epIPV6 : rc = ipv6_endpoint_to_string( buffer, buflen, ep ); break;
-		case epIPC  : rc = ipc_endpoint_to_string( buffer, buflen, ep ); break;
-		default     : rc = string_printf( buffer, buflen, NULL,
-                          "unknown endpoint-tyep %d", ep->type ); break;
-	}
-	return rc;
-}
-#endif
 
 /* TODO: MAKE A DEEPER TEST; RESOLVE; PRINT HEADERS;
          MAKE SURE UNDETECTED/UNACCESSIBLE URL IS REPORTED */
@@ -2376,10 +2296,6 @@ rc_t _KHttpRequestAddPostParams ( KClientHttpRequest * self,
     rc_t rc = 0;
     if (rc == 0) {
         const char param[] = "acc";
-#ifdef NAMESCGI
-        "object";
-        rc = KHttpRequestAddPostParam( self, "%s=%s", param, acc );
-#endif
         rc = KHttpRequestAddPostParam( self, "%s=%s", param, acc );
         if (rc != 0)
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
@@ -2392,10 +2308,6 @@ rc_t _KHttpRequestAddPostParams ( KClientHttpRequest * self,
     }
     if (rc == 0) {
         const char param[] = "version";
-#ifdef NAMESCGI
-        rc = KHttpRequestAddPostParam
-            ( self, "%s=%u.%u", param, ver_major, ver_minor );
-#endif
         if (rc != 0)
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
     }
@@ -2447,11 +2359,10 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     const char *acc, KDataBuffer *databuffer, const char *eol)
 {
     KClientHttpRequest * req = NULL;
-#ifdef NAMESCGI
-    char b [1024 ] = "";
-#endif
     rc_t rc = 0;
+
     assert(self);
+
     rc = KNSManagerMakeReliableClientRequest
         (self->knsMgr, &req, HTTP_VERSION, NULL, cgi_url);
     if (rc != 0) {
@@ -2534,23 +2445,6 @@ static char * processResponse ( char * response, size_t size ) {
         }
 
         i = p - response + 1;
-
-#ifdef NAMESCGI
-        if ( n == 5 ) {
-            const char* e = NULL;
-
-            for ( ; response [ i ] != '|' && i < size; ++i )
-                response [ i ] = 'x';
-
-            if ( response [ i ] == '|' ) {
-                ++ i;
-                p = response + i;
-                e = string_chr ( p, size - i, '|' );
-            }
-
-            return e == NULL ? NULL : string_dup ( p, e - p );
-        }
-#endif
     }
 
     return NULL;
@@ -2576,9 +2470,6 @@ static rc_t perform_cgi_test ( const Main * self,
         const char root[] = "Response";
         rc = call_cgi ( self,
             "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve",
-#ifdef NAMESCGI
-            "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
-#endif
             3, 0, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
@@ -2617,19 +2508,10 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
     if ( self -> xml )
         OUTMSG ( ( "%s    <%s protocol=\"%s\">\n", bol, method, protocol ) );
     {
-#ifdef NAMESCGI
-        char buffer [ 1024 ] = "";
-#endif
         KClientHttp * http = NULL;
         KClientHttpRequest * req = NULL;
         KClientHttpResult * rslt = NULL;
         const char root [] = "Request";
-#ifdef NAMESCGI
-        size_t len = 0;
-        char * b = buffer;
-        size_t sizeof_b = sizeof buffer;
-        char * allocated = NULL;
-#endif
         String dHost;
         const String * host = aHost -> len > 0 && aPath -> len > 0 ? aHost
                                                                    : & dHost;
@@ -2683,22 +2565,6 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 else
                     OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
                 KDataBufferWhack( & b );
-#ifdef NAMESCGI
-            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                    GetRCState ( rc ) == rcInsufficient )
-            {
-                free(allocated);
-                sizeof_b = 0;
-                allocated = b = malloc ( len );
-                if ( allocated == NULL )
-                    rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                else {
-                    sizeof_b = len;
-                    rc = KClientHttpRequestFormatMsg
-                        ( req, &b, sizeof_b, get ? "GET" : "HEAD", & len );
-                }
-#endif
             }
         }
 
@@ -2730,28 +2596,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             else
                 OUTMSG ( ( "KDataBufferMake()=%R\n", rc ) );
         }
-#ifdef NAMESCGI
-            rc = KClientHttpResultFormatMsg
-                ( rslt, &b, sizeof_b, & len, "", "\n" );
-            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                 GetRCState ( rc ) == rcInsufficient )
-            {
-                free ( allocated );
-                sizeof_b = 0;
-                allocated = b = malloc ( len );
-                if ( allocated == NULL )
-                    rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                else {
-                    sizeof_b = len;
-                    rc = KClientHttpResultFormatMsg
-                        ( rslt, &b, sizeof_b, & len, "", "\n" );
-                }
-            }
-            if ( rc != 0 )
-                OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
-        }
-#endif
+
         if ( self -> xml )
             OUTMSG ( ( "%s      </%s>\n", bol, root ) );
         if ( rc == 0 ) {
@@ -2770,17 +2615,15 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             else
                 OUTMSG ( ( "\n" ) );
         }
-#ifdef NAMESCGI
-        free(allocated);
-        allocated = NULL;
-        b = buffer;
-#endif
+
         RELEASE ( KClientHttpResult, rslt );
         RELEASE ( KClientHttpRequest, req );
         RELEASE ( KClientHttp, http );
     }
+
     if ( self -> xml )
         OUTMSG ( ( "%s    </%s>\n", bol, method ) );
+
     return rc;
 }
 
@@ -2811,10 +2654,6 @@ static rc_t MainNetwotk ( const Main * self,
             struct KNSProxies *p
                 = KNSManagerGetProxies(self->knsMgr, NULL);
             for ( cnt = 0; ; ) {
-#ifdef NAMESCGI
-            const HttpProxy* p = KNSManagerGetHttpProxy(self->knsMgr);
-            while (p) {
-#endif
                 const char root[] = "HttpProxy";
                 const String *http_proxy = NULL;
                 uint16_t http_proxy_port = 0;
@@ -2823,9 +2662,7 @@ static rc_t MainNetwotk ( const Main * self,
                 {
                     break;
                 }
-#ifdef NAMESCGI
-                HttpProxyGet(p, &http_proxy, &http_proxy_port);
-#endif
+
                 if (self->xml) {
                     if ( http_proxy_port == 0)
                         OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",
@@ -2841,9 +2678,6 @@ static rc_t MainNetwotk ( const Main * self,
                         OUTMSG(("HTTPProxy=\"%S\":%d\n",
                             http_proxy, http_proxy_port));
                 }
-#ifdef NAMESCGI
-                p = HttpProxyGetNextHttpProxy ( p );
-#endif
             }
         }
         if (self->xml)
@@ -2902,13 +2736,7 @@ static rc_t MainNetwotk ( const Main * self,
             OUTMSG ( ( "%s  <%s>\n", bol, root ) );
         else
             OUTMSG ( ( "\n%s\n", root ) );
-#ifdef NAMESCGI
-        MainRanges ( self, arg, bol, true , false, & host, & path );
-#endif
         MainRanges ( self, arg, bol, true , true , & host, & path );
-#ifdef NAMESCGI
-        MainRanges ( self, arg, bol, false, false, & host, & path );
-#endif
         MainRanges ( self, arg, bol, false, true , & host, & path );
         if ( self-> xml )
             OUTMSG ( ( "%s  </%s>\n", bol, root ) );

@@ -511,7 +511,6 @@ FIXTURE_TEST_CASE(SRADB_ReadGroup_GetStatistics_iteration, SRADBFixture)
 int main(int argc, char* argv[])
 {
     setenv("NCBI_VDB_QUALITY", "R", 1);
-    KConfigDisableUserSettings();
     int rc=NgsSradbCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();
     return rc;

@@ -23,6 +23,25 @@ Please cite the author in any work or product based on this material.
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.4.0
+**March 17, 2026**
+
+  **cache-mgr**: has been retired  
+  **fasterq-dump**: better error reporting  
+  **fasterq-dump**: improved to reject invalid data  
+  **kdb, sra-stat, vdb**: does not crash when alignment is invalid  
+  **ncbi-vdb, sra-tools**: bzip2 was upgraded to version 1.0.8  
+  **ncbi-vdb, sra-tools**: zstd was upgraded to version 1.5.7  
+  **ngs**: stopped javadoc generation  
+  **SharQ**: added option --max-reads-allowed  
+  **SharQ**: can access input files via a URL  
+  **SharQ**: fixes to handle an excessive amount of reads per stop  
+  **SharQ**: now can read the input from AWS/GC buckets  
+  **SharQ**: stores input file's md5 checksum in the metadata  
+  **SharQ**: supports ElementBio platform  
+  **sra-tools**: compute-coverage-ngs was retired and removed  
+
+
 ## SRA Toolkit 3.3.0
 **December 2, 2025**
 

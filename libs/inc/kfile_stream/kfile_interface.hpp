@@ -67,6 +67,8 @@ typedef struct CloudMgr CloudMgr;
 typedef struct Cloud Cloud;
 typedef struct KClientHttpRequest KClientHttpRequest;
 typedef struct KClientHttpResult KClientHttpResult;
+typedef struct KFileMD5ReadObserver KFileMD5ReadObserver;
+typedef struct KStreamMD5ReadObserver KStreamMD5ReadObserver;
 
 rc_t KDirectoryNativeDir_v1( KDirectory **dir );
 #define KDirectoryNativeDir KDirectoryNativeDir_v1
@@ -101,6 +103,19 @@ rc_t VPathRelease( const VPath *self );
 
 rc_t KStreamRelease ( const KStream *self );
 rc_t KStreamRead ( const KStream *self, void *buffer, size_t bsize, size_t *num_read );
+rc_t KStreamMakeStdIn ( const KStream **std_in );
+rc_t KStdIOStreamMake ( KStream **sp, int fd, const char *strname,
+    bool read_enabled, bool write_enabled );
+
+rc_t KFileMakeMD5ReadObserver ( const struct KFile * self, const KFileMD5ReadObserver ** observer );
+rc_t KFileMD5ReadObserverRelease ( const KFileMD5ReadObserver *self );
+rc_t KFileMD5ReadObserverGetDigest ( const KFileMD5ReadObserver *self, uint8_t digest [ 16 ],
+    const char ** error);
+
+rc_t KStreamMakeMD5ReadObserver(const struct KStream* self, const KStreamMD5ReadObserver** observer);
+rc_t KStreamMD5ReadObserverRelease( const KStreamMD5ReadObserver* self);
+rc_t KStreamMD5ReadObserverGetDigest( const KStreamMD5ReadObserver* self, uint8_t digest[16],
+    const char** error);
 
 rc_t KNSManagerMake( KNSManager **mgr );
 rc_t KNSManagerRelease( const KNSManager *self );

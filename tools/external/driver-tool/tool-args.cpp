@@ -48,21 +48,25 @@
 #include "command-line.hpp"
 #include "build-version.hpp"
 
-#if USE_TOOL_HELP
-#define TOOL_HELP(...) {__VA_ARGS__}
-#else
 #define TOOL_HELP(...) {}
-#endif
 
 #define TOOL_ARGS(...) {__VA_ARGS__}
 
-#if USE_TOOL_HELP
-#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, ARG, false}
-#define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
-#else
-#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, ARG, false}
+#define TOOL_ARG(LONG, ALIAS, ARG) {LONG, ALIAS, 0, ARG, false}
 #define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
-#endif
+
+/// Each tool has its definitions in its own namespace.
+/// These macros help define the contents of that namespace.
+/// The actual contents are in tool-arguments.h which uses these macros.
+/// See alse the definition of `DEFINE_ARGS` below.
+#define TOOL_ARGS_BEGIN(TOOL, NAME) \
+namespace TOOL ## _defs { \
+    static auto const toolName = NAME; \
+    static ParameterDefinition const defs[] = {
+
+#define TOOL_ARGS_END \
+    }; \
+}
 
 #include "common-arguments.h"
 #include "fastq-dump-arguments.h"
@@ -596,13 +600,18 @@ struct ParamDefinitions_FQD final : public ParamDefinitions_Common
 /// @brief Holds the definitions for the universally supported arguments, like `--help`, `--version`, etc.
 static ParamDefinitions_Common const &commonParams = ParamDefinitions::makeCommonParams();
 
+namespace FASTQ_DUMP_defs {
+	static auto const toolName = TOOL_NAME_FASTQ_DUMP;
+	static ParameterDefinition const defs[] = TOOL_ARGS_FASTQ_DUMP;
+}
+
 /// Each tool has its definitions in its own namespace.
 /// This macro defines the contents of that namespace.
+/// See also the definitions of `TOOL_ARGS_BEGIN` and `TOOL_ARGS_END` above.
 #define DEFINE_ARGS(NAME, PARSE_TYPE) \
 namespace NAME { \
+    using namespace NAME ## _defs; \
     using Parser = PARSE_TYPE; \
-    static auto const toolName = TOOL_NAME_ ## NAME; \
-    static ParameterDefinition const defs[] = TOOL_ARGS_ ## NAME; \
     static ParamDefinitions_Common const &parser = Parser(commonParams, sizeof(defs)/sizeof(defs[0]) - 1, defs); \
 }
 

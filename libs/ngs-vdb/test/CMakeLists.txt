@@ -57,21 +57,30 @@ AddExecutableTest ( Test_Ngs                        ngstest.cpp "${TEST_LIBS}" "
 AddExecutableTest ( Test_Ngs_Sra                    ngstest_sra.cpp  "${TEST_LIBS}" "")
 AddExecutableTest ( Test_Ngs_SraDb                  ngstest_sradb.cpp  "${TEST_LIBS}" "")
 
-AddExecutableTest ( SlowTest_Ngs_Csra1_dflt ngstest_csra1.cpp "${TEST_LIBS}" "")
-set_tests_properties( SlowTest_Ngs_Csra1_dflt
-                      PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+function( AddExecutableTestWithEnv test_name sources libraries include_dirs )
+    AddExecutableTest("${test_name}" "${sources}" "${libraries}" "${include_dirs}" )
+    set_tests_properties( ${test_name} PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+
+	if( RUN_SANITIZER_TESTS )
+	    if (NOT "--no-asan" IN_LIST ARGV)
+            set_tests_properties( ${test_name}-asan PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+    	endif()
+	    if (NOT "--no-tsan" IN_LIST ARGV)
+            set_tests_properties( ${test_name}-tsan PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+    	endif()
+	endif()
+endfunction()
+
+AddExecutableTestWithEnv ( SlowTest_Ngs_Csra1_dflt ngstest_csra1.cpp "${TEST_LIBS}" "")
 
 AddExecutableTest ( Test_Ngs_Csra1_ReadCollection   ngstest_csra1_readcollection.cpp  "${TEST_LIBS}" "")
 
-AddExecutableTest ( SlowTest_Ngs_Csra1_RefWin       ngstest_csra1_refwin.cpp  "${TEST_LIBS}" "")
-set_tests_properties( SlowTest_Ngs_Csra1_RefWin
-                      PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+AddExecutableTestWithEnv ( SlowTest_Ngs_Csra1_RefWin       ngstest_csra1_refwin.cpp  "${TEST_LIBS}" "")
 
 AddExecutableTest ( SlowTest_Ngs_Csra1_Pileup       ngstest_csra1_pileup.cpp  "${TEST_LIBS}" "")
 AddExecutableTest ( SlowTest_Ngs_Reference          ngstest_reference.cpp  "${TEST_LIBS}" "")
 
-AddExecutableTest ( SlowTest_Ngs_FragmentBlob  ngstest_fragmentblob.cpp  "${TEST_LIBS}" "")
-set_property(TEST SlowTest_Ngs_FragmentBlob PROPERTY FIXTURES_REQUIRED MakeDB)
+AddExecutableTestWithEnv ( SlowTest_Ngs_FragmentBlob  ngstest_fragmentblob.cpp  "${TEST_LIBS}" "")
 
 AddExecutableTest ( Test_Ngs_ReferenceBlob  ngstest_referenceblob.cpp  "${TEST_LIBS}" "")
 AddExecutableTest ( Test_Ngs_ByteBlob       ngstest_byteblob.cpp  "${TEST_LIBS}" "")
@@ -82,12 +91,9 @@ AddExecutableTest ( Test_Ngs_ByteBlob       ngstest_byteblob.cpp  "${TEST_LIBS}"
 AddExecutableTest ( Test_Ngs_CPP_Sra                SRAtest.cpp  "${TEST_LIBS}" "")
 AddExecutableTest ( Test_Ngs_CPP_SraDb              SRADBtest.cpp  "${TEST_LIBS}" "")
 
-AddExecutableTest ( SlowTest_Ngs_CPP_CSRA1_dflt CSRA1test.cpp "${TEST_LIBS}" "")
-set_tests_properties( SlowTest_Ngs_CPP_CSRA1_dflt
-                      PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+AddExecutableTestWithEnv ( SlowTest_Ngs_CPP_CSRA1_dflt CSRA1test.cpp "${TEST_LIBS}" "")
 
-AddExecutableTest ( SlowTest_Ngs_CPP_CSRA1Pileup    CSRA1PileupTest.cpp  "${TEST_LIBS}" "")
-set_tests_properties( SlowTest_Ngs_CPP_CSRA1Pileup PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
+AddExecutableTestWithEnv ( SlowTest_Ngs_CPP_CSRA1Pileup    CSRA1PileupTest.cpp  "${TEST_LIBS}" "")
 
 #-------------------------------------------------------------------------------
 # tests for this library, ngs-vdb

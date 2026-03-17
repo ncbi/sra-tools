@@ -310,6 +310,5 @@ FIXTURE_TEST_CASE(KApp_ArgsMakeOptions_ArgsConvFilepath, ArgsFixture)
 MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv);
-    KConfigDisableUserSettings();
-    return KAppTestSuite(argc, app.getArgV());
+    return KAppTestSuite(app.getArgC(), app.getArgV());
 }

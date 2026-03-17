@@ -69,7 +69,7 @@ table NCBI:align:prim #1 {
     column ascii RAW_READ;
 };
 
-database NCBI:align:alignment_sorted #1 {
+database NCBI:align:db:alignment_sorted #1 {
     table NCBI:align:seq  #1 SEQUENCE;
     table NCBI:align:prim #1 PRIMARY_ALIGNMENT;
 };

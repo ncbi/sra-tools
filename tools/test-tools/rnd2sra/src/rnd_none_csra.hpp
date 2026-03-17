@@ -295,9 +295,7 @@ class RndNonecSraFlat : public RndNonecSra {
         }
 
         bool run( void ) {
-            string schema_name = f_ini -> get_seq_tbl_schema_name();
-
-            auto tbl = f_mgr -> create_tbl( f_schema, "SE", f_output_dir, f_ini -> get_checksum() );
+            auto tbl = f_mgr -> create_tbl( f_schema, "NCBI:SRA:GenericFastq_Tbl", f_output_dir, f_ini -> get_checksum() );
             if ( ! *tbl ) {
                 cerr << "make tbl failed for " << f_output_dir << endl;
                 return false;

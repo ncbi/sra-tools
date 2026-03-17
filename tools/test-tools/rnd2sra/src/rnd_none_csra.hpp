@@ -62,7 +62,7 @@ table NCBI:SRA:GenericFastq_Tbl #1 {
 
 };
 
-database NCBI:SRA:GenericFastq_Db #1 {
+database NCBI:align:db:unaligned #1 {
     table NCBI:SRA:GenericFastq_Tbl #1 SEQUENCE;
 };
 
@@ -297,7 +297,7 @@ class RndNonecSraFlat : public RndNonecSra {
         bool run( void ) {
             string schema_name = f_ini -> get_seq_tbl_schema_name();
 
-            auto tbl = f_mgr -> create_tbl( f_schema, "NCBI:SRA:GenericFastq_Tbl", f_output_dir, f_ini -> get_checksum() );
+            auto tbl = f_mgr -> create_tbl( f_schema, "SE", f_output_dir, f_ini -> get_checksum() );
             if ( ! *tbl ) {
                 cerr << "make tbl failed for " << f_output_dir << endl;
                 return false;
@@ -324,14 +324,14 @@ class RndNonecSraDb : public RndNonecSra {
         }
 
         bool run( void ) {
-            auto db = f_mgr -> create_db( f_schema, "NCBI:SRA:GenericFastq_Db", f_output_dir, f_ini -> get_checksum() );
+            auto db = f_mgr -> create_db( f_schema, "NCBI:align:db:unaligned", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( !res ) {
                 cerr << "make db failed for " << f_output_dir << endl;
                 return res;
             }
 
-            auto tbl = db -> create_tbl( "SEQUENCE", "NCBI:SRA:GenericFastq_Tbl", f_ini -> get_checksum() );
+            auto tbl = db -> create_tbl( "SEQUENCE", "SEQUENCE", f_ini -> get_checksum() );
             res = ( *tbl );
             if ( !res ) { cerr << "make tbl SEQUENCE failed\n"; return res; }
 

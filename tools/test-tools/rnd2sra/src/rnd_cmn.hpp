@@ -38,7 +38,7 @@ class Rndcmn {
                 f_ini( ini ),
                 f_rnd( rnd ),
                 f_output_dir( output_dir ),
-                f_schema( make_schema( mgr, schema_txt ) )
+                f_schema( make_schema( mgr, schema_txt, ini ) )
                 {  }
 
         bool with_name( void ) const { return f_ini -> get_with_name(); }
@@ -52,16 +52,26 @@ class Rndcmn {
             return res;
         }
 
-        static VSchPtr make_schema( VMgrPtr mgr, const char * schema_txt ) {
+        static string replace_schema_names( const char * original_txt, const rnd2sra_ini_ptr ini ) {
+            string txt{ original_txt };
+            string seq_tbl_name = ini -> get_seq_tbl_schema_name();
+            if ( ! seq_tbl_name . empty() ) {
+                txt = rnd2sra_ini::find_and_replace( txt, "NCBI:SRA:GenericFastq_Tbl", seq_tbl_name );
+            }
+
+            return txt;
+        }
+
+        static VSchPtr make_schema( VMgrPtr mgr, const char * schema_txt, const rnd2sra_ini_ptr ini ) {
             auto res = mgr -> make_schema();
             if ( ! *res ) {
                 cerr << "error creating schema" << endl;
             } else {
-                bool ok = res -> ParseText( schema_txt );
+                string new_schema_txt{ replace_schema_names( schema_txt, ini ) };
+                bool ok = res -> ParseText( new_schema_txt );
                 if ( ! ok ) {
                     cerr << "error parsing schema" << endl;
                     cerr << res -> error() << endl;
-                    res = nullptr;
                 }
             }
             return res;

@@ -69,7 +69,7 @@ table NCBI:align:prim #1 {
     column ascii RAW_READ;
 };
 
-database NCBI:align:db #1 {
+database NCBI:align:alignment_sorted #1 {
     table NCBI:align:seq  #1 SEQUENCE;
     table NCBI:align:prim #1 PRIMARY_ALIGNMENT;
 };
@@ -150,7 +150,7 @@ class RndcSRA : public Rndcmn {
             // we create a spot-list from the parsed ini and the random-generator:
             auto spots = cSRASpotList::make( f_ini, f_rnd );
 
-            auto db = f_mgr -> create_db( f_schema, "NCBI:align:db", f_output_dir, f_ini -> get_checksum() );
+            auto db = f_mgr -> create_db( f_schema, "NCBI:align:db:alignment_sorted", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( res ) { res = write_seq_tbl( db, spots ); }
             if ( res ) { res = write_prim_tbl( db, spots ); }

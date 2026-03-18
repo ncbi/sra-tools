@@ -2605,13 +2605,18 @@ static rc_t verify_database_align(vdb_validate_params const *const pb, VDatabase
         /* sequence data only */
         return verify_db_table(pb, db, "SEQUENCE");
     }
-    else if (   (tables & tbReference) == 0
-             || (tables & tbPrimaryAlignment) == 0)
+    else if ((tables & tbReference) == 0)
     {
-        /* missing reference or primary alignment */
         rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
         (void)PLOGERR(klogWarn, (klogWarn, rc,
-            "Database '$(name)' does not contain all required tables",
+            "Database '$(name)' does not contain required reference sequence table",
+            "name=%s", name));
+    }
+    else if ((tables & tbPrimaryAlignment) == 0)
+    {
+        rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
+        (void)PLOGERR(klogWarn, (klogWarn, rc,
+            "Database '$(name)' does not contain required primary alignment table",
             "name=%s", name));
     }
     else if (   ((tables & tbEvidenceAlignment) != 0)

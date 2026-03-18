@@ -157,7 +157,10 @@ rc_t KExtNodeMake (KExtNode ** kmmp, const KFFTables * tables,
 	else
 	{
 	    KFileFormatType typeid;
-	    rc = KFFTablesGetTypeId (tables, kffdescr, &typeid, NULL);
+	    char kffdescr_buf [DESCRLEN_MAX + 1];
+	    memmove (kffdescr_buf, kffdescr, kfflen);
+	    kffdescr_buf [kfflen] = '\0';
+	    rc = KFFTablesGetTypeId (tables, kffdescr_buf, &typeid, NULL);
 	    if (rc == 0)
 	    {
 		self = malloc (sizeof (*self) + extlen + kfflen + 1);
@@ -818,3 +821,4 @@ LIB_EXPORT rc_t CC KExtFileFormatMake (KFileFormat ** pft,
     }
     return rc;
 }
+

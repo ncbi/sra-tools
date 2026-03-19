@@ -69,9 +69,14 @@ table NCBI:align:prim #1 {
     column ascii RAW_READ;
 };
 
+table NCBI:align:ref #1 {
+    column ascii READ;
+};
+
 database NCBI:align:db:alignment_sorted #1 {
     table NCBI:align:seq  #1 SEQUENCE;
     table NCBI:align:prim #1 PRIMARY_ALIGNMENT;
+    table NCBI:align:ref #1 REFERENCE;
 };
 
 )";
@@ -129,7 +134,7 @@ class RndcSRA : public Rndcmn {
                 if ( *cur ) {
                     auto prim_cols = PrimCols::make( cur );
                     if ( *prim_cols ) {
-                        if ( spots -> write_prim_cols( prim_cols ) ) {
+                        if ( spots -> write_prim_cols( prim_cols ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
                             return cur -> commit();
                         } else {
                             cerr << "write_prim_tbl() - write_prim_cols() failed!\n";
@@ -146,6 +151,25 @@ class RndcSRA : public Rndcmn {
             return false;
         }
 
+        bool write_ref_tbl( VDbPtr db ) {
+            auto tbl = db -> create_tbl( "REFERENCE", "REFERENCE", f_ini -> get_checksum() );
+            if ( *tbl ) {
+                auto cur = tbl -> writable_cursor();
+                if ( *cur ) {
+                    auto ref_cols = RefCols::make( cur );
+                    if ( *ref_cols ) {
+                        /* let us write 10 rows of random strings to satisfy the need for a REFERENCE-table*/
+                        bool res = true;
+                        for ( uint32_t i = 0; res && i < 10; ++i ) {
+                            auto bases = f_rnd -> random_bases( 50 );
+                            res = ref_cols -> write( bases );
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
         bool run( void ) {
             // we create a spot-list from the parsed ini and the random-generator:
             auto spots = cSRASpotList::make( f_ini, f_rnd );
@@ -154,6 +178,7 @@ class RndcSRA : public Rndcmn {
             bool res = ( *db );
             if ( res ) { res = write_seq_tbl( db, spots ); }
             if ( res ) { res = write_prim_tbl( db, spots ); }
+            if ( res ) { res = write_ref_tbl( db ); }
             return res;
         }
 

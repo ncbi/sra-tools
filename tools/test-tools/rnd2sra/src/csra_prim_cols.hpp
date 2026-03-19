@@ -51,4 +51,40 @@ class PrimCols {
         }
 };
 
+class RefCols;
+typedef std::shared_ptr<RefCols> RefColsPtr;
+class RefCols {
+    private :
+        VCurPtr f_cur;
+        bool f_ok;
+        VDB_Column_Ptr f_read_column;
+
+        VDB_Column_Ptr add_column( const string& name ) {
+            auto res = VDB_Column::make( name, f_cur );
+            if ( ! *res ) {
+                cerr << "PrimCols() make "<< name << "-column failed\n";
+                f_ok = false;
+            }
+            return res;
+        }
+
+        RefCols( VCurPtr cur ) : f_cur( cur ), f_ok( true ) {
+            f_read_column = add_column( "READ" );
+            if ( f_ok ) {
+                f_ok = f_cur -> open();
+                if ( !f_ok ) { cerr << "RefCols() open cursor failed\n"; }
+            }
+        }
+
+    public :
+        static RefColsPtr make( VCurPtr cur ) { return RefColsPtr( new RefCols( cur ) ); }
+        operator bool() const { return f_ok; }
+
+        bool write( const string& raw_read ) {
+            bool res = f_cur -> open_row();
+            if ( res ) { res = f_read_column -> write_string( raw_read ); }
+            return res;
+        }
+};
+
 }

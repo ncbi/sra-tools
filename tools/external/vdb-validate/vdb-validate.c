@@ -1841,6 +1841,13 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     unsigned nRefs = 0;
     RefInfo *ri = NULL;
 
+    if (ref == NULL) {
+        rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "reference table can not be read", "name=%s", dbname));
+        return rc;
+    }
+
     aci.name = "REF_ID";
     bci.name = id_col_name;
     
@@ -2570,7 +2577,7 @@ static rc_t dbric_align(const vdb_validate_params *pb,
             rc = rc2;
         }
     }
-    if ((rc == 0 || exhaustive) && (pri != NULL && ref != NULL)) {
+    if ((rc == 0 || exhaustive) && (pri != NULL || ref != NULL)) {
         rc_t rc2 = ric_align_ref_and_align(dbname, ref, pri, 0);
 
         if (rc2 == 0) {
@@ -2605,22 +2612,22 @@ static rc_t verify_database_align(vdb_validate_params const *const pb, VDatabase
         /* sequence data only */
         return verify_db_table(pb, db, "SEQUENCE");
     }
-    else if ((tables & tbReference) == 0)
+    if ((tables & tbReference) == 0)
     {
         rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
         (void)PLOGERR(klogWarn, (klogWarn, rc,
             "Database '$(name)' does not contain required reference sequence table",
             "name=%s", name));
     }
-    else if ((tables & tbPrimaryAlignment) == 0)
+    if ((tables & tbPrimaryAlignment) == 0)
     {
         rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
         (void)PLOGERR(klogWarn, (klogWarn, rc,
             "Database '$(name)' does not contain required primary alignment table",
             "name=%s", name));
     }
-    else if (   ((tables & tbEvidenceAlignment) != 0)
-             != ((tables & tbEvidenceInterval ) != 0))
+    if (   ((tables & tbEvidenceAlignment) != 0)
+        != ((tables & tbEvidenceInterval ) != 0))
     {
         /* both must be present or both must be absent */
         rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);

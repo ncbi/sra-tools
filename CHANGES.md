@@ -23,6 +23,12 @@ Please cite the author in any work or product based on this material.
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.4.1
+**March 25, 2026**
+
+This release updates release notes. It adds some release notes that were missed in 3.3.0 and 3.4.0. It contains no changes to functionality.
+
+
 ## SRA Toolkit 3.4.0
 **March 17, 2026**
 
@@ -40,18 +46,27 @@ Please cite the author in any work or product based on this material.
   **SharQ**: stores input file's md5 checksum in the metadata  
   **SharQ**: supports ElementBio platform  
   **sra-tools**: compute-coverage-ngs was retired and removed  
+  **vdb-validate**: checks alignment ranges versus reference length  
 
 
 ## SRA Toolkit 3.3.0
 **December 2, 2025**
 
+  **bam-load**: produces a warning on import of empty references and error on use of such  
+  **copycat, vdb**: moved teefile to sra-tools  
   **fasterq-dump**: allow reads longer than 65k  
+  **fasterq-dump**: fixed problem with accessions that have a large amount of unaligned spots  
   **kdbmeta**: added command to delete a metadata node  
+  **kdbmeta**: can update metadata node values from a file  
   **kdbmeta, ngs, pileup-stats, prefetch, srapath, vfs**: improved directory path handling  
   **kfg, prefetch**: improved file type handling  
   **ncbi-vdb, sra, sra-info**: added Salus and Geneus platforms  
+  **prefetch**: fixed to work with Aspera  
+  **prefetch, sra-tools**: sends command line option usage info during SDL lookups  
+  **read-filter-redact**: is able to mask filtered reads with N, save fingerprint meta  
   **read-filter-redact**: sets quality score to 0 when masking filtered reads with N  
   **SharQ**: reports version in the standard toolkit format  
+  **sra-info**: will no longer error out with --detail level greater than 1 on fingerprint option  
   **vdb-dump**: fixed segfault in case of a platform column with no value  
 
 

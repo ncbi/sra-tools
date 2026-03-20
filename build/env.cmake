@@ -912,6 +912,7 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
         #target_link_options( ${target_name} PRIVATE "/ENTRY:wmainCRTStartup" )
         target_compile_definitions( ${target_name} PRIVATE UNICODE _UNICODE USE_WIDE_API )
     endif()
+    target_compile_definitions(${target_name} PRIVATE VDB_EXE_NAME="${target_name}")
 
     if (RUN_SANITIZER_TESTS)
         add_executable( "${target_name}-asan" ${sources} )
@@ -928,8 +929,10 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
         if (RUN_SANITIZER_TESTS)
-            target_compile_definitions( "${target_name}-asan" PRIVATE "${compile_defs}" )
-            target_compile_definitions( "${target_name}-tsan" PRIVATE "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE
+                    "${compile_defs}" VDB_EXE_NAME="${target_name}")
+            target_compile_definitions( "${target_name}-tsan" PRIVATE
+                    "${compile_defs}" VDB_EXE_NAME="${target_name}")
         endif()
     endif()
     if( NOT "" STREQUAL "${include_dirs}" )

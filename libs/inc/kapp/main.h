@@ -70,8 +70,16 @@ ver_t CC KAppVersion ( void );
 }
 #endif
 
+#ifndef VDB_EXE_NAME
+    #define VDB_EXE_NAME ""
+#endif
+
 // use VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
-#define VDB_INITIALIZE(argc, argv, rc) do { if ( VdbInitialize( argc, argv, KAppVersion() ) ) return rc; } while (0)
+#define VDB_INITIALIZE(argc, argv, rc) do {\
+    SetUsageDefaultName( VDB_EXE_NAME );\
+    if ( VdbInitialize( argc, argv, KAppVersion() ) ) return rc; \
+} while (0)
+
 #define VDB_TERMINATE(rc) VdbTerminate( rc )
 
 // BSD is defined when compiling on Mac
@@ -96,7 +104,7 @@ ver_t CC KAppVersion ( void );
             // use this version of VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
             #undef  VDB_INITIALIZE
             #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
-            #undef VDB_TERMINATE 
+            #undef VDB_TERMINATE
             #define VDB_TERMINATE(rc) (free(argv), VdbTerminate( rc ))
         #else
             #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *argv[], wchar_t *envp[])

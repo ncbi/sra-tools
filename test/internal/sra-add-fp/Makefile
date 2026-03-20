@@ -22,5 +22,12 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( test-download "test-download" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe_NoInstall( test-download )
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/internal/sra-add-fp
+
+BUILD_TOOLS_INTERNAL=ON
+BUILD_TOOLS_LOADERS=ON
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

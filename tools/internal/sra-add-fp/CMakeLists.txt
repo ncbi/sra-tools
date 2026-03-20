@@ -22,5 +22,8 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( test-download "test-download" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe_NoInstall( test-download )
+set( SRC main.cpp )
+
+GenerateExecutableWithDefs( sra-add-fp "${SRC}" "__mod__=\"tools/sra-add-fp\"" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+
+MakeLinksExe( sra-add-fp false )

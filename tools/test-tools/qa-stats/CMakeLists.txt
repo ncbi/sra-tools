@@ -22,7 +22,7 @@ if (NOT WIN32)
     target_link_libraries(qa-stats Threads::Threads)
 
     if (NOT CMAKE_GENERATOR STREQUAL "Xcode")
-        MakeLinksExe ( qa-stats false )
+        MakeLinksExe_NoInstall ( qa-stats )
     endif()
 
     if (RUN_SANITIZER_TESTS)

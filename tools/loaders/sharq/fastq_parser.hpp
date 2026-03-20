@@ -119,6 +119,7 @@ struct queue_t {
     atomic<bool>& is_cancelled;
     bool finished{false};
     //ReaderWriterQueue<T> queue{QUEUE_SIZE};
+    mutex m_mutex;
     BlockingReaderWriterQueue<T> queue{QUEUE_SIZE};
 
     size_t enqueue_count{0};
@@ -169,14 +170,17 @@ struct queue_t {
         enqueue_sw.reset();
 #endif
         do {
-            if (queue.try_enqueue(std::move(item))) {
-#ifdef PRINT_QUEUE_T_STATS
-                if (enqueue_idle_count > i) {
-                    enqueue_idle_time += enqueue_sw.elapsed();
+            {
+                lock_guard<mutex> lock(m_mutex);
+                if (queue.try_enqueue(std::move(item))) {
+    #ifdef PRINT_QUEUE_T_STATS
+                    if (enqueue_idle_count > i) {
+                        enqueue_idle_time += enqueue_sw.elapsed();
+                    }
+    #endif
+                    ++enqueue_count;
+                    break;
                 }
-#endif
-                ++enqueue_count;
-                break;
             }
 #ifdef PRINT_QUEUE_T_STATS
             ++enqueue_idle_count;
@@ -193,15 +197,21 @@ struct queue_t {
         dequeue_sw.reset();
 #endif
         do {
-            if (queue.wait_dequeue_timed(item, std::chrono::milliseconds(100))) {
-            //if (queue.try_dequeue(item)) {
-#ifdef PRINT_QUEUE_T_STATS
-                if (dequeue_idle_count > i) {
-                    dequeue_idle_time += dequeue_sw.elapsed();
+            {
+                lock_guard<mutex> lock(m_mutex);
+
+                //VDB-6246 this caused TSAN reports of data races:
+                //if (queue.wait_dequeue_timed(item, std::chrono::milliseconds(100))) {
+                // we switched to a non-timed read with a lock(above, also see enqueue()), then a shorter delay right before the yield() at the end of this loop's body.
+                if (queue.try_dequeue(item)) {
+    #ifdef PRINT_QUEUE_T_STATS
+                    if (dequeue_idle_count > i) {
+                        dequeue_idle_time += dequeue_sw.elapsed();
+                    }
+    #endif
+                    ++dequeue_count;
+                    return true;
                 }
-#endif
-                ++dequeue_count;
-                return true;
             }
 #ifdef PRINT_QUEUE_T_STATS
             ++dequeue_idle_count;
@@ -210,6 +220,7 @@ struct queue_t {
                 finished = true;
                 break;
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             std::this_thread::yield();
         } while (is_cancelled == false);
         return false;

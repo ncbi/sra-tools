@@ -34,6 +34,8 @@ This release updates release notes. It adds some release notes that were missed 
 
   **cache-mgr**: has been retired  
   **fasterq-dump**: better error reporting  
+  **fasterq-dump**: fasterq-dump now tolerates missing metadata  
+  **fasterq-dump**: improved handling of native pacbio accessions  
   **fasterq-dump**: improved to reject invalid data  
   **kdb, sra-stat, vdb**: does not crash when alignment is invalid  
   **ncbi-vdb, sra-tools**: bzip2 was upgraded to version 1.0.8  
@@ -46,27 +48,44 @@ This release updates release notes. It adds some release notes that were missed 
   **SharQ**: stores input file's md5 checksum in the metadata  
   **SharQ**: supports ElementBio platform  
   **sra-tools**: compute-coverage-ngs was retired and removed  
+  **vdb-dump**: deny simultaneous use of table and view for vdb-dump  
   **vdb-validate**: checks alignment ranges versus reference length  
 
 
 ## SRA Toolkit 3.3.0
 **December 2, 2025**
 
+  **align, bam-load**: fixed a deadlock condition  
   **bam-load**: produces a warning on import of empty references and error on use of such  
   **copycat, vdb**: moved teefile to sra-tools  
   **fasterq-dump**: allow reads longer than 65k  
+  **fasterq-dump**: fixed an issue with long reads  
   **fasterq-dump**: fixed problem with accessions that have a large amount of unaligned spots  
   **kdbmeta**: added command to delete a metadata node  
   **kdbmeta**: can update metadata node values from a file  
   **kdbmeta, ngs, pileup-stats, prefetch, srapath, vfs**: improved directory path handling  
   **kfg, prefetch**: improved file type handling  
+  **kfs, sra-tools, vfs**: use verbosity option to report HTTP file cache location  
+  **ncbi-vdb**: new library, vdbapp, supports tool development without using kapp/KMain  
   **ncbi-vdb, sra, sra-info**: added Salus and Geneus platforms  
+  **ngs**: the deprecation warning has been resolved  
+  **prefetch**: fixed memory leak  
   **prefetch**: fixed to work with Aspera  
+  **prefetch**: --output-file option was deprecated  
   **prefetch, sra-tools**: sends command line option usage info during SDL lookups  
+  **prefetch, vdb**: fixed failure when prefetching multiple runs  
+  **qa-stats**: ensures that locale does not affect numeric values in JSON  
+  **qa-stats**: improved handling of quality-only files  
   **read-filter-redact**: is able to mask filtered reads with N, save fingerprint meta  
   **read-filter-redact**: sets quality score to 0 when masking filtered reads with N  
   **SharQ**: reports version in the standard toolkit format  
-  **sra-info**: will no longer error out with --detail level greater than 1 on fingerprint option  
+  **sra-fingerprint**: added fingerprinting of reads  
+  **sra-info**: added option --fingerprint (-F) to show the fingerprint information  
+  **sra-info**: now includes additional data in fingerprinting reports  
+  **sra-info**: will no longer error out with --detail level greater than 1 on fingerprint option   
+  **sra-tools**: updated BitMagic to 8.0.1  
+  **test-sra**: fixed use of a deleted variable  
+  **vdb-config**: "--restore-defaults" populates remote repository  
   **vdb-dump**: fixed segfault in case of a platform column with no value  
 
 

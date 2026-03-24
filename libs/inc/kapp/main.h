@@ -103,7 +103,7 @@ ver_t CC KAppVersion ( void );
             #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *wargv[], wchar_t *envp[])
             // use this version of VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
             #undef  VDB_INITIALIZE
-            #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
+            #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; SetUsageDefaultName( VDB_EXE_NAME ); if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
             #undef VDB_TERMINATE
             #define VDB_TERMINATE(rc) (free(argv), VdbTerminate( rc ))
         #else

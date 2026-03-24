@@ -38,6 +38,7 @@ add_executable( vdb-config
 
 add_dependencies( vdb-config tui )
 target_include_directories( vdb-config PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
+target_compile_definitions( vdb-config PRIVATE VDB_EXE_NAME="vdb-config" )
 target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-config false )
 

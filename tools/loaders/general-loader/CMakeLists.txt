@@ -29,6 +29,7 @@ add_executable ( general-loader
     main.cpp
 )
 
+target_compile_definitions(general-loader PRIVATE VDB_EXE_NAME="general-loader")
 target_include_directories ( general-loader PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc )
 
 add_dependencies ( general-loader general-writer )

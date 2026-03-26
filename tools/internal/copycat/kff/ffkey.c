@@ -375,28 +375,33 @@ static
 int64_t classcmp (const void * descr, const BSTNode * n)
 {
     KFFClass * nn = (KFFClass*)n;
-    return strncmp ((const char *)descr, nn->descr, nn->len);
+    size_t slen = strlen ((const char *)descr);
+    size_t max = slen > nn->len ? slen : nn->len;
+    return strncmp ((const char *)descr, nn->descr, max);
 }
 static
 int64_t typecmp (const void * descr, const BSTNode * n)
 {
     KFFType * nn = (KFFType *)n;
-
-    return strncmp ((const char *)descr, nn->descr, nn->len);
+    size_t slen = strlen ((const char *)descr);
+    size_t max = slen > nn->len ? slen : nn->len;
+    return strncmp ((const char *)descr, nn->descr, max);
 }
 static
 int64_t classsort (const BSTNode * i ,const BSTNode * n)
 {
     KFFClass * ii = (KFFClass *)i;
     KFFClass * nn = (KFFClass *)n;
-    return strncmp (ii->descr, nn->descr, nn->len);
+    size_t max = ii->len > nn->len ? ii->len : nn->len;
+    return strncmp (ii->descr, nn->descr, max);
 }
 static
 int64_t typesort (const BSTNode * i, const BSTNode * n)
 {
     KFFType * ii = (KFFType *)i;
     KFFType * nn = (KFFType *)n;
-    return strncmp (ii->descr, nn->descr, nn->len);
+    size_t max = ii->len > nn->len ? ii->len : nn->len;
+    return strncmp (ii->descr, nn->descr, max);
 }
 
 static
@@ -587,19 +592,26 @@ rc_t CC KFFTablesAddType (KFFTables * self,
 	LOGERR (klogErr, rc, "Error making type: NULL parameter");
 	goto quickout;
     }
-    ptn = KFFTablesFindKFFType (self, type);
-    pcn = KFFTablesFindKFFClass (self, class);
+    char type_buf[DESCRLEN_MAX + 1];
+    char class_buf[DESCRLEN_MAX + 1];
+    memmove (type_buf,  type,  tlen < DESCRLEN_MAX ? tlen : DESCRLEN_MAX);
+    memmove (class_buf, class, clen < DESCRLEN_MAX ? clen : DESCRLEN_MAX);
+    type_buf  [tlen  < DESCRLEN_MAX ? tlen  : DESCRLEN_MAX] = '\0';
+    class_buf [clen  < DESCRLEN_MAX ? clen  : DESCRLEN_MAX] = '\0';
+
+    ptn = KFFTablesFindKFFType  (self, type_buf);
+    pcn = KFFTablesFindKFFClass (self, class_buf);
     if (ptn != NULL)
     {
 	rc = -1;
-	PLOGERR (klogErr, (klogErr, rc, "Type already inserted <$(d)>", PLOG_S(d), type));
+	PLOGERR (klogErr, (klogErr, rc, "Type already inserted <$(d)>", PLOG_S(d), type_buf));
 	goto quickout;
     }
 
     if (pcn == NULL)
     {
-	rc = KFFTablesAddClass (self, &classid, class, clen);
-	if (rc != 0)
+	rc = KFFTablesAddClass (self, &classid, class_buf, clen);
+    if (rc != 0)
 	{
 	    PLOGERR (klogErr, (klogErr, rc, "unable to insert new class <$(d)>", PLOG_S(d), class));
 	    goto quickout;

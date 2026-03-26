@@ -1026,7 +1026,7 @@ rc_t ccat_buf ( CCTree *tree, const KFile *sf, KTime_t mtime,
     rc_t rc, orc;
 
 #if USE_KBUFFILE
-    rc = KBufFileMakeRead (&buf, sf, 2 * 32 * 1024);
+    rc = KBufFileMakeRead (&buf, sf, 2 * 64 * 1024);
 #else
     rc = KFileMakeReadHead (&buf, sf, 4096);
 #endif

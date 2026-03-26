@@ -157,7 +157,10 @@ rc_t KExtNodeMake (KExtNode ** kmmp, const KFFTables * tables,
 	else
 	{
 	    KFileFormatType typeid;
-	    rc = KFFTablesGetTypeId (tables, kffdescr, &typeid, NULL);
+	    char kffdescr_buf [DESCRLEN_MAX + 1];
+	    memmove (kffdescr_buf, kffdescr, kfflen);
+	    kffdescr_buf [kfflen] = '\0';
+	    rc = KFFTablesGetTypeId (tables, kffdescr_buf, &typeid, NULL);
 	    if (rc == 0)
 	    {
 		self = malloc (sizeof (*self) + extlen + kfflen + 1);
@@ -278,19 +281,25 @@ rc_t KExtTableMake (KExtTable ** kmmtp)
 static
 int64_t KExtNodeCmp (const void* item, const BSTNode * n)
 {
-    size_t len;
     KExtNode * mn = (KExtNode *)n;
     String *s = ( String * ) item;
+    size_t slen, elen, max;
+    int64_t cmp;
 
     FUNC_ENTRY();
 
-    /* -----
-     * we only check this many characters of the comparison item
-     * we need only this part to match and ignore characters after
-     * this in the comparison string
+    slen = s -> len;
+    elen = mn->extlen;
+    max = slen > elen ? slen : elen;
+
+    /* Full-length case-insensitive comparison.
+     * strcase_cmp handles exhausted-string cases: if s1 is shorter it returns negative,
+     * if s2 is shorter it returns positive, ensuring correct BST ordering.
+     * The compound-extension case (e.g. searching "bam.gz") is handled by splitting
+     * at the dot before calling KExtTableFind, so we don't need special '.' logic here.
      */
-    len = mn->extlen;
-    return strcase_cmp ( s -> addr, s -> len , mn->extdescr, len, len );
+    cmp = strcase_cmp ( s -> addr, slen, mn->extdescr, elen, max );
+    return cmp;
 }
 
 static
@@ -357,11 +366,12 @@ int64_t KExtNodeSort (const BSTNode* item, const BSTNode * n)
 {
     KExtNode *n1 = ( KExtNode * ) item;
     KExtNode *n2 = ( KExtNode * ) n;
+    size_t max = n1->extlen > n2->extlen ? n1->extlen : n2->extlen;
 
     FUNC_ENTRY();
 
     return strcase_cmp ( n1 -> extdescr, n1 -> extlen,
-                         n2 -> extdescr, n2 -> extlen, n2 -> extlen );
+                         n2 -> extdescr, n2 -> extlen, max );
 }
 static
 rc_t KExtTableInsert (KExtTable * self, KExtNode *node)

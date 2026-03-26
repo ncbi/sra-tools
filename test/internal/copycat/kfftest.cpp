@@ -92,6 +92,101 @@ TEST_CASE(MagicFileFormat)
     REQUIRE_RC(KFileFormatRelease(pft));
 }
 
+TEST_CASE(ExtensionPrefix)
+{
+    struct KFileFormat* pft;
+    /* only ".fa" should match; ".fai" must not be considered the same */
+    const char format[] = {
+        "fa\tFastaFormat\n"
+    };
+    const char typeAndClass[] = {
+        "FastaFormat\tFastaClass\n"
+    };
+
+    REQUIRE_RC(KExtFileFormatMake(&pft, format, sizeof(format) - 1,
+                                  typeAndClass, sizeof(typeAndClass) - 1));
+
+    KFileFormatType type;
+    KFileFormatClass clss;
+    char descr[1024];
+    size_t length;
+
+    /* exact extension should succeed */
+    REQUIRE_RC(KFileFormatGetTypePath(pft,
+                                      NULL,
+                                      "seq.fa",
+                                      &type,
+                                      &clss,
+                                      descr,
+                                      sizeof(descr),
+                                      &length));
+    REQUIRE_EQ(type, 1);
+    REQUIRE_EQ(clss, 1);
+    REQUIRE_EQ(string(descr, length), string("FastaFormat"));
+
+    /* longer extension with same prefix should not match */
+    REQUIRE_RC(KFileFormatGetTypePath(pft,
+                                      NULL,
+                                      "seq.fai",
+                                      &type,
+                                      &clss,
+                                      descr,
+                                      sizeof(descr),
+                                      &length));
+    REQUIRE_EQ(type, kfftNotFound);
+    REQUIRE_EQ(clss, kffcNotFound);
+    REQUIRE_EQ(length, (size_t)0);
+
+    REQUIRE_RC(KFileFormatRelease(pft));
+}
+
+TEST_CASE(CompressedExtension)
+{
+    struct KFileFormat* pft;
+    const char format[] = {
+        "bam\tBamFormat\n"
+    };
+    const char typeAndClass[] = {
+        "BamFormat\tBamClass\n"
+    };
+
+    REQUIRE_RC(KExtFileFormatMake(&pft, format, sizeof(format) - 1,
+                                  typeAndClass, sizeof(typeAndClass) - 1));
+
+    KFileFormatType type;
+    KFileFormatClass clss;
+    char descr[1024];
+    size_t length;
+
+    /* plain extension */
+    REQUIRE_RC(KFileFormatGetTypePath(pft,
+                                      NULL,
+                                      "seq.bam",
+                                      &type,
+                                      &clss,
+                                      descr,
+                                      sizeof(descr),
+                                      &length));
+    REQUIRE_EQ(type, 1);
+    REQUIRE_EQ(clss, 1);
+    REQUIRE_EQ(string(descr, length), string("BamFormat"));
+
+    /* compressed form should still match primary extension */
+    REQUIRE_RC(KFileFormatGetTypePath(pft,
+                                      NULL,
+                                      "seq.bam.gz",
+                                      &type,
+                                      &clss,
+                                      descr,
+                                      sizeof(descr),
+                                      &length));
+    REQUIRE_EQ(type, 1);
+    REQUIRE_EQ(clss, 1);
+    REQUIRE_EQ(string(descr, length), string("BamFormat"));
+
+    REQUIRE_RC(KFileFormatRelease(pft));
+}
+
 //////////////////////////////////////////// Main
 int main( int argc, char *argv [] )
 {

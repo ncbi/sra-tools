@@ -34,10 +34,8 @@
 *
 * ===========================================================================
 */
-// command line
-#include "CLI11.hpp"
-// logging
-#include <spdlog/fmt/fmt.h>
+
+#include <kapp/vdbapp.h>
 
 #include "version.h"
 #include "fastq_utils.hpp"
@@ -48,8 +46,13 @@
 #include <json.hpp>
 #include <algorithm>
 #include <insdc/sra.h>
-#include <kapp/vdbapp.h>
 
+#undef CC
+// command line
+#include "CLI11.hpp"
+
+// logging
+#include <spdlog/fmt/fmt.h>
 
 #if __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>

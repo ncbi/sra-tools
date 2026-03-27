@@ -22,25 +22,16 @@
 #
 # ===========================================================================
 
-add_executable ( general-loader
+set( SRC
     general-loader.cpp
     protocol-parser.cpp
     database-loader.cpp
     main.cpp
 )
 
-target_compile_definitions(general-loader PRIVATE VDB_EXE_NAME="general-loader")
-target_include_directories ( general-loader PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc )
+GenerateExecutableWithDefs( general-loader "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc;${CMAKE_CURRENT_SOURCE_DIR}" "general-writer;loader;kapp;tk-version;${COMMON_LIBS_WRITE}" )
 
 add_dependencies ( general-loader general-writer )
-
-target_link_libraries ( general-loader
-    general-writer
-    loader
-    kapp
-    tk-version
-	${COMMON_LIBS_WRITE}
-)
 
 MakeLinksExe ( general-loader false )
 

@@ -928,12 +928,12 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
 
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
-        if (RUN_SANITIZER_TESTS)
-            target_compile_definitions( "${target_name}-asan" PRIVATE
-                    "${compile_defs}" VDB_EXE_NAME="${target_name}")
-            target_compile_definitions( "${target_name}-tsan" PRIVATE
-                    "${compile_defs}" VDB_EXE_NAME="${target_name}")
-        endif()
+    endif()
+    if (RUN_SANITIZER_TESTS)
+        target_compile_definitions( "${target_name}-asan" PRIVATE
+                "${compile_defs}" VDB_EXE_NAME="${target_name}-asan")
+        target_compile_definitions( "${target_name}-tsan" PRIVATE
+                "${compile_defs}" VDB_EXE_NAME="${target_name}-tsan")
     endif()
     if( NOT "" STREQUAL "${include_dirs}" )
         target_include_directories( ${target_name} PRIVATE "${include_dirs}" )

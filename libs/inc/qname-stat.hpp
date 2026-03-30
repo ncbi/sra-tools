@@ -34,58 +34,320 @@
 #include <map>
 #include <tuple>
 #include <cstring>
+#include <algorithm>
+#include <cassert>
+
+struct GF_Poly_2_8 {
+    uint8_t coeff; // the 8 coefficients are bit values packed into one byte
+
+private:
+    /// @brief One bit at a time, 8-bit carry-less multiply mod {11b}
+    /// @param a 
+    /// @param b 
+    /// @return a * b mod {11b}
+    static uint8_t multiply(uint8_t a, uint8_t b) {
+        uint8_t y{0};
+
+        while (b != 0) {
+            y ^= (b & 1) * a;
+            a = (a << 1) ^ (0x1b * (a >> 7));
+            b >>= 1;
+        }
+        return y;
+    }
+    friend struct ExpTable;
+    struct ExpTable {
+        uint8_t table[256];
+
+        ExpTable()
+        {
+            auto const g = uint8_t{3}; ///< x + 1
+            auto y = uint8_t{1}; ///< g^0
+
+            for (auto i = 0; i < 256; ++i) {
+                table[i] = y; ///< g^i
+                y = GF_Poly_2_8::multiply(y, g);
+            }
+            assert(isValid(table));
+        }
+        GF_Poly_2_8 operator [](int const i) const
+        {
+            assert(i >= 0 && i < 256);
+            return GF_Poly_2_8{table[i]};
+        }
+    private:
+        static bool isValid(uint8_t const *table)
+        {
+            uint8_t tbl[256];
+            std::copy(table, table + 256, tbl);
+            if (tbl[0] != 1) return false;
+            tbl[0] = 0;
+            std::sort(tbl, tbl + 256);
+            for (auto i = 0; i < 256; ++i) {
+                if (tbl[i] != i) return false;
+            }
+            return true;
+        }
+    };
+
+    static GF_Poly_2_8 exp(uint8_t x) {
+        static auto const expTable = ExpTable{};
+        return expTable[x < 256 ? x : (x - 255)];
+    }
+
+    friend struct LogTable;
+    struct LogTable {
+        uint8_t table[256];
+
+        LogTable()
+        {
+            table[0] = 0; ///< an invalid value that is never used.
+            for (auto j = 0; j < 256; ++j) {
+                auto const i = GF_Poly_2_8::exp(j).coeff;
+                table[i] = j;
+            }
+            assert(isValid(table));
+        }
+        uint8_t operator [](uint8_t i) const {
+            assert(i != 0);
+            return table[i];
+        }
+    private:
+        static bool isValid(uint8_t const *log) {
+            for (auto i = 1; i < 256; ++i) {
+                if (GF_Poly_2_8::exp(log[i]).coeff != i)
+                    return false;
+            }
+            for (auto i = 0; i < 256; ++i) {
+                if (log[GF_Poly_2_8::exp(i).coeff] != i)
+                    return false;
+            }
+            return true;
+        }
+    };
+    uint8_t log() const {
+        static auto const logTable = LogTable{};
+        return logTable[coeff];
+    }
+    GF_Poly_2_8 inverse() const {
+        return coeff < 2 ? *this : GF_Poly_2_8::exp(255 - log());
+    }
+
+public:
+    static GF_Poly_2_8 constexpr zero() { 
+        return GF_Poly_2_8{0};
+    }
+    static GF_Poly_2_8 constexpr one() { 
+        return GF_Poly_2_8{1};
+    }
+    friend GF_Poly_2_8 operator +(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        return GF_Poly_2_8{(uint8_t)(a.coeff ^ b.coeff)};
+    }
+    friend GF_Poly_2_8 operator -(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        return a + b;
+    }
+    friend GF_Poly_2_8 operator *(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        if (a.coeff == 0 || b.coeff == 0) return zero();
+        if (a.coeff == 1) return b;
+        if (b.coeff == 1) return a;
+        return GF_Poly_2_8::exp(a.log() + b.log());
+    }
+    friend GF_Poly_2_8 operator /(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        assert(b.coeff != 0);
+        return a * b.inverse();
+    }
+    friend bool operator ==(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        return a.coeff == b.coeff;
+    }
+    friend bool operator !=(GF_Poly_2_8 a, GF_Poly_2_8 b) {
+        return a.coeff != b.coeff;
+    }
+    operator bool() const { return coeff != 0; }
+    void getBytes(size_t count, uint8_t *const bytes) {
+        assert(count == 1);
+        bytes[0] = coeff;
+    }
+    static GF_Poly_2_8 createFromBytes(size_t count, uint8_t const *const bytes) {
+        assert(count == 1);
+        return GF_Poly_2_8{bytes[0]};
+    }
+    static void test() {
+#if !NDEBUG
+        for (auto i = 0; i < 256; ++i) {
+            auto const a = GF_Poly_2_8{(uint8_t)i};
+            for (auto j = 0; i < 256; ++j) {
+                auto const b = GF_Poly_2_8{(uint8_t)j};
+                auto const ab = a * b;
+                assert(ab.coeff == GF_Poly_2_8::multiply(i, j));
+
+                if (j == 0) continue;
+                assert(ab / b == a);
+
+                if (i == 0) continue;
+                assert(ab / a == b);
+            }
+        }
+#endif
+    }
+};
+
+template <typename COEFF, int Degree>
+struct Polynomial {
+    COEFF coeff[Degree];
+
+    operator bool() const { 
+        for (auto i = 0; i < Degree; ++i) {
+            if (!coeff[i]) return false;
+        }
+        return true;
+    }
+    void getBytes(size_t count, uint8_t *const bytes) {
+        assert(count == sizeof(COEFF) * Degree);
+        for (auto i = 0; i < Degree; ++i)
+            COEFF::getBytes(sizeof(COEFF), bytes + i * sizeof(COEFF));
+    }
+
+    static Polynomial createFromMask(uint64_t mask) {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i, mask >>= 1)
+            result.coeff[i] = (mask & 1) == 0 ? COEFF::zero() : COEFF::one();
+        return result;
+    }
+
+    static Polynomial createFromBytes(size_t count, uint8_t const *const bytes) {
+        Polynomial result;
+        assert(count == sizeof(COEFF) * Degree);
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff[i] = COEFF::createFromBytes(sizeof(COEFF), bytes + i * sizeof(COEFF));
+        return result;
+    }
+
+    /// @brief Multiply-add
+    /// @param a 
+    /// @param b 
+    /// @param s 
+    /// @return a + b * s
+    static Polynomial multiplyAdd(Polynomial const &a, Polynomial const &b, COEFF const &s) {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff[i] = a.coeff[i] + b.coeff[i] * s;
+        return result;
+    }
+    /// @brief Multiply-subtract
+    /// @param a 
+    /// @param b 
+    /// @param s 
+    /// @return a - b * s
+    static Polynomial multiplySubtract(Polynomial const &a, Polynomial const &b, COEFF const &s) {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff[i] = a.coeff[i] - b.coeff[i] * s;
+        return result;
+    }
+    friend Polynomial operator +(Polynomial const &a, Polynomial const &b) {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff[i] = a.coeff[i] + b.coeff[i];
+        return result;
+    }
+    friend Polynomial operator -(Polynomial const &a, Polynomial const &b) {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff[i] = a.coeff[i] - b.coeff[i];
+        return result;
+    }
+    static Polynomial zero() {
+        Polynomial result;
+        for (auto i = 0; i < Degree; ++i)
+            result.coeff = COEFF::zero();
+        return result;
+    }
+    static Polynomial one() {
+        Polynomial result{zero()};
+        result.coeff[0] = COEFF.one();
+        return result;
+    }
+    /// @brief Shift all coefficients left by one place, i.e. Multiply by x.
+    /// @return the coefficient that was shifted out.
+    COEFF shiftLeft() {
+        auto const result = coeff[Degree - 1];
+        for (auto i = Degree - 1; i > 0; --i)
+            coeff[i] = coeff[i - 1];
+        coeff[0] = COEFF::zero();
+        return result;
+    }
+    /// @brief Shift all coefficients right by one place, i.e. Divide by x.
+    /// @return the coefficient that was shifted out.
+    COEFF shiftRight() {
+        auto const result = coeff[0];
+        for (auto i = 0; i < Degree - 1; ++i)
+            coeff[i] = coeff[i + 1];
+        coeff[Degree - 1] = COEFF::zero();
+        return result;
+    } 
+};
+
+template <typename COEFF, int Degree, int ModulusMask>
+struct GF_Poly: public Polynomial<COEFF, Degree> {
+    using Base = Polynomial<COEFF, Degree>;
+
+    static Base const &Modulus() {
+        static auto const modulus = Base::createFromMask(ModulusMask);
+        return modulus;
+    }
+
+    GF_Poly(Base &&other) : Base{other} {};
+
+    friend GF_Poly operator *(GF_Poly a, GF_Poly b) {
+        auto y = GF_Poly{zero()};
+        while (b) {
+            y = multiplyAdd(y, a, b.shiftRight());
+            auto const a_hi = a.shiftLeft();
+            a = multiplySubtract(a, Modulus(), a_hi);
+        }
+        return y;
+    }
+};
+
+static_assert(sizeof(GF_Poly_2_8) == sizeof(uint8_t));
+
+/// @brief A 64-bit field extension, made out of 8 8-bit ones.
+using GF_Poly_2_8x8 = GF_Poly<GF_Poly_2_8, 8, 0x1b>;
+static_assert(sizeof(GF_Poly_2_8x8) == sizeof(uint64_t));
+
+/// @brief A 256-bit field extension, made out of 4 64-bit ones.
+using GF_Poly_2_8x8x4 = GF_Poly<GF_Poly_2_8x8, 4, 0x9>;
+static_assert(sizeof(GF_Poly_2_8x8x4) == 4 * sizeof(uint64_t));
 
 struct QNAME_Counter final
 {
 private:
-    struct NameHasher {
-        /// two 64-bit FNV-1a hashes
-        uint64_t h1, h2;
+    struct FNV1a {
+        uint64_t h;
 
-        /// a 32-bit FNV-1a hash,
-        /// initialized with the length of the name,
-        /// used like a counter,
-        /// to make h2 diverge from h1.
-        uint32_t h3;
-        
-        NameHasher(size_t const size)
-        : h1(UINT64_C(0xcbf29ce484222325))
-        , h2(UINT64_C(0xcbf29ce484222325))
-        , h3((uint32_t)size ^ UINT32_C(0x811c9dc5))
+        FNV1a()
+        : h(UINT64_C(0xcbf29ce484222325))
         {}
         
         void update(char const ch) {
             auto const chu = (uint8_t)ch;
 
             // normal FNV-1a
-            h1 = (h1 ^ chu) * UINT64_C(0x100000001B3);
-        
-            // add h3 to make h1 and h2 diverge
-            h2 = (h2 ^ chu ^ h3) * UINT64_C(0x100000001B3);
-
-            h3 *= UINT32_C(0x01000193);
+            h = (h ^ chu) * UINT64_C(0x100000001B3);
         }
         void update(std::string_view from) {
             for (auto ch : from)
                 update(ch);
         }
-        /// FNV-1a hashes have poor mixing in the low order byte
-        /// and should be folded; there are 2 hashes and thus
-        /// 4 halves that can be mixed together to make 4 32-bit hashes.
-        void getValue(uint32_t result[4]) const {
-            uint32_t const h1_hi = h1 >> 32;
-            uint32_t const h1_lo = h1;
-            uint32_t const h2_hi = h2 >> 32;
-            uint32_t const h2_lo = h2;
-
-            result[0] = h1_hi ^ h1_lo;
-            result[1] = h2_hi ^ h2_lo;
-            result[2] = h2_hi ^ h1_lo;
-            result[3] = h1_hi ^ h2_lo;
+        void getValue(uint8_t *result) const {
+            auto x = h;
+            for (auto i = 0; i < 8; ++i) {
+                result[i] = (uint8_t)x;
+                x >>= 8;
+            }
         }
-        static void hash(uint32_t result[4], std::string_view qname, std::string_view group, bool grouped) {
-            auto const size = (uint32_t)qname.size() + (grouped ? (uint32_t)(group.size() + 1) : 0);
-            auto hasher = NameHasher(size);
+        static void hash(uint8_t *result, std::string_view qname, std::string_view group, bool grouped) {
+            auto hasher = FNV1a{};
             
             if (grouped) {
                 hasher.update(group);
@@ -96,61 +358,33 @@ private:
         }
     };
     class Counter {
-        class gf128 {
-            uint64_t lo, hi;
-            
-            void mod() {
-                uint64_t constexpr mod[2] = { /** TODO: values for the modulus */ };
-                lo ^= mod[0];
-                hi ^= mod[1];
-            }
-            void timesX() {
-                auto const m = (bool)(hi >> 63);
-                hi <<= 1;
-                hi ^= lo >> 63;
-                lo <<= 1;
-                if (m) mod();
-            }
-            bool divX() {
-                auto const m = lo & 1;
-                lo >>= 1;
-                lo ^= hi << 63;
-                hi >>= 1;
-                return m == 1;
-            }
-            gf128 operator ^=(gf128 const &rhs) {
-                lo ^= other.lo;
-                hi ^= other.hi;
-            }
-        public:
-            gf128(gf128 const &rhs) : lo(rhs.lo), hi(rhs.hi) {}
-            explicit gf128(uint64_t p_lo, uint64_t p_hi = 0)
-            : lo(p_lo), hi(p_hi) {}
-            bool operator !() const { return lo == 0 && hi == 0; }
-            operator bool() const { return !!*this; }
-            gf128 &operator *=(gf128 const &rhs) {
-                auto a = *this;
-                auto b = rhs;
-                lo = hi = 0;
-                while (a && b) {
-                    if (b.divX())
-                        *this ^= a;
-                    a.timesX();
-                }
-                return *this;
-            }
-        };
     public:
+        GF_Poly_2_8x8x4 all, grp;
+        uint64_t countAll, countGrp;
+
         Counter()
+        : all{GF_Poly_2_8x8x4::one()}
+        , grp{GF_Poly_2_8x8x4::one()}
+        , countAll{0}
+        , countGrp{0}
         {}
-        void add(std::string_view qname, std::string_view group, bool grouped) {
-            uint32_t bit[4]; NameHasher::hash(bit, qname, group, grouped);
-            uint64_t u64[4] = {
-                ((UINT64_C(0x100000000) ^ bit[0]) << 1) ^ 1,
-                ((UINT64_C(0x100000000) ^ bit[1]) << 1) ^ 1,
-                ((UINT64_C(0x100000000) ^ bit[2]) << 1) ^ 1,
-                ((UINT64_C(0x100000000) ^ bit[3]) << 1) ^ 1,
-            };
+        void add(std::string_view qname, std::string_view group, bool hasGroup) {
+            uint8_t u[256];
+
+            static_assert(GF_Poly_2_8::zero().coeff == 0);
+            std::memset(u, 0, sizeof(u));
+            static_assert(GF_Poly_2_8::one().coeff == 1);
+            u[0] = u[65] = 1;
+
+            FNV1a::hash(u + 1, qname, group, false);
+            all = all * GF_Poly_2_8x8x4::createFromBytes(sizeof(u), u);
+            countAll += 1;
+
+            if (hasGroup) {
+                FNV1a::hash(u + 1, qname, group, true);
+                grp = grp * GF_Poly_2_8x8x4::createFromBytes(sizeof(u), u);
+                countGrp += 1;
+            }
         }
     };
     Counter counter;
@@ -166,60 +400,5 @@ public:
     /// @param group the group of the QNAME.
     void add(std::string_view qname, std::string_view group) {
         counter.add(qname, group, !group.empty());
-    }
-
-    /// @brief Get the counts.
-    /// @param counts result
-    /// @note The indicies of the counts match the indices for `getName` and `getDescription`.
-    void getCounts(uint64_t counts[10]) const {
-        std::memset(counts, 0, 10 * sizeof(counts[0]));
-        counts[0] = counter.total;
-        counts[1] = counter.uniq[0];
-        counts[2] = counter.dups;
-        std::memmove(&counts[3], counter.matches, 3 * sizeof(counts[3]));
-        counts[6] = std::floor(counter.sum_false_positive);
-        std::memmove(&counts[7], &counter.uniq[1], 3 * sizeof(counts[7]));
-    }
-
-    /// @brief Get the unique names of the counts.
-    /// @param i the index of the count.
-    /// @return the unique name of the count, a static value (do not free).
-    /// @note The indicies of the counts match the indices in `getCounts` and `getDescription`.
-    static char const *getName(int const i)
-    {
-        static char const *names[] = {
-            "Total",
-            "Unique",
-            "Duplicates",
-            "HashMatch_1",
-            "HashMatch_2",
-            "HashMatch_3",
-            "FalsePositives",
-            "FP_999",
-            "FP_99",
-            "FP_9",
-        };
-        return (i >= 0 && i < 10) ? names[i] : nullptr;
-    }
-
-    /// @brief Get the informative descriptions of the counts.
-    /// @param i the index of the count.
-    /// @return the informative description of the count, a static value (do not free).
-    /// @note The indicies of the counts match the indices in `getName` and `getCounts`.
-    static char const *getDescription(int const i)
-    {
-        static char const *descriptions[] = {
-            "Total number of QNAMEs counted",
-            "Number of definitely unique QNAMEs",
-            "Number of QNAMEs with all matching hash values",
-            "Number of QNAMEs with 1 matching hash value",
-            "Number of QNAMEs with 2 matching hash values",
-            "Number of QNAMEs with 3 matching hash values",
-            "Likely number of falsely matching QNAMEs",
-            "Number of likely (0.999 <= P < 1.0) unique QNAMEs",
-            "Number of likely (0.99 <= P < 0.999) unique QNAMEs",
-            "Number of likely (0.9 <= P < 0.99) unique QNAMEs",
-        };
-        return (i >= 0 && i < 10) ? descriptions[i] : nullptr;
     }
 };

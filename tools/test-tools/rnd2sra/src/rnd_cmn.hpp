@@ -47,7 +47,7 @@ class Rndcmn {
         string make_name( void ) { return f_ini-> name( f_rnd ); }
 
         size_t make_random_qual( uint8_t * buffer, int64_t row, size_t read_len ) {
-            size_t res = read_len + f_ini -> qual_len_offset( row );
+            size_t res = read_len + f_ini -> qual_offset( row );
             f_rnd -> random_diff_quals( buffer, res );
             return res;
         }

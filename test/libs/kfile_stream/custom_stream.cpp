@@ -28,6 +28,8 @@
 
 #include <ktst/unit_test.hpp>
 
+#include <filesystem>
+
 //using namespace std;
 
 TEST_SUITE(KFileStreamTestSuite);
@@ -51,6 +53,25 @@ static size_t consume_numbers( std::istream& s, bool show = false ) {
         res++;
     }
     return res;
+}
+
+TEST_CASE( Getline )
+{
+    const std::string str = "this is a string";
+    auto stream = custom_istream::custom_istream::make_from_string( str );
+    std::string s;
+    REQUIRE( getline( stream, s ).eof() );
+    REQUIRE_EQ( str, std::string( s ) );
+}
+TEST_CASE( Read )
+{
+    const std::string str = "this is a string";
+    auto stream = custom_istream::custom_istream::make_from_string( str );
+    char buf[1024];
+    stream.read( buf, sizeof( buf ) );
+    REQUIRE( stream.eof() );
+    REQUIRE_EQ( str.size(), size_t( stream.gcount() ) );
+    REQUIRE_EQ( str, std::string( buf, stream.gcount() ) );
 }
 
 TEST_CASE( ConsumeLineByLine_FromString )
@@ -79,6 +100,18 @@ TEST_CASE( ConsumeLineByLine_FromURL )
     REQUIRE_NOT_NULL( src );
     auto stream = custom_istream::custom_istream::make_from_kfile( src );
     REQUIRE_LT( 0, (int) consume_line_by_line( stream, false, 100 ) );
+}
+
+TEST_CASE( MoveConstruction )
+{
+    auto stream = custom_istream::custom_istream::make_from_string( "100 200 300 400" );
+    auto s1( std::move( stream ) );
+}
+
+TEST_CASE( Sharing )
+{
+    custom_istream::src_interface_ptr s = custom_istream::string_src::make( "100 200 300 400" );
+    auto s1 = std::make_shared<custom_istream::custom_istream>( s, 4096 );
 }
 
 TEST_CASE( ConsumeLineByLine_FromURI )

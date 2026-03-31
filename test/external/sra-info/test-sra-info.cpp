@@ -665,12 +665,7 @@ FIXTURE_TEST_CASE(Fingerprint_Full, SraInfoFixture)
 }
 
 //////////////////////////////////////////// Main
-#include <kapp/args.h>
-#include <kfg/config.h>
-
-extern "C"
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return SraInfoTestSuite(argc, argv);
 }

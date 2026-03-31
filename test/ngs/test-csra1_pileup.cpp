@@ -29,7 +29,6 @@
 */
 
 #include <ktst/unit_test.hpp>
-#include <kfg/config.h>
 
 #include <../ncbi/NGS.hpp>
 
@@ -46,6 +45,5 @@ TEST_CASE( NoSuchRun )
 //////////////////////////////////////////// Main
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return CSRA1PileupTestSuite(argc, argv);
 }

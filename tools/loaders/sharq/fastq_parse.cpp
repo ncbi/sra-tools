@@ -194,8 +194,8 @@ string VersionString()
     {
         ret += cSra;
     }
-    else 
-    {   
+    else
+    {
         ret += SHARQ_VERSION + HASH_SRA_TOOLS + " ( " + cSra + HASH_NCBI_VDB + " )\n";
     }
     return ret;
@@ -378,6 +378,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         spdlog::error(e.Message());
         mReport["error"] = e.Message();
         ret_code = 1;
+    } catch (std::ios_base::failure& e) {
+        string error = fmt::format("SRAE-238: {} [code:{}]", e.what(), 270);
+        spdlog::error(error);
+        mReport["error"] = error;
+        ret_code = 1;
     } catch(std::exception const& e) {
         string error = fmt::format("[code:0] Runtime error: {}", e.what());
         spdlog::error(error);
@@ -434,7 +439,7 @@ void CFastqParseApp::xReportTelemetry()
 void CFastqParseApp::xCheckInputFiles(vector<string>& files)
 {
     for (auto& f : files) {
-        if (f == "-" || fs::exists(f)) continue;
+        if (f == "-" || isValidURL( f ) || fs::exists(f)) continue;
         bool not_found = true;
         auto ext = fs::path(f).extension();
         if (ext != ".gz" && ext != ".bz2") {

@@ -35,11 +35,12 @@
 #include <sstream>
 #include <chrono>
 #include <tuple>
+#include <string>
 #include <cmath>
 #include <cassert>
 #include <JSON_ostream.hpp>
 #include <hashing.hpp>
-#include <qname-stat.hpp>
+#include <flag-stat.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
@@ -314,7 +315,7 @@ struct App {
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
-        { "name", "n", nullptr, false }
+        { "flag", nullptr, "1.3", false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -344,12 +345,27 @@ struct App {
                 fingerprint = true;
                 continue;
             }
-            if (param == "name") {
-                qnameCounter = std::unique_ptr<QNAME_Counter>(new QNAME_Counter);
+            if (param == "flag") {
+                assert(value.has_value());
+                auto const &vers = value.value();
+                int maj = 0, min = 0;
+                int end = 0;
+                int n = sscanf(vers.c_str(), "%i.%i%n", &maj, &min, &end);
+
+                if (n == 2 && (size_t)end == vers.size()) {
+                    if (maj >= 1 && min >= 13) {
+                        flagStatTextVersion = FlagStatText::v_1_13;
+                    }
+                }
+                else {
+                    std::cerr << "usage: --flag <major>.<minor>" << std::endl;
+                    exit(1);
+                }
+                flagCounter = std::unique_ptr<FLAG_Counter>(new FLAG_Counter);
                 continue;
             }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [-n|--name] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [--flag] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             if (param == "version") {
@@ -391,31 +407,20 @@ private:
         gather();
         return !(arguments.empty() || nextInput == arguments.end());
     }
+    void printFlagStat(std::ostream &strm) {
+        strm << FlagStatText{*flagCounter, flagStatTextVersion}.defaultText;
+    }
     void print(std::ostream &strm) {
+        if (flagCounter) {
+            printFlagStat(strm);
+            return;
+        }
         auto out = JSON_ostream{strm};
 
         out << '{';
         if ( fingerprint )
         {
             stats.fingerprint.canonicalForm(out);
-        }
-        else if (qnameCounter) {
-            uint64_t counts[10];
-            qnameCounter->getCounts(counts);
-
-            out << JSON_Member{"readNameCounts"} << '[';
-            for (auto i = 0; i < 10; ++i) {
-                auto const name = qnameCounter->getName(i);
-                auto const desc = qnameCounter->getDescription(i);
-                
-                out << '{'
-                    << JSON_Member{"name"} << name
-                    << JSON_Member{"description"} << desc
-                    << JSON_Member{"count"} << counts[i]
-                << '}';
-            }
-            out << ']';
-            out << JSON_Member{"unnamed"} << unnamed;
         }
         else
         {
@@ -438,21 +443,20 @@ private:
         strm << std::endl;
     }
     void gather() {
-        auto const nameCounter = qnameCounter.get();
+        auto const flagCntr = flagCounter.get();
         auto source = Input::newSource(inputStream(), multithreaded);
         while (*source) {
             try {
                 auto const spot = source->get();
 
-                if (nameCounter) {
-                    if (spot.readName[0]) {
-                        if (spot.group < 0)
-                            nameCounter->add(spot.readName);
-                        else
-                            nameCounter->add(spot.readName, spot.groups[spot.group]);
+                if (flagCntr) {
+                    for (auto const &read : spot.reads) {
+                        flagCntr->add(read.flags);
+                        if (read.flags < 0) {
+                            std::cerr << "--flag can only be used with SAM input." << std::endl;
+                            exit(1);
+                        }
                     }
-                    else
-                        ++unnamed;
                 }
                 else {
                     unsigned naligned = 0;
@@ -501,15 +505,15 @@ private:
         return Input::Source::FilePathType{currentInput->c_str(), use_mmap};
     }
     uint64_t processed = 0;
-    uint64_t unnamed = 0;
     int multithreaded = 0;
     bool use_mmap = false;
     bool fingerprint = false;
+    FlagStatText::Version flagStatTextVersion = FlagStatText::v_1_3;
     std::optional<std::string> output;
 
     Stats stats;
     std::vector<Stats> spotGroup;
-    std::unique_ptr<QNAME_Counter> qnameCounter = nullptr;
+    std::unique_ptr<FLAG_Counter> flagCounter = nullptr;
 
     Reporter reporter;
 

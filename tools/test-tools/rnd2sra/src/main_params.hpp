@@ -196,6 +196,13 @@ class MainParams {
             }
         }
 
+        const bool has_value( const std::string& key ) const {
+            return f_values -> has( key );
+        }
+        const std::string get_value( const std::string& key, const string& dflt = "" ) const {
+            return f_values -> get( key, dflt );
+        }
+
         const string& get_ini_file( void ) const { return f_ini_file; }
 
         const string& get_output( void ) const { return f_output; }

@@ -46,10 +46,6 @@
 #include "lookup_reader.h"
 #endif
 
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
-#endif
-
 #ifndef _h_fq_seq_csra_iter_
 #include "fq_seq_csra_iter.h"
 #endif
@@ -181,20 +177,7 @@ static bool dbj_filter( join_stats_t * stats,
     return process;
 }
 
-static void dbj_slice_rec( const String * src, String * S1, String * S2, uint32_t * l ) {
-    if ( NULL != S1 ) {
-        S1 -> addr = src -> addr;
-        S1 -> size = l[ 0 ];
-        S1 -> len  = l[ 0 ];
-    }
-    if ( NULL != S2 ) {
-        S2 -> addr = &( src -> addr[ l[ 0 ] ] );
-        S2 -> size = l[ 1 ];
-        S2 -> len  = l[ 1 ];
-    }
-}
-
-static uint32_t dbj_calc_spot_len( const fq_seq_csra_rec_t * rec ) {
+static uint32_t dbj_calc_spot_len_from_read_len( const fq_seq_csra_rec_t * rec ) {
     uint32_t res = 0;
     uint32_t i;
     for ( i = 0; i < rec -> num_read_len; i++ ) {
@@ -203,12 +186,86 @@ static uint32_t dbj_calc_spot_len( const fq_seq_csra_rec_t * rec ) {
     return res;
 }
 
-static void dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
-    dbj_slice_rec( &( rec -> read ), S1, S2, rec -> read_len );
+static void dbj_init_str( const String * src, String * dst, uint32_t start, uint32_t len ) {
+    dst -> addr = &( src -> addr[ start ] );
+    dst -> size = len;
+    dst -> len  = len;
 }
 
-static void dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
-    dbj_slice_rec( &( rec -> quality ), S1, S2, rec -> read_len );
+static rc_t dbj_slice_read( const fq_seq_csra_rec_t * rec, String * S1, String * S2 ) {
+    if ( NULL != S1 ) {
+        if ( rec -> num_read_start > 0 && rec -> num_read_len > 0 ) {
+            uint32_t read_start = rec -> read_start[ 0 ];
+            uint32_t read_len = rec -> read_len[ 0 ];
+            if ( read_start + read_len <= rec -> read . len ) {
+                dbj_init_str( &( rec -> read ), S1, read_start, read_len );
+            } else {
+                ErrMsg( "row #%ld : read-start[0] (%u) + read-len[0] (%u) > READ.len (%u)\n",
+                        rec -> row_id, read_start, read_len, rec -> read . len );
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        } else {
+            ErrMsg( "row #%ld : num-read-start = %u | num-read-len = %u\n", rec -> row_id,
+                    rec -> num_read_start, rec -> num_read_len );
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+    }
+    if ( NULL != S2 ) {
+        if ( rec -> num_read_start > 1 && rec -> num_read_len > 1 ) {
+            uint32_t read_start = rec -> read_start[ 1 ];
+            uint32_t read_len = rec -> read_len[ 1 ];
+            if ( read_start + read_len <= rec -> read . len ) {
+                dbj_init_str( &( rec -> read ), S2, read_start, read_len );
+            } else {
+                ErrMsg( "row #%ld : read-start[1] (%u) + read-len[1] (%u) > READ.len (%u)\n",
+                        rec -> row_id, read_start, read_len, rec -> read . len );
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        } else {
+            ErrMsg( "row #%ld : num-read-start = %u | num-read-len = %u\n", rec -> row_id,
+                    rec -> num_read_start, rec -> num_read_len );
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+    }
+    return 0;
+}
+
+static rc_t dbj_slice_qual( const fq_seq_csra_rec_t * rec, String * Q1, String * Q2 ) {
+    if ( NULL != Q1 ) {
+        if ( rec -> num_read_start > 0 && rec -> num_read_len > 0 ) {
+            uint32_t read_start = rec -> read_start[ 0 ];
+            uint32_t read_len = rec -> read_len[ 0 ];
+            if ( read_start + read_len <= rec -> quality . len ) {
+                dbj_init_str( &( rec -> quality ), Q1, read_start, read_len );
+            } else {
+                ErrMsg( "row #%ld : read-start[0] (%u) + read-len[0] (%u) > QUALITY.len (%u)\n",
+                        rec -> row_id, read_start, read_len, rec -> quality . len );
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        } else {
+            ErrMsg( "row #%ld : num-read-start = %u | num-read-len = %u\n", rec -> row_id,
+                    rec -> num_read_start, rec -> num_read_len );
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+    }
+    if ( NULL != Q2 ) {
+        if ( rec -> num_read_start > 1 && rec -> num_read_len > 1 ) {
+            uint32_t read_start = rec -> read_start[ 1 ];
+            uint32_t read_len = rec -> read_len[ 1 ];
+            if ( read_start + read_len <= rec -> quality . len ) {
+                dbj_init_str( &( rec -> quality ), Q2, read_start, read_len );
+            } else {
+                ErrMsg( "row #%ld : read-start[1] (%u) + read-len[1] (%u) > QUALITY.len (%u)\n",
+                        rec -> row_id, read_start, read_len, rec -> quality . len );
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        } else {
+            ErrMsg( "row #%ld : num-read-start = %u | num-read-len = %u\n", rec -> row_id,
+                    rec -> num_read_start, rec -> num_read_len );
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+    }
+    return 0;
 }
 
 static rc_t dbj_print_data( struct flp_t * printer,
@@ -253,264 +310,388 @@ typedef enum dbj_split_mode_t { sm_none, sm_file, sm_3 } dbj_split_mode_t;
 
 /* ------------------------------------------------------------------------------------------ */
 
+/* FASTQ | the SPOT is unaligned and has only 1 READ :
+ *      READ and QUALITY are taken from the SEQUENCE-table */
 static rc_t dbj_print_fastq_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        const String * QUALITY = &( rec -> quality );
-        if ( CMP_READ -> len != QUALITY -> len ) {
-            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", rec -> row_id,
-                    CMP_READ -> len, QUALITY -> len );
-            j -> stats -> reads_invalid++;
-            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-        }
-        if ( CMP_READ -> len > 0 ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                             /* read_id */ 1,
-                             /* dst_id */ ( sm_file == sm ) ? 1 : 0,
-                             /* R1 */ CMP_READ,
-                             /* R2 */ NULL,
-                             /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written++; }
-        }
+    const String * READ = &( rec -> read );
+    const String * QUALITY = &( rec -> quality );
+
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", rec -> row_id,
+                READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : CMP_READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                        /* read_id */ 1,
+                        /* dst_id */ ( sm_file == sm ) ? 1 : 0,
+                        /* R1 */ READ,
+                        /* R2 */ NULL,
+                        /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
+/* FASTQ | the SPOT is aligned and has only 1 READ :
+ *      READ is taken from the tmp. lookup-table,
+ *      QUALITY is taken from the SEQUENCE-table */
 static rc_t dbj_print_fastq_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_1( j -> filter, LOOKED_UP ) ) {
-            const String * QUALITY = &( rec -> quality );
-            if ( LOOKED_UP -> len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
-                            LOOKED_UP -> len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            if ( LOOKED_UP -> len > 0 ) {
-                rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                                /* read_id */ 1,
-                                 /* dst_id */ ( sm_file == sm ) ? 1 : 0,
-                                /* R1 */ LOOKED_UP,
-                                /* R2 */ NULL,
-                                /* Q  */ QUALITY );
-                if ( 0 == rc ) { j -> stats -> reads_written++; }
-            }
-        }
+    const String * READ = NULL;
+    const String * QUALITY = &( rec -> quality );
+
+    rc_t rc = dbj_lookup1( j, rec, &READ );
+    if ( 0 != rc ) { return rc; }
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
+                    READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if looked up READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                        /* dst_id */ ( sm_file == sm ) ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
+/* FASTQ | the SPOT has only 1 READ */
 static rc_t dbj_print_fastq_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
-    rc_t rc = 0;
-    bool process = dbj_filter( j -> stats, rec, j -> join_options, 0 );
-    if ( process ) {
-        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-            rc = dbj_print_fastq_1_read_unaligned( rec, j, sm );
-        } else {
-            rc = dbj_print_fastq_1_read_aligned( rec, j, sm );
-        }
+    if ( !dbj_filter( j -> stats, rec, j -> join_options, 0 ) ) { return 0; }
+    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+        return dbj_print_fastq_1_read_unaligned( rec, j, sm );
     }
-    return rc;
+    return dbj_print_fastq_1_read_aligned( rec, j, sm );
 }
 
+/* FASTA | the SPOT is unaligned and has only 1 READ :
+ *      READ is taken from the SEQUENCE-table */
 static rc_t dbj_print_fasta_1_read_unaligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        if ( CMP_READ -> len > 0 ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ sm == sm_file ? 1 : 0,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL );
-            if ( 0 == rc ) { j -> stats -> reads_written++; }
-        }
+    const String * READ = &( rec -> read );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ sm == sm_file ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
+/* FASTA | the SPOT is aligned and has only 1 READ :
+ *      READ is taken from the tmp. lookup-table */
 static rc_t dbj_print_fasta_1_read_aligned( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
     /* read is aligned, ( 1 lookup ) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_1( j -> filter, LOOKED_UP ) ) {
-            if ( LOOKED_UP -> len > 0 ) {
-                rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                                /* read_id */ 1,
-                                /* dst_id */ sm == sm_file ? 1 : 0,
-                                /* R1 */ LOOKED_UP,
-                                /* R2 */ NULL,
-                                /* Q  */ NULL );
-                if ( 0 == rc ) { j -> stats -> reads_written++; }
-            }
-        }
+    const String * READ = NULL;
+    rc_t rc = dbj_lookup1( j, rec, &READ );
+    if ( 0 != rc ) { return rc; }
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 1 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 1\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 1 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 1\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) !=READ_LEN[0](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    if ( 0 == READ -> len ) { return rc; }
+    /* Is it an error if READ is empty? Can that even happen? */
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ sm == sm_file ? 1 : 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written++; }
     return rc;
 }
 
+/* FASTA | the SPOT has only 1 READ */
 static rc_t dbj_print_fasta_1_read( const fq_seq_csra_rec_t * rec,
                                 dbj_cmn_t * j,
                                 dbj_split_mode_t sm ) {
-    rc_t rc = 0;
-    bool process = dbj_filter( j -> stats, rec, j -> join_options, 0 );
-    if ( process ) {
-        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-            rc = dbj_print_fasta_1_read_unaligned( rec, j, sm );
-        } else {
-            rc = dbj_print_fasta_1_read_aligned( rec, j, sm );
-        }
+    if ( !dbj_filter( j -> stats, rec, j -> join_options, 0 ) ) { return 0; }
+    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+            return dbj_print_fasta_1_read_unaligned( rec, j, sm );
     }
-    return rc;
+    return dbj_print_fasta_1_read_aligned( rec, j, sm );
 }
 
 /* ------------------------------------------------------------------------------------------ */
 
+/* FASTQ | the SPOT is unaligned and has 2 READs :
+ *      READ and QUALITY are taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> FULLY UNALIGNED <<<<<
-        print what is in rec -> read ( no lookups! ) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        const String * QUALITY = &( rec -> quality );
-        if ( CMP_READ -> len != QUALITY -> len ) {
-            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", rec -> row_id,
-                    CMP_READ -> len, QUALITY -> len );
-            j -> stats -> reads_invalid++;
-            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-        }
-        rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                        /* read_id */ 1,
-                         /* dst_id */ 0,
-                        /* R1 */ CMP_READ,
-                        /* R2 */ NULL,
-                        /* Q  */ QUALITY );
-        if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+    const String * READ = &( rec -> read );
+    const String * QUALITY = &( rec -> quality );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != ( rec -> read_len[ 0 ] + rec -> read_len[ 1 ] ) ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) != READ_LEN[0](%u) + READ_LEN[1](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ], rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != QUALITY -> len ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", rec -> row_id,
+                READ -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+static rc_t dbj_fastq_check_invariants_for_2_reads( const String * READ1, const String * READ2, const String * QUALITY,
+                                const fq_seq_csra_rec_t * rec, dbj_cmn_t * j ) {
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ1 -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ1.len(%u) != READ_LEN[0](%u)\n",
+                rec -> row_id, READ1 -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ2 -> len != rec -> read_len[ 1 ] ) {
+        ErrMsg( "row #%ld : looked up READ2.len(%u) != READ_LEN[1](%u)\n",
+                rec -> row_id, READ2 -> len, rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( QUALITY -> len != ( READ1 -> len + READ2 -> len ) ) {
+        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", rec -> row_id,
+                READ1 -> len + READ2 -> len, QUALITY -> len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    return 0;
+}
+
+/* FASTQ | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> HALF ALIGNED <<<<<
-        A0 is unaligned ( read and quality from rec )
-        A1 is aligned   ( read form j -> lookup, quality from rec ) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup2( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        const String * QUALITY  = &( rec -> quality );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == QUALITY -> len ) {
-            dbj_slice_read( rec, &sliced, NULL );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, CMP_READ, LOOKED_UP ) ) {
-            uint32_t combined_len = CMP_READ -> len + LOOKED_UP -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ LOOKED_UP,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    rc_t rc;
+    const String * READ1 = &( rec -> read );
+    const String * READ2 = NULL;
+    const String * QUALITY  = &( rec -> quality );
+    String sliced;
+    /* test for special case: CMP_READ contains BOTH halfs: */
+    if ( READ1 -> len == QUALITY -> len ) {
+        rc = dbj_slice_read( rec, &sliced, NULL );
+        if ( 0 != rc ) return rc;
+        READ1 = &sliced;
     }
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+/* FASTQ | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> HALF ALIGNED <<<<<
-        A0 is aligned ( read and quality from rec )
-        A1 is unaligned ( read form lookup quality from rec */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        const String * QUALITY  = &( rec -> quality );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == QUALITY -> len ) {
-            dbj_slice_read( rec, NULL, &sliced );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP, CMP_READ ) ) {
-            uint32_t combined_len = LOOKED_UP -> len + CMP_READ -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ CMP_READ,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    const String * READ1 = NULL;
+    const String * READ2 = &( rec -> read );
+    const String * QUALITY  = &( rec -> quality );
+    String sliced;
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+
+    /* test for special case: CMP_READ contains BOTH halfs: */
+    if ( READ2 -> len == QUALITY -> len ) {
+        rc = dbj_slice_read( rec, NULL, &sliced );
+        if ( 0 != rc ) return rc;
+        READ2 = &sliced;
     }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+
     return rc;
 }
 
+/* FASTQ | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* >>>>> FULLY ALIGNED <<<<<  2 lookups! */
-    const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
-    if ( 0 == rc ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP2 );
-    }
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP1, LOOKED_UP2 ) ) {
-            const String * QUALITY = &( rec -> quality );
-            uint32_t combined_len = LOOKED_UP1 -> len + LOOKED_UP2 -> len;
-            if ( combined_len != QUALITY -> len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", rec -> row_id,
-                        combined_len, QUALITY -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP1,
-                            /* R2 */ LOOKED_UP2,
-                            /* Q  */ QUALITY );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
-    }
+    const String * READ1 = NULL;
+    const String * READ2 = NULL;
+    const String * QUALITY = &( rec -> quality );
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fastq_check_invariants_for_2_reads( READ1, READ2, QUALITY, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ QUALITY );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+/* FASTQ | with 2 READs, printing the whole spot - no splitting */
 static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
@@ -530,100 +711,167 @@ static rc_t dbj_print_fastq_whole_spot( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* ------------------------------------------------------------------------------------------ */
+
+/* FASTA | the SPOT is unaligned and has 2 READs :
+ *      READ is taken from the SEQUENCE-table
+        printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_unaligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* both unaligned, print what is in row->read ( no lookup )
-        also no check for READ.len == QUAL.len, because FASTA, aka no QUALITY */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    if ( hlp_filter_2na_1( j -> filter, CMP_READ ) ) {
-        rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                        /* read_id */ 1,
-                        /* dst_id */ 0,
-                        /* R1 */ CMP_READ,
-                        /* R2 */ NULL,
-                        /* Q  */ NULL );
-        if ( 0 == rc ) { j -> stats -> reads_written += 2; }
+    const String * READ = &( rec -> read );
+    if ( !hlp_filter_2na_1( j -> filter, READ ) ) { return rc; }
+
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ -> len != ( rec -> read_len[ 0 ] + rec -> read_len[ 1 ] ) ) {
+        ErrMsg( "row #%ld : looked up READ.len(%u) != READ_LEN[0](%u) + READ_LEN[1](%u)\n",
+                rec -> row_id, READ -> len, rec -> read_len[ 0 ], rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ,
+                    /* R2 */ NULL,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+static rc_t dbj_fasta_check_invariants_for_2_reads( const String * READ1, const String * READ2,
+                                const fq_seq_csra_rec_t * rec, dbj_cmn_t * j ) {
+    if ( 2 != rec -> num_read_start ) {
+        ErrMsg( "row #%ld : READ_START.count(%u) != 2\n", rec -> row_id, rec -> num_read_start );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( 2 != rec -> num_read_len ) {
+        ErrMsg( "row #%ld : READ_LEN.count(%u) != 2\n", rec -> row_id, rec -> num_read_len );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ1 -> len != rec -> read_len[ 0 ] ) {
+        ErrMsg( "row #%ld : looked up READ1.len(%u) != READ_LEN[0](%u)\n",
+                rec -> row_id, READ1 -> len, rec -> read_len[ 0 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    if ( READ2 -> len != rec -> read_len[ 1 ] ) {
+        ErrMsg( "row #%ld : looked up READ2.len(%u) != READ_LEN[1](%u)\n",
+                rec -> row_id, READ2 -> len, rec -> read_len[ 1 ] );
+        j -> stats -> reads_invalid++;
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    return 0;
+}
+
+/* FASTA | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
-    const String * LOOKED_UP = NULL;
-    rc_t rc = dbj_lookup2( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
-            dbj_slice_read( rec, &sliced, NULL );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, CMP_READ, LOOKED_UP ) ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ LOOKED_UP,
-                            /* Q  */ NULL );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    rc_t rc = 0;
+    const String * READ1 = &( rec -> read );
+    const String * READ2 = NULL;
+    String sliced;
+    /* test for special case: CMP_READ contains BOTH halfs: */
+    if ( READ1 -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
+        rc = dbj_slice_read( rec, &sliced, NULL );
+        if ( 0 != rc ) return rc;
+        READ1 = &sliced;
     }
+
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+/* FASTA | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
-    const String * LOOKED_UP = NULL;
-
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP );
-    if ( 0 == rc ) {
-        const String * CMP_READ = &( rec -> read );
-        String sliced;
-        /* test for special case: CMP_READ contains BOTH halfs: */
-        if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
-            dbj_slice_read( rec, NULL, &sliced );
-            CMP_READ = &sliced;
-        }
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP, CMP_READ ) ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ CMP_READ,
-                            /* Q  */ NULL );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
+    rc_t rc = 0;
+    const String * READ1 = NULL;
+    const String * READ2 = &( rec -> read );
+    String sliced;
+    if ( READ2 -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
+        rc = dbj_slice_read( rec, NULL, &sliced );
+        if ( 0 != rc ) return rc;
+        READ2 = &sliced;
     }
+    rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+/* FASTA | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+         printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot_aligned( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
-    /* A0 and A1 are aligned ( 2 lookups ) */
-    const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;
-    rc_t rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
-    if ( 0 == rc ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP2 );
-    }
-    if ( 0 == rc ) {
-        if ( hlp_filter_2na_2( j -> filter, LOOKED_UP1, LOOKED_UP2 ) ) {
-            rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
-                            /* read_id */ 1,
-                            /* dst_id */ 0,
-                            /* R1 */ LOOKED_UP1,
-                            /* R2 */ LOOKED_UP2,
-                            /* Q  */ NULL );
-            if ( 0 == rc ) { j -> stats -> reads_written += 2; }
-        }
-    }
+    const String * READ1 = NULL;
+    const String * READ2 = NULL;
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) { return rc; }
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    if ( !hlp_filter_2na_2( j -> filter, READ1, READ2 ) ) { return rc; }
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_print_data( j -> flex_printer, rec, j -> join_options,
+                    /* read_id */ 1,
+                    /* dst_id */ 0,
+                    /* R1 */ READ1,
+                    /* R2 */ READ2,
+                    /* Q  */ NULL );
+    if ( 0 == rc ) { j -> stats -> reads_written += 2; }
     return rc;
 }
 
+/* FASTQ | with 2 READs, printing the whole spot - no splitting */
 static rc_t dbj_print_fasta_whole_spot( const fq_seq_csra_rec_t * rec,
                                  dbj_cmn_t * j ) {
     rc_t rc = 0;
@@ -699,6 +947,10 @@ static rc_t dbj_print_fastq_splitted_cmn( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTQ | the SPOT is fully unaligned and has 2 READs :
+ *      both READs are taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -706,27 +958,35 @@ static rc_t dbj_print_fastq_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* fully unaligned */
-    String CMP_READ1, CMP_READ2;
-    dbj_slice_read( rec, &CMP_READ1, &CMP_READ2 );
+    String READ1, READ2;
+    rc_t rc = dbj_slice_read( rec, &READ1, &READ2 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( &READ1, &READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
     if ( process_0 ) {
-        if ( CMP_READ1 . len != Q1 -> len ) {
-            ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", rec -> row_id, CMP_READ1 . len, Q1 -> len );
+        if ( READ1 . len != Q1 -> len ) {
+            ErrMsg( "row #%ld : READ1.len(%u) != Q1.len(%u)\n", rec -> row_id, READ1 . len, Q1 -> len );
             j -> stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
     if ( process_1 ) {
-        if ( CMP_READ2 . len != Q2 -> len ) {
-            ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", rec -> row_id, CMP_READ2 . len, Q2 -> len );
+        if ( READ2 . len != Q2 -> len ) {
+            ErrMsg( "row #%ld : READ2.len(%u) != Q2.len(%u)\n", rec -> row_id, READ2 . len, Q2 -> len );
             j -> stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    return dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1,
-                                   &CMP_READ1, &CMP_READ2, Q1, Q2 );
+    return dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1, &READ1, &READ2, Q1, Q2 );
 }
 
+/* FASTQ | the SPOT is half-aligned ( 1st READ unaligned ) :
+ *      1st READ is taken from the SEQUENCE-table
+ *      2nd READ is taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -734,43 +994,49 @@ static rc_t dbj_print_fastq_splitted_half_aligned_1( const fq_seq_csra_rec_t * r
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    const String * LOOKED_UP = NULL;
+    const String * READ1 = &( rec -> read );
+    const String * READ2 = NULL;
     String sliced;
-    uint32_t spot_len = dbj_calc_spot_len( rec );
+    uint32_t spot_len = dbj_calc_spot_len_from_read_len( rec );
     /* special case: CMP_READ contains both! */
-    if ( CMP_READ -> len == spot_len ) {
-        dbj_slice_read( rec, &sliced, NULL );
-        CMP_READ = &sliced;
+    if ( READ1 -> len == spot_len ) {
+        rc = dbj_slice_read( rec, &sliced, NULL );
+        if ( 0 != rc ) return rc;
+        READ1 = &sliced;
     }
+
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) { return rc; }
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
     if ( process_0 ) {
-        if ( CMP_READ -> len != Q1 -> len ) {
-            ErrMsg( "fastq.splitted.half1 row #%ld : CMP_READ.len(%u) != Q1.len(%u) / spotlen=%u\n",
-                    rec -> row_id, CMP_READ -> len, Q1 -> len, spot_len );
+        if ( READ1 -> len != Q1 -> len ) {
+            ErrMsg( "fastq.splitted.half1 row #%ld : READ1.len(%u) != Q1.len(%u) / spotlen=%u\n",
+                    rec -> row_id, READ1 -> len, Q1 -> len, spot_len );
             j -> stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
     if ( process_1 ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP );
-        if ( 0 == rc ) {
-            if ( LOOKED_UP -> len != Q2 -> len ) {
-                ErrMsg( "fastq.splitted.half1 row #%ld : LOOKED_UP.len(%u) != Q2.len(%u) / spotlen=%u\n",
-                        rec -> row_id, LOOKED_UP -> len, Q2 -> len, spot_len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
+        if ( READ2 -> len != Q2 -> len ) {
+            ErrMsg( "fastq.splitted.half1 row #%ld : READ2.len(%u) != Q2.len(%u) / spotlen=%u\n",
+                    rec -> row_id, READ2 -> len, Q2 -> len, spot_len );
+            j -> stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    if ( 0 == rc ) {
-        rc = dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1,
-                                        CMP_READ, LOOKED_UP, Q1, Q2 );
-    }
-    return rc;
+
+    return dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2, Q1, Q2 );
 }
 
+/* FASTQ | the SPOT is half-aligned ( 2nd READ unaligned ) :
+ *      1st READ is taken from the lookup-table
+ *      2nd READ is taken from the SEQUENCE-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -778,43 +1044,48 @@ static rc_t dbj_print_fastq_splitted_half_aligned_2( const fq_seq_csra_rec_t * r
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    const String * LOOKED_UP = NULL;
+    const String * READ1 = NULL;
+    const String * READ2 = &( rec -> read );
     String sliced;
-    uint32_t spot_len = dbj_calc_spot_len( rec );
+    uint32_t spot_len = dbj_calc_spot_len_from_read_len( rec );
     /* special case: CMP_READ contains both! */
-    if ( CMP_READ -> len == spot_len ) {
-        dbj_slice_read( rec, NULL, &sliced );
-        CMP_READ = &sliced;
+    if ( READ2 -> len == spot_len ) {
+        rc = dbj_slice_read( rec, NULL, &sliced );
+        if ( 0 != rc ) return rc;
+        READ2 = &sliced;
     }
+
+    rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
     if ( process_0 ) {
-        rc = dbj_lookup1( j, rec, &LOOKED_UP );
-        if ( 0 == rc ) {
-            if ( LOOKED_UP -> len != Q1 -> len ) {
-                ErrMsg( "fastq.splitted.half2 row #%ld : LOOKED_UP.len(%u) != Q1.len(%u) / spotlen=%u\n",
-                        rec -> row_id, LOOKED_UP -> len, Q1 -> len, spot_len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
-        }
-    }
-    if ( process_1 ) {
-        if ( CMP_READ -> len != Q2 -> len ) {
-            ErrMsg( "fastq.splitted.half2 row #%ld : CMP_READ.len(%u) != Q2.len(%u) / spotlen=%u\n",
-                    rec -> row_id, CMP_READ -> len, Q2 -> len, spot_len );
+        if ( READ1 -> len != Q1 -> len ) {
+            ErrMsg( "fastq.splitted.half2 row #%ld : READ1.len(%u) != Q1.len(%u) / spotlen=%u\n",
+                    rec -> row_id, READ1 -> len, Q1 -> len, spot_len );
             j -> stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    if ( 0 == rc ) {
-        rc = dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1,
-                                        LOOKED_UP, CMP_READ, Q1, Q2 );
+    if ( process_1 ) {
+        if ( READ2 -> len != Q2 -> len ) {
+            ErrMsg( "fastq.splitted.half2 row #%ld : READ2.len(%u) != Q2.len(%u) / spotlen=%u\n",
+                    rec -> row_id, READ2 -> len, Q2 -> len, spot_len );
+            j -> stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
     }
-    return rc;
+
+    return dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2, Q1, Q2 );
 }
 
+/* FASTQ | the SPOT is fully-aligned :
+ *      both READs are taken from the lookup-table
+ *      QUALITY is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
@@ -822,37 +1093,37 @@ static rc_t dbj_print_fastq_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   bool process_1,
                                   const String * Q1,
                                   const String * Q2 ) {
-    /* A0 and A1 are aligned (2 lookups) */
-    rc_t rc = 0;
-    const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;
+    const String * READ1 = NULL;
+    const String * READ2 = NULL;
+
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
     if ( process_0 ) {
-        rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
-        if ( 0 == rc ) {
-            if ( LOOKED_UP1 -> len != Q1 -> len ) {
-                ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", rec -> row_id, LOOKED_UP1 -> len, Q1 -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
+        if ( READ1 -> len != Q1 -> len ) {
+            ErrMsg( "row #%ld : READ1.len(%u) != Q[1].len(%u)\n", rec -> row_id, READ1 -> len, Q1 -> len );
+            j -> stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    if ( 0 == rc && process_1 ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP2 );
-        if ( 0 == rc ) {
-            if ( LOOKED_UP2 -> len != Q2 -> len ) {
-                ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", rec -> row_id, LOOKED_UP2 -> len, Q2 -> len );
-                j -> stats -> reads_invalid++;
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            }
+    if ( process_1 ) {
+        if ( READ2 -> len != Q2 -> len ) {
+            ErrMsg( "row #%ld : READ2.len(%u) != Q[2].len(%u)\n", rec -> row_id, READ2 -> len, Q2 -> len );
+            j -> stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    if ( 0 == rc ) {
-        rc = dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1,
-                                        LOOKED_UP1, LOOKED_UP2, Q1, Q2 );
-    }
-    return rc;
+
+    return dbj_print_fastq_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2, Q1, Q2 );
 }
 
+/* FASTQ | with 2 READs, splitting the SPOT */
 static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
@@ -867,11 +1138,12 @@ static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
     }
 
     /* slice the quality rec -> quality ---> Q1, Q2 */
-    dbj_slice_qual( rec, &Q1, &Q2 );
+    rc = dbj_slice_qual( rec, &Q1, &Q2 );
+    if ( 0 != rc ) return rc;
 
     /* check if the 2 slices of quality add up to the available qualities */
     if ( ( Q1 . len + Q2 . len ) != rec -> quality . len ) {
-        ErrMsg( "row #%ld : Q[1].len(%u) + Q[2].len(%u) != Q.len(%u)\n",
+        ErrMsg( "row #%ld : Q1.len(%u) + Q2.len(%u) != Q.len(%u)\n",
                 rec -> row_id, Q1 . len, Q2 . len, rec -> quality . len );
         j -> stats -> reads_invalid++;
         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
@@ -896,6 +1168,8 @@ static rc_t dbj_print_fastq_splitted( const fq_seq_csra_rec_t * rec,
     }
     return rc;
 }
+
+/* ------------------------------------------------------------------------------------------ */
 
 static rc_t dbj_print_fasta_splitted_cmn( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
@@ -929,87 +1203,109 @@ static rc_t dbj_print_fasta_splitted_cmn( const fq_seq_csra_rec_t * rec,
     return rc;
 }
 
+/* FASTA | the SPOT is fully unaligned and has 2 READs :
+ *      both READs are taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_unaligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
     /* fully unaligned */
-    String CMP_READ1;
-    String CMP_READ2;
-    dbj_slice_read( rec, &CMP_READ1, &CMP_READ2 );
+    String READ1;
+    String READ2;
+    rc_t rc = dbj_slice_read( rec, &READ1, &READ2 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( &READ1, &READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
     return dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1,
-                                     &CMP_READ1, &CMP_READ2 );
+                                     &READ1, &READ2 );
 }
 
+/* FASTA | the SPOT is half-aligned ( 1st READ is unaligned ) :
+ *      the 1st READ is taken from the SEQUENCE-table
+ *      the 2nd READ is taken from the lookup-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_half_aligned_1( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
-    /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    const String * LOOKED_UP = NULL;
+    const String * READ1 = &( rec -> read );
+    const String * READ2 = NULL;
     String sliced;
     /* test for special case: CMP_READ contains BOTH halfs: */
-    if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
-        dbj_slice_read( rec, &sliced, NULL );
-        CMP_READ = &sliced;
+    if ( READ1 -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
+        rc = dbj_slice_read( rec, &sliced, NULL );
+        if ( 0 != rc ) return rc;
+        READ1 = &sliced;
     }
-    if ( process_1 ) { rc = dbj_lookup2( j, rec, &LOOKED_UP ); }
-    if ( 0 == rc ) {
-        rc = dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1,
-                                       CMP_READ, LOOKED_UP );
-    }
-    return rc;
+
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    return dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2 );
 }
 
+/* FASTA | the SPOT is half-aligned ( 2nd READ is unaligned ) :
+ *      the 1st READ is taken from the lookup-table
+ *      the 2nd READ is taken from the SEQUENCE-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_half_aligned_2( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
-    /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
-    const String * CMP_READ = &( rec -> read );
-    const String * LOOKED_UP = NULL;
+    const String * READ1 = NULL;
+    const String * READ2 = &( rec -> read );
     String sliced;
     /* test for special case: CMP_READ contains BOTH halfs: */
-    if ( CMP_READ -> len == dbj_calc_spot_len( rec ) ) {
-        dbj_slice_read( rec, NULL, &sliced );
-        CMP_READ = &sliced;
+    if ( READ2 -> len == dbj_calc_spot_len_from_read_len( rec ) ) {
+        rc = dbj_slice_read( rec, NULL, &sliced );
+        if ( 0 != rc ) return rc;
+        READ2 = &sliced;
     }
-    if ( process_0 ) { rc = dbj_lookup1( j, rec, &LOOKED_UP ); }
-    if ( 0 == rc ) {
-        rc = dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1,
-                                       LOOKED_UP, CMP_READ );
-    }
-    return rc;
+    rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    return dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2 );
 }
 
+/* FASTA | the SPOT is fully aligned :
+ *      both READs are taken from the lookup-table
+        splitting the SPOT based on the split-mode */
 static rc_t dbj_print_fasta_splitted_aligned( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm,
                                   bool process_0,
                                   bool process_1 ) {
     /* A0 and A1 are aligned (2 lookups)*/
-    rc_t rc = 0;
-    const String * LOOKED_UP1 = NULL;
-    const String * LOOKED_UP2 = NULL;
-    if ( process_0 ) {
-        rc = dbj_lookup1( j, rec, &LOOKED_UP1 );
-    }
-    if ( 0 == rc && process_1 ) {
-        rc = dbj_lookup2( j, rec, &LOOKED_UP2 );
-    }
-    if ( 0 == rc ) {
-        rc = dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1,
-                                       LOOKED_UP1, LOOKED_UP2 );
-    }
-    return rc;
+    const String * READ1 = NULL;
+    const String * READ2 = NULL;
+
+    rc_t rc = dbj_lookup1( j, rec, &READ1 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_lookup2( j, rec, &READ2 );
+    if ( 0 != rc ) return rc;
+
+    rc = dbj_fasta_check_invariants_for_2_reads( READ1, READ2, rec, j );
+    if ( 0 != rc ) { return rc; }
+
+    return dbj_print_fasta_splitted_cmn( rec, j, sm, process_0, process_1, READ1, READ2 );
 }
 
+/* FASTA | with 2 READs, splitting the SPOT */
 static rc_t dbj_print_fasta_splitted( const fq_seq_csra_rec_t * rec,
                                   dbj_cmn_t * j,
                                   dbj_split_mode_t sm ) {
@@ -1041,6 +1337,8 @@ static rc_t dbj_print_fasta_splitted( const fq_seq_csra_rec_t * rec,
     }
     return rc;
 }
+
+/* ------------------------------------------------------------------------------------------ */
 
 static rc_t dbj_perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                                      dbj_cmn_t * j ) {
@@ -1475,7 +1773,7 @@ typedef struct dbj_thread_data_t {
     struct multi_writer_t * multi_writer;
 } dbj_thread_data_t;
 
-static rc_t CC dbj_sorted_thread( const KThread * self, void * data ) {
+static rc_t dbj_sorted_thread( const KThread * self, void * data ) {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
@@ -1504,7 +1802,8 @@ static rc_t CC dbj_sorted_thread( const KThread * self, void * data ) {
                                   jtd -> accession_path,
                                   jtd -> cur_cache,
                                   jtd -> first_row,
-                                  jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                                  jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                                  jtd -> thread_id );
         rc = dbj_init_cmn_data( &j,
                         &jtd -> stats,
                         jtd -> join_options,
@@ -1656,102 +1955,13 @@ rc_t dbj_create_sorted_fastq_fasta( const dbj_sorted_fastq_fasta_args_t * args )
     return rc;
 }
 
-/*
-    test-function to check if each row in the alignment-table can be found by referencing the seq-row-id and req-read-id
-    in the lookup-file
-*/
-#if 0
-rc_t dbj_check_lookup( const KDirectory * dir,
-                   size_t buf_size,
-                   size_t cursor_cache,
-                   const char * lookup_filename,
-                   const char * index_filename,
-                   const char * accession_short,
-                   const char * accession_path ) {
-    struct index_reader_t * index;
-    rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
-    if ( 0 == rc ) {
-        struct lookup_reader_t * lookup;  /* lookup_reader.h */
-        rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
-        if ( 0 == rc ) {
-            struct raw_read_iter_t * iter; /* raw_read_iter.h */
-            cmn_iter_params_t params; /* helper.h */
-
-            params . dir = dir;
-            params . accession_short = accession_short;
-            params . accession_path  = accession_path;
-
-            params . first_row = 0;
-            params . row_count = 0;
-            params . cursor_cache = cursor_cache;
-
-            rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
-            if ( 0 == rc ) {
-                SBuffer_t buffer;
-                rc = make_SBuffer( &buffer, 4096 );
-                if ( 0 == rc ) {
-                    raw_read_rec_t rec; /* raw_read_iter.h */
-                    uint64_t loop = 0;
-                    bool running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
-                    while( 0 == rc && running ) {
-                        rc = lookup_bases( lookup, rec . seq_spot_id, rec . seq_read_id, &buffer, false );
-                        if ( 0 != rc ) {
-                            KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", rec . seq_spot_id, rec . seq_read_id, rc );
-                        } else {
-                            running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
-                            if ( 0 == loop % 1000 ) {
-                                KOutMsg( "[loop #%lu] ", loop / 1000 );
-                            }
-                            loop++;
-                        }
-                    }
-                    release_SBuffer( &buffer );
-                }
-                destroy_raw_read_iter( iter ); /* raw_read_iter.c */
-            }
-            release_lookup_reader( lookup ); /* lookup_reader.c */
-        }
-        release_index_reader( index );
-    }
-    return rc;
-}
-
-rc_t dbj_check_lookup_this( const KDirectory * dir,
-                       size_t buf_size,
-                       size_t cursor_cache,
-                       const char * lookup_filename,
-                       const char * index_filename,
-                       uint64_t seq_spot_id,
-                       uint32_t seq_read_id ) {
-    struct index_reader_t * index;
-    rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
-    if ( 0 == rc ) {
-        struct lookup_reader_t * lookup;  /* lookup_reader.h */
-        rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
-        if ( 0 == rc ) {
-            SBuffer_t buffer;
-            rc = make_SBuffer( &buffer, 4096 );
-            if ( 0 == rc ) {
-                rc = lookup_bases( lookup, seq_spot_id, seq_read_id, &buffer, false );
-                if ( 0 != rc ) {
-                    KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", seq_spot_id, seq_read_id, rc );
-                }
-                release_SBuffer( &buffer );
-            }
-            release_lookup_reader( lookup ); /* lookup_reader.c */
-        }
-        release_index_reader( index );
-    }
-    return rc;
-}
-#endif
 
 /* ======================================================================================================================
     the unsorted FASTA approach for cSRA databases ...
    ====================================================================================================================== */
 
 /* iterate over the ALIGN-table, using the align-iter from fastq_iter.c */
-static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
+static rc_t dbj_unsorted_fasta_align_thread( const KThread * self, void * data )
 {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
@@ -1760,7 +1970,9 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
     struct alit_t * align_iter;
     uint64_t loop_nr = 0;
     struct flp_t * flex_printer;
-    
+    bool uses_read_id;
+    alit_rec_t rec;
+
     cmn_iter_populate_params( &cp,
                               jtd -> dir,
                               jtd -> vdb_mgr,
@@ -1768,7 +1980,8 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
    
     flex_printer = flp_create_2( jtd -> multi_writer,          /* passed in multi-writer */
                             jtd -> accession_short,       /* the accession to be printed */
@@ -1776,54 +1989,56 @@ static rc_t CC dbj_unsorted_fasta_align_thread( const KThread * self, void * dat
                             NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
                             true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
-        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
-    else {
-        bool uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
-        rc = alit_create( &cp, &align_iter, uses_read_id ); /* fastq-iter.c */
-        if ( 0 != rc ) {
-            ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
-        } else {
-            alit_rec_t rec;
-            while ( 0 == rc && alit_get_rec( align_iter, &rec, &rc ) ) { /* fastq-iter.c */
-                rc = hlp_get_quitting(); /* helper.c */
 
-                if ( 0 == rc ) {
-                    if ( rec . read . len > 0 ) {
-                        flp_data_t data;
-                        stats -> reads_read += 1;
-
-                        /* fill out the data-record for the flex-printer */
-                        data . row_id = rec . spot_id;
-                        data . read_id = rec . read_id;
-                        data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
-
-                        data . spotname = NULL;     /* we do not have the spot-name in the align-table */
-                        data . spotgroup = NULL;    /* align-rec does not have spot-group! */
-                        data . read1 = &( rec . read );
-                        data . read2 = NULL;
-                        data . quality = NULL;
-
-                        /* finally print it out */
-                        rc = flp_print( flex_printer, &data ); /* flex_printer.c */
-                        if ( 0 == rc ) { stats -> reads_written++; }
-                    } else {
-                        stats -> reads_zero_length++;
-                    }
-
-                    if ( 0 == rc ) {
-                        loop_nr ++;
-                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
-                    } else {
-                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                        hlp_set_quitting(); /* helper.c */
-                    }
-                }
-            }
-            alit_release( align_iter );
-        }
+    uses_read_id = read_id_requested( jtd -> seq_defline, NULL ); /* dflt_defline.c */
+    rc = alit_create( &cp, &align_iter, uses_read_id ); /* fastq-iter.c */
+    if ( 0 != rc ) {
+        ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
         flp_release( flex_printer );
+        return rc;
     }
+
+    /* iterate over the aligned READS in the given row-range */
+    while ( 0 == rc && alit_get_rec( align_iter, &rec, &rc ) ) { /* fastq-iter.c */
+        rc = hlp_get_quitting(); /* helper.c */
+        if ( 0 != rc ) {
+            ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+            hlp_set_quitting(); /* helper.c */
+            break;
+        }
+
+        if ( rec . read . len > 0 ) {
+            flp_data_t data;
+            stats -> reads_read += 1;
+
+            /* fill out the data-record for the flex-printer */
+            data . row_id = rec . spot_id;
+            data . read_id = rec . read_id;
+            data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
+
+            data . spotname = NULL;     /* we do not have the spot-name in the align-table */
+            data . spotgroup = NULL;    /* align-rec does not have spot-group! */
+            data . read1 = &( rec . read );
+            data . read2 = NULL;
+            data . quality = NULL;
+
+            /* finally print it out */
+            rc = flp_print( flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written++; }
+        } else {
+            stats -> reads_zero_length++;
+        }
+
+        if ( 0 == rc ) {
+            loop_nr ++;
+            bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+        }
+    } /* END of iterate over the aligned READS */
+
+    alit_release( align_iter );
+    flp_release( flex_printer );
     return rc;
 }
 
@@ -1890,7 +2105,7 @@ static rc_t dbj_create_unsorted_fasta_from_align( KDirectory * dir,
 }
 
 /* iterate over the SEQ-table, but only use what is half/fully unaligned... */
-static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
+static rc_t dbj_unsorted_fasta_seq_thread( const KThread * self, void * data ) {
     rc_t rc = 0;
     dbj_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
@@ -1900,6 +2115,7 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
     fq_seq_csra_opt_t opt;
     uint64_t loop_nr = 0;
     struct flp_t * flex_printer = NULL;
+    fq_seq_csra_rec_t rec;
 
     cmn_iter_populate_params( &cp,
                               jtd -> dir,
@@ -1908,8 +2124,9 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
                               jtd -> accession_path,
                               jtd -> cur_cache,
                               jtd -> first_row,
-                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count );
-    
+                              jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+                              jtd -> thread_id );
+
     opt . with_read_len = true;
     opt . with_name = false;
     opt . with_read_type = true;
@@ -1924,67 +2141,87 @@ static rc_t CC dbj_unsorted_fasta_seq_thread( const KThread * self, void * data 
                     NULL,                         /* qual-defline not used ( FASTA! ) */
                     true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
-        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
-    else {
-        rc = fq_seq_csra_iter_make( &cp, opt, &iter );
-        if ( 0 != rc ) {
-            ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
-        } else {
-            fq_seq_csra_rec_t rec;
-            while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
-                rc = hlp_get_quitting(); /* helper.c */
-                if ( 0 == rc ) {
-                    uint32_t read_id_0 = 0;
-                    uint32_t offset = 0;
-                    stats -> spots_read++;
 
-                    while ( 0 == rc && read_id_0 < rec . num_read_len ) {
-                        if ( rec . read_len[ read_id_0 ] > 0 ) {
-                            if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
-                                String R;
-                                flp_data_t data;
+    rc = fq_seq_csra_iter_make( &cp, opt, &iter );
+    if ( 0 != rc ) {
+        ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
+        flp_release( flex_printer );
+        return rc;
+    }
 
-                                stats -> reads_read += 1;
+    /* iterate over the SPOTs of the given row-range */
+    while ( 0 == rc && fq_seq_csra_iter_get_data( iter, &rec, &rc ) ) {
+        uint32_t read_id_0, offset;
+        stats -> spots_read++;
+        rc = hlp_get_quitting(); /* helper.c */
+        if ( 0 != rc ) { break; } /* the user has interrupted the tool */
 
-                                R . addr = &rec . read . addr[ offset ];
-                                R . size = rec . read_len[ read_id_0 ];
-                                R . len  = ( uint32_t )R . size;
+        if ( rec . num_read_start != rec . num_read_len ) {
+            ErrMsg( "row #%ld : num-read-start (%u) != num-read-len(%u)\n",
+                    rec . row_id, rec . num_read_start, rec . num_read_len );
+            rc = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
 
-                                /* fill out the data-record for the flex-printer */
-                                data . row_id = rec . row_id;
-                                data . read_id = read_id_0 + 1;
-                                data . dst_id = 0;  /* not used, because registry=NULL - output to common final file */
+        /* iterate over the READ's of the SPOT */
+        for ( read_id_0 = 0, offset = 0; 0 == rc && read_id_0 < rec . num_read_start; read_id_0++ ) {
+            uint32_t read_len = rec . read_len[ read_id_0 ];
+            if ( read_len > 0 ) {
+                if ( 0 == rec . prim_alig_id[ read_id_0 ] )  {
+                    String READ;
+                    flp_data_t data;
 
-                                data . spotname  = &( rec . name );
-                                data . spotgroup = &( rec . spotgroup );
-                                data . read1 = &R;
-                                data . read2 = NULL;
-                                data . quality = NULL;
-
-                                /* finally print it out */
-                                rc = flp_print( flex_printer, &data ); /* flex_printer.c */
-                                if ( 0 == rc ) { stats -> reads_written++; }
-                                offset += rec . read_len[ read_id_0 ];
-                            }
-                        }
-                        else { stats -> reads_zero_length++; }
-                        read_id_0++;
-                    }
-
-                    if ( 0 == rc ) {
-                        loop_nr ++;
-                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                    /* this is the out-of-bounds check */
+                    if ( offset + read_len > rec .read . len ) {
+                        ErrMsg( "row #%ld : offset[%u] (%u) + read-len[%u] (%u) > READ.len (%u)\n",
+                                rec . row_id,
+                                read_id_0, offset,
+                                read_id_0, read_len,
+                                rec .read . len );
+                        rc = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     } else {
-                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                        hlp_set_quitting(); /* helper.c */
+                        stats -> reads_read += 1;
+
+                        READ . addr = &rec . read . addr[ offset ];
+                        READ . len  = read_len;
+                        READ . size = READ . len;
+
+                        /* fill out the data-record for the flex-printer */
+                        data . row_id = rec . row_id;
+                        data . read_id = read_id_0 + 1;
+                        data . dst_id = 0;  /* not used, because registry=NULL - output to common final file */
+
+                        data . spotname  = &( rec . name );
+                        data . spotgroup = &( rec . spotgroup );
+                        data . read1 = &READ;
+                        data . read2 = NULL;
+                        data . quality = NULL;
+
+                        offset += read_len;
+
+                        /* finally print it out */
+                        rc = flp_print( flex_printer, &data ); /* flex_printer.c */
+                        if ( 0 == rc ) { stats -> reads_written++; }
                     }
                 }
+            } else {
+                stats -> reads_zero_length++;
             }
-            fq_seq_csra_iter_release( iter );
+        } /* END of iterating over the READS's of the SPOT */
+
+        if ( 0 == rc ) {
+            loop_nr ++;
+            bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+        } else {
+            ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+            hlp_set_quitting(); /* helper.c */
         }
-        flp_release( flex_printer );
-    }
+
+    } /* END of iterating over the SPOTs in the given row-range */
+    fq_seq_csra_iter_release( iter );
+
+    flp_release( flex_printer );
     return rc;
 }
 

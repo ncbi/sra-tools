@@ -294,7 +294,7 @@ const char UsageDefaultName[] = "fasterq-dump";
 
 /* ----------------------------------------------------------------------------------- */
 
-rc_t CC UsageSummary( const char * progname ) {
+rc_t UsageSummary( const char * progname ) {
     return KOutMsg( "\n"
                      "Usage:\n"
                      "  %s <path> [options]\n"
@@ -304,7 +304,7 @@ rc_t CC UsageSummary( const char * progname ) {
 
 /* ----------------------------------------------------------------------------------- */
 
-rc_t CC Usage ( const Args * args ) {
+rc_t Usage ( const Args * args ) {
     rc_t rc;
     uint32_t idx, count = ( sizeof ToolOptions ) / ( sizeof ToolOptions[ 0 ] );
     const char * progname = UsageDefaultName;

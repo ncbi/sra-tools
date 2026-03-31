@@ -22,4 +22,6 @@
 #
 # ===========================================================================
 
-add_subdirectory( qa-stats )
+IF( TARGET qa-stats )
+    add_subdirectory( qa-stats )
+ENDIF()

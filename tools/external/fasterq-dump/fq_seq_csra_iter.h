@@ -58,7 +58,9 @@ typedef struct fq_seq_csra_rec_t
     int64_t row_id;
     uint32_t num_alig_id;
     uint64_t prim_alig_id[ 2 ];
+    uint32_t num_read_start;
     uint32_t num_read_len;
+    uint32_t * read_start;
     uint32_t * read_len;
     uint32_t num_read_type;
     uint8_t * read_type;

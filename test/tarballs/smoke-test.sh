@@ -106,8 +106,8 @@ echo "Smoke testing ${BIN_DIR} ..."
 
 # list all tools; rnd2sra and samview-util are ignored;
 # sratools has not to be run on its own
-TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v rnd2sra \
-                  | grep -v samview-util | grep -v sratools | grep -vE '[0-9]$')
+TOOLS=$(ls -1 ${BIN_DIR} | grep -vw make-platform-test | grep -vw ncbi \
+| grep -v rnd2sra | grep -v samview-util | grep -v sratools | grep -vE '[0-9]$')
 
 # run all tools with -h and -V
 

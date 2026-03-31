@@ -66,7 +66,8 @@ SHARQ_ERR_CODES = {
     {240 ,{ "Invalid platform code", "Invalid platform code.", "SRAE-214"}},
     {250 ,{ "Estimated number of spots exceeds the limit for this mode. Re-run with --spot-assembly parameter", 
             "Estimated number of spots exceeds the limit for this mode. Re-run with --spot-assembly parameter.", "SRAE-70"}},
-    {260 ,{ "Spots with more than {} reads are not supported.", "Spots with more than {} reads are not supported.", "SRAE-215"}}
+    {260 ,{ "Spots with more than {} reads are not supported.", "Spots with more than {} reads are not supported.", "SRAE-215"}},
+    {270 ,{ "I/O error", "I/O error", "SRAE-238"}}
 };
 
 class fastq_error: public std::exception

@@ -268,7 +268,7 @@ void mw_release( struct multi_writer_t * self ) {
     }
 }
 
-static rc_t CC mw_thread( const KThread * thread, void *data ) {
+static rc_t mw_thread( const KThread * thread, void *data ) {
     rc_t rc = 0;
     multi_writer_t * self = data;
     bool done = false;

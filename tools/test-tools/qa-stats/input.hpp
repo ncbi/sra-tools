@@ -142,6 +142,7 @@ struct Input {
     };
     std::string sequence;
     std::vector<Read> reads;
+    std::string qname;
     int group = -1;
     
     static std::vector<std::string> references;

@@ -41,31 +41,26 @@
 #include <JSON_ostream.hpp>
 #include <hashing.hpp>
 #include <flag-stat.hpp>
+#include <qname-stat.hpp>
 #include "parameters.hpp"
 #include "input.hpp"
 #include "stats.hpp"
 #include "../../../shared/toolkit.vers.h"
 
 static inline
-JSON_ostream &operator <<(JSON_ostream &s, HashResult64 const &v) {
-    char buffer[32];
-    return s << HashResult64::to_hex(v.value, buffer);
+JSON_ostream &operator <<(JSON_ostream &out, CountBT const &bt) {
+    return out
+        << JSON_Member{"count"} << bt.total
+        << JSON_Member{"biological"} << bt.biological
+        << JSON_Member{"technical"} << bt.technical;
 }
 
 static inline
-JSON_ostream &operator <<(JSON_ostream &out, CountBT const &value) {
+JSON_ostream &operator <<(JSON_ostream &out, CountFR const &fr) {
     return out
-        << JSON_Member{"count"} << value.total
-        << JSON_Member{"biological"} << value.biological
-        << JSON_Member{"technical"} << value.technical;
-}
-
-static inline
-JSON_ostream &operator <<(JSON_ostream &out, CountFR const &value) {
-    return out
-        << JSON_Member{"total"} << value.total
-        << JSON_Member{"5'"} << value.fwd
-        << JSON_Member{"3'"} << value.rev;
+        << JSON_Member{"total"} << fr.total
+        << JSON_Member{"5'"} << fr.fwd
+        << JSON_Member{"3'"} << fr.rev;
 }
 
 struct BaseStatsEntry {
@@ -87,14 +82,14 @@ struct BaseStatsEntry {
 };
 
 static inline
-JSON_ostream &operator <<(JSON_ostream &out, BaseStats const &stats) {
+JSON_ostream &operator <<(JSON_ostream &out, BaseStats const &baseStats) {
     using Index = BaseStats::Index;
-    auto const bioW = stats[Index{'A', false}] + stats[Index{'T', false}];
-    auto const bioS = stats[Index{'C', false}] + stats[Index{'G', false}];
-    auto const bioN = stats[Index{'N', false}];
-    auto const techW = stats[Index{'A', true}] + stats[Index{'T', true}];
-    auto const techS = stats[Index{'C', true}] + stats[Index{'G', true}];
-    auto const techN = stats[Index{'N', true}];
+    auto const bioW = baseStats[Index{'A', false}] + baseStats[Index{'T', false}];
+    auto const bioS = baseStats[Index{'C', false}] + baseStats[Index{'G', false}];
+    auto const bioN = baseStats[Index{'N', false}];
+    auto const techW = baseStats[Index{'A', true}] + baseStats[Index{'T', true}];
+    auto const techS = baseStats[Index{'C', true}] + baseStats[Index{'G', true}];
+    auto const techN = baseStats[Index{'N', true}];
 
     return out
         << BaseStatsEntry{"N", bioN, techN}
@@ -122,9 +117,9 @@ struct DistanceStatEntry {
 };
 
 static inline
-JSON_ostream &operator <<(JSON_ostream &out, DistanceStats::DistanceStat const &self) {
+JSON_ostream &operator <<(JSON_ostream &out, DistanceStats::DistanceStat const &distanceStats) {
     using Index = DistanceStats::DistanceStat::Index;
-    self.forEach([&](Index i, uint64_t count, uint64_t total) {
+    distanceStats.forEach([&](Index i, uint64_t count, uint64_t total) {
         if (count > 0)
             out << DistanceStatEntry{ i, count, total };
     });
@@ -132,10 +127,10 @@ JSON_ostream &operator <<(JSON_ostream &out, DistanceStats::DistanceStat const &
 }
 
 static inline
-JSON_ostream &operator <<(JSON_ostream &out, std::pair < DistanceStats::DistanceStat const *, DistanceStats::DistanceStat const * > const &self)
+JSON_ostream &operator <<(JSON_ostream &out, std::pair < DistanceStats::DistanceStat const *, DistanceStats::DistanceStat const * > const &distanceStatsPair)
 {
     using Index = DistanceStats::DistanceStat::Index;
-    self.first->forEach(*self.second, [&](Index i, uint64_t count, uint64_t total) {
+    distanceStatsPair.first->forEach(*distanceStatsPair.second, [&](Index i, uint64_t count, uint64_t total) {
         if (count > 0)
             out << DistanceStatEntry{ i, count, total };
     });
@@ -154,9 +149,9 @@ JSON_ostream &operator <<(JSON_ostream &out, DistanceStats const &distance) {
 }
 
 static
-JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &self) {
-    for (auto &reference : self) {
-        auto const refId = &reference - &self[0];
+JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &refStats) {
+    for (auto &reference : refStats) {
+        auto const refId = &reference - &refStats[0];
         auto const refName = Input::references[refId];
         CountFR total;
         auto const &posHash = reference[0].total;
@@ -189,28 +184,28 @@ JSON_ostream &operator <<(JSON_ostream &out, ReferenceStats const &self) {
     return out;
 }
 
-static JSON_ostream &operator <<(JSON_ostream &out, SpotLayouts const &value) {
-    for (auto i = value.index.begin(); i != value.index.end(); ++i) {
+static JSON_ostream &operator <<(JSON_ostream &out, SpotLayouts const &layouts) {
+    for (auto i = layouts.index.begin(); i != layouts.index.end(); ++i) {
         out << '{'
             << JSON_Member{"descriptor"} << i->first
-            << JSON_Member{"count"} << value.count[i->second]
+            << JSON_Member{"count"} << layouts.count[i->second]
         << '}';
     }
     return out;
 }
 
-static JSON_ostream &operator <<(JSON_ostream &out, CountBTN const &value) {
+static JSON_ostream &operator <<(JSON_ostream &out, CountBTN const &btn) {
     return out
-        << JSON_Member{"total"} << value.total
-        << JSON_Member{"biological"} << value.biological
-        << JSON_Member{"no-biological"} << value.nobiological
-        << JSON_Member{"technical"} << value.technical
-        << JSON_Member{"no-technical"} << value.notechnical;
+        << JSON_Member{"total"} << btn.total
+        << JSON_Member{"biological"} << btn.biological
+        << JSON_Member{"no-biological"} << btn.nobiological
+        << JSON_Member{"technical"} << btn.technical
+        << JSON_Member{"no-technical"} << btn.notechnical;
 }
 
 static
-JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &stats) {
-    for (auto &[k, v] : stats) {
+JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &spotStats) {
+    for (auto &[k, v] : spotStats) {
         out << '{'
             << JSON_Member{"nreads"} << k
             << v
@@ -219,15 +214,13 @@ JSON_ostream &operator <<(JSON_ostream &out, SpotStats const &stats) {
     return out;
 }
 
-static JSON_ostream &operator <<(JSON_ostream &out, Stats const &self) {
-    out << JSON_Member{"reads"}        << '{' << self.reads      << '}';
-    out << JSON_Member{"bases"}        << '[' << self.bases      << ']';
-    out << JSON_Member{"spots"}        << '[' << self.spots      << ']';
-    out << JSON_Member{"spot-layouts"} << '[' << self.layouts    << ']';
-    out << JSON_Member{"spectra"}      << '{' << self.spectra    << '}';
-    out << JSON_Member{"references"}   << '[' << self.references << ']';
-    // fingerprint is only output separately
-    // out << JSON_Member{"fingerprint"}  << '[' << self.fingerprint << ']';
+static JSON_ostream &operator <<(JSON_ostream &out, Stats const &stats) {
+    out << JSON_Member{"reads"}        << '{' << stats.reads      << '}';
+    out << JSON_Member{"bases"}        << '[' << stats.bases      << ']';
+    out << JSON_Member{"spots"}        << '[' << stats.spots      << ']';
+    out << JSON_Member{"spot-layouts"} << '[' << stats.layouts    << ']';
+    out << JSON_Member{"spectra"}      << '{' << stats.spectra    << '}';
+    out << JSON_Member{"references"}   << '[' << stats.references << ']';
 
     return out;
 }
@@ -244,6 +237,18 @@ SpotLayout spotLayout(Input const &spot) {
                           , read.orientation == Input::ReadOrientation::reverse);
     }
     return result;
+}
+
+static JSON_ostream &operator <<(JSON_ostream &out, QNAME_Counter const &qnameCounter) {
+    HashResult256 value;
+    
+    qnameCounter.getAll(value.value);
+    out << JSON_Member{"QNAME"} << '"' << value << '"';
+    
+    qnameCounter.getGrouped(value.value);
+    out << JSON_Member{"RG+QNAME"} << '"' << value << '"';
+    
+    return out;
 }
 
 struct Reporter {
@@ -315,7 +320,8 @@ struct App {
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
-        { "flag", nullptr, "1.3", false }
+        { "flag", nullptr, "1.3", false },
+        { "name", nullptr, nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -364,8 +370,12 @@ struct App {
                 flagCounter = std::unique_ptr<FLAG_Counter>(new FLAG_Counter);
                 continue;
             }
+            if (param == "name") {
+                countQNAME = true;
+                continue;
+            }
             if (param == "help") {
-                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [--flag] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
+                std::cout << "usage: " << arguments.program << " [-f|--fingerprint] [--flag] [--name] [-p|--progress <seconds:=60>] [-t|--multithreaded] [-m|--mmap] [-o|--output <path>] [<path> ...]" << std::endl;
                 exit(0);
             }
             if (param == "version") {
@@ -422,6 +432,9 @@ private:
         {
             stats.fingerprint.canonicalForm(out);
         }
+        else if (countQNAME) {
+            out << JSON_Member{"QNAME-fingerprint"} << '{' << qnameCounter << '}';
+        }
         else
         {
             out << JSON_Member{"total"} << '{' << stats << '}';
@@ -457,6 +470,10 @@ private:
                             exit(1);
                         }
                     }
+                }
+                else if (countQNAME) {
+                    if (!spot.qname.empty())
+                        qnameCounter.add(spot.qname, spot.group >= 0 ? spot.groups[spot.group] : "");
                 }
                 else {
                     unsigned naligned = 0;
@@ -508,12 +525,14 @@ private:
     int multithreaded = 0;
     bool use_mmap = false;
     bool fingerprint = false;
+    bool countQNAME = false;
     FlagStatText::Version flagStatTextVersion = FlagStatText::v_1_3;
     std::optional<std::string> output;
 
     Stats stats;
     std::vector<Stats> spotGroup;
     std::unique_ptr<FLAG_Counter> flagCounter = nullptr;
+    QNAME_Counter qnameCounter;
 
     Reporter reporter;
 

@@ -772,6 +772,7 @@ struct BasicSource: public Input::Source {
     }
     Input readSAM(Delimited const &flds) {
         Input result{};
+        auto QNAME = &flds.part[0];
         auto const FLAG = &flds.part[1];
         auto RNAME = &flds.part[2];
         auto POS = &flds.part[3];
@@ -783,6 +784,9 @@ struct BasicSource: public Input::Source {
         int position = -1;
         Input::Read read{};
 
+        if (QNAME && *QNAME != "*")
+            result.qname = *QNAME;
+        
         extract(*FLAG, flags);
         if (*RNAME == "*" || *CIGAR == "*" || *POS == "0")
             flags |= 0x004;
@@ -833,6 +837,33 @@ struct BasicSource: public Input::Source {
         result.reads.emplace_back(std::move(read));
         return result;
     }
+    std::string_view getSpotNameFromDefline(std::string_view defline) {
+        auto result = std::string_view(defline);
+        auto st = 0;
+        for ( ; ; ) {
+            if (result.empty())
+                return result;
+            switch (st) {
+            case 0:
+                result.remove_prefix(1);
+                ++st;
+                continue;
+            case 1:
+                if (isspace(result.front())) {
+                    result.remove_prefix(1);
+                    continue;
+                }
+            }
+            break;
+        }
+        for (std::string_view::size_type i = 0; i < result.size(); ++i) {
+            if (isspace(result[i])) {
+                result.remove_suffix(result.size() - i);
+                break;
+            }
+        }
+        return result;
+    }
     Input readFASTQ(std::string const &defline) {
         auto const start = lines;
         auto const defline_start = defline.front();
@@ -869,7 +900,9 @@ struct BasicSource: public Input::Source {
         }
     EndOfFile:
         auto &&read = Read{ 0, (int)seq.length() };
-        return Input{ seq, { read } };
+        auto result{Input{ seq, { read } }};
+        result.qname = getSpotNameFromDefline(defline);
+        return result;
     }
     virtual Input get() {
         auto nrecs = 0;

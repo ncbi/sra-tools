@@ -22,30 +22,21 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="test/sra-sort" )
+add_compile_definitions( __mod__="test/external/vdb-decrypt" )
 
 if ( NOT WIN32 )
-
-    ToolsRequired(sra-sort kar bam-load sra-stat sam-factory)
-
-    # if directory /export/home/TMP does not exist, the script will not run and exit with 0
-    # if it does exist, the script requires env var TEST_DATA to be set, or it will return an error (1)
-    # TEST_DATA is supposed to point to a directory with the inputs for this test
-    if ( DEFINED ENV{TEST_DATA} )
-        add_test( NAME SlowTest_Sra_sort
-                  COMMAND test-sra-sort.sh ${DIRTOTEST}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    endif()
-
-    if ( "linux" STREQUAL ${OS} )
-            add_test( NAME Test_sra_sort_meta_copy
-                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} "${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}" ${BINDIR}
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    endif()
+    ToolsRequired(vdb-decrypt vdb-encrypt)
 
     # non-0 exit code if called without arguments
-    add_test( NAME Test_sra_sort_Exit
-            COMMAND ${DIRTOTEST}/sra-sort
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties(Test_sra_sort_Exit PROPERTIES WILL_FAIL TRUE)
+    add_test( NAME Test_vdb_decrypt_Exit
+        COMMAND ${DIRTOTEST}/vdb-decrypt
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_vdb_decrypt_Exit PROPERTIES WILL_FAIL TRUE)
+    add_test( NAME Test_vdb_encrypt_Exit
+        COMMAND ${DIRTOTEST}/vdb-encrypt
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_vdb_encrypt_Exit PROPERTIES WILL_FAIL TRUE)
+
+else()
+#TODO: make run on Windows
 endif()

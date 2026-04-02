@@ -548,7 +548,13 @@ MAIN_DECL( argc, argv )
     cp_dst_path[ 0 ] = 0;
 
     if ( argc <= 1 )
+    {
         main_ctx . rc = UsageSummary ( "sra-sort" );
+        if ( main_ctx . rc == 0 )
+        {
+            main_ctx . rc = RC( rcApp, rcArgv, rcValidating, rcParam, rcEmpty );
+        }
+    }
     else
     {
         /* create MemBank with unlimited quota */

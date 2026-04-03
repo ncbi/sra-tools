@@ -28,23 +28,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
-include_directories (".." )
 ToolsRequired(general-loader kdbmeta)
 
-add_executable ( test-general-loader
-    test-general-loader
-    testsource
-)
+GenerateExecutableWithDefs( test-general-loader "test-general-loader;testsource" "" "..;${CMAKE_CURRENT_SOURCE_DIR}" "general-writer;kapp;ktst;loader;${COMMON_LIBS_WRITE}" )
 
 add_dependencies ( test-general-loader general-writer gw-dumper )
-
-target_link_libraries ( test-general-loader
-    general-writer
-    kapp
-    ktst
-    loader
-    ${COMMON_LIBS_WRITE}
-)
 
 make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/db )
 make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/input )

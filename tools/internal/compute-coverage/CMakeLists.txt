@@ -22,19 +22,5 @@
 #
 # ===========================================================================
 
-#set(CMAKE_VERBOSE_MAKEFILE on)
-
-#if (WIN32)
- #   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
-#endif ()
-
-add_executable        ( compute-coverage compute-coverage.cpp )
-
-target_link_libraries ( compute-coverage
-    tk-version
-    kapp
-    ${COMMON_LIBS_READ}
-    ${COMMON_LINK_LIBRARIES}
-)
-
+GenerateExecutableWithDefs( compute-coverage compute-coverage.cpp "" "${CMAKE_CURRENT_SOURCE_DIR}" "tk-version;kapp;${COMMON_LIBS_READ};${COMMON_LINK_LIBRARIES}" )
 MakeLinksExe ( compute-coverage     false )

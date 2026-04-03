@@ -42,6 +42,7 @@ endif()
 
 # ngs-makedb is a fixture that creates test databases
 add_executable ( ngs-makedb ngstest_makedb.cpp )
+target_compile_definitions(ngs-makedb PRIVATE VDB_EXE_NAME="ngs-makedb")
 target_link_libraries ( ngs-makedb "ktst;kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 
 set(DATADIR ${CMAKE_CURRENT_SOURCE_DIR}/data)

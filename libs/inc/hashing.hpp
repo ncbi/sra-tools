@@ -106,6 +106,18 @@ struct HashResult64 {
     }
 };
 
+struct HashResult256 {
+    uint8_t value[32];
+    
+    friend std::ostream &operator <<(std::ostream &strm, HashResult256 const &self) {
+        char buffer[32];
+        for (auto i = 0; i < 32; ++i) {
+            strm << HashResult64::to_hex(self.value[i], buffer);
+        }
+        return strm;
+    }
+};
+
 template < typename IMPL, typename VALUE = typename IMPL::Value, typename STATE = typename IMPL::State >
 struct HashFunction {
     using State = STATE;

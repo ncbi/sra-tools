@@ -90,7 +90,7 @@ private:
         }
     };
 
-    static GF_Poly_2_8 exp(uint8_t x) {
+    static GF_Poly_2_8 exp(unsigned x) {
         static auto const expTable = ExpTable{};
         return expTable[x < 256 ? x : (x - 255)];
     }
@@ -118,7 +118,7 @@ private:
                 if (GF_Poly_2_8::exp(log[i]).coeff != i)
                     return false;
             }
-            for (auto i = 0; i < 256; ++i) {
+            for (auto i = 1; i < 256; ++i) {
                 if (log[GF_Poly_2_8::exp(i).coeff] != i)
                     return false;
             }
@@ -134,10 +134,16 @@ private:
     }
 
 public:
-    static GF_Poly_2_8 constexpr zero() { 
+    GF_Poly_2_8() = default;
+    GF_Poly_2_8(uint8_t x) : coeff{x} {}
+    GF_Poly_2_8(size_t count, uint8_t const *const bytes) {
+        assert(count == 1);
+        coeff = bytes[0];
+    }
+    static GF_Poly_2_8 zero() {
         return GF_Poly_2_8{0};
     }
-    static GF_Poly_2_8 constexpr one() { 
+    static GF_Poly_2_8 one() {
         return GF_Poly_2_8{1};
     }
     friend GF_Poly_2_8 operator +(GF_Poly_2_8 a, GF_Poly_2_8 b) {
@@ -163,19 +169,15 @@ public:
         return a.coeff != b.coeff;
     }
     operator bool() const { return coeff != 0; }
-    void getBytes(size_t count, uint8_t *const bytes) {
+    void getBytes(size_t count, uint8_t *const bytes) const {
         assert(count == 1);
         bytes[0] = coeff;
-    }
-    static GF_Poly_2_8 createFromBytes(size_t count, uint8_t const *const bytes) {
-        assert(count == 1);
-        return GF_Poly_2_8{bytes[0]};
     }
     static void test() {
 #if !NDEBUG
         for (auto i = 0; i < 256; ++i) {
             auto const a = GF_Poly_2_8{(uint8_t)i};
-            for (auto j = 0; i < 256; ++j) {
+            for (auto j = 0; j < 256; ++j) {
                 auto const b = GF_Poly_2_8{(uint8_t)j};
                 auto const ab = a * b;
                 assert(ab.coeff == GF_Poly_2_8::multiply(i, j));
@@ -195,16 +197,17 @@ template <typename COEFF, int Degree>
 struct Polynomial {
     COEFF coeff[Degree];
 
-    operator bool() const { 
+    Polynomial() = default;
+    operator bool() const {
         for (auto i = 0; i < Degree; ++i) {
-            if (!coeff[i]) return false;
+            if (coeff[i]) return true;
         }
-        return true;
+        return false;
     }
-    void getBytes(size_t count, uint8_t *const bytes) {
+    void getBytes(size_t count, uint8_t *const bytes) const {
         assert(count == sizeof(COEFF) * Degree);
         for (auto i = 0; i < Degree; ++i)
-            COEFF::getBytes(sizeof(COEFF), bytes + i * sizeof(COEFF));
+            coeff[i].getBytes(sizeof(COEFF), bytes + i * sizeof(COEFF));
     }
 
     static Polynomial createFromMask(uint64_t mask) {
@@ -213,13 +216,11 @@ struct Polynomial {
             result.coeff[i] = (mask & 1) == 0 ? COEFF::zero() : COEFF::one();
         return result;
     }
-
-    static Polynomial createFromBytes(size_t count, uint8_t const *const bytes) {
-        Polynomial result;
-        assert(count == sizeof(COEFF) * Degree);
-        for (auto i = 0; i < Degree; ++i)
-            result.coeff[i] = COEFF::createFromBytes(sizeof(COEFF), bytes + i * sizeof(COEFF));
-        return result;
+    
+    Polynomial(size_t count, uint8_t const *const bytes) {
+        for (auto i = 0; i < Degree; ++i) {
+            coeff[i] = COEFF(sizeof(COEFF), bytes + i * sizeof(COEFF));
+        }
     }
 
     /// @brief Multiply-add
@@ -259,12 +260,12 @@ struct Polynomial {
     static Polynomial zero() {
         Polynomial result;
         for (auto i = 0; i < Degree; ++i)
-            result.coeff = COEFF::zero();
+            result.coeff[i] = COEFF::zero();
         return result;
     }
     static Polynomial one() {
         Polynomial result{zero()};
-        result.coeff[0] = COEFF.one();
+        result.coeff[0] = COEFF::one();
         return result;
     }
     /// @brief Shift all coefficients left by one place, i.e. Multiply by x.
@@ -296,32 +297,36 @@ struct GF_Poly: public Polynomial<COEFF, Degree> {
         return modulus;
     }
 
+    GF_Poly() = default;
+    GF_Poly(size_t count, uint8_t const *bytes)
+    : Base(count, bytes)
+    {}
     GF_Poly(Base &&other) : Base{other} {};
 
     friend GF_Poly operator *(GF_Poly a, GF_Poly b) {
-        auto y = GF_Poly{zero()};
+        auto y = GF_Poly{Base::zero()};
         while (b) {
-            y = multiplyAdd(y, a, b.shiftRight());
+            y = Base::multiplyAdd(y, a, b.shiftRight());
             auto const a_hi = a.shiftLeft();
-            a = multiplySubtract(a, Modulus(), a_hi);
+            a = Base::multiplySubtract(a, Modulus(), a_hi);
         }
         return y;
     }
 };
 
-static_assert(sizeof(GF_Poly_2_8) == sizeof(uint8_t));
-
-/// @brief A 64-bit field extension, made out of 8 8-bit ones.
-using GF_Poly_2_8x8 = GF_Poly<GF_Poly_2_8, 8, 0x1b>;
-static_assert(sizeof(GF_Poly_2_8x8) == sizeof(uint64_t));
-
-/// @brief A 256-bit field extension, made out of 4 64-bit ones.
-using GF_Poly_2_8x8x4 = GF_Poly<GF_Poly_2_8x8, 4, 0x9>;
-static_assert(sizeof(GF_Poly_2_8x8x4) == 4 * sizeof(uint64_t));
-
 struct QNAME_Counter final
 {
 private:
+    static_assert(sizeof(GF_Poly_2_8) == 1);
+
+    /// @brief A 64-bit field extension, made out of 8 8-bit ones. The modulus is * x^8 + x^4 + x^3 + x + 1 *.
+    using GF_Poly_2_8x8 = GF_Poly<GF_Poly_2_8, 8, 0x1b>;
+    static_assert(sizeof(GF_Poly_2_8x8) == 8);
+
+    /// @brief A 256-bit field extension, made out of 4 64-bit ones. The modulus is * x^4 + x^3 + 1 *.
+    using GF_Poly_2_8x8x4 = GF_Poly<GF_Poly_2_8x8, 4, 0x9>;
+    static_assert(sizeof(GF_Poly_2_8x8x4) == 32);
+
     struct FNV1a {
         uint64_t h;
 
@@ -358,33 +363,64 @@ private:
         }
     };
     class Counter {
+        static GF_Poly_2_8x8x4 computeInitializationVector() {
+            static char const *iv[] = {
+                "This is the initialization vector:",
+                "There is nothing up my sleeve",
+                "but some pi.",
+                "314159265358979323846"
+            };
+            GF_Poly_2_8x8x4 result{GF_Poly_2_8x8x4::one()};
+            uint8_t u[32];
+
+            GF_Poly_2_8::test();
+            std::memset(u, GF_Poly_2_8::zero().coeff, sizeof(u));
+
+            for (auto i = 0; i < 4; ++i) {
+                FNV1a::hash(u, iv[i], "", false);
+                result = result * GF_Poly_2_8x8x4(sizeof(u), u);
+            }
+
+            return result;
+        }
+        static GF_Poly_2_8x8x4 initializationVector() { 
+            static auto const iv{computeInitializationVector()};
+            return iv;
+        };
+        static void removeIV(uint8_t *value) {
+            uint8_t u[32];
+            initializationVector().getBytes(32, u);
+            for (auto i = 0; i < 32; ++i)
+                value[i] ^= u[i];
+        }
     public:
         GF_Poly_2_8x8x4 all, grp;
-        uint64_t countAll, countGrp;
 
         Counter()
-        : all{GF_Poly_2_8x8x4::one()}
-        , grp{GF_Poly_2_8x8x4::one()}
-        , countAll{0}
-        , countGrp{0}
+        : all{initializationVector()}
+        , grp{initializationVector()}
         {}
         void add(std::string_view qname, std::string_view group, bool hasGroup) {
-            uint8_t u[256];
+            uint8_t u[32];
 
-            static_assert(GF_Poly_2_8::zero().coeff == 0);
-            std::memset(u, 0, sizeof(u));
-            static_assert(GF_Poly_2_8::one().coeff == 1);
-            u[0] = u[65] = 1;
+            std::memset(u, GF_Poly_2_8::zero().coeff, sizeof(u));
+            u[0] = u[9] = GF_Poly_2_8::one().coeff;
 
             FNV1a::hash(u + 1, qname, group, false);
-            all = all * GF_Poly_2_8x8x4::createFromBytes(sizeof(u), u);
-            countAll += 1;
+            all = all * GF_Poly_2_8x8x4(sizeof(u), u);
 
             if (hasGroup) {
                 FNV1a::hash(u + 1, qname, group, true);
-                grp = grp * GF_Poly_2_8x8x4::createFromBytes(sizeof(u), u);
-                countGrp += 1;
+                grp = grp * GF_Poly_2_8x8x4(sizeof(u), u);
             }
+        }
+        void getAll(uint8_t *value) const {
+            all.getBytes(32, value);
+            removeIV(value);
+        }
+        void getGrouped(uint8_t *value) const {
+            grp.getBytes(32, value);
+            removeIV(value);
         }
     };
     Counter counter;
@@ -401,4 +437,7 @@ public:
     void add(std::string_view qname, std::string_view group) {
         counter.add(qname, group, !group.empty());
     }
+    
+    void getAll(uint8_t *value) const { counter.getAll(value); }
+    void getGrouped(uint8_t *value) const { counter.getGrouped(value); }
 };

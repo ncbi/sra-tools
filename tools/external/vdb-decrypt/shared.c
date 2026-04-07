@@ -86,7 +86,7 @@ size_t PasswordSize;
 /* for encfile encrypt/decrypt */
 KKey Key;
 
-const char * ForceUsage[] = 
+const char * ForceUsage[] =
 { "Force overwrite of existing files", NULL };
 
 const char * NgcUsage[] = { "PATH to ngc file", NULL };
@@ -235,7 +235,7 @@ rc_t CC Usage (const Args * args)
         "  set, this program will fail.\n\n"
         "  Please consult configuration page at\n"
         "  https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
-        "  https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"        
+        "  https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"
         );
 
     HelpVersion (fullpath, KAppVersion());
@@ -318,7 +318,7 @@ rc_t CopyKFile (const KFile * src, KFile * dst, const char * source, const char 
                       "F=%s,P=%lu", source, pos));
             break;
         }
-        
+
         if (num_read == 0)
             break;
 
@@ -331,7 +331,7 @@ rc_t CopyKFile (const KFile * src, KFile * dst, const char * source, const char 
                       "F=%s,P=%lu", dest, pos));
             break;
         }
-        
+
         if (num_writ != num_read)
         {
             rc = RC (rcExe, rcFile, rcWriting, rcFile, rcInsufficient);
@@ -366,7 +366,7 @@ rc_t EncryptionTypeCheck (const KFile * f, const char * name, EncScheme * scheme
         *scheme = encError;
         return rc;
     }
-    
+
     /* looks for files with NCBInenc or NCBIsenc signatures */
     rc = KFileIsEnc (head, num_read);
     if (rc == 0)
@@ -610,7 +610,7 @@ rc_t FileInPlace (KDirectory * cwd, const char * leaf, bool try_rename)
 
 
 static
-rc_t FileToFile (const KDirectory * sd, const char * source, 
+rc_t FileToFile (const KDirectory * sd, const char * source,
                  KDirectory *dd, const char * dest_, bool try_rename,
                  char * base)
 {
@@ -823,7 +823,7 @@ rc_t DoDir (const KDirectory * sd, KDirectory * dd)
                                 if (rc)
                                     ;
                                 else
-                                {                                    
+                                {
                                     rc = KDirectoryOpenDirUpdate (dd, &ndd, false, "%s", name);
                                     if (rc)
                                         ;
@@ -1172,7 +1172,7 @@ rc_t StartFileSystem (const char * src, const char * dst)
 {
     VFSManager * vmanager;
     rc_t rc;
- 
+
     rc = VFSManagerMake (&vmanager);
     if (rc)
         LOGERR (klogErr, rc, "Failed to open file system");
@@ -1223,14 +1223,18 @@ rc_t CommonMain (Args * args)
         LOGERR (klogInt, rc, "failed to count parameters");
 
     else if ((pcount = ocount) == 0)
+    {
+        LOGERR (klogErr, rc, "no parameters");
         MiniUsage (args);
+        rc = RC( rcApp, rcArgv, rcValidating, rcParam, rcEmpty );
+    }
 
     else if (pcount > 2)
     {
         LOGERR (klogErr, rc, "too many parameters");
         MiniUsage(args);
     }
-            
+
     else
     {
         const char * dst; /* we only take the address of one of these */

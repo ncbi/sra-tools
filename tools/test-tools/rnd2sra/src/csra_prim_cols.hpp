@@ -16,6 +16,7 @@ class PrimCols {
         VDB_Column_Ptr f_seq_spot_id_column;
         VDB_Column_Ptr f_seq_read_id_column;
         VDB_Column_Ptr f_raw_read_column;
+        VDB_Column_Ptr f_ref_id_column;
 
         VDB_Column_Ptr add_column( const string& name ) {
             auto res = VDB_Column::make( name, f_cur );
@@ -30,6 +31,7 @@ class PrimCols {
             f_seq_spot_id_column = add_column( "SEQ_SPOT_ID" );
             if ( f_ok ) { f_seq_read_id_column = add_column( "SEQ_READ_ID" ); }
             if ( f_ok ) { f_raw_read_column = add_column( "RAW_READ" ); }
+            if ( f_ok ) { f_ref_id_column = add_column( "REF_ID" ); }
             if ( f_ok ) {
                 f_ok = f_cur -> open();
                 if ( !f_ok ) { cerr << "PrimCols() open cursor failed\n"; }
@@ -40,11 +42,12 @@ class PrimCols {
         static PrimColsPtr make( VCurPtr cur ) { return PrimColsPtr( new PrimCols( cur ) ); }
         operator bool() const { return f_ok; }
 
-        bool write( int64_t seq_spot_id, uint32_t seq_read_id, const string& raw_read ) {
+        bool write( int64_t seq_spot_id, uint32_t seq_read_id, const string& raw_read, int64_t ref_id ) {
             bool res = f_cur -> open_row();
             if ( res ) { res = f_seq_spot_id_column -> write_i64( seq_spot_id ); }
             if ( res ) { res = f_seq_read_id_column -> write_u32( seq_read_id ); }
             if ( res ) { res = f_raw_read_column -> write_string( raw_read ); }
+            if ( res ) { res = f_ref_id_column -> write_i64( ref_id ); }
             if ( res ) { res = f_cur -> commit_row(); }
             if ( res ) { res = f_cur -> close_row(); }
             return res;
@@ -58,6 +61,7 @@ class RefCols {
         VCurPtr f_cur;
         bool f_ok;
         VDB_Column_Ptr f_read_column;
+        VDB_Column_Ptr f_prim_al_ids_column;
 
         VDB_Column_Ptr add_column( const string& name ) {
             auto res = VDB_Column::make( name, f_cur );
@@ -70,6 +74,7 @@ class RefCols {
 
         RefCols( VCurPtr cur ) : f_cur( cur ), f_ok( true ) {
             f_read_column = add_column( "READ" );
+            if ( f_ok ) { f_prim_al_ids_column = add_column( "PRIMARY_ALIGNMENT_IDS" ); }
             if ( f_ok ) {
                 f_ok = f_cur -> open();
                 if ( !f_ok ) { cerr << "RefCols() open cursor failed\n"; }
@@ -80,9 +85,10 @@ class RefCols {
         static RefColsPtr make( VCurPtr cur ) { return RefColsPtr( new RefCols( cur ) ); }
         operator bool() const { return f_ok; }
 
-        bool write( const string& raw_read ) {
+        bool write( const string& raw_read, const int64_t* prim_al_ids, size_t prim_al_ids_count ) {
             bool res = f_cur -> open_row();
             if ( res ) { res = f_read_column -> write_string( raw_read ); }
+            if ( res ) { res = f_prim_al_ids_column -> write_i64arr( prim_al_ids, prim_al_ids_count ); }
             return res;
         }
 };

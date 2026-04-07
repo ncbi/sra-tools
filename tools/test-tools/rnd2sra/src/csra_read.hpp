@@ -61,7 +61,8 @@ class cSRARead {
 
         bool write_prim_cols( PrimColsPtr writer ) {
             bool res = true;
-            if ( f_state == Aligned ) { res = writer -> write( f_spot_id, f_read_id, f_bases ); }
+            int64_t ref_id = 0;
+            if ( f_state == Aligned ) { res = writer -> write( f_spot_id, f_read_id, f_bases, ref_id ); }
             return res;
         }
 

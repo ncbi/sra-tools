@@ -67,10 +67,12 @@ table NCBI:align:prim #1 {
     column U64 SEQ_SPOT_ID;
     column U32 SEQ_READ_ID;
     column ascii RAW_READ;
+    column I64 REF_ID;
 };
 
 table NCBI:align:ref #1 {
     column ascii READ;
+    column I64 PRIMARY_ALIGNMENT_IDS;
 };
 
 database NCBI:align:db:alignment_sorted #1 {
@@ -162,7 +164,9 @@ class RndcSRA : public Rndcmn {
                         bool res = true;
                         for ( uint32_t i = 0; res && i < 10; ++i ) {
                             auto bases = f_rnd -> random_bases( 50 );
-                            res = ref_cols -> write( bases );
+                            int64_t prim_al_ids[ 10 ];
+                            prim_al_ids[ 0 ] = 0;
+                            res = ref_cols -> write( bases, prim_al_ids, 1 );
                         }
                     }
                 }

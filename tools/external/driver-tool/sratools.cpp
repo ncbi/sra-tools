@@ -68,6 +68,7 @@
 #include <klib/debug.h> /* KDbgSetString */
 #include <klib/log.h> /* KLogLibHandlerSetStdErr */
 #include <klib/status.h> /* KStsLevelSet */
+#include <kapp/vdbapp.h>
 
 namespace sratools {
 
@@ -417,6 +418,7 @@ static auto constexpr zeroQualityDesc = "simplified base quality scores";
 
 static int main(CommandLine const &argv)
 {
+    SetUsageDefaultName("sratools");
 #if DEBUG || _DEBUGGING
     enableLogging(argv.realName.c_str()); // we probably want to log as ourselves in a debug build
 #else

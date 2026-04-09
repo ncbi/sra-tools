@@ -158,10 +158,7 @@ rc_t KMagicNodeMake (KMagicNode ** kmmp, const KFFTables * tables,
 	else
 	{
 	    KFileFormatType typeid;
-	    char kffdescr_buf [DESCRLEN_MAX + 1];
-	    memmove (kffdescr_buf, kffdescr, kfflen);
-	    kffdescr_buf [kfflen] = '\0';
-	    rc = KFFTablesGetTypeId (tables, kffdescr_buf, &typeid, NULL);
+	    rc = KFFTablesGetTypeId (tables, kffdescr, &typeid, NULL);
 	    if (rc == 0)
 	    {
 		self = malloc (sizeof (*self) + magiclen + kfflen + 1);
@@ -700,5 +697,4 @@ rc_t KMagicFileFormatMake (KFileFormat ** pft, const char* magic, size_t magicle
     }
     return rc;
 }
-
 

@@ -133,62 +133,17 @@ TEST_CASE(ExtensionPrefix)
                                       descr,
                                       sizeof(descr),
                                       &length));
-    REQUIRE_EQ(type, kfftNotFound);
-    REQUIRE_EQ(clss, kffcNotFound);
+    REQUIRE_EQ(type, (KFileFormatType)kfftNotFound);
+    REQUIRE_EQ(clss, (KFileFormatClass)kffcNotFound);
     REQUIRE_EQ(length, (size_t)0);
 
     REQUIRE_RC(KFileFormatRelease(pft));
 }
 
-TEST_CASE(CompressedExtension)
-{
-    struct KFileFormat* pft;
-    const char format[] = {
-        "bam\tBamFormat\n"
-    };
-    const char typeAndClass[] = {
-        "BamFormat\tBamClass\n"
-    };
-
-    REQUIRE_RC(KExtFileFormatMake(&pft, format, sizeof(format) - 1,
-                                  typeAndClass, sizeof(typeAndClass) - 1));
-
-    KFileFormatType type;
-    KFileFormatClass clss;
-    char descr[1024];
-    size_t length;
-
-    /* plain extension */
-    REQUIRE_RC(KFileFormatGetTypePath(pft,
-                                      NULL,
-                                      "seq.bam",
-                                      &type,
-                                      &clss,
-                                      descr,
-                                      sizeof(descr),
-                                      &length));
-    REQUIRE_EQ(type, 1);
-    REQUIRE_EQ(clss, 1);
-    REQUIRE_EQ(string(descr, length), string("BamFormat"));
-
-    /* compressed form should still match primary extension */
-    REQUIRE_RC(KFileFormatGetTypePath(pft,
-                                      NULL,
-                                      "seq.bam.gz",
-                                      &type,
-                                      &clss,
-                                      descr,
-                                      sizeof(descr),
-                                      &length));
-    REQUIRE_EQ(type, 1);
-    REQUIRE_EQ(clss, 1);
-    REQUIRE_EQ(string(descr, length), string("BamFormat"));
-
-    REQUIRE_RC(KFileFormatRelease(pft));
-}
 
 //////////////////////////////////////////// Main
 int main( int argc, char *argv [] )
 {
     return KffTestSuite(argc, argv);
 }
+

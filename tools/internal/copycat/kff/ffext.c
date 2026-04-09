@@ -731,9 +731,14 @@ rc_t CC KExtFileFormatGetTypePath (const KExtFileFormat *self,
 	{
 	    KFileFormatClass cid;
 	    KFileFormatType tid;
-	    if (node == NULL)
-		rc = KExtTableFind (self->table, &node, "Unknown");
-	    if (rc == 0)
+        if (node == NULL)
+        {
+            if (descr_len != NULL) *descr_len = 0;
+            if (type  != NULL) *type  = kfftNotFound;
+            if (class != NULL) *class = kffcNotFound;
+            return 0;
+        }
+        if (rc == 0)
 		rc = KFFTablesGetTypeId (self->dad.tables, node->kffdescr, &tid, &cid);
 	    if (rc == 0)
 	    {

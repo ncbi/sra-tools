@@ -214,17 +214,14 @@ rc_t KFileFormatInitTypeAndClass (KFileFormat *self, const char * typeAndClass,
 
     rc = 0;
     limit = typeAndClass + len;
-
     for (line = typeAndClass; line < limit; line = newline+1)
     {
-        len = limit - line;
-        for (type = line; isspace (*type) && len; len--, type++)
-        {
-            if (len == 0)
-                break;
-        }
-        newline = memchr (type, '\n', len);
-
+	for (type = line; isspace (*type) && len; len--, type++)
+	{
+	    if (len == 0)
+		break;
+	}
+	newline = memchr (type, '\n', len);
 	if (newline == NULL)
 	    newline = type + len;
 	if (*type == '#')
@@ -288,3 +285,7 @@ rc_t CC KFileFormatInit ( KFileFormat *self, const KFileFormat_vt *vt,
     }
     return rc;
 }
+
+
+
+

@@ -1,1 +1,1 @@
-#define NGS_SDK_VERSION "3.4.1"
+#define NGS_SDK_VERSION "3.4.2"

@@ -767,7 +767,7 @@ rc_t GetKeyID(context_t *const ctx,
         } else {
             // Created new read group
             if (group_id >= MAX_GROUPS_ALLOWED) {
-                (void)PLOGMSG(klogErr, (klogErr, "SRAE-251: Data error: too many read groups: max is $(max)", "max=%d", (int) NUM_ID_SPACES));
+                (void)PLOGMSG(klogErr, (klogErr, "SRAE-255: Data error: too many read groups: max is $(max)", "max=%d", (int) NUM_ID_SPACES));
                 return RC(rcExe, rcTree, rcAllocating, rcConstraint, rcViolated);
             }
             ctx->add_read_group().m_platform = GetINSDCPlatform(bam, key);
@@ -1271,7 +1271,7 @@ rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsi
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
                                  "occurred=%u", count));
-        (void)PLOGMSG(klogErr, (klogErr, "SRAE-251: Data error: Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
+        (void)PLOGMSG(klogErr, (klogErr, "SRAE-256: Data error: Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
                                  "name=%s,ref=%s,pos=%u,count=%u", readName, refName, rpos, matches));
         return rc;
     }
@@ -2443,7 +2443,7 @@ MIXED_BASE_AND_COLOR:
                 if (refSeq == NULL) {
                     // NOT FATAL ERROR, DATA ERROR, LIKELY IMPOSSIBLE
                     rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-251: File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "SRAE-257: File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
                     DISCARD_UNKNOWN_REFERENCE;
                     goto LOOP_END;
@@ -2481,11 +2481,11 @@ MIXED_BASE_AND_COLOR:
                         int const level = G.limit2config ? klogWarn : klogErr;
 
                         // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
-                        (void)PLOGMSG(level, (level, "SRAE-251: Data error: Could not find a Reference to match { name: '$(name)', length: $(rlen) }", "name=%s,rlen=%u", refSeq->name, (unsigned)refSeq->length));
+                        (void)PLOGMSG(level, (level, "SRAE-258: Data error: Could not find a Reference to match { name: '$(name)', length: $(rlen) }", "name=%s,rlen=%u", refSeq->name, (unsigned)refSeq->length));
                     }
                     else if (!G.limit2config) {
                         // NOT FATAL BY DEFAULT, CAN BE FATAL, DATA ERROR, CONFIGURATION ERROR
-                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-258: Data error: File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
                     }
                     if (G.limit2config) {
                         rc = 0;

@@ -100,9 +100,13 @@ done
 if [ "$rc" == "0" ] ; then
     OUT=stdout
 else
+    # clean up stderr
     OUT=stderr
+
+    # info log messages (may contain source line#)
     sed -i"-bak" -e '/\[info\]/d' $TEMPDIR/load.$OUT
-    sed -i"-bak" -e '/not exist/d' $TEMPDIR/load.$OUT
+    # some GCS messages (may contain userid)
+    sed -i"-bak" -e '/may not exist/d' $TEMPDIR/load.$OUT
     #sed  -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
 fi
 

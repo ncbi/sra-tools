@@ -2425,7 +2425,7 @@ MIXED_BASE_AND_COLOR:
         if (aligned && align == NULL) {
             // FATAL ERROR, COMMAND AND DATA ARE INCONSISTENT
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains aligned records", "file=%s", bamFile));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-260: Data error: File '$(file)' contains aligned records", "file=%s", bamFile));
             goto LOOP_END;
         }
         while (aligned) {
@@ -2733,7 +2733,7 @@ MIXED_BASE_AND_COLOR:
                         if (isPrimary) {
                             // FATAL ERROR, DATA ERROR, INCONSISTENT DATA
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-261: Data error: Primary alignment for '$(name)' has different length ($(len)) than previously recorded non-primary alignment. Try to defer non-primary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
@@ -3439,7 +3439,7 @@ WRITE_ALIGNMENT:
     }
     if (rc == 0 && recordsProcessed == 0) {
         (void)LOGMSG(klogWarn, (G.limit2config || G.refFilter != NULL) ?
-                     "SRAE-251: Data error: All records from the file were filtered out" :
+                     "SRAE-259: Data error: All records from the file were filtered out" :
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }

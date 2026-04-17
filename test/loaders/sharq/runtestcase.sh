@@ -102,6 +102,7 @@ if [ "$rc" == "0" ] ; then
 else
     OUT=stderr
     sed -i"-bak" -e '/\[info\]/d' $TEMPDIR/load.$OUT
+    sed -i"-bak" -e /$(whoami)/d $TEMPDIR/load.$OUT
     #sed  -e '/\[info\]/d' $WORKDIR/expected/$expected.$OUT
 fi
 

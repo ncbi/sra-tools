@@ -698,9 +698,19 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         }
         else if ( isGCS_URL( filename ) )
         {   // GCS: check if CLI is available. NOTE: Posix only
-            if ( SpawnAndWait( "which", {"gcloud"} ) == 0 )
+            if ( SpawnAndWait( "which", {"gsutil"} ) == 0 )
             {
-                int child = Spawn( "gcloud", { "storage", "cat", filename } );
+                std::vector<std::string> args;
+                const char* cred = std::getenv("GCS_CREDENTIALS");
+                if ( cred != nullptr )
+                { 
+                    args.push_back( "-o" );
+                    args.push_back( string( "GSUtil:service_account_key=" ) + cred );
+                }
+                args.push_back( "cp" );
+                args.push_back( "filename" );
+                args.push_back( "-" );
+                int child = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
                 {

@@ -708,11 +708,11 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                     args.push_back( string( "GSUtil:service_account_key=" ) + cred );
                 }
                 args.push_back( "cp" );
-                args.push_back( "filename" );
+                args.push_back( filename );
                 args.push_back( "-" );
                 int child = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
                 {
                     return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
                 }

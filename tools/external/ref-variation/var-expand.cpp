@@ -420,6 +420,8 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
+        
         return VarExpand::expand_variations (argc, app.getArgV());
     }
 }

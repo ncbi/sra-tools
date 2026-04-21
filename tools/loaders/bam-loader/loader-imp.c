@@ -2161,7 +2161,7 @@ MIXED_BASE_AND_COLOR:
         if (wasInserted) {
             if (G.mode == mode_Remap) {
                 (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "SRAE-251: Data error: Spot '$(name)' is a new spot, not a remapping",
+                                         "SRAE-263: Data error: Spot '$(name)' is a new spot, not a remapping",
                                          "name=%s", name));
                 goto LOOP_END;
             }
@@ -2263,7 +2263,7 @@ MIXED_BASE_AND_COLOR:
                     if (!G.acceptHardClip) {
                         // FATAL ERROR, DATA ERROR, CAN BE FORCED WITH COMMAND LINE OPTION
                         rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-264: Data error: File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                 }
@@ -2278,7 +2278,7 @@ MIXED_BASE_AND_COLOR:
                     if (lpad + rpad == 0) {
                         // FATAL ERROR, DATA ERROR
                         rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-265: Data error: File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                     if (lpad != 0) {
@@ -2367,7 +2367,7 @@ MIXED_BASE_AND_COLOR:
                 rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);
                 if (rc) {
                     // FATAL ERROR; DATA INCONSISTENT
-                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-265: Data error: Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
                     goto LOOP_END;
                 }
                 if (qoffset) {
@@ -4386,7 +4386,7 @@ rc_t WriteLoaderSignature(KMetadata *meta, char const progName[])
         KMDataNodeRelease(node);
     }
     if (rc) {
-        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
+        (void)LOGERR(klogErr, rc, "SRAE-261: Internal error: Cannot update loader meta");
     }
     return rc;
 }

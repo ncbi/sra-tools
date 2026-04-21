@@ -2085,7 +2085,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 if (isNotColorSpace) {
 MIXED_BASE_AND_COLOR:
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: File '$(file)' contains base space and color space", "file=%s", bamFile));
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-262: Data error: File '$(file)' contains base space and color space", "file=%s", bamFile));
                     goto LOOP_END;
                 }
                 /* COLORSPACE is disabled!

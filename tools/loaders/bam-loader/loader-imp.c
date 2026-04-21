@@ -4454,7 +4454,7 @@ rc_t run(char const progName[],
                     (void)(rc = VSchemaAddIncludePath(schema, "%s", G.schemaIncludePath));
                     rc = VSchemaParseFile(schema, "%s", G.schemaPath);
                     if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: failed to parse schema file $(file)", "file=%s", G.schemaPath));
+                        (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-252: Internal error: failed to parse schema file $(file)", "file=%s", G.schemaPath));
                     }
                     else {
                         VDatabase *db;

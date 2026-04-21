@@ -2202,7 +2202,7 @@ MIXED_BASE_AND_COLOR:
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             // FATAL ERROR, DATA ERROR, NOT FIXABLE
-            (void)LOGERR(klogErr, rc, "SRAE-251: Data error: Invalid CG data");
+            (void)LOGERR(klogErr, rc, "SRAE-265: Data error: Invalid CG data");
             goto LOOP_END;
         }
         if (rc == 0) {
@@ -2232,7 +2232,7 @@ MIXED_BASE_AND_COLOR:
             }
             if (rc) {
                 // FATAL ERROR, DATA ERROR, NOT FIXABLE
-                (void)LOGERR(klogErr, rc, "SRAE-251: Data error: Failed to read CG data");
+                (void)LOGERR(klogErr, rc, "SRAE-265: Data error: Failed to read CG data");
                 goto LOOP_END;
             }
             data.data.align_group.elements = 0;
@@ -4187,7 +4187,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
         if (spotId == 0) {
             rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
             // FATAL ERROR, DATA ERROR, CAN BE FIXED WITH COMMAND LINE OPTIONS
-            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-251: Data error: Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
+            (void)PLOGERR(klogErr, (klogErr, rc, "SRAE-261: Data error: Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
             break;
         }
         rc = AlignmentWriteSpotId(align, spotId);
@@ -4386,7 +4386,7 @@ rc_t WriteLoaderSignature(KMetadata *meta, char const progName[])
         KMDataNodeRelease(node);
     }
     if (rc) {
-        (void)LOGERR(klogErr, rc, "SRAE-261: Internal error: Cannot update loader meta");
+        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
     }
     return rc;
 }

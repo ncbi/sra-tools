@@ -90,6 +90,7 @@ int run ( int argc, char * argv [] ) {
     const char* accession(NULL); // "SRR543323" );
 
     SetUsage( Usage );
+    SetSraToolsHash( HASH_SRA_TOOLS );
 
     Args* args(NULL);
     rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 0));

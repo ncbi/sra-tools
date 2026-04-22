@@ -1456,6 +1456,7 @@ MAIN_DECL(argc, argv)
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
+    SetSraToolsHash( HASH_SRA_TOOLS );
 
     LogLevelSet("info");
 

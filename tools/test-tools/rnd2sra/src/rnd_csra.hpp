@@ -2,6 +2,7 @@
 
 #include "rnd2sra_ini.hpp"
 #include "csra_spot_list.hpp"
+#include "csra_prim_ref.hpp"
 
 using namespace std;
 using namespace vdb;
@@ -68,11 +69,16 @@ table NCBI:align:prim #1 {
     column U32 SEQ_READ_ID;
     column ascii RAW_READ;
     column I64 REF_ID;
+    column U32 REF_POS;
+    column U32 REF_LEN;
 };
 
 table NCBI:align:ref #1 {
     column ascii READ;
     column I64 PRIMARY_ALIGNMENT_IDS;
+    column U32 READ_LEN;
+    column ascii NAME;
+    column bool CIRCULAR;
 };
 
 database NCBI:align:db:alignment_sorted #1 {
@@ -129,14 +135,14 @@ class RndcSRA : public Rndcmn {
             return res;
         }
 
-        bool write_prim_tbl( VDbPtr db, cSRASpotListPtr spots ) {
+        bool write_prim_tbl( VDbPtr db, cSRASpotListPtr spots, Prim_Ref_Recorder_ptr recorder ) {
             auto tbl = db -> create_tbl( "PRIMARY_ALIGNMENT", "PRIMARY_ALIGNMENT", f_ini -> get_checksum() );
             if ( *tbl ) {
                 auto cur = tbl -> writable_cursor();
                 if ( *cur ) {
                     auto prim_cols = PrimCols::make( cur );
                     if ( *prim_cols ) {
-                        if ( spots -> write_prim_cols( prim_cols ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
+                        if ( spots -> write_prim_cols( prim_cols, recorder ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
                             return cur -> commit();
                         } else {
                             cerr << "write_prim_tbl() - write_prim_cols() failed!\n";
@@ -153,25 +159,32 @@ class RndcSRA : public Rndcmn {
             return false;
         }
 
-        bool write_ref_tbl( VDbPtr db ) {
+        bool write_ref_tbl( VDbPtr db, Prim_Ref_Recorder_ptr recorder, size_t ref_tbl_row_count ) {
             auto tbl = db -> create_tbl( "REFERENCE", "REFERENCE", f_ini -> get_checksum() );
-            if ( *tbl ) {
+            bool res = *tbl;
+            if ( res ) {
                 auto cur = tbl -> writable_cursor();
-                if ( *cur ) {
+                res = *cur;
+                if ( res ) {
                     auto ref_cols = RefCols::make( cur );
-                    if ( *ref_cols ) {
-                        /* let us write 10 rows of random strings to satisfy the need for a REFERENCE-table*/
-                        bool res = true;
-                        for ( uint32_t i = 0; res && i < 10; ++i ) {
-                            auto bases = f_rnd -> random_bases( 50 );
-                            int64_t prim_al_ids[ 10 ];
-                            prim_al_ids[ 0 ] = 0;
-                            res = ref_cols -> write( bases, prim_al_ids, 1 );
+                    res = *ref_cols;
+                    if ( res ) {
+                        for ( uint32_t row_id = 1; res && row_id <= ref_tbl_row_count; row_id++ ) {
+                            res = cur -> open_row();
+                            if ( res ) {
+                                auto bases = f_rnd -> random_bases( 5000 );
+                                size_t prim_id_count = recorder -> prim_al_id_count( row_id );
+                                const int64_t* prim_ids = recorder -> prim_al_ids( row_id );
+                                res = ref_cols -> write( bases, prim_ids, prim_id_count );
+                                if ( res ) res = cur -> commit_row();
+                                if ( res ) res = cur -> close_row();
+                            }
                         }
+                        if ( res ) res = cur -> commit();
                     }
                 }
             }
-            return false;
+            return res;
         }
 
         bool run( void ) {
@@ -181,8 +194,12 @@ class RndcSRA : public Rndcmn {
             auto db = f_mgr -> create_db( f_schema, "NCBI:align:db:alignment_sorted", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( res ) { res = write_seq_tbl( db, spots ); }
-            if ( res ) { res = write_prim_tbl( db, spots ); }
-            if ( res ) { res = write_ref_tbl( db ); }
+            size_t ref_tbl_row_count = f_ini -> get_ref_tbl_rows();
+            Prim_Ref_Recorder_ptr recorder = Prim_Ref_Recorder::make( ref_tbl_row_count );
+            if ( res ) { res = write_prim_tbl( db, spots, recorder ); }
+            uint32_t ref_tbl_erase = f_ini -> get_ref_tbl_erase(); // do we introduce an error?
+            if ( ref_tbl_erase > 0 ) { recorder -> remove_ref_id( ref_tbl_erase ); }
+            if ( res ) { res = write_ref_tbl( db, recorder, ref_tbl_row_count ); }
             return res;
         }
 

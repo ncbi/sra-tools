@@ -1,6 +1,7 @@
 #pragma once
 
 #include "csra_prim_cols.hpp"
+#include "csra_prim_ref.hpp"
 #include "../util/random_toolbox.hpp"
 
 using namespace std;
@@ -18,13 +19,15 @@ class cSRARead {
         uint64_t f_align_id;
         uint64_t f_spot_id;
         uint32_t f_read_id;
+        RandomPtr f_rnd;
         string f_bases;
 
         cSRARead( uint32_t read_id, uint32_t len, State state, RandomPtr rnd )
             : f_state( state ),
               f_align_id( 0 ),
               f_spot_id( 0 ),
-              f_read_id( read_id ) {
+              f_read_id( read_id ),
+              f_rnd( rnd ) {
                 if ( state != None ) { f_bases = rnd -> random_bases( len ); }
             }
 
@@ -59,10 +62,18 @@ class cSRARead {
             return cSRAReadPtr( new cSRARead( read_id, len, state, rnd ) );
         }
 
-        bool write_prim_cols( PrimColsPtr writer ) {
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder, int64_t * prim_row_id ) {
             bool res = true;
-            int64_t ref_id = 0;
-            if ( f_state == Aligned ) { res = writer -> write( f_spot_id, f_read_id, f_bases, ref_id ); }
+            int64_t min_ref_row_id = 1;
+            int64_t max_ref_row_id = recorder -> ref_row_count();
+            int64_t ref_id = f_rnd -> random_i64( min_ref_row_id, max_ref_row_id );
+            if ( f_state == Aligned ) {
+                res = writer -> write( f_spot_id, f_read_id, f_bases, ref_id );
+                if ( res ) {
+                    recorder -> add( *prim_row_id, ref_id );
+                    ( *prim_row_id )++;
+                }
+            }
             return res;
         }
 

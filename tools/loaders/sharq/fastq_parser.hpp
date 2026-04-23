@@ -75,12 +75,6 @@
 #include <fingerprint.hpp>
 #include <kfile_stream/kfile_stream.hpp>
 #include "istreambuf_holder.hpp"
-#ifdef SHARQ_USE_NATIVE_CLOUD
-#ifdef CC
-#undef CC
-#endif
-#include "fastq_stream_factory.hpp"
-#endif
 
 using namespace std::chrono_literals;
 
@@ -526,28 +520,6 @@ static bool isGCSURL(const std::string &url)
 
 using istreambuf_holder = sharq::istreambuf_holder;
 
-#ifdef SHARQ_USE_NATIVE_CLOUD
-static shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size = 4096)
-{
-    // Handle cloud URLs (S3 and GCS)
-    try {
-        // Use the cloud filesystem factory
-        return sharq::open_fastq_stream(filename, buffer_size);
-    }
-    catch (const sharq::fs::FileNotFoundError& e) {
-        throw runtime_error("File not found: " + filename);
-    }
-    catch (const sharq::fs::AccessDeniedError& e) {
-        throw runtime_error("Access denied: " + filename +
-                            ". Check your cloud credentials.");
-    }
-    catch (const sharq::fs::CloudStorageError& e) {
-        throw runtime_error("Cloud storage error for '" + filename +
-                            "': " + e.what());
-    }
-}
-#else
-
 // spanws a child and waits for it to fihish.
 // returns the child's exit code
 int SpawnAndWait( const std::string& program, const std::vector<std::string>& args, bool quiet = true )
@@ -754,9 +726,6 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
 }
-
-#endif // SHARQ_USE_NATIVE_CLOUD
-
 
 struct spot_read_t {
     fastq_read read;

@@ -29,6 +29,7 @@
 #include <kapp/extern.h>
 
 #include <klib/defs.h>
+#include <kapp/sra-version-hash.h> /* HASH_SRA_TOOLS */
 #include <kapp/vdbapp.h>
 
 #ifdef __cplusplus
@@ -76,7 +77,8 @@ ver_t CC KAppVersion ( void );
 
 // use VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
 #define VDB_INITIALIZE(argc, argv, rc) do {\
-    SetUsageDefaultName( VDB_EXE_NAME );\
+    SetUsageDefaultName( VDB_EXE_NAME ); \
+    SetSraToolsHash( HASH_SRA_TOOLS ); \
     if ( VdbInitialize( argc, argv, KAppVersion() ) ) return rc; \
 } while (0)
 
@@ -103,7 +105,7 @@ ver_t CC KAppVersion ( void );
             #define MAIN_DECL(argc, argv) int wmain(int argc, wchar_t *wargv[], wchar_t *envp[])
             // use this version of VDB_INITIALIZE/VDB_TERMINATE to capture/convert/free argv
             #undef  VDB_INITIALIZE
-            #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; SetUsageDefaultName( VDB_EXE_NAME ); if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
+            #define VDB_INITIALIZE(argc, argv, rc) char ** argv = NULL; SetUsageDefaultName( VDB_EXE_NAME ); SetSraToolsHash(HASH_SRA_TOOLS); if ( wVdbInitialize( argc, wargv, &argv ) ) return rc;
             #undef VDB_TERMINATE
             #define VDB_TERMINATE(rc) (free(argv), VdbTerminate( rc ))
         #else

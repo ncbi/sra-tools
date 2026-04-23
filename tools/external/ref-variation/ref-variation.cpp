@@ -2023,6 +2023,7 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
 
         /* command line examples:
           -r NC_011752.1 -p 2018 --query CA -l 0

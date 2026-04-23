@@ -702,6 +702,8 @@ MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv);
 
+    SetSraToolsHash(HASH_SRA_TOOLS);
+
     XMLLogger const *xlogger = NULL;
     Args * args;
     rc_t rc;

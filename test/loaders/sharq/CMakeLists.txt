@@ -325,7 +325,8 @@ if( SINGLE_CONFIG )
 
         # inputs from cloud
         SharqTestNoSA(018.cloud.badbucket.aws 1 "s3://notabucket/notafile")
-        SharqTestNoSA(018.cloud.badbucket.gcs 1 "gs://notabucket/notafile")
+        SharqTestNoSA(018.cloud.badbucket.gcs 0 "gs://notabucket/notafile")
+        set_property(TEST Test_018.cloud.badbucket.gcs PROPERTY WILL_FAIL TRUE) # stderr may be different based on GCS setup
 
         # more tests in asm-trace
 

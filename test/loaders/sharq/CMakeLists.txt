@@ -30,7 +30,7 @@ if( SINGLE_CONFIG )
     find_package(ZLIB)
     find_package(BZip2)
     find_package (Threads)
-message(RE2_FOUND=${RE2_FOUND})
+#message(RE2_FOUND=${RE2_FOUND})
     if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
 
         set(CMAKE_CXX_STANDARD 17)
@@ -324,7 +324,9 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
         # inputs from cloud
-        #VDB-6291; reenable later SharqTest(018.cloud.badbucket 1 "s3://notabucket/notafile" "only-sa")
+        SharqTestNoSA(018.cloud.badbucket.aws 1 "s3://notabucket/notafile")
+        SharqTestNoSA(018.cloud.badbucket.gcs 0 "gs://notabucket/notafile")
+        set_property(TEST Test_018.cloud.badbucket.gcs PROPERTY WILL_FAIL TRUE) # stderr may be different based on GCS setup
 
         # more tests in asm-trace
 

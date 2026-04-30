@@ -36,6 +36,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
 struct GF_Poly_2_8 {
     uint8_t coeff; // the 8 coefficients are bit values packed into one byte
@@ -191,6 +192,9 @@ public:
         }
 #endif
     }
+    friend std::ostream &operator <<(std::ostream &strm, GF_Poly_2_8 const &self) {
+        return strm << "0123456789ABCDEF"[self.coeff >> 4] << "0123456789ABCDEF"[self.coeff & 0x0F];
+    }
 };
 
 template <typename COEFF, int Degree>
@@ -285,7 +289,12 @@ struct Polynomial {
             coeff[i] = coeff[i + 1];
         coeff[Degree - 1] = COEFF::zero();
         return result;
-    } 
+    }
+    friend std::ostream &operator <<(std::ostream &strm, Polynomial const &self) {
+        for (auto i = 0; i < Degree; ++i)
+            strm << self.coeff[i];
+        return strm;
+    }
 };
 
 template <typename COEFF, int Degree, int ModulusMask>
@@ -306,8 +315,10 @@ struct GF_Poly: public Polynomial<COEFF, Degree> {
     friend GF_Poly operator *(GF_Poly a, GF_Poly b) {
         auto y = GF_Poly{Base::zero()};
         while (b) {
-            y = Base::multiplyAdd(y, a, b.shiftRight());
-            auto const a_hi = a.shiftLeft();
+            auto const &&b_lo = b.shiftRight();
+            y = Base::multiplyAdd(y, a, b_lo);
+
+            auto const &&a_hi = a.shiftLeft();
             a = Base::multiplySubtract(a, Modulus(), a_hi);
         }
         return y;
@@ -375,12 +386,12 @@ private:
 
             GF_Poly_2_8::test();
             std::memset(u, GF_Poly_2_8::zero().coeff, sizeof(u));
+            u[0] = u[9] = GF_Poly_2_8::one().coeff;
 
             for (auto i = 0; i < 4; ++i) {
-                FNV1a::hash(u, iv[i], "", false);
+                FNV1a::hash(u + 1, iv[i], "", false);
                 result = result * GF_Poly_2_8x8x4(sizeof(u), u);
             }
-
             return result;
         }
         static GF_Poly_2_8x8x4 initializationVector() { 

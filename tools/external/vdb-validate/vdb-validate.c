@@ -1831,31 +1831,18 @@ static rc_t ric_align_ref_and_align(char const dbname[],
                                   : NULL;
     rc_t rc = 0;
     VCursor const *acurs = NULL;
-    VCursor const *bcurs = NULL;
     ColumnInfo aci;
-    ColumnInfo bci;
     ColumnInfo refPos;
     ColumnInfo refLen;
     int64_t startId;
     uint64_t count;
-    unsigned nRefs = 0;
-    RefInfo *ri = NULL;
 
-    if (ref == NULL) {
-        rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
-        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-                                "reference table can not be read", "name=%s", dbname));
-        return rc;
-    }
-
+    memset(&aci, 0, sizeof(aci));
     aci.name = "REF_ID";
-    bci.name = id_col_name;
     
     memset(&refPos, 0, sizeof(refPos));
     memset(&refLen, 0, sizeof(refLen));
 
-    if (which < 2)
-        rc = loadRefInfo(&nRefs, &ri, ref, dbname);
     if (rc == 0)
         rc = VTableCreateCursorRead(align, &acurs);
     if (rc == 0)
@@ -1873,62 +1860,79 @@ static rc_t ric_align_ref_and_align(char const dbname[],
     if (rc)
         (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
                                 "alignment table can not be read", "name=%s", dbname));
-    else {
-        rc = VTableCreateCursorRead(ref, &bcurs);
-        if (rc == 0)
-            rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
-        if (rc == 0)
-            rc = VCursorOpen(bcurs);
-        if (rc)
+    else if (count > 0) {
+        VCursor const *bcurs = NULL;
+        ColumnInfo bci;
+        unsigned nRefs = 0;
+        RefInfo *ri = NULL;
+
+        memset(&bci, 0, sizeof(bci));
+        bci.name = id_col_name;
+
+        if (ref == NULL) {
+            rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
             (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
                                     "reference table can not be read", "name=%s", dbname));
-    }
-	if (rc == 0) {
-        size_t const chunk = work_chunk(count);
-        id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
-
-        if (pair) {
-            void *scratch = NULL;
-
-            rc = ric_align_generic(startId, count, chunk, pair, &scratch
-                                   , acurs, &aci, &refPos, &refLen
-                                   , bcurs, &bci
-                                   , nRefs, ri);
-            if (scratch)
-                free(scratch);
-
-            if (GetRCObject(rc) == (enum RCObject)rcData && GetRCState(rc) == rcUnexpected)
-                (void)PLOGERR(klogErr, (klogErr, rc,
-                                        "Database '$(name)': failed referential "
-                                        "integrity check", "name=%s", dbname));
-            else if (GetRCObject(rc) == (enum RCObject)rcData &&
-                     GetRCState(rc) == rcInconsistent)
-                (void)PLOGERR(klogErr, (klogErr, rc,
-                                        "Database '$(name)': column '$(idcol)' failed referential integrity check",
-                                        "name=%s,idcol=%s", dbname, id_col_name));
-            else if (GetRCObject(rc) == (enum RCObject)rcData &&
-                     GetRCState(rc) == rcTooBig)
-                (void)PLOGERR(klogWarn, (klogWarn, rc = 0, "Database '$(name)':"
-                                         " referential integrity could not be checked, skipped",
-                                         "name=%s", dbname));
-            else if (rc)
-                (void)PLOGERR(klogErr, (klogErr, rc,
-                                        "Database '$(name)': reference table can not be read", "name=%s", dbname));
-            free(pair);
         }
-        else
-            rc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
-
-        if (GetRCObject(rc) == rcMemory && GetRCState(rc) == rcExhausted) {
-            rc = 0;
-            (void)PLOGERR(klogWarn, (klogWarn, rc, "Database '$(name)':"
-                " referential integrity could not be checked, skipped",
-                "name=%s", dbname));
+        else {
+            if (which < 2)
+                rc = loadRefInfo(&nRefs, &ri, ref, dbname);
+            rc = VTableCreateCursorRead(ref, &bcurs);
+            if (rc == 0)
+                rc = VCursorAddColumn(bcurs, &bci.idx, "%s", bci.name);
+            if (rc == 0)
+                rc = VCursorOpen(bcurs);
+            if (rc)
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "reference table can not be read", "name=%s", dbname));
         }
+        if (rc == 0) {
+            size_t const chunk = work_chunk(count);
+            id_pair_t *const pair = (id_pair_t *)malloc(sizeof(id_pair_t) * chunk);
+
+            if (pair) {
+                void *scratch = NULL;
+
+                rc = ric_align_generic(startId, count, chunk, pair, &scratch
+                                    , acurs, &aci, &refPos, &refLen
+                                    , bcurs, &bci
+                                    , nRefs, ri);
+                if (scratch)
+                    free(scratch);
+
+                if (GetRCObject(rc) == (enum RCObject)rcData && GetRCState(rc) == rcUnexpected)
+                    (void)PLOGERR(klogErr, (klogErr, rc,
+                                            "Database '$(name)': failed referential "
+                                            "integrity check", "name=%s", dbname));
+                else if (GetRCObject(rc) == (enum RCObject)rcData &&
+                        GetRCState(rc) == rcInconsistent)
+                    (void)PLOGERR(klogErr, (klogErr, rc,
+                                            "Database '$(name)': column '$(idcol)' failed referential integrity check",
+                                            "name=%s,idcol=%s", dbname, id_col_name));
+                else if (GetRCObject(rc) == (enum RCObject)rcData &&
+                        GetRCState(rc) == rcTooBig)
+                    (void)PLOGERR(klogWarn, (klogWarn, rc = 0, "Database '$(name)':"
+                                            " referential integrity could not be checked, skipped",
+                                            "name=%s", dbname));
+                else if (rc)
+                    (void)PLOGERR(klogErr, (klogErr, rc,
+                                            "Database '$(name)': reference table can not be read", "name=%s", dbname));
+                free(pair);
+            }
+            else
+                rc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
+
+            if (GetRCObject(rc) == rcMemory && GetRCState(rc) == rcExhausted) {
+                rc = 0;
+                (void)PLOGERR(klogWarn, (klogWarn, rc, "Database '$(name)':"
+                    " referential integrity could not be checked, skipped",
+                    "name=%s", dbname));
+            }
+        }
+        free(ri);
+        VCursorRelease(bcurs);
     }
-    free(ri);
     VCursorRelease(acurs);
-    VCursorRelease(bcurs);
     return rc;
 }
 
@@ -2577,7 +2581,7 @@ static rc_t dbric_align(const vdb_validate_params *pb,
             rc = rc2;
         }
     }
-    if ((rc == 0 || exhaustive) && (pri != NULL || ref != NULL)) {
+    if ((rc == 0 || exhaustive) && pri != NULL) {
         rc_t rc2 = ric_align_ref_and_align(dbname, ref, pri, 0);
 
         if (rc2 == 0) {

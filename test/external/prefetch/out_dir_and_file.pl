@@ -45,6 +45,8 @@ $PUBLIC = '/repository/user/main/public';
 `echo '$PUBLIC/root = "$CWD/tmp"'                      >> tmp/t.kfg`; die if $?;
 `echo '/repository/site/disabled = "true"'             >> tmp/t.kfg`; die if $?;
 
+if ( "black" eq "white" ) {}
+
 $SRAC = 'SRR053325';
 
 print "PREFETCH ACCESSION TO SINGLE OUT-FILE\n";
@@ -166,5 +168,15 @@ $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
 print "$CMD\n" if $VERBOSE;
 `$CMD`; die if $?;
 `rm tmp3/dir/wiki` ; die if $?;
+
+print "PREFETCH HTTP FILE URL TO OUT-DIR WHEN LOCAL FILE EXISTS IN CWD\n";
+`echo 123 > index.html` ; die if $?;
+`mkdir -p tmp3/dir` ; die if $?;
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ -O tmp3/dir";
+print "$CMD\n" if $VERBOSE;
+`$CMD`; die if $?;
+`rm tmp3/dir/index.html`; die if $?;
+`rm -r index.html tmp3` ; die if $?;
 
 `rm -r tmp*`; die if $?;

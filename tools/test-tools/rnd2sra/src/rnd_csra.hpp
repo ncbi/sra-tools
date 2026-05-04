@@ -68,9 +68,14 @@ table NCBI:align:prim #1 {
     column U64 SEQ_SPOT_ID;
     column U32 SEQ_READ_ID;
     column ascii RAW_READ;
+    column ascii READ;
     column I64 REF_ID;
     column U32 REF_POS;
     column U32 REF_LEN;
+
+    readonly column U64 BASE_COUNT = < U64 > meta:value < "STATS/TABLE/BASE_COUNT" >();
+    readonly column U64 BIO_BASE_COUNT = < U64 > meta:value < "STATS/TABLE/BIO_BASE_COUNT" >();
+    readonly column U64 SPOT_COUNT = < U64 > meta:value < "STATS/TABLE/SPOT_COUNT" >();
 };
 
 table NCBI:align:ref #1 {

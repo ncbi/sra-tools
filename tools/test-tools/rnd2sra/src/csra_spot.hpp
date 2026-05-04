@@ -3,6 +3,7 @@
 #include "csra_read.hpp"
 #include "csra_seq_rec.hpp"
 #include "rnd_cmn.hpp"
+#include "csra_prim_ref.hpp"
 
 using namespace std;
 
@@ -180,9 +181,16 @@ class cSRASpot {
             bc . bio += rec . get_read() . length();
         }
 
-        bool write_prim_cols( PrimColsPtr writer ) {
-            bool res = f_read1 -> write_prim_cols( writer );
-            if ( res ) { res = f_read2 -> write_prim_cols( writer ); }
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder, int64_t * prim_row_id ) {
+            bool res = f_read1 -> write_prim_cols( writer, recorder, prim_row_id );
+            if ( res ) {
+                res = f_read2 -> write_prim_cols( writer, recorder, prim_row_id );
+                if ( !res ) {
+                    cerr << "write_prim_cols( " << prim_row_id << " READ2 ) failed!\n";
+                }
+            } else {
+                cerr << "write_prim_cols( " << prim_row_id << " READ1 ) failed!\n";
+            }
             return res;
         }
 

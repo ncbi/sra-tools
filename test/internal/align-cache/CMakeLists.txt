@@ -42,6 +42,12 @@ if ( NOT WIN32 )
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
+    # non-0 exit code if called without arguments
+    add_test( NAME Test_Align_Cache_Exit
+          COMMAND ${DIRTOTEST}/align-cache
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_Align_Cache_Exit PROPERTIES WILL_FAIL TRUE)
+
     #TODO: make run on Windows
 endif()
 

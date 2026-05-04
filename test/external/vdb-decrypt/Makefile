@@ -22,5 +22,9 @@
 #
 # ===========================================================================
 
-# NGS-JAVA and library version
-VERSION = 3.4.2
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/external/vdb-decrypt
+
+include $(TOP)/build/Makefile.env

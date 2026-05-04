@@ -1311,8 +1311,7 @@ static XMLLogger const *make_logger(int *argc, char *argv[])
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     static const char *help[] = { "--help", "-h", "-?", NULL };
     static const char *vers[] = { "--version", "-V", NULL };

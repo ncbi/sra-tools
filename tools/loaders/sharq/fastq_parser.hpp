@@ -75,12 +75,6 @@
 #include <fingerprint.hpp>
 #include <kfile_stream/kfile_stream.hpp>
 #include "istreambuf_holder.hpp"
-#ifdef SHARQ_USE_NATIVE_CLOUD
-#ifdef CC
-#undef CC
-#endif
-#include "fastq_stream_factory.hpp"
-#endif
 
 using namespace std::chrono_literals;
 
@@ -512,37 +506,19 @@ static bool isValidURL(const std::string &url)
 }
 
 // Check if URL is a cloud storage URL (S3 or GCS)
-static bool isCloudURL(const std::string &url)
+static bool isAWSURL(const std::string &url)
 {
     return url.rfind("s3://", 0) == 0 ||
-           url.rfind("S3://", 0) == 0 ||
-           url.rfind("gs://", 0) == 0 ||
+           url.rfind("S3://", 0) == 0;
+}
+
+static bool isGCSURL(const std::string &url)
+{
+    return url.rfind("gs://", 0) == 0 ||
            url.rfind("GS://", 0) == 0;
 }
 
 using istreambuf_holder = sharq::istreambuf_holder;
-
-#ifdef SHARQ_USE_NATIVE_CLOUD
-static shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size = 4096)
-{
-    // Handle cloud URLs (S3 and GCS)
-    try {
-        // Use the cloud filesystem factory
-        return sharq::open_fastq_stream(filename, buffer_size);
-    }
-    catch (const sharq::fs::FileNotFoundError& e) {
-        throw runtime_error("File not found: " + filename);
-    }
-    catch (const sharq::fs::AccessDeniedError& e) {
-        throw runtime_error("Access denied: " + filename +
-                            ". Check your cloud credentials.");
-    }
-    catch (const sharq::fs::CloudStorageError& e) {
-        throw runtime_error("Cloud storage error for '" + filename +
-                            "': " + e.what());
-    }
-}
-#else
 
 // spanws a child and waits for it to fihish.
 // returns the child's exit code
@@ -675,7 +651,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
     custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
-        if ( isCloudURL( filename ) )
+        if ( isAWSURL( filename ) )
         {
             // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
@@ -683,6 +659,25 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                {
+                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                }
+                else
+                {
+                    throw runtime_error("KStdIOStreamMake() failed");
+                }
+            }
+
+            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+        }
+        else if ( isGCSURL( filename ) )
+        {
+            // GCS: check if CLI is available. NOTE: Posix only
+            if ( SpawnAndWait( "which", {"gcloud"} ) == 0 )
+            {
+                int child = Spawn( "gsutil", { "cp", filename, "-" } );
+                vdb::KStream * child_stream = nullptr;
+                if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
                 {
                     return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
                 }
@@ -731,9 +726,6 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         return shared_ptr<istream>( new istreambuf_holder( c_istream, observer ));
     }
 }
-
-#endif // SHARQ_USE_NATIVE_CLOUD
-
 
 struct spot_read_t {
     fastq_read read;

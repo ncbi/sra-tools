@@ -498,8 +498,8 @@ echo prefetch run with AAAB01 WGS refseq to cache
 COMMAND\
 ="cd tmp&&NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy > /dev/null \
-                                                                     || exit 495
+cd tmp && NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z VDB_CONFIG=k $PREFETCH SRR353827 \
+                                                     -fy > /dev/null || exit 495
 cd ${work_dir}                                                       || exit 496
 ls tmp/SRR353827/SRR353827.sralite tmp/wgs/AAAB01        > /dev/null || exit 497
 rm -r tmp/[Sw]*                                                      || exit 498
@@ -507,8 +507,8 @@ rm -r tmp/[Sw]*                                                      || exit 498
 echo prefetch run with AAAB01 WGS refseq to AD
 echo '/tools/prefetch/download_to_cache = "false"'          >> tmp/k || exit 501
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH SRR353827 -fy > /dev/null \
-                                                                     || exit 503
+cd tmp && NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z VDB_CONFIG=k $PREFETCH SRR353827 \
+                                                     -fy > /dev/null || exit 503
 ls SRR353827/SRR353827.sralite SRR353827/AAAB01          > /dev/null || exit 504
 rm -r SRR353827                                                      || exit 505
 
@@ -557,9 +557,9 @@ cd tmp                                                               || exit 553
 
 echo '      ...prefetching...'
 COMMAND\
-="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
+="NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z VDB_CONFIG=k $PREFETCH ERR3091357"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=/   VDB_CONFIG=k $PREFETCH ERR3091357 > /dev/null \
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z  VDB_CONFIG=k $PREFETCH ERR3091357 > /dev/null \
                                                                      || exit 554
 
 echo '      ...align-infoing...'
@@ -585,9 +585,9 @@ echo cd tmp
 cd tmp                                                               || exit 585
 
 echo '      ...prefetching...'
-COMMAND="NCBI_SETTINGS=/ VDB_CONFIG=k $PREFETCH ERR3091357"
+COMMAND="NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z VDB_CONFIG=k $PREFETCH ERR3091357"
 if [ "$VERBOSE" != "" ]; then echo $COMMAND; fi
-NCBI_SETTINGS=/          VDB_CONFIG=k $PREFETCH ERR3091357 >/dev/null|| exit 590
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=Z VDB_CONFIG=k $PREFETCH ERR3091357 >/dev/null|| exit 590
 
 echo '      ...align-infoing...'
 COMMAND\

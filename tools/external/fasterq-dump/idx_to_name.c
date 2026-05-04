@@ -45,6 +45,7 @@ static void idx_to_name_item_release( SLNode *node, void * data ) {
             item -> name = NULL;
             item -> idx = 0;
         }
+		free( node );
     }
 }
 

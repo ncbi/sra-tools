@@ -908,7 +908,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 
     fprintf ( stderr, "%s: '%s': specified destination path is not a directory\n", program_name, pbuff );
     rc = RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
-    
+
 CLEANUP:
     VPathRelease(dest);
     return rc;
@@ -938,8 +938,7 @@ void param_whack (void * path, void * ignored)
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-         return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t rc, orc;

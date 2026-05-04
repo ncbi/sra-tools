@@ -293,6 +293,7 @@ MAIN_DECL(argc, argv)
     {
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
 
         Args * args = nullptr;
         CheckRc( ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 ), "ArgsMakeAndHandle() failed" );

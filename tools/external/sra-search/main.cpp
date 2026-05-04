@@ -194,6 +194,8 @@ run( int argc, char *argv [] )
     int rc = -1;
     bool found;
 
+    SetSraToolsHash(HASH_SRA_TOOLS);
+
     try
     {
         VdbSearch :: Settings settings;

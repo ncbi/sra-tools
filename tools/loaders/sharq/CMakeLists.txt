@@ -43,9 +43,6 @@ if( SINGLE_CONFIG )
     cmake_minimum_required(VERSION 3.16)
     project(sharq)
 
-    # Include cloud filesystem support module
-    include(${CMAKE_CURRENT_SOURCE_DIR}/CloudFilesystem.cmake)
-
     # prefer static linkage
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib .tbd)
     find_package(ZLIB)
@@ -128,9 +125,6 @@ if( SINGLE_CONFIG )
             INSTALL_RPATH_USE_LINK_PATH FALSE
             SKIP_BUILD_RPATH TRUE
             SKIP_INSTALL_RPATH TRUE)
-
-        # Add cloud storage support if enabled
-        sharq_add_cloud_support(sharq)
 
         MakeLinksExe( sharq false )
 

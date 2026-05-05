@@ -551,6 +551,7 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
 
         return AlignCache::create_cache_db (argc, app.getArgV() );
     }

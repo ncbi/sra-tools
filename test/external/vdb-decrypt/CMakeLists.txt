@@ -22,5 +22,21 @@
 #
 # ===========================================================================
 
-# NGS-JAVA and library version
-VERSION = 3.4.2
+add_compile_definitions( __mod__="test/external/vdb-decrypt" )
+
+if ( NOT WIN32 )
+    ToolsRequired(vdb-decrypt vdb-encrypt)
+
+    # non-0 exit code if called without arguments
+    add_test( NAME Test_vdb_decrypt_Exit
+        COMMAND ${DIRTOTEST}/vdb-decrypt
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_vdb_decrypt_Exit PROPERTIES WILL_FAIL TRUE)
+    add_test( NAME Test_vdb_encrypt_Exit
+        COMMAND ${DIRTOTEST}/vdb-encrypt
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(Test_vdb_encrypt_Exit PROPERTIES WILL_FAIL TRUE)
+
+else()
+#TODO: make run on Windows
+endif()

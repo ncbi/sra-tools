@@ -3764,7 +3764,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
     }
 
     if (rc == 0) {
-        {
+        if (!pb->skip_members) {
             const char* name = SPOT_GROUP;
             rc = VCursorAddColumn(curs, &idxSPOT_GROUP, "%s", name);
             if (columnUndefined(rc)) {

@@ -154,6 +154,7 @@ MAIN_DECL(argc, argv)
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
+    SetSraToolsHash( HASH_SRA_TOOLS );
 
     rc_t rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2
                                  , Options, sizeof Options / sizeof (OptDef)

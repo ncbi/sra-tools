@@ -549,6 +549,7 @@ extern "C"
         size_t buffer_size = DFLT_BUFFER_SIZE;
 
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
 
         try
         {

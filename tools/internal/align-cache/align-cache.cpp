@@ -469,7 +469,7 @@ namespace AlignCache
             if ( param_count != 2 )
             {
                 MiniUsage (args.GetArgs());
-                return 0;
+                return 3;
             }
 
             g_Params.dbPathSrc = args.GetParamValue (0);
@@ -551,6 +551,7 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+        SetSraToolsHash( HASH_SRA_TOOLS );
 
         return AlignCache::create_cache_db (argc, app.getArgV() );
     }

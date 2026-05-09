@@ -1084,7 +1084,7 @@ static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 
                 rc = BAM_FileGetHeaderText(*bam, &header, &size);
                 if (rc == 0) {
-                    rc = KMDataNodeWrite(node, header, size);
+                    rc = KMDataNodeAppend(node, header, size);
                 }
                 KMDataNodeRelease(node);
             }

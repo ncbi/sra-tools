@@ -506,13 +506,12 @@ static bool isValidURL(const std::string &url)
 }
 
 // Check if URL is a cloud storage URL (S3 or GCS)
-static bool isAWSURL(const std::string &url)
+static bool isAWS_URL(const std::string &url)
 {
     return url.rfind("s3://", 0) == 0 ||
            url.rfind("S3://", 0) == 0;
 }
-
-static bool isGCSURL(const std::string &url)
+static bool isGCS_URL(const std::string &url)
 {
     return url.rfind("gs://", 0) == 0 ||
            url.rfind("GS://", 0) == 0;
@@ -651,9 +650,8 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
     custom_istream::custom_istream * c_istream = nullptr;
     if ( isValidURL( filename ) )
     {
-        if ( isAWSURL( filename ) )
-        {
-            // AWS: check if CLI is available. NOTE: Posix only
+        if ( isAWS_URL( filename ) )
+        {   // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
             {
                 int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
@@ -670,12 +668,21 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 
             throw runtime_error("Failure to open cloud URL '" + filename + "'");
         }
-        else if ( isGCSURL( filename ) )
-        {
-            // GCS: check if CLI is available. NOTE: Posix only
-            if ( SpawnAndWait( "which", {"gcloud"} ) == 0 )
+        else if ( isGCS_URL( filename ) )
+        {   // GCS: check if CLI is available. NOTE: Posix only
+            if ( SpawnAndWait( "which", {"gsutil"} ) == 0 )
             {
-                int child = Spawn( "gsutil", { "cp", filename, "-" } );
+                std::vector<std::string> args;
+                const char* cred = std::getenv("GCS_CREDENTIALS");
+                if ( cred != nullptr )
+                { 
+                    args.push_back( "-o" );
+                    args.push_back( string( "GSUtil:service_account_key=" ) + cred );
+                }
+                args.push_back( "cp" );
+                args.push_back( filename );
+                args.push_back( "-" );
+                int child = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
                 {

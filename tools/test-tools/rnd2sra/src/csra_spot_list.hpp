@@ -62,24 +62,24 @@ class cSRASpotList {
 
         uint64_t row_count( void ) const { return f_spots . size(); }
 
-        bool write_seq_cols( SeqColsPtr writer, base_counters& bc ) {
+        bool write_seq_cols( SeqColsPtr seq_cols, base_counters& bc ) {
             bool res = true;
             SeqRec rec;
             rec . set_row_id( 1 );
             for ( auto const& spot : f_spots ) {
                 spot -> populate_seq_rec( rec, bc );
-                res = writer -> write( rec );
+                res = seq_cols -> write( rec );
                 rec . inc_row_id();
                 if ( !res ) break;
             }
             return res;
         }
 
-        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder ) {
+        bool write_prim_cols( PrimColsPtr prim_cols, Prim_Ref_Recorder_ptr recorder ) {
             bool res = true;
             int64_t prim_row_id = 1;
             for ( auto const& spot : f_spots ) {
-                res = spot -> write_prim_cols( writer, recorder, &prim_row_id );
+                res = spot -> write_prim_cols( prim_cols, recorder, &prim_row_id );
                 if ( !res ) { break; }
             }
             return res;

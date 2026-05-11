@@ -103,6 +103,7 @@ class cSRASpot {
             return cSRASpotPtr( new cSRASpot( layout, ini, rnd ) );
         }
 
+        // the SPOT has 2 READS
         void populate_seq_rec2( SeqRec& rec ) {
             // concatenate the 2 reads for the 'computed' READ-column
             rec . set_read( f_read1 -> get_bases() + f_read2 -> get_bases() );
@@ -135,6 +136,7 @@ class cSRASpot {
             rec . set_prim_al_id( f_read1 -> get_align_id(), f_read2 -> get_align_id() );
         }
 
+        // the SPOT has 1 READ
         void populate_seq_rec1( SeqRec& rec ) {
             rec . set_read( f_read1 -> get_bases() );
             if ( f_read1 -> is_aligned() ) {

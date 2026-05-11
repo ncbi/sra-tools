@@ -362,6 +362,9 @@ class rnd2sra_ini {
         row_offset_pair_ptr f_read_start_offset;
         row_offset_pair_ptr f_read_len_offset;
         row_offset_pair_ptr f_read_type_offset;
+        row_offset_pair_ptr f_read_start_elements_diff;
+        row_offset_pair_ptr f_read_len_elements_diff;
+        row_offset_pair_ptr f_read_type_elements_diff;
 
         static uint64_t get_u64( const IniPtr ini, const MainParamsPtr main_params, const string& key, uint64_t dflt ) {
             if ( ini -> has( key ) ) {
@@ -402,6 +405,10 @@ class rnd2sra_ini {
             f_read_start_offset = row_offset_pair::make( ini -> get( "read_start_offset", "" ) );
             f_read_len_offset = row_offset_pair::make( ini -> get( "read_len_offset", "" ) );
             f_read_type_offset = row_offset_pair::make( ini -> get( "read_type_offset", "" ) );
+            f_read_start_elements_diff = row_offset_pair::make( ini -> get( "read_start_elements_diff", "" ) );
+            f_read_len_elements_diff = row_offset_pair::make( ini -> get( "read_len_elements_diff", "" ) );
+            f_read_type_elements_diff = row_offset_pair::make( ini -> get( "read_type_elements_diff", "" ) );
+
             for ( const string & layout : ini -> get_definitions_of( "layout" ) ) {
                 f_layouts . push_back( spot_layout::make( layout ) );
             }
@@ -420,6 +427,9 @@ class rnd2sra_ini {
         row_offset_pair_ptr get_read_start_offset( void ) const { return f_read_start_offset; }
         row_offset_pair_ptr get_read_len_offset( void ) const { return f_read_len_offset; }
         row_offset_pair_ptr get_read_type_offset( void ) const { return f_read_type_offset; }
+        row_offset_pair_ptr get_read_start_elements_diff( void ) const { return f_read_start_elements_diff; }
+        row_offset_pair_ptr get_read_len_elements_diff( void ) const { return f_read_len_elements_diff; }
+        row_offset_pair_ptr get_read_type_elements_diff( void ) const { return f_read_type_elements_diff; }
 
     public:
         static rnd2sra_ini_ptr make( const IniPtr ini, const MainParamsPtr main_params ) {
@@ -444,12 +454,12 @@ class rnd2sra_ini {
         const vector< spot_layout_ptr >& get_layouts( void ) const { return f_layouts; }
         const vector< csra_spot_layout_ptr >& get_csra_layouts( void ) const { return f_csra_layouts; }
 
-        int32_t qual_offset( int64_t row ) const {
-            return get_qual_offset() -> offset( row );
-        }
-
         int32_t read_offset( int64_t row ) const {
             return get_read_offset() -> offset( row );
+        }
+
+        int32_t qual_offset( int64_t row ) const {
+            return get_qual_offset() -> offset( row );
         }
 
         bool cmp_rd_fault( int64_t row ) const {
@@ -466,6 +476,18 @@ class rnd2sra_ini {
 
         int32_t read_type_offset( int64_t row ) const {
             return get_read_type_offset() -> offset( row );
+        }
+
+        int32_t read_start_elements_diff( int64_t row ) const {
+            return get_read_start_elements_diff() -> offset( row );
+        }
+
+        int32_t read_len_elements_diff( int64_t row ) const {
+            return get_read_len_elements_diff() -> offset( row );
+        }
+
+        int32_t read_type_elements_diff( int64_t row ) const {
+            return get_read_type_elements_diff() -> offset( row );
         }
 
         spot_layout_ptr select_spot_layout( RandomPtr r ) {

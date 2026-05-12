@@ -19,4 +19,10 @@ if [ "$res" != "0" ];
     then echo "${tool_binary} fastq parser failed, res=${res} output=${output}" && exit 1;
 fi
 
+output=$(${bin_dir}/${tool_binary} input/10.fastq.bz2 /dev/null | sed -rn 's/^(.*) mtime="([[:print:]]{20,20})"(.*)/\1\3/p' > actual/10.out && diff -q input/10.out actual/10.out)
+res=$?
+if [ "$res" != "0" ];
+    then echo "${tool_binary} fastq parser failed, res=${res} output=${output}" && exit 1;
+fi
+
 echo "${tool_binary} nested fastq parser succeeded"

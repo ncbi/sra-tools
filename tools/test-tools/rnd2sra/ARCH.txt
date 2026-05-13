@@ -1,0 +1,35 @@
+===================================================
+            Architecture of rnd2sra
+===================================================
+
+    * creates artificial SRA-accessions with random but reproducible data
+    * orchestrates testing cases
+    * can call itself recursivly for testing/SRA-creation
+
+rnd2sra.cpp:
+    main
+        |---> help / version / supported platforms
+        |---> run_tool()
+                * read INI-file
+                * create Tool_Main instance ( rnd2sra_main.hpp )
+                * tool -> run()
+
+rnd2sra_main.hpp:
+    * constructor extracts "product" value from INI
+    * run() switches on product
+        |---> produce_acc()
+                * handles output-path
+                * instantiates source of randomnes
+                * creates KDir and VDB_Manager
+                * switches on product ( .is_flat .is_db .iscSRA )
+
+flat:
+    RndNonecSraFlat::produce() ( rnd_none_csra.hpp )
+        - RndNonecSraFlat is derived from RndNonecSra
+
+db:
+    RndNonecSraDb::produce()  ( rnd_none_csra.hpp )
+        - RndNonecSraDb is derived from RndNonecSra
+
+cSRA:
+    RndcSRA::produce()  ( rnd_csra.hpp )

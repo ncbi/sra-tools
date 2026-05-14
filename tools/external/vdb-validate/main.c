@@ -264,8 +264,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
 
     pb -> md5_chk = true;
     pb->consist_check = false;
-    ref_int_check
-        = pb -> md5_chk_explicit = md5_required = true;
+    ref_int_check = pb -> md5_chk_explicit = md5_required = true;
     pb -> blob_crc = false;
     pb -> sdc_sec_rows_in_percent = false;
     pb -> sdc_sec_rows.number = 100000;

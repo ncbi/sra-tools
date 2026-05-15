@@ -8,5 +8,5 @@ info: Column 'READ_LEN': md5 ok
 info: Column 'SIGNAL': md5 ok
 info: Column 'X': md5 ok
 info: Column 'Y': md5 ok
-info: Columns 'READ_LEN' and 'SPOT_LEN' are consistent
+info: SRA spot layout columns are consistent
 info: Table 'SRR053990' is consistent

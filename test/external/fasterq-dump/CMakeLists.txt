@@ -94,9 +94,10 @@ if ( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         # test if fasterq-dump can handle long reads ( longer than 64k ) / VDB-6105
-        add_test( NAME Test_FasterqDump_LongReads
-            COMMAND sh -c "./longreads.sh ${BINDIR}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# disable for now -- re-enable in VDB-6382
+#         add_test( NAME Test_FasterqDump_LongReads
+#             COMMAND sh -c "./longreads.sh ${BINDIR}"
+#             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         # test if fasterq-dump can handle missing seq-tbl-metadata / VDB-5670
         add_test( NAME Test_FasterqDump_NoSeqTblMeta

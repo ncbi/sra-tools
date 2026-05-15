@@ -2581,7 +2581,7 @@ static rc_t dbric_align(const vdb_validate_params *pb,
             rc = rc2;
         }
     }
-    if ((rc == 0 || exhaustive) && pri != NULL) {
+    if ((rc == 0 || exhaustive) && (ref != NULL && pri != NULL)) {
         rc_t rc2 = ric_align_ref_and_align(dbname, ref, pri, 0);
 
         if (rc2 == 0) {
@@ -2620,7 +2620,7 @@ static rc_t verify_database_align(vdb_validate_params const *const pb, VDatabase
     {
         rc = RC(rcExe, rcDatabase, rcValidating, rcDatabase, rcIncomplete);
         (void)PLOGERR(klogWarn, (klogWarn, rc,
-            "Database '$(name)' does not contain required reference sequence table",
+            "Database '$(name)' does not contain reference sequence table",
             "name=%s", name));
     }
     if ((tables & tbPrimaryAlignment) == 0)

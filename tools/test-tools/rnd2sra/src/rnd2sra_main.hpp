@@ -114,7 +114,7 @@ class Tool_Main {
                 auto r = runner::make( f_ini, f_main_params );
                 return r -> run();
             } else {
-                cerr << "unknown product!" << endl;
+                cerr << "unknown product: " << f_product -> get_orig_product_string() << endl;
             }
             return false;
         }

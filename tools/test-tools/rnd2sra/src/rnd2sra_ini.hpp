@@ -339,9 +339,13 @@ class rnd2sra_ini {
     private:
         string f_output_dir;
         string f_name_pattern;
+        string f_seq_tbl_schema_name;
+        string f_seq_db_schema_name;
         uint64_t f_rows;
         uint64_t f_seed;
         uint32_t f_name_len;
+        uint32_t f_ref_tbl_rows;
+        uint32_t f_ref_tbl_erase;
         bool f_with_name;
         bool f_echo_values;
         bool f_write_meta;
@@ -381,7 +385,11 @@ class rnd2sra_ini {
             f_rows = get_u64( ini, main_params, "rows", 10 );
             f_seed = get_u64( ini, main_params, "seed", 1010101 );
             f_name_len = ini -> get_u32( "name_len", 25 );
+            f_ref_tbl_rows = ini -> get_u32( "ref_tbl_rows", 10 );
+            f_ref_tbl_erase = ini -> get_u32( "ref_tbl_erase", 0 );
             f_name_pattern = ini -> get( "name_pattern", "" );
+            f_seq_tbl_schema_name = ini -> get( "f_seq_tbl_schema_name", "" );
+            f_seq_db_schema_name = ini -> get( "f_seq_db_schema_name", "" );
             f_with_name = ini -> get( "with_name", "yes" ) == "yes";
             f_echo_values = ini -> get( "echo", "no" ) == "yes";
             f_write_meta = ini -> get( "write_meta", "yes" ) == "yes";
@@ -422,8 +430,12 @@ class rnd2sra_ini {
         bool has_output_dir( void ) const { return !f_output_dir . empty(); }
         void set_output_dir( const string& value ) { f_output_dir = value; }
         const string& get_output_dir( void ) const { return f_output_dir; }
+        const string& get_seq_tbl_schema_name( void ) const { return f_seq_tbl_schema_name; }
+        const string& get_seq_db_schema_name( void ) const { return f_seq_db_schema_name; }
         uint64_t get_rows( void ) const { return f_rows; }
         uint64_t get_seed( void ) const { return f_seed; }
+        uint32_t get_ref_tbl_rows( void ) const { return f_ref_tbl_rows; }
+        uint32_t get_ref_tbl_erase( void ) const { return f_ref_tbl_erase; }
         bool get_with_name( void ) const { return f_with_name; }
         bool get_echo_values( void ) const { return f_echo_values; }
         bool get_write_meta( void ) const { return f_write_meta; }
@@ -511,8 +523,21 @@ class rnd2sra_ini {
             return "no";
         }
 
+        static string find_and_replace( const string& src, const string& to_find, const string& replacement ) {
+            string res = src;
+            size_t found = res . find( to_find );
+
+            while ( found != string::npos ) {
+                res . replace( found, to_find . size(), replacement );
+                found = res . find( to_find, found + replacement . size() );
+            }
+            return res;
+        }
+
         friend auto operator<<( ostream& os, rnd2sra_ini_ptr o ) -> ostream& {
             os << "out      = " << o -> get_output_dir() << endl;
+            os << "seq_tbl..= " << o -> get_seq_tbl_schema_name() << endl;
+            os << "seq_db...= " << o -> get_seq_db_schema_name() << endl;
             os << "rows     = " << o -> get_rows() << endl;
             os << "seed     = " << o -> get_seed() << endl;
             os << "name     = " << yes_no( o -> get_with_name() ) << endl;

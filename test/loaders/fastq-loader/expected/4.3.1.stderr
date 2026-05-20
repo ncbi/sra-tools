@@ -9,6 +9,5 @@ Example:
 
 
 Use option --help for more information.
-
 latf-load err: param incorrect while accessing argument list within application support module - accession="obj" errors="0" status="failure"
 latf-load err: param incorrect while accessing argument list within application support module - load failed

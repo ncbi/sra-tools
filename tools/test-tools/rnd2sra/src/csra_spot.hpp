@@ -103,6 +103,7 @@ class cSRASpot {
             return cSRASpotPtr( new cSRASpot( layout, ini, rnd ) );
         }
 
+        // the SPOT has 2 READS
         void populate_seq_rec2( SeqRec& rec ) {
             // concatenate the 2 reads for the 'computed' READ-column
             rec . set_read( f_read1 -> get_bases() + f_read2 -> get_bases() );
@@ -127,14 +128,23 @@ class cSRASpot {
             rec . set_read_type( 1, 1 ); // BIO
             rec . set_read_filter( 0, 0 ); // PASS
 
+            int64_t row_id = rec . get_row_id();
+
             // optional fault injection!
-            int32_t s_offset = f_ini -> read_start_offset( rec . get_row_id() );
-            int32_t l_offset = f_ini -> read_len_offset( rec . get_row_id() );
+            int32_t s_offset = f_ini -> read_start_offset( row_id );
+            int32_t l_offset = f_ini -> read_len_offset( row_id );
+
             rec . set_read_start( 0, f_read1 -> get_len() + s_offset );
             rec . set_read_len( f_read1 -> get_len(), f_read2 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id(), f_read2 -> get_align_id() );
+
+            rec . modify_read_start_element_count( f_ini -> read_start_elements_diff( row_id ) );
+            rec . modify_read_len_element_count( f_ini -> read_len_elements_diff( row_id ) );
+            rec . modify_read_type_element_count( f_ini -> read_type_elements_diff( row_id ) );
+            rec . modify_read_filter_element_count( f_ini -> read_filter_elements_diff( row_id ) );
         }
 
+        // the SPOT has 1 READ
         void populate_seq_rec1( SeqRec& rec ) {
             rec . set_read( f_read1 -> get_bases() );
             if ( f_read1 -> is_aligned() ) {
@@ -145,13 +155,20 @@ class cSRASpot {
             rec . set_read_type( 1 ); // BIO
             rec . set_read_filter( 0 ); // PASS
 
+            int64_t row_id = rec . get_row_id();
+
             // optional fault injection!
-            int32_t s_offset = f_ini -> read_start_offset( rec . get_row_id() );
-            int32_t l_offset = f_ini -> read_len_offset( rec . get_row_id() );
+            int32_t s_offset = f_ini -> read_start_offset( row_id );
+            int32_t l_offset = f_ini -> read_len_offset( row_id );
 
             rec . set_read_start( s_offset );
             rec . set_read_len( f_read1 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id() );
+
+            rec . modify_read_start_element_count( f_ini -> read_start_elements_diff( row_id ) );
+            rec . modify_read_len_element_count( f_ini -> read_len_elements_diff( row_id ) );
+            rec . modify_read_type_element_count( f_ini -> read_type_elements_diff( row_id ) );
+            rec . modify_read_filter_element_count( f_ini -> read_filter_elements_diff( row_id ) );
         }
 
         void populate_seq_rec( SeqRec& rec, base_counters& bc ) {

@@ -240,6 +240,7 @@ static void print_help ( void )
         << "  -h|--help                        Output brief explanation for the program. \n"
         << "  -v|-V|--version                  Display the version of the program then\n"
         << "                                   quit.\n"
+        << "\n"
         ;
 
     HelpVersion ( UsageDefaultName, KAppVersion () );

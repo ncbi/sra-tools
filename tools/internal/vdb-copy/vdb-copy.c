@@ -118,7 +118,6 @@ const char UsageDefaultName[] = "vdb-copy";
 
 rc_t CC UsageSummary ( const char * progname ) {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s <src_path> <dst_path> [options]\n"
         "\n", progname );
@@ -166,6 +165,8 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( ALIAS_BLOB_CHECKSUM, OPTION_BLOB_CHECKSUM, NULL, blcmode_usage );
 
     HelpOptionsStandard();
+
+    KOutMsg ( "\n" );
 
     HelpVersion( fullpath, KAppVersion() );
 

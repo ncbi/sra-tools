@@ -145,7 +145,7 @@ static void handle_help ( const char * appName )
         fileName = fileName . substr ( filePos + 1 );
     }
 
-    cout << endl
+    cout
         << "Usage:" << endl
         << "  " << fileName << " [Options] query accession ..." << endl
         << endl
@@ -364,7 +364,7 @@ run( int argc, char *argv [] )
     }
     catch ( const invalid_argument & x )
     {
-        cerr << endl << "ERROR: " << x . what () << endl;
+        cerr << endl << "ERROR: " << x . what () << endl << endl;
         handle_help ( argv [ 0 ] );
         rc = 1;
     }

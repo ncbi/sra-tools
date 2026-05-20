@@ -378,7 +378,7 @@ extern "C"
 
     rc_t CC UsageSummary (const char * progname)
     {
-        OUTMSG (("\nFor each pair (key, variation spec) in input produces the expanded variation spec\n\n"));
+        OUTMSG (("For each pair (key, variation spec) in input produces the expanded variation spec\n\n"));
         return 0;
     }
 
@@ -404,6 +404,8 @@ extern "C"
         XMLLogger_Usage();
 
         HelpOptionsStandard ();
+
+        OUTMSG (("\n"));
 
         HelpVersion (fullpath, KAppVersion());
 

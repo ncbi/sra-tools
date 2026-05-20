@@ -91,7 +91,7 @@ const char UsageDefaultName[] = "testld";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s [Options]\n"
                     "\n"
@@ -119,6 +119,8 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine (ALIAS_LOAD, OPTION_LOAD, "Path", load_usage);
 
     HelpOptionsStandard ();
+
+    OUTMSG (("\n"));
 
     HelpVersion (fullpath, KAppVersion());
 

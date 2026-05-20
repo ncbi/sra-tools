@@ -340,6 +340,8 @@ rc_t CC Usage(const Args* args) {
 
     HelpOptionsStandard ();
 
+    KOutMsg ("\n");
+
     HelpVersion (fullpath, KAppVersion());
 
     return rc;

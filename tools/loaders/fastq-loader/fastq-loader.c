@@ -284,6 +284,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
     OUTMSG(("\n"));
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }

@@ -143,7 +143,7 @@ const char UsageDefaultName[] = "srapath";
 
 rc_t CC UsageSummary( const char * progname )
 {
-    return OUTMSG(("\n"
+    return OUTMSG((
         "Usage:\n"
         "  %s [options] <accession> ...\n\n"
         "Summary:\n"
@@ -203,6 +203,7 @@ rc_t CC Usage( const Args *args )
 
     OUTMSG(( "\n" ));
     HelpOptionsStandard();
+    OUTMSG(( "\n" ));
     HelpVersion( fullpath, KAppVersion() );
 
     return rc;

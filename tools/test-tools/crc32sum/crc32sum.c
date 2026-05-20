@@ -164,13 +164,13 @@ const char UsageDefaultName[] = "crc32sum";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg("\n"
+    return KOutMsg(
                    "Usage:\n"
                    "  %s [Options] File [File ...]\n"
                    "\n"
                    "Summary:\n"
                    "  Generate or test crc32 file checks\n"
-                   "\n", progname);
+                   , progname);
 }
 
 
@@ -187,13 +187,15 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary (progname);
 
-    KOutMsg ("Options\n");
+    KOutMsg ("\nOptions\n");
 
     HelpOptionLine (ALIAS_BINARY, OPTION_BINARY, NULL, binary_usage);
 
     HelpOptionLine (ALIAS_CHECK, OPTION_CHECK, NULL, check_usage);
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

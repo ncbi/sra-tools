@@ -1113,7 +1113,7 @@ const char UsageDefaultName[] = "kdbmeta";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s [Options] <target> [<query> ...]\n"
                     "\n"
@@ -1202,7 +1202,7 @@ rc_t CC Usage (const Args * args)
 
     UsageSummary (progname);
 
-    KOutMsg ("  The target metadata are described by one or more\n"
+    KOutMsg ("\n  The target metadata are described by one or more\n"
              "  target specifications, giving the path to a database, a table\n"
              "  or a column. the command and query are executed on each target.\n"
              "\n"

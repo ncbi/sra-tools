@@ -195,13 +195,15 @@ class cSRASpot {
             size_t spot_len = rec . get_read() . length() + q_offset - r_offset;
             rec . make_random_qual( f_rnd, spot_len );
 
-            bc . bio += rec . get_read() . length();
+            bc . bio += spot_len;
+            bc . total += spot_len;
         }
 
-        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder, int64_t * prim_row_id ) {
-            bool res = f_read1 -> write_prim_cols( writer, recorder, prim_row_id );
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder,
+                              int64_t * prim_row_id, base_counters &counters ) {
+            bool res = f_read1 -> write_prim_cols( writer, recorder, prim_row_id, counters );
             if ( res ) {
-                res = f_read2 -> write_prim_cols( writer, recorder, prim_row_id );
+                res = f_read2 -> write_prim_cols( writer, recorder, prim_row_id, counters );
                 if ( !res ) {
                     cerr << "write_prim_cols( " << prim_row_id << " READ2 ) failed!\n";
                 }

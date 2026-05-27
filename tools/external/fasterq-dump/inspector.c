@@ -170,7 +170,7 @@ static rc_t insp_release_VNamelist( const VNamelist * lst, rc_t rc,
     }
     return rc1;
 }
-                                         
+
 static rc_t insp_release_VPath( const VPath * vpath, rc_t rc,
                                 const char * fname,
                                 const char * acc ) {
@@ -226,7 +226,7 @@ static rc_t insp_release_VResolver( const VResolver * resolver, rc_t rc,
     if ( NULL != resolver ) {
         rc_t rc2 = VResolverRelease( resolver );
         if ( 0 != rc2 ) {
-            const char * s = ( NULL == acc ) ? insp_empty : acc;            
+            const char * s = ( NULL == acc ) ? insp_empty : acc;
             ErrMsg( "%s( '%s' ).VResolverRelease() -> %R\n",
                     fname, s, rc2 );
             rc1 = ( 0 == rc1 ) ? rc2 : rc1;
@@ -317,7 +317,7 @@ static const char * insp_extract_from_vpath( const VPath * vpath ) {
 }
 
 static const char * insp_extract_from_path( const VFSManager * mgr, const char * path ) {
-    const char * res = NULL;    
+    const char * res = NULL;
     VPath * vpath;
     rc_t rc = VFSManagerMakePath ( mgr, &vpath, "%s", path );
     if ( 0 == rc ) {
@@ -650,7 +650,7 @@ static acc_type_t insp_db_type( const insp_input_t * input,
                                     if ( NULL == input -> requested_seq_tbl_name ) {
                                         output -> seq . tbl_name = CONS_TBL_NAME;
                                     } else {
-                                        output -> seq . tbl_name = input -> requested_seq_tbl_name;                                        
+                                        output -> seq . tbl_name = input -> requested_seq_tbl_name;
                                     }
                                 }
                                 res = acc_pacbio_native;
@@ -739,7 +739,6 @@ static rc_t insp_location_and_size( const insp_input_t * input,
       else
       {
         /* found remotely */
-        hlp_unread_rc_info( false ); /* get rid of stored rc-messages... */
         if ( 0 == rc )
         {
             output -> is_remote = true;
@@ -1173,7 +1172,7 @@ rc_t insp_report( const insp_input_t * input, const insp_output_t * output ) {
 /* ------------------------------------------------------------------------------------------- */
 
 static size_t insp_est_base_count( const insp_estimate_input_t * input ) {
-    /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count 
+    /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count
        ( these 2 numbers can be the same for cSRA objects, they have no technical reads ) */
     if ( input -> skip_tech ) {
         return input -> insp -> seq . bio_base_count;
@@ -1291,7 +1290,7 @@ size_t insp_estimate_output_size( const insp_estimate_input_t * input ) {
         case ft_fasta_split_3           : res = insp_est_out_size_split_spot( input, true ); break;
         case ft_fasta_us_split_spot     : res = insp_est_out_size_split_spot( input, false ); break;
         case ft_fasta_ref_tbl           : res = insp_est_out_size_ref_tbl( input, true ); break;
-        case ft_fasta_concat            : res = insp_est_out_size_ref_tbl( input, true ); break;        
+        case ft_fasta_concat            : res = insp_est_out_size_ref_tbl( input, true ); break;
         case ft_ref_report              : res = insp_est_out_size_ref_report( input, true ); break;
     }
     return res;

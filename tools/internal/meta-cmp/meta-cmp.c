@@ -155,15 +155,6 @@ static bool both_are_db( const struct cmp_src * src1, const struct cmp_src * src
     return ( NULL != src1 -> db && NULL != src2 -> db );
 }
 
-static void cleanup_rc( void ) {
-    rc_t rc;
-    const char *filename;
-    const char *funcname;
-    uint32_t lineno;
-    while( GetUnreadRCInfo( &rc, &filename, &funcname, &lineno ) ) {
-        ;
-    }
-}
 /* --------------------------------------------------------------------------- */
 
 static rc_t compare_tbl( const struct cmp_ctx * ctx, const VTable * tbl1, const VTable * tbl2,
@@ -189,10 +180,6 @@ static rc_t compare_tbl( const struct cmp_ctx * ctx, const VTable * tbl1, const 
                 rc = KOutMsg( "\tthe node(s) in both tables are NOT equal\n" );
             } else {
                 rc = KOutMsg( "\tthe node(s) in both '%s'-tables are NOT equal\n", tbl_name );
-            }
-            if ( 0 == rc ) {
-                cleanup_rc();
-                rc = RC( rcExe, rcNoTarg, rcComparing, rcData, rcInconsistent );
             }
         }
     }

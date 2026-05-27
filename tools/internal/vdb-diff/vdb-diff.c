@@ -425,17 +425,6 @@ MAIN_DECL( argc, argv )
     }
 
     if ( diffs > 0 ) rc = RC( rcExe, rcNoTarg, rcComparing, rcRow, rcInconsistent );
-    {
-        bool b = true;
-        while( b )
-        {
-            rc_t rc1;
-            const char * filename;
-            const char * funcname;
-            uint32_t lineno;
-            b = GetUnreadRCInfo ( &rc1, &filename, &funcname, &lineno );
-        }
-    }
     KOutMsg( "%lu differences discovered ( rc = %d )\n", diffs, rc );
     return VDB_TERMINATE( rc );
 }

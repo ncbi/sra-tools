@@ -983,15 +983,11 @@ MAIN_DECL( argc, argv )
 		ArgsWhack( args );
     }
 
-    hlp_unread_rc_info( false );
-
     {
         rc_t r = ReportFinalize( rc );
         if ( r != 0  && rc == 0)
             rc = r;
     }
-
-    hlp_unread_rc_info( false );
 
     return VDB_TERMINATE( rc );
 }

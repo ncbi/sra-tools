@@ -1115,8 +1115,10 @@ static rc_t sra_dbcc_fastq(const vdb_validate_params *pb,
     rc_t rc = VTableCreateCursorRead(tbl, &curs);
 
     if (rc == 0) {
-        unsigned const n = sizeof(cn_FastQ)/sizeof(cn_FastQ[0]);
-        uint32_t cols[n];
+#define N sizeof(cn_FastQ)/sizeof(cn_FastQ[0])
+        const unsigned n = N;
+        uint32_t cols[N];
+#undef N
         unsigned i;
 
         memset(cols, 0, sizeof(cols));

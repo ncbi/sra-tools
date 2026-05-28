@@ -2046,7 +2046,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         if (ctx->readCount % 10000000 == 0) {
 
             {
-                float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
+                float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
                 float const delta = new_value - progress;
                 if (delta > 1.0) {
                     KLoadProgressbar_Process(ctx->progress[0], delta, false);

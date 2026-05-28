@@ -106,10 +106,10 @@ const char UsageDefaultName[] = "sra-info";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <accession> [options]\n"
-                    "\n", progname);
+                    , progname);
 }
 
 rc_t CC Usage ( const Args * args )
@@ -134,7 +134,7 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary ( progname );
 
-    KOutMsg ( "Options:\n" );
+    KOutMsg ( "\nOptions:\n" );
 
     HelpOptionLine ( ALIAS_PLATFORM,    OPTION_PLATFORM,    nullptr, platform_usage );
     HelpOptionLine ( ALIAS_QUALITY,     OPTION_QUALITY,     nullptr, quality_usage );
@@ -157,7 +157,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_ROWS,   OPTION_ROWS,  "N", rows_usage );
 
     HelpOptionsStandard ();
-
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, TOOLKIT_VERS );
 
     return rc;

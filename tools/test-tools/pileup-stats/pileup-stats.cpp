@@ -486,7 +486,6 @@ extern "C"
         ver_t vers = KAppVersion ();
 
         std :: cout
-            << '\n'
             << "Usage:\n"
             << "  " << appLeaf << " [options] <accession>"
             << "\n\n"
@@ -514,7 +513,6 @@ extern "C"
             << ( ( vers >> 16 ) & 0xFF )
             << '.'
             << ( vers & 0xFFFF )
-            << '\n'
             << '\n'
             ;
     }

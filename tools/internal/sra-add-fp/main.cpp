@@ -246,12 +246,13 @@ const char UsageDefaultName[] = "sra-add-fp";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <path> [options]\n"
+		    "\n"
                     "Summary:\n"
                     "  Add fingerprinting data to the SEQUENCE table in the given accession directory.\n"
-                    "\n", progname);
+                    , progname);
 }
 
 rc_t CC Usage ( const Args * args )
@@ -276,9 +277,11 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary ( progname );
 
-    KOutMsg ( "Options:\n" );
+    KOutMsg ( "\nOptions:\n" );
 
     HelpOptionsStandard ();
+
+    KOutMsg ( "\n" );
 
     HelpVersion ( fullpath, TOOLKIT_VERS );
 

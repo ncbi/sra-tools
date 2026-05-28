@@ -284,6 +284,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
     OUTMSG(("\n"));
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }
@@ -435,6 +436,8 @@ MAIN_DECL( argc, argv )
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
                             sizeof Options / sizeof (OptDef), XMLLogger_Args, XMLLogger_ArgsQty);
+    if (rc !=0 )
+        OUTMSG (("\n"));
 
     while (rc == 0) {
         uint32_t pcount;

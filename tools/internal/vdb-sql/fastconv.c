@@ -52,7 +52,7 @@ const char UsageDefaultName[] = "fastconv";
 
 rc_t CC UsageSummary( const char * progname )
 {
-    return KOutMsg( "\n"
+    return KOutMsg(
                      "Usage:\n"
                      "  %s <path> [options]\n"
                      "\n", progname );
@@ -92,11 +92,12 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary( progname );
 
-    KOutMsg( "Options:\n" );
+    KOutMsg( "\nOptions:\n" );
     for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name, NULL, ToolOptions[ idx ].help );
 
     HelpOptionsStandard();
+    KOutMsg( "\n" );
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }

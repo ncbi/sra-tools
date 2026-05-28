@@ -100,7 +100,6 @@ rc_t UsageSummary (char const * progname)
         "\n"
         "Summary:\n"
         "\tPopulate a VDB database from standard input\n"
-        "\n"
         ,progname);
 }
 
@@ -136,6 +135,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
 
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }

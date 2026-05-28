@@ -70,7 +70,7 @@ const char UsageDefaultName[] = "pacbio-load";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    OUTMSG ( ("\n"
+    OUTMSG ( (
         "Usage:\n"
         "  %s <hdf5-file> -o<target>\n"
         "\n", progname) );
@@ -114,6 +114,7 @@ rc_t CC Usage ( const Args * args )
                      "load-progress", progress_usage );
     XMLLogger_Usage();
     HelpOptionsStandard ();
+    KOutMsg ("\n");
     HelpVersion ( fullpath, KAppVersion() );
     return rc;
 }

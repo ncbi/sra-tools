@@ -65,7 +65,6 @@ rc_t CC UsageSummary ( const char *prog_name )
 {
     return KOutMsg ( "Usage: %s [options] src-object dst-object\n"
                      "       %s [options] src-object [src-object...] dst-dir\n"
-                     "\n"
                      , prog_name
                      , prog_name
         );
@@ -181,7 +180,7 @@ rc_t CC Usage ( const Args *args )
 
     UsageSummary ( progname );
 
-    KOutMsg ( "Options:\n" );
+    KOutMsg ( "\nOptions:\n" );
 
     for ( i = 0; i < sizeof options / sizeof options [ 0 ]; ++ i )
     {
@@ -190,6 +189,8 @@ rc_t CC Usage ( const Args *args )
     }
 
     HelpOptionsStandard ();
+
+    KOutMsg ( "\n" );
 
     HelpVersion ( fullpath, KAppVersion () );
 

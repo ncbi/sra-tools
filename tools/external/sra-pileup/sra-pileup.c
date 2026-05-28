@@ -377,7 +377,7 @@ struct {
 const char UsageDefaultName[] = "sra-pileup";
 
 rc_t CC UsageSummary ( const char * progname ) {
-    return KOutMsg( "\n"
+    return KOutMsg(
                     "Usage:\n"
                     "  %s <path> [options]\n"
                     "\n", progname );
@@ -423,6 +423,7 @@ rc_t CC Usage ( const Args * args ) {
     KOutMsg ( "  sra-pileup SRRXXXXXX=a SRRYYYYYY=b SRRZZZZZZ=a\n\n" );
 
     HelpOptionsStandard ();
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, KAppVersion() );
     return rc;
 }

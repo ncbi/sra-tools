@@ -1114,11 +1114,11 @@ const char UsageDefaultName[] = "kdbmeta";
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
+                    "Summary:\n"
+                    "  Display the contents of one or more metadata stores.\n"
                     "Usage:\n"
                     "  %s [Options] <target> [<query> ...]\n"
                     "\n"
-                    "Summary:\n"
-                    "  Display the contents of one or more metadata stores.\n"
 #if ALLOW_UPDATE
                     "  Update metadata.\n"
 #endif

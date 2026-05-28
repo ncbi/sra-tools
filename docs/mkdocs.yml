@@ -1,0 +1,77 @@
+site_name: SRA-TOOLS documentation
+docs_dir: markdowns
+extra_css:
+  - stylesheets/extra.css
+theme: 
+  name: material
+  custom_dir: overrides
+  logo: https://www.ncbi.nlm.nih.gov/core/assets/style-guide/img/nih-nlm-ncbi-white.png
+  palette:
+    primary: custom
+  features:
+    - content.code.copy
+    - content.code.select
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting_started/installation.md
+      - Configuration: getting_started/configuration.md
+      - prefetch: getting_started/prefetch.md
+      - fasterq-dump: getting_started/fasterq-dump.md
+  - Data formats:
+      - SRA data formats: data_formats/SRA_dataformats.md
+  - Loaders:
+      - bam-load: loaders/bam-load.md
+      - sharQ: loaders/sharQ.md
+  - CLI Reference:
+      - abi-dump: cli_reference/abi-dump.md
+      - abi-load: cli_reference/abi-load.md
+      - align-info: cli_reference/align-info.md
+      - bam-load: cli_reference/bam-load.md
+      - cg-load: cli_reference/cg-load.md
+      - fasterq-dump: cli_reference/fasterq-dump.md
+      - fastq-dump: cli_reference/fastq-dump.md
+      - fastq-load: cli_reference/fastq-load.md
+      - helicos-load: cli_reference/helicos-load.md
+      - illumina-dump: cli_reference/illumina-dump.md
+      - illumina-load: cli_reference/illumina-load.md
+      - kar: cli_reference/kar.md
+      - kdbmeta: cli_reference/kdbmeta.md
+      - latf-load: cli_reference/latf-load.md
+      - pacbio-load: cli_reference/pacbio-load.md
+      - prefetch: cli_reference/prefetch.md
+      - rcexplain: cli_reference/rcexplain.md
+      - sff-dump: cli_reference/sff-dump.md
+      - sff-load: cli_reference/sff-load.md
+      - sra-pileup: cli_reference/sra-pileup.md
+      - sra-search: cli_reference/sra-search.md
+      - sra-sort: cli_reference/sra-sort.md
+      - sra-sort-cg: cli_reference/sra-sort-cg.md
+      - sra-stat: cli_reference/sra-stat.md
+      - srapath: cli_reference/srapath.md
+      - sratools: cli_reference/sratools.md
+      - srf-load: cli_reference/srf-load.md
+      - test-sra: cli_reference/test-sra.md
+      - vdb-config: cli_reference/vdb-config.md
+      - vdb-copy: cli_reference/vdb-copy.md
+      - vdb-decrypt: cli_reference/vdb-decrypt.md
+      - vdb-dump: cli_reference/vdb-dump.md
+      - vdb-encrypt: cli_reference/vdb-encrypt.md
+      - vdb-lock: cli_reference/vdb-lock.md
+      - vdb-unlock: cli_reference/vdb-unlock.md
+      - vdb-validate: cli_reference/vdb-validate.md
+markdown_extensions:
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      pygments_style: monokai
+      anchor_linenums: true
+  - pymdownx.emoji:
+     emoji_index: !!python/name:material.extensions.emoji.twemoji
+     emoji_generator: !!python/name:material.extensions.emoji.to_svg
+plugins:
+  - termynal
+  - search

@@ -42,7 +42,6 @@ const char UsageDefaultName[] = "meta-cmp";
 rc_t CC UsageSummary ( const char * progname )
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s <src1> <src2> <node-path> [table]\n"
         "\n", progname );
@@ -62,6 +61,7 @@ rc_t CC Usage ( const Args * args )
     UsageSummary ( progname );
     KOutMsg ( "Options:\n" );
     HelpOptionsStandard ();
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, KAppVersion() );
     return rc;
 }

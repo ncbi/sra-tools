@@ -42,7 +42,6 @@ const char UsageDefaultName[] = "meta-copy";
 rc_t CC UsageSummary ( const char * progname )
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s <src> <dst> <node-path> [table]\n"
         "\n", progname );
@@ -52,17 +51,23 @@ rc_t CC Usage ( const Args * args )
 {
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
-    rc_t rc;
+
+    rc_t rc = 0;
     if ( NULL == args ) {
         rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
     } else {
         rc = ArgsProgram ( args, &fullpath, &progname );
     }
-    if ( 0 != rc ) { progname = fullpath = UsageDefaultName; }
+
+    if ( 0 != rc )
+    { progname = fullpath = UsageDefaultName; }
+    
     UsageSummary ( progname );
     KOutMsg ( "Options:\n" );
     HelpOptionsStandard ();
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, KAppVersion() );
+    
     return rc;
 }
 

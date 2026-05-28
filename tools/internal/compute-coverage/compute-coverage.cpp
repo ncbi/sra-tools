@@ -95,6 +95,11 @@ int run ( int argc, char * argv [] ) {
     Args* args(NULL);
     rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 0));
 
+    if ( argc == 1 ) {
+	Usage ( args );
+	return EXIT_FAILURE;
+    }
+
     for ( int i = 1; i < argc; ++ i )
     {
         const char * arg = argv [ i ];

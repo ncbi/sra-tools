@@ -111,7 +111,6 @@ rc_t CC UsageSummary (const char * progname)
     {
         rc = KOutMsg (
             /*345679012345678901234567890123456789012345678901234567890123456789012345678*/
-            "\n"
             "Usage:\n"
             "  %s [options] <source-file>\n"
             "  %s [options] <source-file> <destination-file>\n"
@@ -236,7 +235,7 @@ rc_t CC Usage (const Args * args)
         "  Please consult configuration page at\n"
         "  https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
         "  https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"
-        );
+        "\n" );
 
     HelpVersion (fullpath, KAppVersion());
 

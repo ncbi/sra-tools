@@ -74,7 +74,7 @@ const char UsageDefaultName[] = "schema-update";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <path> [options]\n"
                     "\n", progname);
@@ -104,6 +104,8 @@ rc_t CC Usage( const Args * args  )
     HelpOptionLine ( ALIAS_TAB_NAME, OPTION_TAB_NAME, NULL, tab_name_usage );
 
     HelpOptionsStandard();
+
+    KOutMsg ("\n");
 
     HelpVersion( fullpath, KAppVersion() );
     return rc;

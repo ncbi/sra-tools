@@ -64,7 +64,9 @@ const char UsageDefaultName[] = "vdb-validate";
 
 rc_t CC UsageSummary(const char *prog_name)
 {
-    return KOutMsg ( "Usage: %s [options] path [ path... ]\n"
+    return KOutMsg ("\n"
+                    "Summary: Validate the contents of an SRA file. Optionally performs referential integrity.\n"
+                    "Usage: %s [options] path [ path... ]\n"
                      "\n"
                      , prog_name );
 }

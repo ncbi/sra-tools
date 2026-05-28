@@ -4773,6 +4773,7 @@ OptDef Options[] = { /*                            maxCount needValue required*/
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
+        "Summary: Sorts an SRA archive by reference position - similar to samtools sort.\n"
         "Usage:\n"
         "  %s [options] table\n"
         "\n"

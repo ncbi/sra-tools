@@ -296,6 +296,7 @@ const char UsageDefaultName[] = "fasterq-dump";
 
 rc_t UsageSummary( const char * progname ) {
     return KOutMsg(
+                     "Summary: A faster implementation of the fastq-dump. Extracts fastq from an SRA data file, only faster!\n"
                      "Usage:\n"
                      "  %s <path> [options]\n"
                      "  %s <accession> [options]\n"

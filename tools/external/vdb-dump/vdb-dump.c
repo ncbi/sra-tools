@@ -181,6 +181,7 @@ const char UsageDefaultName[] = "vdb-dump";
 rc_t CC UsageSummary ( const char * progname )
 {
     return KOutMsg (
+                    "Summary: Examine the data contents of an SRA file.\n"
                     "Usage:\n"
                     "  %s <path> [<path> ...] [options]\n"
                     , progname);

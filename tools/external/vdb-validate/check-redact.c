@@ -1,5 +1,5 @@
 /*===========================================================================
- * 
+ *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
  *
@@ -48,7 +48,7 @@ static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
     if ( 0 != rc ) {
         char buffer[ 4096 ];
         size_t num_writ;
-        
+
         va_list list;
         va_start( list, fmt );
         rc2 = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
@@ -58,7 +58,7 @@ static rc_t ErrMsg( rc_t rc, const char * fmt, ... ) {
         va_end( list );
     }
     return rc2;
-} 
+}
 
 #define GENERIC_RELEASE( OBJTYPE ) \
 static rc_t OBJTYPE ## _Release( rc_t rc, const OBJTYPE * obj ) { \
@@ -97,19 +97,10 @@ static rc_t path_to_vpath( const char * aPath, VPath ** vpath ) {
     return rc;
 }
 
-static void clear_recorded_errors( void ) {
-    rc_t rc;
-    const char * filename;
-    const char * funcname;
-    uint32_t line_nr;
-    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) ) {
-    }
-}
-
 /* ==================================================================================== */
 
 typedef struct columns_t {
-    uint32_t read_filter, read, read_start, read_len;    
+    uint32_t read_filter, read, read_start, read_len;
 } columns_t;
 
 static bool all_Ns( const uint8_t* read, uint32_t count ) {
@@ -128,14 +119,14 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     uint32_t filter_element_bits, filter_row_len;
     uint32_t spot_element_bits, spot_row_len;
     uint32_t read_start_element_bits, read_start_row_len;
-    uint32_t read_len_element_bits, read_len_row_len;    
+    uint32_t read_len_element_bits, read_len_row_len;
     const uint8_t *read_filters = NULL;
     const uint8_t *spot = NULL;
     const uint32_t *read_start = NULL;
     const uint32_t *read_len = NULL;
-    
+
     *correct = false;
-    
+
     rc = VCursorCellDataDirect( cur, row_id, columns -> read_filter, &filter_element_bits,
                                 (const void**)&read_filters, NULL, &filter_row_len );
     ErrMsg( rc, "VCursorCellDataDirect( %ld , READ_FILTER ) failed : %R", row_id, rc );
@@ -171,11 +162,11 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
     }
     if ( 0 == rc ) {
         /* check for unexpected element-counts for READ_FILTER, READ, READ_START, and READ_LEN */
-        if ( filter_element_bits != 8 || spot_element_bits != 8 || 
+        if ( filter_element_bits != 8 || spot_element_bits != 8 ||
             read_start_element_bits != 32 || read_len_element_bits != 32 ) {
             rc = RC( rcExe, rcFileFormat, rcEvaluating, rcConstraint, rcViolated );
         ErrMsg( rc, "at row %ld : unexpected element-sizes for READ_FILTER, READ, READ_START, and READ_LEN : %u / %u / %u / %u",
-                row_id, filter_element_bits, spot_element_bits, read_start_element_bits, read_len_element_bits );            
+                row_id, filter_element_bits, spot_element_bits, read_start_element_bits, read_len_element_bits );
             }
     }
     if ( 0 == rc ) {
@@ -206,7 +197,7 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
             ErrMsg( rc, "at row %ld : invalid READ_START / READ_LEN values", row_id );
         }
     }
-    
+
     if ( 0 == rc ) {
         /* iterating through the READS of the SPOT */
         uint32_t read_id;
@@ -216,7 +207,7 @@ static rc_t check_redaction( const VCursor * cur, int64_t row_id, columns_t* col
                 /* this read needs to be checked */
                 const uint8_t * read = &( spot[ read_start[ read_id ] ] );
                 if ( all_Ns( read, read_len[ read_id ] ) ) {
-                    correct_reads++;                    
+                    correct_reads++;
                 }
             } else {
                 /* this read does not need to be checked */
@@ -256,7 +247,7 @@ static rc_t check_opened_table( const VTable *tbl, const char * aPath ) {
         columns_t columns;
         int64_t  first_row;
         uint64_t row_count;
-        
+
         rc = VCursorAddColumn( cur, &columns.read_filter, "READ_FILTER" );
         ErrMsg( rc, "VCursorAddColumn( '%s', READ_FILTER ) failed : %R", aPath, rc );
         if ( 0 == rc ) {
@@ -397,6 +388,5 @@ rc_t check_redact( const char *aPath ) {
         }
         rc = KDirectory_Release( rc, dir );
     }
-    clear_recorded_errors();
     return rc;
 }

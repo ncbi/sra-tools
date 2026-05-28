@@ -144,12 +144,12 @@ const char UsageDefaultName[] = "srapath";
 rc_t CC UsageSummary( const char * progname )
 {
     return OUTMSG((
-        "Usage:\n"
-        "  %s [options] <accession> ...\n\n"
         "Summary:\n"
         "  Tool to produce a list of full paths to files\n"
         "  (SRA and WGS runs, refseqs: reference sequences)\n"
         "  from list of NCBI accessions.\n"
+        "Usage:\n"
+        "  %s [options] <accession> ...\n\n"
         "\n", progname));
 }
 

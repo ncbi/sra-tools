@@ -2064,14 +2064,16 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
 
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
-        (**rhs).fpos = fpos;
+        if (*rhs)
+            (**rhs).fpos = fpos;
         if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
             self->eof = true;
         return rc;
     }
 
     rc = BAM_FileReadNoCopy(self);
-    (**rhs).fpos = fpos;
+    if (*rhs)
+        (**rhs).fpos = fpos;
     if (rc == 0) {
         *rhs = self->nocopy;
         if (BAM_AlignmentIsEmpty(self->nocopy)) {
@@ -2086,7 +2088,8 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
     else if ((int)GetRCObject(rc) == rcBuffer && GetRCState(rc) == rcNotAvailable)
     {
         rc = BAM_FileReadCopy(self, rhs, true);
-        (**rhs).fpos = fpos;
+        if (*rhs)
+            (**rhs).fpos = fpos;
     }
     else if ((int)GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
         BAM_AlignmentLogParseError(self->nocopy);

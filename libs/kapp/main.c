@@ -56,26 +56,5 @@ rc_t KMane ( int argc, char *argv [] )
         return rc;
     }
 
-    rc = KMain ( argc, argv );
-    if ( rc != 0 )
-    {
-#if _DEBUGGING
-        rc_t rc2;
-        uint32_t lineno;
-        const char *filename, *function;
-        while ( GetUnreadRCInfo ( & rc2, & filename, & function, & lineno ) )
-        {
-            pLogErr ( klogWarn, rc2, "$(filename):$(lineno) within $(function)"
-                        , "filename=%s,lineno=%u,function=%s"
-                        , filename
-                        , lineno
-                        , function
-                );
-        }
-#endif
-    }
-
-    VdbTerminate( rc );
-
-    return rc;
+    return VdbTerminate( KMain ( argc, argv ) );
 }

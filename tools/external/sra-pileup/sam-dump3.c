@@ -345,6 +345,7 @@ rc_t CC Usage( Args const *args ) {
     }
     KOutMsg( "\n" );
     HelpOptionsStandard();
+    KOutMsg( "\n" );
 
     HelpVersion( fullpath, KAppVersion() );
 
@@ -517,6 +518,7 @@ static rc_t samdump_main( Args * args, const samdump_opts * const opts )
             if ( opts->input_file_count < 1 ) {
                 rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
                 (void)LOGERR( klogErr, rc, "no inputfiles given at commandline" );
+                OUTMSG(( "\n" ));
                 Usage( args );
             } else {
                 /* ------------------------------------------------------ */

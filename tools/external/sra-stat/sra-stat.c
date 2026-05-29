@@ -4773,7 +4773,6 @@ OptDef Options[] = { /*                            maxCount needValue required*/
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s [options] table\n"
         "\n"
@@ -4819,6 +4818,8 @@ rc_t CC Usage (const Args * args)
     KOutMsg ("\n");
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

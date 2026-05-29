@@ -597,7 +597,7 @@ static const unsigned DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE = 10e6;
 
 rc_t CC Usage (const Args * args)
 {
-    rc_t rc;
+    rc_t rc = 0;
     size_t i;
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
@@ -626,6 +626,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
     OUTMSG(("\n"));
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }

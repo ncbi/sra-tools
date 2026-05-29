@@ -63,10 +63,10 @@ const char UsageDefaultName[] = "ngs-pileup";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <path> [options]\n"
-                    "\n", progname);
+                    , progname);
 }
 
 
@@ -88,7 +88,7 @@ rc_t CC Usage ( const Args * args )
         progname = fullpath = UsageDefaultName;
 
     UsageSummary ( progname );
-    KOutMsg ( "Options:\n" );
+    KOutMsg ( "\nOptions:\n" );
 
     for (i = 0; i < sizeof options / sizeof options[0]; ++i) {
         const OptDef * opt = &options[i];
@@ -108,6 +108,7 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg("\n");
     HelpOptionsStandard ();
+    KOutMsg("\n");
     HelpVersion ( fullpath, KAppVersion() );
 
     return rc;

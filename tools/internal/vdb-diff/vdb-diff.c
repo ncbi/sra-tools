@@ -75,7 +75,6 @@ const char UsageDefaultName[] = "vdb-diff";
 rc_t CC UsageSummary ( const char * progname )
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s <src1_path> <src2_path> [options]\n"
         "\n", progname );
@@ -108,6 +107,7 @@ rc_t CC Usage ( const Args * args )
 	HelpOptionLine ( ALIAS_COLUMNWISE, 	OPTION_COLUMNWISE, 	NULL,	        columnwise_usage );
 
     HelpOptionsStandard ();
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, KAppVersion() );
 
     return rc;
@@ -417,6 +417,7 @@ MAIN_DECL( argc, argv )
         }
         else
         {
+            KOutMsg( "\n" );
             Usage ( args );
         }
         release_diff_ctx( &dctx );
@@ -436,6 +437,6 @@ MAIN_DECL( argc, argv )
             b = GetUnreadRCInfo ( &rc1, &filename, &funcname, &lineno );
         }
     }
-    KOutMsg( "%lu differences discovered ( rc = %d )\n", diffs, rc );
+    KOutMsg( "\n%lu differences discovered ( rc = %d )\n", diffs, rc );
     return VDB_TERMINATE( rc );
 }

@@ -162,7 +162,7 @@ rc_t CC Usage (const Args * args)
              "  a subdirectory 'example' of the current directory.\n"
              "  NOTE: all extracted files will be read only.\n"
              "\n"
-             "  $ %s --%s example.sra --%s example\n",
+             "  $ %s --%s example.sra --%s example\n\n",
              progname, OPTION_EXTRACT, OPTION_DIRECTORY));
 
 

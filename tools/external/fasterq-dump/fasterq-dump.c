@@ -295,7 +295,7 @@ const char UsageDefaultName[] = "fasterq-dump";
 /* ----------------------------------------------------------------------------------- */
 
 rc_t UsageSummary( const char * progname ) {
-    return KOutMsg( "\n"
+    return KOutMsg(
                      "Usage:\n"
                      "  %s <path> [options]\n"
                      "  %s <accession> [options]\n"
@@ -341,6 +341,7 @@ rc_t Usage ( const Args * args ) {
     KOutMsg( "for more information visit:\n" );
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump\n" );
     KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/08.-prefetch-and-fasterq-dump\n" );
+    KOutMsg( "\n" );
 
     HelpVersion( fullpath, GetKAppVersion() );
 
@@ -983,15 +984,11 @@ MAIN_DECL( argc, argv )
 		ArgsWhack( args );
     }
 
-    hlp_unread_rc_info( false );
-
     {
         rc_t r = ReportFinalize( rc );
         if ( r != 0  && rc == 0)
             rc = r;
     }
-
-    hlp_unread_rc_info( false );
 
     return VDB_TERMINATE( rc );
 }

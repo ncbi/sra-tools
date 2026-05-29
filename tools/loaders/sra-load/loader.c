@@ -120,7 +120,7 @@ OptDef TArgsDef[] =
 
 rc_t CC UsageSummary (const char * progname)
 {
-    OUTMSG(( "\nUsage:\n\t%s [options] -r run.xml -e experiment.xml -o output-path\n\n", progname));
+    OUTMSG(( "Usage:\n\t%s [options] -r run.xml -e experiment.xml -o output-path\n\n", progname));
     return 0;
 }
 

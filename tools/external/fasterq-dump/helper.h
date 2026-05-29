@@ -108,10 +108,10 @@ typedef enum format_t {
 
     /* the regular FASTA-modes */
     ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
-    
-    /* special FASTA-modes */    
+
+    /* special FASTA-modes */
     ft_fasta_us_split_spot, ft_fasta_ref_tbl, ft_fasta_concat,
-    
+
     /* not FASTQ/FASTA but a report of references used */
     ft_ref_report
     } format_t;
@@ -200,10 +200,6 @@ rc_t hlp_make_thread( KThread ** self,
 
 rc_t hlp_join_and_release_threads( Vector * threads );
 uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
-
-/* -------------------------------------------------------------------------------- */
-
-void hlp_unread_rc_info( bool show );
 
 /* -------------------------------------------------------------------------------- */
 

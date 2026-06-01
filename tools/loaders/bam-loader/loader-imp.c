@@ -3961,12 +3961,15 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     auto gather_task = ctx->m_executor->async([&]() {
         key_batch_t batch;
         while (exit_on_error == false) {
-            const lock_guard<mutex> lock(gather_mutex);
-            if (gather_queue.try_dequeue(batch)) {
-
+        	auto have = false;
+        	{
+	            const lock_guard<mutex> lock{gather_mutex};
+	            have = gather_queue.try_dequeue(batch);
+        	}
+            if (have) {
                 if ( batch.keys.size() == 0 )
                 {   // empty batch signals the end of processing
-                    const lock_guard<mutex> lock(update_mutex);
+                    const lock_guard<mutex> lock{update_mutex};
                     update_queue.enqueue(batch); // signal the update thread to exit
                     break;
                 }

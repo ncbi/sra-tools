@@ -15,8 +15,8 @@ nav:
   - Home: index.md
   - Getting started:
       - Installation: getting_started/installation.md
-      - Configuration: getting_started/configuration.md
-      - prefetch: getting_started/prefetch.md
+      - Configuration - Optional: getting_started/configuration.md
+      - prefetch - Optional: getting_started/prefetch.md
       - fasterq-dump: getting_started/fasterq-dump.md
   - Data formats:
       - SRA data formats: data_formats/SRA_dataformats.md
@@ -24,42 +24,70 @@ nav:
       - bam-load: loaders/bam-load.md
       - sharQ: loaders/sharQ.md
   - CLI Reference:
-      - abi-dump: cli_reference/abi-dump.md
-      - abi-load: cli_reference/abi-load.md
-      - align-info: cli_reference/align-info.md
-      - bam-load: cli_reference/bam-load.md
-      - cg-load: cli_reference/cg-load.md
-      - fasterq-dump: cli_reference/fasterq-dump.md
-      - fastq-dump: cli_reference/fastq-dump.md
-      - fastq-load: cli_reference/fastq-load.md
-      - helicos-load: cli_reference/helicos-load.md
-      - illumina-dump: cli_reference/illumina-dump.md
-      - illumina-load: cli_reference/illumina-load.md
-      - kar: cli_reference/kar.md
-      - kdbmeta: cli_reference/kdbmeta.md
-      - latf-load: cli_reference/latf-load.md
-      - pacbio-load: cli_reference/pacbio-load.md
-      - prefetch: cli_reference/prefetch.md
-      - rcexplain: cli_reference/rcexplain.md
-      - sff-dump: cli_reference/sff-dump.md
-      - sff-load: cli_reference/sff-load.md
-      - sra-pileup: cli_reference/sra-pileup.md
-      - sra-search: cli_reference/sra-search.md
-      - sra-sort: cli_reference/sra-sort.md
-      - sra-sort-cg: cli_reference/sra-sort-cg.md
-      - sra-stat: cli_reference/sra-stat.md
-      - srapath: cli_reference/srapath.md
-      - sratools: cli_reference/sratools.md
-      - srf-load: cli_reference/srf-load.md
-      - test-sra: cli_reference/test-sra.md
-      - vdb-config: cli_reference/vdb-config.md
-      - vdb-copy: cli_reference/vdb-copy.md
-      - vdb-decrypt: cli_reference/vdb-decrypt.md
-      - vdb-dump: cli_reference/vdb-dump.md
-      - vdb-encrypt: cli_reference/vdb-encrypt.md
-      - vdb-lock: cli_reference/vdb-lock.md
-      - vdb-unlock: cli_reference/vdb-unlock.md
-      - vdb-validate: cli_reference/vdb-validate.md
+      - External:
+          - abi-dump: cli_reference/abi-dump.md
+          - align-info: cli_reference/align-info.md
+          - fasterq-dump: cli_reference/fasterq-dump.md
+          - fastq-dump: cli_reference/fastq-dump.md
+          - illumina-dump: cli_reference/illumina-dump.md
+          - kdbmeta: cli_reference/kdbmeta.md
+          - ngs-pileup: cli_reference/ngs-pileup.md
+          - prefetch: cli_reference/prefetch.md
+          - rcexplain: cli_reference/rcexplain.md
+          - ref-variation: cli_reference/ref-variation.md
+          - sam-dump: cli_reference/sam-dump.md
+          - sff-dump: cli_reference/sff-dump.md
+          - sra-info: cli_reference/sra-info.md
+          - sra-pileup: cli_reference/sra-pileup.md
+          - sra-search: cli_reference/sra-search.md
+          - sra-stat: cli_reference/sra-stat.md
+          - srapath: cli_reference/srapath.md
+          - test-sra: cli_reference/test-sra.md
+          - var-expand: cli_reference/var-expand.md
+          - vdb-config: cli_reference/vdb-config.md
+          - vdb-decrypt: cli_reference/vdb-decrypt.md
+          - vdb-dump: cli_reference/vdb-dump.md
+          - vdb-encrypt: cli_reference/vdb-encrypt.md
+          - vdb-validate: cli_reference/vdb-validate.md
+      - Internal:
+          - align-cache: cli_reference/align-cache.md
+          - ccextract: cli_reference/ccextract.md
+          - check-redact: cli_reference/check-redact.md
+          - compute-coverage: cli_reference/compute-coverage.md
+          - copycat: cli_reference/copycat.md
+          - dump-ref-fasta: cli_reference/dump-ref-fasta.md
+          - fastconv: cli_reference/fastconv.md
+          - make-read-filter: cli_reference/make-read-filter.md
+          - md5cp: cli_reference/md5cp.md
+          - meta-cmp: cli_reference/meta-cmp.md
+          - meta-copy: cli_reference/meta-copy.md
+          - meta-repair: cli_reference/meta-repair.md
+          - read-filter-redact: cli_reference/read-filter-redact.md
+          - sra-add-fp: cli_reference/sra-add-fp.md
+          - vdb-copy: cli_reference/vdb-copy.md
+          - vdb-diff: cli_reference/vdb-diff.md
+          - vdb-sql: cli_reference/vdb-sql.md
+      - Loader:
+          - abi-load: cli_reference/abi-load.md
+          - bam-load: cli_reference/bam-load.md
+          - cg-load: cli_reference/cg-load.md
+          - fastq-load: cli_reference/fastq-load.md
+          - general-loader: cli_reference/general-loader.md
+          - helicos-load: cli_reference/helicos-load.md
+          - illumina-load: cli_reference/illumina-load.md
+          - kar: cli_reference/kar.md
+          - kar+: cli_reference/kar+.md
+          - kar+meta: cli_reference/kar+meta.md
+          - latf-load: cli_reference/latf-load.md
+          - pacbio-load: cli_reference/pacbio-load.md
+          - pacbio-loadxml: cli_reference/pacbio-loadxml.md
+          - sff-load: cli_reference/sff-load.md
+          - sharq: cli_reference/sharq.md
+          - sra-sort: cli_reference/sra-sort.md
+          - sra-sort-cg: cli_reference/sra-sort-cg.md
+          - srf-load: cli_reference/srf-load.md
+          - vdb-lock: cli_reference/vdb-lock.md
+          - vdb-unlock: cli_reference/vdb-unlock.md
 markdown_extensions:
   - pymdownx.superfences
   - admonition

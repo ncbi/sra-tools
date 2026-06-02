@@ -11,9 +11,6 @@ SharQ is a utility that supports and is run by the ETL pipeline in addition to o
 
 ## FastQ format
 
-[https://en.wikipedia.org/wiki/FASTQ\_format](https://en.wikipedia.org/wiki/FASTQ_format)
-
-  
 
 ```
 @SEQ_ID
@@ -24,7 +21,7 @@ GATTTGGGGTTCAAAGCAGTATCGATCAAATAGTAAATCCATTTGTTCAACTCACAGTTT
 
   
 
-*   Line 1 begins with a '@' character and is followed by a sequence identifier and an *optional* description (like a [FASTA](https://en.wikipedia.org/wiki/FASTA_format) title line).
+*   Line 1 begins with a '@' character and is followed by a sequence identifier and an *optional* description (like a FASTA) title line).
 *   Line 2 is the raw sequence letters.
 *   Line 3 begins with a '+' character and is *optionally* followed by the same sequence identifier (and any description) again.
 *   Line 4 encodes the quality values for the sequence in Line 2, and must contain the same number of symbols as letters in the sequence.

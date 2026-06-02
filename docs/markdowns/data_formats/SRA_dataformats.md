@@ -19,3 +19,13 @@ SRA Lite files are produced from SRA Normalized Format by assessing overall read
 
 Illumina fastq and sam/bam specifications support a quality bit that is set by the sequencing instrument and SRA Lite stores this as a "pass"/"reject" Read_Filter value. If this bit is set in the submitted fastq or bam file, the value is retained. If it is not, SRA will set a pass/reject value based on the quality score distribution within each read. Reads that have more than half of quality score values <20 are flagged "reject". Reads that begin or end with a run of more than 10 quality scores <20 are also flagged "reject". Reads that pass these quality checks are flagged "pass". When dumping data using the fastq-dump, fasterq-dump, or sam-dump utilities in the SRA toolkit, all reads are included by default. 
 
+## cSRA - compressed aligned format
+
+The cSRA format uses compression by reference to reduce the size of the SRA 
+storage footprint. Compression by reference uses the reference sequences in the 
+alignment to reduce the storage size of the SRA runs themselves. Compression by 
+reference requires a reference sequence, either in the REFERENCE table within the 
+cSRA or as an external VDB format file, as a method to compress the sequence data 
+information.  Consequently, reading the data in a cSRA archive file may require the 
+availability and download of many additional references. 
+

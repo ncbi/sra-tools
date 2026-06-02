@@ -1,8 +1,12 @@
 # vdb-dump
 
+## Summary
+
+Examine the data contents of an SRA file.
+
 ## Usage
 
-```sh
+```text
 vdb-dump <path> [<path> ...] [options]
 ```
 
@@ -25,7 +29,7 @@ vdb-dump <path> [<path> ...] [options]
 | -D\|--dna_bases | force dna-bases if column fits pattern |
 | -M\|--max_length &lt;max_length&gt; | limits line length |
 | -i\|--indent_width &lt;indent_width&gt; | indents the line |
-| -f\|--format &lt;format&gt; | output format:&lt;br&gt;csv ..... comma separated values on one line&lt;br&gt;xml ..... xml-style without complete xml-frame&lt;br&gt;json .... json-style&lt;br&gt;piped ... 1 line per cell: row-id, column-name: value&lt;br&gt;tab ..... 1 line per row: tab-separated values only&lt;br&gt;fastq ... FASTQ( 4 lines ) for each row&lt;br&gt;fastq1 .. FASTQ( 4 lines ) for each fragment&lt;br&gt;fasta ... FASTA( 2 lines ) for each fragment if possible&lt;br&gt;fasta1 .. one FASTA-record for the whole accession (REFSEQ)&lt;br&gt;fasta2 .. one FASTA-record for each REFERENCE in cSRA&lt;br&gt;qual .... QUAL( 2 lines ) for each row&lt;br&gt;qual1 ... QUAL( 2 lines ) for each fragment if possible |
+| -f\|--format &lt;format&gt; | output format:<br>csv ..... comma separated values on one line<br>xml ..... xml-style without complete xml-frame<br>json .... json-style<br>piped ... 1 line per cell: row-id, column-name: value<br>tab ..... 1 line per row: tab-separated values only<br>fastq ... FASTQ( 4 lines ) for each row<br>fastq1 .. FASTQ( 4 lines ) for each fragment<br>fasta ... FASTA( 2 lines ) for each fragment if possible<br>fasta1 .. one FASTA-record for the whole accession (REFSEQ)<br>fasta2 .. one FASTA-record for each REFERENCE in cSRA<br>qual .... QUAL( 2 lines ) for each row<br>qual1 ... QUAL( 2 lines ) for each fragment if possible |
 | -r\|--id_range | prints id-range |
 | -n\|--without_sra | without sra-type-translation |
 | -x\|--exclude &lt;columns&gt; | exclude these columns |
@@ -57,8 +61,8 @@ vdb-dump <path> [<path> ...] [options]
 | --view &lt;view&gt; | view-name |
 | --inspect | inspect data usage inside object |
 | -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then&lt;br&gt;quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One&lt;br&gt;of (fatal\|sys\|int\|err\|warn\|info\|debug) or&lt;br&gt;(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program&lt;br&gt;status messages. Use multiple times for more&lt;br&gt;verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the&lt;br&gt;program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the&lt;br&gt;file. |
+| -V\|--version | Display the version of the program then<br>quit. |
+| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
+| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
+| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
+| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |

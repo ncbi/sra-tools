@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -22,10 +22,10 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+default: runtests
 
-IF( TARGET rnd2sra )
-    add_subdirectory( rnd2sra )
-ENDIF()
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/rnd2sra
+
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

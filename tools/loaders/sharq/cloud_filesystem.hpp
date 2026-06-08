@@ -378,16 +378,21 @@ using CloudInputStreamPtr = std::shared_ptr<CloudInputStream>;
 #ifdef SHARQ_USE_NATIVE_CLOUD
 
 // AWS SDK includes
+#ifdef SHARQ_USE_AWS_NATIVE_CLOUD
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/GetObjectRequest.h>
+#include <aws/s3/model/HeadObjectRequest.h>
 #include <aws/s3/model/GetBucketLocationRequest.h>
 #include <aws/s3/model/BucketLocationConstraint.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
+#endif
 
 // GCP SDK includes
+#ifdef SHARQ_USE_GCS_NATIVE_CLOUD
 #include <google/cloud/storage/client.h>
+#endif
 
 namespace sharq {
 namespace fs {
@@ -396,6 +401,7 @@ namespace native_impl {
 /**
  * @brief AWS SDK global initialization RAII wrapper
  */
+#ifdef SHARQ_USE_AWS_NATIVE_CLOUD
 class AwsInitializer {
 public:
     static AwsInitializer& instance() {
@@ -486,29 +492,56 @@ public:
     }
     
     size_t read(char* dst, size_t requested) override {
-        if (m_error || !m_response_stream) {
+        if (m_error) {
             return static_cast<size_t>(-1);
         }
+
+        if (requested == 0 || m_eof) {
+            return 0;
+        }
+
+        if (!m_response_stream && !open_next_range()) {
+            return 0;
+        }
+
+        size_t to_read = requested;
+        if (m_range_bytes_remaining < to_read) {
+            to_read = m_range_bytes_remaining;
+        }
         
-        m_response_stream->read(dst, requested);
+        m_response_stream->read(dst, static_cast<std::streamsize>(to_read));
         size_t bytes_read = static_cast<size_t>(m_response_stream->gcount());
         m_bytes_read += bytes_read;
-        if (m_response_stream->eof()) {
-            m_eof = true;
-            spdlog::info("AWS EOF reached after reading {} bytes, expected {}", m_bytes_read, m_size);
-            if (m_size > 0 && m_bytes_read != m_size) 
-                throw CloudStorageError(StorageBackend::S3, "read", m_path,
-                                        "Unexpected EOF: expected " + 
-                                        std::to_string(m_size) + 
-                                        " bytes, but read " + 
-                                        std::to_string(m_bytes_read) + " bytes");
-
-        }
         
         if (m_response_stream->fail() && !m_response_stream->eof()) {
             m_error = true;
             m_error_msg = "S3 stream read error";
             return static_cast<size_t>(-1);
+        }
+
+        if (bytes_read != to_read) {
+            throw CloudStorageError(StorageBackend::S3, "read", m_path,
+                                    "Unexpected EOF: expected " + 
+                                    std::to_string(m_size) + 
+                                    " bytes, but read " + 
+                                    std::to_string(m_bytes_read) + " bytes");
+        }
+
+        m_range_bytes_remaining -= bytes_read;
+        if (m_range_bytes_remaining == 0) {
+            close_current_range();
+        }
+
+        if (m_bytes_read >= m_size) {
+            m_eof = true;
+            spdlog::info("AWS EOF reached after reading {} bytes, expected {}", m_bytes_read, m_size);
+            if (m_size > 0 && m_bytes_read != m_size) {
+                throw CloudStorageError(StorageBackend::S3, "read", m_path,
+                                        "Unexpected EOF: expected " + 
+                                        std::to_string(m_size) + 
+                                        " bytes, but read " + 
+                                        std::to_string(m_bytes_read) + " bytes");
+            }
         }
         
         return bytes_read;
@@ -526,38 +559,88 @@ public:
     
 private:
     void open_stream() {
-        Aws::S3::Model::GetObjectRequest request;
+        Aws::S3::Model::HeadObjectRequest request;
         request.SetBucket(m_uri.bucket.c_str());
         request.SetKey(m_uri.key.c_str());
         
-        auto outcome = m_client->GetObject(request);
+        auto outcome = m_client->HeadObject(request);
         
         if (!outcome.IsSuccess()) {
             m_error = true;
             const auto& error = outcome.GetError();
             m_error_msg = error.GetMessage();
-            
-            auto errorType = error.GetErrorType();
-            if (errorType == Aws::S3::S3Errors::NO_SUCH_KEY ||
-                errorType == Aws::S3::S3Errors::NO_SUCH_BUCKET) {
-                throw FileNotFoundError(StorageBackend::S3, m_path);
-            } else if (errorType == Aws::S3::S3Errors::ACCESS_DENIED) {
-                throw AccessDeniedError(StorageBackend::S3, m_path);
-            }
+            throw_for_error(error);
             return;
         }
-        
-        m_get_result = std::make_unique<Aws::S3::Model::GetObjectResult>(
-            std::move(outcome.GetResult())
-        );
-        m_response_stream = &m_get_result->GetBody();
-        m_size = static_cast<size_t>(m_get_result->GetContentLength());
-        m_md5 = m_get_result->GetETag();
+
+        m_size = static_cast<size_t>(outcome.GetResult().GetContentLength());
+        m_md5 = outcome.GetResult().GetETag();
         // Remove surrounding quotes from ETag if present
         if (m_md5.size() >= 2 && m_md5.front() == '"' && m_md5.back() == '"') {
             m_md5 = m_md5.substr(1, m_md5.size() - 2);
         }
+
+        if (m_size == 0) {
+            m_eof = true;
+        }
     }
+
+    bool open_next_range() {
+        if (m_bytes_read >= m_size) {
+            m_eof = true;
+            return false;
+        }
+
+        size_t range_start = m_bytes_read;
+        size_t range_size = kRangeRequestSize;
+        size_t remaining = m_size - range_start;
+        if (remaining < range_size) {
+            range_size = remaining;
+        }
+
+        Aws::S3::Model::GetObjectRequest request;
+        request.SetBucket(m_uri.bucket.c_str());
+        request.SetKey(m_uri.key.c_str());
+
+        std::string range = "bytes=" + std::to_string(range_start) +
+                            "-" + std::to_string(range_start + range_size - 1);
+        request.SetRange(range.c_str());
+
+        auto outcome = m_client->GetObject(request);
+
+        if (!outcome.IsSuccess()) {
+            m_error = true;
+            const auto& error = outcome.GetError();
+            m_error_msg = error.GetMessage();
+            throw_for_error(error);
+            return false;
+        }
+
+        m_get_result = std::make_unique<Aws::S3::Model::GetObjectResult>(
+            std::move(outcome.GetResult())
+        );
+        m_response_stream = &m_get_result->GetBody();
+        m_range_bytes_remaining = static_cast<size_t>(m_get_result->GetContentLength());
+        return m_range_bytes_remaining > 0;
+    }
+
+    void close_current_range() {
+        m_response_stream = nullptr;
+        m_get_result.reset();
+        m_range_bytes_remaining = 0;
+    }
+
+    void throw_for_error(const Aws::Client::AWSError<Aws::S3::S3Errors>& error) const {
+        auto errorType = error.GetErrorType();
+        if (errorType == Aws::S3::S3Errors::NO_SUCH_KEY ||
+            errorType == Aws::S3::S3Errors::NO_SUCH_BUCKET) {
+            throw FileNotFoundError(StorageBackend::S3, m_path);
+        } else if (errorType == Aws::S3::S3Errors::ACCESS_DENIED) {
+            throw AccessDeniedError(StorageBackend::S3, m_path);
+        }
+    }
+
+    static constexpr size_t kRangeRequestSize = 8 * 1024 * 1024;
     
     CloudUri m_uri;
     std::string m_path;
@@ -566,13 +649,16 @@ private:
     Aws::IOStream* m_response_stream = nullptr;
     size_t m_size = 0;
     size_t m_bytes_read = 0;
+    size_t m_range_bytes_remaining = 0;
     bool m_eof = false;
     bool m_error = false;
     std::string m_error_msg;
     std::string m_md5;
 };
+#endif
 
 
+#ifdef SHARQ_USE_GCS_NATIVE_CLOUD
 std::string base64ToHex(const std::string& base64_string) {
     static const std::string base64_chars = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -783,6 +869,7 @@ private:
     size_t m_object_size = 0;
     std::string m_md5_hash;
 };
+#endif
 
 } // namespace native_impl
 } // namespace fs
@@ -894,13 +981,13 @@ private:
                                    "Invalid S3 URI format");
         }
         
-#ifdef SHARQ_USE_NATIVE_CLOUD
+    #ifdef SHARQ_USE_AWS_NATIVE_CLOUD
         // Use native AWS SDK
         return std::make_shared<native_impl::S3InputStream>(parsed, m_config.s3);
 #else
         // Cloud support not compiled
         throw CloudStorageError(StorageBackend::S3, "open", uri,
-            "S3 support not compiled. Enable with -DSHARQ_USE_NATIVE_CLOUD=ON");
+            "S3 support not compiled");
 #endif
     }
     
@@ -911,13 +998,13 @@ private:
                                    "Invalid GCS URI format");
         }
         
-#ifdef SHARQ_USE_NATIVE_CLOUD
+    #ifdef SHARQ_USE_GCS_NATIVE_CLOUD
         // Use native GCP SDK
         return std::make_shared<native_impl::GcsInputStream>(parsed, m_config.gcs);
 #else
         // Cloud support not compiled
         throw CloudStorageError(StorageBackend::GCS, "open", uri,
-            "GCS support not compiled. Enable with -DSHARQ_USE_NATIVE_CLOUD=ON");
+            "GCS support not compiled");
 #endif
     }
     

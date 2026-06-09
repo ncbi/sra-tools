@@ -1686,8 +1686,8 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
 
         for ( ; ; ) {
 #ifdef NEW_QUEUE
-            const std::lock_guard<std::mutex> lock( rw_queue_mtx );
-            if (rw_queue.try_enqueue(std::move(queue_rec))) {
+            const std::lock_guard<std::mutex> lock{ rw_queue_mtx };
+            if (rw_queue.try_enqueue(std::move(queue_rec))) {  ///< this is wrong, moving in a loop; luckily queue_rec_t does not have any move semantics, so nothing bad happens.
                 break;
             }
             if (rw_done)
@@ -3907,23 +3907,58 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     return rc;
 }
 
-
+#define BAD_PARALLELISM 0
 static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 {
     spdlog::stopwatch sw;
     rc_t rc = 0;
     uint64_t row;
-    uint64_t keyId;
+    auto const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;*/
+
+	auto && get_align_info = [&](uint64_t const keyId, int64_t primaryId[/* 2 */], uint8_t alignmentCount[/* 2 */], uint8_t unmated[/* 1 */]) {
+		auto const group_id = keyId >> GROUPID_SHIFT;
+		auto const row_id = keyId & KEYID_MASK;
+		auto [metadata, local_row_id] = ctx->m_read_groups[group_id]->metadata_by_key(row_id);
+		primaryId[0] = (int64_t)metadata->get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(local_row_id);
+		primaryId[1] = (int64_t)metadata->get<u64_t>(metadata_t::E_PRIM_ID[1]).get_no_check(local_row_id);
+		alignmentCount[0] = (uint8_t)metadata->get<u16_t>(metadata_t::E_ALN_COUNT[0]).get_no_check(local_row_id);
+		alignmentCount[1] = (uint8_t)metadata->get<u16_t>(metadata_t::E_ALN_COUNT[1]).get_no_check(local_row_id);
+		unmated[0] = metadata->get<bit_t>(metadata_t::e_unmated).test(local_row_id) ? 1 : 0;
+	};
+	
+	auto && write_align_info = [&](uint64_t const keyId, int64_t const row, int64_t const primaryId[/* 2 */], uint8_t const alignmentCount[/* 2 */], uint8_t const unmated) -> rc_t {
+		rc_t rc = 0;
+		
+		if (primaryId[0] == 0 && alignmentCount[0] != 0) {
+			rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+			(void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
+		}
+		if (!unmated && primaryId[1] == 0 && alignmentCount[1] != 0) {
+			rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+			(void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
+		}
+		if (rc != 0 && logLevel == klogErr)
+			return rc;
+		rc = SequenceUpdateAlignData(seq, row, unmated ? 1 : 2, primaryId, alignmentCount);
+		if (rc) {
+			// FATAL ERROR, VDB I/O ERROR
+			(void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Failed updating Alignment data in sequence table");
+		}
+		return rc;
+	};
+
     ++ctx->pass;
 
+    KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], ctx->spotId + 1);
     if (G.mode != mode_Remap) {
         spdlog::info("Extraction start, memory: {:L}", getCurrentRSS());
         ctx->extract_spotid();
         spdlog::info("Extraction stop: {:.3} sec, memory: {:L}", sw, getCurrentRSS());
         sw.reset();
     }
+	
+#if BAD_PARALLELISM
     size_t row_offset = 1;
-    KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], ctx->spotId + 1);
     struct key_batch_t {
         vector<uint64_t> keys;
         vector<uint8_t> alignmentCount;//(BUFFER_SIZE * 2);
@@ -3948,8 +3983,6 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     mutex update_mutex;
 
     constexpr int BUFFER_SIZE = 10e6;
-    mutex metadata_mutex;  // protects metadata in Remap mode
-    int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;*/
 
     /* Two tasks and two queues
      * Main thread puts keyIds into gather_queue
@@ -3992,25 +4025,13 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     size_t row_e = min<size_t>(row_b + page_size, batch.keys.size());
                     for (; row_b < row_e; ++row_b) {
                         ++num_gathered;
-                        auto keyId = batch.keys[row_b];
-                        uint32_t group_id = keyId >> GROUPID_SHIFT;
-                        uint64_t row_id = keyId & KEYID_MASK;
-                        auto [metadata, local_row_id] = ctx->m_read_groups[group_id]->metadata_by_key(row_id);
-                        batch.primaryId[row_b * 2] = (int64_t)metadata->get<u64_t>(metadata_t::E_PRIM_ID[0]).get_no_check(local_row_id);
-                        batch.primaryId[row_b * 2 + 1] = (int64_t)metadata->get<u64_t>(metadata_t::E_PRIM_ID[1]).get_no_check(local_row_id);
-                        batch.alignmentCount[row_b * 2] = (uint8_t)metadata->get<u16_t>(metadata_t::E_ALN_COUNT[0]).get_no_check(local_row_id);
-                        batch.alignmentCount[row_b * 2 + 1] = (uint8_t)metadata->get<u16_t>(metadata_t::E_ALN_COUNT[1]).get_no_check(local_row_id);
-                        batch.unmated[row_b] = metadata->get<bit_t>(metadata_t::e_unmated).test(local_row_id) ? 1 : 0;
-                        if (G.mode == mode_Remap) {
-                            const lock_guard<mutex> lock(metadata_mutex);
-                            metadata->get<u64_t>(metadata_t::e_spotId).set(local_row_id, row_b + row_offset);
-                        }
+                        get_align_info(batch.keys[row_b], &batch.primaryId[row_b * 2], &batch.alignmentCount[row_b * 2], &batch.unmated[row_b]);
                     }
                 });
                 ctx->m_executor->run(taskflow).wait();
 
                 const lock_guard<mutex> lock(update_mutex);
-                while (!update_queue.try_enqueue(std::move(batch))) {
+                while (!update_queue.try_enqueue(std::move(batch))) {  ///< this is wrong, moving in a loop, and key_batch_t has move semantics; if the enqueue fails the first time, the batch is discarded and an empty batch is eventually enqueued.
                     if (exit_on_error)
                         break;
                 };
@@ -4045,26 +4066,9 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 for (size_t i = 0; i < batch.keys.size(); ++i) {
                     ++num_updated;
                     auto i_row = i + batch.offset;
-                    if (batch.primaryId[i * 2] == 0 && batch.alignmentCount[i * 2] != 0) {
-                        rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                        // WARNING
-                        (void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 1 never had a primary alignment", "id=%lx", batch.keys[i]));
-                    }
-                    bool is_unmated = batch.unmated[i];
-                    if (!is_unmated && batch.primaryId[i * 2 + 1] == 0 && batch.alignmentCount[i * 2 + 1] != 0) {
-                        rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                        // WARNING
-                        (void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 2 never had a primary alignment", "id=%lx", batch.keys[i]));
-                    }
-                    if (rc != 0 && logLevel == klogErr) {
-                        exit_on_error = true;
-                        break;
-                    }
-                    rc = SequenceUpdateAlignData(seq, i_row, is_unmated ? 1 : 2, &batch.primaryId[i * 2], &batch.alignmentCount[i * 2]);
+                    auto const rc = write_align_info(batch.keys[i], i_row, &batch.primaryId[i * 2], &batch.alignmentCount[i * 2], batch.unmated[i]);
                     if (rc) {
                         exit_on_error = true;
-                        // FATAL ERROR, VDB I/O ERROR
-                        (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Failed updating Alignment data in sequence table");
                         break;
                     }
                 }
@@ -4080,8 +4084,10 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     vector<uint64_t> keys;
     keys.reserve(BUFFER_SIZE);
     (void)PLOGMSG(klogInfo, (klogInfo, "BUFFER_SIZE $(b)", "b=%lu", BUFFER_SIZE));
+#endif /* BAD_PARALLELISM */ 
 
     for (row = 1; row <= ctx->spotId; ++row) {
+	    uint64_t keyId = 0;
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
             // FATAL ERROR, VDB I/O ERROR
@@ -4090,15 +4096,21 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         if (G.mode != mode_Remap) {
             auto spotId = ctx->m_spot_id_buffer[uint32_t(keyId >> GROUPID_SHIFT)].get(keyId & KEYID_MASK);
+            assert(row == spotId);
             if (row != spotId) {
-                //if (row != metadata->get<u64_t>(metadata_t::e_spotId).get_no_check(local_row_id)) {
-                //  auto spotId = metadata->get<u64_t>(metadata_t::e_spotId).get_no_check(local_row_id);
                 rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
                 // FATAL ERROR, INTERNAL CONSISTENCY ERROR
-                (void)PLOGMSG(klogErr, (klogErr, "SRAE-252: Internal error: Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%u,row=%u,idx=%u", (unsigned)spotId, (unsigned)row, (unsigned)keyId));
+                (void)PLOGMSG(klogErr, (klogErr, "SRAE-252: Internal error: Unexpected spot id $(spotId) for row $(row), index $(idx)", "spotId=%lu,row=%lu,idx=%lu", (unsigned long)spotId, (unsigned long)row, (unsigned long)keyId));
                 break;
             }
         }
+        else {
+			auto const group_id = keyId >> GROUPID_SHIFT;
+			auto const row_id = keyId & KEYID_MASK;
+			auto [metadata, local_row_id] = ctx->m_read_groups[group_id]->metadata_by_key(row_id);
+			metadata->get<u64_t>(metadata_t::e_spotId).set(local_row_id, row);
+        }
+#if BAD_PARALLELISM
         keys.push_back(keyId);
         if (keys.size() == BUFFER_SIZE) {
             key_batch_t batch;
@@ -4109,8 +4121,8 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             keys.reserve(BUFFER_SIZE);
             (void)PLOGMSG(klogInfo, (klogInfo, "enqueue row $(r)", "r=%lu", row));
 
-            const lock_guard<mutex> lock(gather_mutex);
-            while (gather_queue.try_enqueue(std::move(batch)) == false) {
+            const lock_guard<mutex> lock{gather_mutex};
+            while (gather_queue.try_enqueue(std::move(batch)) == false) { ///< this is wrong, moving in a loop, and key_batch_t has move semantics; if the enqueue fails the first time, the batch is discarded and an empty batch is eventually enqueued.
                 if (exit_on_error)
                     break;
             };
@@ -4120,8 +4132,21 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 break;
             KLoadProgressbar_Process(ctx->progress[ctx->pass - 1], 1, false);
         }
-    }
+#else /* !PARALLELISM */
+		{{
+			int64_t primaryId[2];
+			uint8_t alignmentCount[2];
+			uint8_t unmated;
+			
+			get_align_info(keyId, primaryId, alignmentCount, &unmated);
 
+			auto const rc = write_align_info(keyId, row, primaryId, alignmentCount, unmated);
+			if (rc)
+				break;
+		}}
+#endif
+    }
+#if BAD_PARALLELISM
     if (!keys.empty() && exit_on_error == false) {
         key_batch_t batch;
         batch.offset = row_offset;
@@ -4130,7 +4155,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         keys.clear();
 
         const lock_guard<mutex> lock(gather_mutex);
-        while (gather_queue.try_enqueue(std::move(batch)) == false) {
+        while (gather_queue.try_enqueue(std::move(batch)) == false) { ///< this is wrong, moving in a loop, and key_batch_t has move semantics; if the enqueue fails the first time, the batch is discarded and an empty batch is eventually enqueued.
             if (exit_on_error)
                 break;
         };
@@ -4161,6 +4186,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 
     spdlog::info("Gathered: {:L}, updated: {:L}", num_gathered, num_updated);
     spdlog::info("Queued: {:L}, Dequeued: {:L}", batches_gathered, batches_updated);
+#endif
     spdlog::info("Align Info: {:.3} sec, memory: {:L}", sw, getCurrentRSS());
     return rc;
 }

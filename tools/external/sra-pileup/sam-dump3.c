@@ -546,7 +546,9 @@ MAIN_DECL( argc, argv )
     if ( rc != 0 ) {
         LOGERR( klogInt, rc, "KOutHandlerSet() failed" );
     } else {
-        Args * args;
+        Args * args = NULL;
+
+        SetUsage(Usage);
 
         KLogHandlerSetStdErr();
         rc = ArgsMakeAndHandle( &args, argc, argv, 1,

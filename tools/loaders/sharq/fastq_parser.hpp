@@ -583,6 +583,34 @@ int SpawnAndWait( const std::string& program, const std::vector<std::string>& ar
     return ret;
 }
 
+struct ForkedChild
+{
+    int fd;
+    string cmdline;
+};
+
+class ChildrenOfTheFork : public vector<ForkedChild>
+{
+public:
+    ~ChildrenOfTheFork() { join(); }
+    void join()
+    {
+        for ( const auto& i : *this )
+        {
+            int status;
+            waitpid( i . fd, & status, 0);
+            int s = WEXITSTATUS(status);
+            if ( s != 0 )
+            {
+                cout << "Child process '" << i.cmdline << "' returned " << s << endl;
+            }
+        }
+        clear();
+    }
+};
+
+static ChildrenOfTheFork forked;
+
 // returns fd of readable pipe representing child's stdout
 int Spawn( const std::string& program, const std::vector<std::string>& args )
 {
@@ -627,6 +655,13 @@ int Spawn( const std::string& program, const std::vector<std::string>& args )
     else {
         // --- PARENT PROCESS ---
         close(pipefd[1]); // Close write end in parent
+        string cmdline = program;
+        for ( auto s : args )
+        {
+            cmdline += " ";
+            cmdline += s;
+        }
+        forked.push_back( ForkedChild { child_pid, cmdline } );
         return pipefd[0];
     }
 }
@@ -654,7 +689,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         {   // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
             {
-                int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
+                int child = Spawn( "aws", { /*"--quiet",*/ "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
                 if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
                 {
@@ -675,7 +710,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 std::vector<std::string> args;
                 const char* cred = std::getenv("GCS_CREDENTIALS");
                 if ( cred != nullptr )
-                { 
+                {
                     args.push_back( "-o" );
                     args.push_back( string( "GSUtil:service_account_key=" ) + cred );
                 }

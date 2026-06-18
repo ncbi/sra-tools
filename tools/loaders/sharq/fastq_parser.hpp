@@ -585,56 +585,97 @@ int SpawnAndWait( const std::string& program, const std::vector<std::string>& ar
 
 struct ForkedChild
 {
-    int fd;
+    pid_t pid = 0; // child's pid
+    int std_out = 0; // our end of child's stdout
+    int std_err = 0; // our end of child's stderr
     string cmdline;
 };
 
-class ChildrenOfTheFork : public vector<ForkedChild>
+class ChildrenOfTheFork : public map< shared_ptr<istream>, ForkedChild >
 {
 public:
-    ~ChildrenOfTheFork() { join(); }
-    void join()
+    void join( shared_ptr<istream> key )
     {
-        for ( const auto& i : *this )
+        iterator i = this->find( key );
+        if ( i != end() )
         {
+            const ForkedChild& fc = i->second;
+
             int status;
-            waitpid( i . fd, & status, 0);
+            waitpid( fc . pid, & status, WNOHANG );
             int s = WEXITSTATUS(status);
             if ( s != 0 )
             {
-                cout << "Child process '" << i.cmdline << "' returned " << s << endl;
+                cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
+
+                // copy contents of child's stderr to our stderr
+                {
+                    const size_t BUFFER_SIZE = 4096; // 4KB chunks
+                    char buffer[BUFFER_SIZE];
+
+                    while (true) 
+                    {
+                        ssize_t bytesRead = read(fc . std_err, buffer, BUFFER_SIZE);
+
+                        if (bytesRead > 0) 
+                        {
+                            cerr << string( buffer, bytesRead );
+                        }
+                        else if (bytesRead == 0) 
+                        {   // EOF reached
+                            break;
+                        }
+                    }
+                }
             }
+
+            close( fc . std_out );
+            close( fc . std_err );
+
+            this->erase( key );
         }
-        clear();
     }
 };
 
 static ChildrenOfTheFork forked;
 
-// returns fd of readable pipe representing child's stdout
-int Spawn( const std::string& program, const std::vector<std::string>& args )
+ForkedChild Spawn( const std::string& program, const std::vector<std::string>& args )
 {
-    int pipefd[2];
-    if (pipe(pipefd) == -1)
+    int pipefd_out[2];
+    if (pipe(pipefd_out) == -1)
+    {
+        throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
+    }
+    int pipefd_err[2];
+    if (pipe(pipefd_err) == -1)
     {
         throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
     }
 
     pid_t child_pid = fork();
     if (child_pid < 0) {
-        close(pipefd[0]);
-        close(pipefd[1]);
+        close(pipefd_out[0]);
+        close(pipefd_out[1]);
+        close(pipefd_err[0]);
+        close(pipefd_err[1]);
         throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
     }
     else if (child_pid == 0) {
         // --- CHILD PROCESS ---
-        close(pipefd[0]); // Close read end in child
+        close(pipefd_out[0]); // Close read end in child
+        close(pipefd_err[0]); // Close read end in child
         // Redirect stdout to pipe
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+        if (dup2(pipefd_out[1], STDOUT_FILENO) == -1) {
             std::cerr << "dup2() failed: " << strerror(errno) << "\n";
             _exit(EXIT_FAILURE);
         }
-        close(pipefd[1]); // Not needed after dup2
+        // Redirect stderr to pipe
+        if (dup2(pipefd_err[1], STDERR_FILENO) == -1) {
+            std::cerr << "dup2() failed: " << strerror(errno) << "\n";
+            _exit(EXIT_FAILURE);
+        }
+        close(pipefd_err[1]); // Not needed after dup2
+        close(pipefd_out[1]); // Not needed after dup2
 
         // Prepare arguments for execvp
         std::vector<char*> argv;
@@ -650,19 +691,20 @@ int Spawn( const std::string& program, const std::vector<std::string>& args )
             std::cerr << "execvp() failed: " << strerror(errno) << "\n";
             _exit(EXIT_FAILURE);
         }
-        return 0; // will not get here
+        return ForkedChild(); // will not get here
     }
     else {
         // --- PARENT PROCESS ---
-        close(pipefd[1]); // Close write end in parent
+        close(pipefd_out[1]); // Close write end in parent
+        close(pipefd_err[1]); // Close write end in parent
+
         string cmdline = program;
-        for ( auto s : args )
+        for (const auto& arg : args) 
         {
             cmdline += " ";
-            cmdline += s;
+            cmdline += arg;
         }
-        forked.push_back( ForkedChild { child_pid, cmdline } );
-        return pipefd[0];
+        return ForkedChild{ child_pid, pipefd_out[0], pipefd_err[0], cmdline};
     }
 }
 
@@ -689,11 +731,14 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         {   // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
             {
-                int child = Spawn( "aws", { /*"--quiet",*/ "s3", "cp", filename, "-" } );
+                ForkedChild fc = Spawn( "aws", { /*"--quiet",*/ "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, "S3_Stream", true, false ) == 0 )
                 {
-                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+
+                    shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    forked.insert( make_pair( stream, fc ) );
+                    return stream;
                 }
                 else
                 {
@@ -717,11 +762,13 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 args.push_back( "cp" );
                 args.push_back( filename );
                 args.push_back( "-" );
-                int child = Spawn( "gsutil", args );
+                ForkedChild fc = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, "GC_Stream", true, false ) == 0 )
                 {
-                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    forked.insert( make_pair( stream, fc ) );
+                    return stream;                    
                 }
                 else
                 {
@@ -1098,7 +1145,10 @@ template<typename ScoreValidator>
 bool fastq_reader::parse_read(CFastqRead& read)
 {
     if (m_stream->eof())
+    {
+        forked.join( m_stream );
         return false;
+    }
     read.Reset();
     if (!m_buffered_defline.empty()) {
         m_line.clear();

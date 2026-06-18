@@ -94,7 +94,8 @@ GREP="grep -q \"$GREP_FOR\" $TEMPDIR/load.stderr"
 eval $GREP
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    echo "'$GREP' reports no hits"
+    echo "'$GREP' reports no hits:"
+    cat $TEMPDIR/load.stderr
     exit 2
 fi
 

@@ -20,12 +20,12 @@ Test [SRA] object, resolve it, print dependencies, configuration
 
 | Option | Description |
 |---|---|
-| -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then<br>quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-V`\|`--version` | Display the version of the program then quit. |
+| `-L`\|`--log-level <level>` | Logging level as number or enum string. One of (fatal\|sys\|int\|err\|warn\|info\|debug) or (0-6) Current/default is warn. |
+| `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
+| `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
+| `--option-file <file>` | Read more options and parameters from the file. |
 
 ## Tests
 
@@ -54,9 +54,9 @@ in full test mode (default) all the tests are available.
 
 In full mode, if no tests were specified then all tests will be run.
 
--X &lt; xml | text &gt; - whether to generate well-formed XML
+-X < xml | text > - whether to generate well-formed XML
 -R - check objects recursively
 -N - do not call VDBManagerPathType
 -C - do not disable caching (default: from configuration)
--b --bytes=K - print the first K bytes of resolved remote HTTP file)<br>(default: 256)
--l --library=&lt;path to library&gt; - print version of dynamic library
+-b --bytes=K - print the first K bytes of resolved remote HTTP file) (default: 256)
+-l --library=< path to library > - print version of dynamic library

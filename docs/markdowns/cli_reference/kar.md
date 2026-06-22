@@ -16,20 +16,20 @@ kar [OPTIONS] -t|--test|--long-list <Archive>
 
 | Option | Description |
 |---|---|
-| -c\|--create &lt;archive&gt; | Create new archive. |
-| -x\|--extract &lt;archive&gt; | Extract the contents of an archive into<br>directory. |
-| -t\|--test &lt;archive&gt; | Check the structural validity of an archive |
-| -d\|--directory &lt;Directory&gt; | The next token on the command line is the<br>name of the directory to extract to or<br>create from |
-| -f\|--force | (no parameter) this will cause the extract<br>or create to over-write existing files unless<br>they are write-protected. Without this<br>option the program will fail if the archive<br>already exists for create or the target<br>directory exists for an extract |
-| -l\|--long-list | more information will be given on each file<br>in test/list mode. |
-| -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then<br>quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |
-| -Z\|--stdout | Direct output to stdout |
-| --md5 | create md5sum-compatible checksum file |
+| `-c`\|`--create <archive>` | Create new archive. |
+| `-x`\|`--extract <archive>` | Extract the contents of an archive into directory. |
+| `-t`\|`--test <archive>` | Check the structural validity of an archive |
+| `-d`\|`--directory <Directory>` | The next token on the command line is the name of the directory to extract to or create from |
+| `-f`\|`--force` | (no parameter) this will cause the extract or create to over-write existing files unless they are write-protected. Without this option the program will fail if the archive already exists for create or the target directory exists for an extract |
+| `-l`\|`--long-list` | more information will be given on each file in test/list mode. |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-V`\|`--version` | Display the version of the program then quit. |
+| `-L`\|`--log-level <level>` | Logging level as number or enum string. One of (fatal\|sys\|int\|err\|warn\|info\|debug) or (0-6) Current/default is warn. |
+| `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
+| `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
+| `--option-file <file>` | Read more options and parameters from the file. |
+| `-Z`\|`--stdout` | Direct output to stdout |
+| `--md5` | create md5sum-compatible checksum file |
 
 ## Example
 

@@ -14,13 +14,13 @@ general-loader [options]
 
 | Option | Description |
 |---|---|
-| -I\|--include &lt;path(s)&gt; | Additional directories to search for schema<br>include files. Can specify multiple paths<br>separated by ':'. |
-| -S\|--schema &lt;path(s)&gt; | Schema file to use. Can specify multiple<br>files separated by ':'. |
-| -T\|--target &lt;path&gt; | Database file to create. Overrides any<br>remote path specifications coming from the<br>input stream |
-| -z\|--xml-log &lt;logfile&gt; | Produce XML-formatted log file. |
-| -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then<br>quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |
+| `-I`\|`--include <path(s)>` | Additional directories to search for schema include files. Can specify multiple paths separated by ':'. |
+| `-S`\|`--schema <path(s)>` | Schema file to use. Can specify multiple files separated by ':'. |
+| `-T`\|`--target <path>` | Database file to create. Overrides any remote path specifications coming from the input stream |
+| `-z`\|`--xml-log <logfile>` | Produce XML-formatted log file. |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-V`\|`--version` | Display the version of the program then quit. |
+| `-L`\|`--log-level <level>` | Logging level as number or enum string. One of (fatal\|sys\|int\|err\|warn\|info\|debug) or (0-6) Current/default is warn. |
+| `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
+| `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
+| `--option-file <file>` | Read more options and parameters from the file. |

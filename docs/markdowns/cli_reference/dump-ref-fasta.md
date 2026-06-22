@@ -12,6 +12,6 @@ dump-ref-fasta accession [ reference[ slice ] ] ...
 
 | Option | Description |
 |---|---|
-| -l\|--localref | Skip non-local references. |
-| -h\|--help | Output brief explanation for the program. |
-| -v\|-V\|--version | Display the version of the program then<br>quit. |
+| `-l`\|`--localref` | Skip non-local references. |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-v`\|`-V`\|`--version` | Display the version of the program then quit. |

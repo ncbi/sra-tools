@@ -4,25 +4,25 @@
 
 | Option | Description |
 |---|---|
-| -m\|--mode &lt;check\|fix\|check-and-fix&gt; | Run mode: required. |
-| -i\|--input &lt;acc\|dir\|file&gt; | Input: required. Directory will be updated. |
-| -F\|--fix-file &lt;path&gt; | File with fix data. |
-| -o\|--output-file &lt;file&gt; | Create output as kar arhive. |
-| -O\|--output-directory &lt;directory&gt; | Create output as unkared directory. |
-| -f\|--force | Forces an existing target to be overwritten. |
-| -u\|--update | Confirm update of input directory. |
-| -t\|--temp &lt;path&gt; | Where to put temporary files. Default is<br>current directory. |
-| -C\|--verify | Run sra-stat on output targets. |
-| -I\|--info | Print report for all fields examined for<br>mismatch even if the old value is correct. |
-| -P\|--print-output | Print output of executed commands. |
-| --dryrun | Dry run the application: don't execute<br>commands. |
-| -z\|--xml-log &lt;logfile&gt; | Produce XML-formatted log file. |
-| -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then<br>quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |
+| `-m`\|`--mode <check`\|`fix`\|`check-and-fix>` | Run mode: required. |
+| `-i`\|`--input <acc`\|`dir`\|`file>` | Input: required. Directory will be updated. |
+| `-F`\|`--fix-file <path>` | File with fix data. |
+| `-o`\|`--output-file <file>` | Create output as kar arhive. |
+| `-O`\|`--output-directory <directory>` | Create output as unkared directory. |
+| `-f`\|`--force` | Forces an existing target to be overwritten. |
+| `-u`\|`--update` | Confirm update of input directory. |
+| `-t`\|`--temp <path>` | Where to put temporary files. Default is current directory. |
+| `-C`\|`--verify` | Run sra-stat on output targets. |
+| `-I`\|`--info` | Print report for all fields examined for mismatch even if the old value is correct. |
+| `-P`\|`--print-output` | Print output of executed commands. |
+| `--dryrun` | Dry run the application: don't execute commands. |
+| `-z`\|`--xml-log <logfile>` | Produce XML-formatted log file. |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-V`\|`--version` | Display the version of the program then quit. |
+| `-L`\|`--log-level <level>` | Logging level as number or enum string. One of (fatal\|sys\|int\|err\|warn\|info\|debug) or (0-6) Current/default is warn. |
+| `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
+| `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
+| `--option-file <file>` | Read more options and parameters from the file. |
 
 ## Example
 

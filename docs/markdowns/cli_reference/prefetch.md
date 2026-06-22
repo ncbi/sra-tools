@@ -30,33 +30,33 @@ Check SRA file for missed dependencies and download them
 
 | Option | Description |
 |---|---|
-| -T\|--type &lt;value&gt; | Specify file type to download. Default: sra |
-| -t\|--transport &lt;http\|fasp\|both&gt; | Transport: one of: fasp; http; both<br>[default]. (fasp only; http only; first try<br>fasp (ascp), use http if cannot download<br>using fasp). |
-| --location &lt;value&gt; | Location of data. |
-| -N\|--min-size &lt;size&gt; | Minimum file size to download in KB<br>(inclusive). |
-| -X\|--max-size &lt;size&gt; | Maximum file size to download in KB<br>(exclusive). Default: 20G |
-| -f\|--force &lt;yes\|no\|all\|ALL&gt; | Force object download: one of: no, yes,<br>all, ALL. no [default]: skip download if the<br>object if found and complete; yes: download<br>it even if it is found and is complete; all:<br>ignore lock files (stale locks or it is<br>being downloaded by another process use<br>at your own risk!); ALL: ignore lock files,<br>restart download from beginning. |
-| -r\|--resume &lt;yes\|no&gt; | Resume partial downloads: one of: no, yes<br>[default]. |
-| -C\|--verify &lt;yes\|no&gt; | Verify after download: one of: no, yes<br>[default]. |
-| -p\|--progress | Show progress. |
-| -H\|--heartbeat &lt;value&gt; | Time period in minutes to display download<br>progress. (0: no progress), default: 1 |
-| --eliminate-quals | Download SRA Lite files with simplified<br>base quality scores, or fail if not<br>available. |
-| -c\|--check-all | Double-check all refseqs. |
-| -S\|--check-rs &lt;yes\|no\|smart&gt; | Check for refseqs in downloaded files: one<br>of: no, yes, smart [default]. Smart: skip<br>check for large encrypted non-sra files. |
-| -l\|--list | List the content of kart file. |
-| -n\|--numbered-list | List the content of kart file with kart<br>row numbers. |
-| -s\|--list-sizes | List the content of kart file with target<br>file sizes. |
-| -o\|--order &lt;kart\|size&gt; | Kart prefetch order when downloading<br>kart: one of: kart, size. (in kart order, by<br>file size: smallest first), default: size. |
-| -R\|--rows &lt;rows&gt; | Kart rows to download (default all). Row<br>list should be ordered. |
-| --perm &lt;PATH&gt; | PATH to jwt cart file. |
-| --ngc &lt;PATH&gt; | PATH to ngc file. |
-| --cart &lt;PATH&gt; | To read kart file. |
-| -a\|--ascp-path &lt;ascp-binary\|private-key-file&gt; | Path to ascp program and<br>private key file (aspera_tokenauth_id_rsa) |
-| --ascp-options &lt;value&gt; | Arbitrary options to pass to ascp command<br>line. |
-| -O\|--output-directory &lt;DIRECTORY&gt; | Save files to DIRECTORY/ |
-| -h\|--help | Output brief explanation for the program. |
-| -V\|--version | Display the version of the program then<br>quit. |
-| -L\|--log-level &lt;level&gt; | Logging level as number or enum string. One<br>of (fatal\|sys\|int\|err\|warn\|info\|debug) or<br>(0-6) Current/default is warn. |
-| -v\|--verbose | Increase the verbosity of the program<br>status messages. Use multiple times for more<br>verbosity. Negates quiet. |
-| -q\|--quiet | Turn off all status messages for the<br>program. Negated by verbose. |
-| --option-file &lt;file&gt; | Read more options and parameters from the<br>file. |
+| `-T`\|`--type <value>` | Specify file type to download. Default: sra |
+| `-t`\|`--transport <http`\|`fasp`\|`both>` | Transport: one of: fasp; http; both [default]. (fasp only; http only; first try fasp (ascp), use http if cannot download using fasp). |
+| `--location <value>` | Location of data. |
+| `-N`\|`--min-size <size>` | Minimum file size to download in KB (inclusive). |
+| `-X`\|`--max-size <size>` | Maximum file size to download in KB (exclusive). Default: 20G |
+| `-f`\|`--force <yes`\|`no`\|`all`\|`ALL>` | Force object download: one of: no, yes, all, ALL. no [default]: skip download if the object if found and complete; yes: download it even if it is found and is complete; all: ignore lock files (stale locks or it is being downloaded by another process use at your own risk!); ALL: ignore lock files, restart download from beginning. |
+| `-r`\|`--resume <yes`\|`no>` | Resume partial downloads: one of: no, yes [default]. |
+| `-C`\|`--verify <yes`\|`no>` | Verify after download: one of: no, yes [default]. |
+| `-p`\|`--progress` | Show progress. |
+| `-H`\|`--heartbeat <value>` | Time period in minutes to display download progress. (0: no progress), default: 1 |
+| `--eliminate-quals` | Download SRA Lite files with simplified base quality scores, or fail if not available. |
+| `-c`\|`--check-all` | Double-check all refseqs. |
+| `-S`\|`--check-rs <yes`\|`no`\|`smart>` | Check for refseqs in downloaded files: one of: no, yes, smart [default]. Smart: skip check for large encrypted non-sra files. |
+| `-l`\|`--list` | List the content of kart file. |
+| `-n`\|`--numbered-list` | List the content of kart file with kart row numbers. |
+| `-s`\|`--list-sizes` | List the content of kart file with target file sizes. |
+| `-o`\|`--order <kart`\|`size>` | Kart prefetch order when downloading kart: one of: kart, size. (in kart order, by file size: smallest first), default: size. |
+| `-R`\|`--rows <rows>` | Kart rows to download (default all). Row list should be ordered. |
+| `--perm <PATH>` | PATH to jwt cart file. |
+| `--ngc <PATH>` | PATH to ngc file. |
+| `--cart <PATH>` | To read kart file. |
+| `-a`\|`--ascp-path <ascp-binary`\|`private-key-file>` | Path to ascp program and private key file (aspera_tokenauth_id_rsa) |
+| `--ascp-options <value>` | Arbitrary options to pass to ascp command line. |
+| `-O`\|`--output-directory <DIRECTORY>` | Save files to DIRECTORY/ |
+| `-h`\|`--help` | Output brief explanation for the program. |
+| `-V`\|`--version` | Display the version of the program then quit. |
+| `-L`\|`--log-level <level>` | Logging level as number or enum string. One of (fatal\|sys\|int\|err\|warn\|info\|debug) or (0-6) Current/default is warn. |
+| `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
+| `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
+| `--option-file <file>` | Read more options and parameters from the file. |

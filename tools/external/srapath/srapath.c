@@ -148,6 +148,7 @@ rc_t CC UsageSummary( const char * progname )
         "  Tool to produce a list of full paths to files\n"
         "  (SRA and WGS runs, refseqs: reference sequences)\n"
         "  from list of NCBI accessions.\n"
+        "\n"
         "Usage:\n"
         "  %s [options] <accession> ...\n\n"
         "\n", progname));

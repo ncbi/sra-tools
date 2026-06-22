@@ -44,6 +44,7 @@ rc_t CC UsageSummary (const char * progname)
     return KOutMsg (
                     "Summary:\n"
                     "  Prints out error string to stdout for one or more return codes.\n"
+                    "\n"
                     "Usage:\n"
                     "  %s [Options] rc [rc ...]\n"
                     "\n",

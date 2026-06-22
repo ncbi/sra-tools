@@ -4774,6 +4774,7 @@ rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
         "Summary: Sorts an SRA archive by reference position - similar to samtools sort.\n"
+        "\n"
         "Usage:\n"
         "  %s [options] table\n"
         "\n"

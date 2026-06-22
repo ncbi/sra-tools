@@ -271,6 +271,7 @@ rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
         "Summary:\n"
         "  Manage VDB configuration\n"
+        "\n"
         "Usage:\n"
         "  %s [options] [<query> ...]\n\n"
         , progname, progname);

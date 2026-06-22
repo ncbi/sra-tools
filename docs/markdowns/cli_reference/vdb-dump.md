@@ -29,7 +29,7 @@ vdb-dump <path> [<path> ...] [options]
 | `-D`\|`--dna_bases` | force dna-bases if column fits pattern |
 | `-M`\|`--max_length <max_length>` | limits line length |
 | `-i`\|`--indent_width <indent_width>` | indents the line |
-| `-f`\|`--format <format>` | output format: csv ..... comma separated values on one line xml ..... xml-style without complete xml-frame json .... json-style piped ... 1 line per cell: row-id, column-name: value tab ..... 1 line per row: tab-separated values only fastq ... FASTQ( 4 lines ) for each row fastq1 .. FASTQ( 4 lines ) for each fragment fasta ... FASTA( 2 lines ) for each fragment if possible fasta1 .. one FASTA-record for the whole accession (REFSEQ) fasta2 .. one FASTA-record for each REFERENCE in cSRA qual .... QUAL( 2 lines ) for each row qual1 ... QUAL( 2 lines ) for each fragment if possible |
+| `-f`\|`--format <format>` | One of csv, xml, json, piped, tab, fastq, fastq1, fasta, fasta1, fasta2, qual, or qual1. See Output Formats. |
 | `-r`\|`--id_range` | prints id-range |
 | `-n`\|`--without_sra` | without sra-type-translation |
 | `-x`\|`--exclude <columns>` | exclude these columns |
@@ -66,3 +66,20 @@ vdb-dump <path> [<path> ...] [options]
 | `-v`\|`--verbose` | Increase the verbosity of the program status messages. Use multiple times for more verbosity. Negates quiet. |
 | `-q`\|`--quiet` | Turn off all status messages for the program. Negated by verbose. |
 | `--option-file <file>` | Read more options and parameters from the file. |
+
+## Output Formats
+
+| Format | Description |
+|---|---|
+| `csv` | comma separated values on one line |
+| `xml` | xml-style without complete xml-frame |
+| `json` | json-style |
+| `piped` | 1 line per cell: row-id, column-name: value |
+| `tab` | 1 line per row: tab-separated values only |
+| `fastq` | FASTQ( 4 lines ) for each row |
+| `fastq1` | FASTQ( 4 lines ) for each fragment |
+| `fasta` | FASTA( 2 lines ) for each fragment if possible |
+| `fasta1` | one FASTA-record for the whole accession (REFSEQ) |
+| `fasta2` | one FASTA-record for each REFERENCE in cSRA |
+| `qual` | QUAL( 2 lines ) for each row |
+| `qual1` | QUAL( 2 lines ) for each fragment if possible |

@@ -786,6 +786,7 @@ rc_t GetKeyID(context_t *const ctx,
     spot_count += rec.wasInserted ? 1 : 0;
 
     if (spot_count % 1000000 == 0 && spot_count && spot_count != last_spot_count) {
+#if 0 // buggy code
         if (ctx->m_inputSize > 0) {
             last_spot_count = spot_count;
             BAM_FilePosition end_pos = 0;
@@ -867,7 +868,8 @@ rc_t GetKeyID(context_t *const ctx,
                     }
                 }
             }
-        } else if (G.LOADER_MEM_LIMIT_GB > 0) {
+        }
+        else if (G.LOADER_MEM_LIMIT_GB > 0) {
             size_t curr_mem_gb = getCurrentRSS()/(1024 * 1024);
             // input is stdin. we can't make RAM  estimate so we bail out if current memory exceeds the limit
             if (float(curr_mem_gb)/G.LOADER_MEM_LIMIT_GB > 1.25) {
@@ -875,7 +877,8 @@ rc_t GetKeyID(context_t *const ctx,
                 return RC(rcExe, rcNoTarg, rcProjecting, rcMemory, rcExcessive);
             }
         }
-        if (spot_count % 10000000 == 0)
+        if (spot_count % 10000000 == 0) // this is always true
+#endif
             ctx->pack_read_groups(ctx->m_estimatedBatchSize);
     }
 

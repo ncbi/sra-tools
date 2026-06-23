@@ -631,6 +631,10 @@ public:
                     }
                 }
             }
+            else
+            {
+                cerr << "waitpid('" << fc . cmdline << "' returned " << status << endl;
+            }
 
             close( fc . std_out );
             close( fc . std_err );

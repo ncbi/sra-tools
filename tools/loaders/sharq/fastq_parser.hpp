@@ -601,7 +601,7 @@ public:
         {
             const ForkedChild& fc = i->second;
 
-            int status;
+            int status = -1;
             waitpid( fc . pid, & status, WNOHANG );
             int s = WEXITSTATUS(status);
             if ( s != 0 )

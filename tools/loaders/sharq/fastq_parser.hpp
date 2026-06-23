@@ -602,35 +602,34 @@ public:
             const ForkedChild& fc = i->second;
 
             int status = -1;
-            waitpid( fc . pid, & status, WNOHANG );
-            int s = WEXITSTATUS(status);
-            if ( s != 0 )
+            waitpid( fc . pid, & status, 0 /*WNOHANG*/ );
+            if ( WIFEXITED( status ) )
             {
-                cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
-
-                // copy contents of child's stderr to our stderr
+                int s = WEXITSTATUS(status);
+                if ( s != 0 )
                 {
-                    const size_t BUFFER_SIZE = 4096; // 4KB chunks
-                    char buffer[BUFFER_SIZE];
+                    cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
 
-                    while (true) 
+                    // copy contents of child's stderr to our stderr
                     {
-                        ssize_t bytesRead = read(fc . std_err, buffer, BUFFER_SIZE);
+                        const size_t BUFFER_SIZE = 4096; // 4KB chunks
+                        char buffer[BUFFER_SIZE];
 
-                        if (bytesRead > 0) 
+                        while (true) 
                         {
-                            cerr << string( buffer, bytesRead );
-                        }
-                        else if (bytesRead == 0) 
-                        {   // EOF reached
-                            break;
+                            ssize_t bytesRead = read(fc . std_err, buffer, BUFFER_SIZE);
+
+                            if (bytesRead > 0) 
+                            {
+                                cerr << string( buffer, bytesRead );
+                            }
+                            else if (bytesRead == 0) 
+                            {   // EOF reached
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
             }
 
             close( fc . std_out );

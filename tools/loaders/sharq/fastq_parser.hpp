@@ -608,7 +608,7 @@ public:
                 int s = WEXITSTATUS(status);
                 if ( s != 0 )
                 {
-                    cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
+                    cerr << "Child process '" << fc . cmdline << "' returned " << s << " " << endl;
 
                     // copy contents of child's stderr to our stderr
                     {
@@ -633,7 +633,7 @@ public:
             }
             else
             {
-                cerr << "waitpid('" << fc . cmdline << "' returned " << status << endl;
+                cerr << "waitpid('" << fc . cmdline << "' returned " << status << " " << endl;
             }
 
             close( fc . std_out );

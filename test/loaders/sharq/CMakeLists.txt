@@ -333,8 +333,8 @@ if( SINGLE_CONFIG )
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
         # inputs from cloud
-        SharqTest_Error(018.cloud.badbucket.aws 1 "returned 1" "s3://notabucket/notafile")
-        SharqTest_Error(018.cloud.badbucket.gcs 1 "returned 1" "gs://notabucket/notafile")
+        SharqTest_Error(018.cloud.badbucket.aws 1 "returned 1 " "s3://notabucket/notafile")
+        SharqTest_Error(018.cloud.badbucket.gcs 1 "returned 1 " "gs://notabucket/notafile")
 
         # more tests in asm-trace
 

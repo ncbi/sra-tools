@@ -628,6 +628,10 @@ public:
                     }
                 }
             }
+            else
+            {
+                cerr << "Child process '" << fc . cmdline << "' returned " << s << endl;
+            }
 
             close( fc . std_out );
             close( fc . std_err );

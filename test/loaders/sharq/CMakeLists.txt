@@ -333,8 +333,23 @@ if( SINGLE_CONFIG )
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
         # inputs from cloud
-        SharqTest_Error(018.cloud.badbucket.aws 1 "returned 1 " "s3://notabucket/notafile")
-        SharqTest_Error(018.cloud.badbucket.gcs 1 "returned 1 " "gs://notabucket/notafile")
+
+        execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
+
+        if ( AWS_MISSING ) 
+            set( AWS_ERROR "Cloud CLI (aws) is not found")
+        else()
+            set( AWS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.aws 1 ${AWS_ERROR} "s3://notabucket/notafile")
+
+        execute_process( COMMAND gsutil --version RESULT_VARIABLE GSUTIL_MISSING )
+        if ( GSUTIL_MISSING ) 
+            set( GS_ERROR "Cloud CLI (gsutil) is not found")
+        else()
+            set( GS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.gcs 1 ${GS_ERROR} "gs://notabucket/notafile")
 
         # more tests in asm-trace
 

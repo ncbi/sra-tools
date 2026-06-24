@@ -631,6 +631,10 @@ public:
                     }
                 }
             }
+            else if (WIFSIGNALED(status))
+            {
+                cerr << "waitpid('" << fc . cmdline << "' signaled " << WTERMSIG(status) << " " << endl;
+            }
             else
             {
                 cerr << "waitpid('" << fc . cmdline << "' returned " << status << " " << endl;
@@ -753,7 +757,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 }
             }
 
-            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+            throw runtime_error("Cloud CLI (aws) is not found");
         }
         else if ( isGCS_URL( filename ) )
         {   // GCS: check if CLI is available. NOTE: Posix only
@@ -783,7 +787,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 }
             }
 
-            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+            throw runtime_error("Cloud CLI (gsutil) is not found");
         }
         else
         {

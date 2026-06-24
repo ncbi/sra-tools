@@ -335,7 +335,6 @@ if( SINGLE_CONFIG )
         # inputs from cloud
 
         execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
-
         if ( AWS_MISSING ) 
             set( AWS_ERROR "Cloud CLI (aws) is not found")
         else()

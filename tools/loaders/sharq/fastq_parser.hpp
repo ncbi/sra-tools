@@ -587,7 +587,6 @@ struct ForkedChild
 {
     pid_t pid = 0; // child's pid
     int std_out = 0; // our end of child's stdout
-    int std_err = 0; // our end of child's stderr
     string cmdline;
 };
 
@@ -609,26 +608,6 @@ public:
                 if ( s != 0 )
                 {
                     cerr << "Child process '" << fc . cmdline << "' returned " << s << " " << endl;
-
-                    // copy contents of child's stderr to our stderr
-                    {
-                        const size_t BUFFER_SIZE = 4096; // 4KB chunks
-                        char buffer[BUFFER_SIZE];
-
-                        while (true) 
-                        {
-                            ssize_t bytesRead = read(fc . std_err, buffer, BUFFER_SIZE);
-
-                            if (bytesRead > 0) 
-                            {
-                                cerr << string( buffer, bytesRead );
-                            }
-                            else if (bytesRead == 0) 
-                            {   // EOF reached
-                                break;
-                            }
-                        }
-                    }
                 }
             }
             else if (WIFSIGNALED(status))
@@ -641,7 +620,6 @@ public:
             }
 
             close( fc . std_out );
-            close( fc . std_err );
 
             this->erase( key );
         }
@@ -657,35 +635,21 @@ ForkedChild Spawn( const std::string& program, const std::vector<std::string>& a
     {
         throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
     }
-    int pipefd_err[2];
-    if (pipe(pipefd_err) == -1)
-    {
-        throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
-    }
 
     pid_t child_pid = fork();
     if (child_pid < 0) {
         close(pipefd_out[0]);
         close(pipefd_out[1]);
-        close(pipefd_err[0]);
-        close(pipefd_err[1]);
         throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
     }
     else if (child_pid == 0) {
         // --- CHILD PROCESS ---
         close(pipefd_out[0]); // Close read end in child
-        close(pipefd_err[0]); // Close read end in child
         // Redirect stdout to pipe
         if (dup2(pipefd_out[1], STDOUT_FILENO) == -1) {
             std::cerr << "dup2() failed: " << strerror(errno) << "\n";
             _exit(EXIT_FAILURE);
         }
-        // Redirect stderr to pipe
-        if (dup2(pipefd_err[1], STDERR_FILENO) == -1) {
-            std::cerr << "dup2() failed: " << strerror(errno) << "\n";
-            _exit(EXIT_FAILURE);
-        }
-        close(pipefd_err[1]); // Not needed after dup2
         close(pipefd_out[1]); // Not needed after dup2
 
         // Prepare arguments for execvp
@@ -707,15 +671,14 @@ ForkedChild Spawn( const std::string& program, const std::vector<std::string>& a
     else {
         // --- PARENT PROCESS ---
         close(pipefd_out[1]); // Close write end in parent
-        close(pipefd_err[1]); // Close write end in parent
 
         string cmdline = program;
-        for (const auto& arg : args) 
+        for (const auto& arg : args)
         {
             cmdline += " ";
             cmdline += arg;
         }
-        return ForkedChild{ child_pid, pipefd_out[0], pipefd_err[0], cmdline};
+        return ForkedChild{ child_pid, pipefd_out[0], cmdline};
     }
 }
 
@@ -779,7 +742,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 {
                     shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
                     forked.insert( make_pair( stream, fc ) );
-                    return stream;                    
+                    return stream;
                 }
                 else
                 {

@@ -296,6 +296,8 @@ const char UsageDefaultName[] = "fasterq-dump";
 
 rc_t UsageSummary( const char * progname ) {
     return KOutMsg(
+                     "Summary: A faster implementation of the fastq-dump. Extracts fastq from an SRA data file, only faster!\n"
+                     "\n"
                      "Usage:\n"
                      "  %s <path> [options]\n"
                      "  %s <accession> [options]\n"
@@ -984,15 +986,11 @@ MAIN_DECL( argc, argv )
 		ArgsWhack( args );
     }
 
-    hlp_unread_rc_info( false );
-
     {
         rc_t r = ReportFinalize( rc );
         if ( r != 0  && rc == 0)
             rc = r;
     }
-
-    hlp_unread_rc_info( false );
 
     return VDB_TERMINATE( rc );
 }

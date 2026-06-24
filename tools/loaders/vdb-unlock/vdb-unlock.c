@@ -39,11 +39,12 @@ const char UsageDefaultName[] = "vdb-unlock";
 rc_t CC UsageSummary ( const char *progname )
 {
     return KOutMsg (
+                     "Summary:\n"
+                     "  Unlock a VDB database, table or column.\n"
+                     "\n"
                      "Usage:\n"
                      "  %s [Options] <target>\n"
                      "\n"
-                     "Summary:\n"
-                     "  Unlock a VDB database, table or column.\n"
                      , progname
         );
 }

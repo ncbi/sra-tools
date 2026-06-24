@@ -466,6 +466,14 @@ rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
 rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
                                   char const **BC);
 
+/**
+ * GetProportionalPosition
+ *
+ * Get the proportional file position at the time this record was read from the file. 
+ * Returns < 0 if the position is unknown, else a number between 0 and 1.
+ */
+float BAM_AlignmentGetProportionalPosition(BAM_Alignment const *self);
+
     
 /*--------------------------------------------------------------------------
  * BAM_File

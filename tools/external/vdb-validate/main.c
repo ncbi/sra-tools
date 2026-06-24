@@ -64,7 +64,10 @@ const char UsageDefaultName[] = "vdb-validate";
 
 rc_t CC UsageSummary(const char *prog_name)
 {
-    return KOutMsg ( "Usage: %s [options] path [ path... ]\n"
+    return KOutMsg ("\n"
+                    "Summary: Validate the contents of an SRA file. Optionally performs referential integrity.\n"
+                    "\n"
+                    "Usage: %s [options] path [ path... ]\n"
                      "\n"
                      , prog_name );
 }
@@ -266,8 +269,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
 
     pb -> md5_chk = true;
     pb->consist_check = false;
-    ref_int_check
-        = pb -> md5_chk_explicit = md5_required = true;
+    ref_int_check = pb -> md5_chk_explicit = md5_required = true;
     pb -> blob_crc = false;
     pb -> sdc_sec_rows_in_percent = false;
     pb -> sdc_sec_rows.number = 100000;

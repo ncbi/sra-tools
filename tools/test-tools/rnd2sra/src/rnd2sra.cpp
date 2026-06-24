@@ -24,8 +24,12 @@ bool run_tool( MainParamsPtr params ) {
         cerr << "ini-dir: " << params -> get_ini_file_loc() << endl;
         return false;
     }
+    // read the given INI-file init an instance if the Ini-class ( ../util/ini.hpp )
     IniPtr ini = Ini::make( ini_file_name );
+    // use the commandline-parameters and the ini-insance to create an instance
+    // of the Tool_Main-class
     Tool_MainPtr tool = Tool_Main::make( params, ini );
+    // let the Tool_Main-instance run
     return tool -> run(); // rnd2sra_main.hpp
 }
 
@@ -35,12 +39,15 @@ int main( int argc, char* argv[] ) {
 
     sra_convert::MainParamsPtr params = sra_convert::MainParams::make( argc, ( const char ** )argv, 0 );
     if ( params -> print_help() ) {
+        /* --help | -h */
         params -> print_help( cout );
         return EXIT_SUCCESS;
     } else if ( params -> print_version() ) {
+        /* --version | -V */
         params -> print_version( cout );
         return EXIT_SUCCESS;
     } else if ( params -> print_platforms() ) {
+        /* -platforms | -p | print all platforms, that can be used in the INI-file(s) */
         cout << sra_convert::Platform::list_all();
         return EXIT_SUCCESS;
     } else {

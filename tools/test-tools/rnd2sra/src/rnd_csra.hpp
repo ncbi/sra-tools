@@ -2,6 +2,7 @@
 
 #include "rnd2sra_ini.hpp"
 #include "csra_spot_list.hpp"
+#include "csra_prim_ref.hpp"
 
 using namespace std;
 using namespace vdb;
@@ -30,7 +31,7 @@ function < type A, type B > B map #1.0 < A from, B to > ( A in, * B src ) = vdb:
 function < type T > T meta:read #1.0 < ascii node, * bool deterministic > ();
 function < type T > T meta:value #1.0 < ascii node, * bool deterministic > ();
 
-table SEQ_TBL #1 {
+table NCBI:align:seq #1 {
 
     column ascii NAME;
     column INSDC:SRA:platform_id PLATFORM;
@@ -63,15 +64,32 @@ table SEQ_TBL #1 {
 
 };
 
-table PRIM_TBL #1 {
+table NCBI:align:prim #1 {
     column U64 SEQ_SPOT_ID;
     column U32 SEQ_READ_ID;
     column ascii RAW_READ;
+    column ascii READ;
+    column I64 REF_ID;
+    column U32 REF_POS;
+    column U32 REF_LEN;
+
+    readonly column U64 BASE_COUNT = < U64 > meta:value < "STATS/TABLE/BASE_COUNT" >();
+    readonly column U64 BIO_BASE_COUNT = < U64 > meta:value < "STATS/TABLE/BIO_BASE_COUNT" >();
+    readonly column U64 SPOT_COUNT = < U64 > meta:value < "STATS/TABLE/SPOT_COUNT" >();
 };
 
-database MAIN_DB #1 {
-    table SEQ_TBL  #1 SEQUENCE;
-    table PRIM_TBL #1 PRIMARY_ALIGNMENT;
+table NCBI:align:ref #1 {
+    column ascii READ;
+    column I64 PRIMARY_ALIGNMENT_IDS;
+    column U32 READ_LEN;
+    column ascii NAME;
+    column bool CIRCULAR;
+};
+
+database NCBI:align:db:alignment_sorted #1 {
+    table NCBI:align:seq  #1 SEQUENCE;
+    table NCBI:align:prim #1 PRIMARY_ALIGNMENT;
+    table NCBI:align:ref #1 REFERENCE;
 };
 
 )";
@@ -122,14 +140,14 @@ class RndcSRA : public Rndcmn {
             return res;
         }
 
-        bool write_prim_tbl( VDbPtr db, cSRASpotListPtr spots ) {
+        bool write_prim_tbl( VDbPtr db, cSRASpotListPtr spots, Prim_Ref_Recorder_ptr recorder ) {
             auto tbl = db -> create_tbl( "PRIMARY_ALIGNMENT", "PRIMARY_ALIGNMENT", f_ini -> get_checksum() );
             if ( *tbl ) {
                 auto cur = tbl -> writable_cursor();
                 if ( *cur ) {
                     auto prim_cols = PrimCols::make( cur );
                     if ( *prim_cols ) {
-                        if ( spots -> write_prim_cols( prim_cols ) ) {
+                        if ( spots -> write_prim_cols( prim_cols, recorder ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
                             return cur -> commit();
                         } else {
                             cerr << "write_prim_tbl() - write_prim_cols() failed!\n";
@@ -146,14 +164,47 @@ class RndcSRA : public Rndcmn {
             return false;
         }
 
+        bool write_ref_tbl( VDbPtr db, Prim_Ref_Recorder_ptr recorder, size_t ref_tbl_row_count ) {
+            auto tbl = db -> create_tbl( "REFERENCE", "REFERENCE", f_ini -> get_checksum() );
+            bool res = *tbl;
+            if ( res ) {
+                auto cur = tbl -> writable_cursor();
+                res = *cur;
+                if ( res ) {
+                    auto ref_cols = RefCols::make( cur );
+                    res = *ref_cols;
+                    if ( res ) {
+                        for ( uint32_t row_id = 1; res && row_id <= ref_tbl_row_count; row_id++ ) {
+                            res = cur -> open_row();
+                            if ( res ) {
+                                auto bases = f_rnd -> random_bases( 5000 );
+                                size_t prim_id_count = recorder -> prim_al_id_count( row_id );
+                                const int64_t* prim_ids = recorder -> prim_al_ids( row_id );
+                                res = ref_cols -> write( bases, prim_ids, prim_id_count );
+                                if ( res ) res = cur -> commit_row();
+                                if ( res ) res = cur -> close_row();
+                            }
+                        }
+                        if ( res ) res = cur -> commit();
+                    }
+                }
+            }
+            return res;
+        }
+
         bool run( void ) {
             // we create a spot-list from the parsed ini and the random-generator:
             auto spots = cSRASpotList::make( f_ini, f_rnd );
 
-            auto db = f_mgr -> create_db( f_schema, "MAIN_DB", f_output_dir, f_ini -> get_checksum() );
+            auto db = f_mgr -> create_db( f_schema, "NCBI:align:db:alignment_sorted", f_output_dir, f_ini -> get_checksum() );
             bool res = ( *db );
             if ( res ) { res = write_seq_tbl( db, spots ); }
-            if ( res ) { res = write_prim_tbl( db, spots ); }
+            size_t ref_tbl_row_count = f_ini -> get_ref_tbl_rows();
+            Prim_Ref_Recorder_ptr recorder = Prim_Ref_Recorder::make( ref_tbl_row_count );
+            if ( res ) { res = write_prim_tbl( db, spots, recorder ); }
+            uint32_t ref_tbl_erase = f_ini -> get_ref_tbl_erase(); // do we introduce an error?
+            if ( ref_tbl_erase > 0 ) { recorder -> remove_ref_id( ref_tbl_erase ); }
+            if ( res ) { res = write_ref_tbl( db, recorder, ref_tbl_row_count ); }
             return res;
         }
 

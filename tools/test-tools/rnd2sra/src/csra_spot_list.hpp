@@ -75,11 +75,12 @@ class cSRASpotList {
             return res;
         }
 
-        bool write_prim_cols( PrimColsPtr writer ) {
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder ) {
             bool res = true;
+            int64_t prim_row_id = 1;
             for ( auto const& spot : f_spots ) {
-                res = spot -> write_prim_cols( writer );
-                if ( !res ) break;
+                res = spot -> write_prim_cols( writer, recorder, &prim_row_id );
+                if ( !res ) { break; }
             }
             return res;
         }

@@ -72,13 +72,13 @@ const char UsageDefaultName[] = "kar";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("Usage:\n"
+    return KOutMsg ("Summary:\n"
+                    "  Create, extract from, or test an archive.\n"
+                    "\n"
+                    "Usage:\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory> [Filter ...]\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory>\n"
                     "  %s [OPTIONS] -%s|--%s|--%s <Archive>\n"
-                    "\n"
-                    "Summary:\n"
-                    "  Create, extract from, or test an archive.\n"
                     "\n",
                     progname, ALIAS_CREATE, OPTION_CREATE, ALIAS_DIRECTORY, OPTION_DIRECTORY,
                     progname, ALIAS_EXTRACT, OPTION_EXTRACT, ALIAS_DIRECTORY, OPTION_DIRECTORY,

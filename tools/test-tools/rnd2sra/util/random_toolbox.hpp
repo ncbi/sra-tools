@@ -114,6 +114,11 @@ class Random {
             Custom_Range< uint32_t > u32_range( min, max );
             return u32_range . get( f_random_src );
         }
+
+        int64_t random_i64( int64_t min, int64_t max ) {
+            Custom_Range< int64_t > i64_range( min, max );
+            return i64_range . get( f_random_src );
+        }
 };
 
 } // end of namespace sra_convert

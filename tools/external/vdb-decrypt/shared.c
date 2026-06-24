@@ -108,7 +108,14 @@ static const char CacheLockExt[] = ".cache.lock";
 rc_t CC UsageSummary (const char * progname)
 {
     rc_t rc;
-    {
+
+    rc = KOutMsg (
+        "\n"
+        "Summary:\n"
+        "  %scrypt a file or all the files (recursively) in a directory\n\n",
+        De);
+
+    if (rc == 0)
         rc = KOutMsg (
             /*345679012345678901234567890123456789012345678901234567890123456789012345678*/
             "Usage:\n"
@@ -117,21 +124,17 @@ rc_t CC UsageSummary (const char * progname)
             "  %s [options] <source-file> <destination-directory>\n"
             "  %s [options] <directory>\n",
             progname, progname, progname, progname);
-    }
+
 #if DIRECTORY_TO_DIRECTORY_SUPPORTED
     if (rc == 0)
         rc = KOutMsg (
             "  %s [options] <source-directory> <destination-directory>\n",
             progname);
 #endif
-        if (rc == 0)
-    {
-        rc = KOutMsg (
-            "\n"
-            "Summary:\n"
-            "  %scrypt a file or all the files (recursively) in a directory\n\n",
-            De);
-    }
+
+    if (rc == 0)
+        rc = KOutMsg ("\n");
+
     return rc;
 }
 

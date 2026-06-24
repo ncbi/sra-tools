@@ -71,6 +71,8 @@ const char UsageDefaultName[] = "pacbio-load";
 rc_t CC UsageSummary ( const char * progname )
 {
     OUTMSG ( (
+        "Summary: Loads pacbio hd5 data into an SRA archive.\n"
+        "\n"
         "Usage:\n"
         "  %s <hdf5-file> -o<target>\n"
         "\n", progname) );

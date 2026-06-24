@@ -1,4 +1,4 @@
-# :fontawesome-solid-square-binary: bam-load
+# bam-load
 
 !!! note
     It is an NCBI internal tool used for processing submitted files into SRA format.

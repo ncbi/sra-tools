@@ -1,4 +1,4 @@
-# :fontawesome-solid-fish-fins: SharQ
+# SharQ
 
 !!! note
     It is an NCBI internal tool used for processing submitted files into SRA format.

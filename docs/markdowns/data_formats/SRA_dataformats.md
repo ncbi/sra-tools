@@ -1,4 +1,4 @@
-# :fontawesome-solid-file-zipper: SRA data format
+# SRA data format
 
 !!! tip
     If you want to learn about SRA data formats in detail, please take a look at our [technical manual](https://zenodo.org/records/15677383/files/SRA-Technical-Manual-v1.1.pdf) 

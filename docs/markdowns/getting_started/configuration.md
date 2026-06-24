@@ -1,4 +1,4 @@
-# :fontawesome-solid-gear: Configuration
+# Configuration
 
 
 To start the configuration, please run:

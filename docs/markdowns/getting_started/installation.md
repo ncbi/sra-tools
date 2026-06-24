@@ -1,4 +1,4 @@
-# :fontawesome-solid-wrench: Installation using pre-compiled binaries
+# Installation using pre-compiled binaries
 
 !!! info end "Pre-compiled binaries"
     The SRA Toolkit provides **64-bit** binary installations for the Ubuntu and Alma Linux distributions, for Mac OS X, and for Windows.

@@ -1,4 +1,4 @@
-# :fontawesome-solid-truck-fast: fasterq-dump
+# fasterq-dump
 
 ## Quick start
 

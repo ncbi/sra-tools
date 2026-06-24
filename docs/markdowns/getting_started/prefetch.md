@@ -1,4 +1,4 @@
-# :fontawesome-solid-download: prefetch
+# prefetch
 
 !!! note
     - `prefetch` does NOT download fastq files directly. It downloads the `.sra` files which can be then converted to fastq using `fasterq-dump`. 

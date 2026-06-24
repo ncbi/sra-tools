@@ -1,0 +1,188 @@
+:root > * {
+  --md-primary-fg-color: #205493;
+  --md-primary-fg-color--dark: #112e51;
+}
+
+/* NCBI footer override */
+footer {
+  box-sizing: border-box;
+}
+
+footer *,
+footer *::before,
+footer *::after {
+  box-sizing: inherit;
+}
+
+footer .bg-primary {
+  background-color: #20558a;
+  color: #ffffff;
+}
+
+footer .text-white {
+  color: #ffffff !important;
+}
+
+footer .container,
+footer .grid-container {
+  width: 100%;
+  max-width: 980px;
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: 15px;
+  padding-left: 15px;
+}
+
+footer .container-fluid {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+footer .row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -15px;
+  margin-left: -15px;
+}
+
+footer .col-12,
+footer .col-lg-3,
+footer .col-lg-12 {
+  position: relative;
+  width: 100%;
+  min-height: 1px;
+  padding-right: 15px;
+  padding-left: 15px;
+}
+
+footer .col-12 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+footer .list-inline {
+  padding-left: 0;
+  list-style: none;
+}
+
+footer .list-inline-item {
+  display: inline-block;
+}
+
+footer .social_media {
+  display: flex;
+  gap: 5px;
+}
+
+footer .social_media a {
+  display: inline-block;
+  width: 35px;
+  height: 35px;
+}
+
+footer .social_media svg,
+footer .footer-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+footer p {
+  margin-top: 0;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+footer a {
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+footer .icon-section {
+  background-color: #dbdbdb;
+}
+
+footer .icon-section_header {
+  margin-top: 50px;
+  padding: 16px;
+  background-color: #4773aa;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+footer .icon-section_container {
+  display: flex;
+  justify-content: space-between;
+}
+
+footer .footer-icon {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 20px 0;
+}
+
+footer .pt-5,
+footer .py-5 {
+  padding-top: 1rem;
+}
+
+footer .mt-3,
+footer .my-3 {
+  margin-top: 10px;
+}
+
+footer .bottom-links {
+  margin: 0 auto;
+}
+
+footer .bottom-links ul {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  padding-left: 0;
+  list-style: none;
+}
+
+footer .bottom-links ul li {
+  position: relative;
+  padding: 0 8px;
+  font-size: 18px;
+}
+
+footer .bottom-links ul li:first-child {
+  padding-left: 0;
+}
+
+footer .bottom-links ul li:not(:last-child) {
+  border-right: 1px solid #ffffff;
+}
+
+@media (min-width: 992px) {
+  footer .col-lg-3 {
+    flex: 0 0 25%;
+    max-width: 25%;
+  }
+
+  footer .col-lg-12 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  footer .centered-lg {
+    display: flex;
+    justify-content: center;
+  }
+
+  footer .pt-5,
+  footer .py-5 {
+    padding-top: 30px;
+  }
+}

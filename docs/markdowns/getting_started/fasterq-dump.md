@@ -51,7 +51,7 @@ or see [fasterq-dump-cli](/markdowns/cli_reference/fasterq-dump.md)
 
 ### Changing output directory, temporary directory or threads
 
-You can change location of the output file, temporary direcotry or the number CPU cores used:
+You can change location of the output file, temporary directory or the number CPU cores used:
 
 !!! example
     <!-- termynal -->
@@ -176,7 +176,7 @@ fasterq-dump SRRXXXXXX --table SEQUENCE
 
 For every version newer and including 3.0.5 of the sra-toolkit, the fasterq-dump tool has some new functionality regarding references.
 
-### Retriving reference sequences for aligned submissions
+### Retrieving reference sequences for aligned submissions
 
 The new option '--fasta-ref-tbl' extracts references used to align the accession in FASTA-format. This option only works on accessions which are aligned, and because of that have a reference table. Each reference is extracted into one single FASTA-record in the output file. The output file is named after the accession with the extension 'ref.fasta' appended.
 

@@ -579,11 +579,11 @@ const char* OptHelpParam[] =
 rc_t UsageSummary (char const * progname)
 {
     return KOutMsg (
-        "Usage:\n"
-        "\t%s [options] <bam-file>\n"
-        "\n"
         "Summary:\n"
         "\tLoad a BAM formatted data file\n"
+        "\n"
+        "Usage:\n"
+        "\t%s [options] <bam-file>\n"
         "\n"
         "Example:\n"
         "\t%s -o /tmp/SRZ123456 -k analysis.bam.cfg 123456.bam\n"

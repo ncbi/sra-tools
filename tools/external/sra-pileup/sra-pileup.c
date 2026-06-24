@@ -378,6 +378,8 @@ const char UsageDefaultName[] = "sra-pileup";
 
 rc_t CC UsageSummary ( const char * progname ) {
     return KOutMsg(
+                    "Summary: Extracts pileups from aligned SRA data file.\n"
+                    "\n"
                     "Usage:\n"
                     "  %s <path> [options]\n"
                     "\n", progname );

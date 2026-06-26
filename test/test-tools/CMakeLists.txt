@@ -25,3 +25,7 @@
 IF( TARGET qa-stats )
     add_subdirectory( qa-stats )
 ENDIF()
+IF( TARGET pileup-stats )
+    add_subdirectory( pileup-stats )
+ENDIF()
+

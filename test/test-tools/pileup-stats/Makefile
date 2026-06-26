@@ -22,8 +22,12 @@
 #
 # ===========================================================================
 
-TOP ?= $(abspath ../../../..)
-MODULE = tools/test-tools/pileup-stats/test
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/pileup-stats
+
+BUILD_TOOLS_TEST_TOOLS=ON
 include $(TOP)/build/Makefile.env
 
 

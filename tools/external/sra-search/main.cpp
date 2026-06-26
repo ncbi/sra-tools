@@ -390,6 +390,6 @@ run( int argc, char *argv [] )
 MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv);
-    app.setRc( run ( argc, app.getArgV()) );
+    app.setRc( run ( app.getArcC(), app.getArgV()) );
     return app.getExitCode();
 }

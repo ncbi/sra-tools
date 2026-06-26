@@ -24,8 +24,8 @@
 
 default: runtests
 
-TOP ?= $(abspath ../../../..)
-MODULE = tools/external/sra-search/test
+TOP ?= $(abspath ../../..)
+MODULE = test/external/sra-search
 include $(TOP)/build/Makefile.env
 
 

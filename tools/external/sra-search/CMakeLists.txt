@@ -32,6 +32,3 @@ if( TARGET sra-search-tsan )
 endif()
 MakeLinksExe ( sra-search false )
 
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( test )
-endif()

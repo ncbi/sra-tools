@@ -22,13 +22,12 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
-include_directories ("..")
+set( SOURCEDIR ${CMAKE_SOURCE_DIR}/tools/external/sra-search)
+include_directories ("${SOURCEDIR}")
 
 # test-sra-search
 if (WIN32)
@@ -44,13 +43,14 @@ link_libraries (
     ${COMMON_LINK_LIBRARIES}
 )
 
+
 AddExecutableTest ( Test_SraSearch
-    "test-sra-search.cpp;../vdb-search.cpp;../searchblock.cpp;../blobmatchiterator.cpp;../fragmentmatchiterator.cpp;../referencematchiterator.cpp"
+    "test-sra-search.cpp;${SOURCEDIR}/vdb-search.cpp;${SOURCEDIR}/searchblock.cpp;${SOURCEDIR}/blobmatchiterator.cpp;${SOURCEDIR}/fragmentmatchiterator.cpp;${SOURCEDIR}/referencematchiterator.cpp"
     "ksrch" "" "--no-asan"
 )
 
 AddExecutableTest ( SlowTest_SraSearch
-    "test-sra-search-slow.cpp;../vdb-search.cpp;../searchblock.cpp;../blobmatchiterator.cpp;../fragmentmatchiterator.cpp;../referencematchiterator.cpp"
+    "test-sra-search-slow.cpp;${SOURCEDIR}/vdb-search.cpp;${SOURCEDIR}/searchblock.cpp;${SOURCEDIR}/blobmatchiterator.cpp;${SOURCEDIR}/fragmentmatchiterator.cpp;${SOURCEDIR}/referencematchiterator.cpp"
     "ksrch" ""
 )
 set_tests_properties(SlowTest_SraSearch PROPERTIES TIMEOUT 9000)
@@ -60,7 +60,7 @@ if( RUN_SANITIZER_TESTS )
 endif()
 
 AddExecutableTest ( Test_SraSearch_SearchBlock
-    "test-searchblock.cpp;../searchblock.cpp"
+    "test-searchblock.cpp;${SOURCEDIR}/searchblock.cpp"
     "${COMMON_LIBS_READ};ksrch;ncbi-vdb" ""
 )
 
@@ -79,6 +79,9 @@ if ( NOT WIN32)
 	# version
     add_test ( NAME Test_SraSearch-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} -V" ${VERSION} )
     add_test ( NAME SraSearch-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} --version" ${VERSION} )
+
+	# other standard options
+    add_test ( NAME Test_SraSearch-1.3-Standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ${SRA_SEARCH} -+VDB )
 
 	# bad arguments
 	add_test ( NAME Test_SraSearch-2.0-no-args WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh

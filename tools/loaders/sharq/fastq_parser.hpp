@@ -707,7 +707,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
             {
                 ForkedChild fc = Spawn( "aws", { /*"--quiet",*/ "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, fc . std_out, "S3_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, filename.c_str(), true, false ) == 0 )
                 {
 
                     shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
@@ -738,7 +738,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 args.push_back( "-" );
                 ForkedChild fc = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, fc . std_out, "GC_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, filename.c_str(), true, false ) == 0 )
                 {
                     shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
                     forked.insert( make_pair( stream, fc ) );

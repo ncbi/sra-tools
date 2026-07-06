@@ -143,13 +143,14 @@ const char UsageDefaultName[] = "srapath";
 
 rc_t CC UsageSummary( const char * progname )
 {
-    return OUTMSG(("\n"
-        "Usage:\n"
-        "  %s [options] <accession> ...\n\n"
+    return OUTMSG((
         "Summary:\n"
         "  Tool to produce a list of full paths to files\n"
         "  (SRA and WGS runs, refseqs: reference sequences)\n"
         "  from list of NCBI accessions.\n"
+        "\n"
+        "Usage:\n"
+        "  %s [options] <accession> ...\n\n"
         "\n", progname));
 }
 
@@ -203,6 +204,7 @@ rc_t CC Usage( const Args *args )
 
     OUTMSG(( "\n" ));
     HelpOptionsStandard();
+    OUTMSG(( "\n" ));
     HelpVersion( fullpath, KAppVersion() );
 
     return rc;

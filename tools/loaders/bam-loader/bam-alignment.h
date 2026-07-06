@@ -140,6 +140,7 @@ struct BAM_Alignment {
 	uint64_t keyId;
 	bool wasInserted;
 
+    float fpos; /**< Informational only. This is the proportional file position at the start of the IO operation that produced this record. < 0 if unknown, else [0 - 1]. */
     unsigned datasize;
     unsigned cigar;
     unsigned seq;

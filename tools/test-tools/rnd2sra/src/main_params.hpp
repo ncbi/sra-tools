@@ -276,6 +276,7 @@ class MainParams {
             os << "\t\tF ... Aligned2Reads      N ... Unaligned2Reads\n";
             os << "\t\t1 ... AlignedUnaligned   2 ... UnalignedAligned\n";
             os << "\t\tA ... Aligned1Read       U ... Unaligned1Read\n";
+            os << "\n";
             print_version( os );
         }
 

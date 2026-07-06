@@ -1700,6 +1700,7 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
     memset(self, 0, sizeof(*self));
     self->data = data;
     self->datasize = datasize;
+    self->fpos = -1.0; /**< default to unknown */
     {
         unsigned const xtra = BAM_AlignmentSetOffsets(self);
 
@@ -2056,18 +2057,23 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment **const rslt)
 static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
 {
     rc_t rc;
+    float const fpos = BAM_FileGetProportionalPosition(self);
 
     if (self->bufCurrent >= self->bufSize && self->eof)
         return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
+        if (*rhs)
+            (**rhs).fpos = fpos;
         if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
             self->eof = true;
         return rc;
     }
 
     rc = BAM_FileReadNoCopy(self);
+    if (*rhs)
+        (**rhs).fpos = fpos;
     if (rc == 0) {
         *rhs = self->nocopy;
         if (BAM_AlignmentIsEmpty(self->nocopy)) {
@@ -2082,6 +2088,8 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
     else if ((int)GetRCObject(rc) == rcBuffer && GetRCState(rc) == rcNotAvailable)
     {
         rc = BAM_FileReadCopy(self, rhs, true);
+        if (*rhs)
+            (**rhs).fpos = fpos;
     }
     else if ((int)GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
         BAM_AlignmentLogParseError(self->nocopy);
@@ -3610,4 +3618,8 @@ rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
 {
     *BC = get_BC(self);
     return 0;
+}
+
+float BAM_AlignmentGetProportionalPosition(BAM_Alignment const *self) {
+    return self ? self->fpos : -1.0;
 }

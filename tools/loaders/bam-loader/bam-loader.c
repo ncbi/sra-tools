@@ -579,11 +579,11 @@ const char* OptHelpParam[] =
 rc_t UsageSummary (char const * progname)
 {
     return KOutMsg (
-        "Usage:\n"
-        "\t%s [options] <bam-file>\n"
-        "\n"
         "Summary:\n"
         "\tLoad a BAM formatted data file\n"
+        "\n"
+        "Usage:\n"
+        "\t%s [options] <bam-file>\n"
         "\n"
         "Example:\n"
         "\t%s -o /tmp/SRZ123456 -k analysis.bam.cfg 123456.bam\n"
@@ -597,7 +597,7 @@ static const unsigned DEFAULT_MIN_SPOT_ASSEMPLY_BATCH_SIZE = 10e6;
 
 rc_t CC Usage (const Args * args)
 {
-    rc_t rc;
+    rc_t rc = 0;
     size_t i;
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
@@ -626,6 +626,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
     OUTMSG(("\n"));
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }

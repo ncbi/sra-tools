@@ -56,7 +56,6 @@ const char * GetRCFilename( void );
 const char * GetRCFunction( void );
 uint32_t GetRCLineno( void );
 rc_t SetRCFileFuncLine( rc_t rc, const char *filename, const char *funcname, uint32_t lineno );
-bool GetUnreadRCInfo( rc_t *rc, const char **filename, const char **funcname, uint32_t *lineno );
 
 rc_t string_printf( char *dst, size_t bsize, size_t *num_writ, const char *fmt, ... );
 
@@ -130,17 +129,6 @@ void MD5StateFinish( MD5State *md5, uint8_t digest [ 16 ] );
 const uint8_t RD_FILTER_PASS = 0;
 const uint8_t RD_TYPE_TECHNICAL = 0;
 const uint8_t RD_TYPE_BIOLOGICAL = 1;
-
-class VDB {
-    public :
-        static void UnreadRC( void ) {
-            rc_t rc;
-            const char * filename;
-            const char * funcname;
-            uint32_t lineno;
-            while( GetUnreadRCInfo( &rc, &filename, &funcname, &lineno ) ) { ; }
-        }
-};
 
 class VDBObj {
     private :

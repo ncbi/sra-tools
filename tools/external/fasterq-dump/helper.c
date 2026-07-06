@@ -97,7 +97,7 @@ static format_t format_cmp( const String * Format, const char * test, format_t t
 
 format_t hlp_get_format_t( const char * format,
             bool split_spot, bool split_file, bool split_3, bool whole_spot,
-            bool fasta, bool fasta_us, bool fasta_ref_tbl, bool fasta_concat, 
+            bool fasta, bool fasta_us, bool fasta_ref_tbl, bool fasta_concat,
             bool ref_report ) {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] ) {
@@ -138,7 +138,7 @@ format_t hlp_get_format_t( const char * format,
         if ( ft_unknown == res ) {
             res = format_cmp( &Format, "fasta-concat_all", ft_fasta_concat );
         }
-        
+
     } else {
         /* the format option has not been used, let us see if some of the legacy-options
             have been used */
@@ -212,7 +212,7 @@ const char * hlp_fmt_2_string( format_t fmt ) {
         case ft_fasta_concat        : res = FMT_FASTA_CONCAT; break;
         case ft_fasta_split_file    : res = FMT_FASTA_SPLIT_FILE; break;
         case ft_fasta_split_3       : res = FMT_FASTA_SPLIT_3; break;
-        case ft_ref_report          : res = FMT_REF_REPORT; break;        
+        case ft_ref_report          : res = FMT_REF_REPORT; break;
     }
     return res;
 }
@@ -641,7 +641,7 @@ bool hlp_filter_2na_1( filter_2na_t * self, const String * bases ) {
 bool hlp_filter_2na_2( filter_2na_t * self, const String * bases1, const String * bases2 ) {
     bool res = true;
     if ( NULL != self && NULL != bases1 && NULL != bases2 ) {
-        res = ( hlp_match_Buf2NA( self -> filter_buf2na, bases1 ) || 
+        res = ( hlp_match_Buf2NA( self -> filter_buf2na, bases1 ) ||
         hlp_match_Buf2NA( self -> filter_buf2na, bases2 ) );
     }
     return res;
@@ -656,7 +656,7 @@ rc_t hlp_make_thread( KThread ** self,
     rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
     return rc;
 }
-                      
+
 rc_t hlp_join_and_release_threads( Vector * threads ) {
     rc_t rc = 0;
     uint32_t i, n = VectorLength( threads );
@@ -684,20 +684,6 @@ uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_cou
         res = ( row_count / ( *num_threads ) ) + 1;
     }
     return res;
-}
-
-/* -------------------------------------------------------------------------------- */
-
-void hlp_unread_rc_info( bool show ) {
-    rc_t rc;
-    const char *filename;
-    const char * funcname;
-    uint32_t lineno;
-    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &lineno ) ) {
-        if ( show ) {
-            KOutMsg( "unread: %R %s %s %u\n", rc, filename, funcname, lineno );
-        }
-    }
 }
 
 /* -------------------------------------------------------------------------------- */

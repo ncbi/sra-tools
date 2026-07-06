@@ -1974,7 +1974,7 @@ extern "C"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"
-        "\n", progname));
+        , progname));
         return 0;
     }
 
@@ -1991,7 +1991,7 @@ extern "C"
 
         UsageSummary (progname);
 
-        OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n"));
+        OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n"));
 
         OUTMSG (("\nOptions:\n"));
 
@@ -2011,6 +2011,8 @@ extern "C"
         XMLLogger_Usage();
 
         HelpOptionsStandard ();
+
+        OUTMSG (("\n"));
 
         HelpVersion (fullpath, KAppVersion());
 

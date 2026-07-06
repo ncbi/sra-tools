@@ -540,6 +540,8 @@ extern "C"
 
         HelpOptionsStandard ();
 
+        printf ("\n");
+
         HelpVersion (fullpath, KAppVersion());
 
         return rc;

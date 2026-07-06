@@ -44,7 +44,7 @@ const char UsageDefaultName[] = "pacbio-correct";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    OUTMSG ( ("\n"
+    OUTMSG ( (
         "Usage:\n"
         "  %s writable_object(s)\n"
         "\n", progname) );
@@ -56,7 +56,7 @@ rc_t CC Usage ( const Args * args )
 {
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
-    rc_t rc;
+    rc_t rc = 0;
 
     if ( args == NULL )
         rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
@@ -70,7 +70,9 @@ rc_t CC Usage ( const Args * args )
     KOutMsg ( "Options:\n" );
 
     HelpOptionsStandard ();
+    KOutMsg ( "\n" );
     HelpVersion ( fullpath, KAppVersion() );
+
     return rc;
 }
 
@@ -189,6 +191,7 @@ MAIN_DECL( argc, argv )
             {
                 rc = RC( rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid );
                 LOGERR( klogErr, rc, "object(s) missing" );
+                KOutMsg ( "\n" );
                 Usage ( args );
             }
             else

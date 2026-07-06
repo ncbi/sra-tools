@@ -269,10 +269,11 @@ ParamDef Parameters[] =
 
 rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
-        "Usage:\n"
-        "  %s [options] [<query> ...]\n\n"
         "Summary:\n"
         "  Manage VDB configuration\n"
+        "\n"
+        "Usage:\n"
+        "  %s [options] [<query> ...]\n\n"
         , progname, progname);
 }
 
@@ -339,6 +340,8 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

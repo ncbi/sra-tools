@@ -715,7 +715,7 @@ void CC SRADumper_PrintArg( const SRADumperFmt_Arg* arg )
 
 static void CoreUsage( const char* prog, const SRADumperFmt* fmt, bool brief, int exit_status )
 {
-    OUTMSG(( "\n"
+    OUTMSG((
              "Usage:\n"
              "  %s [options] <path> [<path>...]\n"
              "  %s [options] <accession>\n"

@@ -167,7 +167,7 @@ void print_help ( void )
     if ( short_name ++ == NULL )
         short_name = app_name;
 
-    KOutMsg ( "\n"
+    KOutMsg (
               "Usage:\n"
               "  %s [ options ] obj-spec [ obj-spec.. ]\n"
               "\n"
@@ -180,7 +180,6 @@ void print_help ( void )
               "  -h|--help                        print this message\n"
               "\n"
               "%s : %V\n"
-              "\n"
               , short_name
               , app_name
               , KAppVersion ()

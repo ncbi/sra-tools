@@ -373,11 +373,11 @@ struct App {
                 int const min = (TOOLKIT_VERS >> 16) & 0xFF;
                 int const maj = (TOOLKIT_VERS >> 24) & 0xFF;
                 
-                std::cout << '\n' << arguments.program << " : 1.0.0 ( " << maj << '.' << min << '.' << rev
+                std::cout << arguments.program << " : 1.0.0 ( " << maj << '.' << min << '.' << rev
 #if _DEBUG || DEBUGGING
                     << "-dev"
 #endif
-                 << " )\n" << std::endl;
+                 << " )" << std::endl;
                 exit(0);
             }
             std::cerr << "error: Unrecognized parameter " << param << std::endl;

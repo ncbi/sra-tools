@@ -3489,6 +3489,9 @@ static rc_t ItemProcess(Item *item, int32_t row) {
 const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
+        "\n"
+        "Summary: Retrieve data and pre-requisites from NCBI or other cloud instances of the SRA data.\n"
+        "\n"
         "Usage:\n"
         "  %s [options] <SRA accession> [...]\n"
         "  Download SRA files and their dependencies\n"
@@ -3508,7 +3511,6 @@ rc_t CC UsageSummary(const char *progname) {
         "  %s [options] <SRA file> [...]\n"
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
-        "\n"
         , progname, progname, progname, progname, progname, progname));
 }
 

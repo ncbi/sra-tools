@@ -93,13 +93,13 @@ const char UsageDefaultName[] = "kar";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("Usage:\n"
+    return KOutMsg ("Summary:\n"
+                    "  Create, extract from, or test an archive.\n"
+                    "\n"
+                    "Usage:\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory> [Filter ...]\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory>\n"
                     "  %s [OPTIONS] -%s|--%s|--%s <Archive>\n"
-                    "\n"
-                    "Summary:\n"
-                    "  Create, extract from, or test an archive.\n"
                     "\n",
                     progname, ALIAS_CREATE, OPTION_CREATE, ALIAS_DIRECTORY, OPTION_DIRECTORY,
                     progname, ALIAS_EXTRACT, OPTION_EXTRACT, ALIAS_DIRECTORY, OPTION_DIRECTORY,
@@ -111,7 +111,7 @@ rc_t CC Usage (const Args * args)
     static const char archive[] = "archive";
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
-    rc_t rc;
+    rc_t rc = 0;
 
     if (args == NULL)
         rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
@@ -123,8 +123,8 @@ rc_t CC Usage (const Args * args)
     UsageSummary (progname);
 
     OUTMSG (("Archive Command:\n"
-	     "  All of these options require the next token on the command line to be\n"
-	     "  the name of the archive\n\n"));
+         "  All of these options require the next token on the command line to be\n"
+         "  the name of the archive\n\n"));
 
     KOutMsg ("Options:\n");
 
@@ -137,14 +137,14 @@ rc_t CC Usage (const Args * args)
              "  This can be a full or relative path.\n"
              "\n"
              "Directory:\n"
-	     "  Required for create or extract command, ignored for test command.\n"
+             "  Required for create or extract command, ignored for test command.\n"
              "  This can be a full or relative path.\n"
              "\n"
              "Filters:\n"
-	     "  When present these act as include filters.\n"
-	     "  Any file name will be included in the extracted files, created archive\n"
-	     "  or test operation listing\n"
-	     "  Any directory will be included as well as its contents\n"
+             "  When present these act as include filters.\n"
+             "  Any file name will be included in the extracted files, created archive\n"
+             "  or test operation listing\n"
+             "  Any directory will be included as well as its contents\n"
              "\n"
              "Options:\n"));
     HelpOptionLine (ALIAS_DIRECTORY, OPTION_DIRECTORY, "Directory", directory_usage);
@@ -187,7 +187,7 @@ rc_t CC Usage (const Args * args)
              "  a subdirectory 'example' of the current directory.\n"
              "  NOTE: all extracted files will be read only.\n"
              "\n"
-             "  $ %s --%s example.sra --%s example\n",
+             "  $ %s --%s example.sra --%s example\n\n",
              progname, OPTION_EXTRACT, OPTION_DIRECTORY));
 
 

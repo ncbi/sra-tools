@@ -118,6 +118,7 @@ const char UsageDefaultName[] = "vdb-copy";
 
 rc_t CC UsageSummary ( const char * progname ) {
     return KOutMsg (
+        "Summary: Copies and row ranges from an SRA data file into SRA archive.\n"
         "\n"
         "Usage:\n"
         "  %s <src_path> <dst_path> [options]\n"
@@ -166,6 +167,8 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( ALIAS_BLOB_CHECKSUM, OPTION_BLOB_CHECKSUM, NULL, blcmode_usage );
 
     HelpOptionsStandard();
+
+    KOutMsg ( "\n" );
 
     HelpVersion( fullpath, KAppVersion() );
 

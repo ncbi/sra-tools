@@ -4773,11 +4773,11 @@ OptDef Options[] = { /*                            maxCount needValue required*/
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
-        "Usage:\n"
-        "  %s [options] table\n"
-        "\n"
         "Summary:\n"
         "  Display table statistics\n"
+        "\n"
+        "Usage:\n"
+        "  %s [options] table\n"
         "\n", progname);
 }
 

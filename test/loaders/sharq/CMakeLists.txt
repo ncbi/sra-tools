@@ -243,6 +243,15 @@ if( SINGLE_CONFIG )
             endif()
         endmacro()
 
+        macro(SharqTest_Error TestName Result SearchFor TestParams)
+            add_test(
+                NAME Test_${TestName}
+                COMMAND
+                    "./runtestcase-error.sh" "${BINDIR}" "sharq" "." "${CaseId}" "${Result}" "${SearchFor}" "--debug" "--no-timestamp" "${TestParams}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+        endmacro()
+
         #set(IN "${CMAKE_CURRENT_SOURCE_DIR}/input/")
         set(IN "input/")
         SharqTest(001.read.supported 0 "${IN}001.R1.fastq")
@@ -324,10 +333,22 @@ if( SINGLE_CONFIG )
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
         # inputs from cloud
-        SharqTestNoSA(018.cloud.badbucket.aws 0 "s3://notabucket/notafile")
-        set_property(TEST Test_018.cloud.badbucket.aws PROPERTY WILL_FAIL TRUE) # stderr may be different based on AWS setup
-        SharqTestNoSA(018.cloud.badbucket.gcs 0 "gs://notabucket/notafile")
-        set_property(TEST Test_018.cloud.badbucket.gcs PROPERTY WILL_FAIL TRUE) # stderr may be different based on GCS setup
+
+        execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
+        if ( AWS_MISSING ) 
+            set( AWS_ERROR "Cloud CLI (aws) is not found")
+        else()
+            set( AWS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.aws 1 ${AWS_ERROR} "s3://notabucket/notafile")
+
+        execute_process( COMMAND gsutil --version RESULT_VARIABLE GSUTIL_MISSING )
+        if ( GSUTIL_MISSING ) 
+            set( GS_ERROR "Cloud CLI (gsutil) is not found")
+        else()
+            set( GS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.gcs 1 ${GS_ERROR} "gs://notabucket/notafile")
 
         # more tests in asm-trace
 

@@ -78,10 +78,10 @@ if ( NOT WIN32)
 			   	${SRA_SEARCH} 1.1-help --args "--help" )
 	# version
     add_test ( NAME Test_SraSearch-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} -V" ${VERSION} )
-    add_test ( NAME SraSearch-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} --version" ${VERSION} )
+    add_test ( NAME Test_SraSearch-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} --version" ${VERSION} )
 
 	# other standard options
-    add_test ( NAME Test_SraSearch-1.3-Standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ${SRA_SEARCH} -+VDB )
+    add_test ( NAME Test_SraSearch-1.3-Standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} -+VDB A SRR000123" "resolved expression" )
 
 	# bad arguments
 	add_test ( NAME Test_SraSearch-2.0-no-args WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh

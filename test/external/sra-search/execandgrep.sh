@@ -37,4 +37,4 @@ if ! test -f $EXE; then
     exit 0
 fi
 
-$1 | grep $2
+$1 2>&1 | grep -q "$2"

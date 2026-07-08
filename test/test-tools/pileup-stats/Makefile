@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -22,8 +22,10 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+default: runtests
 
-add_subdirectory( pileup-stats )
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/pileup-stats
+
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

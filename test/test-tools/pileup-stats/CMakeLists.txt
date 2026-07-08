@@ -22,8 +22,18 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+if( NOT WIN32 )
 
-add_subdirectory( pileup-stats )
+    ToolsRequired( pileup-stats )
+
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+
+    add_test( NAME SlowTest_pileup-stats-optional-column-ref-offset-type
+            COMMAND bash -c "pileup-stats --align-category primary ERR085308 >/dev/null"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_test( NAME Test_pileup-args
+            COMMAND test-ignore-args.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+endif()

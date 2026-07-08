@@ -696,8 +696,9 @@ extern "C"
                         << '\n'
                         ;
                 }
+                rc = 1;
             }
-            catch ( const char x [] )
+            catch ( const char* x )
             {
                 if ( ! ncbi :: use_gw_logmessage )
                 {
@@ -709,6 +710,7 @@ extern "C"
                         << '\n'
                         ;
                 }
+                rc = 2;
             }
             catch ( ... )
             {
@@ -720,6 +722,7 @@ extern "C"
                         << ": unknown\n"
                         ;
                 }
+                rc = 3;
             }
         }
         app.setRc( rc );

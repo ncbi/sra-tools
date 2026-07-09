@@ -2,6 +2,7 @@
 
 #include "csra_prim_cols.hpp"
 #include "csra_prim_ref.hpp"
+#include "rnd_cmn.hpp"
 #include "../util/random_toolbox.hpp"
 
 using namespace std;
@@ -62,7 +63,8 @@ class cSRARead {
             return cSRAReadPtr( new cSRARead( read_id, len, state, rnd ) );
         }
 
-        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder, int64_t * prim_row_id ) {
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder,
+                              int64_t * prim_row_id, base_counters &counters ) {
             bool res = true;
             int64_t min_ref_row_id = 1;
             int64_t max_ref_row_id = recorder -> ref_row_count();
@@ -72,6 +74,9 @@ class cSRARead {
                 if ( res ) {
                     recorder -> add( *prim_row_id, ref_id );
                     ( *prim_row_id )++;
+                    counters . bio += f_bases . size();
+                    counters . total += f_bases . size();
+
                 }
             }
             return res;

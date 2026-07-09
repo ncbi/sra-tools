@@ -1,0 +1,99 @@
+===================================================
+            Architecture of rnd2sra
+===================================================
+
+    * creates artificial SRA-accessions with random but reproducible data
+    * orchestrates testing cases
+    * can call itself recursivly for testing/SRA-creation
+
+rnd2sra.cpp:
+    main
+        |---> help / version / supported platforms
+        |---> run_tool()
+                * read INI-file
+                * create Tool_Main instance ( rnd2sra_main.hpp )
+                * tool -> run()
+
+rnd2sra_main.hpp:
+    * constructor extracts "product" value from INI
+    * run() switches on product
+        |---> produce_acc()
+                * handles output-path
+                * instantiates source of randomnes
+                * creates KDir and VDB_Manager
+                * switches on product ( .is_flat .is_db .iscSRA )
+
+flat:
+    RndNonecSraFlat::produce() ( static member in rnd_none_csra.hpp )
+        - RndNonecSraFlat is derived from RndNonecSra
+        * create instance of RndNonecSraFlat named writer
+        * call writer -> run()
+            |---> create table
+            |---> call populate_table() inherited from RndNonecSra
+                * create writable cursor
+                * call initialize_columns() ... adds all columns needed
+                * set dflt-value for platform-column
+                * call write_row() in a loop for the requested row-count
+                    * open row
+                    * write name
+                    * select spot-layout and randomize ( spot-layout is a smart-ptr )
+                    * select row-len, make num_bases and num_qualities ( eventual error-offset )
+                    * write READ
+                    * write QUALITY
+                    * write SPOT_GROUP
+                    * write READ_LEN, READ_START, READ_FILTER and READ_TYPE
+                    * commit row
+                    * close row
+                    * update stat counters
+                * commit cursor
+                * call write_stats()
+                * call write_fingerprint()
+
+db:
+    RndNonecSraDb::produce()  ( static member in rnd_none_csra.hpp )
+        - RndNonecSraDb is derived from RndNonecSra
+        * create instance of RndNonecSraDb named writer
+        * call writer -> run()
+            |---> create db
+            |---> create table
+            |---> call populate_table() inherited from RndNonecSra
+                * same as in flat
+
+cSRA:
+    RndcSRA::produce()  ( static member in rnd_csra.hpp )
+        * create instance of RndcSRA named rnd_csra
+        * call rnd_csra . run()
+            |---> create spots ( smart-ptr, contains all spots in advance, csra_spot_list.hpp )
+            |---> create db
+            |---> write sequence-table
+                    |---> create table
+                    |---> create writable cursor
+                    |---> create SeqCols instance ( static member, creates smart-ptr, csra_seq_cols.hpp )
+                    |---> set default value for platform-column
+                    |---> call spots -> write_seq_cols() ( csra_spot_list.hpp )
+                        |---> for each spot in spots :
+                            |---> spot -> populate_seq_rec( rec )
+                            |---> seq_cols -> write( rec )
+                    |---> commit cursor
+                    |---> write stats
+            |---> create instance of Prim_Ref_Recorder as smart-ptr named recorder
+            |---> write primary alignment table
+                    |---> create table
+                    |---> create writable cursor
+                    |---> create PrimCols instance ( static member, creates smart-ptr, csra_prim_cols.hpp )
+                    |---> call spots -> write_prim_cols() ( csra_spot_list.hpp )
+                    |---> commit cursor
+            |---> opt. erase a recorded alignment from recorder
+            |---> write reference table
+                    |---> create table
+                    |---> create writable cursor
+                    |---> create RefCols instance ( static member, creates smart-ptr, csra_prim_cols.hpp )
+                    |---> loop over ref_table_row_count :
+                        |---> open row
+                        |---> write 5000 bases
+                        |---> query the primary-alignment-ids from the recorder
+                        |---> write the primary-alignment-ids
+                        |---> commit the row
+                        |---> close the row
+                    |---> commit the cursor
+

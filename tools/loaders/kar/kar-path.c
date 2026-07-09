@@ -196,7 +196,7 @@ kar_open_file_read (
                     if ( RCt == 0 )
                         RCt = VPathGetPayRequired ( Path, & payRequired );
                     if ( RCt == 0 )
-                        RCt = KNSManagerMakeReliableHttpFile (
+                        RCt = KNSManagerMakeReliableHttpFileVPath (
                                                         Manager,
                                                         & RetFile,
                                                         NULL,
@@ -204,6 +204,7 @@ kar_open_file_read (
                                                         reliable,
                                                         need_env_token,
                                                         payRequired,
+                                                        Path,
                                                         "%s",
                                                         PathToOpen
                                                         );

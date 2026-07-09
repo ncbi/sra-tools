@@ -22,12 +22,14 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+if( NOT WIN32 )
 
-add_subdirectory( pileup-stats )
+    make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
-IF( TARGET rnd2sra )
-    add_subdirectory( rnd2sra )
-ENDIF()
+    ToolsRequired( rnd2sra fasterq-dump vdb-dump )
+
+    add_test( NAME test-vdb-6378
+            COMMAND test-vdb-6378.sh "${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+endif()

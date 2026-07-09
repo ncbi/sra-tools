@@ -16,6 +16,7 @@ struct base_counters {
     uint64_t total;
     uint64_t bio;
     base_counters( void ) : total( 0 ), bio( 0 ) {}
+    void clear( void ) { total = 0; bio = 0; }
 };
 
 class Rndcmn {

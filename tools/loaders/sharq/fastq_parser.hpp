@@ -583,30 +583,74 @@ int SpawnAndWait( const std::string& program, const std::vector<std::string>& ar
     return ret;
 }
 
-// returns fd of readable pipe representing child's stdout
-int Spawn( const std::string& program, const std::vector<std::string>& args )
+struct ForkedChild
 {
-    int pipefd[2];
-    if (pipe(pipefd) == -1)
+    pid_t pid = 0; // child's pid
+    int std_out = 0; // our end of child's stdout
+    string cmdline;
+};
+
+class ChildrenOfTheFork : public map< shared_ptr<istream>, ForkedChild >
+{
+public:
+    void join( shared_ptr<istream> key )
+    {
+        iterator i = this->find( key );
+        if ( i != end() )
+        {
+            const ForkedChild& fc = i->second;
+
+            int status = -1;
+            waitpid( fc . pid, & status, 0 /*WNOHANG*/ );
+            if ( WIFEXITED( status ) )
+            {
+                int s = WEXITSTATUS(status);
+                if ( s != 0 )
+                {
+                    cerr << "Child process '" << fc . cmdline << "' returned " << s << " " << endl;
+                }
+            }
+            else if (WIFSIGNALED(status))
+            {
+                cerr << "waitpid('" << fc . cmdline << "' signaled " << WTERMSIG(status) << " " << endl;
+            }
+            else
+            {
+                cerr << "waitpid('" << fc . cmdline << "' returned " << status << " " << endl;
+            }
+
+            close( fc . std_out );
+
+            this->erase( key );
+        }
+    }
+};
+
+static ChildrenOfTheFork forked;
+
+ForkedChild Spawn( const std::string& program, const std::vector<std::string>& args )
+{
+    int pipefd_out[2];
+    if (pipe(pipefd_out) == -1)
     {
         throw std::runtime_error( program + ": pipe() failed: " + strerror(errno));
     }
 
     pid_t child_pid = fork();
     if (child_pid < 0) {
-        close(pipefd[0]);
-        close(pipefd[1]);
+        close(pipefd_out[0]);
+        close(pipefd_out[1]);
         throw std::runtime_error( program + ": fork() failed: " + strerror(errno));
     }
     else if (child_pid == 0) {
         // --- CHILD PROCESS ---
-        close(pipefd[0]); // Close read end in child
+        close(pipefd_out[0]); // Close read end in child
         // Redirect stdout to pipe
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+        if (dup2(pipefd_out[1], STDOUT_FILENO) == -1) {
             std::cerr << "dup2() failed: " << strerror(errno) << "\n";
             _exit(EXIT_FAILURE);
         }
-        close(pipefd[1]); // Not needed after dup2
+        close(pipefd_out[1]); // Not needed after dup2
 
         // Prepare arguments for execvp
         std::vector<char*> argv;
@@ -622,12 +666,19 @@ int Spawn( const std::string& program, const std::vector<std::string>& args )
             std::cerr << "execvp() failed: " << strerror(errno) << "\n";
             _exit(EXIT_FAILURE);
         }
-        return 0; // will not get here
+        return ForkedChild(); // will not get here
     }
     else {
         // --- PARENT PROCESS ---
-        close(pipefd[1]); // Close write end in parent
-        return pipefd[0];
+        close(pipefd_out[1]); // Close write end in parent
+
+        string cmdline = program;
+        for (const auto& arg : args)
+        {
+            cmdline += " ";
+            cmdline += arg;
+        }
+        return ForkedChild{ child_pid, pipefd_out[0], cmdline};
     }
 }
 
@@ -654,11 +705,14 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
         {   // AWS: check if CLI is available. NOTE: Posix only
             if ( SpawnAndWait( "which", {"aws"} ) == 0 )
             {
-                int child = Spawn( "aws", { "--quiet", "s3", "cp", filename, "-" } );
+                ForkedChild fc = Spawn( "aws", { /*"--quiet",*/ "s3", "cp", filename, "-" } );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, child, "S3_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, filename.c_str(), true, false ) == 0 )
                 {
-                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+
+                    shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    forked.insert( make_pair( stream, fc ) );
+                    return stream;
                 }
                 else
                 {
@@ -666,7 +720,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 }
             }
 
-            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+            throw runtime_error("Cloud CLI (aws) is not found");
         }
         else if ( isGCS_URL( filename ) )
         {   // GCS: check if CLI is available. NOTE: Posix only
@@ -675,18 +729,20 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 std::vector<std::string> args;
                 const char* cred = std::getenv("GCS_CREDENTIALS");
                 if ( cred != nullptr )
-                { 
+                {
                     args.push_back( "-o" );
                     args.push_back( string( "GSUtil:service_account_key=" ) + cred );
                 }
                 args.push_back( "cp" );
                 args.push_back( filename );
                 args.push_back( "-" );
-                int child = Spawn( "gsutil", args );
+                ForkedChild fc = Spawn( "gsutil", args );
                 vdb::KStream * child_stream = nullptr;
-                if ( KStdIOStreamMake ( & child_stream, child, "GC_Stream", true, false ) == 0 )
+                if ( KStdIOStreamMake ( & child_stream, fc . std_out, filename.c_str(), true, false ) == 0 )
                 {
-                    return OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    shared_ptr<istream> stream = OpenObservedStream( filename, child_stream, custom_istream::custom_istream::make_from_kstream( child_stream, buffer_size ) );
+                    forked.insert( make_pair( stream, fc ) );
+                    return stream;
                 }
                 else
                 {
@@ -694,7 +750,7 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
                 }
             }
 
-            throw runtime_error("Failure to open cloud URL '" + filename + "'");
+            throw runtime_error("Cloud CLI (gsutil) is not found");
         }
         else
         {
@@ -1063,7 +1119,10 @@ template<typename ScoreValidator>
 bool fastq_reader::parse_read(CFastqRead& read)
 {
     if (m_stream->eof())
+    {
+        forked.join( m_stream );
         return false;
+    }
     read.Reset();
     if (!m_buffered_defline.empty()) {
         m_line.clear();

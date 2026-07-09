@@ -118,15 +118,16 @@ class RndcSRA : public Rndcmn {
                         if ( ! seq_cols -> set_dflt_platform( f_ini -> get_platform() ) ) {
                             cerr << "write_seq_tbl() - SeqCols::set_dflt_platform() failed!\n";
                         } else {
+                            base_counters counters;
                             // ---------------------------------------------------------
-                            if ( ! spots -> write_seq_cols( seq_cols, f_counters ) ) {
+                            if ( ! spots -> write_seq_cols( seq_cols, counters ) ) {
                             // ---------------------------------------------------------
                                 cerr << "write_seq_tbl() - write_seq_cols() failed!\n";
                             } else {
                                 if ( ! cur -> commit() ) {
                                     cerr << "write_seq_tbl() - cursor-commit() failed!\n";
                                 } else {
-                                    if ( ! write_stats( tbl, f_counters, spots -> row_count() ) ) {
+                                    if ( ! write_stats( tbl, counters, spots -> row_count() ) ) {
                                         cerr << "write_seq_tbl() - write-stats() failed!\n";
                                     } else {
                                         res = true;
@@ -141,14 +142,24 @@ class RndcSRA : public Rndcmn {
         }
 
         bool write_prim_tbl( VDbPtr db, cSRASpotListPtr spots, Prim_Ref_Recorder_ptr recorder ) {
+            bool res = false;
             auto tbl = db -> create_tbl( "PRIMARY_ALIGNMENT", "PRIMARY_ALIGNMENT", f_ini -> get_checksum() );
             if ( *tbl ) {
                 auto cur = tbl -> writable_cursor();
                 if ( *cur ) {
                     auto prim_cols = PrimCols::make( cur );
                     if ( *prim_cols ) {
-                        if ( spots -> write_prim_cols( prim_cols, recorder ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
-                            return cur -> commit();
+                        base_counters counters;
+                        if ( spots -> write_prim_cols( prim_cols, recorder, counters ) ) {  /* <--- write the spots ( csra_spot.hpp ) */
+                            if ( cur -> commit() ) {
+                                if ( write_stats( tbl, counters, 0 ) ) {
+                                    res = true;
+                                } else {
+                                    cerr << "write_prim_tbl() - write_stats() failed!\n";
+                                }
+                            } else {
+                                cerr << "write_prim_tbl() - cursor-commit() failed!\n";
+                            }
                         } else {
                             cerr << "write_prim_tbl() - write_prim_cols() failed!\n";
                         }
@@ -161,7 +172,7 @@ class RndcSRA : public Rndcmn {
             } else {
                 cerr << "write_prim_tbl() - create_tbl() failed!\n";
             }
-            return false;
+            return res;
         }
 
         bool write_ref_tbl( VDbPtr db, Prim_Ref_Recorder_ptr recorder, size_t ref_tbl_row_count ) {

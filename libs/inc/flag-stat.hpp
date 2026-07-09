@@ -190,7 +190,7 @@ public:
             "both_mapped",
             "singletons"
         };
-        auto constexpr N = sizeof(names) / sizeof(names[0]);
+        int constexpr N = sizeof(names) / sizeof(names[0]);
         return (i >= 0 && i < N) ? names[i] : nullptr;
     }
 
@@ -216,7 +216,7 @@ public:
             "with itself and mate mapped",
             "singletons"
         };
-        auto constexpr N = sizeof(descriptions) / sizeof(descriptions[0]);
+        int constexpr N = sizeof(descriptions) / sizeof(descriptions[0]);
         return (i >= 0 && i < N) ? descriptions[i] : nullptr;
     }
 
@@ -251,13 +251,13 @@ private:
     public:
         Line(char const *const fmt, uint64_t pass, uint64_t fail) {
             auto const n = std::snprintf(value, sizeof(value), fmt, (long long)pass, (long long)fail);
-            assert(n < sizeof(value));
+            assert(n < static_cast<int>(sizeof(value)));
         }
         Line(char const *const fmt, uint64_t pass, uint64_t passTotal, uint64_t fail, uint64_t failTotal) {
             PctString const passPct{pass, passTotal};
             PctString const failPct{fail, failTotal};
             auto const n = std::snprintf(value, sizeof(value), fmt, (long long)pass, (long long)fail, passPct.value, failPct.value);
-            assert(n < sizeof(value));
+            assert(n < static_cast<int>(sizeof(value)));
         }
         void appendTo(std::string &output) const {
             output.append(value);

@@ -40,7 +40,7 @@
 #include <klib/text.h> /* string_dup_measure */
 
 #include <kns/http.h> /* KNSManagerMakeHttpFile */
-#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFile */
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFileVPath */
 #include <kns/manager.h> /* KNSManagerRelease */
 
 #include <vdb/database.h> /* VDBManagerOpenDBRead */
@@ -102,14 +102,14 @@ rc_t _KFileOpenRemote(const struct KFile **self, KNSManager *kns,
 
     if (_StringIsFasp(path, NULL))
         return
-        SILENT_RC(rcExe, rcFile, rcConstructing, rcParam, rcWrongType);
+            SILENT_RC(rcExe, rcFile, rcConstructing, rcParam, rcWrongType);
 
     VPathGetCeRequired(vpath, &ceRequired);
     VPathGetPayRequired(vpath, &payRequired);
 
     if (reliable)
-        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true,
-            ceRequired, payRequired, "%S", path);
+        rc = KNSManagerMakeReliableHttpFileVPath(kns, self, NULL, 0x01010000, true,
+            ceRequired, payRequired, vpath, "%S", path);
     else
         rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
 

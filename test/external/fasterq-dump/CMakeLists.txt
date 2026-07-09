@@ -35,6 +35,7 @@ if ( NOT WIN32 )
 
     add_test( NAME Test_FasterqDump_Simple # test fetching via HTTPS
         COMMAND
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
             sh simple_test.sh ${DIRTOTEST}/fasterq-dump
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     if( TARGET fasterq-dump-asan )

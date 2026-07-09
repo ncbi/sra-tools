@@ -57,7 +57,7 @@
 #include <klib/time.h> /* KSleep */
 
 #include <kns/http.h>
-#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequestVPath */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
 
@@ -1307,16 +1307,16 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 logLevel = atoi(e);
             for (int i = 1; i < 9; ++i) {
                 if (ceRequired && ce_token != NULL)
-                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                        &kns_req, http_vers, NULL, "%S&ident=%S", &src,
+                    rc = KNSManagerMakeReliableClientRequestVPath(mane->kns,
+                        &kns_req, http_vers, NULL, path, "%S&ident=%S", &src,
                         ce_token);
                 else
-                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                        &kns_req, http_vers, NULL, "%S", &src);
+                    rc = KNSManagerMakeReliableClientRequestVPath(mane->kns,
+                        &kns_req, http_vers, NULL, path, "%S", &src);
                 if (rc == 0) {
                     if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
-                            "KNSManagerMakeReliableClientRequest success: "
+                            "KNSManagerMakeReliableClientRequestVPath success: "
                             "attempt $(n)", "n=%d", i));
                     break;
                 }
@@ -1325,13 +1325,13 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 {
                     if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
-                            "Cannot KNSManagerMakeReliableClientRequest: "
+                            "Cannot KNSManagerMakeReliableClientRequestVPath: "
                             "retrying $(n)...", "n=%d", i));
                 }
                 else {
                     if (logLevel > 0 && i > 0)
                         LOGERR(klogErr, rc,
-                            "Cannot KNSManagerMakeReliableClientRequest");
+                            "Cannot KNSManagerMakeReliableClientRequestVPath");
                     break;
                 }
                 if (i > 1)

@@ -226,15 +226,21 @@ class DumpReferenceFASTA
     }
 };
 
-static void print_help ( void )
+rc_t
+UsageSummary(const char* progname)
 {
     cout << "Usage: dump-ref-fasta accession [ reference[ slice ] ] ... " << endl;
+    return 0;
+}
+
+static rc_t print_help( const Args * args )
+{
+    UNUSED( args );
+
+    const char UsageDefaultName [] = "pileup-stats";
+    UsageSummary ( UsageDefaultName );
 
     cout
-        << '\n'
-        << "Usage:\n"
-        << "  " << UsageDefaultName << " [options] accession [ reference[ slice ] ] ... "
-        << "\n\n"
         << "Options:\n"
         << "  -l|--localref                    Skip non-local references. \n"
         << "  -h|--help                        Output brief explanation for the program. \n"
@@ -243,19 +249,17 @@ static void print_help ( void )
         << "\n"
         ;
 
-    HelpVersion ( UsageDefaultName, KAppVersion () );
-}
+        HelpOptionsStandard();
+        HelpVersion ( UsageDefaultName, KAppVersion () );
 
-static void print_version ( void )
-{
-    HelpVersion ( UsageDefaultName, KAppVersion () );
+        return 0;
 }
 
 int run ( int argc, char *argv[] )
 {
     if ( argc < 2 )
     {
-        print_help ();
+        print_help ( nullptr );
         return 1;
     }
     else try
@@ -272,17 +276,7 @@ int run ( int argc, char *argv[] )
         {
             const String arg = argv [ i ];
 
-            if ( arg == "-h" || arg == "--help" )
-            {
-                print_help ();
-                return 0;
-            }
-            else if ( arg == "-v" || arg == "-V" || arg == "--version" )
-            {
-                print_version ();
-                return 0;
-            }
-            else if ( arg == "-l" || arg == "--localref" )
+            if ( arg == "-l" || arg == "--localref" )
             {
                 local_only = true;
             }
@@ -333,32 +327,45 @@ int run ( int argc, char *argv[] )
 MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv);
+    if (!app)
+    {
+        return VDB_INIT_FAILED;
+    }
+
     SetSraToolsHash(HASH_SRA_TOOLS);
+    SetUsageSummary( UsageSummary );
+    SetUsage( print_help );
 
-    try
+    rc_t rc = app.HandleStandardOptions();
+
+    if ( rc == 0 )
     {
-        return run ( argc, app.getArgV() );
-    }
-    catch ( ErrorMsg & x )
-    {
-        std :: cerr <<  x.toString () << '\n';
-        return -1;
-    }
-    catch ( std :: exception & x )
-    {
-        std :: cerr <<  x.what () << '\n';
-        return -1;
-    }
-    catch ( const char x [] )
-    {
-        std :: cerr <<  x << '\n';
-        return -1;
-    }
-    catch ( ... )
-    {
-        std :: cerr <<  "unknown exception\n";
-        return -1;
+        try
+        {
+            return run ( app.getArgC(), app.getArgV() );
+        }
+        catch ( ErrorMsg & x )
+        {
+            std :: cerr <<  x.toString () << '\n';
+            return -1;
+        }
+        catch ( std :: exception & x )
+        {
+            std :: cerr <<  x.what () << '\n';
+            return -1;
+        }
+        catch ( const char x [] )
+        {
+            std :: cerr <<  x << '\n';
+            return -1;
+        }
+        catch ( ... )
+        {
+            std :: cerr <<  "unknown exception\n";
+            return -1;
+        }
     }
 
-    return 0;
+    app.setRc( rc );
+    return app.getExitCode();
 }

@@ -80,6 +80,7 @@ for (keys %SAM) {
         $filter |= ($FLAG & 0x200) != 0;
         $filter |= ($FLAG & 0x400) != 0;
     }
+    $rec->{'aligned'} = $aligned;
     delete $SAM{$_} if ($filter || $aligned != 2);
 }
 

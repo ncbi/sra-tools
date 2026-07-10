@@ -12,7 +12,15 @@ my %SQ = ();
 my %RG = ();
 my %SAM = ();
 
-sub parse_header_line($$$);
+sub parse_header_line($$$)
+{
+    my ($line, $tag, $kind) = @_;
+    my @t = split /\t/, $line;
+    my %r = map { /(..):(.+)/; { $1 => $2 } } @t[1..$#t];
+    my $name = $r{$tag};
+    die "expected $tag tag in $kind line at $.:\n$line\n" unless $name;
+    return { name => $name, count => 0, line => $line }
+}
 
 while (defined(local $_ = <>)) {
     chomp;
@@ -59,15 +67,72 @@ SAM:
 printf STDERR "Read %u records for %u spots.\n", $., scalar(keys %SAM);
 
 for (keys %SAM) {
-    next if scalar(@{$SAM{$_}->{SAM}}) == 2;
-    delete $SAM{$_};
+    my $rec = $SAM{$_};
+    my $aligned = 0;
+    my $filter = 0;
+    for (@{$rec->{'SAM'}}) {
+        my @F = \split /\t/;
+        my $FLAG = 0+${$F[1]};
+        ++$aligned if ($FLAG & 0x004) == 0;
+        $filter |= ($FLAG & 0x200) != 0;
+        $filter |= ($FLAG & 0x400) != 0;
+    }
+    $rec->{'aligned'} = $aligned;
+    $rec->{'filter'} = $filter;
 }
+for (keys %SAM) {
+    delete $SAM{$_} if ($SAM{$_}->{'filter'} || $SAM{$_}->{'aligned'} != 2)
+}
+
+sub make_unaligned($$$)
+{
+    my $rec = $SAM{$_[0]};
+    return if $rec->{'aligned'} == 0;
+    my $self = \$rec->{'SAM'}->[$_[1]];
+    my $mate = \$rec->{'SAM'}->[$_[2]];
+    my @SELF = split /\t/, ${$self};
+    return if ((0+$SELF[1]) & 0x004) != 0; # already unmapped;
+    
+    my @MATE = split /\t/, ${$mate};
+
+    $SELF[1] = (0+$SELF[1]) | 0x004;    # FLAG; self is unmapped.
+    $MATE[1] = (0+$MATE[1]) | 0x008;    # mate FLAG; mate is unmapped.
+
+    if (($SELF[1] & 0x010) != 0) {
+        $SELF[9] =~ tr/ACGT/TGCA/;
+        $SELF[9] = scalar reverse $SELF[9];
+        $SELF[10] = scalar reverse $SELF[10];
+    }
+    $SELF[6] = $MATE[2];        # fix RNEXT
+    $SELF[7] = $MATE[3];        # fix PNEXT
+    $SELF[2] = $MATE[6] = '*';  # RNAME and mate RNEXT
+    $SELF[3] = $MATE[7] = 0;    # POS and mate PNEXT
+    $MATE[8] = 0;               # TLEN
+    $SELF[4] = 0;               # MAPQ
+    $SELF[5] = '*';             # CIGAR
+    
+    ${$self} = join "\t", @SELF;
+    ${$mate} = join "\t", @MATE;
+    
+    --$rec->{'aligned'};
+}
+
+### Make about 50% of the spots have some unaligned reads.
+for (keys %SAM) {
+    next if rand() < 0.5;
+    make_unaligned($_, 0, 1);
+    next if rand() < 0.5;
+    make_unaligned($_, 1, 0);
+}
+
+### Keep 2000 spots.
 {
     my %keep = ();
     $keep{$_} = $SAM{$_} for (keys %SAM)[0..1999];
     %SAM = %keep;
 }
 
+### Get the usage count on header read groups and reference sequences.
 for (keys %SAM) {
     for (@{$SAM{$_}->{'SAM'}}) {
         my @F = \split /\t/;
@@ -87,11 +152,15 @@ for (keys %SAM) {
         }
     }
 }
+
+### Only keep the read groups that are used.
 {
     my %keep = ();
     $keep{$_} = $RG{$_} for grep { $RG{$_}->{'count'} } keys %RG;
     %RG = %keep;
 }
+
+### Only keep the reference sequences that are used.
 {
     my %keep = ();
     $keep{$_} = $SQ{$_} for grep { $SQ{$_}->{'count'} } keys %SQ;
@@ -100,8 +169,9 @@ for (keys %SAM) {
 
 printf STDERR "Processing %u spots.\n", scalar(keys %SAM);
 
-my @N = (0, 0, 0);
-my @n = (0, 0, 0);
+### Count the bases, total and non-ACGT.
+my @N = (0, 0, 0); ###< non-ACGT
+my @n = (0, 0, 0); ###< total base count per file; [0] is combined
 
 for (keys %SAM) {
     my $file = int(rand(2) + 1);
@@ -136,7 +206,7 @@ printf "Total number of non-ACGT bases in both files: %u (%.2f%%)\n", $N[0], (10
 
 printf "Adding non-ACGT bases to both files, limit is %u in file %u.\n", ($n[$last] >> 1) - 1, $last;
 
-# One file must have fewer than 50% non-ACGT
+### One file must have fewer than 50% non-ACGT
 while (2 * ($N[$last] + 1) < $n[$last]) {
     my $key = (keys %SAM)[rand keys %SAM];
     my $spot = $SAM{$key};
@@ -169,7 +239,7 @@ printf "Total number of non-ACGT bases in both files: %u (%.2f%%)\n", $N[0], (10
 
 printf "Need to add about %u more non-ACGT bases to file %u.\n", ($n[0] >> 1) - $N[0], $first;
 
-# The two files together must have more than 50% non-ACGT
+### The two files together must have more than 50% non-ACGT
 while (2 * $N[0] <= $n[0]) {
     my $key = (keys %SAM)[rand keys %SAM];
     my $spot = $SAM{$key};
@@ -216,13 +286,3 @@ $fh[$_->{'file'}]->print(@{$_->{'SAM'}}) for values %SAM;
 
 $fh[1]->close();
 $fh[2]->close();
-
-sub parse_header_line($$$)
-{
-    my ($line, $tag, $kind) = @_;
-    my @t = split /\t/, $line;
-    my %r = map { /(..):(.+)/; { $1 => $2 } } @t[1..$#t];
-    my $name = $r{$tag};
-    die "expected $tag tag in $kind line at $.:\n$line\n" unless $name;
-    return { name => $name, count => 0, line => $line }
-}

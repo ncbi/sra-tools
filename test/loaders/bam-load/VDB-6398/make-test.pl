@@ -42,8 +42,7 @@ SAM:
         unless ($SAM{$QNAME}) {
             $SAM{$QNAME} = { name => $QNAME, SAM => [], firstLine => $. }
         }
-        my $r = \$SAM{$QNAME};
-        push @{${$r}->{SAM}}, $_;
+        push @{$SAM{$QNAME}->{'SAM'}}, $_;
         next;
     }
     unless (/^[@]/) {

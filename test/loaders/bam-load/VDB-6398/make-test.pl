@@ -28,6 +28,7 @@ while (defined(local $_ = <>)) {
     my $data = scalar %SAM;
 
 SAM:
+    # handle regular SAM lines
     if ($data) {
         my @F = \split /\t/;
         die "truncated SAM at line $.:\n$_\n" if $#F < 10;
@@ -46,13 +47,16 @@ SAM:
         next;
     }
     unless (/^[@]/) {
+        # not a header line
         $data = 1;
         goto SAM;
     }
+    
+    # handle SAM header lines
     my $line = $_;
     die "unexpected header line at $.:\n$_\n" unless /^[@](HD|SQ|RG|PG|CO)/;
     given ($1) {
-#         when (/HD/) { $HD = $line }
+#       when (/HD/) { do not want }
         when (/SQ/) {
             my $r = parse_header_line $line, 'SN', 'SQ';
             $SQ{$r->{name}} = $r;
@@ -76,11 +80,7 @@ for (keys %SAM) {
         $filter |= ($FLAG & 0x200) != 0;
         $filter |= ($FLAG & 0x400) != 0;
     }
-    $rec->{'aligned'} = $aligned;
-    $rec->{'filter'} = $filter;
-}
-for (keys %SAM) {
-    delete $SAM{$_} if ($SAM{$_}->{'filter'} || $SAM{$_}->{'aligned'} != 2)
+    delete $SAM{$_} if ($filter || $aligned != 2);
 }
 
 sub make_unaligned($$$)

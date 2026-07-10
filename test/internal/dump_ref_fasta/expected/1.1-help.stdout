@@ -14,10 +14,7 @@ Usage: dump-ref-fasta accession [ reference[ slice ] ] ...
                                    file. 
   -+|--debug <Module[-Flag]>       Turn on debug output for module. All flags 
                                    if not specified. 
-pileup-stats : 3.4.2 ( 3.4.2-dev )
+
 Options:
   -l|--localref                    Skip non-local references. 
-  -h|--help                        Output brief explanation for the program. 
-  -v|-V|--version                  Display the version of the program then
-                                   quit.
 

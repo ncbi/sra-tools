@@ -237,22 +237,19 @@ static rc_t print_help( const Args * args )
 {
     UNUSED( args );
 
-    const char UsageDefaultName [] = "pileup-stats";
+    const char UsageDefaultName [] = "dump-ref-fasta";
     UsageSummary ( UsageDefaultName );
 
     cout
         << "Options:\n"
         << "  -l|--localref                    Skip non-local references. \n"
-        << "  -h|--help                        Output brief explanation for the program. \n"
-        << "  -v|-V|--version                  Display the version of the program then\n"
-        << "                                   quit.\n"
         << "\n"
         ;
 
-        HelpOptionsStandard();
-        HelpVersion ( UsageDefaultName, KAppVersion () );
+    HelpOptionsStandard();
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 
-        return 0;
+    return 0;
 }
 
 int run ( int argc, char *argv[] )

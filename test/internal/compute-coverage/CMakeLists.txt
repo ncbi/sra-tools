@@ -22,14 +22,25 @@
 #
 # ===========================================================================
 
-add_subdirectory( test_sanitizers )
-add_subdirectory( align )
-add_subdirectory( align-cache )
-add_subdirectory( copycat )
-add_subdirectory( make-read-filter )
-add_subdirectory( read-filter-redact )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( sra-add-fp )
-add_subdirectory( dump_ref_fasta )
-add_subdirectory( compute-coverage )
+include_directories ("..")
+
+# command line tests
+if ( NOT WIN32)
+
+	ToolsRequired( compute-coverage )
+
+    set( COMPUTE_COVERAGE ${DIRTOTEST}/compute-coverage )
+
+	# help
+	add_test ( NAME Test_ComputeCoverage-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.0-h --args "-h" )
+	add_test ( NAME Test_ComputeCoverage-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.1-help --args "--help" )
+	# version
+    add_test ( NAME Test_ComputeCoverage-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} -V" ${VERSION} )
+    add_test ( NAME Test_ComputeCoverage-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} --version" ${VERSION} )
+
+	# -+
+    add_test ( NAME Test_ComputeCoverage-1.4-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} SRR496123 -+VDB" "VDatabaseOpenRead" )
+
+endif ()

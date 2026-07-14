@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,14 +23,18 @@
 #
 # ===========================================================================
 
-add_subdirectory( test_sanitizers )
-add_subdirectory( align )
-add_subdirectory( align-cache )
-add_subdirectory( copycat )
-add_subdirectory( make-read-filter )
-add_subdirectory( read-filter-redact )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( sra-add-fp )
-add_subdirectory( dump_ref_fasta )
-add_subdirectory( compute-coverage )
+#
+# A helper script to grep output of a command line (useful in CMake which does not do redirections on its own)
+#
+# $1 - the command line
+# $2 - pattern to grep for
+#
+# return code: as returned by $1 | grep $2
+
+EXE="${1%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
+$1 2>&1 | grep -q "$2"

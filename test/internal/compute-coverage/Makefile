@@ -22,14 +22,12 @@
 #
 # ===========================================================================
 
-add_subdirectory( test_sanitizers )
-add_subdirectory( align )
-add_subdirectory( align-cache )
-add_subdirectory( copycat )
-add_subdirectory( make-read-filter )
-add_subdirectory( read-filter-redact )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-diff )
-add_subdirectory( sra-add-fp )
-add_subdirectory( dump_ref_fasta )
-add_subdirectory( compute-coverage )
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/internal/compute-coverage
+
+BUILD_TOOLS_INTERNAL=ON
+BUILD_TOOLS_LOADERS=ON
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

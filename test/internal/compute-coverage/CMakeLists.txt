@@ -22,8 +22,6 @@
 #
 # ===========================================================================
 
-include_directories ("..")
-
 # command line tests
 if ( NOT WIN32)
 
@@ -37,10 +35,10 @@ if ( NOT WIN32)
 	add_test ( NAME Test_ComputeCoverage-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.1-help --args "--help" )
 	# version
-    add_test ( NAME Test_ComputeCoverage-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} -V" ${VERSION} )
-    add_test ( NAME Test_ComputeCoverage-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} --version" ${VERSION} )
+    add_test ( NAME Test_ComputeCoverage-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} -V" ${VERSION} )
+    add_test ( NAME Test_ComputeCoverage-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} --version" ${VERSION} )
 
 	# -+
-    add_test ( NAME Test_ComputeCoverage-1.4-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${COMPUTE_COVERAGE} SRR496123 -+VDB" "VDatabaseOpenRead" )
+    add_test ( NAME Test_ComputeCoverage-1.4-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} SRR496123 -+VDB" "VDatabaseOpenRead" )
 
 endif ()

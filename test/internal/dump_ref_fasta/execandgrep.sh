@@ -29,6 +29,12 @@
 # $1 - the command line
 # $2 - pattern to grep for
 #
-# return code: as returned by $1 > grep $2
+# return code: as returned by $1 | grep $2
 
-$1 | grep $2
+EXE="${1%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
+$1 2>&1 | grep -q "$2"

@@ -290,13 +290,12 @@ rc_t CC Usage ( const Args * args )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     try
     {
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
-        SetSraToolsHash( HASH_SRA_TOOLS );
 
         Args * args = nullptr;
         CheckRc( ArgsMakeAndHandle( &args, app.getArgC(), app.getArgV(), 0, nullptr, 0 ), "ArgsMakeAndHandle() failed" );

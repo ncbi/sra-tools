@@ -193,18 +193,14 @@ extern "C" rc_t handle_help( const Args * args )
 int
 run( VDB::Application & app )
 {
-    SetUsage( handle_help );
-
     // handle and remove standard options from app-owned argc/argv
-    app.HandleStandardOptions();
+    app.HandleStandardOptions( handle_help, UsageSummary );
 
     int argc = app.getArgC();
     char **argv = app.getArgV();
 
     int rc = -1;
     bool found;
-
-    SetSraToolsHash(HASH_SRA_TOOLS);
 
     try
     {
@@ -389,7 +385,7 @@ run( VDB::Application & app )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
     app.setRc( run ( app ) );
     return app.getExitCode();
 }

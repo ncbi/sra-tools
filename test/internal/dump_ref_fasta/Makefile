@@ -22,7 +22,12 @@
 #
 # ===========================================================================
 
-GenerateExecutableWithDefs( dump-ref-fasta DumpReferenceFASTA.cpp "" "${CMAKE_SOURCE_DIR}/ngs" "kapp;ncbi-ngs;${COMMON_LIBS_READ};${COMMON_LINK_LIBRARIES}" )
+default: runtests
 
-MakeLinksExe ( dump-ref-fasta false )
+TOP ?= $(abspath ../../..)
+MODULE = test/internal/dump_ref_fasta
 
+BUILD_TOOLS_INTERNAL=ON
+BUILD_TOOLS_LOADERS=ON
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

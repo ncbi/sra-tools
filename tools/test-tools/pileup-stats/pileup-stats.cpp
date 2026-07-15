@@ -523,17 +523,13 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
+        VDB::Application app( argc, argv, HASH_SRA_TOOLS );
         if (!app)
         {
             return VDB_INIT_FAILED;
         }
 
-        SetUsageSummary( UsageSummary );
-        SetUsage( handle_help );
-        SetSraToolsHash( HASH_SRA_TOOLS );
-
-        rc_t rc = app.HandleStandardOptions();
+        rc_t rc = app.HandleStandardOptions( handle_help, UsageSummary );
 
         if ( rc == 0 )
         {

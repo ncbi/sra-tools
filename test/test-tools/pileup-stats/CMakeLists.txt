@@ -22,9 +22,19 @@
 #
 # ===========================================================================
 
-TOP ?= $(abspath ../../../..)
-MODULE = tools/test-tools/pileup-stats/test
-include $(TOP)/build/Makefile.env
+if( NOT WIN32 )
 
+    ToolsRequired( pileup-stats )
 
+    add_test ( NAME PileupStats-Version
+            COMMAND sh -c "${BINDIR}/pileup-stats -V | grep -q `head -n 1 ${CMAKE_SOURCE_DIR}/shared/toolkit.vers`"
+        )
+    add_test ( NAME PileupStats-Help COMMAND sh -c "${BINDIR}/pileup-stats -h | grep -q Usage" )
 
+    add_test ( NAME PileupStats-StdOptions COMMAND sh -c "${BINDIR}/pileup-stats -+VDB SRR000123 2>&1 | grep -q VTableOpenRead" )
+
+    add_test( NAME SlowTest_pileup-stats-optional-column-ref-offset-type
+            COMMAND bash -c "pileup-stats --align-category primary ERR085308 >/dev/null"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+endif()

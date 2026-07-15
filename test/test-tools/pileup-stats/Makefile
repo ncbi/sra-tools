@@ -1,4 +1,3 @@
-#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -23,33 +22,10 @@
 #
 # ===========================================================================
 
+default: runtests
 
-test_ignore_args ()
-{
-    if ! pileup-stats -L 1 2> /dev/null
-    then
-        echo $?...test failed on option -L
-    fi
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/pileup-stats
 
-    if ! pileup-stats -z ignore.txt 2> /dev/null
-    then
-        echo $?...test failed on option -z
-    fi
-
-    if ! pileup-stats --log-level 1 2> /dev/null
-    then
-        echo $?...test failed on option --log-level
-    fi
-
-    if ! pileup-stats --xml-log ignore.txt 2> /dev/null
-    then
-        echo $?...test failed on option --xml-log
-    fi
-
-    if ! pileup-stats --xml-log-fd ignore.txt 2> /dev/null
-    then
-        echo $?...test failed on option --xml-log-fd
-    fi
-}
-
-test_ignore_args
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

@@ -26,19 +26,26 @@ include_directories ("..")
 
 # command line tests
 if ( NOT WIN32)
-	set ( DUMP_REF_FASTA  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dump-ref-fasta )
+
+    ToolsRequired( dump-ref-fasta )
+
+	set ( DUMP_REF_FASTA  ${DIRTOTEST}/dump-ref-fasta )
 
     # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
 
 	# help
-	add_test ( NAME dump-ref-fasta-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+	add_test ( NAME dump-ref-fasta-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	            COMMAND runtestcase.sh ${DUMP_REF_FASTA} 1.0-h --args "-h" )
-	add_test ( NAME dump-ref-fasta-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+	add_test ( NAME dump-ref-fasta-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	            COMMAND runtestcase.sh ${DUMP_REF_FASTA} 1.1-help --args "--help" )
 	# version
     add_test ( NAME dump-ref-fasta-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} -V" ${VERSION} )
     add_test ( NAME dump-ref-fasta-1.3-v WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} -v" ${VERSION} )
     add_test ( NAME dump-ref-fasta-1.4-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} --version" ${VERSION} )
+
+	# -+
+    add_test ( NAME dump-ref-fasta-1.5-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} SRR496123 -+VDB" "VDatabaseOpenRead" )
+
 	# regular run (includes non-local references starting at around 365000 bytes)
 	add_test ( NAME dump-ref-fasta-2.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 2.0 --args "SRR496123  | head -n 370000" )
 	# full ref

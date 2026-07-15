@@ -90,7 +90,6 @@ int run ( int argc, char * argv [] ) {
     const char* accession(NULL); // "SRR543323" );
 
     SetUsage( Usage );
-    SetSraToolsHash( HASH_SRA_TOOLS );
 
     Args* args(NULL);
     rc_t rc(ArgsMakeAndHandle(&args, argc, argv, 0));
@@ -297,6 +296,6 @@ int run ( int argc, char * argv [] ) {
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
     return run ( argc, app.getArgV() );
 }

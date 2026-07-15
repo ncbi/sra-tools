@@ -414,7 +414,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
+        VDB::Application app( argc, argv, HASH_SRA_TOOLS );
         if (!app)
         {
             return VDB_INIT_FAILED;
@@ -422,8 +422,7 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
-        SetSraToolsHash( HASH_SRA_TOOLS );
-        
+
         return VarExpand::expand_variations (argc, app.getArgV());
     }
 }

@@ -323,17 +323,14 @@ int run ( int argc, char *argv[] )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
-    if (!app)
+    // noexcept with internal try/catch
+    VDB::Application app { argc, argv, HASH_SRA_TOOLS };
+    if ( ! app )
     {
         return VDB_INIT_FAILED;
     }
 
-    SetSraToolsHash(HASH_SRA_TOOLS);
-    SetUsageSummary( UsageSummary );
-    SetUsage( print_help );
-
-    rc_t rc = app.HandleStandardOptions();
+    rc_t rc = app.HandleStandardOptions( print_help, UsageSummary );
 
     if ( rc == 0 )
     {

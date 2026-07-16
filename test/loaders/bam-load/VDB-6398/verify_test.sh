@@ -1,4 +1,4 @@
-#!sh
+#!/usr/bin/sh
 
 ### Count the number of bases and the number of ACGT bases.
 check_bases () {

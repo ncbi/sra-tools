@@ -188,22 +188,11 @@ kar_open_file_read (
                 if ( RCt == 0 ) {
 #define __MAKE_IT_RELIABLE__
 #ifdef __MAKE_IT_RELIABLE__
-                    bool reliable = VPathIsHighlyReliable ( Path );
-                    bool need_env_token = false;
-                    bool payRequired = false;
-                    if ( RCt == 0 )
-                        RCt = VPathGetCeRequired ( Path, & need_env_token );
-                    if ( RCt == 0 )
-                        RCt = VPathGetPayRequired ( Path, & payRequired );
-                    if ( RCt == 0 )
-                        RCt = KNSManagerMakeReliableHttpFileVPath (
+                    RCt = KNSManagerMakeReliableHttpFileVPath (
                                                         Manager,
                                                         & RetFile,
                                                         NULL,
                                                         0x01010000,
-                                                        reliable,
-                                                        need_env_token,
-                                                        payRequired,
                                                         Path,
                                                         "%s",
                                                         PathToOpen

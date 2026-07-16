@@ -393,14 +393,8 @@ static uint64_t insp_get_file_size( const KDirectory * dir, const char * path,
         if ( 0 == rc )
         {
             const KFile * f = NULL;
-            bool ceRequired = false;
-            bool payRequired = false;
-            bool reliable = VPathIsHighlyReliable(aPath);
-            VPathGetCeRequired(aPath, &ceRequired);
-            VPathGetPayRequired(aPath, &payRequired);
             rc = KNSManagerMakeReliableHttpFileVPath ( kns_mgr, &f, NULL,
-                0x01010000, reliable, ceRequired, payRequired, aPath,
-                "%s", path );
+                0x01010000, aPath, "%s", path );
             if ( 0 == rc ) {
                 rc = KFileSize ( f, &res );
                 KFileRelease( f );

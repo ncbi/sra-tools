@@ -1268,8 +1268,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     if (rc == 0 && mane->showProgress && !mane->dryRun) {
         r2 = 0;
         if (in == NULL)
-            r2 = _KFileOpenRemote(&in, mane->kns, path,
-                &src, !self->isUri);
+            r2 = _KFileOpenRemote(&in, mane->kns, path, &src);
         if (r2 == 0)
             rc = KFileSize(in, &size);
         if (r2 == 0)
@@ -1375,8 +1374,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         rw = 0;
 
         if (in == NULL)
-            rc = _KFileOpenRemote(&in, mane->kns, path,
-                &src, !self->isUri);
+            rc = _KFileOpenRemote(&in, mane->kns, path, &src);
         if (rc == 0) {
             PrfRetrierInit(&retrier, mane, path,
                 &src, self->isUri, &in, size, pof->pos, code);
@@ -1423,7 +1421,7 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
 
     if (self->file == ((void*)0)) {
         rc = _KFileOpenRemote(&self->file, mane->kns,
-            remote->path, remote -> str, !self->isUri);
+            remote->path, remote -> str);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                               "path=%S", remote -> str));
@@ -2509,10 +2507,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         if (rc == 0) {
             rc_t rc3 = 0;
             if (resolved->file == NULL) {
-                bool reliable = ! resolved->isUri;
                 assert ( remote );
                 rc3 = _KFileOpenRemote(&resolved->file, kns,
-                    remote->path, remote -> str, reliable);
+                    remote->path, remote -> str);
                 if ( !resolved->isUri )
                     DISP_RC2(rc3, "cannot open remote file",
                                 remote -> str->addr);
@@ -2552,7 +2549,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             assert ( remote -> str );
             if (!_StringIsFasp(remote -> str, NULL)) {
                 rc2 = _KFileOpenRemote(&resolved->file, kns,
-                    remote->path, remote -> str, !resolved->isUri);
+                    remote->path, remote->str);
             }
         }
         if (rc2 == 0 && resolved->file != NULL

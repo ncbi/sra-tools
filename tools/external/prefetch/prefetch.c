@@ -1016,17 +1016,12 @@ static rc_t ResolvedLocal(const Resolved *self,
             const VPath * http = NULL;
             rc = KSrvRespFileGetHttp(self->respFile, &http);
             if (rc == 0 && http != NULL) {
-                char path[URL_MAX] = "";
-                size_t len = 0;
-                rc = VPathReadUri(http, path, sizeof path, &len);
-                if (rc == 0) {
                     const KFile * file = NULL;
-                    rc = KNSManagerMakeHttpFile(mane->kns, &file, NULL,
-                        0x01010000, "%s", path);
+                    rc = KNSManagerMakeReliableHttpFileVPath(mane->kns, &file,
+                        NULL, 0x01010000, http);
                     if (rc == 0)
                         rc = KFileSize(file, &sRemote);
                     RELEASE(KFile, file);
-                }
             }
             RELEASE(VPath, http);
             if (rc == 0 && sRemote == sLocal) {

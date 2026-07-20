@@ -394,7 +394,7 @@ static uint64_t insp_get_file_size( const KDirectory * dir, const char * path,
         {
             const KFile * f = NULL;
             rc = KNSManagerMakeReliableHttpFileVPath ( kns_mgr, &f, NULL,
-                0x01010000, aPath, "%s", path );
+                0x01010000, aPath ); 
             if ( 0 == rc ) {
                 rc = KFileSize ( f, &res );
                 KFileRelease( f );

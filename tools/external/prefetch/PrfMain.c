@@ -88,28 +88,19 @@ bool _StringIsFasp(const String *self, const char **withoutScheme) {
 rc_t _KFileOpenRemote(const struct KFile **self, KNSManager *kns,
     const VPath *vpath, const struct String *path)
 {
-    rc_t rc = 0;
-    bool reliable = false;
-
     assert(self);
 
     if (*self != NULL)
         return 0;
 
     assert(vpath);
-    reliable = VPathIsHighlyReliable(vpath);
 
     if (_StringIsFasp(path, NULL))
         return
             SILENT_RC(rcExe, rcFile, rcConstructing, rcParam, rcWrongType);
 
-    if (reliable)
-        rc = KNSManagerMakeReliableHttpFileVPath(kns, self, NULL, 0x01010000,
-            vpath, "%S", path);
-    else
-        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
-
-    return rc;
+    return KNSManagerMakeReliableHttpFileVPath(kns, self, NULL, 0x01010000,
+        vpath);
 }
 
 /********** TreeNode **********/

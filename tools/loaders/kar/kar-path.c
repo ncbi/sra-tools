@@ -193,9 +193,7 @@ kar_open_file_read (
                                                         & RetFile,
                                                         NULL,
                                                         0x01010000,
-                                                        Path,
-                                                        "%s",
-                                                        PathToOpen
+                                                        Path
                                                         );
 #else /* __MAKE_IT_RELIABLE__ */
                     RCt = KNSManagerMakeHttpFile (

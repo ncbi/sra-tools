@@ -700,9 +700,7 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
-
-    SetSraToolsHash(HASH_SRA_TOOLS);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     XMLLogger const *xlogger = NULL;
     Args * args;

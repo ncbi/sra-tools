@@ -1,3 +1,4 @@
+#!/bin/sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,20 +23,18 @@
 #
 # ===========================================================================
 
-add_subdirectory( ngs )
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( sra-info )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( sra-search )
+#
+# A helper script to grep output of a command line (useful in CMake which does not do redirections on its own)
+#
+# $1 - the command line
+# $2 - pattern to grep for
+#
+# return code: as returned by $1 | grep $2
+
+EXE="${1%% *}"
+if ! test -f $EXE; then
+    echo "$EXE does not exist. Skipping the test."
+    exit 0
+fi
+
+$1 2>&1 | grep -q "$2"

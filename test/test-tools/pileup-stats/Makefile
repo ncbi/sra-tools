@@ -22,20 +22,10 @@
 #
 # ===========================================================================
 
-add_subdirectory( ngs )
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( sra-info )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( sra-search )
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/pileup-stats
+
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

@@ -22,20 +22,19 @@
 #
 # ===========================================================================
 
-add_subdirectory( ngs )
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( sra-info )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( sra-search )
+if( NOT WIN32 )
+
+    ToolsRequired( pileup-stats )
+
+    add_test ( NAME PileupStats-Version
+            COMMAND sh -c "${BINDIR}/pileup-stats -V | grep -q `head -n 1 ${CMAKE_SOURCE_DIR}/shared/toolkit.vers`"
+        )
+    add_test ( NAME PileupStats-Help COMMAND sh -c "${BINDIR}/pileup-stats -h | grep -q Usage" )
+
+    add_test ( NAME PileupStats-StdOptions COMMAND sh -c "${BINDIR}/pileup-stats -+VDB SRR000123 2>&1 | grep -q VTableOpenRead" )
+
+    add_test( NAME SlowTest_pileup-stats-optional-column-ref-offset-type
+            COMMAND bash -c "pileup-stats --align-category primary ERR085308 >/dev/null"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+endif()

@@ -22,20 +22,23 @@
 #
 # ===========================================================================
 
-add_subdirectory( ngs )
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
-add_subdirectory( sra-info )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( sra-search )
+# command line tests
+if ( NOT WIN32)
+
+	ToolsRequired( compute-coverage )
+
+    set( COMPUTE_COVERAGE ${DIRTOTEST}/compute-coverage )
+
+	# help
+	add_test ( NAME Test_ComputeCoverage-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.0-h --args "-h" )
+	add_test ( NAME Test_ComputeCoverage-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.1-help --args "--help" )
+	# version
+    add_test ( NAME Test_ComputeCoverage-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} -V" ${VERSION} )
+    add_test ( NAME Test_ComputeCoverage-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} --version" ${VERSION} )
+
+	# -+
+    add_test ( NAME Test_ComputeCoverage-1.4-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} SRR496123 -+VDB" "VDatabaseOpenRead" )
+
+endif ()

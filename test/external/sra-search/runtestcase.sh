@@ -38,6 +38,7 @@
 # -r|--rc <number>      (default 0) expected return code
 # -a|--args <string>    (deault empty) arguments to pass to the executable, e.g. --args "ACGTAGGGTCC --threads 2"
 # -s|--sort             (default off) sort the tool's stdout
+# -n|--nodiff           (default off) skip diff on the outputs
 #
 # return codes:
 # 0 - passed
@@ -55,8 +56,9 @@ WORKDIR="."
 RC=0
 ARGS=""
 SORT=""
+NODIFF=""
 
-while [ $# -gt 1 ]
+while [ $# -gt 0 ]
 do
     key="$1"
     case $key in
@@ -74,6 +76,9 @@ do
             ;;
         -s|--sort)
             SORT="1"
+            ;;
+        -n|--nodiff)
+            NODIFF="1"
             ;;
         *)
             echo "unknown option " $key
@@ -125,42 +130,44 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-# remove version number from the actual output
-SED="sed -i -e 's=$(basename $EXE) : \(.[0-9]*\)*==g' $ACTUAL_STDOUT"
-eval $SED
+if [ "$NODIFF" = "" ] ; then
+    # remove version number from the actual output
+    SED="sed -i -e 's=$(basename $EXE) : \(.[0-9]*\)*==g' $ACTUAL_STDOUT"
+    eval $SED
 
-diff --ignore-blank-lines $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
-rc="$?"
-if [ "$rc" != "0" ] ; then
-    echo -e "\ndiff $EXPECTED_STDOUT $ACTUAL_STDOUT failed with $rc"
-    cat $TEMPDIR/$CASEID.stdout.diff  >&2
-    echo "command executed:"
-    echo $CMD
-    exit 3
-fi
-
-if [ -f $EXPECTED_STDERR ]
-    then
-    # clean up stderr:
-    #
-    # remove timestamps
-    sed -i -e 's/^....-..-..T..:..:.. //g' $ACTUAL_STDERR
-    # remove pathnames
-    sed -i -e 's=/.*/==g' $ACTUAL_STDERR
-    # remove source locations
-    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $ACTUAL_STDERR
-    # remove version number if present
-    sed -i -e 's=$(basename $EXE)\(\.[0-9]*\)*=$(basename $EXE)=g' $ACTUAL_STDERR
-    #
-
-    diff $EXPECTED_STDERR $ACTUAL_STDERR >$TEMPDIR/$CASEID.stderr.diff
+    diff --ignore-blank-lines $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then
-        echo -e "\ndiff $EXPECTED_STDERR $ACTUAL_STDERR failed with $rc"
-        cat $TEMPDIR/$CASEID.stderr.diff >&2
+        echo -e "\ndiff $EXPECTED_STDOUT $ACTUAL_STDOUT failed with $rc"
+        cat $TEMPDIR/$CASEID.stdout.diff  >&2
         echo "command executed:"
         echo $CMD
-        exit 4
+        exit 3
+    fi
+
+    if [ -f $EXPECTED_STDERR ]
+        then
+        # clean up stderr:
+        #
+        # remove timestamps
+        sed -i -e 's/^....-..-..T..:..:.. //g' $ACTUAL_STDERR
+        # remove pathnames
+        sed -i -e 's=/.*/==g' $ACTUAL_STDERR
+        # remove source locations
+        sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $ACTUAL_STDERR
+        # remove version number if present
+        sed -i -e 's=$(basename $EXE)\(\.[0-9]*\)*=$(basename $EXE)=g' $ACTUAL_STDERR
+        #
+
+        diff $EXPECTED_STDERR $ACTUAL_STDERR >$TEMPDIR/$CASEID.stderr.diff
+        rc="$?"
+        if [ "$rc" != "0" ] ; then
+            echo -e "\ndiff $EXPECTED_STDERR $ACTUAL_STDERR failed with $rc"
+            cat $TEMPDIR/$CASEID.stderr.diff >&2
+            echo "command executed:"
+            echo $CMD
+            exit 4
+        fi
     fi
 fi
 

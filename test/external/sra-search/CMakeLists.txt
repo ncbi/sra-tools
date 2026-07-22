@@ -67,31 +67,30 @@ AddExecutableTest ( Test_SraSearch_SearchBlock
 # command line tests
 if ( NOT WIN32)
     ToolsRequired(sra-search)
+    set( EXECANDGREP ${CMAKE_SOURCE_DIR}/test/execandgrep.sh )
     set ( SRA_SEARCH  ${DIRTOTEST}/sra-search${EXE} )
 
     # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
 
 	# help
-	add_test ( NAME Test_SraSearch-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 1.0-h --args "-h" )
-	add_test ( NAME Test_SraSearch-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-			   	${SRA_SEARCH} 1.1-help --args "--help" )
+	add_test ( NAME Test_SraSearch-1.0-h COMMAND ${EXECANDGREP} "${SRA_SEARCH} -h" "Output brief explanation" )
+	add_test ( NAME Test_SraSearch-1.1-help COMMAND ${EXECANDGREP} "${SRA_SEARCH} -h" "Output brief explanation" )
 	# version
-    add_test ( NAME Test_SraSearch-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${SRA_SEARCH} -V" ${VERSION} )
-    add_test ( NAME Test_SraSearch-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${SRA_SEARCH} --version" ${VERSION} )
+    add_test ( NAME Test_SraSearch-1.2-V COMMAND ${EXECANDGREP} "${SRA_SEARCH} -V" ${VERSION} )
+    add_test ( NAME Test_SraSearch-1.3-version COMMAND ${EXECANDGREP} "${SRA_SEARCH} --version" ${VERSION} )
 
 	# other standard options
-    add_test ( NAME Test_SraSearch-1.3-Standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${SRA_SEARCH} -+VDB A SRR000123" "resolved expression" )
+    add_test ( NAME Test_SraSearch-1.4-Standard COMMAND ${EXECANDGREP} "${SRA_SEARCH} -L debug A SRR000123" "requesting stack size" )
 
 	# bad arguments
 	add_test ( NAME Test_SraSearch-2.0-no-args WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 2.0-no-args --rc 3 )
+				${SRA_SEARCH} 2.0-no-args --rc 3 --nodiff  )
 	add_test ( NAME Test_SraSearch-2.1-no-run WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 2.1-no-run --rc 3 --args AGCT )
+				${SRA_SEARCH} 2.1-no-run --rc 3 --nodiff  --args AGCT )
 	add_test ( NAME Test_SraSearch-2.2-missing-algorithm WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 2.2-missing-algorithm --rc 3 --args "AGCT SRR000001 -a" )
+				${SRA_SEARCH} 2.2-missing-algorithm --rc 3 --nodiff --args "AGCT SRR000001 -a" )
 	add_test ( NAME Test_SraSearch-2.3-bad-algorithm WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 2.3-bad-algorithm --rc 3 --args "--algorithm bad AGCT SRR000001" )
+				${SRA_SEARCH} 2.3-bad-algorithm --rc 3 --nodiff --args "--algorithm bad AGCT SRR000001" )
 
 	# single run
 	add_test ( NAME SlowTest_SraSearch-3.0-single-run-default WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
@@ -133,21 +132,21 @@ if ( NOT WIN32)
 
 	# query expressions, bad arguments
 	add_test ( NAME Test_SraSearch-5.1-run-not-nucstrstr-with-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 5.1-run-not-nucstrstr-with-expression --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --algorithm FgrepStandard --expression  SRR000001" --rc 3 )
+				${SRA_SEARCH} 5.1-run-not-nucstrstr-with-expression --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --algorithm FgrepStandard --expression  SRR000001" --rc 3 --nodiff )
 
 	# imperfect match, bad arguments
 	add_test ( NAME Test_SraSearch-6.0.1-imperfect-match-no-arg WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 6.0.1-imperfect-match-no-arg --args "AGCTAGCTAGCT SRR000001 -S" --rc 3 )
+				${SRA_SEARCH} 6.0.1-imperfect-match-no-arg --args "AGCTAGCTAGCT SRR000001 -S" --rc 3 --nodiff )
 	add_test ( NAME Test_SraSearch-6.0.2-imperfect-match-bad-arg WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 6.0.2-imperfect-match-bad-arg --args "AGCTAGCTAGCT SRR000001 -S qq" --rc 3  )
+				${SRA_SEARCH} 6.0.2-imperfect-match-bad-arg --args "AGCTAGCTAGCT SRR000001 -S qq" --rc 3 --nodiff  )
 	add_test ( NAME Test_SraSearch-6.0.3-imperfect-match-default WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-	         	${SRA_SEARCH} 6.0.3-imperfect-match-default --args "AGCTAGCTAGCT -S 90 SRR000001" --rc 3 )
+	         	${SRA_SEARCH} 6.0.3-imperfect-match-default --args "AGCTAGCTAGCT -S 90 SRR000001" --rc 3 --nodiff )
 	add_test ( NAME Test_SraSearch-6.1-imperfect-match-fgrep-standard  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-		    	${SRA_SEARCH} 6.1-imperfect-match-fgrep-standard --args "AGCTAGCTAGCT --score 90 -a FgrepStandard SRR000001" --rc 3  )
+		    	${SRA_SEARCH} 6.1-imperfect-match-fgrep-standard --args "AGCTAGCTAGCT --score 90 -a FgrepStandard SRR000001" --rc 3 --nodiff  )
 	add_test ( NAME Test_SraSearch-6.2-imperfect-match-fgrep-boyer-moore  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 6.2-imperfect-match-fgrep-boyer-moore --args "AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore SRR000001" --rc 3 )
+				${SRA_SEARCH} 6.2-imperfect-match-fgrep-boyer-moore --args "AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore SRR000001" --rc 3 --nodiff )
 	add_test ( NAME Test_SraSearch-6.3-imperfect-match-fgrep-aho  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-	         	${SRA_SEARCH} 6.3-imperfect-match-fgrep-aho --args "AGCTAGCTAGCT --score 90 --algorithm FgrepAho SRR000001" --rc 3 )
+	         	${SRA_SEARCH} 6.3-imperfect-match-fgrep-aho --args "AGCTAGCTAGCT --score 90 --algorithm FgrepAho SRR000001" --rc 3 --nodiff )
 	# imperfect match
 	add_test ( NAME SlowTest_SraSearch-6.4-imperfect-match-agrep-dp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
 				${SRA_SEARCH} 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT -T 1 --score 90 --algorithm AgrepDP            SRR000001" )
@@ -158,15 +157,15 @@ if ( NOT WIN32)
 	add_test ( NAME SlowTest_SraSearch-6.7-imperfect-match-agrep-myers-unltd WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
 				${SRA_SEARCH} 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT -T 1 --score 90 --algorithm AgrepMyersUnltd    SRR000001" )
 	add_test ( NAME Test_SraSearch-6.8-imperfect-match-nucstrstr  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-	         	${SRA_SEARCH} 6.8-imperfect-match-nucstrstr --args "AGCTAGCTAGCT --score 90 --algorithm NucStrstr SRR000001" --rc 3 )
+	         	${SRA_SEARCH} 6.8-imperfect-match-nucstrstr --args "AGCTAGCTAGCT --score 90 --algorithm NucStrstr SRR000001" --rc 3 --nodiff )
 	add_test ( NAME SlowTest_SraSearch-6.9-imperfect-match-smith-waterman WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
 				${SRA_SEARCH} 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT -T 1 --score 90 --algorithm SmithWaterman -m 100      SRR000001" )
 
 	# multi-threading, bad arguments
 	add_test ( NAME Test_SraSearch-7.0.1-threads-no-arg WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-			 	${SRA_SEARCH} 7.0.1-threads-no-arg --rc 3 --args "AGCTAGCTAGCT SRR600094 SRR600095 -T" )
+			 	${SRA_SEARCH} 7.0.1-threads-no-arg --rc 3 --nodiff --args "AGCTAGCTAGCT SRR600094 SRR600095 -T" )
 	add_test ( NAME Test_SraSearch-7.0.2-threads-bad-arg WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-			 	${SRA_SEARCH} 7.0.2-threads-bad-arg --rc 3 --args "AGCTAGCTAGCT SRR600094 SRR600095 --threads -1" )
+			 	${SRA_SEARCH} 7.0.2-threads-bad-arg --rc 3 --nodiff --args "AGCTAGCTAGCT SRR600094 SRR600095 --threads -1" )
 	# multi-threading
 	# multiple runs, thread per accession
 	add_test ( NAME SlowTest_SraSearch-7.1-threads-unsorted WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
@@ -183,7 +182,7 @@ if ( NOT WIN32)
 
 	# nothing found
  	add_test ( NAME SlowTest_SraSearch-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
- 				${SRA_SEARCH} 8.0-nothing-found --rc 3 --args "TTTTTTTTAAAAAAACCCC -T 1 SRR000001" )
+ 				${SRA_SEARCH} 8.0-nothing-found --rc 3 --nodiff --args "TTTTTTTTAAAAAAACCCC -T 1 SRR000001" )
 
 	# reference mode
 	add_test ( NAME SlowTest_SraSearch-9.0-reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
@@ -199,7 +198,7 @@ if ( NOT WIN32)
 
 	# reference mode, expressions not allowed
 	add_test ( NAME Test_SraSearch-9.3-reference-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh
-				${SRA_SEARCH} 9.3-reference-expression --args "ACGTAGGGTCC SRR600094 --reference --expression" --rc 3)
+				${SRA_SEARCH} 9.3-reference-expression --args "ACGTAGGGTCC SRR600094 --reference --expression" --rc 3 --nodiff)
 
     # unaligned reads only
 	add_test ( NAME SlowTest_SraSearch-10.0-unaligned WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND sh runtestcase.sh

@@ -220,12 +220,14 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 
     assert(self && cache);
 
-    if (lock != NULL && KDirectoryPathType(self, "%s", lock) != kptNotFound) {
-        rc_t rc3 = 0;
-        STSMSG(STS_DBG, ("removing %s", lock));
-        rc3 = KDirectoryRemove(self, false, "%s", lock);
-        if (rc2 == 0 && rc3 != 0)
-            rc2 = rc3;
+    if (lock != NULL) {
+        if (KDirectoryPathType(self, "%s", lock) != kptNotFound) {
+            rc_t rc3 = 0;
+            STSMSG(STS_DBG, ("removing %s", lock));
+            rc3 = KDirectoryRemove(self, false, "%s", lock);
+            if (rc2 == 0 && rc3 != 0)
+                rc2 = rc3;
+        }
 
         {   /* remove an empty AD directory if download failed or --dryrun */
             const char * slash
@@ -2054,8 +2056,12 @@ static rc_t PrfMainDownload(Resolved* self, const Item* item,
     }
 
     r2 = PrfOutFileWhack(&pof, rc == 0);
-    if (rc == 0 && r2 != 0)
-        rc = r2;
+    if (rc == 0) {
+        if (r2 != 0)
+            rc = r2;
+    }
+    else /* try to remove and empty AD */
+        _KDirectoryClean(mane->dir, &cache, lock);
 
     if (rc == 0 && rv != 0)
         rc = rv;

@@ -95,7 +95,7 @@ TEST_CASE( ConsumeLineByLine_FromKFile )
 
 TEST_CASE( ConsumeLineByLine_FromURL )
 {
-    const std::string url{ "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos5/sra-pub-zq-11/SRR000/000/SRR000001/SRR000001.lite.1" };
+    const std::string url{ "https://sra-download.be-md.ncbi.nlm.nih.gov/sos12/sra-pub-run-1232/SRR000/053/SRR053325/SRR053325.4" };
     auto src = vdb::KFileFactory::make_from_vpath( url );
     REQUIRE_NOT_NULL( src );
     auto stream = custom_istream::custom_istream::make_from_kfile( src );

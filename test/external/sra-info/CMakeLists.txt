@@ -32,31 +32,27 @@ AddExecutableTest( Test_SraInfo_Unit "test-sra-info"
 
 ToolsRequired(sra-info)
 
-make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
+set( SRAINFO ${DIRTOTEST}/sra-info )
 
-# make sure 'sra-info -h' does not crash
-if ( WIN32 )
-  add_test( NAME Test_Sra_Info_Help
-    COMMAND ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-else ()
-  add_test( NAME Test_Sra_Info_Help
-    COMMAND sh -c "ls ${DIRTOTEST}/sra-info>/dev/null 2>&1 && ${DIRTOTEST}/sra-info -h >actual/Test_Sra_Info_Help.stdout || echo no sra-info"
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endif()
+TestHelpAndVersion( ${SRAINFO} )
+
+# other standard options
+add_test ( NAME Test_Sra_Info-Standard COMMAND ${EXECANDGREP} "${SRAINFO} SRR833251 -L debug" "debug:" )
+
+make_directory( ${CMAKE_CURRENT_SOURCE_DIR}/actual )
 
 ### command line checking:
 if ( WIN32 )
   function( AddCmdlineFailureTest test_name )
     add_test( NAME ${test_name}
-        COMMAND ${DIRTOTEST}/sra-info ${ARGN}
+        COMMAND ${SRAINFO} ${ARGN}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(${test_name} PROPERTIES WILL_FAIL TRUE)
   endfunction()
 else ()
   function( AddCmdlineFailureTest test_name args )
     add_test( NAME ${test_name}
-        COMMAND "./runfailtest.sh" "${DIRTOTEST}/sra-info" "${args}" "." ${test_id}
+        COMMAND "./runfailtest.sh" "${SRAINFO}" "${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
   endfunction()
 endif()
@@ -85,7 +81,7 @@ if ( NOT WIN32 )
 ## queries:
 function( AddQueryTest test_name test_id args )
     add_test( NAME ${test_name}
-        COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info ${args}" "." ${test_id}
+        COMMAND "./runtestcase.sh" "${SRAINFO} ${args}" "." ${test_id}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         set_tests_properties(${test_name} PROPERTIES TIMEOUT 9000)
 endfunction()
@@ -138,12 +134,12 @@ AddQueryTest( Test_Sra_Info_SpotLayout_Rows          7.9 "--spot-layout SRR00012
 
 # # multiple queries
 # add_test( NAME Test_Sra_Info_MultipleQueries_8.0
-# COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123 -P -A -Q -S" "." "8.0"
+# COMMAND "./runtestcase.sh" "${SRAINFO} SRR000123 -P -A -Q -S" "." "8.0"
 # WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # # the default set of queries
 # add_test( NAME Test_Sra_Info_Default.8.0
-#     COMMAND "./runtestcase.sh" "${DIRTOTEST}/sra-info SRR000123" "." "9.0"
+#     COMMAND "./runtestcase.sh" "${SRAINFO} SRR000123" "." "9.0"
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # schema, Default format

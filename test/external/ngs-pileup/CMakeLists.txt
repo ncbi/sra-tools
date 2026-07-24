@@ -35,6 +35,13 @@ AddExecutableTest( Test_Ngs_Pileup "test-ngs-pileup.cpp" "${NGS_PILEUP_LIBS}" ""
 if( NOT WIN32 )
     ToolsRequired(ngs-pileup)
 
+    set( NGS_PILEUP ${DIRTOTEST}/ngs-pileup )
+
+    TestHelpAndVersion( ${NGS_PILEUP} )
+
+	# other standard options
+    add_test ( NAME Test_Ngs_Pileup-Standard COMMAND ${EXECANDGREP} "${NGS_PILEUP} SRR833251 -L debug" "requesting guard size" )
+
     #TODO: fix
     # add_test( NAME Test_Ngs_Pileup_1
     #           COMMAND ./runtestcase.sh ${BINDIR} ${CMAKE_CURRENT_SOURCE_DIR} 1.0 SRR833251

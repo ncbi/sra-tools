@@ -26,6 +26,13 @@ add_compile_definitions( __mod__="test/external/sra-pileup" )
 
 ToolsRequired(sra-pileup)
 
+set( SRAPILEUP ${DIRTOTEST}/sra-pileup )
+
+TestHelpAndVersion( ${SRAPILEUP} )
+
+# other standard options
+add_test ( NAME Test_SraPileup-Standard COMMAND ${EXECANDGREP} "${SRAPILEUP} SRR833251 -L debug" "debug:" )
+
 if( Python3_EXECUTABLE )
     add_test( NAME Test_SraPileup_Check_exit_code
         COMMAND

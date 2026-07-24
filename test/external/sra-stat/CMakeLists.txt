@@ -26,8 +26,14 @@ add_compile_definitions( __mod__="test/external/sra-stat" )
 
 if ( NOT WIN32 )
     ToolsRequired(sra-stat)
+    set ( SRA_STAT  ${DIRTOTEST}/sra-stat )
 
-	#add_executable( testAssemblyStatistics testAssemblyStatistics )
+    TestHelpAndVersion( ${SRA_STAT} )
+
+    # other standard options
+    add_test ( NAME Test_Sra_stat-Standard COMMAND ${EXECANDGREP} "${SRA_STAT} -L debug SRR000123" "debug: " )
+
+    #add_executable( testAssemblyStatistics testAssemblyStatistics )
 	GenerateExecutableWithDefs( testAssemblyStatistics "testAssemblyStatistics" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	#target_link_libraries( testAssemblyStatistics ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
@@ -52,14 +58,14 @@ if ( NOT WIN32 )
         PROPERTIES
             SKIP_REGULAR_EXPRESSION "^Skipped"
     )
-    
+
 	if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
 	    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-	    add_test(NAME LatfLoadTestSetup COMMAND
+	    add_test(NAME SraStatTestSetup COMMAND
 	        sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n' > tmp.kfg"
 	        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	    set_tests_properties(
-	        LatfLoadTestSetup PROPERTIES FIXTURES_SETUP LatfLoadTest )
+	        SraStatTestSetup PROPERTIES FIXTURES_SETUP SraStatTest )
 
 	    add_test( NAME Test_Sra_stat_unln
 		    COMMAND
@@ -68,7 +74,7 @@ if ( NOT WIN32 )
 		        ./test-sra-stat-unaligned-bam.sh ${DIRTOTEST} sra-stat
 		    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	    set_tests_properties(
-	        Test_Sra_stat_unln PROPERTIES FIXTURES_REQUIRED LatfLoadTest )
+	        Test_Sra_stat_unln PROPERTIES FIXTURES_REQUIRED SraStatTest )
 	endif()
 
 	add_test( NAME SlowTest_Sra_stat

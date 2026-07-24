@@ -25,12 +25,12 @@
 add_compile_definitions( __mod__="test/external/align-info" )
 
 if ( NOT WIN32 )
-ToolsRequired(align-info)
+    ToolsRequired(align-info)
 
-    # # make sure align-info -h does not crash
-    add_test( NAME Test_Align_Info_H
-        COMMAND ${DIRTOTEST}/align-info -h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    TestHelpAndVersion( ${DIRTOTEST}/align-info )
+
+	# other standard options
+    add_test ( NAME Test_align-info-Standard COMMAND ${EXECANDGREP} "${DIRTOTEST}/align-info SRR619505 -L debug" "requesting guard size" )
 
     add_test( NAME Test_Align_Info_Refseq_404
         COMMAND
@@ -39,7 +39,7 @@ ToolsRequired(align-info)
           NCBI_SETTINGS=/
           NCBI_VDB_NO_ETC_NCBI_KFG=1
           VDB_CONFIG=
-          bash test-refseq-404.sh ${BINDIR}
+          bash test-refseq-404.sh ${DIRTOTEST}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

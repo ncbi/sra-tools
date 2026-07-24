@@ -27,6 +27,13 @@ if ( "linux" STREQUAL ${OS} AND BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS A
 
     ToolsRequired(sam-dump sam-factory bam-load kar)
 
+    set( SAMDUMP ${DIRTOTEST}/sam-dump )
+
+    TestHelpAndVersion( ${SAMDUMP} )
+
+	# other standard options
+    add_test ( NAME Test_sam_dump-Standard COMMAND ${EXECANDGREP} "${SAMDUMP} SRR833251 -L debug" "debug:" )
+
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME SamDumpTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-sam-dump-test\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(SamDumpTestSetup PROPERTIES FIXTURES_SETUP SamDumpTest)

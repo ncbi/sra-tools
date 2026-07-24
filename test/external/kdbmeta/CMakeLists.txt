@@ -25,8 +25,15 @@
 if ( NOT WIN32 )
     ToolsRequired(kdbmeta)
 
+    set( KDBMETA ${DIRTOTEST}/kdbmeta )
+
+    TestHelpAndVersion( ${KDBMETA} )
+
+	# other standard options
+    add_test ( NAME Test_Kdbmeta-Standard COMMAND ${EXECANDGREP} "${KDBMETA} SRR053325 -L debug" "requesting guard size" )
+
     add_test( NAME Test_Kdbmeta_bin
-          COMMAND sh -c "NCBI_SETTINGS=/ ${DIRTOTEST}/kdbmeta SRR053325 > /dev/null"
+          COMMAND sh -c "NCBI_SETTINGS=/ ${KDBMETA} SRR053325 > /dev/null"
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Kdbmeta_delete
@@ -36,16 +43,16 @@ if ( NOT WIN32 )
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Kdbmeta_update_expr
-          COMMAND sh -c "./test-update-expr.sh ${DIRTOTEST}/kdbmeta"
+          COMMAND sh -c "./test-update-expr.sh ${KDBMETA}"
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Kdbmeta_update_file
-          COMMAND sh -c "./test-update-file.sh ${DIRTOTEST}/kdbmeta"
+          COMMAND sh -c "./test-update-file.sh ${KDBMETA}"
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     if( TARGET kdbmeta-asan )
         add_test( NAME Test_Kdbmeta_bin-asan
-              COMMAND sh -c "${DIRTOTEST}/kdbmeta-asan SRR053325 > /dev/null"
+              COMMAND sh -c "${KDBMETA}-asan SRR053325 > /dev/null"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Kdbmeta_delete-asan
@@ -55,16 +62,16 @@ if ( NOT WIN32 )
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Kdbmeta_update_expr-asan
-              COMMAND sh -c "./test-update-expr.sh ${DIRTOTEST}/kdbmeta-asan"
+              COMMAND sh -c "./test-update-expr.sh ${KDBMETA}-asan"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    
+
         add_test( NAME Test_Kdbmeta_update_file-asan
-              COMMAND sh -c "./test-update-file.sh ${DIRTOTEST}/kdbmeta-asan"
+              COMMAND sh -c "./test-update-file.sh ${KDBMETA}-asan"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
     if( TARGET kdbmeta-tsan )
         add_test( NAME Test_Kdbmeta_bin-tsan
-              COMMAND sh -c "${DIRTOTEST}/kdbmeta-tsan SRR053325 > /dev/null"
+              COMMAND sh -c "${KDBMETA}-tsan SRR053325 > /dev/null"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Kdbmeta_delete-tsan
@@ -74,11 +81,11 @@ if ( NOT WIN32 )
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Kdbmeta_update_expr-tsan
-              COMMAND sh -c "./test-update-expr.sh ${DIRTOTEST}/kdbmeta-tsan"
+              COMMAND sh -c "./test-update-expr.sh ${KDBMETA}-tsan"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    
+
         add_test( NAME Test_Kdbmeta_update_file-tsan
-              COMMAND sh -c "./test-update-file.sh ${DIRTOTEST}/kdbmeta-tsan"
+              COMMAND sh -c "./test-update-file.sh ${KDBMETA}-tsan"
               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 else()

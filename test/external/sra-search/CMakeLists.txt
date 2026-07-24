@@ -67,19 +67,11 @@ AddExecutableTest ( Test_SraSearch_SearchBlock
 # command line tests
 if ( NOT WIN32)
     ToolsRequired(sra-search)
-    set( EXECANDGREP ${CMAKE_SOURCE_DIR}/test/execandgrep.sh )
     set ( SRA_SEARCH  ${DIRTOTEST}/sra-search${EXE} )
 
-    # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
+    TestHelpAndVersion( ${SRA_SEARCH} )
 
-	# help
-	add_test ( NAME Test_SraSearch-1.0-h COMMAND ${EXECANDGREP} "${SRA_SEARCH} -h" "Output brief explanation" )
-	add_test ( NAME Test_SraSearch-1.1-help COMMAND ${EXECANDGREP} "${SRA_SEARCH} --help" "Output brief explanation" )
-	# version
-    add_test ( NAME Test_SraSearch-1.2-V COMMAND ${EXECANDGREP} "${SRA_SEARCH} -V" ${VERSION} )
-    add_test ( NAME Test_SraSearch-1.3-version COMMAND ${EXECANDGREP} "${SRA_SEARCH} --version" ${VERSION} )
-
-	# other standard options
+    # other standard options
     add_test ( NAME Test_SraSearch-1.4-Standard COMMAND ${EXECANDGREP} "${SRA_SEARCH} -L debug A SRR000123" "requesting stack size" )
 
 	# bad arguments

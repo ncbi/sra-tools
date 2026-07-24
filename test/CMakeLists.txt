@@ -37,6 +37,17 @@ endif()
 # testing helper
 set( EXECANDGREP ${CMAKE_SOURCE_DIR}/test/execandgrep.sh )
 
+macro( TestHelpAndVersion ToolPath )
+    get_filename_component( Tool ${ToolPath} NAME_WE )
+	# help
+	add_test ( NAME Test_${Tool}-h COMMAND ${EXECANDGREP} "${ToolPath} -h" "Output brief explanation" )
+	add_test ( NAME Test_${Tool}-help COMMAND ${EXECANDGREP} "${ToolPath} --help" "Output brief explanation" )
+
+    # version
+    add_test ( NAME Test_${Tool}-V COMMAND ${EXECANDGREP} "${ToolPath} -V" ${VERSION} )
+    add_test ( NAME Test_${Tool}-version COMMAND ${EXECANDGREP} "${ToolPath} --version" ${VERSION} )
+endmacro()
+
 add_subdirectory( libs )
 
  #TODO: move to libs/

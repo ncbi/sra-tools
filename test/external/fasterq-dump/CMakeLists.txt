@@ -24,29 +24,29 @@
 
 if ( NOT WIN32 )
 
-    add_test( NAME Test_FasterqDump_Help
-        COMMAND ${DIRTOTEST}/fasterq-dump -h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	ToolsRequired( fasterq-dump )
 
-    add_test( NAME Test_FasterqDump_NotZeroWithoutParameters
-        COMMAND ${DIRTOTEST}/fasterq-dump
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set( FASTERQ_DUMP ${DIRTOTEST}/fasterq-dump )
+
+    TestHelpAndVersion( ${FASTERQ_DUMP} )
+
+    add_test( NAME Test_FasterqDump_NotZeroWithoutParameters COMMAND ${FASTERQ_DUMP} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
 
     add_test( NAME Test_FasterqDump_Simple # test fetching via HTTPS
         COMMAND
-            sh simple_test.sh ${DIRTOTEST}/fasterq-dump
+            sh simple_test.sh ${FASTERQ_DUMP}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     if( TARGET fasterq-dump-asan )
       add_test( NAME Test_FasterqDump_Simple-asan
         COMMAND
-            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-asan
+            sh simple_test.sh ${FASTERQ_DUMP}-asan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
     if( TARGET fasterq-dump-tsan )
       add_test( NAME Test_FasterqDump_Simple-tsan
         COMMAND
-            sh simple_test.sh ${DIRTOTEST}/fasterq-dump-tsan
+            sh simple_test.sh ${FASTERQ_DUMP}-tsan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
@@ -80,7 +80,7 @@ if ( NOT WIN32 )
     # the following tests invoke other tools, make sure those tools are present
     if ( BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS AND BUILD_TOOLS_INTERNAL )
 
-        ToolsRequired(fasterq-dump sam-factory bam-load kar rnd2sra)
+        ToolsRequired(sam-factory bam-load kar rnd2sra)
         add_test( NAME Test_FasterqDump_Fasta_unsorted_cSRA_read_id
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}

@@ -36,10 +36,9 @@ if( NOT WIN32 )
     add_test ( NAME Test_PileupStats-1.3-version COMMAND ${EXECANDGREP} "${PILEUP_STATS} --version" ${VERSION} )
 
 	# other standard options
-    add_test ( NAME Test_PileupStats-1.4-Standard WORKING_DIRECTORY COMMAND ${EXECANDGREP} "${PILEUP_STATS} SRR000123 -L debug" "requesting guard size" )
+    add_test ( NAME Test_PileupStats-1.4-Standard COMMAND ${EXECANDGREP} "${PILEUP_STATS} SRR000123 -L debug" "requesting guard size" )
 
     add_test( NAME SlowTest_pileup-stats-optional-column-ref-offset-type
-            COMMAND bash -c "pileup-stats --align-category primary ERR085308 >/dev/null"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            COMMAND bash -c "${PILEUP_STATS} --align-category primary ERR085308 >/dev/null" )
 
 endif()

@@ -30,15 +30,14 @@ if ( NOT WIN32)
     set( COMPUTE_COVERAGE ${DIRTOTEST}/compute-coverage )
 
 	# help
-	add_test ( NAME Test_ComputeCoverage-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.0-h --args "-h" )
-	add_test ( NAME Test_ComputeCoverage-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	            COMMAND runtestcase.sh ${COMPUTE_COVERAGE} 1.1-help --args "--help" )
-	# version
-    add_test ( NAME Test_ComputeCoverage-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} -V" ${VERSION} )
-    add_test ( NAME Test_ComputeCoverage-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} --version" ${VERSION} )
+	add_test ( NAME Test_ComputeCoverage-1.0-h COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} -h" "Output brief explanation" )
+	add_test ( NAME Test_ComputeCoverage-1.1-help Test_PileupStats "${COMPUTE_COVERAGE} --help" "Output brief explanation" )
 
-	# -+
-    add_test ( NAME Test_ComputeCoverage-1.4-Debug WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ../../execandgrep.sh "${COMPUTE_COVERAGE} SRR496123 -+VDB" "VDatabaseOpenRead" )
+    # version
+    add_test ( NAME Test_ComputeCoverage-1.2-V COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} -V" ${VERSION} )
+    add_test ( NAME Test_ComputeCoverage-1.3-version COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} --version" ${VERSION} )
+
+	# other standard options
+    add_test ( NAME Test_ComputeCoverage-1.4-Standard WORKING_DIRECTORY COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} SRR496123 -L debug" "requesting guard size" )
 
 endif ()

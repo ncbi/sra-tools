@@ -74,7 +74,7 @@ if ( NOT WIN32)
 
 	# help
 	add_test ( NAME Test_SraSearch-1.0-h COMMAND ${EXECANDGREP} "${SRA_SEARCH} -h" "Output brief explanation" )
-	add_test ( NAME Test_SraSearch-1.1-help COMMAND ${EXECANDGREP} "${SRA_SEARCH} -h" "Output brief explanation" )
+	add_test ( NAME Test_SraSearch-1.1-help COMMAND ${EXECANDGREP} "${SRA_SEARCH} --help" "Output brief explanation" )
 	# version
     add_test ( NAME Test_SraSearch-1.2-V COMMAND ${EXECANDGREP} "${SRA_SEARCH} -V" ${VERSION} )
     add_test ( NAME Test_SraSearch-1.3-version COMMAND ${EXECANDGREP} "${SRA_SEARCH} --version" ${VERSION} )

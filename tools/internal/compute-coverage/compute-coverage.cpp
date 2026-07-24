@@ -297,5 +297,6 @@ int run ( int argc, char * argv [] ) {
 MAIN_DECL(argc, argv)
 {
     VDB::Application app(argc, argv, HASH_SRA_TOOLS);
-    return run ( argc, app.getArgV() );
+    app.HandleStandardOptions( Usage, UsageSummary );
+    return run ( app.getArgC(), app.getArgV() );
 }

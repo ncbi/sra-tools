@@ -26,12 +26,17 @@ if( NOT WIN32 )
 
     ToolsRequired( pileup-stats )
 
-    add_test ( NAME PileupStats-Version
-            COMMAND sh -c "${BINDIR}/pileup-stats -V | grep -q `head -n 1 ${CMAKE_SOURCE_DIR}/shared/toolkit.vers`"
-        )
-    add_test ( NAME PileupStats-Help COMMAND sh -c "${BINDIR}/pileup-stats -h | grep -q Usage" )
+    set( PILEUP_STATS ${DIRTOTEST}/pileup-stats )
 
-    add_test ( NAME PileupStats-StdOptions COMMAND sh -c "${BINDIR}/pileup-stats -+VDB SRR000123 2>&1 | grep -q VTableOpenRead" )
+	add_test ( NAME Test_PileupStats-1.0-h COMMAND ${EXECANDGREP} "${PILEUP_STATS} -h" "Output brief explanation" )
+	add_test ( NAME Test_PileupStats-1.1-help COMMAND ${EXECANDGREP} "${PILEUP_STATS} --help" "Output brief explanation" )
+
+    # version
+    add_test ( NAME Test_PileupStats-1.2-V COMMAND ${EXECANDGREP} "${PILEUP_STATS} -V" ${VERSION} )
+    add_test ( NAME Test_PileupStats-1.3-version COMMAND ${EXECANDGREP} "${PILEUP_STATS} --version" ${VERSION} )
+
+	# other standard options
+    add_test ( NAME Test_PileupStats-1.4-Standard WORKING_DIRECTORY COMMAND ${EXECANDGREP} "${PILEUP_STATS} SRR000123 -L debug" "requesting guard size" )
 
     add_test( NAME SlowTest_pileup-stats-optional-column-ref-offset-type
             COMMAND bash -c "pileup-stats --align-category primary ERR085308 >/dev/null"

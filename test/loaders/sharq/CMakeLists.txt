@@ -332,6 +332,8 @@ if( SINGLE_CONFIG )
         SharqTestWithMetadata(DbMetaMultipleFiles_input "${IN}r1.fastq ${IN}r2.fastq" ". LOAD")
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
+        SharqTest(017.readname_format_change 1 "${IN}017.fastq") # error out when readname format changes mid-file
+
         # inputs from cloud
 
         execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )

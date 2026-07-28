@@ -24,3 +24,7 @@
 */
 
 #define HASH_SRA_TOOLS ""
+#ifdef HASH_SRA_TOOLS
+ #undef HASH_SRA_TOOLS
+#endif
+#define HASH_SRA_TOOLS "-60e2abd5f25d0eb9e40967c1f46fe1fbb5e113f1"

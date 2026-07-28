@@ -80,6 +80,7 @@ struct env_var {
         SIZE_VDBCACHE,
         QUALITY_PREFERENCE,
         PARAMETER_BITS,
+        REMOTE_FOR_CLOUD,
         END_ENUM
     };
     
@@ -101,6 +102,7 @@ struct env_var {
             ENV_VAR_SIZE_VDBCACHE,
             ENV_VAR_QUALITY_PREFERENCE,
             ENV_VAR_PARAMETER_BITS,
+            ENV_VAR_REMOTE_CLOUD_INFO,
         };
         return value;
     }

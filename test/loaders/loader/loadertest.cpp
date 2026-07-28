@@ -374,11 +374,7 @@ FIXTURE_TEST_CASE ( LoaderMeta_WriteWithVersion, LoaderFixture )
 }
 
 //////////////////////////////////////////// Main
-#include <kfg/config.h>
-
 int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv);
-    KConfigDisableUserSettings();
-    return LoaderTestSuite(argc, app.getArgV());
+    return LoaderTestSuite(argc, argv);
 }

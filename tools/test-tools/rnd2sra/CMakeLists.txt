@@ -22,14 +22,15 @@
 #
 # ===========================================================================
 
-cmake_minimum_required (VERSION 3.8)
-
-project(rnd2sra)
+if(${OS} STREQUAL "linux")
+    set( LIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
+elseif(${OS} STREQUAL "mac")
+    set( LIBS "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+endif()
 
 GenerateExecutableWithDefs( rnd2sra
     src/rnd2sra.cpp
     ""
     ""
-    "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};stdc++fs" )
-
-target_compile_features( rnd2sra PRIVATE cxx_std_17 )
+    "${LIBS}" )
+MakeLinksExe_NoInstall( rnd2sra )

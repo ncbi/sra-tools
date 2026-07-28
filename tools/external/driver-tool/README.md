@@ -52,13 +52,13 @@ If the tool is not found, a message is printed.
 
 This script runs each tool in its list, with an environment variable
 (`SRATOOLS_DUMP_OPTIONS`) set. This causes the `kapp` args processing code to
-print out the options definitions and exit. For each tool, the output is a pair
-of preprocessor defines:
-  1. `TOOL_NAME_<...>` is the name of the tool.
-  2. `TOOL_ARGS_<...>` is the list of arguments.
+print out the options definitions and exit. For each tool, the output is a set
+of preprocessor macros:
+  1. `TOOL_ARGS_BEGIN(<tool name>, <tool argv[0]>)`.
+  2. a list of `TOOL_ARG(<param name>, <aliases>, <takes an argument>)`, one per command line parameter.
+  3. `TOOL_ARGS_END`.
 
-`<...>` is the uppercased name of the tool. This is all collected into
-`tool-arguments.h`. This only works with a debug build.
+This is all collected into `tool-arguments.h`. This only works with a debug build.
 
 ## Adding a new command line option for a driven tool:
 

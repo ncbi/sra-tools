@@ -3891,6 +3891,7 @@ rc_t CC Usage( Args const *args) {
     }
     KOutMsg( "\n" );
     HelpOptionsStandard();
+    KOutMsg( "\n" );
 
     HelpVersion( fullpath, KAppVersion() );
 

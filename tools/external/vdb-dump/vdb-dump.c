@@ -180,10 +180,12 @@ const char UsageDefaultName[] = "vdb-dump";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
+                    "Summary: Examine the data contents of an SRA file.\n"
+                    "\n"
                     "Usage:\n"
                     "  %s <path> [<path> ...] [options]\n"
-                    "\n", progname);
+                    , progname);
 }
 
 
@@ -204,7 +206,8 @@ rc_t CC Usage ( const Args * args )
     }
 
     UsageSummary ( progname );
-    KOutMsg ( "Options:\n" );
+
+    KOutMsg ( "\nOptions:\n" );
     HelpOptionLine ( ALIAS_ROW_ID_ON,           OPTION_ROW_ID_ON,       NULL,           row_id_on_usage );
     HelpOptionLine ( ALIAS_LINE_FEED,           OPTION_LINE_FEED,       "line_feed",    line_feed_usage );
     HelpOptionLine ( ALIAS_COLNAME_OFF,         OPTION_COLNAME_OFF,     NULL,           colname_off_usage );
@@ -265,6 +268,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_INSPECT,         NULL,           inspect_usage );
 
     HelpOptionsStandard ();
+
+    KOutMsg ( "\n" );
 
     HelpVersion ( fullpath, KAppVersion() );
 
@@ -2097,7 +2102,12 @@ static rc_t vdm_main_one_obj( const p_dump_context ctx,
     } else if ( ctx -> objtype_requested ) {
         vdm_print_objtype( mgr, acc_or_path );
     } else if ( ctx -> view_defined ) {
-        rc = vdm_dump_unbound_view ( ctx, mgr ); // V<t1> where V is an ubound view, needs binding to source(s)
+        if ( ctx -> table_defined ) {
+            rc = RC( rcExe, rcDatabase, rcResolving, rcData, rcInvalid );
+            DISP_RC( rc, "view and table cannot be used at the same time" );
+        } else {
+            rc = vdm_dump_unbound_view ( ctx, mgr ); // V<t1> where V is an ubound view, needs binding to source(s)
+        }
     } else {
         if ( USE_PATHTYPE_TO_DETECT_DB_OR_TAB ) { /* in vdb-dump-context.h */
             rc = vdb_main_one_obj_by_pathtype( ctx, mgr );

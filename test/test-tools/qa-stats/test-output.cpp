@@ -266,9 +266,15 @@ static void set_the_locale(std::ostream &strm)
 
 TEST_CASE(Test_locale)
 {
+    ostringstream test;
+    set_the_locale(test);
+    test << 1234.56;
+    
+    auto const expected = string{R"([")"} + test.str() + string{R"(",1234.56])"};
+    
     ostringstream outStr;
     
-    set_the_locale(outStr);
+    outStr.imbue(test.getloc());
     
     auto jso = JSON_ostream{outStr, true};
     jso << '['
@@ -279,7 +285,7 @@ TEST_CASE(Test_locale)
         << 1234.56 // this will use the "C" locale, i.e. no commas
     << ']';
 
-    REQUIRE_EQ(string{R"(["1,234.56",1234.56])"}, outStr.str());
+    REQUIRE_EQ(expected, outStr.str());
 }
 
 int main (int argc, char *argv [])

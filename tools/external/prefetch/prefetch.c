@@ -35,7 +35,7 @@
 
 #include <kdb/manager.h> /* kptDatabase */
 
-#include <kfg/kart.h> /* Kart */
+#include <kfg/kart-priv.h> /* KDirectory_IsKartFile */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
 #include <kfs/cacheteefile.h> /* KDirectoryMakeCacheTee */
@@ -881,6 +881,7 @@ static rc_t ResolvedFini(Resolved *self) {
     RELEASE(KSrvRespFile, self->respFile);
 
     free(self->name);
+    free(self->id);
 
     memset(self, 0, sizeof *self);
 
@@ -1751,37 +1752,39 @@ static void LogQuality(VQuality q, ETernary fullQuality) {
    STSMSG(STS_TOP, (msg));
 }
 
-static rc_t PrfMainDownload(Resolved *self, const Item * item,
-                         bool isDependency, const VPath *vdbcache)
+static rc_t PrfMainDownload(Resolved* self, const Item* item,
+    bool isDependency, const VPath* vdbcache)
 {
     rc_t rc = 0, r2 = 0, rv = 0;
-    KFile *flock = NULL;
-    PrfMain * mane = NULL;
+    KFile* flock = NULL;
+    PrfMain* mane = NULL;
 
     char lock[PATH_MAX] = "";
 
-    const VPath * vcache = NULL;
-    const VPath * vremote = NULL;
+    const VPath* vcache = NULL;
+    const VPath* vremote = NULL;
 
-    const char * name = NULL;
+    const char* name = NULL;
+
+    bool skipDownload = false;
 
     PrfOutFile pof;
 
     String cache;
-    memset( & cache, 0, sizeof cache );
+    memset(&cache, 0, sizeof cache);
 
     assert(self && item);
 
     name = self->name;
     if (self->respFile != NULL) {
-        const char * acc = NULL;
+        const char* acc = NULL;
         rc_t r2 = KSrvRespFileGetName(self->respFile, &acc);
         if (r2 == 0 && acc != NULL)
             name = acc;
     }
 
-    mane = item -> mane;
-    assert ( mane );
+    mane = item->mane;
+    assert(mane);
 
     rc = PrfOutFileInit(&pof, mane->resume, name, vdbcache != NULL);
     if (rc != 0)
@@ -1792,7 +1795,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
             rc = KSrvRespFileGetCache(self->respFile, &vcache);
             if (rc == 0) {
                 if (vdbcache != NULL) {
-                    VPath * clocal = NULL;
+                    VPath* clocal = NULL;
                     rc = VFSManagerMakePathWithExtension(
                         mane->vfsMgr, &clocal, vcache, ".vdbcache");
                     if (rc == 0) {
@@ -1828,233 +1831,234 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
             PrfMainHasDownloaded(mane, cache.addr))
         {
             STSMSG(STS_DBG, ("%s has already been downloaded", cache.addr));
-            return 0;
+            skipDownload = true;
         }
     }
 
-    if (rc == 0)
-        rc = _KDirectoryMkLockName(mane->dir, & cache, lock, sizeof lock);
+    if (!skipDownload) {
+        if (rc == 0)
+            rc = _KDirectoryMkLockName(mane->dir, &cache, lock, sizeof lock);
 
-    if (rc == 0) {
-        /*const VPath * p = NULL;
-        if (self->remoteHttp.path != NULL)
-            p = self->remoteHttp.path;
-        else if (self->remoteHttps.path != NULL)
-            p = self->remoteHttps.path;*/
-        rc = PrfOutFileMkName(&pof, &cache);// , p);
-        if (rc != 0)
-            return rc;
-    }
+        if (rc == 0) {
+            /*const VPath * p = NULL;
+            if (self->remoteHttp.path != NULL)
+                p = self->remoteHttp.path;
+            else if (self->remoteHttps.path != NULL)
+                p = self->remoteHttps.path;*/
+            rc = PrfOutFileMkName(&pof, &cache);// , p);
+            if (rc != 0)
+                return rc;
+        }
 
-    if (KDirectoryPathType(mane->dir, "%s", lock) != kptNotFound) {
-        if (mane->force != eForceAll && mane->force != eForceALL) {
-            KTime_t date = 0;
-            rc = KDirectoryDate(mane->dir, &date, "%s", lock);
-            if (rc == 0) {
-                time_t t = time(NULL) - date;
-                if (t < 60 * 60 * 24) { /* 24 hours */
-                    STSMSG(STS_DBG, ("%s found: canceling download", lock));
-                    rc = RC(rcExe, rcFile, rcCopying, rcLock, rcExists);
-                    PLOGERR(klogWarn, (klogWarn, rc,
-                        "Lock file $(file) exists: download canceled",
-                        "file=%s", lock));
-                    return rc;
+        if (KDirectoryPathType(mane->dir, "%s", lock) != kptNotFound) {
+            if (mane->force != eForceAll && mane->force != eForceALL) {
+                KTime_t date = 0;
+                rc = KDirectoryDate(mane->dir, &date, "%s", lock);
+                if (rc == 0) {
+                    time_t t = time(NULL) - date;
+                    if (t < 60 * 60 * 24) { /* 24 hours */
+                        STSMSG(STS_DBG, ("%s found: canceling download", lock));
+                        rc = RC(rcExe, rcFile, rcCopying, rcLock, rcExists);
+                        PLOGERR(klogWarn, (klogWarn, rc,
+                            "Lock file $(file) exists: download canceled",
+                            "file=%s", lock));
+                        return rc;
+                    }
+                    else {
+                        STSMSG(STS_DBG, ("%s found and ignored as too old", lock));
+                        rc = _KDirectoryClean(mane->dir, pof.cache, lock);
+                    }
                 }
                 else {
-                    STSMSG(STS_DBG, ("%s found and ignored as too old", lock));
-                    rc = _KDirectoryClean(mane->dir, pof.cache, lock);
+                    STSMSG(STS_DBG, ("%s found", lock));
+                    DISP_RC2(rc, "KDirectoryDate", lock);
                 }
             }
             else {
-                STSMSG(STS_DBG, ("%s found", lock));
-                DISP_RC2(rc, "KDirectoryDate", lock);
+                STSMSG(STS_DBG, ("%s found and forced to be ignored", lock));
+                rc = _KDirectoryClean(mane->dir, pof.cache, lock);
             }
         }
-        else {
-            STSMSG(STS_DBG, ("%s found and forced to be ignored", lock));
-            rc = _KDirectoryClean(mane->dir, pof.cache, lock);
+        else
+            STSMSG(STS_DBG, ("%s not found", lock));
+
+        if (rc == 0) {
+            STSMSG(STS_DBG, ("creating %s", lock));
+            rc = KDirectoryCreateFile(mane->dir, &flock,
+                false, 0664, kcmInit | kcmParents, "%s", lock);
+            DISP_RC2(rc, "Cannot CreateFile", lock);
         }
-    }
-    else {
-        STSMSG(STS_DBG, ("%s not found", lock));
-    }
 
-    if (rc == 0) {
-        STSMSG(STS_DBG, ("creating %s", lock));
-        rc = KDirectoryCreateFile(mane->dir, &flock,
-            false, 0664, kcmInit | kcmParents, "%s", lock);
-        DISP_RC2(rc, "Cannot CreateFile", lock);
-    }
+        assert(!mane->noAscp || !mane->noHttp);
 
-    assert(!mane->noAscp || !mane->noHttp);
-
-    if (self->respFile != NULL) {
-        rc_t rd = 0;
-        KSrvRespFileIterator * fi = NULL;
-        rc = KSrvRespFileMakeIterator(self->respFile, &fi);
-        while (rc == 0) {
-            if (vdbcache == NULL) {
-                rc = KSrvRespFileIteratorNextPath(fi, &vremote);
-                if (rc == 0) {
-                    if (vremote == NULL) {
-                        rc = rd;
-                        break;
-                    }
-                    rc = VPathAddRef(vremote);
-                    if (rc == 0)
-                        rc = VPathRelease(self->remote);
-                    if (rc == 0)
-                        self->remote = vremote;
-                    rc = VPathStrInit(&self->path, vcache);
+        if (self->respFile != NULL) {
+            rc_t rd = 0;
+            KSrvRespFileIterator* fi = NULL;
+            rc = KSrvRespFileMakeIterator(self->respFile, &fi);
+            while (rc == 0) {
+                if (vdbcache == NULL) {
+                    rc = KSrvRespFileIteratorNextPath(fi, &vremote);
                     if (rc == 0) {
-                        String type;
-                        rc = VPathGetType(vremote, &type);
-                        if (rc == 0 && type.size == 3 && type.addr != NULL &&
-                            type.addr[0] == 's' && type.addr[1] == 'r' &&
-                            type.addr[2] == 'a')
-                        {
-                            VQuality q = VPathGetQuality(vremote);
-                            if (q < eQualLast)
-                                if (q == eQualNo || q == eQualFull)
-                                    LogQuality(q, item->mane->fullQuality);
+                        if (vremote == NULL) {
+                            rc = rd;
+                            break;
+                        }
+                        rc = VPathAddRef(vremote);
+                        if (rc == 0)
+                            rc = VPathRelease(self->remote);
+                        if (rc == 0)
+                            self->remote = vremote;
+                        rc = VPathStrInit(&self->path, vcache);
+                        if (rc == 0) {
+                            String type;
+                            rc = VPathGetType(vremote, &type);
+                            if (rc == 0 && type.size == 3 && type.addr != NULL &&
+                                type.addr[0] == 's' && type.addr[1] == 'r' &&
+                                type.addr[2] == 'a')
+                            {
+                                VQuality q = VPathGetQuality(vremote);
+                                if (q < eQualLast)
+                                    if (q == eQualNo || q == eQualFull)
+                                        LogQuality(q, item->mane->fullQuality);
+                            }
                         }
                     }
+                    rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
                 }
-                rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
-            }
-            else {
-                rc = VPathAddRef(vdbcache);
-                if (rc != 0)
-                    break;
                 else {
-                    vremote = vdbcache;
-                    rd = PrfMainDoDownload(self, item, isDependency, vdbcache,
-                        &pof);
-                }
-            }
-            if (rd == 0 && vdbcache == NULL) {
-                const VPath * vdbcache = NULL;
-                rc_t rc = VPathGetVdbcache(vremote, & vdbcache, NULL);
-                if (rc == 0 && vdbcache != NULL) {
-                    rc_t r2 = 0;
-                    STSMSG(STS_TOP, ("%d.2) Downloading '%s.vdbcache'...",
-                        item->number, name));
-                    r2 = PrfMainDownload(self, item, isDependency, vdbcache);
-                    if (r2 == 0) {
-                        STSMSG(STS_TOP, (
-                            "%d.2) '%s.vdbcache' was downloaded successfully",
-                            item->number, name));
+                    rc = VPathAddRef(vdbcache);
+                    if (rc != 0)
+                        break;
+                    else {
+                        vremote = vdbcache;
+                        rd = PrfMainDoDownload(self, item, isDependency, vdbcache,
+                            &pof);
                     }
-                    else
-                        PLOGERR(klogInt, (klogInt, r2,
-                            "$(n)) failed to download '$(a).vdbcache'",
-                            "n=%d,a=%s", item->number, name));
-                    RELEASE(VPath, vdbcache);
+                }
+                if (rd == 0 && vdbcache == NULL) {
+                    const VPath* vdbcache = NULL;
+                    rc_t rc = VPathGetVdbcache(vremote, &vdbcache, NULL);
+                    if (rc == 0 && vdbcache != NULL) {
+                        rc_t r2 = 0;
+                        STSMSG(STS_TOP, ("%d.2) Downloading '%s.vdbcache'...",
+                            item->number, name));
+                        r2 = PrfMainDownload(self, item, isDependency, vdbcache);
+                        if (r2 == 0) {
+                            STSMSG(STS_TOP, (
+                                "%d.2) '%s.vdbcache' was downloaded successfully",
+                                item->number, name));
+                        }
+                        else
+                            PLOGERR(klogInt, (klogInt, r2,
+                                "$(n)) failed to download '$(a).vdbcache'",
+                                "n=%d,a=%s", item->number, name));
+                        RELEASE(VPath, vdbcache);
+                    }
+                }
+                if (rd == 0)
+                    break;
+                RELEASE(VPath, vremote);
+                if (rd != 0 && vdbcache != NULL) {
+                    if (rc == 0)
+                        rc = rd;
+                    break;
                 }
             }
-            if (rd == 0)
-                break;
-            RELEASE ( VPath, vremote );
-            if (rd != 0 && vdbcache != NULL) {
-                if (rc == 0)
-                    rc = rd;
-                break;
-            }
+            RELEASE(KSrvRespFileIterator, fi);
         }
-        RELEASE(KSrvRespFileIterator, fi);
-    }
-    else {
-        do {
-            if (self->remoteFasp.path != NULL) {
-                rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteFasp.path, &pof);
-                if (rc == 0)
-                    break;
-            }
-            if (self->remoteHttp.path != NULL) {
-                rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteHttp.path, &pof);
-                if (rc == 0)
-                    break;
-            }
-            if (self->remoteHttps.path != NULL) {
-                rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteHttps.path, &pof);
-                if (rc == 0)
-                    break;
-            }
-        } while (false);
-    }
-
-    RELEASE(KFile, flock);
-
-    if (rc == 0) {
-        KStsLevel lvl = STS_DBG;
-        if (mane->dryRun)
-            lvl = STS_INFO;
-        STSMSG(lvl, ("renaming %s -> %S", pof.tmpName, & cache));
-        if (!mane->dryRun) {
-            rc = KDirectoryRename(mane->dir, true, pof.tmpName, cache.addr);
-            if (rc != 0)
-                PLOGERR(klogInt, (klogInt, rc, "cannot rename $(from) to $(to)",
-                    "from=%s,to=%S", pof.tmpName, & cache));
-        }
-    }
-    else {
-        const KFile * f = NULL;
-        uint64_t size = 0;
-        rc_t rc = KDirectoryOpenFileRead(mane->dir, &f, pof.tmpName);
-        if (rc == 0)
-            rc = KFileSize(f, &size);
-        KFileRelease(f);
-        if (rc == 0 && size == 0)
-            KDirectoryRemove(mane->dir, 0, pof.tmpName);
-    }
-
-    if (rc == 0 && !mane->dryRun) {
-        EValidate size = eVinit;
-        EValidate md5 = eVinit;
-        bool encrypted = false;
-        const char * log = PrfOutFileMkLog(&pof);
-        rv = POFValidate(
-            &pof, vremote, vcache, mane->validate, &size, &md5, &encrypted);
-        if (rv != 0)
-            PLOGERR(
-                klogInt, (klogInt, rv, "failed to verify: $(L)", "L=%s", log));
         else {
-            if (size == eVyes && md5 == eVyes)
-                STSMSG(STS_TOP, (" '%s%s' is valid: %s",
-                    name, vdbcache == NULL ? "" : ".vdbcache", log));
-            else if (size == eVyes && encrypted)
-                STSMSG(STS_TOP, (" size of '%s%s' is correct",
-                    name, vdbcache == NULL ? "" : ".vdbcache"));
-            else {
-                if (size == eVno) {
-                    STSMSG(STS_TOP, (" '%s%s': size does not match",
-                        name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rv = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
+            do {
+                if (self->remoteFasp.path != NULL) {
+                    rc = PrfMainDoDownload(self, item,
+                        isDependency, self->remoteFasp.path, &pof);
+                    if (rc == 0)
+                        break;
                 }
-                if (md5 == eVno) {
-                    STSMSG(STS_TOP, (" '%s%s': md5 does not match",
+                if (self->remoteHttp.path != NULL) {
+                    rc = PrfMainDoDownload(self, item,
+                        isDependency, self->remoteHttp.path, &pof);
+                    if (rc == 0)
+                        break;
+                }
+                if (self->remoteHttps.path != NULL) {
+                    rc = PrfMainDoDownload(self, item,
+                        isDependency, self->remoteHttps.path, &pof);
+                    if (rc == 0)
+                        break;
+                }
+            } while (false);
+        }
+
+        RELEASE(KFile, flock);
+
+        if (rc == 0) {
+            KStsLevel lvl = STS_DBG;
+            if (mane->dryRun)
+                lvl = STS_INFO;
+            STSMSG(lvl, ("renaming %s -> %S", pof.tmpName, &cache));
+            if (!mane->dryRun) {
+                rc = KDirectoryRename(mane->dir, true, pof.tmpName, cache.addr);
+                if (rc != 0)
+                    PLOGERR(klogInt, (klogInt, rc, "cannot rename $(from) to $(to)",
+                        "from=%s,to=%S", pof.tmpName, &cache));
+            }
+        }
+        else {
+            const KFile* f = NULL;
+            uint64_t size = 0;
+            rc_t rc = KDirectoryOpenFileRead(mane->dir, &f, pof.tmpName);
+            if (rc == 0)
+                rc = KFileSize(f, &size);
+            KFileRelease(f);
+            if (rc == 0 && size == 0)
+                KDirectoryRemove(mane->dir, 0, pof.tmpName);
+        }
+
+        if (rc == 0 && !mane->dryRun) {
+            EValidate size = eVinit;
+            EValidate md5 = eVinit;
+            bool encrypted = false;
+            const char* log = PrfOutFileMkLog(&pof);
+            rv = POFValidate(
+                &pof, vremote, vcache, mane->validate, &size, &md5, &encrypted);
+            if (rv != 0)
+                PLOGERR(
+                    klogInt, (klogInt, rv, "failed to verify: $(L)", "L=%s", log));
+            else {
+                if (size == eVyes && md5 == eVyes)
+                    STSMSG(STS_TOP, (" '%s%s' is valid: %s",
+                        name, vdbcache == NULL ? "" : ".vdbcache", log));
+                else if (size == eVyes && encrypted)
+                    STSMSG(STS_TOP, (" size of '%s%s' is correct",
                         name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rv = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
+                else {
+                    if (size == eVno) {
+                        STSMSG(STS_TOP, (" '%s%s': size does not match",
+                            name, vdbcache == NULL ? "" : ".vdbcache"));
+                        rv = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
+                    }
+                    if (md5 == eVno) {
+                        STSMSG(STS_TOP, (" '%s%s': md5 does not match",
+                            name, vdbcache == NULL ? "" : ".vdbcache"));
+                        rv = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
+                    }
                 }
             }
         }
-    }
 
-    if (rc == 0 && rv == 0)
-        rc = PrfMainDownloaded(mane, cache.addr);
+        if (rc == 0 && rv == 0)
+            rc = PrfMainDownloaded(mane, cache.addr);
 
-    if (rc == 0) {
-        r2 = _KDirectoryCleanCache(mane->dir, & cache);
+        if (rc == 0) {
+            r2 = _KDirectoryCleanCache(mane->dir, &cache);
+            if (rc == 0 && r2 != 0)
+                rc = r2;
+        }
+
+        r2 = _KDirectoryClean(mane->dir, &cache, lock);
         if (rc == 0 && r2 != 0)
             rc = r2;
     }
-
-    r2 = _KDirectoryClean(mane->dir, &cache, lock);
-    if (rc == 0 && r2 != 0)
-        rc = r2;
 
     r2 = PrfOutFileWhack(&pof, rc == 0);
     if (rc == 0 && r2 != 0)
@@ -2144,9 +2148,9 @@ static rc_t ItemInit(Item *self, const char *obj) {
     return 0;
 }
 
-static char* ItemName(const Item *self, const char **id) {
+static char* ItemName(const Item *self, char **id) {
     char *c = NULL;
-    const char *dummy = NULL;
+    char *dummy = NULL;
     if (id == NULL)
         id = &dummy;
     assert(self);
@@ -2160,6 +2164,10 @@ static char* ItemName(const Item *self, const char **id) {
         assert(self->item);
         rc = KartItemItemId(self->item, &elem);
         *id = StringCheck(elem, rc);
+        if ( dummy != NULL )
+        {
+            free( dummy );
+        }
         /*
         rc = KartItemItemDesc(self->item, &elem);
         c = StringCheck(elem, rc);
@@ -2167,6 +2175,7 @@ static char* ItemName(const Item *self, const char **id) {
             return c;
         }
 */
+
         rc = KartItemAccession(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
@@ -2598,9 +2607,14 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                     "%s", self->desc);
                 if (rc == 0) {
                     local = true;
-                    rc = VFSManagerMakePath((VFSManager*)1, &path,
+                    rc = VFSManagerMakePath(self->mane->vfsMgr, &path,
                         "%s", resolved);
                 } /* else rc is ignored */
+            }
+            else if (type == kptDir) {
+                uint32_t l = string_size(self->desc);
+                for (; l > 1 && self->desc[l - 1] == '/'; --l)
+                    ((char*)(self->desc))[l - 1] = '\0';
             }
 
             if (local) {
@@ -3475,6 +3489,9 @@ static rc_t ItemProcess(Item *item, int32_t row) {
 const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
+        "\n"
+        "Summary: Retrieve data and pre-requisites from NCBI or other cloud instances of the SRA data.\n"
+        "\n"
         "Usage:\n"
         "  %s [options] <SRA accession> [...]\n"
         "  Download SRA files and their dependencies\n"
@@ -3494,7 +3511,6 @@ rc_t CC UsageSummary(const char *progname) {
         "  %s [options] <SRA file> [...]\n"
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
-        "\n"
         , progname, progname, progname, progname, progname, progname));
 }
 
@@ -3565,18 +3581,14 @@ IteratorInit(Iterator *self, const char *obj, const PrfMain *mane)
     assert(obj);
     type = KDirectoryPathType(mane->dir, "%s", obj);
     if ((type & ~kptAlias) == kptFile) {
-        type = VDBManagerPathType(mane->mgr, "%s", obj);
-        if ((type & ~kptAlias) == kptFile) {
+        rc = KDirectory_IsKartFile(mane->dir, &self->isKart, obj);
+        if (rc == 0 && self->isKart) {
             rc = KartMakeWithNgc(mane->dir, obj, &self->kart, &self->isKart,
                 mane->ngc);
-            if (rc != 0) {
-                if (self->isKart)
-                    PLOGERR(klogErr, (klogErr, rc,
-                        "Cannot open kart '$(kart)' with ngc '$(ngc)'",
-                        "kart=%s,ngc=%s", obj, mane->ngc));
-                else
-                    rc = 0;
-            }
+            if (rc != 0)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot open kart '$(kart)' with ngc '$(ngc)'",
+                    "kart=%s,ngc=%s", obj, mane->ngc));
         }
     }
 
@@ -3722,9 +3734,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                                     " when downloading kart file" );
             }
         }
+
         else {
             if ( self -> orderOrOutFile != NULL )
                 self -> outFile = self -> orderOrOutFile;
+
             if ( self -> outFile != NULL && pcount > 1 ) {
                 if ( ! * multiErrorReported ) {
                     rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
@@ -3737,6 +3751,26 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                                      rcParam, rcInvalid );
                 return rc;
             }
+
+	    if ( self -> outFile != NULL ) {
+#define PREFETCH_USES_OUTPUT_TO_FILE "NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE"
+		OUTMSG((
+"The --output-file option has been deprecated.\n"
+"We recommend using --output-directory\n"
+"or cd to directory where out is desired instead.\n"
+"To re-enable option you can set\n"
+"the environment variable " PREFETCH_USES_OUTPUT_TO_FILE ".\n"
+"Warning: using this option can create failures,\n"
+"for example single Runs may have more than one file to be downloaded.\n"));
+		if (getenv(PREFETCH_USES_OUTPUT_TO_FILE) == NULL) {
+                    OUTMSG(("\n"));
+		    rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+		    LOGERR ( klogErr, rc,
+			"The --output-file option has been deprecated." );
+		    return rc;
+		}
+		OUTMSG(("\n" PREFETCH_USES_OUTPUT_TO_FILE " was set.\n\n"));
+	    }
         }
     }
 

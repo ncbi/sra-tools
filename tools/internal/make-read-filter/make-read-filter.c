@@ -761,7 +761,7 @@ const char UsageDefaultName[] = "make-read-filter";
 
 rc_t CC UsageSummary ( const char *progname )
 {
-    return KOutMsg ( "\n"
+    return KOutMsg (
                      "Usage:\n"
                      "  %s [options] <input>\n"
                      "\n"
@@ -775,7 +775,7 @@ rc_t CC Usage ( const Args *args )
 {
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
-    rc_t rc;
+    rc_t rc = 0;
 
     if (args == NULL)
         rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
@@ -786,12 +786,14 @@ rc_t CC Usage ( const Args *args )
 
     UsageSummary (progname);
 
-    KOutMsg ("Options:\n");
+    KOutMsg ("\nOptions:\n");
     HelpOptionLine(Options[0].aliases, Options[0].name, "path", Options[0].help);
     HelpOptionLine(Options[1].aliases, Options[1].name, "path", Options[1].help);
 
     KOutMsg ("Common options:\n");
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
     HelpVersion ( fullpath, KAppVersion () );
 
     return rc;
@@ -799,8 +801,7 @@ rc_t CC Usage ( const Args *args )
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );

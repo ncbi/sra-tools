@@ -3764,7 +3764,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
     }
 
     if (rc == 0) {
-        {
+        if (!pb->skip_members) {
             const char* name = SPOT_GROUP;
             rc = VCursorAddColumn(curs, &idxSPOT_GROUP, "%s", name);
             if (columnUndefined(rc)) {
@@ -4361,9 +4361,12 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                             dREAD_LEN, dREAD_TYPE);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );
-                        rc = Quitting();
-                        if (rc != 0)
+                        rc_t rc2 = Quitting();
+                        if (rc2 != 0)
+                        {
                             LOGMSG(klogWarn, "Interrupted");
+                            rc = rc2;
+                        }
                     }
 
                     if (rc == 0) {
@@ -4770,12 +4773,11 @@ OptDef Options[] = { /*                            maxCount needValue required*/
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
+        "Summary:\n"
+        "  Display table statistics\n"
         "\n"
         "Usage:\n"
         "  %s [options] table\n"
-        "\n"
-        "Summary:\n"
-        "  Display table statistics\n"
         "\n", progname);
 }
 
@@ -4816,6 +4818,8 @@ rc_t CC Usage (const Args * args)
     KOutMsg ("\n");
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

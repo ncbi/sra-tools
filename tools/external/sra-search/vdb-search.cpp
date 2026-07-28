@@ -311,8 +311,8 @@ rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *, void *data )
     // cout << "Thread " << (void*)self << " started " << endl;
     while ( ! sb . m_quitting . load() )
     {
-        KLockAcquire ( sb . m_searchQueueLock );
         MatchIterator* it = 0;
+        KLockAcquire ( sb . m_searchQueueLock );
         while ( ! sb . m_quitting . load() && sb . m_nextSearch != sb . m_search . end () )
         {
             it = ( * sb . m_nextSearch ) -> NextIterator ();
@@ -335,7 +335,9 @@ rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *, void *data )
         // cout << "Thread " << (void*)self << " next iterator " << endl;
         while ( ! sb . m_quitting . load() )
         {
+            KLockAcquire ( sb . m_searchQueueLock );
             SearchBuffer :: Match * m = it -> NextMatch ();
+            KLockUnlock ( sb . m_searchQueueLock );
             if ( m == 0 )
             {
                 break;
@@ -343,6 +345,7 @@ rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *, void *data )
             // cout << "Thread " << (void*)self << " next match " << endl;
             sb . m_output . Push ( m );
         }
+
         delete it;
     }
     // cout << "Thread " << (void*)self << " finished " << endl;

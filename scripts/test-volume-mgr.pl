@@ -550,8 +550,8 @@ sub prepare {
 
     my $kfg = "$tmp/k.kfg";
 
-    my $node = '/repository/remote/main/CGI/resolver-cgi='
-             . '\"https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi\"';
+    my $node = '/repository/remote/main/SDL.2/resolver-cgi='
+             . '\"https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve\"';
     `echo $node                                       >  $kfg`; die if $?;
 
     my $public = "$tmp/ncbi/public";

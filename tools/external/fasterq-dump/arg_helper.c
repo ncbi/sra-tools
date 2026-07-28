@@ -30,8 +30,8 @@
 #include <klib/text.h>
 #endif
 
-rc_t CC ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
-rc_t CC ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );
+rc_t ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
+rc_t ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );
 
 static uint32_t ahlp_str_2_u32( const char * s, uint32_t dflt ) {
     uint32_t res = dflt;

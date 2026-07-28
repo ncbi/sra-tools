@@ -33,24 +33,24 @@ if ( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
 
-    add_test( NAME Test_FasterDump_Simple # test fetching via HTTPS
+    add_test( NAME Test_FasterqDump_Simple # test fetching via HTTPS
         COMMAND
             sh simple_test.sh ${DIRTOTEST}/fasterq-dump
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     if( TARGET fasterq-dump-asan )
-      add_test( NAME Test_FasterDump_Simple-asan
+      add_test( NAME Test_FasterqDump_Simple-asan
         COMMAND
             sh simple_test.sh ${DIRTOTEST}/fasterq-dump-asan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
     if( TARGET fasterq-dump-tsan )
-      add_test( NAME Test_FasterDump_Simple-tsan
+      add_test( NAME Test_FasterqDump_Simple-tsan
         COMMAND
             sh simple_test.sh ${DIRTOTEST}/fasterq-dump-tsan
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 
-    add_test( NAME Test_FasterDump_Fasta_unsorted_flat_tbl_read_id
+    add_test( NAME Test_FasterqDump_Fasta_unsorted_flat_tbl_read_id
         COMMAND
             sh test_for_read_id_flat.sh ${DIRTOTEST}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -80,8 +80,8 @@ if ( NOT WIN32 )
     # the following tests invoke other tools, make sure those tools are present
     if ( BUILD_TOOLS_LOADERS AND BUILD_TOOLS_TEST_TOOLS AND BUILD_TOOLS_INTERNAL )
 
-        ToolsRequired(fasterq-dump sam-factory bam-load kar)
-        add_test( NAME Test_FasterDump_Fasta_unsorted_cSRA_read_id
+        ToolsRequired(fasterq-dump sam-factory bam-load kar rnd2sra)
+        add_test( NAME Test_FasterqDump_Fasta_unsorted_cSRA_read_id
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./test_for_read_id_cSRA.sh ${DIRTOTEST}"
@@ -91,6 +91,17 @@ if ( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 sh -c "echo 'vdb/schema/paths = \"${SRC_INTERFACES_DIR}:${VDB_INCDIR}\"' > tmp.kfg; ./tiny_csra.sh ${DIRTOTEST} ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        # test if fasterq-dump can handle long reads ( longer than 64k ) / VDB-6105
+# disable for now -- re-enable in VDB-6378
+#         add_test( NAME Test_FasterqDump_LongReads
+#             COMMAND sh -c "./longreads.sh ${BINDIR}"
+#             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        # test if fasterq-dump can handle missing seq-tbl-metadata / VDB-5670
+        add_test( NAME Test_FasterqDump_NoSeqTblMeta
+            COMMAND sh -c "./no_seq_tbl_meta.sh ${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     endif()

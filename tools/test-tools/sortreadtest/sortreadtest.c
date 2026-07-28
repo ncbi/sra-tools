@@ -33,7 +33,7 @@ const char UsageDefaultName[] = "sortreadtest";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s [OPTIONS] file-path table-path [schema-path]\n"
                     "\n"
@@ -346,10 +346,13 @@ MAIN_DECL( argc, argv )
     bailout:
         ArgsWhack (args);
     }
-    if (rc)
+
+    if (rc != 0)
         LOGERR (klogFatal, rc, "Failed!");
-    else
+    else {
+        KOutMsg("\n");
         KStsMsg("Exit success %R");
+    }
 
     return VDB_TERMINATE( rc );
 }

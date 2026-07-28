@@ -41,6 +41,7 @@
 */
 #define ALLOW_UPDATE 1
 
+#include <stdint.h>
 #include <sra/srapath.h>
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -65,6 +66,7 @@
 #include <klib/out.h>
 #include <klib/writer.h>
 #include <klib/rc.h>
+#include <kfs/file.h>
 #include <sysalloc.h>
 #include <os-native.h>
 
@@ -104,6 +106,7 @@ static int tabsz = 2;
 static const char *spaces = "                                ";
 static bool as_unsigned = false;
 static bool as_valid_xml = true;
+static const char *delete_arg = NULL;
 static const char *table_arg = NULL;
 static bool read_only_arg = true;
 
@@ -398,6 +401,8 @@ rc_t md_select_expr ( const KMDataNode *node, char *path, size_t psize, int plen
             /* close it off */
             node_close ( path, plen, 0, 0, false );
 
+            KNamelistRelease ( children );
+
             /* Exit here if an attribute was requested in query */
             return 0;
         }
@@ -549,10 +554,11 @@ rc_t md_select_expr ( const KMDataNode *node, char *path, size_t psize, int plen
 }
 
 #if ALLOW_UPDATE
+
 static
-rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, const char *expr )
+rc_t md_update_expr ( KMDataNode *node, const char *attr, const char *expr )
 {
-    rc_t rc;
+    rc_t rc = 0;
 
     /* according to documentation, "expr" is allowed to be text
        or text with escaped hex sequences. examine for escaped hex */
@@ -562,6 +568,8 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
         rc = RC ( rcExe, rcMetadata, rcUpdating, rcMemory, rcExhausted );
     else
     {
+        /* will get set to true if value contains an embedded '\0' */
+        bool z = false;
         size_t i, j;
         for ( i = j = 0; i < len; ++ i, ++ j )
         {
@@ -578,21 +586,22 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
                         msn += '0' - 'A' + 10;
                     if ( lsn >= 10 )
                         lsn += '0' - 'A' + 10;
-                    buff [ j ] = ( char ) ( ( msn << 4 ) | lsn );
                     i += 3;
+                    buff[j] = (msn << 4) | lsn;
                 }
             }
+            z = z || (buff[j] == '\0');
+            buff [ j + 1 ] = '\0';
         }
-
         if ( attr != NULL )
         {
-            /* set attribute value */
-            buff [ j ] = 0;
-            rc = KMDataNodeWriteAttr ( node, attr, buff );
+            if (z)
+                LOGERR ( klogErr, rc = RC(rcExe, rcFile, rcUpdating, rcConstraint, rcViolated), "node attribute values can not contain embedded nulls" );
+            else
+                rc = KMDataNodeWriteAttr ( node, attr, buff );
         }
         else
         {
-            /* now set the value of the node */
             rc = KMDataNodeWrite ( node, buff, j );
         }
         free ( buff );
@@ -601,6 +610,80 @@ rc_t md_update_expr ( KMDataNode *node, const char *path, const char *attr, cons
     return rc;
 }
 #endif
+
+struct Data {
+    void *buffer;
+    size_t size;
+};
+
+static struct Data readFromKFile(KFile const *f, char const *path, rc_t *prc)
+{
+    struct Data result = { NULL, 0 };
+    uint64_t size = 0;
+    size_t numread = 0;
+    rc_t rc = KFileSize(f, &size); assert(rc == 0);
+
+    result.size = size;
+    *prc = rc; if (rc) return result;
+    result.buffer = malloc(result.size);
+    if (result.buffer == NULL) {
+        PLOGERR (klogErr, ( klogErr, *prc = RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "failed to allocate memory to read '$(path)'", "path=%s", path ));
+        return result;
+    }
+    *prc = rc = KFileReadAll(f, 0, result.buffer, result.size, &numread);
+    if (rc == 0 && numread != size)
+        *prc = rc = RC(rcExe, rcFile, rcReading, rcSize, rcTooShort);
+    if (rc) {
+        PLOGERR (klogErr, ( klogErr, rc, "failed to read '$(path)'", "path=%s", path ));
+        free(result.buffer);
+        result.buffer = NULL;
+    }
+    return result;
+}
+
+static struct Data readFromStdIn(rc_t *prc) {
+    struct Data result = { NULL, 0 };
+    size_t cap = 0;
+    int ch = EOF;
+
+    while ((ch = fgetc(stdin)) != EOF) {
+        if (result.size == cap) {
+            void *tmp = realloc(result.buffer, cap = (cap < 4096 ? 4096 : cap * 2));
+            if (tmp == NULL) {
+                free(result.buffer);
+                result.buffer = NULL;
+                LOGERR (klogErr, *prc = RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "failed to allocate memory to read stdin");
+                return result;
+            }
+            result.buffer = tmp;
+        }
+        ((char *)result.buffer)[result.size++] = ch;
+    }
+    if (result.size == 0)
+        result.buffer = malloc(1);
+    return result;
+}
+
+static struct Data readFromFile(char const *path, rc_t *prc)
+{
+    struct Data result = {NULL, 0};
+    if (strcmp(path, "/dev/stdin") == 0)
+        result = readFromStdIn(prc);
+    else {
+        KDirectory *dir = NULL;
+        KFile const *f = NULL;
+
+        *prc = KDirectoryNativeDir(&dir); assert(*prc == 0);
+        if (*prc == 0) {
+            *prc = KDirectoryOpenFileRead(dir, &f, "%s", path);
+            KDirectoryRelease(dir);
+            if (*prc == 0)
+                result = readFromKFile(f, path, prc);
+            KFileRelease(f);
+        }
+    }
+    return result;
+}
 
 static
 bool CC md_select ( void *item, void *data )
@@ -623,8 +706,9 @@ bool CC md_select ( void *item, void *data )
         PLOGERR ( klogErr,  (klogErr, pb -> rc, "failed to open root node for '$(path)'", "path=%s", pb -> targ ));
     else
     {
-        bool wildcard;
-        char *expr, *attr, path [ 4096 ];
+        bool wildcard = false, updating = false;
+        char *expr = NULL, *attr = NULL, path [ 4096 ];
+        struct Data data = {NULL, 0};
         size_t len = string_copy_measure ( path, sizeof path, item );
 
         /* detect assignment */
@@ -633,6 +717,18 @@ bool CC md_select ( void *item, void *data )
         {
             len = expr - path;
             * expr ++ = 0;
+            updating = true;
+        }
+        else {
+            /* detect read file */
+            char *file = string_rchr(path, len, ':');
+            if (file != NULL) {
+                len = file - path;
+                *file++ = '\0';
+                data = readFromFile(file, &pb->rc);
+                if (data.buffer != NULL)
+                    updating = true;
+            }
         }
         attr = string_rchr ( path, len, '@' );
         if ( attr != NULL )
@@ -641,7 +737,7 @@ bool CC md_select ( void *item, void *data )
             * attr ++ = 0;
         }
 
-        if ( expr != NULL )
+        if ( updating )
         {
 #if ALLOW_UPDATE
             if ( read_only )
@@ -656,10 +752,11 @@ bool CC md_select ( void *item, void *data )
             PLOGMSG ( klogWarn, ( klogWarn, "node update expressions are not supported - "
                                   "'$(expr)' treated as select.", "expr=%s", item ) );
             expr = NULL;
+            free(data.buffer);
+            data.buffer = NULL;
 #endif
         }
 
-        wildcard = false;
         if ( len >= 1 && path [ len - 1 ] == '*' )
         {
             if ( len == 1 )
@@ -675,7 +772,7 @@ bool CC md_select ( void *item, void *data )
         }
 
 #if ALLOW_UPDATE
-        if ( expr != NULL )
+        if ( updating )
         {
             KMDataNode *root = node;
 
@@ -683,7 +780,7 @@ bool CC md_select ( void *item, void *data )
             {
                 pb -> rc = RC ( rcExe, rcMetadata, rcUpdating, rcExpression, rcIncorrect );
                 PLOGERR ( klogErr, ( klogErr, pb -> rc, "node updates require explicit paths - "
-                                     "'$(expr)' cannot be evaluated", "expr=%s", item ) );
+                                     "'$(item)' cannot be evaluated", "item=%s", item ) );
                 return true;
             }
 
@@ -696,9 +793,13 @@ bool CC md_select ( void *item, void *data )
                     "failed to open node '$(node)' for '$(path)'",
                                      "node=%s,path=%s", path, pb -> targ ));
             }
-            else
+            else if (expr != NULL)
             {
-                pb -> rc = md_update_expr ( node, path, attr, expr );
+                pb -> rc = md_update_expr ( node, attr, expr );
+            }
+            else if (attr == NULL) {
+                assert(data.buffer != NULL);
+                pb -> rc = KMDataNodeWrite ( node, data.buffer, data.size );
             }
         }
         else
@@ -728,9 +829,49 @@ bool CC md_select ( void *item, void *data )
             fail = false;
 
         KMDataNodeRelease ( node );
+        free(data.buffer);
     }
 
     return fail;
+}
+
+static rc_t process_request(KDBMetaParms* pb) {
+    rc_t rc = 0, r2 = 0;
+
+    assert(pb);
+
+    if (delete_arg != NULL) {
+        CONST KMDataNode* node = NULL;
+        rc_t rc = KMetadataOpenNodeUpdate(pb->md, &node, NULL);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "failed to open metadata node");
+            return rc;
+        }
+        rc = KMDataNodeDropChild(node, "%s", delete_arg);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "failed to delete node '$(node)'", "node=%s", delete_arg));
+        rc_t rc2 = KMDataNodeRelease( node );
+        if ( rc == 0 )
+        {
+            rc = rc2;
+        }
+    }
+    else {
+        if (VectorDoUntil(pb->q, false, md_select, pb))
+            rc = pb->rc;
+    }
+
+    r2 = KMetadataRelease(pb->md);
+    pb->md = NULL;
+    if (r2 != 0)
+        PLOGERR(klogErr, (klogErr, r2,
+            "failed update metadata while deleting node '$(node)'",
+            "node=%s", delete_arg == NULL ? "" : delete_arg));
+    if (r2 != 0 && rc == 0)
+        rc = r2;
+
+    return rc;
 }
 
 static
@@ -770,14 +911,7 @@ rc_t col_select ( KDBMetaParms * pb)
             PLOGERR ( klogErr,  (klogErr, rc, "failed to open metadata for column '$(col)'", "col=%s", pb->targ ));
         else
         {
-            bool fail;
-
-            fail = VectorDoUntil ( pb -> q, false, md_select, pb );
-
-            if (fail)
-                rc = pb->rc;
-
-            KMetadataRelease ( pb -> md ), pb -> md = NULL;
+            rc = process_request ( pb );
         }
 
         KColumnRelease ( col );
@@ -825,13 +959,7 @@ rc_t tbl_select ( KDBMetaParms * pb)
             PLOGERR ( klogErr,  (klogErr, rc, "failed to open metadata for table '$(tbl)'", "tbl=%s", pb->targ ));
         else
         {
-            bool fail;
-
-            fail = VectorDoUntil ( pb -> q, false, md_select, pb );
-            if (fail)
-                rc = pb->rc;
-
-            KMetadataRelease ( pb -> md ), pb -> md = NULL;
+            rc = process_request ( pb );
         }
 
         KTableRelease ( tbl );
@@ -870,6 +998,7 @@ rc_t db_select (KDBMetaParms * pb)
             "db=%s", pb->targ ));
     }
     else {
+        rc_t r2 = 0;
         CONST KTable* tbl = NULL;
         if (table_arg) {
             read_only = true;
@@ -926,16 +1055,15 @@ rc_t db_select (KDBMetaParms * pb)
                 }
             }
             if ( rc == 0 ) {
-                bool fail;
-
-                fail = VectorDoUntil ( pb -> q, false, md_select, pb );
-                if(fail)
-                    rc = pb->rc;
-                KMetadataRelease ( pb -> md ), pb -> md = NULL;
+                rc = process_request ( pb );
             }
         }
-        KTableRelease ( tbl );
-        KDatabaseRelease ( db );
+        r2 = KTableRelease ( tbl );
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+        r2 = KDatabaseRelease ( db );
+        if (r2 != 0 && rc == 0)
+            rc = r2;
     }
 
     return rc;
@@ -985,12 +1113,13 @@ const char UsageDefaultName[] = "kdbmeta";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
+                    "Summary:\n"
+                    "  Display the contents of one or more metadata stores.\n"
+                    "\n"
                     "Usage:\n"
                     "  %s [Options] <target> [<query> ...]\n"
                     "\n"
-                    "Summary:\n"
-                    "  Display the contents of one or more metadata stores.\n"
 #if ALLOW_UPDATE
                     "  Update metadata.\n"
 #endif
@@ -1011,6 +1140,10 @@ static const char *const q5 [] = { "<obj>=VALUE","a simple value assignment wher
                                    "value string is text, and binary",
                                    "values use hex escape codes", NULL };
 #endif
+
+#define ALIAS_DELETE             NULL
+#define OPTION_DELETE            "delete"
+static const char* USAGE_DELETE[] = { "delete node", NULL };
 
 #define ALIAS_READ_ONLY             "r"
 #define OPTION_READ_ONLY            "read-only"
@@ -1043,6 +1176,7 @@ const OptDef opt[] = {
 #endif
  ,{ OPTION_OUT      , ALIAS_OUT      , NULL, USAGE_OUT      , 1, true , false }
  ,{ OPTION_NGC      , ALIAS_NGC      , NULL, USAGE_NGC      , 1, true , false }
+ ,{ OPTION_DELETE   , ALIAS_DELETE   , NULL, USAGE_DELETE   , 1, true , false }
 };
 
 static const char * const * target_usage [] = { t1, t2, t3, t4 };
@@ -1069,7 +1203,7 @@ rc_t CC Usage (const Args * args)
 
     UsageSummary (progname);
 
-    KOutMsg ("  The target metadata are described by one or more\n"
+    KOutMsg ("\n  The target metadata are described by one or more\n"
              "  target specifications, giving the path to a database, a table\n"
              "  or a column. the command and query are executed on each target.\n"
              "\n"
@@ -1095,7 +1229,9 @@ rc_t CC Usage (const Args * args)
     for(idx = 0; idx < sizeof(opt) / sizeof(opt[0]); ++idx) {
         const char *param = NULL;
         if (opt[idx].aliases == NULL) {
-            if (strcmp(opt[idx].name, OPTION_NGC) == 0)
+            if (strcmp(opt[idx].name, OPTION_DELETE) == 0)
+                param = "node";
+            else if (strcmp(opt[idx].name, OPTION_NGC) == 0)
                 param = "path";
         }
         else if (strcmp(opt[idx].aliases, ALIAS_TABLE) == 0) {
@@ -1110,6 +1246,8 @@ rc_t CC Usage (const Args * args)
     OUTMSG(("\n"));
 
     HelpOptionsStandard ();
+
+    OUTMSG(("\n"));
 
     HelpVersion (fullpath, KAppVersion());
 
@@ -1207,6 +1345,32 @@ MAIN_DECL( argc, argv )
                     }
 
                     KConfigSetNgcFile(dummy);
+                }
+            }
+
+/* OPTION_DELETE */
+            {
+#define ARG OPTION_DELETE
+                rc = ArgsOptionCount(args, ARG, &pcount);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc, "Failure to get '" ARG "' argument");
+                    break;
+                }
+                if (pcount > 0) {
+                    rc = ArgsOptionValue(args, ARG, 0,
+                        (const void**)&delete_arg);
+                    if (rc != 0) {
+                        LOGERR(klogErr, rc,
+                            "Failure to get '" ARG "' argument");
+                        break;
+                    }
+                    if(delete_arg[0]=='/'&& delete_arg[1]=='\0'){
+                        rc = RC(
+                            rcExe, rcArgv, rcReading, rcAttr, rcUnauthorized);
+                        LOGERR(klogErr, rc,
+                            "\"--" ARG " /\" is not allowed");
+                        break;
+                    }
                 }
             }
 

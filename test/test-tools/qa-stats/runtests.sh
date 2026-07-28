@@ -19,6 +19,12 @@ INPUT_MAKER="${PWD}/make-test-input.pl"
 REVERSER="${PWD}/reverse.pl"
 SHUFFLER="$(which sort)"
 
+test -x "${STATSTOOL}" || { echo "Skipped; ${STATSTOOL} not found"; exit 2; }
+test -f "${DIFFTOOL}" || { echo "Skipped; ${DIFFTOOL} not found"; exit 2; }
+test -f "${INPUT_MAKER}" || { echo "Skipped; ${INPUT_MAKER} not found"; exit 2; }
+test -f "${REVERSER}" || { echo "Skipped; ${REVERSER} not found"; exit 2; }
+test -f "${SHUFFLER}" || { echo "Skipped; ${SHUFFLER} not found"; exit 2; }
+
 make_input() {
     "${PERL}" "${INPUT_MAKER}" "${@}"
 }

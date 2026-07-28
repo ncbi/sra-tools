@@ -12,11 +12,13 @@ class Product;
 typedef std::shared_ptr< Product > Product_ptr;
 class Product {
     private :
+        string f_orig_product_string; // for reporting in case it is unknown
         enum class Product_E { FLAT, NONE_CSRA, CSRA, TEST, UNKNOWN };
         Product_E f_type;
 
         Product( const string& p ) {
             string s;
+            f_orig_product_string = p;
             std::transform( p . begin(), p . end(), std::inserter( s, s . begin() ), ::tolower );
             if ( s == "flat" ) { f_type = Product_E::FLAT; }
             else if ( s == "none_csra" ) { f_type = Product_E::NONE_CSRA; }
@@ -64,6 +66,10 @@ class Product {
 
         bool is_tst( void ) const {
             return ( f_type == Product_E::TEST );
+        }
+
+        const string& get_orig_product_string( void ) const {
+            return f_orig_product_string;
         }
 
         friend auto operator<<( ostream& os, Product_ptr o ) -> ostream& {

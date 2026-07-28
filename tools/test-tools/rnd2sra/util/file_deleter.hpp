@@ -6,22 +6,11 @@
 #include <string>
 #include <string.h>
 #include <vector>
-
-#if GCC_VERSION <= 6
-#include <experimental/filesystem>
-#else
-#include <filesystem>
-#endif
-
 #include <iostream>
 
-using namespace std;
+#include "../util/fs.hpp"
 
-#if GCC_VERSION <= 6
-namespace fs = std::experimental::filesystem;
-#else
-namespace fs = std::filesystem;
-#endif
+using namespace std;
 
 namespace sra_convert {
 

@@ -34,10 +34,8 @@
 *
 * ===========================================================================
 */
-// command line
-#include "CLI11.hpp"
-// logging
-#include <spdlog/fmt/fmt.h>
+
+#include <kapp/vdbapp.h>
 
 #include "version.h"
 #include "fastq_utils.hpp"
@@ -49,6 +47,12 @@
 #include <algorithm>
 #include <insdc/sra.h>
 
+#undef CC
+// command line
+#include "CLI11.hpp"
+
+// logging
+#include <spdlog/fmt/fmt.h>
 
 #if __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
@@ -173,6 +177,34 @@ void s_print_deflines(std::ostream& os)
         }
 }
 
+string VersionString()
+{
+    //TODO: use API from sra-tools/libs/kapp when available
+
+    string ret = "sharq : ";
+
+    rc_t rc = 0;
+    char cSra[512] = "";
+    SraReleaseVersion sraVersion;
+    memset(&sraVersion, 0, sizeof sraVersion);
+    rc = SraReleaseVersionGet(&sraVersion);
+    if (rc == 0) {
+        rc = SraReleaseVersionPrint(&sraVersion, cSra, sizeof cSra, NULL);
+    }
+
+    if (rc != 0 || cSra[0] == '\0' ||
+        (/*sraVersion.version == version && sraVersion.revision == 0 &&*/
+         sraVersion.type == SraReleaseVersion::eSraReleaseVersionTypeFinal))
+    {
+        ret += cSra;
+    }
+    else
+    {
+        ret += SHARQ_VERSION + HASH_SRA_TOOLS + " ( " + cSra + HASH_NCBI_VDB + " )\n";
+    }
+    return ret;
+}
+
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
@@ -185,7 +217,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mOutputFile.clear();
         mDestination = "sra.out";
 
-        app.set_version_flag("--version,-V", SHARQ_VERSION);
+        app.set_version_flag("--version,-V", VersionString);
         bool print_deflines = false;
         app.add_flag("--print-deflines", print_deflines);
 
@@ -350,6 +382,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         spdlog::error(e.Message());
         mReport["error"] = e.Message();
         ret_code = 1;
+    } catch (std::ios_base::failure& e) {
+        string error = fmt::format("SRAE-238: {} [code:{}]", e.what(), 270);
+        spdlog::error(error);
+        mReport["error"] = error;
+        ret_code = 1;
     } catch(std::exception const& e) {
         string error = fmt::format("[code:0] Runtime error: {}", e.what());
         spdlog::error(error);
@@ -406,7 +443,7 @@ void CFastqParseApp::xReportTelemetry()
 void CFastqParseApp::xCheckInputFiles(vector<string>& files)
 {
     for (auto& f : files) {
-        if (f == "-" || fs::exists(f)) continue;
+        if (f == "-" || isValidURL( f ) || fs::exists(f)) continue;
         bool not_found = true;
         auto ext = fs::path(f).extension();
         if (ext != ".gz" && ext != ".bz2") {
@@ -657,7 +694,7 @@ int CFastqParseApp::xRun()
     for (auto& group : data["groups"])
         total_spots += group["estimated_spots"].get<size_t>();
     if (total_spots > mMaxSpotsInLinearMode)
-        throw fastq_error(250, "SRAE-70: Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
+        throw fastq_error(250, "Estimated number of spots {} exceeds the limit ({}) for this mode. Re-run with --spot-assembly parameter.", total_spots, mMaxSpotsInLinearMode);
     spot_name_check name_checker(total_spots);
 
     fastq_parser<fastq_writer> parser(m_writer);
@@ -874,13 +911,15 @@ void CFastqParseApp::xSetPlatformCode(const string& platform)
 }
 
 //  ----------------------------------------------------------------------------
-int main(int argc, const char* argv[])
+int main(int argc, char* argv[])
 {
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
+
     ios_base::sync_with_stdio(false);   // turn off synchronization with standard C streams
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
 
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
-    return CFastqParseApp().AppMain(argc, argv);
+    return CFastqParseApp().AppMain(argc, (const char**)argv);
 }

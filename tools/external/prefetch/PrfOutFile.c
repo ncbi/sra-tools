@@ -90,6 +90,9 @@ static const char * TFExt(const PrfOutFile * self) {
 static bool TFExist(PrfOutFile * self) {
     assert(self);
 
+    if (self->cache == NULL)
+        return false;
+
     if (KDirectory_Exist(self->_dir, self->cache, TFExt(self)))
         return true;
     else

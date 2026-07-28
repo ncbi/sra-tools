@@ -47,7 +47,7 @@ typedef struct SBuffer
 
 rc_t make_SBuffer( SBuffer_t * self, size_t len );
 void release_SBuffer( SBuffer_t * self );
-rc_t increase_SBuffer( SBuffer_t * self, size_t by );
+rc_t increase_SBuffer_by( SBuffer_t * self, size_t by );
 rc_t increase_SBuffer_to( SBuffer_t * self, size_t new_size );
 rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args );
 rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... );

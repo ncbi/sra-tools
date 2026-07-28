@@ -265,7 +265,6 @@ const char UsageDefaultName [] = "copycat";
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s [options] src-file dst-file\n"
         "  %s [options] src-file [src-file...] dst-dir\n"
@@ -301,11 +300,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine (ALIAS_NOMD5,OPTION_NOMD5, NULL, no_md5_usage);
     HelpOptionsStandard ();
 
-
-
-/*                     1         2         3         4         5         6         7         8 */
-/*            12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
-    OUTMSG (("Use:\n"
+    OUTMSG (("\nUse:\n"
              " Copy and catalog:\n"
              "  Some quick examples:\n"
              "    %s dir/file.tar other-dir/file.tar\n"
@@ -908,7 +903,7 @@ rc_t copycat_run ( CCTree *tree, SLList * logs, VFSManager * mgr,
 
     fprintf ( stderr, "%s: '%s': specified destination path is not a directory\n", program_name, pbuff );
     rc = RC ( rcExe, rcDirectory, rcAccessing, rcPath, rcIncorrect );
-    
+
 CLEANUP:
     VPathRelease(dest);
     return rc;
@@ -938,8 +933,7 @@ void param_whack (void * path, void * ignored)
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-         return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t rc, orc;

@@ -3,6 +3,7 @@
 #include "csra_read.hpp"
 #include "csra_seq_rec.hpp"
 #include "rnd_cmn.hpp"
+#include "csra_prim_ref.hpp"
 
 using namespace std;
 
@@ -80,7 +81,7 @@ class cSRASpot {
         }
 
         size_t make_random_qual( uint8_t * buffer, int64_t row, size_t read_len ) {
-            size_t res = read_len + f_ini -> qual_len_offset( row );
+            size_t res = read_len;
             f_rnd -> random_diff_quals( buffer, res );
             return res;
         }
@@ -102,6 +103,7 @@ class cSRASpot {
             return cSRASpotPtr( new cSRASpot( layout, ini, rnd ) );
         }
 
+        // the SPOT has 2 READS
         void populate_seq_rec2( SeqRec& rec ) {
             // concatenate the 2 reads for the 'computed' READ-column
             rec . set_read( f_read1 -> get_bases() + f_read2 -> get_bases() );
@@ -126,15 +128,24 @@ class cSRASpot {
             rec . set_read_type( 1, 1 ); // BIO
             rec . set_read_filter( 0, 0 ); // PASS
 
-            rec . set_read_start( 0, f_read1 -> get_len() );
+            int64_t row_id = rec . get_row_id();
+
             // optional fault injection!
-            size_t rd_len_ofs = f_ini -> read_len_offset( rec . get_row_id() );
-            rec . set_read_len( f_read1 -> get_len() + rd_len_ofs, f_read2 -> get_len() );
+            int32_t s_offset = f_ini -> read_start_offset( row_id );
+            int32_t l_offset = f_ini -> read_len_offset( row_id );
+
+            rec . set_read_start( 0, f_read1 -> get_len() + s_offset );
+            rec . set_read_len( f_read1 -> get_len(), f_read2 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id(), f_read2 -> get_align_id() );
+
+            rec . modify_read_start_element_count( f_ini -> read_start_elements_diff( row_id ) );
+            rec . modify_read_len_element_count( f_ini -> read_len_elements_diff( row_id ) );
+            rec . modify_read_type_element_count( f_ini -> read_type_elements_diff( row_id ) );
+            rec . modify_read_filter_element_count( f_ini -> read_filter_elements_diff( row_id ) );
         }
 
+        // the SPOT has 1 READ
         void populate_seq_rec1( SeqRec& rec ) {
-            // concatenate the 2 reads for the 'computed' READ-column
             rec . set_read( f_read1 -> get_bases() );
             if ( f_read1 -> is_aligned() ) {
                 rec . clear_cmp_read();
@@ -144,9 +155,20 @@ class cSRASpot {
             rec . set_read_type( 1 ); // BIO
             rec . set_read_filter( 0 ); // PASS
 
-            rec . set_read_start( 0 );
-            rec . set_read_len( f_read1 -> get_len() );
+            int64_t row_id = rec . get_row_id();
+
+            // optional fault injection!
+            int32_t s_offset = f_ini -> read_start_offset( row_id );
+            int32_t l_offset = f_ini -> read_len_offset( row_id );
+
+            rec . set_read_start( s_offset );
+            rec . set_read_len( f_read1 -> get_len() + l_offset );
             rec . set_prim_al_id( f_read1 -> get_align_id() );
+
+            rec . modify_read_start_element_count( f_ini -> read_start_elements_diff( row_id ) );
+            rec . modify_read_len_element_count( f_ini -> read_len_elements_diff( row_id ) );
+            rec . modify_read_type_element_count( f_ini -> read_type_elements_diff( row_id ) );
+            rec . modify_read_filter_element_count( f_ini -> read_filter_elements_diff( row_id ) );
         }
 
         void populate_seq_rec( SeqRec& rec, base_counters& bc ) {
@@ -167,16 +189,27 @@ class cSRASpot {
                 rec . set_cmp_read( rec . get_read() );
             }
 
-            // optional fault injection!
-            size_t spot_len = rec . get_read() . length() + f_ini -> qual_len_offset( rec . get_row_id() );
+            // optional fault injection ( for the quality column )!
+            int32_t r_offset = f_ini -> read_offset( rec . get_row_id() );
+            int32_t q_offset = f_ini -> qual_offset( rec . get_row_id() );
+            size_t spot_len = rec . get_read() . length() + q_offset - r_offset;
             rec . make_random_qual( f_rnd, spot_len );
 
-            bc . bio += rec . get_read() . length();
+            bc . bio += spot_len;
+            bc . total += spot_len;
         }
 
-        bool write_prim_cols( PrimColsPtr writer ) {
-            bool res = f_read1 -> write_prim_cols( writer );
-            if ( res ) { res = f_read2 -> write_prim_cols( writer ); }
+        bool write_prim_cols( PrimColsPtr writer, Prim_Ref_Recorder_ptr recorder,
+                              int64_t * prim_row_id, base_counters &counters ) {
+            bool res = f_read1 -> write_prim_cols( writer, recorder, prim_row_id, counters );
+            if ( res ) {
+                res = f_read2 -> write_prim_cols( writer, recorder, prim_row_id, counters );
+                if ( !res ) {
+                    cerr << "write_prim_cols( " << prim_row_id << " READ2 ) failed!\n";
+                }
+            } else {
+                cerr << "write_prim_cols( " << prim_row_id << " READ1 ) failed!\n";
+            }
             return res;
         }
 

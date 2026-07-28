@@ -378,7 +378,7 @@ extern "C"
 
     rc_t CC UsageSummary (const char * progname)
     {
-        OUTMSG (("\nFor each pair (key, variation spec) in input produces the expanded variation spec\n\n"));
+        OUTMSG (("For each pair (key, variation spec) in input produces the expanded variation spec\n\n"));
         return 0;
     }
 
@@ -405,6 +405,8 @@ extern "C"
 
         HelpOptionsStandard ();
 
+        OUTMSG (("\n"));
+
         HelpVersion (fullpath, KAppVersion());
 
         return rc;
@@ -412,7 +414,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
+        VDB::Application app( argc, argv, HASH_SRA_TOOLS );
         if (!app)
         {
             return VDB_INIT_FAILED;
@@ -420,6 +422,7 @@ extern "C"
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
+
         return VarExpand::expand_variations (argc, app.getArgV());
     }
 }

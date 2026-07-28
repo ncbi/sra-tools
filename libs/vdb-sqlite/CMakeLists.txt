@@ -33,4 +33,6 @@ GenerateStaticLibsWithDefs( vdb-sqlite "${SRC}" "__mod__=\"libs/vdb-sqlite\"" ""
 if ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
     set( CMAKE_C_FLAGS "-Wno-deprecated-declarations" )
     set_source_files_properties( sqlite3.c PROPERTIES COMPILE_FLAGS -Wno-implicit-int-float-conversion )
+elseif( CMAKE_CXX_COMPILER_ID MATCHES "GNU" )
+    set_source_files_properties( sqlite3.c PROPERTIES COMPILE_FLAGS -Wno-misleading-indentation )
 endif()

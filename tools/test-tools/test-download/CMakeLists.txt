@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( test-download "test-download" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( test-download false )
+MakeLinksExe_NoInstall( test-download )

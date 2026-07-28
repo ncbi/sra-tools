@@ -5,3 +5,4 @@
 /Makefile.config*
 /reconfigure
 /user.status
+ngs.egg-info

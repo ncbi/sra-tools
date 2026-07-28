@@ -477,7 +477,7 @@ const char UsageDefaultName[] = "md5cp";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s Options [file|directory ...] directory\n"
                     "\n"
@@ -510,6 +510,8 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine (ALIAS_TEST, OPTION_TEST, NULL, test_usage);
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

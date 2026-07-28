@@ -55,6 +55,7 @@ namespace ncbi
 
                 // C++ support
 
+                // increases refcount on the base object
                 FragmentBlob ( FragmentBlobRef ref )
                     NGS_NOTHROW();
 

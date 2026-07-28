@@ -53,6 +53,7 @@ static INSDC_SRA_platform_id get_platform_id(char const *qry)
         "LS454",
         "ONT",
         "PACBIO",
+        "SINGULAR",
         "SOLID",
         "ULTIMA"
     };
@@ -66,6 +67,7 @@ static INSDC_SRA_platform_id get_platform_id(char const *qry)
         /* "LS454"      */ SRA_PLATFORM_454,
         /* "ONT"        */ SRA_PLATFORM_OXFORD_NANOPORE,
         /* "PACBIO"     */ SRA_PLATFORM_PACBIO_SMRT,
+        /* "SINGULAR".  */ SRA_PLATFORM_SINGULAR_GENOMICS,
         /* "SOLID"      */ SRA_PLATFORM_ABSOLID,
         /* "ULTIMA"     */ SRA_PLATFORM_ULTIMA,
     };

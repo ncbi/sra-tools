@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( txt2kdb txt2kdb "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( txt2kdb false )
+MakeLinksExe_NoInstall( txt2kdb )

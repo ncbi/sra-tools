@@ -1248,15 +1248,7 @@ FIXTURE_TEST_CASE ( FastqMultiLineSequenceFastq, LoaderFixture )
 // fmt-name
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return FastqLoaderWbTestSuite(argc, argv);
-}
-
 }

@@ -24,10 +24,13 @@
 
 if( SINGLE_CONFIG )
 
+    # Include cloud filesystem support module
+    #include(${CMAKE_CURRENT_SOURCE_DIR}/CloudFilesystem.cmake)
+
     find_package(ZLIB)
     find_package(BZip2)
     find_package (Threads)
-message(RE2_FOUND=${RE2_FOUND})
+#message(RE2_FOUND=${RE2_FOUND})
     if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND AND RE2_FOUND )
 
         set(CMAKE_CXX_STANDARD 17)
@@ -60,13 +63,23 @@ message(RE2_FOUND=${RE2_FOUND})
         add_executable(test-regexpr test-regexpr.cpp )
         add_dependencies(test-regexpr RE2)
         target_include_directories(test-regexpr PUBLIC ${LOCAL_INCDIR})
+        target_compile_definitions(test-regexpr PRIVATE VDB_EXE_NAME="test-regexpr")
         target_link_libraries(test-regexpr ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
         add_test( NAME Test_regexpr COMMAND test-regexpr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        # test-defline
+        add_executable(test-defline test-defline.cpp )
+        add_dependencies(test-defline RE2)
+        target_include_directories(test-defline PUBLIC ${LOCAL_INCDIR})
+        target_compile_definitions(test-defline PRIVATE VDB_EXE_NAME="test-defline")
+        target_link_libraries(test-defline ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
+        add_test( NAME Test_defline COMMAND test-defline WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         # test-sharq-reader
         add_executable(test-sharq-reader test-sharq-reader.cpp )
         add_dependencies(test-sharq-reader RE2 sharq)
         target_include_directories(test-sharq-reader PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
+        target_compile_definitions(test-sharq-reader PRIVATE VDB_EXE_NAME="test-sharq-reader")
         target_link_libraries(test-sharq-reader ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
         add_test( NAME Test_sharq_reader COMMAND test-sharq-reader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -74,6 +87,7 @@ message(RE2_FOUND=${RE2_FOUND})
         add_executable(test-sharq-parser test-sharq-parser.cpp )
         add_dependencies(test-sharq-parser RE2 sharq)
         target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
+        target_compile_definitions(test-sharq-parser PRIVATE VDB_EXE_NAME="test-sharq-parser")
         target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
         add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -81,6 +95,7 @@ message(RE2_FOUND=${RE2_FOUND})
         add_executable(test-sharq-writer test-sharq-writer.cpp )
         add_dependencies(test-sharq-writer RE2 sharq general-loader ) # general-loader for the metadata command line tests
         target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
+        target_compile_definitions(test-sharq-writer PRIVATE VDB_EXE_NAME="test-sharq-writer")
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -95,6 +110,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_executable(test-sharq-parser-asan test-sharq-parser.cpp )
             add_dependencies(test-sharq-parser-asan RE2 sharq-asan)
             target_include_directories(test-sharq-parser-asan PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
+            target_compile_definitions(test-sharq-parser-asan PRIVATE VDB_EXE_NAME="test-sharq-parser-asan")
             target_compile_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
             target_link_libraries(test-sharq-parser-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
             target_link_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
@@ -114,6 +130,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_dependencies(test-sharq-parser-tsan RE2 sharq-tsan)
             target_include_directories(test-sharq-parser-tsan PUBLIC ${LOCAL_INCDIR} ../../../tools/loaders/sharq)
             target_compile_options( test-sharq-parser-tsan PRIVATE ${tsan_defs} )
+            target_compile_definitions(test-sharq-parser-tsan PRIVATE VDB_EXE_NAME="test-sharq-parser-asan")
             target_link_libraries(test-sharq-parser-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
             target_link_options( test-sharq-parser-tsan PRIVATE ${tsan_defs} )
             add_test( NAME Test_sharq_parser_tsan COMMAND test-sharq-parser-tsan WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -129,7 +146,7 @@ message(RE2_FOUND=${RE2_FOUND})
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -159,22 +176,35 @@ message(RE2_FOUND=${RE2_FOUND})
             if (DEFINED spot_assembly AND spot_assembly STREQUAL "only-sa")
                 set(params "--spot-assembly ${TestParams}")
                 SharqTestImpl("${TestName}-sa-hot" ${Result} ${params} "sharq" ${TestName}-sa-hot)
+                if( RUN_SANITIZER_TESTS )
+                    SharqTestAsan(${TestName}-sa-hot ${Result} ${params})
+                    SharqTestTsan(${TestName}-sa-hot ${Result} ${params})
+                endif()
 
                 set(params "--spot-assembly --hot-reads-threshold 0 ${TestParams}")
                 SharqTestImpl("${TestName}-sa-cold" ${Result} ${params} "sharq" ${TestName}-sa-cold)
+                if( RUN_SANITIZER_TESTS )
+                    SharqTestAsan(${TestName}-sa-cold ${Result} ${params})
+                    SharqTestTsan(${TestName}-sa-cold ${Result} ${params})
+                endif()
+
             else()
                 SharqTestNormal(${TestName} ${Result} ${TestParams})
                 if (NOT DEFINED spot_assembly OR NOT spot_assembly STREQUAL "no-sa")
                     set(params "--spot-assembly ${TestParams}")
                     SharqTestImpl("${TestName}-sa-hot" ${Result} ${params} "sharq" ${TestName}-sa-hot)
+                    if( RUN_SANITIZER_TESTS )
+                        SharqTestAsan(${TestName}-sa-hot ${Result} ${params})
+                        SharqTestTsan(${TestName}-sa-hot ${Result} ${params})
+                    endif()
 
                     set(params "--spot-assembly --hot-reads-threshold 0 ${TestParams}")
                     SharqTestImpl("${TestName}-sa-cold" ${Result} ${params} "sharq" ${TestName}-sa-cold)
+                    if( RUN_SANITIZER_TESTS )
+                        SharqTestAsan(${TestName}-sa-cold ${Result} ${params})
+                        SharqTestTsan(${TestName}-sa-cold ${Result} ${params})
+                    endif()
                 endif()
-            endif()
-            if( RUN_SANITIZER_TESTS )
-                SharqTestAsan(${TestName} ${Result} ${TestParams})
-                SharqTestTsan(${TestName} ${Result} ${TestParams})
             endif()
         endmacro()
 
@@ -190,7 +220,7 @@ message(RE2_FOUND=${RE2_FOUND})
         macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
         add_test( NAME Test_${TestName}
             COMMAND
-                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
+                "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         endmacro()
@@ -213,6 +243,15 @@ message(RE2_FOUND=${RE2_FOUND})
             endif()
         endmacro()
 
+        macro(SharqTest_Error TestName Result SearchFor TestParams)
+            add_test(
+                NAME Test_${TestName}
+                COMMAND
+                    "./runtestcase-error.sh" "${BINDIR}" "sharq" "." "${CaseId}" "${Result}" "${SearchFor}" "--debug" "--no-timestamp" "${TestParams}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+        endmacro()
+
         #set(IN "${CMAKE_CURRENT_SOURCE_DIR}/input/")
         set(IN "input/")
         SharqTest(001.read.supported 0 "${IN}001.R1.fastq")
@@ -233,11 +272,11 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(002.readTypes_missing 1 "--read1PairFiles=${IN}001.R1.fastq")
         SharqTest(002.readTypes_mismatch 1 "--readTypes=TB --read1PairFiles=${IN}001.R1.fastq")
         SharqTest(002.readTypes_unexpected 1 "--readTypes=X --read1PairFiles=${IN}002.allBiological_1.fq")
-        SharqTest(002.readTypes_interlaved_fail_1 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "no-sa")
+        SharqTest(002.readTypes_interleaved_fail_1 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "no-sa")
         SharqTest(002.readTypes_interleaved_fail_4 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "no-sa")
-        SharqTest(002.readTypes_interlaved_fail_3 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
-        SharqTest(002.readTypes_interlaved_fail_2 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
-        SharqTest(002.readTypes_interlaved_pass 0 "--readTypes=BTB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq")
+        SharqTest(002.readTypes_interleaved_fail_3 1 "${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
+        SharqTest(002.readTypes_interleaved_fail_2 1 "--readTypes=BB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq" "only-sa")
+        SharqTest(002.readTypes_interleaved_pass 0 "--readTypes=BTB ${IN}002.readTypes_interleaved_1.fq ${IN}002.readTypes_interleaved_2.fq")
         SharqTest(003.files_not_exists 1 "dummy1.fq")
         SharqTest(003.files_not_valid 1 "${IN}003.empty.fq")
         SharqTest(003.files_readpairs 0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
@@ -251,7 +290,7 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(005.offset0 0 "${IN}005.offset0_1.fq ${IN}005.offset0_2.fq")
         SharqTest(005.offset64 0 "${IN}005.offset64_1.fq ${IN}005.offset64_2.fq")
         SharqTestNoSA(006.duplicate 1 "--max-err-count 0 ${IN}006.duplicate.fq")
-        SharqTest(007.digest.udenfined 0 "--digest ${IN}001.read.unsupported.fq")
+        SharqTest(007.digest.undefined 0 "--digest ${IN}001.read.unsupported.fq")
         SharqTest(007.digest.multiple 0 "--digest ${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
         SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq" "no-sa")
         SharqTest(007.digest.error 0 "--max-err-count 0 --digest ${IN}001.read.invalid_quality0.fq")
@@ -269,11 +308,22 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTest(015.pending_spots 0 "${IN}015.R1.fq ${IN}015.R2.fq") # SRAO-632
         SharqTestWithTelemetry(016.set.platform 0 "--platform=BGISEQ ${IN}001.R1.fastq")  # SRAO-657
 
+        # input from stdin (digest only)
+        macro(SharqTestFromStdin TestName SharqBinary InputFile LoadParams)
+            add_test( NAME Test_${TestName}
+                COMMAND
+                    "./runtestcase-stdin.sh" "${BINDIR}" ${SharqBinary} "." "${TestName}" 0 "${InputFile}" "--digest" "${LoadParams}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+        endmacro()
+        SharqTestFromStdin(017.stdin sharq ${IN}001.R1.fastq "" )
+
+        # testing metadata
         ToolsRequired( sharq general-loader kdbmeta )
         macro(SharqTestWithMetadata TestName LoadParams MetaParams)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-meta.sh" "${DIRTOTEST}/sharq" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
+                    "./runtestcase-meta.sh" "${BINDIR}/sharq" "${BINDIR}/general-loader" "${BINDIR}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -283,6 +333,26 @@ message(RE2_FOUND=${RE2_FOUND})
         SharqTestWithMetadata(DbMetaMultipleFiles_output "${IN}r1.fastq ${IN}r2.fastq" "tbl/SEQUENCE QC")
 
         SharqTest(017.readname_format_change 1 "${IN}017.fastq") # error out when readname format changes mid-file
+
+        # inputs from cloud
+
+        execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
+        if ( AWS_MISSING ) 
+            set( AWS_ERROR "Cloud CLI (aws) is not found")
+        else()
+            set( AWS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.aws 1 ${AWS_ERROR} "s3://notabucket/notafile")
+
+        execute_process( COMMAND gsutil --version RESULT_VARIABLE GSUTIL_MISSING )
+        if ( GSUTIL_MISSING ) 
+            set( GS_ERROR "Cloud CLI (gsutil) is not found")
+        else()
+            set( GS_ERROR "returned 1 ")
+        endif()
+        SharqTest_Error(018.cloud.badbucket.gcs 1 ${GS_ERROR} "gs://notabucket/notafile")
+
+        # more tests in asm-trace
 
     endif()
 

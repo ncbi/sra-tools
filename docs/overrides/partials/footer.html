@@ -1,0 +1,368 @@
+<style>
+  footer {
+  margin-top: auto;
+  letter-spacing: 0.5px; }
+  footer ol, footer ul, footer dl {
+    margin-top: 0;
+    margin-bottom: 1rem; }
+  footer .social_media a {
+    width: 35px;
+    height: 35px;
+    display: inline-block;
+    margin-right: 5px; }
+  footer .pt-5, footer .py-5 {
+    padding-top: 1rem; }
+    @media (min-width: 992px) {
+      footer .pt-5, footer .py-5 {
+        padding-top: 3rem; } }
+  footer .bottom-links {
+    margin: 0 auto; }
+  footer .bottom-links ul {
+    list-style: none;
+    padding-left: 0px;
+    display: -webkit-inline-box;
+    display: -ms-inline-flexbox;
+    display: inline-flex;
+    -webkit-box-orient: horizontal;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: row;
+    flex-direction: row;
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center; }
+  footer .bottom-links ul li {
+    padding: 0px 8px;
+    position: relative;
+    font-size: 18px; }
+  footer .bottom-links ul li:first-child {
+    padding-left: 0px; }
+  footer .bottom-links ul li:not(:last-child) {
+    border-right: 1px solid #FFFFFF; }
+
+@media (min-width: 992px) {
+  .col-lg-3 {
+    -webkit-box-flex: 0;
+    -ms-flex: 0 0 25%;
+    flex: 0 0 25%;
+    max-width: 25%; }
+  .col-lg-12 {
+    -webkit-box-flex: 0;
+    -ms-flex: 0 0 100%;
+    flex: 0 0 100%;
+    max-width: 100%; }
+  .centered-lg {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center; } }
+
+.icon_social {
+  width: 35px;
+  height: 35px;
+  display: inline-block;
+  margin-right: 5px;
+  margin-bottom: 1rem; }
+
+.icon-section {
+  background-color: #dbdbdb; }
+
+.icon-section_header {
+  background-color: #90a6c7;
+  text-align: center;
+  color: #fff;
+  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 16px;
+  margin-top: 50px; }
+
+.icon-section_header::after {
+  display: none;
+  content: "";
+  border: solid #fff;
+  border-width: 0px 3px 3px 0px;
+  padding: 7px;
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+  margin-left: 15px;
+  position: absolute;
+  margin-top: -2px; }
+
+.icon-section_header.opened::after {
+  -ms-transform: rotate(-135deg);
+  transform: rotate(-135deg);
+  -webkit-transform: rotate(-135deg);
+  margin-top: 6px; }
+
+.icon-section_container {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: justify;
+  -ms-flex-pack: justify;
+  justify-content: space-between; }
+
+.icon-section_header.opened + .grid-container .icon-section_container {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex; }
+
+.footer-icon {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 20px 0; }
+
+/* Added after adding USWDS */
+.bg-primary {
+  background-color: #20558A; }
+
+.icon-section_header {
+  background-color: #4773aa; }
+
+
+      footer p {
+        line-height: 1.5em;
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+      @media (min-width: 992px) {
+        footer .pt-5,
+        footer .py-5 {
+          padding-top: 30px;
+        }
+      }
+      footer .mt-3,
+      footer .my-3 {
+        margin-top: 10px;
+      }
+      footer .mt-3 li {
+        margin-bottom: 0.3em;
+      }
+
+      /* ADDITIONAL NWDS OVERRIDES */
+      .usa-grid{
+          margin-left:auto;
+          margin-right:auto;
+          padding-right:15px;
+          padding-left:15px;
+        }
+
+        .usa-grid::after{
+          clear:both;
+          content:"";
+          display:block;
+        }
+
+        @media screen and (min-width: 600px) {
+          .usa-grid{
+            padding-right:30px;
+            padding-left:30px;
+          }
+        }
+
+
+        @media screen and (min-width: 992px) {
+          .usa-grid {
+            max-width:980px;
+          }
+
+        }
+
+      .list-inline {
+        padding-left: 0;
+        list-style: none;
+      }
+      .list-inline-item {
+        display: inline-block;
+      }
+      footer a {
+        text-decoration: none;
+      }
+</style>
+<footer>
+  <section class="icon-section">
+    <div id="icon-section-header" class="icon-section_header">Follow NCBI</div>
+    <div class="grid-container container">
+      <div class="icon-section_container">
+        <a class="footer-icon" id="footer_twitter" href="https://twitter.com/ncbi" aria-label="Twitter"><svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+            <defs>
+              <style>
+                .cls-11 {
+                  fill: #737373;
+                }
+              </style>
+            </defs>
+            <title>Twitter</title>
+            <path class="cls-11" d="M250.11,105.48c-7,3.14-13,3.25-19.27.14,8.12-4.86,8.49-8.27,11.43-17.46a78.8,78.8,0,0,1-25,9.55,39.35,39.35,0,0,0-67,35.85,111.6,111.6,0,0,1-81-41.08A39.37,39.37,0,0,0,81.47,145a39.08,39.08,0,0,1-17.8-4.92c0,.17,0,.33,0,.5a39.32,39.32,0,0,0,31.53,38.54,39.26,39.26,0,0,1-17.75.68,39.37,39.37,0,0,0,36.72,27.3A79.07,79.07,0,0,1,56,223.34,111.31,111.31,0,0,0,116.22,241c72.3,0,111.83-59.9,111.83-111.84,0-1.71,0-3.4-.1-5.09C235.62,118.54,244.84,113.37,250.11,105.48Z">
+            </path>
+          </svg></a>
+        <a class="footer-icon" id="footer_facebook" href="https://www.facebook.com/ncbi.nlm" aria-label="Facebook"><svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+            <title>Facebook</title>
+            <path class="cls-11" d="M210.5,115.12H171.74V97.82c0-8.14,5.39-10,9.19-10h27.14V52l-39.32-.12c-35.66,0-42.42,26.68-42.42,43.77v19.48H99.09v36.32h27.24v109h45.41v-109h35Z">
+            </path>
+          </svg></a>
+        <a class="footer-icon" id="footer_linkedin" href="https://www.linkedin.com/company/ncbinlm" aria-label="LinkedIn"><svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+            <title>LinkedIn</title>
+            <path class="cls-11" d="M101.64,243.37H57.79v-114h43.85Zm-22-131.54h-.26c-13.25,0-21.82-10.36-21.82-21.76,0-11.65,8.84-21.15,22.33-21.15S101.7,78.72,102,90.38C102,101.77,93.4,111.83,79.63,111.83Zm100.93,52.61A17.54,17.54,0,0,0,163,182v61.39H119.18s.51-105.23,0-114H163v13a54.33,54.33,0,0,1,34.54-12.66c26,0,44.39,18.8,44.39,55.29v58.35H198.1V182A17.54,17.54,0,0,0,180.56,164.44Z">
+            </path>
+          </svg></a>
+        <a class="footer-icon" id="footer_github" href="https://github.com/ncbi" aria-label="GitHub"><svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+            <defs>
+              <style>
+                .cls-11,
+                .cls-12 {
+                  fill: #737373;
+                }
+
+                .cls-11 {
+                  fill-rule: evenodd;
+                }
+              </style>
+            </defs>
+            <title>GitHub</title>
+            <path class="cls-11" d="M151.36,47.28a105.76,105.76,0,0,0-33.43,206.1c5.28,1,7.22-2.3,7.22-5.09,0-2.52-.09-10.85-.14-19.69-29.42,6.4-35.63-12.48-35.63-12.48-4.81-12.22-11.74-15.47-11.74-15.47-9.59-6.56.73-6.43.73-6.43,10.61.75,16.21,10.9,16.21,10.9,9.43,16.17,24.73,11.49,30.77,8.79,1-6.83,3.69-11.5,6.71-14.14C108.57,197.1,83.88,188,83.88,147.51a40.92,40.92,0,0,1,10.9-28.39c-1.1-2.66-4.72-13.42,1-28,0,0,8.88-2.84,29.09,10.84a100.26,100.26,0,0,1,53,0C198,88.3,206.9,91.14,206.9,91.14c5.76,14.56,2.14,25.32,1,28a40.87,40.87,0,0,1,10.89,28.39c0,40.62-24.74,49.56-48.29,52.18,3.79,3.28,7.17,9.71,7.17,19.58,0,14.15-.12,25.54-.12,29,0,2.82,1.9,6.11,7.26,5.07A105.76,105.76,0,0,0,151.36,47.28Z">
+            </path>
+            <path class="cls-12" d="M85.66,199.12c-.23.52-1.06.68-1.81.32s-1.2-1.06-.95-1.59,1.06-.69,1.82-.33,1.21,1.07.94,1.6Zm-1.3-1">
+            </path>
+            <path class="cls-12" d="M90,203.89c-.51.47-1.49.25-2.16-.49a1.61,1.61,0,0,1-.31-2.19c.52-.47,1.47-.25,2.17.49s.82,1.72.3,2.19Zm-1-1.08">
+            </path>
+            <path class="cls-12" d="M94.12,210c-.65.46-1.71,0-2.37-.91s-.64-2.07,0-2.52,1.7,0,2.36.89.65,2.08,0,2.54Zm0,0"></path>
+            <path class="cls-12" d="M99.83,215.87c-.58.64-1.82.47-2.72-.41s-1.18-2.06-.6-2.7,1.83-.46,2.74.41,1.2,2.07.58,2.7Zm0,0">
+            </path>
+            <path class="cls-12" d="M107.71,219.29c-.26.82-1.45,1.2-2.64.85s-2-1.34-1.74-2.17,1.44-1.23,2.65-.85,2,1.32,1.73,2.17Zm0,0">
+            </path>
+            <path class="cls-12" d="M116.36,219.92c0,.87-1,1.59-2.24,1.61s-2.29-.68-2.3-1.54,1-1.59,2.26-1.61,2.28.67,2.28,1.54Zm0,0">
+            </path>
+            <path class="cls-12" d="M124.42,218.55c.15.85-.73,1.72-2,1.95s-2.37-.3-2.52-1.14.73-1.75,2-2,2.37.29,2.53,1.16Zm0,0"></path>
+          </svg></a>
+        <a class="footer-icon" id="footer_blog" href="https://ncbiinsights.ncbi.nlm.nih.gov/" aria-label="Blog">
+          <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><style>.cls-13{fill:#737373;}</style></defs><path class="cls-13" d="M14,30a4,4,0,1,1-4-4,4,4,0,0,1,4,4Zm11,3A19,19,0,0,0,7.05,15a1,1,0,0,0-1,1v3a1,1,0,0,0,.93,1A14,14,0,0,1,20,33.07,1,1,0,0,0,21,34h3a1,1,0,0,0,1-1Zm9,0A28,28,0,0,0,7,6,1,1,0,0,0,6,7v3a1,1,0,0,0,1,1A23,23,0,0,1,29,33a1,1,0,0,0,1,1h3A1,1,0,0,0,34,33Z"></path></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="container-fluid bg-primary">
+    <div class="container pt-5">
+      <div class="row mt-3">
+        <div class="col-lg-3 col-12">
+          <p><a class="text-white" href="https://www.nlm.nih.gov/socialmedia/index.html">Connect with NLM</a></p>
+          <ul class="list-inline social_media">
+            <li class="list-inline-item"><a href="https://twitter.com/NLM_NIH" aria-label="Twitter" target="_blank" rel="noopener noreferrer"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 249 249" style="enable-background:new 0 0 249 249;" xml:space="preserve">
+                  <style type="text/css">
+                    .st20 {
+                      fill: #FFFFFF;
+                    }
+
+                    .st30 {
+                      fill: none;
+                      stroke: #FFFFFF;
+                      stroke-width: 8;
+                      stroke-miterlimit: 10;
+                    }
+                  </style>
+                  <title>SM-Twitter</title>
+                  <g>
+                    <g>
+                      <g>
+                        <path class="st20" d="M192.9,88.1c-5,2.2-9.2,2.3-13.6,0.1c5.7-3.4,6-5.8,8.1-12.3c-5.4,3.2-11.4,5.5-17.6,6.7
+                                            c-10.5-11.2-28.1-11.7-39.2-1.2c-7.2,6.8-10.2,16.9-8,26.5c-22.3-1.1-43.1-11.7-57.2-29C58,91.6,61.8,107.9,74,116
+                                            c-4.4-0.1-8.7-1.3-12.6-3.4c0,0.1,0,0.2,0,0.4c0,13.2,9.3,24.6,22.3,27.2c-4.1,1.1-8.4,1.3-12.5,0.5c3.6,11.3,14,19,25.9,19.3
+                                            c-11.6,9.1-26.4,13.2-41.1,11.5c12.7,8.1,27.4,12.5,42.5,12.5c51,0,78.9-42.2,78.9-78.9c0-1.2,0-2.4-0.1-3.6
+                                            C182.7,97.4,189.2,93.7,192.9,88.1z"></path>
+                      </g>
+                    </g>
+                    <circle class="st30" cx="124.4" cy="128.8" r="108.2"></circle>
+                  </g>
+                </svg></a></li>
+            <li class="list-inline-item"><a href="https://www.facebook.com/nationallibraryofmedicine" aria-label="Facebook" rel="noopener noreferrer" target="_blank">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 249 249" style="enable-background:new 0 0 249 249;" xml:space="preserve">
+                  <style type="text/css">
+                    .st10 {
+                      fill: #FFFFFF;
+                    }
+
+                    .st110 {
+                      fill: none;
+                      stroke: #FFFFFF;
+                      stroke-width: 8;
+                      stroke-miterlimit: 10;
+                    }
+                  </style>
+                  <title>SM-Facebook</title>
+                  <g>
+                    <g>
+                      <path class="st10" d="M159,99.1h-24V88.4c0-5,3.3-6.2,5.7-6.2h16.8V60l-24.4-0.1c-22.1,0-26.2,16.5-26.2,27.1v12.1H90v22.5h16.9
+                                                  v67.5H135v-67.5h21.7L159,99.1z"></path>
+                    </g>
+                  </g>
+                  <circle class="st110" cx="123.6" cy="123.2" r="108.2"></circle>
+                </svg>
+              </a></li>
+            <li class="list-inline-item"><a href="https://www.youtube.com/user/NLMNIH" aria-label="Youtube" target="_blank" rel="noopener noreferrer"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 249 249" style="enable-background:new 0 0 249 249;" xml:space="preserve">
+                  <title>SM-Youtube</title>
+                  <style type="text/css">
+                    .st4 {
+                      fill: none;
+                      stroke: #FFFFFF;
+                      stroke-width: 8;
+                      stroke-miterlimit: 10;
+                    }
+
+                    .st5 {
+                      fill: #FFFFFF;
+                    }
+                  </style>
+                  <circle class="st4" cx="124.2" cy="123.4" r="108.2"></circle>
+                  <g transform="translate(0,-952.36218)">
+                    <path class="st5" d="M88.4,1037.4c-10.4,0-18.7,8.3-18.7,18.7v40.1c0,10.4,8.3,18.7,18.7,18.7h72.1c10.4,0,18.7-8.3,18.7-18.7
+                                        v-40.1c0-10.4-8.3-18.7-18.7-18.7H88.4z M115.2,1058.8l29.4,17.4l-29.4,17.4V1058.8z"></path>
+                  </g>
+                </svg></a></li>
+          </ul>
+        </div>
+        <div class="col-lg-3 col-12">
+          <p class="address_footer text-white">National Library of Medicine<br>
+            <a href="https://www.google.com/maps/place/8600+Rockville+Pike,+Bethesda,+MD+20894/@38.9959508,-77.101021,17z/data=!3m1!4b1!4m5!3m4!1s0x89b7c95e25765ddb:0x19156f88b27635b8!8m2!3d38.9959508!4d-77.0988323" class="text-white" target="_blank" rel="noopener noreferrer">8600 Rockville Pike<br>
+              Bethesda, MD 20894</a></p>
+        </div>
+        <div class="col-lg-3 col-12 centered-lg">
+          <p><a href="https://www.nlm.nih.gov/web_policies.html" class="text-white">Web Policies</a><br>
+            <a href="https://www.nih.gov/institutes-nih/nih-office-director/office-communications-public-liaison/freedom-information-act-office" class="text-white">FOIA</a><br>
+            <a href="https://www.hhs.gov/vulnerability-disclosure-policy/index.html" class="text-white" id="vdp">HHS Vulnerability Disclosure</a></p>
+        </div>
+        <div class="col-lg-3 col-12 centered-lg">
+          <p><a class="supportLink text-white" href="https://support.nlm.nih.gov/">Help</a><br>
+            <a href="https://www.nlm.nih.gov/accessibility.html" class="text-white">Accessibility</a><br>
+            <a href="https://www.nlm.nih.gov/careers/careers.html" class="text-white">Careers</a></p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-12 centered-lg">
+          <nav class="bottom-links">
+            <ul class="mt-3">
+              <li>
+                <a class="text-white" href="https://www.nlm.nih.gov/">NLM</a>
+              </li>
+              <li>
+                <a class="text-white" href="https://www.nih.gov/">NIH</a>
+              </li>
+              <li>
+                <a class="text-white" href="https://www.hhs.gov/">HHS</a>
+              </li>
+              <li>
+                <a class="text-white" href="https://www.usa.gov/">USA.gov</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </section>
+</footer>

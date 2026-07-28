@@ -170,7 +170,7 @@ static rc_t insp_release_VNamelist( const VNamelist * lst, rc_t rc,
     }
     return rc1;
 }
-                                         
+
 static rc_t insp_release_VPath( const VPath * vpath, rc_t rc,
                                 const char * fname,
                                 const char * acc ) {
@@ -226,7 +226,7 @@ static rc_t insp_release_VResolver( const VResolver * resolver, rc_t rc,
     if ( NULL != resolver ) {
         rc_t rc2 = VResolverRelease( resolver );
         if ( 0 != rc2 ) {
-            const char * s = ( NULL == acc ) ? insp_empty : acc;            
+            const char * s = ( NULL == acc ) ? insp_empty : acc;
             ErrMsg( "%s( '%s' ).VResolverRelease() -> %R\n",
                     fname, s, rc2 );
             rc1 = ( 0 == rc1 ) ? rc2 : rc1;
@@ -252,7 +252,8 @@ static const char * insp_acc_type_to_string( acc_type_t acc_type ) {
         case acc_sra_db        : res = ACC_TYPE_SRA_DB_STR; break;
         case acc_pacbio_bam    : res = ACC_TYPE_SRA_PACBIO_BAM_STR; break;
         case acc_pacbio_native : res = ACC_TYPE_SRA_PACBIO_NATIVE_STR; break;
-        case acc_none          : res = ACC_TYPE_SRA_NONE_STR;break;
+        case acc_none          : res = ACC_TYPE_SRA_NONE_STR; break;
+        default                : res = ACC_TYPE_SRA_NONE_STR; break;
     }
     return res;
 }
@@ -316,7 +317,7 @@ static const char * insp_extract_from_vpath( const VPath * vpath ) {
 }
 
 static const char * insp_extract_from_path( const VFSManager * mgr, const char * path ) {
-    const char * res = NULL;    
+    const char * res = NULL;
     VPath * vpath;
     rc_t rc = VFSManagerMakePath ( mgr, &vpath, "%s", path );
     if ( 0 == rc ) {
@@ -649,7 +650,7 @@ static acc_type_t insp_db_type( const insp_input_t * input,
                                     if ( NULL == input -> requested_seq_tbl_name ) {
                                         output -> seq . tbl_name = CONS_TBL_NAME;
                                     } else {
-                                        output -> seq . tbl_name = input -> requested_seq_tbl_name;                                        
+                                        output -> seq . tbl_name = input -> requested_seq_tbl_name;
                                     }
                                 }
                                 res = acc_pacbio_native;
@@ -738,7 +739,6 @@ static rc_t insp_location_and_size( const insp_input_t * input,
       else
       {
         /* found remotely */
-        hlp_unread_rc_info( false ); /* get rid of stored rc-messages... */
         if ( 0 == rc )
         {
             output -> is_remote = true;
@@ -766,6 +766,9 @@ static rc_t insp_seq_columns( const VTable * tbl, const insp_input_t * input, in
         seq -> has_read_type_column = insp_list_contains( columns, "READ_TYPE" );
         seq -> has_quality_column = insp_list_contains( columns, "QUALITY" );
         seq -> has_read_column = insp_list_contains( columns, "READ" );
+        seq -> has_base_count_column = insp_list_contains( columns, "BASE_COUNT" );
+        seq -> has_bio_base_count_column = insp_list_contains( columns, "BIO_BASE_COUNT" );
+        seq -> has_spot_count_column = insp_list_contains( columns, "SPOT_COUNT" );
         rc = insp_release_VNamelist( columns, rc, "inspect_seq_columns",
                                      input -> accession_short );
     }
@@ -873,9 +876,9 @@ static rc_t insp_seq_data( const VTable * tbl, const insp_input_t * input, insp_
         rc = insp_add_column( cur, &id_read, "READ" );
         if ( 0 == rc && seq -> has_name_column ) { rc = insp_add_column( cur, &id_name, "NAME" ); }
         if ( 0 == rc && seq -> has_spot_group_column ) { rc = insp_add_column( cur, &id_spot_group, "SPOT_GROUP" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_base_count, "BASE_COUNT" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
-        if ( 0 == rc ) { rc = insp_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
+        if ( 0 == rc && seq -> has_base_count_column ) { rc = insp_add_column( cur, &id_base_count, "BASE_COUNT" ); }
+        if ( 0 == rc && seq -> has_bio_base_count_column ) { rc = insp_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
+        if ( 0 == rc && seq -> has_spot_count_column ) { rc = insp_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
         if ( 0 == rc && seq -> has_read_type_column ) { rc = insp_add_column( cur, &id_read_type, "READ_TYPE" ); }
         if ( 0 == rc ) {
             rc = VCursorOpen( cur );
@@ -889,15 +892,15 @@ static rc_t insp_seq_data( const VTable * tbl, const insp_input_t * input, insp_
                 ErrMsg( "insp_seq_data().VCursorIdRange( '%s' ) -> %R", seq -> tbl_name, rc );
             }
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_base_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_base_count, "BASE_COUNT",
                                 &( seq -> total_base_count ) );
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_bio_base_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_bio_base_count, "BIO_BASE_COUNT",
                                 &( seq -> bio_base_count ) );
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && seq -> has_spot_count_column ) {
             rc = insp_read_u64( cur, seq -> first_row, id_spot_count, "SPOT_COUNT",
                                 &( seq -> spot_count ) );
         }
@@ -1169,7 +1172,7 @@ rc_t insp_report( const insp_input_t * input, const insp_output_t * output ) {
 /* ------------------------------------------------------------------------------------------- */
 
 static size_t insp_est_base_count( const insp_estimate_input_t * input ) {
-    /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count 
+    /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count
        ( these 2 numbers can be the same for cSRA objects, they have no technical reads ) */
     if ( input -> skip_tech ) {
         return input -> insp -> seq . bio_base_count;
@@ -1287,7 +1290,7 @@ size_t insp_estimate_output_size( const insp_estimate_input_t * input ) {
         case ft_fasta_split_3           : res = insp_est_out_size_split_spot( input, true ); break;
         case ft_fasta_us_split_spot     : res = insp_est_out_size_split_spot( input, false ); break;
         case ft_fasta_ref_tbl           : res = insp_est_out_size_ref_tbl( input, true ); break;
-        case ft_fasta_concat            : res = insp_est_out_size_ref_tbl( input, true ); break;        
+        case ft_fasta_concat            : res = insp_est_out_size_ref_tbl( input, true ); break;
         case ft_ref_report              : res = insp_est_out_size_ref_report( input, true ); break;
     }
     return res;

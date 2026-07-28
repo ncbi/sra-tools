@@ -56,6 +56,7 @@ namespace ncbi
 
                 // C++ support
 
+                // increases refcount on the base object
                 ReferenceBlob ( ReferenceBlobRef ref )
                     NGS_NOTHROW();
 

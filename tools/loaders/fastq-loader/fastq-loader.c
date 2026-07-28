@@ -284,6 +284,7 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
     OUTMSG(("\n"));
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }
@@ -392,8 +393,7 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t rc;
@@ -436,6 +436,8 @@ MAIN_DECL( argc, argv )
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
                             sizeof Options / sizeof (OptDef), XMLLogger_Args, XMLLogger_ArgsQty);
+    if (rc !=0 )
+        OUTMSG (("\n"));
 
     while (rc == 0) {
         uint32_t pcount;

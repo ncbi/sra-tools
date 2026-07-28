@@ -76,7 +76,6 @@ VdbReadCollection :: getFragmentBlobs() const
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
     THROW_ON_FAIL ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) );
-    NGS_RefcountDuplicate( (const NGS_Refcount *)iter, ctx );
     FragmentBlobIterator ret ( iter );
     THROW_ON_FAIL ( NGS_FragmentBlobIteratorRelease ( iter, ctx ) );
     return ret;

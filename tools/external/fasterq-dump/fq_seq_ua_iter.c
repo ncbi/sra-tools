@@ -30,9 +30,15 @@
 #include "err_msg.h"
 #endif
 
+#ifndef _h_klib_defs
+#include <klib/defs.h>
+#endif
+
 #ifndef _h_klib_data_buffer_
 #include <klib/data-buffer.h>
 #endif
+
+#define __FN__ "fq_seq_ua_iter.c"
 
 /* this is for unaligned FASTQ ( used by tbl_join.c ) */
 
@@ -40,8 +46,9 @@ typedef struct fq_seq_ua_iter_t {
     struct cmn_iter_t * cmn;
     fq_seq_ua_opt_t opt;
     KDataBuffer qual_buffer;  /* klib/databuffer.h */
-    uint32_t name_id, read_id, quality_id, read_len_id, read_type_id, spot_group_id;
+    uint32_t name_id, read_id, quality_id, read_start_id, read_len_id, read_type_id, spot_group_id;
     char qual_2_ascii_lut[ 256 ];
+    uint32_t thread_id;
 } fq_seq_ua_iter_t;
 
 rc_t fq_seq_ua_iter_create( const cmn_iter_params_t * params,
@@ -60,41 +67,47 @@ rc_t fq_seq_ua_iter_create( const cmn_iter_params_t * params,
             ErrMsg( "fq_seq_ua_iter_create().KDataBufferMakeBytes() -> %R", rc );
         } else {
             self -> opt = opt;
+            self -> thread_id = params -> thread_id;
+
             rc = cmn_iter_make( params, tbl_name, &( self -> cmn ) );
             
             if ( 0 == rc && opt . with_name ) {
                 rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
             }
-            
+
             if ( 0 == rc ) {
                 rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
             }
-            
+
             if ( 0 == rc && opt . with_quality ) {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) );
             }
-            
+
+            if ( 0 == rc && opt . with_read_len ) {
+                rc = cmn_iter_add_column( self -> cmn, "READ_START", &( self -> read_start_id ) );
+            }
+
             if ( 0 == rc && opt . with_read_len ) {
                 rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
             }
-            
+
             if ( 0 == rc && opt . with_read_type ) {
                 rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
             }
-            
+
             if ( 0 == rc && opt . with_spotgroup ) {
                 rc = cmn_iter_add_column( self -> cmn, "SPOT_GROUP", &( self -> spot_group_id ) );
             }
-            
+
             if ( 0 == rc ) {
                 rc = cmn_iter_detect_range( self -> cmn, self -> read_id );
             }
-            
+
             if ( 0 == rc ) {
                 hlp_init_qual_to_ascii_lut( &( self -> qual_2_ascii_lut[ 0 ] ),
                                         sizeof( self -> qual_2_ascii_lut ) );
             }
-            
+
             if ( 0 != rc ) {
                 fq_seq_ua_iter_release( self );
             } else {
@@ -143,42 +156,55 @@ static rc_t fq_seq_ua_iter_read_bounded_quality( fq_seq_ua_iter_t * self,
     }
     return rc;
 }
-                                  
-static rc_t fq_seq_ua_iter_read_bounded_quality_fixed( fq_seq_ua_iter_t * self,
-                                                       String * quality,
-                                                       uint32_t fixed_len ) {
-    uint8_t * qual_values = NULL;
-    uint32_t num_qual;
-    rc_t rc = cmn_iter_read_uint8_array( self -> cmn, self -> quality_id, &qual_values, &num_qual );
-    num_qual = fixed_len;
-    if ( 0 == rc && num_qual > 0 && NULL != qual_values ) {
-        if ( num_qual > self -> qual_buffer . elem_count ) {
-            rc = KDataBufferResize( &( self -> qual_buffer ), num_qual );
-        }
-        if ( 0 == rc ) {
-            uint32_t idx;
-            uint8_t * b = self -> qual_buffer . base;
-            for ( idx = 0; idx < num_qual; idx++ ) {
-                b[ idx ] = self -> qual_2_ascii_lut[ qual_values[ idx ] ];
-            }
-            StringInit( quality, self -> qual_buffer . base, num_qual, num_qual );
+
+static rc_t fq_seq_ua_iter_check_data( fq_seq_ua_iter_t * self, fq_seq_ua_rec_t * rec ) {
+    rc_t rc = 0;
+    if ( self -> opt . with_read_len ) {
+        /* >>> 1 <<< num_read_start == num_read_len */
+        if ( rec -> num_read_start != rec -> num_read_len ) {
+            ErrMsg( "%s %s( thread %u, row %ld ) -> num_read_start(%u) != num_read_len(%u)",
+                __FN__, __func__, self -> thread_id, rec -> row_id, rec -> num_read_start, rec -> num_read_len );
+            rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
     }
-    if ( 0 != rc ) {
-        StringInit( quality, NULL, 0, 0 );
-        rc = 0;
+    if ( 0 == rc && self -> opt . with_read_len && self -> opt . with_read_type ) {
+        /* >>> 2 <<< num_read_len == num_read_type */
+        if ( rec -> num_read_len != rec -> num_read_type ) {
+            ErrMsg( "%s %s( thread %u, row %ld ) -> num_read_len(%u) != num_read_type(%u)",
+                __FN__, __func__, self -> thread_id, rec -> row_id, rec -> num_read_len, rec -> num_read_type );
+            rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+    }
+    if ( 0 == rc && self -> opt . with_read_len ) {
+        /* >>> 3 <<< none of the start/len - slices exceeds READ */
+        uint32_t i;
+        for ( i = 0; 0 == rc && i < rec -> num_read_len; ++i ) {
+            uint32_t slice_end = rec -> read_start[ i ] + rec -> read_len[ i ];
+            if ( slice_end > rec -> read . len ) {
+                ErrMsg( "%s %s( thread %u, row %ld ) -> slice #%u ends at %u past the length of READ(%u)",
+                    __FN__, __func__, self -> thread_id, rec -> row_id, i + 1, slice_end, rec -> read . len );
+                rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        }
+    }
+
+    if ( ( 0 == rc ) && self -> opt . with_quality ) {
+        /* >>> 4 <<< READ and QUALITY have to have the same length */
+        if ( rec -> read . len != rec -> quality . len ) {
+            ErrMsg( "%s %s( thread %u, row %ld ) -> READ.len(%u) != QUALITY.len(%u)",
+                __FN__, __func__, self -> thread_id, rec -> row_id, rec -> read . len, rec -> quality . len );
+            rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
     }
     return rc;
 }
 
 bool fq_seq_ua_iter_get_data( fq_seq_ua_iter_t * self, fq_seq_ua_rec_t * rec, rc_t * rc ) {
-    rc_t rc2;
+    rc_t rc1 = 0, rc2 = 0;
     bool res = cmn_iter_get_next( self -> cmn, &rc2 );
     if ( res ) {
-        rc_t rc1 = 0;
-        
         rec -> row_id = cmn_iter_get_row_id( self -> cmn );
-        
+
         if ( self -> opt . with_name ) {
             rc1 = cmn_iter_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
         }
@@ -186,17 +212,28 @@ bool fq_seq_ua_iter_get_data( fq_seq_ua_iter_t * self, fq_seq_ua_rec_t * rec, rc
         if ( 0 == rc1 ) {
             rc1 = cmn_iter_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
         }
-        
+
+        if ( 0 == rc1 ) {
+            if ( self -> opt . with_read_len ) {
+                rc1 = cmn_iter_read_uint32_array( self -> cmn, self -> read_start_id,
+                                                  &rec -> read_start, &( rec -> num_read_start ) );
+            } else {
+                rec -> read_start = NULL;
+                rec -> num_read_start = 1;
+            }
+        }
+
         if ( 0 == rc1 ) {
             if ( self -> opt . with_read_len ) {
                 rc1 = cmn_iter_read_uint32_array( self -> cmn, self -> read_len_id,
                                                   &rec -> read_len, &( rec -> num_read_len ) );
             } else {
+                rec -> read_len = NULL;
                 rec -> num_read_len = 1;
             }
         }
-        
-        if ( rc1 == 0 && self -> opt . with_quality ) {
+
+        if ( ( 0 == rc1 ) && self -> opt . with_quality ) {
             rc1 = fq_seq_ua_iter_read_bounded_quality( self, &( rec -> quality ) );
         }
         
@@ -208,29 +245,21 @@ bool fq_seq_ua_iter_get_data( fq_seq_ua_iter_t * self, fq_seq_ua_rec_t * rec, rc
                 rec -> num_read_type = 0;
             }
         }
-        
-        if ( 0 == rc1 && self -> opt . with_read_len ) {
-            uint32_t sum_read_len = 0;
-            uint32_t i;
-            for ( i = 0; i < rec -> num_read_len; ++i ) {
-                sum_read_len += rec -> read_len[ i ];
-            }
-            if ( rec -> read . len != sum_read_len ) {
-                rec -> read . len  = sum_read_len;
-                rec -> read . size = sum_read_len;
-                rc1 = fq_seq_ua_iter_read_bounded_quality_fixed( self,
-                                                &( rec -> quality ),
-                                                sum_read_len );
-            }
-        }
-        
+
         if ( 0 == rc1 && self -> opt . with_spotgroup ) {
             rc1 = cmn_iter_read_String( self -> cmn, self -> spot_group_id, &( rec -> spotgroup ) );
         } else {
             StringInit( &( rec -> spotgroup ), NULL, 0, 0 );
         }
-        
+
+        if ( 0 == rc1 ) {
+            rc1 = fq_seq_ua_iter_check_data( self, rec );
+        }
+
         if ( NULL != rc ) { *rc = rc1; }
+        res = ( 0 == rc1 );
     }
     return res;
 }
+
+#undef __FN__

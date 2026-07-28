@@ -39,6 +39,7 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cassert>
 #include <queue>
 #include <atomic>
@@ -696,7 +697,7 @@ struct BasicSource: public Input::Source {
             result.reads.reserve(lengths.size());
             for (auto const &len : lengths) {
                 auto const i = &len - &lengths[0];
-                result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
+                result.reads.emplace_back(Read{starts[i], lengths[i], -1, -1, -1, aligned[i] ? ReadType::aligned : types[i].type, types[i].strand});
             }
         case 1:
             break;
@@ -776,21 +777,24 @@ struct BasicSource: public Input::Source {
         auto POS = &flds.part[3];
         auto CIGAR = &flds.part[5];
         auto const SEQ = &flds.part[9];
-        std::string_view RG;
+        std::string_view RG = {};
         std::string_view const *group = nullptr;
         int flags = 0;
         int position = -1;
+        Input::Read read{};
 
         extract(*FLAG, flags);
+        if (*RNAME == "*" || *CIGAR == "*" || *POS == "0")
+            flags |= 0x004;
+        read.flags = flags;
         if ((flags & 0x001) == 0) {
             flags ^= flags & 0x002 & 0x008 & 0x020 & 0x040 & 0x080;
         }
-        if (*RNAME == "*" || *CIGAR == "*" || *POS == "0")
-            flags |= 0x004;
         if ((flags & 0x004) != 0) {
             flags ^= flags & 0x002 & 0x100 & 0x800;
             RNAME = POS = CIGAR = nullptr;
         }
+
         if (POS)
             extract(*POS, position);
 
@@ -804,18 +808,16 @@ struct BasicSource: public Input::Source {
 
         result.sequence = *SEQ;
         if (group)
-            result.group = Input::getGroup(std::string(*group));
+            result.group = Input::getGroup(*group);
         else
             result.group = -1;
-
-        Input::Read read{};
 
         read.start = 0;
         read.length = (int)result.sequence.length();
         if (RNAME) {
             read.type = Input::ReadType::aligned;
             read.orientation = (flags & 0x010) == 0 ? Input::ReadOrientation::forward : Input::ReadOrientation::reverse;
-            read.reference = Input::getReference(std::string(*RNAME));
+            read.reference = Input::getReference(*RNAME);
             try {
                 extract(*CIGAR, read.cigar);
             }
@@ -905,7 +907,7 @@ struct BasicSource: public Input::Source {
                 break;
 
             // could it be a SAM header
-            if (nrecs == 1 && line.substr(0, 7) != "@HD\tVN:")
+            if (nrecs == 1 && !(line.substr(0, 7) == "@HD\tVN:" || line.substr(0, 4) == "@CO\t"))
                 break;
 
             // it's a SAM header line

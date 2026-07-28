@@ -700,7 +700,7 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     XMLLogger const *xlogger = NULL;
     Args * args;
@@ -732,7 +732,11 @@ MAIN_DECL(argc, argv)
                 else
                 {
                     if ( pcount == 0 )
+                    {
                         LOGMSG (klogErr, "no accessions were passed in");
+                        MiniUsage( args );
+                        rc = RC( rcApp, rcArgv, rcValidating, rcParam, rcEmpty );
+                    }
                     else
                     {
                         for ( uint32_t i = 0; i < pcount; ++i )

@@ -70,17 +70,7 @@ using namespace std;
 using namespace ncbi::NK;
 
 static KLogLevel l = 4;
-static rc_t argsHandler(int argc, char* argv[]) {
-    Args* args = NULL;
-    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
-    ArgsWhack(args);
-    KLogLevel lv = KLogLevelGet();
-    if (lv != 4) {
-        l = lv;
-    }
-    return rc;
-}
-TEST_SUITE_WITH_ARGS_HANDLER(GeneralLoaderTestSuite, argsHandler);
+TEST_SUITE(GeneralLoaderTestSuite);
 
 const string ScratchDir         = "./db/";
 const string DefaultSchema      = ScratchDir + "default.vschema";
@@ -1764,16 +1754,8 @@ FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-
 int main ( int argc, char *argv [] )
 {
-//    TestEnv::verbosity = LogLevel::e_all;
-    KConfigDisableUserSettings();
-
     ClearScratchDir();
 
     GeneralLoaderFixture :: argv0 = argv[0];
@@ -1794,6 +1776,3 @@ int main ( int argc, char *argv [] )
 
     return rc;
 }
-
-}
-

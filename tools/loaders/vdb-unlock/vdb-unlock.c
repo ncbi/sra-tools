@@ -38,12 +38,13 @@ const char UsageDefaultName[] = "vdb-unlock";
 
 rc_t CC UsageSummary ( const char *progname )
 {
-    return KOutMsg ( "\n"
+    return KOutMsg (
+                     "Summary:\n"
+                     "  Unlock a VDB database, table or column.\n"
+                     "\n"
                      "Usage:\n"
                      "  %s [Options] <target>\n"
                      "\n"
-                     "Summary:\n"
-                     "  Unlock a VDB database, table or column.\n"
                      , progname
         );
 }
@@ -63,9 +64,11 @@ rc_t CC Usage ( const Args *args )
 
     UsageSummary (progname);
 
-    KOutMsg ("Options:\n");
+    KOutMsg ("\nOptions:\n");
 
     HelpOptionsStandard ();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 
@@ -96,12 +99,14 @@ MAIN_DECL( argc, argv )
             {
                 rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
                 LogErr ( klogErr, rc, "missing target object" );
+                KOutMsg ("\n");
                 MiniUsage ( args );
             }
             else if ( paramc > 1 )
             {
                 rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcExcessive );
                 LogErr ( klogErr, rc, "expected single target object" );
+                KOutMsg ("\n");
                 MiniUsage ( args );
             }
             else

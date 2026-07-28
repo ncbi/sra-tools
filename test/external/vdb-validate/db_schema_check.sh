@@ -29,7 +29,8 @@ vdb_validate=$2
 db_acc=$3
 
 local_acc=actual/db_schema_check_${db_acc}
-output=$(${bin_dir}/prefetch -o ${local_acc} ${db_acc} 2>&1)
+output=$(NCBI_VDB_PREFETCH_USES_OUTPUT_TO_FILE= \
+         ${bin_dir}/prefetch -o ${local_acc} ${db_acc} 2>&1)
 res=$?
 if [ "$res" != "0" ];
 	then echo "prefetch db_schema_check_${db_acc} FAILED, res=$res output=$output" && exit 1;

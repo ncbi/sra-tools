@@ -49,7 +49,7 @@ typedef struct temp_registry_t {
     bool keep_tmp_files;
 } temp_registry_t;
 
-static void CC destroy_list( void * item, void * data ) {
+static void destroy_list( void * item, void * data ) {
     if ( NULL != item ) {
         VNamelistRelease ( item );
     }
@@ -122,7 +122,7 @@ typedef struct on_list_ctx_t {
     uint64_t res;
 } on_list_ctx_t;
 
-static void CC on_list( void *item, void *data ) {
+static void on_list( void *item, void *data ) {
     if ( NULL != item ) {
         on_list_ctx_t * olc = data;
         olc -> res += ft_total_size_of_files_in_list( olc -> dir, item );
@@ -156,12 +156,12 @@ typedef struct merge_thread_data_t {
     uint32_t idx;
 } merge_thread_data_t;
 
-static void CC merge_thread_data_free( void * item, void * data ) {
+static void merge_thread_data_free( void * item, void * data ) {
     free( item );
 }
 
 /* the merge-thread - function */
-static rc_t CC merge_thread_func( const KThread *self, void *data ) {
+static rc_t merge_thread_func( const KThread *self, void *data ) {
     merge_thread_data_t * merge_thread_data = data;
     SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
@@ -306,7 +306,7 @@ typedef struct print_to_stdout_ctx_t
     bool keep_tmp_files;
 } print_to_stdout_ctx_t;
 
-static void CC on_print_to_stdout( void * item, void * data ) {
+static void on_print_to_stdout( void * item, void * data ) {
     const VNamelist * l = ( const VNamelist * )item;
     if ( NULL != l ) {
         const print_to_stdout_ctx_t * c = ( const print_to_stdout_ctx_t * )data;

@@ -24,4 +24,4 @@
 
 add_compile_definitions( __mod__="test/search" )
 
-AddExecutableTest( Test_SEARCH_agrep "test-agrep;agrep-main;search-vdb" "kapp;${COMMON_LINK_LIBRARIES};ncbi-vdb;ksrch" "" )
+AddExecutableTest( Test_SEARCH_agrep "test-agrep;search-vdb" "kapp;${COMMON_LINK_LIBRARIES};ncbi-vdb;ksrch" "" )

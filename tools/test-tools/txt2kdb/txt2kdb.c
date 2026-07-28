@@ -44,7 +44,7 @@ const char UsageDefaultName[] = "txt2kdb";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s [Options] <File> <Column>\n"
                     "\n"
@@ -139,6 +139,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine (ALIAS_APPEND, OPTION_APPEND, NULL, append_usage);
 
     HelpOptionsStandard ();
+
+    OUTMSG (("\n"));
 
     HelpVersion (fullpath, KAppVersion());
 

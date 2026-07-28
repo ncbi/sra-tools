@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( kdb-index "kdb-index" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( kdb-index false )
+MakeLinksExe_NoInstall( kdb-index )

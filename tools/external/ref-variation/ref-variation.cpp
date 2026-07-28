@@ -1970,11 +1970,11 @@ extern "C"
     {
         OUTMSG ((
         "Usage example:\n"
-        "  %s -r <reference accession> -p <position on reference> -q <query to look for> -l 0 [<parameters>]\n"
+        "  %s -r <reference accession> -p <position on reference> --query <query to look for> -l 0 [<parameters>]\n"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"
-        "\n", progname));
+        , progname));
         return 0;
     }
 
@@ -1991,7 +1991,7 @@ extern "C"
 
         UsageSummary (progname);
 
-        OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n"));
+        OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n"));
 
         OUTMSG (("\nOptions:\n"));
 
@@ -2012,6 +2012,8 @@ extern "C"
 
         HelpOptionsStandard ();
 
+        OUTMSG (("\n"));
+
         HelpVersion (fullpath, KAppVersion());
 
         return rc;
@@ -2019,7 +2021,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app(argc, argv);
+        VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );

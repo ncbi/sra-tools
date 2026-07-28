@@ -37,7 +37,6 @@ class SeqCols {
 
         SeqCols( VCurPtr cur ) : f_cur( cur ), f_ok( true ) {
             f_name_column = add_column( "NAME" );
-            if ( f_ok ) { f_platform_column = add_column( "PLATFORM" ); }
             if ( f_ok ) { f_read_column = add_column( "READ" ); }
             if ( f_ok ) { f_cmp_read_column = add_column( "CMP_READ" ); }
             if ( f_ok ) { f_spot_grp_column = add_column( "SPOT_GROUP" ); }
@@ -47,6 +46,7 @@ class SeqCols {
             if ( f_ok ) { f_prim_al_id_column = add_column( "PRIMARY_ALIGNMENT_ID" ); }
             if ( f_ok ) { f_read_type_column = add_column( "READ_TYPE" ); }
             if ( f_ok ) { f_read_filter_column = add_column( "READ_FILTER" ); }
+            if ( f_ok ) { f_platform_column = add_column( "PLATFORM" ); }
             if ( f_ok ) {
                 f_ok = f_cur -> open();
                 if ( !f_ok ) { cerr << "SeqCols() open cursor failed\n"; }

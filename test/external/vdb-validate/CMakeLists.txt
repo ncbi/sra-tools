@@ -57,3 +57,9 @@ if ( NOT WIN32 )
 	endif()
 
 endif()
+
+# non-0 exit code if called without arguments
+add_test( NAME Test_Check_Corrupt_Exit
+        COMMAND ${DIRTOTEST}/check-corrupt
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+set_tests_properties(Test_Check_Corrupt_Exit PROPERTIES WILL_FAIL TRUE)

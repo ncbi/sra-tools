@@ -45,6 +45,8 @@
 #include <vdb/database.h>
 #include <vdb/schema.h>
 
+#include <kfg/config.h>
+
 extern "C" {
 #include <loader/common-reader.h>
 #include <loader/sequence-writer.h>
@@ -384,13 +386,9 @@ FIXTURE_TEST_CASE(Interleaved_2_longer, TempFileFixture)
 }
 
 //////////////////////////////////////////// Main
-#include <kfg/config.h>
 
-extern "C"
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
-
     KDirectory * native = NULL;
     rc_t rc = KDirectoryNativeDir( &native);
 

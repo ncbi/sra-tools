@@ -30,8 +30,6 @@
 
 #include "ngs_c_fixture.hpp"
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <kapp/main.h>
 
 #include <vdb/database.h>
@@ -303,7 +301,6 @@ FIXTURE_TEST_CASE ( VByteBlob_MaxRows_LessThanPresent_WithRepeatsOverlapping, By
 
 int main( int argc, char* argv[] )
 {
-    KConfigDisableUserSettings();
     int ret=NgsByteBlobTestSuite(argc, argv);
     ByteBlobFixture::ReleaseCache();
     return ret;

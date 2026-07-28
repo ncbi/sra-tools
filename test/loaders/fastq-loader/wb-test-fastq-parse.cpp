@@ -373,14 +373,7 @@ FIXTURE_TEST_CASE(Aviti, ParserFixture)
 
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return FastqParseTestSuite(argc, argv);
-}
-
 }

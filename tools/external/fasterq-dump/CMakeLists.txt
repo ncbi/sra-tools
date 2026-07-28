@@ -24,6 +24,7 @@
 
 set( TOOLS_SRC
 	helper
+	idx_to_name
 	arg_helper
 	dflt_defline
 	tool_ctx

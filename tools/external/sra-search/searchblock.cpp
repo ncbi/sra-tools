@@ -29,7 +29,6 @@
 #include <cstring>
 
 #include <klib/rc.h>
-//#include <klib/text.h>
 #include <klib/printf.h>
 
 #include <search/grep.h>
@@ -209,15 +208,22 @@ NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t * p
     return ret;
 }
 
+unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
+static class InitMap {
+public:
+    InitMap()
+    {
+        memset( map, 0, sizeof map );
+        map[(unsigned)'A'] = map[(unsigned)'a'] = 0;
+        map[(unsigned)'C'] = map[(unsigned)'c'] = 1;
+        map[(unsigned)'G'] = map[(unsigned)'g'] = 2;
+        map[(unsigned)'T'] = map[(unsigned)'t'] = 3;
+    }
+} initMap;
+
 void
 NucStrstrSearch :: ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLen, unsigned char* pBuf2NA, size_t nBuf2NASize )
 {
-    static unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
-    map[(unsigned)'A'] = map[(unsigned)'a'] = 0;
-    map[(unsigned)'C'] = map[(unsigned)'c'] = 1;
-    map[(unsigned)'G'] = map[(unsigned)'g'] = 2;
-    map[(unsigned)'T'] = map[(unsigned)'t'] = 3;
-
     static size_t shiftLeft [ 4 ] = { 6, 4, 2, 0 };
 
     fill ( pBuf2NA, pBuf2NA + nBuf2NASize, (unsigned char)0 );

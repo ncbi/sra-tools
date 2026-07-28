@@ -382,8 +382,9 @@ static const char * get_platform( const VTable * tab ) {
                 rc = VCursorOpen( cur );
                 if ( 0 == rc ) {
                     const uint8_t * pf;
-                    rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, NULL );
-                    if ( 0 == rc ) {
+                    uint32_t row_len;
+                    rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, &row_len );
+                    if ( 0 == rc && row_len > 0 ) {
                         res = vdcd_get_platform_txt( *pf );
                     }
                 }

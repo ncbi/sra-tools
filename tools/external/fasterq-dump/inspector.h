@@ -77,6 +77,9 @@ typedef struct insp_seq_data_t
     bool has_read_type_column;
     bool has_quality_column;
     bool has_read_column;
+    bool has_base_count_column;
+    bool has_bio_base_count_column;
+    bool has_spot_count_column;
     int64_t  first_row;
     uint64_t row_count;
     uint64_t spot_count;

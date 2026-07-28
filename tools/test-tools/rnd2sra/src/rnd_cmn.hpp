@@ -5,6 +5,7 @@
 #include "../vdb/wvdb.hpp"
 #include "../util/random_toolbox.hpp"
 #include "rnd2sra_ini.hpp"
+#include "../../libs/inc/fingerprint.hpp"
 
 using namespace std;
 using namespace vdb;
@@ -15,6 +16,7 @@ struct base_counters {
     uint64_t total;
     uint64_t bio;
     base_counters( void ) : total( 0 ), bio( 0 ) {}
+    void clear( void ) { total = 0; bio = 0; }
 };
 
 class Rndcmn {
@@ -24,6 +26,7 @@ class Rndcmn {
         RandomPtr f_rnd;            // provider of the random-ness
         const string& f_output_dir; // where to write the to
         base_counters f_counters;   // stats to be written
+        Fingerprint f_fingerprint;  // collects the fingerprint
         VSchPtr f_schema;           // the schema to use
 
         // Ctor
@@ -36,7 +39,7 @@ class Rndcmn {
                 f_ini( ini ),
                 f_rnd( rnd ),
                 f_output_dir( output_dir ),
-                f_schema( make_schema( mgr, schema_txt ) )
+                f_schema( make_schema( mgr, schema_txt, ini ) )
                 {  }
 
         bool with_name( void ) const { return f_ini -> get_with_name(); }
@@ -45,18 +48,29 @@ class Rndcmn {
         string make_name( void ) { return f_ini-> name( f_rnd ); }
 
         size_t make_random_qual( uint8_t * buffer, int64_t row, size_t read_len ) {
-            size_t res = read_len + f_ini -> qual_len_offset( row );
+            size_t res = read_len + f_ini -> qual_offset( row );
             f_rnd -> random_diff_quals( buffer, res );
             return res;
         }
 
-        static VSchPtr make_schema( VMgrPtr mgr, const char * schema_txt ) {
+        static string replace_schema_names( const char * original_txt, const rnd2sra_ini_ptr ini ) {
+            string txt{ original_txt };
+            string seq_tbl_name = ini -> get_seq_tbl_schema_name();
+            if ( ! seq_tbl_name . empty() ) {
+                txt = rnd2sra_ini::find_and_replace( txt, "NCBI:SRA:GenericFastq_Tbl", seq_tbl_name );
+            }
+
+            return txt;
+        }
+
+        static VSchPtr make_schema( VMgrPtr mgr, const char * schema_txt, const rnd2sra_ini_ptr ini ) {
             auto res = mgr -> make_schema();
             if ( ! *res ) {
                 cerr << "error creating schema" << endl;
             } else {
-                res -> ParseText( schema_txt );
-                if ( ! *res ) {
+                string new_schema_txt{ replace_schema_names( schema_txt, ini ) };
+                bool ok = res -> ParseText( new_schema_txt );
+                if ( ! ok ) {
                     cerr << "error parsing schema" << endl;
                     cerr << res -> error() << endl;
                 }
@@ -71,7 +85,7 @@ class Rndcmn {
         }
 
         bool write_stats( VTblPtr tbl, base_counters& counters, uint64_t row_count ) {
-            if ( f_ini -> get_do_not_write_meta() ) { return true; }
+            if ( !f_ini -> get_write_meta() ) { return true; }
             auto meta = tbl -> open_meta_for_update();
             if ( *meta ) {
                 auto stats = meta -> open_node_update( "STATS/TABLE" );
@@ -88,7 +102,42 @@ class Rndcmn {
             return false;
         }
 
+       void record_fingerprint( std::string_view const seq ) {
+            f_fingerprint . record( seq );
+        }
 
+        static bool write_fp_string( MetaNodePtr parent_node, const string& name, const std::string& value ) {
+            auto node = parent_node -> open_update( name );
+            if ( *node ) { return node -> write( value ); }
+            return false;
+        }
+
+        bool write_fingerprint( VTblPtr tbl ) {
+            if ( !f_ini -> get_write_meta() ) { return true; }
+            auto meta = tbl -> open_meta_for_update();
+            if ( *meta ) {
+                auto fp = meta -> open_node_update( "QC/current" );
+                if ( *fp ) {
+                    /* <algorithm>'SHA-256'</algorithm> */
+                    if ( write_fp_string( fp, "algorithm", "SHA-256" ) ) {
+                         /* <digest>'ed736252c65bf3a0938cabcf172a122895e206454ca674e266201e6f41ccd3da'</digest> */
+                        if ( write_fp_string( fp, "digest", f_fingerprint . digest() ) ) {
+                            /* <fingerprint> ..... </fingerprint> */
+                            if ( write_fp_string( fp, "fingerprint", f_fingerprint.JSON( true ) ) ) {
+                                /* <format>'json utf-8 compact'</format> */
+                                if ( write_fp_string( fp, "format", "json utf-8 compact" ) ) {
+                                    /* <version>'1.0.0'</version> */
+                                    if ( write_fp_string( fp, "version", "1.0.0" ) ) {
+                                        return meta -> commit();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
 };
 
 }  // end of namespace sra_convert

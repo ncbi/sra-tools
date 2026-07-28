@@ -46,6 +46,10 @@
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/table.h>
+
+#include <vfs/manager.h> /* VFSManagerCheckAd */
+#include <vfs/path.h> /* VPathRelease */
+
 #include <sra/sraschema.h>
 
 #include <stddef.h>
@@ -566,6 +570,9 @@ NGS_ReadCollection * NGS_ReadCollectionMake ( ctx_t ctx, const char * spec )
 {
     FUNC_ENTRY ( ctx, rcSRA, rcDatabase, rcConstructing );
 
+    const char * resolved = spec;
+    char buf [ 4096 ] = "";
+
     if ( spec == NULL )
         USER_ERROR ( xcParamNull, "NULL read-collection specification string" );
     else if ( spec [ 0 ] == 0 )
@@ -580,16 +587,37 @@ NGS_ReadCollection * NGS_ReadCollectionMake ( ctx_t ctx, const char * spec )
         const VDBManager * mgr = ctx -> rsrc -> vdb;
         assert ( mgr != NULL );
 
+        {
+            const VFSManager* vfs = ctx->rsrc->vfs;
+            VPath* path = NULL;
+            rc = VFSManagerMakePath(vfs, &path, "%s", spec);
+            if (rc == 0) {
+                const VPath* orig = path;
+                VFSManagerCheckAd(vfs, path, &orig);
+                if (orig != path) {
+                    const String* tmp = NULL;
+                    rc = VPathMakeString(orig, &tmp);
+                    if (rc == 0) {
+                        string_copy(buf, sizeof buf, tmp->addr, tmp->size);
+                        resolved = buf;
+                    }
+                    StringWhack(tmp);
+                    VPathRelease(orig);
+                }
+            }
+            VPathRelease(path);
+        }
+
         /* try as VDB database */
-        rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", spec );
+        rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", resolved );
         if ( rc == 0 )
         {
             /* test for cSRA */
             if ( VDatabaseIsCSRA ( db ) )
-                return NGS_ReadCollectionMakeCSRA ( ctx, db, spec );
+                return NGS_ReadCollectionMakeCSRA ( ctx, db, resolved );
 
             /* non-aligned */
-            return NGS_ReadCollectionMakeVDatabase ( ctx, db, spec );
+            return NGS_ReadCollectionMakeVDatabase ( ctx, db, resolved );
         }
 
         /* try as VDB table */
@@ -599,7 +627,8 @@ NGS_ReadCollection * NGS_ReadCollectionMake ( ctx_t ctx, const char * spec )
         else
         {
             const VTable *tbl;
-            rc = VDBManagerOpenTableRead ( mgr, & tbl, sra_schema, "%s", spec );
+            rc = VDBManagerOpenTableRead ( mgr, & tbl, sra_schema,
+                "%s", resolved );
             VSchemaRelease ( sra_schema );
 
             if ( rc == 0 )
@@ -616,7 +645,8 @@ NGS_ReadCollection * NGS_ReadCollectionMake ( ctx_t ctx, const char * spec )
                     size_t pref_size = sizeof ( SRA_PREFIX ) - 1;
                     if ( string_match ( SRA_PREFIX, pref_size, ts_buff, string_size ( ts_buff ), pref_size, NULL ) == pref_size )
                     {
-                        return NGS_ReadCollectionMakeVTable ( ctx, tbl, spec );
+                        return NGS_ReadCollectionMakeVTable ( ctx, tbl,
+                            resolved );
                     }
                     USER_ERROR ( xcTableOpenFailed, "Cannot open accession '%s' as an SRA table.", spec );
                 }

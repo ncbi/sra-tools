@@ -143,15 +143,7 @@ FIXTURE_TEST_CASE ( AllReferencses, NGSPileupFixture )
 //TODO: multiple input overlapping
 #endif
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return NgsPileupTestSuite(argc, argv);
-}
-
 }

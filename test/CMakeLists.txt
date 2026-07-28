@@ -34,12 +34,16 @@ else()
 	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
 endif()
 
+# testing helper
+set( EXECANDGREP ${CMAKE_SOURCE_DIR}/test/execandgrep.sh )
+
 add_subdirectory( libs )
 
  #TODO: move to libs/
 add_subdirectory( vdb )
 add_subdirectory( schema )
 add_subdirectory( search )
+add_subdirectory( ngs )
 
 add_subdirectory( external )
 if( BUILD_TOOLS_LOADERS )

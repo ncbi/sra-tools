@@ -119,10 +119,6 @@ class CConfigurator : CNoncopyable {
             rc = m_Cfg.CreateRemoteRepositories(fix);
 
         if (rc == 0) {
-#ifdef NAMESCGI
-            m_Cfg . FixResolverCgiNodes ( );
-#endif
-
             bool noUser = false;
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);
             if (rc == 0) {

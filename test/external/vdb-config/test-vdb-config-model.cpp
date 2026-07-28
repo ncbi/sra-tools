@@ -181,7 +181,6 @@ extern "C"
 int main( int argc, char *argv [] )
 {
     // do not disable user settings as we need to update them as part of the testing
-    //KConfigDisableUserSettings();
-
+    ncbi::NK::TestEnv::useUserConfig = true;
     return VdbConfStridesModelTestSuite(argc, argv);
 }

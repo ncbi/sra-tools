@@ -171,7 +171,7 @@ rc_t KXMLMgrSchemaValidate ( const KXMLMgr *self,
 }
 #endif
 
-static void s_xmlGenericErrorDefaultFunc(void *ctx ATTRIBUTE_UNUSED,
+static void s_xmlGenericErrorDefaultFunc(void *ctx,
     const char *msg,
     ...)
 {
@@ -179,6 +179,7 @@ static void s_xmlGenericErrorDefaultFunc(void *ctx ATTRIBUTE_UNUSED,
     va_start(args, msg);
 /*  vfprintf(stderr, msg, args); */
     va_end(args);
+    (void)ctx;
 }
 
 static rc_t s_XmlReadFile(const KFile *src, char** aBuffer, uint64_t* aSize)

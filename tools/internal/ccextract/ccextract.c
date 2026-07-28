@@ -80,10 +80,9 @@ const char UsageDefaultName [] = "ccextract";
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (
-        "\n"
         "Usage:\n"
         "  %s [options] [-d|--directory <directory>] -x|--copycat-xml <XML-file>\\\n"
-        "          source-archive | [path [...]]"
+        "          source-archive | [path [...]]\n"
         "\n"
         "Summary:\n"
         "  Copies files and/or directories, creating a catalog of the copied files.\n",
@@ -122,20 +121,20 @@ rc_t CC Usage (const Args * args)
 
     UsageSummary (progname);
 
-    KOutMsg ("Parameters:\n");
+    KOutMsg ("\nParameters:\n");
 
     HelpParamLine ("source-file-path", first_usage);
     HelpParamLine ("extract-path", second_usage);
 
-    KOutMsg ("Options:\n");
+    KOutMsg ("\nOptions:\n");
 
     HelpOptionLine (ALIAS_XML, OPTION_XML, "XML-file", xml_usage);
     HelpOptionLine (ALIAS_DIR, OPTION_DIR, "directoy-path", dir_usage);
     HelpOptionLine (ALIAS_FORCE, OPTION_FORCE, NULL, force_usage);
 
     HelpOptionsStandard ();
-/*                     1         2         3         4         5         6         7         8 */
-/*            12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
+    KOutMsg ("\n");
+
     HelpVersion (fullpath, KAppVersion());
 
     return rc;
@@ -1118,8 +1117,7 @@ rc_t open_mgr_then_run()
  */
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
     rc_t rc;

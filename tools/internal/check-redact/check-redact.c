@@ -57,10 +57,10 @@ const char UsageDefaultName[] = "check-redact";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <path> [options]\n"
-                    "\n", progname);
+                    , progname);
 }
 
 rc_t CC Usage ( const Args * args )
@@ -80,9 +80,10 @@ rc_t CC Usage ( const Args * args )
     }
 
     UsageSummary( progname );
-    KOutMsg ( "Options:\n" );
+    KOutMsg ( "\nOptions:\n" );
     /* HelpOptionLine ( ALIAS_NAME, OPTION_NAME, NULL, name_usage ); */
     HelpOptionsStandard();
+    KOutMsg ( "\n" );
     HelpVersion( fullpath, KAppVersion() );
 
     return rc;

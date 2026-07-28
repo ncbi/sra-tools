@@ -75,6 +75,9 @@ extern "C" {
 #include "sbuffer.h"
 #endif
 
+typedef uint32_t dna_len_t;
+#define MAX_DNA_LEN 0xFFFFFFFF
+
 typedef struct join_stats
 {
     uint64_t spots_read;
@@ -105,10 +108,10 @@ typedef enum format_t {
 
     /* the regular FASTA-modes */
     ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
-    
-    /* special FASTA-modes */    
+
+    /* special FASTA-modes */
     ft_fasta_us_split_spot, ft_fasta_ref_tbl, ft_fasta_concat,
-    
+
     /* not FASTQ/FASTA but a report of references used */
     ft_ref_report
     } format_t;
@@ -142,7 +145,7 @@ const char * hlp_check_mode_2_string( check_mode_t cm );
 
 /* -------------------------------------------------------------------------------- */
 
-rc_t CC Quitting(); /* to avoid including kapp/main.h */
+rc_t Quitting(); /* to avoid including kapp/main.h */
 rc_t hlp_get_quitting( void );
 void hlp_set_quitting( void );
 
@@ -191,16 +194,12 @@ bool hlp_filter_2na_2( struct filter_2na_t * self, const String * bases1, const 
 
 /* common-function to create a thread with a given thread-size */
 rc_t hlp_make_thread( KThread ** self,
-                      rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                      rc_t ( * run_thread ) ( const KThread * self, void * data ),
                       void * data,
                       size_t stacksize );
 
 rc_t hlp_join_and_release_threads( Vector * threads );
 uint64_t hlp_calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
-
-/* -------------------------------------------------------------------------------- */
-
-void hlp_unread_rc_info( bool show );
 
 /* -------------------------------------------------------------------------------- */
 

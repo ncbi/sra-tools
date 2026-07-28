@@ -237,7 +237,7 @@ static void RepairCheckAD
         int const n = snprintf(self->inFileBuffer, sizeof(self->inFileBuffer), "%s/%s.sra", path, self->acc);
         assert(n < sizeof(self->inFileBuffer));
     }
-    
+
     type = KDirectoryPathType(self->dir, self->inFileBuffer);
     if ((type & ~kptAlias) == kptFile) {
         detected = self->inType = aAccAsDirSra;
@@ -1267,6 +1267,7 @@ rc_t CC Usage (const Args *args){
     "  -  vdb-lock\n"
     "  -  vdb-unlock\n");
 
+    OUTMSG(("\n"));
     HelpVersion(fullpath, KAppVersion());
 
     return rc;
@@ -1274,8 +1275,7 @@ rc_t CC Usage (const Args *args){
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     rc_t rc = 0, r2 = 0;
     Args *args=NULL;

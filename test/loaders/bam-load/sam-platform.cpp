@@ -40,11 +40,11 @@ int main(int argc, char *argv[]) {
 	auto const testValues = std::vector<char const *> {
 		"CAPILLARY", "DNBSEQ", "ELEMENT",
 		"HELICOS", "ILLUMINA", "IONTORRENT",
-		"LS454", "ONT", "PACBIO",
+		"LS454", "ONT", "PACBIO", "SINGULAR",
 		"SOLID", "ULTIMA",
 		"SANGER", "DNSSEC", "ELEFENT",
 		"HELICOPTER", "ILLUMINATE", "NONTORRENT",
-		"LA454", "0NT", "PACBI0",
+		"LA454", "0NT", "PACBI0", "CINGULAR",
 		"SALAD", "ULTIMATE",
 	};
 	auto const expected = std::vector<int> {
@@ -57,8 +57,10 @@ int main(int argc, char *argv[]) {
 		SRA_PLATFORM_454,
 		SRA_PLATFORM_OXFORD_NANOPORE,
 		SRA_PLATFORM_PACBIO_SMRT,
+		SRA_PLATFORM_SINGULAR_GENOMICS,
 		SRA_PLATFORM_ABSOLID,
 		SRA_PLATFORM_ULTIMA,
+		SRA_PLATFORM_UNDEFINED,
 		SRA_PLATFORM_UNDEFINED,
 		SRA_PLATFORM_UNDEFINED,
 		SRA_PLATFORM_UNDEFINED,

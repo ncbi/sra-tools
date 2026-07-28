@@ -8,12 +8,12 @@ However, the schema used for the artificial accession is much simpler than the p
 Specifically, artificial cSRA-accessions have simple data columns where the "production" accessions have computed columns.
 
 This tool produces the accession in "directory-tree" form.
-If the "kar'ed-up" form is needed: the accession has to be processed by the "kar"-tool.
+If the "kar'ed-up" form is needed; the accession has to be processed by the "kar"-tool.
 
 The tool needs 2 parameters:
 	- an INI-file
 	- the output-path
-	
+
 example:	$rnd2sra simple.ini MYACC
 
 The tool will read the details of the accession it produces from the file "simple.ini".
@@ -37,28 +37,30 @@ For the "flat" and "db" values the tool will produce 10 rows by default.
 The spot layout will be TBTB ( T...technical, B...biological ) by default.
 There will be a name column in the output.
 
-The number of rows can be set with the rows-key:
+The number of rows can be set with the rows key - example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
 ----------------------------------------------------------------------------
 
-A missing name-column can be forced by unsing the with_name key:
+A missing name column can be forced by using the with_name key - example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
 with_name = no
 ----------------------------------------------------------------------------
 The default is: with_name = yes.
-If the name-column is not disabled, a random string of length 25 is generated.
+If the name column is not disabled, a random string of 25 characters
+will be generated.
 
-The length of the generated name can be changed with the name_len key:
+The length of the generated name can be changed with the name_len key -
+example:
 ----------------------------------------------------------------------------
 product = flat
 name_len = 12
 ----------------------------------------------------------------------------
 
-The name can also be defined by the name_pattern key:
+The name can also be defined by the name_pattern key - example:
 ----------------------------------------------------------------------------
 product = flat
 name_pattern = NN#_NO%_&&_$$_test
@@ -67,17 +69,20 @@ Every occurance of '#' is filled with an auto-increment value
 Every occurance of '%' is filled with a random-value between 1 and 100
 Every occurance of '$' is filled with a random-char between 'a' ... 'z'
 Every occurance of '&' is filled with a random-char between 'A' ... 'Z'
-Any character other than '#%$&' used unchanged.
-The name_len key is ignored if the name_pattern is used.
+Any character other than '#%$&' is unchanged.
+The name_len key is ignored if the name_pattern key is used.
 
-Different spot-layouts can be created with the layout key:
+Different spot-layouts can be created with the layout key
+'B' ... biological READ
+'T' ... technical READ
+example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
 layout = B70 : T5 : B50
 ----------------------------------------------------------------------------
 
-The layout key can be given multiple times:
+The layout key can be used multiple times - example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
@@ -85,9 +90,10 @@ layout = B70 : T5 : B50
 layout = B50 : T5 : B70
 layout = B80 : T5 : B60
 ----------------------------------------------------------------------------
-The tool will pick a random layout for each row.
+The tool will randomly pick one of the used layouts for each row.
 
-The length of each section of the layout can be random for length:
+The length of each section ( 'B' or 'T' ) of the layout can be within a given
+range by specifying the minimum and maximum count of bases - example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
@@ -95,52 +101,54 @@ layout = B60-70 : T5 : B40-50
 layout = T5-10 : B65-75 : T5 : B70-80
 ----------------------------------------------------------------------------
 
-Spotgroups can be added with the spotgroup key:
+Spotgroups can be added with the spotgroup key - example:
 ----------------------------------------------------------------------------
 product = flat
 rows = 100
 layout = B70 : T5 : B50
-layout = B50 : T5 : B70
+layout = B50-60 : T4-5 : B70
 spotgroup = SG1
 spotgroup = SG2
 ----------------------------------------------------------------------------
 If no spotgroup key is used, the accession is created without spotgroups.
-For each row, a random spotgroup will be picked.
+For each row, the tool will randomly pick one of the defined spotgroups.
 
 The same keys are valid for the product type 'flat' and 'db'.
 
-The random-number generator can be initialized to a custom value:
+The random-number generator can be initialized to a custom value - example:
 ----------------------------------------------------------------------------
 product = db
 seed = 1111
 ----------------------------------------------------------------------------
 The default value for seed is '1010101'.
 
-The content of the INI-file can be printed for debugging:
+The content of the INI-file can be printed for debugging - example:
 ----------------------------------------------------------------------------
 product = db
 echo = yes
 ----------------------------------------------------------------------------
 
-If it is necessary to introduce errors in the length of the READ and/or
-QUALITY columns:
+For testing purposes, it may be necessary to introduce errors in the length
+of the READ and/or QUALITY columns - example:
 ----------------------------------------------------------------------------
 product = db
-qual_len_offset = 1,3
-read_len_offset = 4, 1
+qual_offset = 1, 3
+read_offset = 4, 1
 ----------------------------------------------------------------------------
-In row number 1 the QUALITY column will be 3 bases longer than the READ column.
-In row number 4 the READ column will be 1 base longer than the QUALITY column.
+In row number 1 the QUALITY column will be 3 Phred values longer than the
+READ column.
+In row number 4 the READ column will be 1 base ( 'B' or 'T' ) longer than
+the QUALITY column.
 These keys can only be used once per INI-file.
 
-The use of MD5-checksums can be controlled:
+The use of MD5-checksums can be controlled - example:
 ----------------------------------------------------------------------------
 product = db
 checksum = MD5
 ----------------------------------------------------------------------------
 The default value is "none", which means only CRC32 checksums are used.
 
-The creation of metadata-nodes for base-counts can be supressed:
+The creation of metadata-nodes for base-counts can be supressed - example:
 ----------------------------------------------------------------------------
 product = db
 do_not_write_meta = yes

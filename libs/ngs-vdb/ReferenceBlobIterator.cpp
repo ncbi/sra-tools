@@ -66,7 +66,6 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & o
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
     THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
 }
 

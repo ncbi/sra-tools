@@ -36,7 +36,9 @@
 #include <assert.h>
 
 // need gmtime_r
-#define __USE_POSIX
+#ifndef __USE_POSIX
+    #define __USE_POSIX
+#endif
 #include <time.h>
 
 

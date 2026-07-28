@@ -52,6 +52,7 @@ typedef struct cmn_iter_params_t
     size_t cursor_cache;
     int64_t first_row;
     uint64_t row_count;
+    uint32_t thread_id;
 } cmn_iter_params_t;
 
 bool cmn_iter_populate_params( cmn_iter_params_t * params,
@@ -61,7 +62,8 @@ bool cmn_iter_populate_params( cmn_iter_params_t * params,
         const char * accession_path,
         size_t cursor_cache,
         int64_t first_row,
-        uint64_t row_count );
+        uint64_t row_count,
+        uint32_t thread_id );
 
 struct cmn_iter_t;
 

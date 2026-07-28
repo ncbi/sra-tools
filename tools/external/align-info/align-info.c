@@ -105,12 +105,12 @@ OptDef Options[] =
 
 rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
-        "Usage:\n"
-        "  %s [options] <db-path>\n"
-        "\n"
         "Summary:\n"
         "  Print database alignment information\n"
-        "\n", progname);
+        "\n"
+        "Usage:\n"
+        "  %s [options] <db-path>\n",
+        progname);
  }
 
 static const char* param_usage[] = { "Path to the database", NULL };
@@ -130,7 +130,7 @@ rc_t CC Usage(const Args* args) {
 
     UsageSummary(progname);
 
-    KOutMsg("Parameters:\n");
+    KOutMsg("\nParameters:\n");
 
     HelpParamLine ("db-path", param_usage);
 
@@ -146,6 +146,8 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
 
     HelpOptionsStandard ();
+
+    KOutMsg("\n");
 
     HelpVersion (fullpath, KAppVersion());
 
@@ -306,7 +308,10 @@ static rc_t qual_stats(const Params* prm, const VDatabase* db) {
                 uint64_t u = 0;
                 char name[64];
                 const KMDataNode* n = NULL;
-                int len = snprintf(name, sizeof(name), "PHRED_%d", quals[i]);
+#if _DEBUGGING
+                int len =
+#endif
+                    snprintf(name, sizeof(name), "PHRED_%d", quals[i]);
                 assert(len < sizeof(name));
                 rc = KMDataNodeOpenNodeRead(node, &n, "%s", name);
                 DISP_RC(rc, name);

@@ -166,7 +166,7 @@ static rc_t read_stream_into_databuffer( KStream * stream, KDataBuffer * databuf
 }
 
 
-static rc_t call_cgi( KNSManager const * kns_mgr, const char * cgi_url, uint32_t ver_major, uint32_t ver_minor,
+static rc_t call_cgi( KNSManager const * kns_mgr, const char * cgi_url,
 			   const char * protocol, const char * acc, KDataBuffer * databuffer )
 {
 	KHttpRequest * req;
@@ -175,10 +175,6 @@ static rc_t call_cgi( KNSManager const * kns_mgr, const char * cgi_url, uint32_t
 		pLogErr( klogErr, rc, "CGI: cannot make ReliableClientRequest $(URL)", "URL=%s", cgi_url );
 	else
 	{
-        rc = KHttpRequestAddPostParam( req, "version=%u.%u", ver_major, ver_minor );
-		if ( rc != 0 )
-			pLogErr( klogErr, rc, "CGI: KHttpRequestAddPostParam version=$(V1).$(V2) failed", "V1=%d,V2=%d", ver_major, ver_minor );
-		
 		if ( rc == 0 )
 		{
 			rc = KHttpRequestAddPostParam( req, "acc=%s", acc );
@@ -239,7 +235,7 @@ static rc_t perform_cgi_test( KNSManager const * kns_mgr, const char * acc )
 	KTimeMs_t start_time = KTimeMsStamp();
 
 	memset( &databuffer, 0, sizeof databuffer );
-	rc = call_cgi( kns_mgr, "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi", 1, 1, "http,https", acc, &databuffer );
+	rc = call_cgi( kns_mgr, "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve", "https", acc, &databuffer );
 	if ( rc == 0 )
 	{
 	    const char *start = ( const void* ) databuffer.base;

@@ -33,8 +33,6 @@
 
 #include "ngs_c_fixture.hpp"
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <kapp/main.h>
 
 #include <vdb/database.h>
@@ -747,8 +745,7 @@ FIXTURE_TEST_CASE(CSRA1_NGS_ReferenceGetBlobs_Slice_MultipleBlobs, ReferenceBlob
 
 int main(int argc, char* argv[])
 {
-    KConfigDisableUserSettings();
-    int m_coll=NgsReferenceBlobTestSuite(argc, argv);
+    int res=NgsReferenceBlobTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
-    return m_coll;
+    return res;
 }

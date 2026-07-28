@@ -136,28 +136,27 @@ DoSearch ( const VdbSearch :: Settings& p_settings, bool p_sortOutput  )
     return ret;
 }
 
-static void handle_help ( const char * appName )
+rc_t
+UsageSummary(const char* progname)
 {
-    string fileName = appName;
-    string::size_type filePos = fileName . rfind ( '/' );
-    if ( filePos != string::npos)
-    {
-        fileName = fileName . substr ( filePos + 1 );
-    }
-
-    cout << endl
-        << "Usage:" << endl
-        << "  " << fileName << " [Options] query accession ..." << endl
-        << endl
+    cout << "Usage:" << endl
+         << "  " << progname << " [Options] query accession ..." << endl
         << "Summary:" << endl
         << "  Searches all reads in the accessions and prints Ids of all the fragments that contain a match." << endl
         << endl
         << "Example:" << endl
         << "  sra-search ACGT SRR000001 SRR000002" << endl
         << "  sra-search \"CGTA||ACGT\" -e -a NucStrstr SRR000002" << endl
-        << endl
-        << "Options:" << endl
-        << "  -h|--help                 Output brief explanation of the program." << endl
+        << endl;
+    return 0;
+}
+
+extern "C" rc_t handle_help( const Args * args )
+{
+    UNUSED( args );
+    UsageSummary ( UsageDefaultName );
+
+    cout
         << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
         ;
 
@@ -185,12 +184,21 @@ static void handle_help ( const char * appName )
 
     cout << endl;
 
+    HelpOptionsStandard();
     HelpVersion ( UsageDefaultName, KAppVersion () );
+
+    return 0;
 }
 
 int
-run( int argc, char *argv [] )
+run( VDB::Application & app )
 {
+    // handle and remove standard options from app-owned argc/argv
+    app.HandleStandardOptions( handle_help, UsageSummary );
+
+    int argc = app.getArgC();
+    char **argv = app.getArgV();
+
     int rc = -1;
     bool found;
 
@@ -213,16 +221,6 @@ run( int argc, char *argv [] )
                 {   // an input run
                     settings . m_accessions . push_back ( arg );
                 }
-            }
-            else if ( arg == "-h" || arg == "--help" )
-            {
-                handle_help ( argv [ 0 ]  );
-                return 0;
-            }
-            else if ( arg == "-V"  || arg == "--version" )
-            {
-                HelpVersion ( UsageDefaultName, KAppVersion () );
-                return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
             {
@@ -362,8 +360,8 @@ run( int argc, char *argv [] )
     }
     catch ( const invalid_argument & x )
     {
-        cerr << endl << "ERROR: " << x . what () << endl;
-        handle_help ( argv [ 0 ] );
+        cerr << endl << "ERROR: " << x . what () << endl << endl;
+        handle_help ( nullptr );
         rc = 1;
     }
     catch ( const exception & x )
@@ -387,6 +385,7 @@ run( int argc, char *argv [] )
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
-    return run ( argc, app.getArgV());
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
+    app.setRc( run ( app ) );
+    return app.getExitCode();
 }

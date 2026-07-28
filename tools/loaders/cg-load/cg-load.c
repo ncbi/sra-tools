@@ -736,8 +736,8 @@ bool CC FGroupMAP_LoadEvidence( BSTNode *node, void *data )
             if( n->align != NULL ) {
                 d->rc = CGLoaderFile_GetEvidenceDnbs(n->align, d->db.ev_int->interval_id, d->db.ev_dnb);
             } else {
-		d->db.ev_dnb->qty = 0; /***weird, but the easiest place to fix ***/
-	    }
+        d->db.ev_dnb->qty = 0; /***weird, but the easiest place to fix ***/
+        }
             /* interval written 1st than dnbs which uses interval as reference */
             if( d->rc == 0 ) {
                 d->rc = CGWriterEvdInt_Write(d->db.wev_int, d->db.ev_dnb, &evint_rowid);
@@ -1039,7 +1039,7 @@ char const UsageDefaultName[] = "cg-load";
 
 rc_t CC Usage( const Args* args )
 {
-    rc_t rc;
+    rc_t rc = 0;
     int i;
     const char* progname = UsageDefaultName;
     const char* fullname = UsageDefaultName;
@@ -1053,16 +1053,22 @@ rc_t CC Usage( const Args* args )
             HelpOptionLine(MainArgs[i].aliases, MainArgs[i].name, NULL, MainArgs[i].help);
         }
     }
+
     OUTMSG(("\nOptions:\n"));
     for(i = 0; i < MainArgsQty; i++ ) {
         if( !MainArgs[i].required && MainArgs[i].help[0] != NULL ) {
             HelpOptionLine(MainArgs[i].aliases, MainArgs[i].name, NULL, MainArgs[i].help);
         }
     }
+
     XMLLogger_Usage();
     OUTMSG(("\n"));
+
     HelpOptionsStandard();
+    OUTMSG(("\n"));
+
     HelpVersion(fullname, KAppVersion());
+
     return rc;
 }
 
@@ -1245,15 +1251,15 @@ MAIN_DECL( argc, argv )
             params.refFiles = NULL;
         }
     }
-    /* find accession as last part of path for internal XML logging */
-    refseq_chunk = params.out ? strrchr(params.out, '/') : "/???";
-    if( refseq_chunk ++ == NULL )
+    else {
+      /* find accession as last part of path for internal XML logging */
+      refseq_chunk = params.out ? strrchr(params.out, '/') : "/???";
+      if( refseq_chunk ++ == NULL )
         refseq_chunk = params.out;
 
-    if( argc < 2 )
+      if( argc < 2 )
         MiniUsage(args);
-    else if( rc != 0 )
-    {
+      else if( rc != 0 ) {
         if( errmsg )
         {
             MiniUsage(args);
@@ -1264,13 +1270,14 @@ MAIN_DECL( argc, argv )
             PLOGERR(klogErr, (klogErr, rc, "load failed: $(accession)",
                    "severity=total,status=failure,accession=%s", refseq_chunk));
         }
-    }
-    else
-    {
+      }
+      else {
         PLOGMSG(klogInfo, (klogInfo, "loaded",
                 "severity=total,status=success,accession=%s", refseq_chunk));
+      }
+      ArgsWhack(args);
+      XMLLogger_Release(xml_logger);
     }
-    ArgsWhack(args);
-    XMLLogger_Release(xml_logger);
+
     return VDB_TERMINATE( rc );
 }

@@ -1,0 +1,10 @@
+<A>
+  <B>'1'</B>
+</A>
+<LOAD>
+  <timestamp>\x89\xBB\x7F\x68\x00\x00\x00\x00</timestamp>
+</LOAD>
+<SOFTWARE>
+  <formatter name="sharq" vers="3.2"/>
+  <loader date="Jul 18 2025" name="general-loader" vers="3.2.2"/>
+</SOFTWARE>

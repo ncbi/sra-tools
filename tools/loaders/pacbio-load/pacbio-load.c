@@ -70,7 +70,9 @@ const char UsageDefaultName[] = "pacbio-load";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    OUTMSG ( ("\n"
+    OUTMSG ( (
+        "Summary: Loads pacbio hd5 data into an SRA archive.\n"
+        "\n"
         "Usage:\n"
         "  %s <hdf5-file> -o<target>\n"
         "\n", progname) );
@@ -114,6 +116,7 @@ rc_t CC Usage ( const Args * args )
                      "load-progress", progress_usage );
     XMLLogger_Usage();
     HelpOptionsStandard ();
+    KOutMsg ("\n");
     HelpVersion ( fullpath, KAppVersion() );
     return rc;
 }
@@ -587,8 +590,7 @@ OptDef MyOptions[] =
 
 MAIN_DECL( argc, argv )
 {
-    if ( VdbInitialize( argc, argv, 0 ) )
-        return VDB_INIT_FAILED;
+    VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
     Args * args;
 

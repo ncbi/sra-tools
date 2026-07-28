@@ -61,7 +61,7 @@ void release_SBuffer( SBuffer_t * self ) {
     }
 }
 
-rc_t increase_SBuffer( SBuffer_t * self, size_t by ) {
+rc_t increase_SBuffer_by( SBuffer_t * self, size_t by ) {
     rc_t rc;
     if ( NULL == self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
@@ -105,7 +105,7 @@ rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err ) {
     rc_t rc = rc_err;
     if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
     {
-        rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
+        rc = increase_SBuffer_by( self, self -> buffer_size ); /* double it's size */
         if ( 0 != rc ) {
             ErrMsg( "try_to_enlarge_SBuffer().increase_SBuffer() -> %R", rc );
         }

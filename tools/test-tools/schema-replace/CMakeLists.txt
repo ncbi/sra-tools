@@ -23,4 +23,4 @@
 # ===========================================================================
 
 GenerateExecutableWithDefs( schema-replace schema-replace "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-MakeLinksExe( schema-replace false )
+MakeLinksExe_NoInstall( schema-replace )

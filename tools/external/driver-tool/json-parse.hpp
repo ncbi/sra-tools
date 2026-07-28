@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "util.hpp"
 #include "debug.hpp"
 #include "opt_string.hpp"

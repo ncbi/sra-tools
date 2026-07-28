@@ -104,8 +104,10 @@ echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" > ${KFG}
 echo
 echo "Smoke testing ${BIN_DIR} ..."
 
-# list all tools; samview-util is ignored; sratools ios not to be run on its own
-TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v samview-util | grep -v sratools | grep -vE '[0-9]$')
+# list all tools; rnd2sra and samview-util are ignored;
+# sratools has not to be run on its own
+TOOLS=$(ls -1 ${BIN_DIR} | grep -vw make-platform-test | grep -vw ncbi \
+| grep -v rnd2sra | grep -v samview-util | grep -v sratools | grep -vE '[0-9]$')
 
 # run all tools with -h and -V
 

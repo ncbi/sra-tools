@@ -182,7 +182,7 @@ struct spot_assembly_t {
 
 
     // classes for cold storage 
-    svector_u8 m_spot_index;             ///< spot index - num reads per spot 
+    svector_u32 m_spot_index;             ///< spot index - num reads per spot 
     vector<metadata_t> m_reads_metadata; ///< reads metadata from defline - readNum,  spotGroup, sequence and quality offset 
     vector<svector_u32> m_sequences;     ///< sequence data
     vector<size_t> m_seq_offset;         ///< last sequence offset per read
@@ -789,7 +789,7 @@ void spot_assembly_t::save_read_mt(size_t row_id, fastq_read& read) {
 
     {
         lock_guard<mutex> lock(m_mutex);
-        uint8_t read_idx = m_spot_index.get_no_check(row_id);
+        unsigned read_idx = m_spot_index.get_no_check(row_id);
         auto& metadata = m_reads_metadata[read_idx];
 
         metadata.get<u16_t>(metadata_t::e_ReaderId).set(row_id, read.m_ReaderIdx);
@@ -846,7 +846,7 @@ void spot_assembly_t::get_spot_mt(const string& spot_name, size_t row_id, vector
     lock_guard<mutex> lock(m_mutex);
     auto num_reads = m_spot_index.get_no_check(row_id);
     reads.resize(num_reads);
-    for (int read_idx = 0; read_idx < num_reads; ++read_idx) {
+    for (unsigned read_idx = 0; read_idx < num_reads; ++read_idx) {
         tmp_read.Reset();
         auto& metadata = m_reads_metadata[read_idx];
         tmp_read.m_ReaderIdx = metadata.get<u16_t>(metadata_t::e_ReaderId).get(row_id);

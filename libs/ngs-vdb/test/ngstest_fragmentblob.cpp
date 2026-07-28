@@ -40,8 +40,6 @@
 
 #include <kapp/main.h>
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <vdb/table.h>
 #include <vdb/database.h>
 
@@ -566,9 +564,8 @@ FIXTURE_TEST_CASE ( NGS_FragmentBlobIterator_IteratorRetreats, BlobIteratorFixtu
 
 //////////////////////////////////////////// Main
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
-    KConfigDisableUserSettings();
     int ret=NgsFragmentBlobTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret;

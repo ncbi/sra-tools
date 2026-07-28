@@ -74,7 +74,7 @@ const char UsageDefaultName[] = "schema-update";
 
 rc_t CC UsageSummary ( const char * progname )
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
                     "Usage:\n"
                     "  %s <path> [options]\n"
                     "\n", progname);
@@ -104,6 +104,8 @@ rc_t CC Usage( const Args * args  )
     HelpOptionLine ( ALIAS_TAB_NAME, OPTION_TAB_NAME, NULL, tab_name_usage );
 
     HelpOptionsStandard();
+
+    KOutMsg ("\n");
 
     HelpVersion( fullpath, KAppVersion() );
     return rc;
@@ -140,8 +142,8 @@ typedef struct ctx
 } ctx;
 typedef ctx* p_ctx;
 
-
-static rc_t write_schema( KMetadata *meta, const char * schema_dump, size_t schema_len )
+static rc_t write_schema(
+    KMetadata *meta, const char * schema_dump, size_t schema_len )
 {
     KMDataNode *schema_node;
     rc_t rc = KMetadataOpenNodeUpdate ( meta, &schema_node, "schema" );
@@ -240,7 +242,8 @@ typedef struct dump_ctx
 typedef dump_ctx* p_dump_ctx;
 
 
-static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
+static rc_t CC schema_dump_flush(
+    void *dst, const void *buffer, size_t bsize )
 {
     rc_t rc = -1;
     p_dump_ctx ctx = dst;
@@ -299,14 +302,18 @@ static rc_t predump_schema( VSchema *schema, const char * type,
     return rc;
 }
 
+
 MAIN_DECL( argc, argv )
 {
     VDB_INITIALIZE(argc, argv, VDB_INIT_FAILED);
 
+    SetUsage( Usage );
+
     Args * args;
 
-    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
-            SchemaUpOptions, sizeof SchemaUpOptions / sizeof SchemaUpOptions [ 0 ] );
+    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, SchemaUpOptions,
+        sizeof SchemaUpOptions / sizeof SchemaUpOptions [ 0 ] );
+
     if ( rc == 0 )
     {
         ctx ctx;

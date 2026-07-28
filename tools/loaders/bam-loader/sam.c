@@ -392,7 +392,7 @@ DECL_PARSER_FUNCTION(NAME)                                                      
     while ((void)(self->field_in_size = data < endp ? (data - value) + 1 : (endp - value)), parse_ ## NAME ## _inline (self, data < endp ? *data : ch, rc)) {    \
         if (data < endp) { ++data; } else { return true; }                      \
     }                                                                           \
-    (void)PLOGERR(klogErr, (klogErr, *rc, "Parsing SAM " # NAME ": $(value)",   \
+    (void)PLOGERR(klogErr, (klogErr, *rc, "SRAE-246: Parsing SAM " # NAME ": $(value)",   \
                                 "value=%s", value));                            \
     self->parser = PARSER_FUNCTION(NEXT);                                       \
     return false;                                                               \
@@ -893,7 +893,7 @@ DECL_PARSER_FUNCTION(EXTRA)
                 continue;
             return self->parser(self, ch, rc, data, endp);
         }
-        (void)PLOGERR(klogErr, (klogErr, *rc, "Parsing SAM EXTRA: $(value)", "value=%s", value));
+        (void)PLOGERR(klogErr, (klogErr, *rc, "SRAE-247: Parsing SAM EXTRA: $(value)", "value=%s", value));
         self->parser = PARSER_FUNCTION(EXTRA);
         return false;
     }
@@ -1117,7 +1117,7 @@ DECL_PARSER_FUNCTION(EXTRA_B)
                 continue;
             return self->parser(self, ch, rc, data, endp);
         }
-        (void)PLOGERR(klogErr, (klogErr, *rc, "Parsing SAM EXTRA_B: $(value)", "value=%s", value));
+        (void)PLOGERR(klogErr, (klogErr, *rc, "SRAE-248: Parsing SAM EXTRA_B: $(value)", "value=%s", value));
         self->parser = PARSER_FUNCTION(EXTRA);
         return false;
     }
@@ -1245,7 +1245,7 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_B_f)
             if (cp > 0) {
                 bam_alignment_set_f32(&self->rslt->raw[cp], number_parser_get(&self->numeric));
                 bam_alignment_inc_i32(&self->rslt->raw[self->extraArrayCountPos]);
-                
+
                 if (ch == ',')
                     self->state = 2;
                 else {
@@ -1364,13 +1364,13 @@ static SAM2BAM_Parser *parse(  char const *const data
                              )
 {
     SAM2BAM_Parser *const self = (SAM2BAM_Parser*)malloc(sizeof(*self));
-    
+
     if (self == NULL)
         goto OUT_OF_MEMORY;
 
     if (init(self, static_buffer, buffer_size, lookup, lookup_ctx) == NULL)
         goto OUT_OF_MEMORY;
-    
+
     // LogSAM(klogErr, data, fields, offsets);
     self->record_chars = offsets[fields - 1] - 1;
     *rc = 0;
@@ -1379,7 +1379,7 @@ static SAM2BAM_Parser *parse(  char const *const data
         char const *const field = data + ((i == 0) ? 0 : offsets[i - 1]);
         char const *const endp = data + offsets[i] - 1;
         rc_t lrc = 0;
-        
+
         self->field += 1;
         self->state = 0;
         self->field_out_size = 0;
@@ -1392,10 +1392,10 @@ static SAM2BAM_Parser *parse(  char const *const data
     }
     if (self->parser == PARSER_FUNCTION(EXTRA) && *rc == 0)
         return self;
-    
+
     if (*rc == 0) {
         *rc = RC(rcAlign, rcFile, rcReading, rcData, rcTooShort);
-        (void)LOGERR(klogErr, *rc, "Parsing SAM:");
+        (void)LOGERR(klogErr, *rc, "SRAE-246: Parsing SAM:");
         LogSAM(klogInfo, data, fields, offsets);
     }
     if (self->rslt != static_buffer)

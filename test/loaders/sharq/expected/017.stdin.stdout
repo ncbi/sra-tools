@@ -1,0 +1,32 @@
+{
+    "defline": "illuminaNew",
+    "groups": [
+        {
+            "estimated_spots": 4,
+            "files": [
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "-",
+                    "first_name": "NB501550:336:H75GGAFXY:2:11101:10137:1038",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 16,
+                    "max_reads": 1,
+                    "name_size_avg": 40,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 4,
+                    "spots_processed": 4
+                }
+            ],
+            "is_10x": false
+        }
+    ]
+}

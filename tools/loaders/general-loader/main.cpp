@@ -100,7 +100,6 @@ rc_t UsageSummary (char const * progname)
         "\n"
         "Summary:\n"
         "\tPopulate a VDB database from standard input\n"
-        "\n"
         ,progname);
 }
 
@@ -136,13 +135,14 @@ rc_t CC Usage (const Args * args)
     XMLLogger_Usage();
 
     HelpOptionsStandard ();
+    OUTMSG(("\n"));
     HelpVersion (fullpath, KAppVersion());
     return rc;
 }
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv, HASH_SRA_TOOLS );
     if (!app)
     {
         return VDB_INIT_FAILED;

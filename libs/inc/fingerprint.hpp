@@ -34,6 +34,7 @@
 #ifndef fingerprint_hpp
 #define fingerprint_hpp
 
+//#include <algorithm> /* std::max on Windows */
 #include <string>
 #include <string_view>
 #include <sstream>
@@ -112,7 +113,7 @@ private:
             }
             friend JSON_ostream &operator<<(JSON_ostream &strm, Formatter const &self) {
                 strm << '[';
-                for (auto i = 0; i <= self.N; ++i)
+                for (size_t i = 0; i <= self.N; ++i)
                     strm << self[i] << ',';
                 strm << ']';
                 return strm;

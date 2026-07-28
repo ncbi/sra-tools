@@ -67,7 +67,6 @@ FragmentBlob :: FragmentBlob ( const FragmentBlob & obj )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
     self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
 }
 
@@ -122,7 +121,6 @@ FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string * p_fragId, uint64_t
     else
     {
         biological = false;
-        fragId . empty ();
     }
 
     if ( p_fragId != 0 )

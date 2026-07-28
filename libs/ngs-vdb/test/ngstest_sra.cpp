@@ -41,8 +41,6 @@
 
 #include <kdb/manager.h>
 
-#include <kfg/config.h> /* KConfigDisableUserSettings */
-
 #include <vdb/manager.h>
 #include <vdb/vdb-priv.h>
 
@@ -1044,10 +1042,6 @@ FIXTURE_TEST_CASE(SRA_GetFragmentBlobs, SRA_Fixture)
 //////////////////////////////////////////// Main
 int main(int argc, char* argv[])
 {
-    //assert(!KDbgSetString("KFG"));
-    //assert(!KDbgSetString("VFS"));
-    KConfigDisableUserSettings();
-
     putenv((char*)"NCBI_VDB_QUALITY=R");
 
     int ret=NgsSraTestSuite(argc, argv);

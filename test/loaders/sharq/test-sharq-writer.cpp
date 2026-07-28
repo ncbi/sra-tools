@@ -63,6 +63,7 @@ public:
 
     bool setMetadataAttr(VDB::Writer::MetaNodeRoot const root, unsigned const oid, std::string const &path, std::string const &attr, std::string const &value) const override
     {
+// cout << "setMetadataAttr(" << oid << ", " << path << ", " << attr << ", " << value <<endl;
         m_metadataAttrs.push_back( std::make_tuple( root, oid, path, attr, value) );
         return true;
     }
@@ -131,6 +132,7 @@ public:
         THROW_ON_FALSE( root    == get<0>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( id      == get<1>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( key     == get<2>(m_tw->m_metadataAttrs[idx]) );
+cout<<attr<<" "<< get<3>(m_tw->m_metadataAttrs[idx]) << endl;
         THROW_ON_FALSE( attr    == get<3>(m_tw->m_metadataAttrs[idx]) );
         THROW_ON_FALSE( value   == get<4>(m_tw->m_metadataAttrs[idx]) );
     }
@@ -195,7 +197,12 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         Fingerprint fp(2);
         fp.record( r.Sequence());
         reads.push_back(r);
-        m_w.set_fingerprint( File1, fp );
+        const uint8_t md5[16] =
+        {
+            0, 1, 2, 3, 4, 5, 6, 7,
+            8, 9, 10, 11, 12, 13, 14, 15
+        };
+        m_w.set_checksums( File1, fp, md5 );
     }
 
     const string File2 = "file2";
@@ -204,7 +211,12 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
         Fingerprint fp(2);
         fp.record( r.Sequence());
         reads.push_back(r);
-        m_w.set_fingerprint( File2, fp );
+        const uint8_t md5[16] =
+        {
+            8, 9, 10, 11, 12, 13, 14, 15,
+            0, 1, 2, 3, 4, 5, 6, 7,
+        };
+        m_w.set_checksums( File2, fp, md5 );
     }
 
     m_w.open();
@@ -212,7 +224,7 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
     m_w.close();
 
     REQUIRE_EQ( 8, (int)m_tw->m_metadata.size() );  // 1 per input + 6 for output
-    REQUIRE_EQ( 10, (int)m_tw->m_metadataAttrs.size() ); // 5 per input (file name, fp digest, fp algorithm, fp version, fp format)
+    REQUIRE_EQ( 12, (int)m_tw->m_metadataAttrs.size() ); // 6 per input (file name, fp digest, md5, fp algorithm, fp version, fp format)
 
     // input fingerprints, on the database per input file
     {   // file1
@@ -222,20 +234,22 @@ FIXTURE_TEST_CASE(Fingerprinting, VdbWriterFixture)
 
         verifyMetaAttr(0, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "name", File1);
         verifyMetaAttr(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "digest", "33a38a4e3554e8261d4b770efd0abbb1d2bee38b7c43400bf814da22b0d517d8");
-        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "algorithm",Fingerprint::algorithm());
-        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "version", Fingerprint::version());
-        verifyMetaAttr(4, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "format", Fingerprint::format());
+        verifyMetaAttr(2, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "content-md5", "000102030405060708090a0b0c0d0e0f");
+        verifyMetaAttr(3, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "algorithm",Fingerprint::algorithm());
+        verifyMetaAttr(4, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "version", Fingerprint::version());
+        verifyMetaAttr(5, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_1", "format", Fingerprint::format());
     }
     {   // file2
         const string Expected =
             R"({"maximum-position":1,"A":[0,0],"C":[1,0],"G":[0,0],"T":[0,0],"N":[0,0],"EoR":[0,1]})";
         verifyMeta(1, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", Expected);
 
-        verifyMetaAttr(5, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
-        verifyMetaAttr(6, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
-        verifyMetaAttr(7, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "algorithm", Fingerprint::algorithm());
-        verifyMetaAttr(8, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "version", Fingerprint::version());
-        verifyMetaAttr(9, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "format", Fingerprint::format());
+        verifyMetaAttr(6, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "name", File2);
+        verifyMetaAttr(7, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "digest", "1754487c258a1cd0f82a45195dd2656abc02ae011a8bc52e29f0215f97929363");
+        verifyMetaAttr(8, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "content-md5", "08090a0b0c0d0e0f0001020304050607");
+        verifyMetaAttr(9, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "algorithm", Fingerprint::algorithm());
+        verifyMetaAttr(10, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "version", Fingerprint::version());
+        verifyMetaAttr(11, VDB::Writer::MetaNodeRoot::database, 0u, "LOAD/QC/file_2", "format", Fingerprint::format());
     }
     // output fingerprint, on the SEQUENCE table
     {

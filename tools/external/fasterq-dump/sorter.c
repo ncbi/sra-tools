@@ -25,6 +25,7 @@
 */
 
 #include "sorter.h"
+#include "helper.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -63,7 +64,6 @@ typedef struct lookup_producer_t {
     atomic64_t * processed_row_count;
     uint32_t chunk_id, sub_file_id;
     size_t buf_size, mem_limit;
-    bool single;
 } lookup_producer_t;
 
 
@@ -156,38 +156,29 @@ static rc_t pack_read_2_4na( const String * bases, SBuffer_t * packed_bases ) {
     if ( bases -> len < 1 ) {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
     } else {
-        if ( bases -> len > 0xFFFF ) {
-            /* make sure that we have no more than max u16 bases, because we only use 2 bytes
-               for that in the lookup-file! */
-            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
-        } else {
-            /* we have to down-convert from 32-bits to 16-bits */
-            const uint16_t num_bases = ( bases -> len & 0xFFFF );
+        const dna_len_t dna_len = bases -> len;
+        const dna_len_t buffer_bytes_needed = ( dna_len / 2 ) + sizeof( dna_len_t ) + 2;
 
-             /* 2 bases per byte + 2 bytes for num_bases + 2 bytes extra */
-            const uint16_t buffer_bytes_needed = ( num_bases / 2 ) + 4;
-
-             /* enlarge the buffer if needed */
-            if ( packed_bases -> buffer_size < buffer_bytes_needed ) {
-                rc = increase_SBuffer_to( packed_bases, buffer_bytes_needed );
-                if ( 0 != rc ) {
-                    ErrMsg( "sorter.c pack_read_2_4na() cannot increase buffer from %u to %u",
-                            packed_bases -> buffer_size, buffer_bytes_needed );
-                }
+        /* enlarge the buffer if needed */
+        if ( packed_bases -> buffer_size < buffer_bytes_needed ) {
+            rc = increase_SBuffer_to( packed_bases, buffer_bytes_needed );
+            if ( 0 != rc ) {
+                ErrMsg( "sorter.c pack_read_2_4na() cannot increase buffer from %u to %u",
+                        packed_bases -> buffer_size, buffer_bytes_needed );
             }
+        }
 
-            if ( 0 == rc ) {
-                uint32_t src_idx = 0;
-                uint32_t dst_idx = 0;
+        if ( 0 == rc ) {
+            uint8_t * dst = ( uint8_t * )packed_bases -> S . addr;
+
+            /* write the leading num_bases to the target */
+            memcpy( dst, &dna_len, sizeof dna_len );
+            {
+                uint32_t src_idx;
+                uint32_t dst_idx = sizeof( dna_len );
                 const uint8_t * src = ( uint8_t * )bases -> addr;
-                uint8_t * dst = ( uint8_t * )packed_bases -> S . addr;
-
-                /* write num_bases to the target */
-                dst[ dst_idx++ ] = ( num_bases >> 8 );
-                dst[ dst_idx++ ] = ( num_bases & 0xFF );
-
                 /* for each base: encode to 4na and write ot buffer */
-                for ( src_idx = 0; src_idx < num_bases; ++src_idx ) {
+                for ( src_idx = 0; src_idx < dna_len; ++src_idx ) {
                     if ( dst_idx < packed_bases -> buffer_size ) {
                         uint8_t base = ( xASCII_to_4na[ src[ src_idx ] ] & 0x0F );
                         if ( 0 == ( src_idx & 0x01 ) ) {
@@ -199,7 +190,6 @@ static rc_t pack_read_2_4na( const String * bases, SBuffer_t * packed_bases ) {
                 }
                 /* if we have not finished a whole byte - increase the lenght! */
                 if ( bases -> len & 0x01 ) { dst_idx++; }
-
                 /* set the length into the String... */
                 packed_bases -> S . size = packed_bases -> S . len = dst_idx;
             }
@@ -239,7 +229,7 @@ static rc_t write_to_store( lookup_producer_t * self,
     return rc;
 }
 
-static rc_t CC producer_thread_func( const KThread *self, void *data ) {
+static rc_t producer_thread_func( const KThread *self, void *data ) {
     rc_t rc1, rc = 0;
     lookup_producer_t * producer = data;
     raw_read_rec_t rec;
@@ -332,7 +322,6 @@ rc_t execute_lookup_production( const lookup_production_args_t * args ) {
                         producer -> sub_file_id     = 0;
                         producer -> buf_size        = args -> buf_size;
                         producer -> mem_limit       = args -> mem_limit;
-                        producer -> single          = false;
                         producer -> processed_row_count = &processed_row_count;
 
                         cip . dir                = args -> dir;

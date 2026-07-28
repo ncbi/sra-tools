@@ -85,7 +85,7 @@ public:
                     if(e & PileupEvent::alignment_minus_strand)
                     {
                         auto n = snprintf(buf, sizeof(buf), "%d", c);
-                        assert(n < sizeof(buf));
+                        assert(n >= 0 && (size_t)n < sizeof(buf));
                         char *b = buf + n;
                         const char *s = ibases.data();
                         for(int i=0; i<c;i++,b++,s++)
@@ -96,7 +96,8 @@ public:
                     }
                     else {
                         auto n = snprintf(buf, sizeof(buf),"%d%.*s",c,c,ibases.data());
-                        assert(n < sizeof(buf));
+                        assert(n >= 0 && (size_t)n < sizeof(buf));
+                        (void)n;
                     }
                     base += buf;
                 }

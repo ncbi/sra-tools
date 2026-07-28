@@ -41,12 +41,13 @@ const char UsageDefaultName[] = "rcexplain";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("\n"
+    return KOutMsg (
+                    "Summary:\n"
+                    "  Prints out error string to stdout for one or more return codes.\n"
+                    "\n"
                     "Usage:\n"
                     "  %s [Options] rc [rc ...]\n"
-                    "\n"
-                    "Summary:\n"
-                    "  Prints out error string to stdout for one or more return codes.\n",
+                    "\n",
                     progname);
 }
 
@@ -63,9 +64,11 @@ rc_t CC Usage (const Args * args)
 
     UsageSummary (progname);
 
-    KOutMsg ("Options:\n");
+    KOutMsg ("\nOptions:\n");
 
     HelpOptionsStandard();
+
+    KOutMsg ("\n");
 
     HelpVersion (fullpath, KAppVersion());
 

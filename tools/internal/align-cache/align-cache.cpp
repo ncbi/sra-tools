@@ -469,7 +469,7 @@ namespace AlignCache
             if ( param_count != 2 )
             {
                 MiniUsage (args.GetArgs());
-                return 0;
+                return 3;
             }
 
             g_Params.dbPathSrc = args.GetParamValue (0);
@@ -540,6 +540,8 @@ extern "C"
 
         HelpOptionsStandard ();
 
+        printf ("\n");
+
         HelpVersion (fullpath, KAppVersion());
 
         return rc;
@@ -547,7 +549,7 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app(argc, argv);
+        VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );

@@ -224,7 +224,6 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
     bool isDb = true;
     const VDatabase *db = NULL;
     const String *str = NULL;
-    KPathType type = kptNotFound;
 
     assert(self && resolved && deps);
 
@@ -234,16 +233,6 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
     rc = _VDBManagerSetDbGapCtx(self->mgr, resolved->resolver);
 
     STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
-
-    type = VDBManagerPathType(self->mgr, "%S", str) & ~kptAlias;
-    if (type != kptDatabase) {
-        if (type == kptTable)
-            STSMSG(STS_DBG, ("...'%S' is a table", str));
-        else
-            STSMSG(STS_DBG,
-                ("...'%S' is not recognized as a database or a table", str));
-        return 0;
-    }
 
     rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%S", str);
     if (rc != 0) {
@@ -1320,6 +1309,7 @@ rc_t CC Usage(const Args *args) {
         else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
             param = "FILE";
             alias = OUT_FILE_ALIAS;
+            continue; /* deprecated */
         }
         else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
             continue; /* debug option */
@@ -1340,6 +1330,7 @@ rc_t CC Usage(const Args *args) {
 
     OUTMSG(("\n"));
     HelpOptionsStandard();
+    OUTMSG(("\n"));
     HelpVersion(fullpath, KAppVersion());
 
     return rc;

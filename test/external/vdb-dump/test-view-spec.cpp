@@ -377,15 +377,7 @@ FIXTURE_TEST_CASE ( NestedView, ViewCursorFixture )
 //TODO: nested views v1<v2<t>,V3<t>>
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
-
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return VdbDumpViewSpecTestSuite(argc, argv);
-}
-
 }

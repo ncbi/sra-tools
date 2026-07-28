@@ -1,18 +1,12 @@
 #pragma once
 
 #include <string>
-
-#if GCC_VERSION <= 6
-#include <experimental/filesystem>
-#else
-#include <filesystem>
-#endif
-
 #include <vector>
 #include <unistd.h>
 
+#include "fs.hpp"
+
 using namespace std;
-namespace fs = std::filesystem;
 
 namespace sra_convert {
 

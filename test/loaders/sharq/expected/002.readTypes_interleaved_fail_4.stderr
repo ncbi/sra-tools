@@ -1,1 +1,1 @@
-[error] [code:30] readTypes number should match the number of reads 2 != 3
+[error] SRAE-194: readTypes number should match the number of reads 2 != 3 [code:30] 

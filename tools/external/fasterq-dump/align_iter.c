@@ -128,6 +128,7 @@ rc_t alit_extract_row_count( KDirectory * dir,
                               accession_path,
                               cur_cache,
                               0,
+                              0,
                               0 );
     rc = alit_create( &cp, &iter, false );
     if ( 0 == rc ) {

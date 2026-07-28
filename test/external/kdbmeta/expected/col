@@ -1,0 +1,4 @@
+<row-len>\x04</row-len>
+<schema type="INSDC:2na:packed">
+  'version 2;typedef B1 INSDC:2na:packed[2];alias INSDC:2na:packed INSDC:dna:2na;alias INSDC:2na:packed NCBI:2na;'
+</schema>

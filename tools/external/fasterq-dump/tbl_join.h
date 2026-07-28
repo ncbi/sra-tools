@@ -59,45 +59,42 @@ extern "C" {
 #include "inspector.h"
 #endif
 
-typedef struct execute_tbl_join_args_t {
+typedef struct execute_tbl_join_args_common_t {
     KDirectory * dir;
     const VDBManager * vdb_mgr;
     const char * accession_path;
     const char * accession_short;
-    const char * seq_defline;           /* NULL for default */
-    const char * qual_defline;          /* NULL for default */
+    const char * seq_defline;               /* NULL for default */
     const char * tbl_name;
     join_stats_t * stats;                   /* helper.h */
     const insp_output_t * insp_output;      /* inspector.h */
     const join_options_t * join_options;    /* helper.h */
-    const struct temp_dir_t * temp_dir;     /* temp_dir.h */
-    struct temp_registry_t * registry;      /* temp_registry.h */
     size_t cursor_cache;
     size_t buf_size;
     uint32_t num_threads;
     uint64_t row_limit;
     bool show_progress;
-    format_t fmt;                       /* helper.h */
+    format_t fmt;                           /* helper.h */
+} execute_tbl_join_args_common_t;
+
+typedef struct execute_tbl_join_args_t {
+    /* the common part */
+    execute_tbl_join_args_common_t cmn;
+
+    /* the differences */
+    const char * qual_defline;          /* NULL for default */
+    const struct temp_dir_t * temp_dir;     /* temp_dir.h */
+    struct temp_registry_t * registry;      /* temp_registry.h */
 } execute_tbl_join_args_t;
 
 rc_t execute_tbl_join( const execute_tbl_join_args_t * args );
 
 typedef struct execute_fasta_tbl_join_args_t {
-    KDirectory * dir;
-    const VDBManager * vdb_mgr;
-    const char * accession_path;
-    const char * accession_short;
+    /* the common part */
+    execute_tbl_join_args_common_t cmn;
+
+    /* the differences */
     const char * output_filename;
-    const char * seq_defline;           /* NULL for default */
-    const char * tbl_name;
-    join_stats_t * stats;                   /* helper.h */
-    const join_options_t * join_options;    /* helper.h */
-    const insp_output_t * insp_output;      /* inspector.h */
-    size_t cursor_cache;
-    size_t buf_size;
-    uint32_t num_threads;
-    uint64_t row_limit;
-    bool show_progress;
     bool force;
 } execute_fasta_tbl_join_args_t;
 

@@ -104,7 +104,7 @@ static void bg_progress_steps( bg_progress_t * self ) {
     }
 }
 
-static rc_t CC bg_progress_thread_func( const KThread *self, void *data ) {
+static rc_t bg_progress_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     bg_progress_t * bgp = data;
     if ( bgp != NULL ) {
@@ -186,7 +186,7 @@ typedef struct bg_update_t {
     uint32_t sleep_time;
 } bg_update_t;
 
-static rc_t CC bg_update_thread_func( const KThread *self, void *data ) {
+static rc_t bg_update_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     bg_update_t * bga = data;
     if ( NULL != bga ) {

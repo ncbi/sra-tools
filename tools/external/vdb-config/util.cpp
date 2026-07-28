@@ -24,7 +24,7 @@
 *
 */
 
-#include <kfg/kfg-priv.h> /* KConfigFixMainResolverCgiNode */
+#include <kfg/kfg-priv.h> /* KConfigMakeLocal */
 
 #include <klib/printf.h> /* string_printf */
 #include <klib/strings.h> /* SDL_CGI */
@@ -321,50 +321,8 @@ rc_t CKConfig::Commit(void)
 }
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
-     rc_t rc = 0;
-#ifdef NAMESCGI
-     bool updated = NodeExists("/repository_remote/CGI/resolver-cgi/trace");
+    rc_t rc = 0;
 
-     {
-        const string name("/repository/remote/main/CGI/resolver-cgi");
-        if (!updated || !NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
-            if (r2 != 0 && rc == 0)
-                rc = r2;
-        }
-    }
-
-    if (fix) {
-        const string name("/repository/remote/main/CGI/disabled");
-        if (NodeExists(name)) {
-            rc_t r2 = UpdateNode(name.c_str(), "false");
-            if (r2 != 0 && rc == 0) {
-                rc = r2;
-            }
-        }
-    }
-
-    {
-        const string name("/repository/remote/protected/CGI/resolver-cgi");
-        if (!updated || !NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
-            if (r2 != 0 && rc == 0)
-                rc = r2;
-        }
-    }
-
-    if (fix) {
-        const string name("/repository/remote/disabled");
-        if (NodeExists(name)) {
-            rc_t r2 = UpdateNode(name.c_str(), "false");
-            if (r2 != 0 && rc == 0) {
-                rc = r2;
-            }
-        }
-    }
-#endif
     {
         const string name("/repository/remote/main/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
@@ -373,16 +331,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
                 rc = r2;
         }
     }
-#ifdef NAMESCGI
-    {
-        const string name("/repository/remote/protected/SDL.2/resolver-cgi");
-        if (!NodeExists(name)) {
-            rc_t r2 = UpdateNode(name, SDL_CGI);
-            if (r2 != 0 && rc == 0)
-                rc = r2;
-        }
-    }
-#endif
+
     return rc;
 }
 
@@ -745,21 +694,6 @@ rc_t CKConfig::UpdateNode(bool verbose,
     return rc;
 }
 
-#ifdef NAMESCGI
-rc_t CKConfig::FixResolverCgiNodes ( void ) {
-    rc_t rc = KConfigFixMainResolverCgiNode ( m_Self );
-    rc_t r2 = KConfigFixProtectedResolverCgiNode  ( m_Self );
-    if ( rc == 0 && r2 == 0 ) {
-        m_Updated = true;
-    } else {
-        if ( rc == 0 ) {
-            rc = r2;
-        }
-    }
-    return rc;
-}
-#endif
-
 CApp::CApp(const CKDirectory &dir, const CKConfigNode &rep,
         const string &root, const string &name)
     : m_HasVolume(false)
@@ -934,7 +868,7 @@ rc_t CRemoteRepository::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (Is("main")) {
         m_ResolverCgi
-            = "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
+            = "";
         ClearApps();
     }
     else {
@@ -1167,15 +1101,15 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     }
 
     const string cgi
-        ("https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
+        ("https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve");
     if (main == NULL) {
-        main = new CRemoteRepository("main", "CGI", cgi);
+        main = new CRemoteRepository("main", "SDL.2", cgi);
         main->Fix(kfg, disable);
         push_back(main);
     }
 
     if (protectd == NULL) {
-        protectd = new CRemoteRepository("protected", "CGI", cgi);
+        protectd = new CRemoteRepository("protected", "SDL.2", cgi);
         if (verbose) {
             OUTMSG(("creating %s %s remote repository\n",
                 protectd->GetSubCategory().c_str(),

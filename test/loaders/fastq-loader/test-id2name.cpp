@@ -164,14 +164,7 @@ FIXTURE_TEST_CASE ( NameTooLong, Id2name_Fixture )
 }
 
 //////////////////////////////////////////// Main
-extern "C"
-{
-
-#include <kfg/config.h>
 int main ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
     return Id2NameSuite(argc, argv);
-}
-
 }

@@ -408,7 +408,7 @@ private:
         return !(arguments.empty() || nextInput == arguments.end());
     }
     void printFlagStat(std::ostream &strm) {
-        strm << FlagStatText{*flagCounter, flagStatTextVersion}.defaultText;
+        strm << FlagStatText{*flagCounter, flagStatTextVersion}.get();
     }
     void print(std::ostream &strm) {
         if (flagCounter) {

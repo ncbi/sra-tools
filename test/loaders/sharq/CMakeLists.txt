@@ -335,7 +335,7 @@ if( SINGLE_CONFIG )
         # inputs from cloud
 
         execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
-        if ( AWS_MISSING ) 
+        if ( AWS_MISSING )
             set( AWS_ERROR "Cloud CLI (aws) is not found")
         else()
             set( AWS_ERROR "returned 1 ")
@@ -343,12 +343,14 @@ if( SINGLE_CONFIG )
         SharqTest_Error(018.cloud.badbucket.aws 1 ${AWS_ERROR} "s3://notabucket/notafile")
 
         execute_process( COMMAND gsutil --version RESULT_VARIABLE GSUTIL_MISSING )
-        if ( GSUTIL_MISSING ) 
+        if ( GSUTIL_MISSING )
             set( GS_ERROR "Cloud CLI (gsutil) is not found")
         else()
             set( GS_ERROR "returned 1 ")
         endif()
         SharqTest_Error(018.cloud.badbucket.gcs 1 ${GS_ERROR} "gs://notabucket/notafile")
+
+        SharqTest(019.readname_format_change 1 "${IN}019.fastq") # error out when readname format changes mid-file
 
         # more tests in asm-trace
 

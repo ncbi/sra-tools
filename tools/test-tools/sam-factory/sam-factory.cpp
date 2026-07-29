@@ -1189,7 +1189,7 @@ class t_factory {
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     int res = 3;
     try {

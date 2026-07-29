@@ -76,6 +76,8 @@
 #include <kns/manager.h>
 #endif
 
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFileVPath */
+
 #ifndef _h_kns_http_
 #include <kns/http.h>
 #endif
@@ -379,7 +381,8 @@ static rc_t insp_on_file_visit( const KDirectory *dir, uint32_t type, const char
     return rc;
 }
 
-static uint64_t insp_get_file_size( const KDirectory * dir, const char * path, bool remotely )
+static uint64_t insp_get_file_size( const KDirectory * dir, const char * path,
+    const VPath * aPath, bool remotely )
 {
     rc_t rc = 0;
     uint64_t res = 0;
@@ -390,7 +393,8 @@ static uint64_t insp_get_file_size( const KDirectory * dir, const char * path, b
         if ( 0 == rc )
         {
             const KFile * f = NULL;
-            rc = KNSManagerMakeHttpFile( kns_mgr, &f, NULL, 0x01010000, "%s", path );
+            rc = KNSManagerMakeReliableHttpFileVPath ( kns_mgr, &f, NULL,
+                0x01010000, aPath ); 
             if ( 0 == rc ) {
                 rc = KFileSize ( f, &res );
                 KFileRelease( f );
@@ -430,7 +434,8 @@ static bool insp_starts_with( const char *a, const char *b )
     return res;
 }
 
-static rc_t insp_resolve_accession( const char * acc, char * dst, size_t dst_size, bool * remotely )
+static rc_t insp_resolve_accession( const char * acc, char * dst,
+    size_t dst_size, bool * remotely, const VPath ** aPath )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
@@ -453,8 +458,10 @@ static rc_t insp_resolve_accession( const char * acc, char * dst, size_t dst_siz
                         assert(remotely);
                         *remotely = VPathIsRemote(vpath);
                     }
-                    rc = insp_release_VPath( vpath, rc,
-                        "insp_resolve_accession", acc );
+                 /* rc = insp_release_VPath(vpath, rc,
+                        "insp_resolve_accession", acc ); */
+                    assert(aPath);
+                    *aPath = vpath;
         }
         else
             ErrMsg("cannot find '%s' -> %R", acc, rc);
@@ -717,22 +724,26 @@ static rc_t insp_location_and_size( const insp_input_t * input,
     rc_t rc;
     char resolved[ PATH_MAX ];
     bool remotely = false;
+    const VPath* path = NULL;
 
     /* try to resolve the path locally first */
-    rc = insp_resolve_accession( input -> accession_path, resolved, sizeof resolved, &remotely ); /* above */
+    rc = insp_resolve_accession( input -> accession_path,
+        resolved, sizeof resolved, &remotely, &path ); /* above */
     if ( 0 == rc )
     {
       if (!remotely) {
           /* found locally */
         output -> is_remote = false;
-        output -> acc_size = insp_get_file_size( input -> dir, resolved, false );
+        output -> acc_size = insp_get_file_size( input -> dir, resolved, path,
+            false );
         if ( 0 == output -> acc_size ) {
             // it could be the user specified a directory instead of a path to a file...
             char p[ PATH_MAX ];
             size_t written;
             rc = string_printf( p, sizeof p, &written, "%s/%s", resolved, input -> accession_short );
             if ( 0 == rc ) {
-                output -> acc_size = insp_get_file_size( input -> dir, p, false );
+                output -> acc_size = insp_get_file_size( input -> dir, p, path,
+                    false );
             }
         }
       }
@@ -742,10 +753,18 @@ static rc_t insp_location_and_size( const insp_input_t * input,
         if ( 0 == rc )
         {
             output -> is_remote = true;
-            output -> acc_size = insp_get_file_size( input -> dir, resolved, true );
+            output -> acc_size = insp_get_file_size( input -> dir, resolved,
+                path, true );
         }
       }
     }
+
+    {
+        rc_t r2 = VPathRelease(path);
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+    }
+
     return rc;
 }
 

@@ -67,7 +67,7 @@ public:
     template <typename F>
     void for_each(F && f) const {
         for (auto const & c : counter)
-            sink(c.first, c.second);
+            f(c.first, c.second);
     }
     
     /// @brief Add a FLAG to the counters.
@@ -107,6 +107,7 @@ private:
         proper_pair,
         mapped_pair,
         singleton,
+        N
     };
     struct Flag {
         uint16_t value;
@@ -210,8 +211,8 @@ public:
             "%lld + %lld with itself and mate mapped\n",
             "%lld + %lld singletons (%s : %s)\n"
         };
-        long long pass[14];
-        long long fail[14];
+        long long pass[FlagStat::N];
+        long long fail[FlagStat::N];
         auto addLine = [this, pass, fail](FlagStat which) {
             char line[1024];
             auto const n = std::snprintf(line, sizeof(line), fmt[which], pass[which], fail[which]);
@@ -220,25 +221,28 @@ public:
         };
         auto addLinePct = [this, pass, fail](FlagStat which, FlagStat whichTotal) {
             char line[1024];
-            PctString const passPct{pass[which], pass[whichTotal]};
-            PctString const failPct{fail[which], fail[whichTotal]};
-            auto const n = std::snprintf(line, sizeof(line), fmt, pass[which], fail[which], passPct.value, failPct.value);
+            PctString const p{pass[which], pass[whichTotal]};
+            PctString const f{fail[which], fail[whichTotal]};
+            auto const n = std::snprintf(line, sizeof(line), fmt[which], pass[which], fail[which], p.value, f.value);
             assert(0 < n && (size_t)n < sizeof(line));
             value.append(line, n);
         };
 
         value.reserve(1024); ///< should be more than enough, a typical `samtools flagstat` is less than 500 characters.
-        std::memset(pass, 0, sizeof(pass));
-        std::memset(fail, 0, sizeof(fail));
         
+        /// Get the `pass` counts.
+        std::memset(pass, 0, sizeof(pass));
         counter.for_each([&](uint16_t const flag, uint64_t const count) {
             Flag{flag}.flagStat(false, [&](int i) { pass[i] += (long long)count; });
         });
 
+        /// Get the `fail` counts.
+        std::memset(fail, 0, sizeof(fail));
         counter.for_each([&](uint16_t const flag, uint64_t const count) {
             Flag{flag}.flagStat(true, [&](int i) { fail[i] += (long long)count; });
         });
 
+        /// Generate the `flagstats` string.
         addLine(FlagStat::total);
         if (version >= v_1_13)
             addLine(FlagStat::primary);
@@ -260,7 +264,7 @@ public:
         value.shrink_to_fit();
     }
     
-    /// @brief How the fingerprint can be generated.
+    /// @brief What kind of fingerprint is this.
     static std::string kind() {
         return "flagstat";
     }

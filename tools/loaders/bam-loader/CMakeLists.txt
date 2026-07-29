@@ -40,6 +40,7 @@ if( NOT WIN32)
         loader-imp
         mem-bank
         low-match-count
+        flag-stat
     )
     set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
     set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
@@ -55,7 +56,7 @@ if( NOT WIN32)
     MakeLinksExe( bam-load false )
 
 	# Internal
-	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	GenerateExecutableWithDefs( samview "bam;sam;samview;flag-stat" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	MakeLinksExe( samview false )
 
 endif()

@@ -45,35 +45,20 @@ private:
     
 public:
     FLAG_Counter() = default;
-    
-    /// @brief Construct from a source of counts. This could be used to load from metadata.
-    /// @tparam Source
-    /// @param source a functional, which takes the flag value and returns the count, or zero.
-    template <typename Source>
-    explicit FLAG_Counter(Source && source)
-    : counter({})
-    {
-        auto it = counter.begin();
-        for (int flag = 0; flag <= 0xFFFF; ++flag) {
-            uint64_t const count = source((uint16_t)flag);
-            if (count > 0)
-                it = counter.emplace_hint(it, (uint16_t)flag, count);
-        }
-    }
-    
+
     /// @brief Visit the counts. This could be used to save the counts to metadata.
     /// @tparam F
     /// @param f a functional, which takes the flag value and the count.
     template <typename F>
     void for_each(F && f) const {
-        for (auto const & c : counter)
+        for (auto && c : counter)
             f(c.first, c.second);
     }
     
     /// @brief Add a FLAG to the counters.
     /// @param flag the FLAG to add.
-    void add(uint16_t const flag, uint64_t count = 1) {
-        counter[flag] += count;
+    void add(uint16_t const flag) {
+        counter[flag] += 1;
     }
 };
 
@@ -183,6 +168,23 @@ private:
                 std::snprintf(value, sizeof(value), "N/A");
         }
     };
+    struct PassFailCounts {
+        long long pass[FlagStat::N] = {0};
+        long long fail[FlagStat::N] = {0};
+        
+        PassFailCounts(FLAG_Counter const &counter)
+        {
+            /// Get the `pass` counts.
+            counter.for_each([&](uint16_t const flag, uint64_t const count) {
+                Flag{flag}.flagStat(false, [&](int i) { pass[i] += (long long)count; });
+            });
+
+            /// Get the `fail` counts.
+            counter.for_each([&](uint16_t const flag, uint64_t const count) {
+                Flag{flag}.flagStat(true, [&](int i) { fail[i] += (long long)count; });
+            });
+        }
+    };
 
 public:
     std::string const &get() const { return value; }
@@ -211,8 +213,9 @@ public:
             "%lld + %lld with itself and mate mapped\n",
             "%lld + %lld singletons (%s : %s)\n"
         };
-        long long pass[FlagStat::N];
-        long long fail[FlagStat::N];
+        PassFailCounts const pfc{counter};
+        auto const pass = &pfc.pass[0];
+        auto const fail = &pfc.fail[0];
         auto addLine = [this, pass, fail](FlagStat which) {
             char line[1024];
             auto const n = std::snprintf(line, sizeof(line), fmt[which], pass[which], fail[which]);
@@ -229,18 +232,6 @@ public:
         };
 
         value.reserve(1024); ///< should be more than enough, a typical `samtools flagstat` is less than 500 characters.
-        
-        /// Get the `pass` counts.
-        std::memset(pass, 0, sizeof(pass));
-        counter.for_each([&](uint16_t const flag, uint64_t const count) {
-            Flag{flag}.flagStat(false, [&](int i) { pass[i] += (long long)count; });
-        });
-
-        /// Get the `fail` counts.
-        std::memset(fail, 0, sizeof(fail));
-        counter.for_each([&](uint16_t const flag, uint64_t const count) {
-            Flag{flag}.flagStat(true, [&](int i) { fail[i] += (long long)count; });
-        });
 
         /// Generate the `flagstats` string.
         addLine(FlagStat::total);

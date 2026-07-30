@@ -104,4 +104,13 @@ if( NOT WIN32 )
     endif()
 
     AddExecutableTest( Test_BamLoader_platform sam-platform.cpp "" "" )
+
+    add_test( NAME Test_BamLoader_EnforceNoEmptySpots
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh -c "${DIRTOTEST}/bam-load -o ./actual/VDB-6399 -k ./VDB-6399/analysis.bam.cfg ./VDB-6399/VDB-6399.sam"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
 endif()

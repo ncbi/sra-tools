@@ -142,11 +142,21 @@ if( SINGLE_CONFIG )
         # command line tests
         #
 
+        ToolsRequired( sharq general-loader kdbmeta )
+
+        set ( SHARQ  ${DIRTOTEST}/sharq )
+
+        TestHelpAndVersion( ${SHARQ} )
+
+        # other standard options
+        add_test ( NAME Test_sharq-Standard
+        COMMAND ${EXECANDGREP} "${SHARQ} -L debug" "something that is currently not there" )
+
         macro(SharqTestImpl TestName Result TestParams SharqBinary CaseId)
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -220,7 +230,7 @@ if( SINGLE_CONFIG )
         macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
         add_test( NAME Test_${TestName}
             COMMAND
-                "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
+                "./runtestcase.sh" "${DIRTOTEST}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         endmacro()
@@ -247,7 +257,7 @@ if( SINGLE_CONFIG )
             add_test(
                 NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-error.sh" "${BINDIR}" "sharq" "." "${CaseId}" "${Result}" "${SearchFor}" "--debug" "--no-timestamp" "${TestParams}"
+                    "./runtestcase-error.sh" "${DIRTOTEST}" "sharq" "." "${CaseId}" "${Result}" "${SearchFor}" "--debug" "--no-timestamp" "${TestParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -312,18 +322,17 @@ if( SINGLE_CONFIG )
         macro(SharqTestFromStdin TestName SharqBinary InputFile LoadParams)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-stdin.sh" "${BINDIR}" ${SharqBinary} "." "${TestName}" 0 "${InputFile}" "--digest" "${LoadParams}"
+                    "./runtestcase-stdin.sh" "${DIRTOTEST}" ${SharqBinary} "." "${TestName}" 0 "${InputFile}" "--digest" "${LoadParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
         SharqTestFromStdin(017.stdin sharq ${IN}001.R1.fastq "" )
 
         # testing metadata
-        ToolsRequired( sharq general-loader kdbmeta )
         macro(SharqTestWithMetadata TestName LoadParams MetaParams)
             add_test( NAME Test_${TestName}
                 COMMAND
-                    "./runtestcase-meta.sh" "${BINDIR}/sharq" "${BINDIR}/general-loader" "${BINDIR}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
+                    "./runtestcase-meta.sh" "${SHARQ}" "${DIRTOTEST}/general-loader" "${DIRTOTEST}/kdbmeta" "." "${TestName}" "${LoadParams}" "${MetaParams}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
         endmacro()
@@ -335,7 +344,7 @@ if( SINGLE_CONFIG )
         # inputs from cloud
 
         execute_process( COMMAND aws --version RESULT_VARIABLE AWS_MISSING )
-        if ( AWS_MISSING ) 
+        if ( AWS_MISSING )
             set( AWS_ERROR "Cloud CLI (aws) is not found")
         else()
             set( AWS_ERROR "returned 1 ")
@@ -343,7 +352,7 @@ if( SINGLE_CONFIG )
         SharqTest_Error(018.cloud.badbucket.aws 1 ${AWS_ERROR} "s3://notabucket/notafile")
 
         execute_process( COMMAND gsutil --version RESULT_VARIABLE GSUTIL_MISSING )
-        if ( GSUTIL_MISSING ) 
+        if ( GSUTIL_MISSING )
             set( GS_ERROR "Cloud CLI (gsutil) is not found")
         else()
             set( GS_ERROR "returned 1 ")

@@ -24,10 +24,17 @@
 
 add_compile_definitions( __mod__="test/internal/align-cache" )
 
+ToolsRequired( align-cache vdb-validate )
+
+set ( ALIGN_CACHE  ${DIRTOTEST}/align-cache )
+
+TestHelpAndVersion( ${ALIGN_CACHE} )
+
+# other standard options
+add_test ( NAME Test_Srapath-Standard COMMAND ${EXECANDGREP} "${ALIGN_CACHE} --option-file does notexist" ": file not found" )
 
 if ( NOT WIN32 )
 
-    ToolsRequired( align-cache vdb-validate )
     add_test( NAME Test_Align_Cache
           COMMAND runtest.sh ${SRC_INTERFACES_DIR}:${VDB_INTERFACES_DIR} ${DIRTOTEST} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

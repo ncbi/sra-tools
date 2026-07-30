@@ -24,11 +24,19 @@
 
 add_compile_definitions( __mod__="test/external/vdb-dump" )
 
+ToolsRequired( vdb-dump )
+set ( VDB_DUMP  ${DIRTOTEST}/vdb-dump )
+
+TestHelpAndVersion( ${VDB_DUMP} )
+
+# other standard options
+add_test ( NAME Test_Srapath-Standard COMMAND ${EXECANDGREP} "${VDB_DUMP} -L debug SRR000123" "debug: " )
+
 if( Python3_EXECUTABLE )
 	add_test( NAME Test_Vdb_dump_Check_exit_code
 		COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=..
-            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-dump${EXE}
+            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${VDB_DUMP}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		COMMAND_EXPAND_LISTS
 	)

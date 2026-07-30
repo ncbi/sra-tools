@@ -25,6 +25,13 @@
 if( NOT WIN32 )
     ToolsRequired(latf-load vdb-dump)
 
+    set ( LATF_LOAD  ${DIRTOTEST}/latf-load )
+
+    TestHelpAndVersion( ${LATF_LOAD} )
+
+    # other standard options
+    add_test ( NAME Test_FastqLoader-Standard COMMAND ${EXECANDGREP} "${LATF_LOAD} -L debug input/1.1.fastq -o actual/Standard --quality PHRED_64" "debug: " WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME LatfTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)

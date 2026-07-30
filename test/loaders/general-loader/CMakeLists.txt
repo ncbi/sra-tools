@@ -22,15 +22,9 @@
 #
 # ===========================================================================
 
-# this is where test executables will be created
-# to access tools themselves, use ${BINDIR}
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
-
 ToolsRequired(general-loader kdbmeta)
 
-GenerateExecutableWithDefs( test-general-loader "test-general-loader;testsource" "" "..;${CMAKE_CURRENT_SOURCE_DIR}" "general-writer;kapp;ktst;loader;${COMMON_LIBS_WRITE}" )
+GenerateExecutableWithDefs( test-general-loader "test-general-loader;testsource" "" "${CMAKE_SOURCE_DIR}/tools/loaders/general-loader;${CMAKE_CURRENT_SOURCE_DIR}" "general-writer;kapp;ktst;loader;${COMMON_LIBS_WRITE}" )
 
 add_dependencies ( test-general-loader general-writer gw-dumper )
 
@@ -54,7 +48,15 @@ target_link_libraries ( makeinputs
     ncbi-vdb-static
 )
 
+
+
 if ( NOT WIN32)
+    set ( GENERAL_LOADER  ${DIRTOTEST}/general-loader )
+    TestHelpAndVersion( ${GENERAL_LOADER} )
+
+    # other standard options
+    add_test ( NAME Test_general-loader-Standard COMMAND ${EXECANDGREP} "echo '' | ${GENERAL_LOADER} -L debug" "debug: general-loader: " )
+
     #TODO: simplify
     set ( CMD sh runtestcase.sh "${DIRTOTEST} ${DIRTOTEST}/vdb-dump db" ${CMAKE_CURRENT_SOURCE_DIR} )
 

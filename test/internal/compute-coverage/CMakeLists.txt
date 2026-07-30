@@ -26,18 +26,11 @@
 if ( NOT WIN32)
 
 	ToolsRequired( compute-coverage )
-
     set( COMPUTE_COVERAGE ${DIRTOTEST}/compute-coverage )
 
-	# help
-	add_test ( NAME Test_ComputeCoverage-1.0-h COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} -h" "Output brief explanation" )
-	add_test ( NAME Test_ComputeCoverage-1.1-help COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} --help" "Output brief explanation" )
-
-    # version
-    add_test ( NAME Test_ComputeCoverage-1.2-V COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} -V" ${VERSION} )
-    add_test ( NAME Test_ComputeCoverage-1.3-version COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} --version" ${VERSION} )
+    TestHelpAndVersion( ${COMPUTE_COVERAGE} )
 
 	# other standard options
-    add_test ( NAME Test_ComputeCoverage-1.4-Standard COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} SRR496123 -L debug" "requesting guard size" )
+    add_test ( NAME Test_ComputeCoverage-Standard COMMAND ${EXECANDGREP} "${COMPUTE_COVERAGE} SRR496123 -L debug" "requesting guard size" )
 
 endif ()

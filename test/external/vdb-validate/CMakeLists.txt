@@ -33,9 +33,15 @@ AddExecutableTest( Test_VdbValidate_Unit "test-vdb-validate"
                                 "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}"
                                 "${PROJECT_SOURCE_DIR}/tools/external/vdb-validate" )
 
+ToolsRequired( vdb-validate prefetch )
+set ( VDB_VALIDATE  ${DIRTOTEST}/vdb-validate )
+
+TestHelpAndVersion( ${VDB_VALIDATE} )
+
+# other standard options
+add_test ( NAME Test_Srapath-Standard COMMAND ${EXECANDGREP} "${VDB_VALIDATE} -L debug SRR000123" "debug: " )
 
 if ( NOT WIN32 )
-	ToolsRequired(vdb-validate prefetch)
 
 	add_test( NAME Test_Vdb_validate_dflt
 		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate

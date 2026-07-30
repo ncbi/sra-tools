@@ -25,12 +25,18 @@
 add_compile_definitions( __mod__="test/external/srapath" )
 
 ToolsRequired( srapath )
+set ( SRAPATH  ${DIRTOTEST}/srapath${EXE} )
+
+TestHelpAndVersion( ${SRAPATH} )
+
+# other standard options
+add_test ( NAME Test_Srapath-Standard COMMAND ${EXECANDGREP} "${SRAPATH} -L debug SRR000123" "debug: " )
 
 if( Python3_EXECUTABLE )
     add_test( NAME Test_Srapath_Check_exit_code
         COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
-            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/srapath${EXE}
+            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${SRAPATH}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 endif()

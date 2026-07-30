@@ -550,10 +550,8 @@ extern "C"
     MAIN_DECL(argc, argv)
     {
         VDB::Application app(argc, argv, HASH_SRA_TOOLS);
+        app.HandleStandardOptions( Usage, UsageSummary );
 
-        SetUsage( Usage );
-        SetUsageSummary( UsageSummary );
-
-        return AlignCache::create_cache_db (argc, app.getArgV() );
+        return AlignCache::create_cache_db (app.getArgC(), app.getArgV() );
     }
 }

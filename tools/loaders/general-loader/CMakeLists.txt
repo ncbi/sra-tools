@@ -35,7 +35,3 @@ add_dependencies ( general-loader general-writer )
 
 MakeLinksExe ( general-loader false )
 
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( test )
-endif()
-

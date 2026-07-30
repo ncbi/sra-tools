@@ -24,8 +24,8 @@
 
 default: runtests
 
-TOP ?= $(abspath ../../../..)
-MODULE = tools/loaders/general-loader/test
+TOP ?= $(abspath ../../..)
+MODULE = test/loaders/general-loader
 
 BUILD_TOOLS_INTERNAL=ON
 BUILD_TOOLS_LOADERS=ON

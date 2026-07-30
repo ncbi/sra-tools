@@ -28,6 +28,15 @@ add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 if ( NOT WIN32 )
     ToolsRequired( read-filter-redact kar kdbmeta vdb-dump vdb-lock vdb-unlock )
 
+	set ( READ_FILTER_REDACT  ${DIRTOTEST}/read-filter-redact )
+
+    TestHelpAndVersion( ${READ_FILTER_REDACT} )
+
+	# other standard options
+    add_test ( NAME Test_read-filter-redact-Standard COMMAND ${EXECANDGREP} "${READ_FILTER_REDACT} -F ./input/2reads.sra ./input/2reads.sra -L debug" "debug: "
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		)
+
     if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
 
         add_test( NAME Test_Read_filter_redact_Check_exit_code

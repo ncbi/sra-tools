@@ -26,13 +26,20 @@ add_compile_definitions( __mod__="test/external/vdb-config" )
 
 if ( NOT WIN32 )
 
+	ToolsRequired( vdb-config )
+	set ( VDB_CONFIG  ${DIRTOTEST}/vdb-config )
+
+	TestHelpAndVersion( ${VDB_CONFIG} )
+
+	# other standard options
+	add_test ( NAME Test_Srapath-Standard COMMAND ${EXECANDGREP} "${VDB_CONFIG} -L debug SRR000123" "debug: " )
+
 	GenerateExecutableWithDefs( test-vdb-config-model "test-vdb-config-model" "" "" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 	add_test( NAME Test_VDB_Config_model
 		COMMAND model.sh ${TESTBINDIR}/test-vdb-config-model
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-	ToolsRequired(vdb-config)
 	add_test( NAME Test_VDB_Config
 		COMMAND test-vdb-config.sh "${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

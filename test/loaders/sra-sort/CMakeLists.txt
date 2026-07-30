@@ -28,6 +28,15 @@ if ( NOT WIN32 )
 
     ToolsRequired(sra-sort kar bam-load sra-stat sam-factory)
 
+    set ( SRA_SORT  ${DIRTOTEST}/sra-sort )
+
+    TestHelpAndVersion( ${SRA_SORT} )
+
+    # other standard options
+    add_test ( NAME Test_sra_sort-Standard
+        COMMAND ${EXECANDGREP} "${SRA_SORT} SRR000123 ./actual/Standard -L debug" "debug: requesting guard size"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     # if directory /export/home/TMP does not exist, the script will not run and exit with 0
     # if it does exist, the script requires env var TEST_DATA to be set, or it will return an error (1)
     # TEST_DATA is supposed to point to a directory with the inputs for this test

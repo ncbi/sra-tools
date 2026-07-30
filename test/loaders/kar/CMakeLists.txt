@@ -25,10 +25,19 @@
 if ( NOT WIN32 )
     ToolsRequired(kar prefetch srapath)
 
+    set ( KAR  ${DIRTOTEST}/kar )
+
+    TestHelpAndVersion( ${KAR} )
+
+    # other standard options
+    add_test ( NAME Test_kar-Standard
+        COMMAND ${EXECANDGREP} "${KAR} --create ./actual/Standard source -v -f" "Success: Exiting kar"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     add_test( NAME Test_Kar
         COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/ NCBI_VDB_QUALITY=R
-            sh -c "./kar-ntest.sh ${DIRTOTEST}/kar ${DIRTOTEST}/prefetch"
+            sh -c "./kar-ntest.sh ${KAR} ${DIRTOTEST}/prefetch"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     if( TARGET kar-asan )

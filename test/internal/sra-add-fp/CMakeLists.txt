@@ -25,11 +25,12 @@
 add_compile_definitions( __mod__="test/sra-add-fp" )
 
 ToolsRequired( sra-add-fp kar fastq-dump kdbmeta )
+set ( SRA_ADD_FP  ${DIRTOTEST}/sra-add-fp )
 
-# help
-add_test( NAME Test_Sra_Add_Fp_help
-	      COMMAND ${DIRTOTEST}/sra-add-fp${EXE} -h
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+TestHelpAndVersion( ${SRA_ADD_FP} )
+
+# other standard options
+add_test ( NAME Test_make-read-filter-Standard COMMAND ${EXECANDGREP} "${SRA_ADD_FP} SRR000123 -L debug" "debug: " )
 
 # bad parameters
 add_test( NAME Test_Sra_Add_Fp_missing_run

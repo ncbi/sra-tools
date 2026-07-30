@@ -27,4 +27,7 @@ default: runtests
 TOP ?= $(abspath ../../..)
 MODULE = test/internal/vdb-copy
 
+BUILD_TOOLS_INTERNAL=ON
+BUILD_TOOLS_LOADERS=ON
+BUILD_TOOLS_TEST_TOOLS=ON
 include $(TOP)/build/Makefile.env

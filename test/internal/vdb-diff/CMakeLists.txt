@@ -25,15 +25,21 @@
 add_compile_definitions( __mod__="test/vdb-diff" )
 
 ToolsRequired( vdb-diff vdb-copy )
+set ( VDB_DIFF  ${DIRTOTEST}/vdb-diff${EXE} )
+
+TestHelpAndVersion( ${VDB_DIFF} )
+
+# other standard options
+add_test ( NAME Test_vdb-diff-Standard COMMAND ${EXECANDGREP} "${VDB_DIFF} -L debug a b" "debug: " )
 
 if( Python3_EXECUTABLE )
     if( WIN32 )
 	  add_test( NAME Test_VDB_Diff_Check_exit_code
-		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE}
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${VDB_DIFF}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     else()
 	  add_test( NAME Test_VDB_Diff_Check_exit_code
-		COMMAND sh -c "ls ${DIRTOTEST}/vdb-diff${EXE}>/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-diff${EXE} || echo no vdb-diff"
+		COMMAND sh -c "ls ${VDB_DIFF} >/dev/null 2>&1 && ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${VDB_DIFF} || echo no vdb-diff"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
 	if( TARGET vdb-diff-asan )

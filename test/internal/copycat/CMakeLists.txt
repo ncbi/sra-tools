@@ -29,6 +29,13 @@ if ( ${OS} STREQUAL "linux"  )
 
         ToolsRequired(copycat)
 
+        set( COPYCAT ${DIRTOTEST}/copycat )
+
+        TestHelpAndVersion( ${COPYCAT} )
+
+        # other standard options
+        add_test ( NAME Test_Copycat-Standard COMMAND ${EXECANDGREP} "${COPYCAT} SRR496123 -L debug" "requesting guard size" )
+
         set( SRC_DIR ${CMAKE_SOURCE_DIR}/tools/internal/copycat)
         set( KFF_SRC
                 ${SRC_DIR}/kff/ffext.c
@@ -39,7 +46,7 @@ if ( ${OS} STREQUAL "linux"  )
         AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "kapp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" "${SRC_DIR}" )
 
         add_test( NAME Test_Copycat_Help
-            COMMAND sh -c "ls ${DIRTOTEST}/copycat>/dev/null 2>&1 && ${DIRTOTEST}/copycat -h || echo no copycat"
+            COMMAND sh -c "ls ${COPYCAT} >/dev/null 2>&1 && ${COPYCAT} -h || echo no copycat"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Copycat_Bad_Name

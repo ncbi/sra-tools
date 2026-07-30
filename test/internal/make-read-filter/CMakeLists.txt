@@ -25,6 +25,12 @@
 if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
 
     ToolsRequired(make-read-filter kar vdb-dump kdbmeta)
+	set ( MAKE_READ_FILTER  ${DIRTOTEST}/make-read-filter )
+
+    TestHelpAndVersion( ${MAKE_READ_FILTER} )
+
+	# other standard options
+    add_test ( NAME Test_make-read-filter-Standard COMMAND ${EXECANDGREP} "${MAKE_READ_FILTER} SRR000123 -L debug" "debug: output to" )
 
     if ( ${OS} STREQUAL  "Linux" )
         ADD_CUSTOM_COMMAND(

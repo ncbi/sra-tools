@@ -25,6 +25,14 @@
 add_compile_definitions( __mod__="test/internal/vdb-copy" )
 
 ToolsRequired(vdb-copy)
+set ( VDB_COPY  ${DIRTOTEST}/vdb-copy${EXE} )
+
+TestHelpAndVersion( ${VDB_COPY} )
+
+# other standard options
+add_test ( NAME Test_vdb-copy-Standard
+			COMMAND ${EXECANDGREP} "${VDB_COPY} -L debug SRR000123 actual/Standard" "debug: requesting guard size"
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 if( NOT DEFINED VDB_SRCDIR )
     set( VDB_SRCDIR "${VDB_INCDIR}/.." )
@@ -33,7 +41,7 @@ endif()
 if( Python3_EXECUTABLE )
 
 	add_test( NAME Test_VDB_Copy_Check_exit_code
-		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy${EXE}
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${VDB_COPY}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	if( TARGET vdb-copy-asan )
 		add_test( NAME Test_VDB_Copy_Check_exit_code-asan

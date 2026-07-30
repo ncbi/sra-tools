@@ -27,13 +27,23 @@ add_compile_definitions( __mod__="test/external/vdb-decrypt" )
 if ( NOT WIN32 )
     ToolsRequired(vdb-decrypt vdb-encrypt)
 
+	set ( VDB_DECRYPT  ${DIRTOTEST}/vdb-decrypt )
+	set ( VDB_ENCRYPT  ${DIRTOTEST}/vdb-encrypt )
+
+	TestHelpAndVersion( ${VDB_DECRYPT} )
+	TestHelpAndVersion( ${VDB_ENCRYPT} )
+
+	# other standard options
+	add_test ( NAME Test_vdb_decrypt-Standard COMMAND ${EXECANDGREP} "${VDB_DECRYPT} -L debug SRR000123" "debug: " )
+	add_test ( NAME Test_vdb_encrypt-Standard COMMAND ${EXECANDGREP} "${VDB_ENCRYPT} -L debug SRR000123" "debug: " )
+
     # non-0 exit code if called without arguments
     add_test( NAME Test_vdb_decrypt_Exit
-        COMMAND ${DIRTOTEST}/vdb-decrypt
+        COMMAND sh "${DIRTOTEST}/vdb-decrypt >/dev/null"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_vdb_decrypt_Exit PROPERTIES WILL_FAIL TRUE)
     add_test( NAME Test_vdb_encrypt_Exit
-        COMMAND ${DIRTOTEST}/vdb-encrypt
+        COMMAND sh "${DIRTOTEST}/vdb-encrypt >/dev/null"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_vdb_encrypt_Exit PROPERTIES WILL_FAIL TRUE)
 

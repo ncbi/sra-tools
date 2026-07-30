@@ -937,6 +937,9 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
         ctx->reset_for_remap();
     }
 
+    if (rc != 0)
+        return rc;
+
     rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
     rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
     rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;

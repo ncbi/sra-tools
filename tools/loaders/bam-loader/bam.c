@@ -2194,7 +2194,7 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
         }
 
         if (self->flagCounter)
-            FLAG_Counter_add(self->flagCounter, getFlags(*rhs), 1);
+            FLAG_Counter_add(self->flagCounter, getFlags(*rhs));
 
         if (self->defer && BAM_AlignmentShouldDefer(*rhs)) {
             rc_t const rc = writeDefer(self, *rhs);

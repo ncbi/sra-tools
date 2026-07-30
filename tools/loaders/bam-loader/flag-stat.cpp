@@ -33,8 +33,8 @@
 
 extern "C" {
 
-void FLAG_Counter_add(FLAG_Counter *self, uint16_t flag, uint64_t count) {
-    self->add(flag, count);
+void FLAG_Counter_add(FLAG_Counter *self, uint16_t flag) {
+    self->add(flag);
 }
 
 }

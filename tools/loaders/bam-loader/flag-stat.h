@@ -32,4 +32,4 @@
 #include <stdint.h>
 
 typedef struct FLAG_Counter FLAG_Counter;
-void FLAG_Counter_add(FLAG_Counter *, uint16_t flag, uint64_t count);
+void FLAG_Counter_add(FLAG_Counter *, uint16_t flag);

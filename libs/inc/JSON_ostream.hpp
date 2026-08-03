@@ -36,6 +36,7 @@
 
 #include <ostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <cctype>
 #include <string_view>

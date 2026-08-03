@@ -39,6 +39,14 @@ if( NOT WIN32 )
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    add_test( NAME Test_BamLoader_fingerprint
+            COMMAND
+                sh test-fingerprint.sh ${DIRTOTEST} ${CMAKE_CURRENT_SOURCE_DIR}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    # In theory, this test could depend on any of the tests that use the `test.sam` file.
+    set_tests_properties( Test_BamLoader_fingerprint PROPERTIES DEPENDS "Test_BamLoader_1" )
+
     #####################
     # min-batch-size option
     add_test( NAME Test_BamLoader_MinBatchSize

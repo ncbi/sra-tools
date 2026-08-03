@@ -35,10 +35,47 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include "hashing.hpp"
+#include "JSON_ostream.hpp"
 
 struct FLAG_Counter final
 {
 private:
+    std::map<uint16_t, uint64_t> counter;
+    
+public:
+    FLAG_Counter() = default;
+
+    /// @brief Visit the counts. This could be used to save the counts to metadata.
+    /// @tparam F
+    /// @param f a functional, which takes the flag value and the count.
+    template <typename F>
+    void for_each(F && f) const {
+        for (auto && c : counter)
+            f(c.first, c.second);
+    }
+    
+    /// @brief Add a FLAG to the counters.
+    /// @param flag the FLAG to add.
+    void add(uint16_t const flag) {
+        counter[flag] += 1;
+    }
+};
+
+struct FlagStatText {
+    enum Version {
+        v_1_3,
+        v_1_13 ///< added primary, primary duplicates, and primary mapped
+    };
+
+private:
+    std::string value;
+    Version vers;
+    
+    char const *versString() const {
+        return vers >= v_1_13 ? "1.13" : "1.3";
+    }
+
     /// @brief These are the fields, in order, that `samtools flagstat` outputs.
     enum FlagStat {
         total = 0,
@@ -55,6 +92,7 @@ private:
         proper_pair,
         mapped_pair,
         singleton,
+        N
     };
     struct Flag {
         uint16_t value;
@@ -76,13 +114,13 @@ private:
         bool isMateMapped()   const { return !isMateUnmapped(); }
         bool isPrimary()      const { return !isSecondary() && !isSupplemental(); }
         bool isPassing()      const { return !isFailing(); }
-
-        /// @brief Map FLAG set bits to flagstat categories. This is loosely patterned after flagstat_loop in samtools/bam_stat.c
-        /// @tparam F 
+        
+        /// @brief Map FLAG set bits to flagstat categories. This is loosely patterned after `flagstat_loop` in `samtools/bam_stat.c`
+        /// @tparam F
         /// @param fail result is filtered to matching 0x200 FLAG bit.
         /// @param f f is called with flagstat category if FLAG matches the criteria for that category.
         template <typename F>
-        void flagStat(bool fail, F && f) const {
+        void flagStat(bool const fail, F && f) const {
             if (isFailing() == fail) {
                 f(FlagStat::total);
                 if (isMapped())
@@ -118,159 +156,46 @@ private:
             }
         }
     };
-    using Counter = std::map<uint16_t, uint64_t>;
-    Counter raw, canonical;
-    uint64_t totalAdds, nonCanonical;
-    
-    void add(Counter &counter, uint16_t flag) {
-        counter[flag] += 1;
-    }
-    uint16_t canonicalized(uint16_t flag) {
-        if ((flag & 0x004) != 0)
-            flag ^= flag & (0x002 | 0x100 | 0x800);
-        if ((flag & 0x001) == 0)
-            flag ^= flag & (0x002 | 0x008 | 0x020 | 0x040 | 0x080);
-        return flag & 0xFFF;
-    }
-    static void getCounts(uint64_t counts[14], Counter const &counter, bool QC_fail) {
-        std::memset(counts, 0, 14 * sizeof(counts[0]));
-        for (auto c : counter) {
-            Flag{c.first}.flagStat(QC_fail, [&](int i) {
-                counts[i] += c.second;
+
+    /// @brief Based on `percent` in `samtools/bam_stat.c`
+    /// @note Should format the same as `samtools flagstat`.
+    struct PctString {
+        char value[16];
+        PctString(long long num, long long denom) {
+            if (denom)
+                std::snprintf(value, sizeof(value), "%.2f%%", (float)(num * 100.0 / denom));
+            else
+                std::snprintf(value, sizeof(value), "N/A");
+        }
+    };
+    struct PassFailCounts {
+        long long pass[FlagStat::N] = {0};
+        long long fail[FlagStat::N] = {0};
+        
+        PassFailCounts(FLAG_Counter const &counter)
+        {
+            /// Get the `pass` counts.
+            counter.for_each([&](uint16_t const flag, uint64_t const count) {
+                Flag{flag}.flagStat(false, [&](int i) { pass[i] += (long long)count; });
+            });
+
+            /// Get the `fail` counts.
+            counter.for_each([&](uint16_t const flag, uint64_t const count) {
+                Flag{flag}.flagStat(true, [&](int i) { fail[i] += (long long)count; });
             });
         }
-    }
-public:
-    /// @brief Add a FLAG to the counters.
-    /// @param flag the FLAG to add.
-    void add(uint16_t const flag) {
-        auto const cflag = canonicalized(flag);
-        totalAdds += 1;
-        if (cflag != flag)
-            nonCanonical += 1;
-        add(raw, flag);
-        add(canonical, cflag);
-    }
-
-    /// @brief Get the raw flag stats (equivalent to samtools flagstats).
-    /// @param counts result.
-    /// @param QC_fail filter to matching 0x200 FLAG bit.
-    /// @note The indicies of the counts match the indices for `getName` and `getDescription`.
-    void getFlagStat(uint64_t counts[14], bool QC_fail) const {
-        getCounts(counts, raw, QC_fail);
-    }
-
-    /// @brief Get the canonical flag stats.
-    /// @param counts result.
-    /// @param QC_fail filter to matching 0x200 FLAG bit.
-    /// @note The indicies of the counts match the indices for `getName` and `getDescription`.
-    void getCanonicalFlagStat(uint64_t counts[14], bool QC_fail) const {
-        getCounts(counts, canonical, QC_fail);
-    }
-
-    /// @brief Get the unique names of the counts.
-    /// @param i the index of the count.
-    /// @return the unique name of the count, a static value (do not free).
-    /// @note The indicies of the counts match the indices in `getCounts` and `getDescription`.
-    static char const *getName(int const i)
-    {
-        static char const *names[] = {
-            "reads",
-            "primary",
-            "secondary",
-            "supplementary",
-            "duplicate",
-            "primary_dup",
-            "mapped",
-            "primary_mapped",
-            "paired",
-            "read1",
-            "read2",
-            "proper_pair",
-            "both_mapped",
-            "singletons"
-        };
-        int constexpr N = sizeof(names) / sizeof(names[0]);
-        return (i >= 0 && i < N) ? names[i] : nullptr;
-    }
-
-    /// @brief Get the informative descriptions of the counts.
-    /// @param i the index of the count.
-    /// @return the informative description of the count, a static value (do not free).
-    /// @note The indicies of the counts match the indices in `getName` and `getCounts`.
-    static char const *getDescription(int const i)
-    {
-        static char const *descriptions[] = {
-            "in total",
-            "primary",
-            "secondary",
-            "supplementary",
-            "duplicates",
-            "primary duplicates",
-            "mapped",
-            "primary_mapped",
-            "paired in sequencing",
-            "read1",
-            "read2",
-            "properly paired",
-            "with itself and mate mapped",
-            "singletons"
-        };
-        int constexpr N = sizeof(descriptions) / sizeof(descriptions[0]);
-        return (i >= 0 && i < N) ? descriptions[i] : nullptr;
-    }
-
-    friend struct FlagStatText;
-};
-
-struct FlagStatText {
-    enum Version {
-        v_1_3,
-        v_1_13 ///< added primary, primary duplicates, and primary mapped
-    };
-
-    std::string defaultText;
-
-private:
-    using FlagStat = FLAG_Counter::FlagStat;
-
-    struct Line {
-        char value[1024];
-    private:
-        /// @brief Based on `percent` in samtools/bam_stat.c
-        /// @note Should format the same as `samtools flagstat`.
-        struct PctString {
-            char value[16];
-            PctString(uint64_t num, uint64_t denom) {
-                if (denom)
-                    std::snprintf(value, sizeof(value), "%.2f%%", (float)(num * 100.0 / denom));
-                else
-                    std::snprintf(value, sizeof(value), "N/A");
-            }
-        };
-    public:
-        Line(char const *const fmt, uint64_t pass, uint64_t fail) {
-            auto const n = std::snprintf(value, sizeof(value), fmt, (long long)pass, (long long)fail);
-            assert(n < static_cast<int>(sizeof(value)));
-        }
-        Line(char const *const fmt, uint64_t pass, uint64_t passTotal, uint64_t fail, uint64_t failTotal) {
-            PctString const passPct{pass, passTotal};
-            PctString const failPct{fail, failTotal};
-            auto const n = std::snprintf(value, sizeof(value), fmt, (long long)pass, (long long)fail, passPct.value, failPct.value);
-            assert(n < static_cast<int>(sizeof(value)));
-        }
-        void appendTo(std::string &output) const {
-            output.append(value);
-        }
     };
 
 public:
+    std::string const &get() const { return value; }
+
     /// @brief The equivalent of `samtools flagstat | head -n -2`
     /// @param counter contains the FLAG counts.
     /// @param version 1.13 added some fields to the output.
     /// @return should match `samtools flagstat | head -n -2`
     explicit FlagStatText(FLAG_Counter const &counter, FlagStatText::Version version = v_1_13)
-    : defaultText({})
+    : value({})
+    , vers(version)
     {
         static char const *const fmt[] = {
             "%lld + %lld in total (QC-passed reads + QC-failed reads)\n",
@@ -288,21 +213,27 @@ public:
             "%lld + %lld with itself and mate mapped\n",
             "%lld + %lld singletons (%s : %s)\n"
         };
-        uint64_t pass[14];
-        uint64_t fail[14];
-
-        counter.getFlagStat(pass, false);
-        counter.getFlagStat(fail, true );
-
+        PassFailCounts const pfc{counter};
+        auto const pass = &pfc.pass[0];
+        auto const fail = &pfc.fail[0];
         auto addLine = [this, pass, fail](FlagStat which) {
-            Line{fmt[which], pass[which], fail[which]}
-                .appendTo(defaultText);
+            char line[1024];
+            auto const n = std::snprintf(line, sizeof(line), fmt[which], pass[which], fail[which]);
+            assert(0 < n && (size_t)n < sizeof(line));
+            value.append(line, n);
         };
         auto addLinePct = [this, pass, fail](FlagStat which, FlagStat whichTotal) {
-            Line{fmt[which], pass[which], pass[whichTotal], fail[which], fail[whichTotal]}
-                .appendTo(defaultText);
+            char line[1024];
+            PctString const p{pass[which], pass[whichTotal]};
+            PctString const f{fail[which], fail[whichTotal]};
+            auto const n = std::snprintf(line, sizeof(line), fmt[which], pass[which], fail[which], p.value, f.value);
+            assert(0 < n && (size_t)n < sizeof(line));
+            value.append(line, n);
         };
 
+        value.reserve(1024); ///< should be more than enough, a typical `samtools flagstat` is less than 500 characters.
+
+        /// Generate the `flagstats` string.
         addLine(FlagStat::total);
         if (version >= v_1_13)
             addLine(FlagStat::primary);
@@ -320,5 +251,45 @@ public:
         addLinePct(FlagStat::proper_pair, FlagStat::paired);
         addLine(FlagStat::mapped_pair);
         addLinePct(FlagStat::singleton, FlagStat::paired);
+
+        value.shrink_to_fit();
+    }
+    
+    /// @brief What kind of fingerprint is this.
+    static std::string kind() {
+        return "flagstat";
+    }
+
+    /// @brief How the fingerprint can be generated.
+    static std::string format() {
+        return "samtools flagstat | head -n -2";
+    }
+    
+    /// @brief How the digest was computed.
+    static std::string algorithm() {
+        return "SHA-256";
+    }
+    
+    std::string version() const {
+        return versString();
+    }
+    
+    std::string digest() const {
+        auto result = SHA256::hash(value).string();
+        for (auto && ch : result)
+            ch = (char)std::tolower(ch);
+        return result;
+    }
+    
+    /// @brief Writes the canonical form to the stream.
+    /// @param strm the stream to which to write.
+    /// @return the stream which was passed in.
+    /// @note It is incumbent on the caller to provide the JSON object context.
+    JSON_ostream &canonicalForm(JSON_ostream &strm) {
+        return strm
+                << JSON_Member{"fingerprint-version"} << version()
+                << JSON_Member{"fingerprint-format"} << format()
+                << JSON_Member{"fingerprint-digest-algorithm"} << algorithm()
+                << JSON_Member{"fingerprint-digest"} << digest();
     }
 };

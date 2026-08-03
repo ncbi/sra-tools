@@ -114,6 +114,7 @@ extern "C" {
 #include "hashing.hpp"
 #include <set>
 #include <mutex>
+#include <flag-stat.hpp>
 
 #ifdef __linux__
 #include <sys/resource.h>
@@ -1829,7 +1830,43 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
-static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
+static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, rc_t &rc)
+{
+    KMetadata *meta = nullptr;
+    rc = VDatabaseOpenMetadataUpdate(db, &meta);
+    if (rc) return nullptr;
+    
+    KMDataNode *node = nullptr;
+    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i", fileNumber);
+    KMetadataRelease(meta);
+    
+    return rc ? nullptr : node;
+}
+
+static rc_t KMDataNodeWriteAttr(KMDataNode *node, char const name[], std::string const &value)
+{
+    return KMDataNodeWriteAttr(node, name, value.c_str());
+}
+
+static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
+{
+    rc_t rc = 0;
+    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
+    auto const fp = FlagStatText{flagCounter};
+    
+    do {
+        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) break;
+    } while(0);
+    KMDataNodeRelease(node);
+    return rc;
+}
+
+static rc_t ProcessBAM(int fileNumber, char const bamFile[],
+                       context_t *ctx, VDatabase *db,
                         /* data outputs */
                        Reference *ref, Sequence *seq, Alignment *align,
                        /* output parameters */
@@ -1873,6 +1910,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer qualBuffer;
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
+    FLAG_Counter flagCounter;
 
     /* setting up buffers */
     memset(&data, 0, sizeof(data));
@@ -1963,6 +2001,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     std::optional<bool> opt_is_primary;
     std::optional<bool> opt_is_unmated;
 
+    BAM_FileSetFlagCounter(bam, &flagCounter);
 #ifdef NEW_QUEUE
     //while (rw_queue.pop()); // clear queue
     rw_done = false;
@@ -3454,6 +3493,13 @@ WRITE_ALIGNMENT:
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&cigBuf);
     KDataBufferWhack(&data.buffer);
+        
+    if (rc == 0) {
+        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
+        }
+    }
     return rc;
 }
 
@@ -4259,6 +4305,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     bool has_sequences = false;
     unsigned i;
+    int fileNumber = 0;
 
     *has_alignments = false;
     rc = ReferenceInit(&ref, mgr, db);
@@ -4267,7 +4314,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     if (G.onlyVerifyReferences) {
         for (i = 0; i < bamFiles && rc == 0; ++i) {
-            rc = ProcessBAM(bamFile[i], NULL, db, &ref, NULL, NULL, NULL, NULL);
+            rc = ProcessBAM(++fileNumber, bamFile[i], NULL, db, &ref, NULL, NULL, NULL, NULL);
         }
         ReferenceWhack(&ref, false);
         return rc;
@@ -4300,7 +4347,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(bamFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(++fileNumber, bamFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
@@ -4308,7 +4355,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(seqFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(++fileNumber, seqFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }

@@ -535,6 +535,7 @@ rc_t BAM_FileMake(const BAM_File **result,
 rc_t BAM_FileAddRef ( const BAM_File *self );
 rc_t BAM_FileRelease ( const BAM_File *self );
 
+void BAM_FileSetFlagCounter(const BAM_File *self, void *flagCounter);
 
 /* GetPosition
  *  get the position of the about-to-be read alignment

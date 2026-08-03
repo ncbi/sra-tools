@@ -1,0 +1,1 @@
+<file_1 algorithm="SHA-256" digest="b1f19db8d1deb2e98c1fc630a40965b40669a9ad65a80ce18bfea21c053bd123" format="samtools flagstat | head -n -2" name="test.sam" version="1.13"/>

@@ -52,11 +52,10 @@
 #include <ctype.h>
 #include <math.h>
 #include <assert.h>
-#if 1
+
 /*_DEBUGGING*/
 #include <stdio.h>
 #include <os-native.h>
-#endif
 
 #include <endian.h>
 #include <byteswap.h>
@@ -1510,6 +1509,14 @@ rc_t BAM_FileRelease(const BAM_File *cself) {
     return 0;
 }
 
+void BAM_FileSetFlagCounter(const BAM_File *cself, void *flagCounter) {
+    BAM_File *self = (BAM_File *)cself;
+
+    if (cself != NULL) {
+        self->flagCounter = flagCounter;
+    }
+}
+
 /* MARK: BAM File positioning */
 
 float BAM_FileGetProportionalPosition(const BAM_File *self)
@@ -2185,6 +2192,10 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
             }
             return rc;
         }
+
+        if (self->flagCounter)
+            FLAG_Counter_add(self->flagCounter, getFlags(*rhs));
+
         if (self->defer && BAM_AlignmentShouldDefer(*rhs)) {
             rc_t const rc = writeDefer(self, *rhs);
             BAM_AlignmentRelease(*rhs);

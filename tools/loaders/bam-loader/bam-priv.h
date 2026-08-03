@@ -26,6 +26,7 @@
 
 #include "bam.h"
 #include "bam-alignment.h"
+#include "flag-stat.h"
 
 typedef struct BAMIndex BAMIndex;
 typedef struct BufferedFile BufferedFile;
@@ -86,6 +87,7 @@ struct BAM_File {
     void *headerData1;          /* gets used for refSeq and readGroup */
     void *headerData2;          /* gets used for refSeq */
     BAM_Alignment *nocopy;      /* used to hold current record for BAM_FileRead2 */
+    FLAG_Counter *flagCounter;
 
     uint64_t fpos_cur;
     uint64_t deferPos;

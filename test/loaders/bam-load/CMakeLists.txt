@@ -109,8 +109,23 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_SCHEMA_INCLUDES=${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}
-                sh -c "${DIRTOTEST}/bam-load -o ./actual/VDB-6399 -k ./VDB-6399/analysis.bam.cfg ./VDB-6399/VDB-6399.sam"
+                sh -c "${EXECANDGREP} '${DIRTOTEST}/bam-load -o ./actual/VDB-6399 -k ./VDB-6399/analysis.bam.cfg ./VDB-6399/Test_BamLoader_EnforceNoEmptySpots.sam' 'SRAE-201: Data error: Read has no sequence data: ERR001268.13133657'"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    add_test( NAME Test_BamLoader_EnforceNoEmptySpotsUnpaired
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_SCHEMA_INCLUDES=${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}
+                sh -c "${EXECANDGREP} '${DIRTOTEST}/bam-load -o ./actual/VDB-6399 -k ./VDB-6399/analysis.bam.cfg ./VDB-6399/Test_BamLoader_EnforceNoEmptySpotsUnpaired.sam' 'SRAE-201: Data error: Read has no sequence data: <unpaired>'"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    add_test( NAME Test_BamLoader_EnforceNoEmptySpotsUnpaired_Counter
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_SCHEMA_INCLUDES=${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}
+                sh -c "${EXECANDGREP} '${DIRTOTEST}/bam-load -o ./actual/VDB-6399 -k ./VDB-6399/analysis.bam.cfg ./VDB-6399/Test_BamLoader_EnforceNoEmptySpotsUnpaired.sam' '\"SRAE-201: Data error: Read has no sequence data\" encountered 2 times'"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
 
 endif()

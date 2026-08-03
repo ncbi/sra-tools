@@ -455,6 +455,29 @@ struct context_t {
         }
 
     }
+
+    map< string, unsigned int > m_error_counters;
+    // report error the first time only, increment counter
+    void LogErrorAndCount( const char * error_code, const char * text, const char * info )
+    {
+        auto it = m_error_counters . find( error_code );
+        if ( it == m_error_counters . end() )
+        {
+            PLOGMSG(klogErr, (klogErr, "$(code): $(text): $(info)", "code=%s,text=%s,info=%s", error_code, text, info ));
+            m_error_counters[ error_code ] = 1;
+        }
+        else
+        {
+            ++ (it -> second);
+        }
+    }
+    void ReportErrorCounts() const
+    {
+        for( auto it : m_error_counters )
+        {
+            PLOGMSG(klogWarn, (klogWarn, "Error $(code) has been encoutered $(count) $(times)", "code=%s,count=%u,times=%s", it . first . c_str(), it . second, it . second == 1 ? "time" : "times"));
+        }
+    }
 };
 
 
@@ -1829,6 +1852,11 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
+bool spotIsEmpty( const SequenceRecord& srec )
+{
+    return ( srec.readLen[0] + srec.readLen[1] ) == 0;
+}
+
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                         /* data outputs */
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -3062,6 +3090,14 @@ WRITE_SEQUENCE:
                             srec.numreads = 2;
                             srec.readLen[read1] = fip->readlen;
                             srec.readLen[read2] = readlen;
+
+                            if ( spotIsEmpty( srec ) )
+                            {
+                                ctx -> LogErrorAndCount( "SRAE-201", "Data error: Read has no sequence data", name );
+                                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                                goto LOOP_END;
+                            }
+
                             srec.readStart[1] = srec.readLen[0];
                             {
                                 char const *const s1 = seq1;
@@ -3788,6 +3824,14 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 srec.keyId = keyId;
                 INSDC_SRA_platform_id platform_id = ctx->m_isSingleGroup ?
                     metadata.get<u16_t>(metadata_t::e_platform).get(row_id) : ctx->m_read_groups[group_id]->m_platform;
+
+                if ( spotIsEmpty( srec ) )
+                {
+                    ctx -> LogErrorAndCount( "SRAE-201", "Data error: Read has no sequence data", "<unpaired>" );
+                    rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                    break;
+                }
+
                 rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id), platform_id);
                 if (rc) {
                     // FATAL ERROR, VDB I/O ERROR
@@ -3925,10 +3969,10 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 		alignmentCount[1] = (uint8_t)metadata->get<u16_t>(metadata_t::E_ALN_COUNT[1]).get_no_check(local_row_id);
 		unmated[0] = metadata->get<bit_t>(metadata_t::e_unmated).test(local_row_id) ? 1 : 0;
 	};
-	
+
 	auto && write_align_info = [&](uint64_t const keyId, int64_t const row, int64_t const primaryId[/* 2 */], uint8_t const alignmentCount[/* 2 */], uint8_t const unmated) -> rc_t {
 		rc_t rc = 0;
-		
+
 		if (primaryId[0] == 0 && alignmentCount[0] != 0) {
 			rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
 			(void)PLOGERR(logLevel, (logLevel, rc, "SRAE-252: Internal error: Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
@@ -3956,7 +4000,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         spdlog::info("Extraction stop: {:.3} sec, memory: {:L}", sw, getCurrentRSS());
         sw.reset();
     }
-	
+
 #if BAD_PARALLELISM
     size_t row_offset = 1;
     struct key_batch_t {
@@ -4084,7 +4128,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     vector<uint64_t> keys;
     keys.reserve(BUFFER_SIZE);
     (void)PLOGMSG(klogInfo, (klogInfo, "BUFFER_SIZE $(b)", "b=%lu", BUFFER_SIZE));
-#endif /* BAD_PARALLELISM */ 
+#endif /* BAD_PARALLELISM */
 
     for (row = 1; row <= ctx->spotId; ++row) {
 	    uint64_t keyId = 0;
@@ -4137,7 +4181,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 			int64_t primaryId[2];
 			uint8_t alignmentCount[2];
 			uint8_t unmated;
-			
+
 			get_align_info(keyId, primaryId, alignmentCount, &unmated);
 
 			auto const rc = write_align_info(keyId, row, primaryId, alignmentCount, unmated);
@@ -4346,6 +4390,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
                 rc = WriteSoloFragments(ctx, &seq);
                 ContextReleaseMemBank(ctx);
             }
+
             if (rc == 0) {
                 rc = SequenceDoneWriting(&seq);
                 if (rc == 0) {
@@ -4353,6 +4398,9 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
                     rc = SequenceUpdateAlignInfo(ctx, &seq);
                 }
             }
+
+            ctx -> ReportErrorCounts();
+
         }
     } else {
 

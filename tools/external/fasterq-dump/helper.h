@@ -100,6 +100,14 @@ typedef struct join_options
 
 /* -------------------------------------------------------------------------------- */
 
+typedef enum compress_t {
+    compress_t_none,
+    compress_t_gzip,
+    compress_t_bzip
+} compress_t;
+
+/* -------------------------------------------------------------------------------- */
+
 typedef enum format_t {
     ft_unknown,
 

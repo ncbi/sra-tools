@@ -51,6 +51,12 @@
 #include <kfs/bzip.h>
 #endif
 
+/*
+#ifndef _h_kfs_szip_
+#include <kfs/szip.h>
+#endif
+*/
+
 #ifndef _h_klib_printf_
 #include <klib/printf.h>
 #endif
@@ -69,6 +75,13 @@ static rc_t create_compressed_file( struct KFile ** dst, compress_t compress_mod
                                     ErrMsg( "create_compressed_file() KFileMakeBzip2ForWrite() -> %R", rc );
                                 }
                                 break;
+        /*
+        case compress_t_szip : rc = KFileMakeSzipForWrite( &tmp, *dst );
+                                if ( 0 != rc ) {
+                                    ErrMsg( "create_compressed_file() KFileMakeSzipForWrite() -> %R", rc );
+                                }
+                                break;
+        */
         case compress_t_none : break;   // do nothing to dst
     }
     if ( 0 == rc && tmp != NULL ) {
@@ -102,10 +115,14 @@ static rc_t create_output_name( char * buffer, size_t bufsize,
     size_t num_writ;
     rc_t rc = 0;
     switch( compress_mode ) {
-        case compress_t_gzip : rc = string_printf( buffer, bufsize, &num_writ, "%s.gzip", name );
+        case compress_t_gzip : rc = string_printf( buffer, bufsize, &num_writ, "%s.gz", name );
                                break;
         case compress_t_bzip : rc = string_printf( buffer, bufsize, &num_writ, "%s.bz2", name );
                                break;
+/*
+        case compress_t_szip : rc = string_printf( buffer, bufsize, &num_writ, "%s.zip", name );
+                               break;
+*/
         case compress_t_none : rc = string_printf( buffer, bufsize, &num_writ, "%s", name );
                                break;
     }
@@ -270,7 +287,6 @@ rc_t concat_execute( KDirectory * dir,
                                     buf_size, progress, force, count, q_wait_time );
             }
         } else {
-            /* append the right extension to output-filename... */
             rc = concat_compressed( dir, output_filename, files_to_concat,
                                     buf_size, progress, count, q_wait_time, compress_mode );
         }

@@ -71,6 +71,28 @@
 
 /* -------------------------------------------------------------------------------- */
 
+compress_t encode_compress_mode( bool gzip, bool bzip, bool szip, bool zstd ){
+    if ( gzip ) {
+        return compress_t_gzip;
+    } else if ( bzip ) {
+        return compress_t_bzip;
+    } /* else if ( szip ) {
+        return compress_t_szip;
+    } */
+    return compress_t_none;
+}
+
+bool compress_modes_combined( bool gzip, bool bzip, bool szip, bool zstd ) {
+    uint32_t count = 0;
+    if ( gzip ) count++;
+    if ( bzip ) count++;
+    if ( szip ) count++;
+    if ( zstd ) count++;
+    return count > 1;
+}
+
+/* -------------------------------------------------------------------------------- */
+
 bool hlp_is_format_fasta( format_t fmt ){
     bool res;
     switch( fmt ) {

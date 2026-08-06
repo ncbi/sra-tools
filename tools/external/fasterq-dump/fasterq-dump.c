@@ -38,10 +38,6 @@
 #include "tool_ctx.h"
 #endif
 
-#ifndef _h_inspector_
-#include "inspector.h"
-#endif
-
 #ifndef _h_file_tools_
 #include "file_tools.h"
 #endif
@@ -236,8 +232,16 @@ static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for te
 static const char * gzip_usage[] = { "compress output-files with gzip", NULL };
 #define OPTION_GZIP  "gzip"
 
-static const char * bzip_usage[] = { "compress output-files with bzip", NULL };
-#define OPTION_BZIP  "bzip"
+static const char * bzip_usage[] = { "compress output-files with bzip2", NULL };
+#define OPTION_BZIP  "bzip2"
+
+/*
+static const char * szip_usage[] = { "compress output-files with szip", NULL };
+#define OPTION_SZIP  "szip"
+
+static const char * zstd_usage[] = { "compress output-files with zstd", NULL };
+#define OPTION_ZSTD  "zstd"
+*/
 
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
@@ -292,6 +296,8 @@ OptDef ToolOptions[] = {
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
     { OPTION_GZIP,          NULL,               NULL, gzip_usage,           1, false,  false },
     { OPTION_BZIP,          NULL,               NULL, bzip_usage,           1, false,  false },
+/*    { OPTION_SZIP,          NULL,               NULL, szip_usage,           1, false,  false }, */
+/*    { OPTION_ZSTD,          NULL,               NULL, zstd_usage,           1, false,  false }, */
 /* ---------- these 3 options are not displayed in the help usage -----------------------------*/
     { OPTION_KEEP,          NULL,               NULL, keep_usage,           1, false,  false },
     { OPTION_STEP,          NULL,               NULL, step_usage,           1, true,   false },
@@ -373,6 +379,8 @@ static const char * dflt_requested_seq_tabl_name = "SEQUENCE";
 static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
     bool fasta_ref_tbl, fasta_concat, ref_report, bzip, gzip;
+    bool szip = false;
+    bool zstd = false;
 
     rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
     if ( 0 != rc ) {
@@ -424,19 +432,15 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
 
     gzip = ahlp_get_bool_option( args, OPTION_GZIP );
     bzip = ahlp_get_bool_option( args, OPTION_BZIP );
+    /* szip = ahlp_get_bool_option( args, OPTION_SZIP ); */
+    /* zstd = ahlp_get_bool_option( args, OPTION_ZSTD ); */
 
-    if ( 0 == rc && gzip && bzip ) {
+    if ( 0 == rc && compress_modes_combined( gzip, bzip, szip, zstd ) ) {
         rc = RC( rcExe, rcFile, rcPacking, rcValidating, rcInvalid );
-        ErrMsg( "gzip and bzip cannot be used at the same time" );
+        ErrMsg( "gzip/bzip/szip cannot be used in compbination" );
     }
 
-    if ( gzip ) {
-        tool_ctx -> compress_mode = compress_t_gzip;
-    } else if ( bzip ) {
-        tool_ctx -> compress_mode = compress_t_bzip;
-    } else {
-        tool_ctx -> compress_mode = compress_t_none;
-    }
+    tool_ctx -> compress_mode = encode_compress_mode( gzip, bzip, szip, zstd );
 
     if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
         rc = ahlp_get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
@@ -486,7 +490,7 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> append = ahlp_get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = ahlp_get_bool_option( args, OPTION_STDOUT );
 
-    if ( 0 == rc && ( gzip || bzip ) && tool_ctx -> append ) {
+    if ( 0 == rc && ( gzip || bzip || szip || zstd ) && tool_ctx -> append ) {
         rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
         ErrMsg( "append cannot be combined with gzip or bzip" );
     }

@@ -104,7 +104,12 @@ typedef enum compress_t {
     compress_t_none,
     compress_t_gzip,
     compress_t_bzip
+    //compress_t_szip,
+    //compress_t_zstd
 } compress_t;
+
+compress_t encode_compress_mode( bool gzip, bool bzip, bool szip, bool zstd );
+bool compress_modes_combined( bool gzip, bool bzip, bool szip, bool zstd );
 
 /* -------------------------------------------------------------------------------- */
 

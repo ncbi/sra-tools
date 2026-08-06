@@ -26,7 +26,6 @@
 
 #include "concatenator.h"
 #include "helper.h"
-#include "kfs/file.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -44,8 +43,77 @@
 #include <kfs/buffile.h>
 #endif
 
+#ifndef _h_kfs_gzip_
 #include <kfs/gzip.h>
+#endif
+
+#ifndef _h_kfs_bzip_
 #include <kfs/bzip.h>
+#endif
+
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
+#endif
+
+static rc_t create_compressed_file( struct KFile ** dst, compress_t compress_mode ) {
+    rc_t rc = 0;
+    struct KFile * tmp = NULL;
+    switch( compress_mode ) {
+        case compress_t_gzip : rc = KFileMakeGzipForWrite( &tmp, *dst );
+                                if ( 0 != rc ) {
+                                    ErrMsg( "create_compressed_file() KFileMakeGzipForWrite() -> %R", rc );
+                                }
+                                break;
+        case compress_t_bzip : rc = KFileMakeBzip2ForWrite( &tmp, *dst );
+                                if ( 0 != rc ) {
+                                    ErrMsg( "create_compressed_file() KFileMakeBzip2ForWrite() -> %R", rc );
+                                }
+                                break;
+        case compress_t_none : break;   // do nothing to dst
+    }
+    if ( 0 == rc && tmp != NULL ) {
+        rc = ft_release_file( *dst, "create_compressed_file()" );
+        if ( 0 == rc ) {
+            *dst = tmp;
+        }
+    }
+    return rc;
+}
+
+static rc_t create_buffered_file( struct KFile ** dst, size_t buf_size ) {
+    rc_t rc = 0;
+    if ( buf_size > 0 ) {
+        struct KFile * tmp;
+        rc = KBufFileMakeWrite( &tmp, *dst, false, buf_size );
+        if ( 0 != rc ) {
+            ErrMsg( "create_buffered_file() KBufFileMakeWrite() -> %R", rc );
+        } else {
+            rc = ft_release_file( *dst, "create_buffered_file()" );
+            if ( 0 == rc ) {
+                *dst = tmp;
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t create_output_name( char * buffer, size_t bufsize,
+                                const char * name, compress_t compress_mode ) {
+    size_t num_writ;
+    rc_t rc = 0;
+    switch( compress_mode ) {
+        case compress_t_gzip : rc = string_printf( buffer, bufsize, &num_writ, "%s.gzip", name );
+                               break;
+        case compress_t_bzip : rc = string_printf( buffer, bufsize, &num_writ, "%s.bz2", name );
+                               break;
+        case compress_t_none : rc = string_printf( buffer, bufsize, &num_writ, "%s", name );
+                               break;
+    }
+    if ( 0 != rc ) {
+        ErrMsg( "create_output_name() string_printf() -> %R", rc );
+    }
+    return rc;
+}
 
 static rc_t concat_compressed( KDirectory * dir,
                     const char * output_filename,
@@ -55,28 +123,25 @@ static rc_t concat_compressed( KDirectory * dir,
                     uint32_t count,
                     uint32_t q_wait_time,
                     compress_t compress_mode ) {
-    struct KFile * dst;
-    rc_t rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", output_filename );
-    if ( 0 != rc ) {
-        ErrMsg( "concat_compressed() cannot create file '%s' -> %R", output_filename, rc );
-    } else {
-        struct KFile * compressed;
-
-        switch( compress_mode ) {
-            case compress_t_gzip : rc = KFileMakeGzipForWrite( &compressed, dst ); break;
-            case compress_t_bzip : rc = KFileMakeBzip2ForWrite( &compressed, dst ); break;
-            case compress_t_none : { compressed = dst; rc = KFileAddRef( dst ); } break;
-        }
+    char buffer[ 4096 ];
+    rc_t rc = create_output_name( buffer, sizeof buffer, output_filename, compress_mode );
+    if ( 0 == rc ) {
+        struct KFile * dst;
+        rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", buffer );
         if ( 0 != rc ) {
-            ErrMsg( "concat_compressed() cannot create compressed file '%s' -> %R", output_filename, rc );
+            ErrMsg( "concat_compressed() cannot create file '%s' -> %R", buffer, rc );
         } else {
-            rc = cm_make_a_copy( dir, compressed, files_to_concat, progress,
+            rc = create_compressed_file( &dst, compress_mode );
+        }
+        if ( 0 == rc ) {
+            rc = create_buffered_file( &dst, buf_size );
+        }
+        if ( 0 == rc ) {
+            rc = cm_make_a_copy( dir, dst, files_to_concat, progress,
                                 0, buf_size, 0, q_wait_time ); /* copy_machine.c */
         }
-
-        {
-            rc_t rc2 = ft_release_file( dst, "concat_compressed()" );
-            rc = ( 0 == rc ) ? rc2 : rc;
+        if ( 0 == rc ) {
+            rc = ft_release_file( dst, "concat_compressed()" );
         }
     }
     return rc;
@@ -139,7 +204,7 @@ static rc_t concat_execute_un_compressed_no_append( KDirectory * dir,
             } else {
                 /* first try to create the output-file, so that sub-directories that do not exist
                    are created ... */
-                struct KFile * dst;
+                struct KFile * dst = NULL;
                 uint32_t files_offset = 1;
 
                 /* try to move the first file into the place of the output-file */
@@ -158,30 +223,18 @@ static rc_t concat_execute_un_compressed_no_append( KDirectory * dir,
                 }
                 
                 if ( 0 == rc ) {
-                    if ( buf_size > 0 ) {
-                        struct KFile * tmp;
-                        rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
-                        if ( 0 != rc ) {
-                            ErrMsg( "execute_concat_un_compressed() KBufFileMakeWrite( '%s' ) -> %R",
-                                    output_filename, rc );
-                        } else {
-                            rc_t rc2 = ft_release_file( dst,
-                                "execute_concat_un_compressed( '%s' ).1", output_filename );
-                            rc = ( 0 == rc ) ? rc2 : rc;
-                            dst = tmp;
-                        }
-                    }
+                    rc = create_buffered_file( &dst, buf_size );
+                }
 
+                if ( 0 == rc ) {
                     bg_progress_update( progress, size_file1 ); /* progress_thread.c */
 
                     rc = cm_make_a_copy( dir, dst, files_to_concat, progress, size_file1, buf_size,
                                       files_offset, q_wait_time ); /* copy_machine.c */
-
-                    {
-                        rc_t rc2 = ft_release_file( dst,
-                            "execute_concat_un_compressed( '%s' ).2", output_filename );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
+                }
+                if ( 0 == rc && dst != NULL ) {
+                    rc = ft_release_file( dst,
+                    "execute_concat_un_compressed( '%s' )", output_filename );
                 }
             }
         }
@@ -206,14 +259,20 @@ rc_t concat_execute( KDirectory * dir,
         ErrMsg( "concatenator.c execute_concat().VNameListCount() -> %R", rc );
     } else if ( count > 0 ) {
         uint32_t q_wait_time = 500;
-        bool file_exists = ft_file_exists( dir, "%s", output_filename );
-        bool perform_append = ( append && file_exists );
-        if ( perform_append ) {
-            rc = concat_execute_un_compressed_append( dir, output_filename, files_to_concat,
-                                buf_size, progress, count, q_wait_time );
+        if ( compress_mode == compress_t_none ) {
+            bool file_exists = ft_file_exists( dir, "%s", output_filename );
+            bool perform_append = ( append && file_exists );
+            if ( perform_append ) {
+                rc = concat_execute_un_compressed_append( dir, output_filename, files_to_concat,
+                                    buf_size, progress, count, q_wait_time );
+            } else {
+                rc = concat_execute_un_compressed_no_append( dir, output_filename, files_to_concat,
+                                    buf_size, progress, force, count, q_wait_time );
+            }
         } else {
-            rc = concat_execute_un_compressed_no_append( dir, output_filename, files_to_concat,
-                                buf_size, progress, force, count, q_wait_time );
+            /* append the right extension to output-filename... */
+            rc = concat_compressed( dir, output_filename, files_to_concat,
+                                    buf_size, progress, count, q_wait_time, compress_mode );
         }
     } else {
         rc = RC( rcExe, rcFile, rcPacking, rcName, rcEmpty );

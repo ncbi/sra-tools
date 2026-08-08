@@ -26,11 +26,17 @@
 # $2 - the executable to test
 # $3 - test case ID
 # $4 - original run has no QC meta (optional)
+# 5 - verbosity
 
 bin_dir=$1
 read_filter_redact=$2
 TEST_CASE_ID=$3
 NO_LOADED_QC=$4
+VERBOSE=$5
+
+if [ "$VERBOSE" != "" ] ; then
+    echo "TEST_CASE_ID=$TEST_CASE_ID"
+fi
 
 DIFF="diff -b"
 if [ "$(uname -s)" = "Linux" ] ; then
@@ -50,6 +56,8 @@ if ! test -f ${bin_dir}/vdb-unlock; then
     echo "${bin_dir}/vdb-unlock does not exist."
     exit 2
 fi
+
+XMLLINT=`which xmllint`
 
 RUN=./input/${TEST_CASE_ID}.sra
 FLT=./input/Test_Read_filter_redact_1.in
@@ -75,8 +83,15 @@ if [ "$NO_LOADED_QC" = "" ] ; then
     if [ "$rc" != "0" ] ; then
         exit 6
     fi
-    T_LOADED=$(xmllint --xpath /QC/current/timestamp \
+    if [ "$VERBOSE" != "" ] ; then
+        echo xmllint --xpath /QC/current/timestamp actual/${TEST_CASE_ID}.orig.all
+    fi
+    if [ "$XMLLINT" != "" ] ; then
+      T_LOADED=$(xmllint --xpath /QC/current/timestamp \
         actual/${TEST_CASE_ID}.orig.all)
+    else
+      T_LOADED=$(cat actual/2spots.orig.all | grep timestamp | grep -oP '(?<=<timestamp>)\d+(?=</timestamp>)')
+    fi 
 else
     ${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE QC 2>&1 \
       | grep -q "failed to open node 'QC'"

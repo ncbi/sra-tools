@@ -35,6 +35,8 @@
 # 2 -
 # 3 - the dumper failed on the output of the loader
 # 4 - outputs differ
+# 5 - verbosity
+
 bin_dir=$1
 read_filter_redact=$2
 TEST_CASE_ID=$3

@@ -103,13 +103,13 @@ fi
 ${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} -r \
                                                   > /dev/null 2>&1 || exit 3
 if [ "$VERBOSE" != "" ] ; then
-    echo "$bin_dir}/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | xmllint --xpath '/HISTORY/EVENT_2/@updated' -"
+    echo "$bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | xmllint --xpath '/HISTORY/EVENT_2/@updated' -"
 fi
 if [ "$XMLLINT" != "" ] ; then
   UPDATED=$($bin_dir/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
     | xmllint --xpath '/HISTORY/EVENT_2/@updated' -)
 else
-  UPDATED=$($bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | grep EVENT_1 | grep -oP 'updated="\K[^"]+')
+  UPDATED=$($bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | grep EVENT_2 | grep -oP 'updated="\K[^"]+')
   UPDATED=" updated=\"$UPDATED\""
 fi
 if [ "$UPDATED" != ' updated="READ_FILTER,READ"' ] ; then

@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 # ================================================================
 #
@@ -13,18 +13,14 @@ set -e
 
 BINDIR="$1"
 
-if [[ ! -d $BINDIR ]]; then
-    BINDIR="${HOME}/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/bin"
-fi
-
-if [[ ! -d $BINDIR ]]; then
+if [ ! -d $BINDIR ]; then
     echo "cannot find ${BINDIR} --> exit"
     exit 3
 fi
 
 TOOL="$BINDIR/fasterq-dump"
 
-if [[ ! -x $TOOL ]]; then
+if [ ! -x $TOOL ]; then
     echo "cannot find executable ${TOOL} --> exit"
     exit 3
 fi
@@ -37,7 +33,7 @@ cd $SUBDIR
 
 ACC="../ERR3487613"
 
-if [[ ! -f $ACC ]]; then
+if [ ! -f $ACC ]; then
     echo "cannot find ${ACC} --> exit"
     exit 3
 fi

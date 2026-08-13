@@ -1868,6 +1868,55 @@ static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[
     return rc;
 }
 
+typedef struct {
+    uint64_t valid;
+    uint64_t invalid;
+} INDSCChecker;
+
+void INDSCCheckerInit(INDSCChecker* self) {
+    assert(self);
+    memset(self, 0, sizeof * self);
+}
+
+void INDSCCheckerAdd(INDSCChecker* self, const char* dna, size_t len) {
+    size_t i = 0;
+
+    assert(self);
+
+    if (len > 0)
+        assert(dna);
+
+    for (i = 0; i < len; ++i)
+        switch (dna[i]) {
+        case 'A':
+        case 'C':
+        case 'G':
+        case 'T':
+        case 'U':
+            ++self->valid;
+            break;
+        default:
+            ++self->invalid;
+            break;
+        }
+}
+
+rc_t INDSCCheckerCheck(const INDSCChecker* self) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    if (self->invalid > self->valid) {
+        rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+        LOGERR(klogErr, rc, "SRAE-283: non-AUTCG > 50%");
+    }
+
+    PLOGMSG(klogInfo, (klogInfo, "AUTCG = $(N)", "N=%lu", self->valid));
+    PLOGMSG(klogInfo, (klogInfo, "non-AUTCG = $(N)", "N=%lu", self->invalid));
+
+    return rc;
+}
+
 static rc_t ProcessBAM(int fileNumber, char const bamFile[],
                        context_t *ctx, VDatabase *db,
                         /* data outputs */
@@ -1914,6 +1963,9 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
     FLAG_Counter flagCounter;
+
+    INDSCChecker checker;
+    INDSCCheckerInit(&checker);
 
     /* setting up buffers */
     memset(&data, 0, sizeof(data));
@@ -2395,6 +2447,7 @@ MIXED_BASE_AND_COLOR:
             memset(qual, 0, (readlen | csSeqLen) + lpad + rpad);
 
             BAM_AlignmentGetSequence(rec, seqDNA + lpad);
+            INDSCCheckerAdd(&checker, seqDNA + lpad, readlen - rpad);
             if (G.useQUAL) {
                 uint8_t const *squal;
 
@@ -3502,6 +3555,8 @@ WRITE_ALIGNMENT:
         if (rc) {
             (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
         }
+        else
+            rc = INDSCCheckerCheck(&checker);
     }
     return rc;
 }

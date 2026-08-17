@@ -315,7 +315,12 @@ struct App {
         { "mmap", "m", "1" },
         { "output", "o", nullptr, true },
         { "fingerprint", "f", nullptr, false },
-        { "flag", nullptr, "1.3", false }
+        { "flag", nullptr, "1.3", false },
+        { "debug", "+", nullptr, true },
+        { "log-level", "L", nullptr, true },
+        { "option-file", nullptr, nullptr, true },
+        { "quiet", "q", nullptr, false },
+        { "verbose", "v", nullptr, false }
     })
     , nextInput(arguments.begin())
     , currentInput(arguments.end())
@@ -379,6 +384,15 @@ struct App {
 #endif
                  << " )" << std::endl;
                 exit(0);
+            }
+            if (   param == "debug"
+                || param == "log-level"
+                || param == "option-file"
+                || param == "quiet"
+                || param == "verbose")
+            {
+                std::cerr << "usage: " << arguments.program << " does not have a --" << param << " parameter." << std::endl;
+                continue;
             }
             std::cerr << "error: Unrecognized parameter " << param << std::endl;
             exit(1);

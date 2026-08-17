@@ -14,7 +14,7 @@ DIRTOTEST="$1"
 BINDIR="$2"
 
 SAMFACTORY="${DIRTOTEST}/sam-factory"
-if [[ ! -x $SAMFACTORY ]]; then
+if [ ! -x $SAMFACTORY ]; then
     SAMFACTORY="${BINDIR}/sam-factory"
     if [[ ! -x $SAMFACTORY ]]; then
         echo "${SAMFACTORY} not found - exiting..."
@@ -23,19 +23,19 @@ if [[ ! -x $SAMFACTORY ]]; then
 fi
 
 BAMLOAD="${DIRTOTEST}/bam-load"
-if [[ ! -x $BAMLOAD ]]; then
+if [ ! -x $BAMLOAD ]; then
     echo "${BAMLOAD} not found - exiting(skipped)..."
     exit 0
 fi
 
 KAR="${DIRTOTEST}/kar"
-if [[ ! -x $KAR ]]; then
+if [ ! -x $KAR ]; then
     echo "${KAR} not found - exiting..."
     exit 3
 fi
 
 FASTERQDUMP="${DIRTOTEST}/fasterq-dump"
-if [[ ! -x $FASTERQDUMP ]]; then
+if [ ! -x $FASTERQDUMP ]; then
     echo "${FASTERQDUMP} not found - exiting..."
     exit 3
 fi
@@ -43,7 +43,7 @@ fi
 echo -e "\ntesting ${FASTERQDUMP} on tiny cSRA-accession"
 
 SAM_FACTORY_CONFIG="tiny_csra.sf"
-if [[ ! -f $SAM_FACTORY_CONFIG ]]; then
+if [ ! -f $SAM_FACTORY_CONFIG ]; then
     echo "${SAM_FACTORY_CONFIG} not found - exiting..."
     exit 3
 fi
@@ -62,17 +62,17 @@ rm -rf "${BAM_LOAD_CONFIG}" "${BAM_LOAD_SAM}" "${BAM_LOAD_REF}"
 cat "${SAM_FACTORY_CONFIG}" | "${SAMFACTORY}"
 #=======================================================
 
-if [[ ! -f $BAM_LOAD_CONFIG ]]; then
+if [ ! -f $BAM_LOAD_CONFIG ]; then
     echo "${BAM_LOAD_CONFIG} was not created by sam-factory - exiting..."
     exit 3
 fi
 
-if [[ ! -f $BAM_LOAD_SAM ]]; then
+if [ ! -f $BAM_LOAD_SAM ]; then
     echo "${BAM_LOAD_SAM} was not created by sam-factory - exiting..."
     exit 3
 fi
 
-if [[ ! -f $BAM_LOAD_REF ]]; then
+if [ ! -f $BAM_LOAD_REF ]; then
     echo "${BAM_LOAD_REF} was not created by sam-factory - exiting..."
     exit 3
 fi
@@ -83,7 +83,7 @@ rm -rf "$BAM_LOAD_OUTDIR}"
 #=======================================================
 ${BAMLOAD} ${BAM_LOAD_SAM} --ref-file ${BAM_LOAD_REF} --output ${BAM_LOAD_OUTDIR}
 #=======================================================
-if [[ ! -d $BAM_LOAD_OUTDIR ]]; then
+if [ ! -d $BAM_LOAD_OUTDIR ]; then
     echo "${BAM_LOAD_REF} was not created by bam-load - exiting..."
     exit 3
 fi
@@ -96,7 +96,7 @@ rm -rf "${KAR_OUTPUT}" "${KAR_OUTPUT}.md5"
 #=======================================================
 ${KAR} --force -c ${KAR_OUTPUT} -d ${BAM_LOAD_OUTDIR}
 #=======================================================
-if [[ ! -f $KAR_OUTPUT ]]; then
+if [ ! -f $KAR_OUTPUT ]; then
     echo "${KAR_OUTPUT} was not created by kar - exiting..."
     exit 3
 fi
@@ -108,7 +108,7 @@ FASTQ_OUTPUT="TINY_CSRA.FASTQ"
 #=======================================================
 ${FASTERQDUMP} ${KAR_OUTPUT} --concatenate-reads -o ${FASTQ_OUTPUT}
 #=======================================================
-if [[ ! -f $FASTQ_OUTPUT ]]; then
+if [ ! -f $FASTQ_OUTPUT ]; then
     echo "${FASTQ_OUTPUT} was not created by fasterq-dump - exiting..."
     exit 3
 fi

@@ -94,7 +94,7 @@ typedef struct tool_ctx_t {
 
     format_t fmt; /* helper.h */
     check_mode_t check_mode; /* helper.h */
-
+    compress_t compress_mode; /* helper.h */
     bool force, show_progress, show_details, append, use_stdout, split_file;
     bool only_unaligned, only_aligned;
     bool out_and_tmp_on_same_fs;

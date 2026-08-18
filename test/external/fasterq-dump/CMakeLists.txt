@@ -105,6 +105,10 @@ if ( NOT WIN32 )
             COMMAND sh -c "./no_seq_tbl_meta.sh ${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        add_test( NAME Test_FasterqDump_With_Compression
+            COMMAND sh -c "./test_fq_with_compression.sh ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     endif()
 
 else()

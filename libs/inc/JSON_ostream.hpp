@@ -186,6 +186,8 @@ class JSON_ostream {
     JSON_ostream &insert(bool v) {
         if (comma)
             listItem();
+        if (!ws)
+            insert_raw(' ');
         insert_raw(v ? "true" : "false");
         return *this;
     }

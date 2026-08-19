@@ -1,0 +1,360 @@
+{
+  "schemaVersion": "1.1",
+  "reportType": "SRA Validation Report",
+  "reportId": "VR-20260629-000002",
+  "generatedAt": "2026-06-29T14:35:12Z",
+  "validator": {
+    "name": "FASTQ Validator",
+    "version": "2.3.1"
+  },
+  "submission": {
+    "submissionId": "SUB123456",
+    "status": "FAILED"
+  },
+  "submissionSummary": {
+    "filesProcessed": 2,
+    "filesPassed": 0,
+    "filesFailed": 2,
+    "totalReadsExamined": 18000000,
+    "readsPassingValidation": 17999973,
+    "readsFailingValidation": 27,
+    "readSuccessRatePercent": 99.99985,
+    "totalBasePairsExamined": 2700000000,
+    "passingBasePairs": 2699995950,
+    "failingBasePairs": 4050,
+    "basePairSuccessRatePercent": 99.99985,
+    "totalValidationErrors": 30,
+    "uniqueErrorTypes": 2
+  },
+  "submissionQualityMetrics": {
+    "filesProcessed": 2,
+    "filesPassed": 0,
+    "filesFailed": 2,
+    "totalReadsExamined": 18000000,
+    "readsPassingValidation": 17999973,
+    "readsFailingValidation": 27,
+    "readSuccessRatePercent": 99.99985,
+    "totalBasePairsExamined": 2700000000,
+    "passingBasePairs": 2699995950,
+    "failingBasePairs": 4050,
+    "basePairSuccessRatePercent": 99.99985,
+    "totalValidationErrors": 30,
+    "uniqueErrorTypes": 2,
+    "errorDistribution": [
+      {
+        "code": "SRAE-210",
+        "name": "Quality score length does not match sequence length",
+        "occurrences": 26,
+        "filesAffected": [
+          "sample_R1.fastq.gz",
+          "sample_R2.fastq.gz"
+        ]
+      },
+      {
+        "code": "SRAE-160",
+        "name": "Sequence contains non-alphabetical character",
+        "occurrences": 4,
+        "filesAffected": [
+          "sample_R1.fastq.gz"
+        ]
+      }
+    ]
+  },
+  "fileSummary": [
+    {
+      "filename": "sample_R1.fastq.gz",
+      "fileFormat": "FASTQ",
+      "status": "FAILED",
+      "errorCount": 2,
+      "warningCount": 0,
+      "failedReads": 18,
+      "totalReadsExamined": 10000000
+    },
+    {
+      "filename": "sample_R2.fastq.gz",
+      "fileFormat": "FASTQ",
+      "status": "FAILED",
+      "errorCount": 1,
+      "warningCount": 0,
+      "failedReads": 9,
+      "totalReadsExamined": 8000000
+    }
+  ],
+  "files": [
+    {
+      "filename": "sample_R1.fastq.gz",
+      "fileFormat": "FASTQ",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 8740000000,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 10000000,
+        "readsPassingValidation": 9999982,
+        "readsFailingValidation": 18,
+        "readSuccessRatePercent": 99.99982,
+        "totalBasePairsExamined": 1500000000,
+        "passingBasePairs": 1499997300,
+        "failingBasePairs": 2700,
+        "basePairSuccessRatePercent": 99.99982,
+        "totalValidationErrors": 21,
+        "uniqueErrorTypes": 2,
+        "errorDistribution": [
+          {
+            "code": "SRAE-210",
+            "name": "Quality score length does not match sequence length",
+            "occurrences": 17
+          },
+          {
+            "code": "SRAE-160",
+            "name": "Sequence contains non-alphabetical character",
+            "occurrences": 4
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0001",
+          "severity": "ERROR",
+          "code": "SRAE-210",
+          "name": "Quality score length does not match sequence length",
+          "occurrences": 17,
+          "summary": "The quality string contains fewer quality score characters than bases in the sequence. Every nucleotide in the sequence must have one corresponding quality score character.",
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"
+        },
+        {
+          "issueId": "ERR-0002",
+          "severity": "ERROR",
+          "code": "SRAE-160",
+          "name": "Sequence contains non-alphabetical character",
+          "occurrences": 4,
+          "summary": "The sequence contains one or more characters that are not alphabetic. FASTQ sequence lines may contain only valid nucleotide characters.",
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-160"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 10,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 10,
+        "reads": [
+          {
+            "readIndex": 1,
+            "recordNumber": 48273,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1048 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1048 1:N:0:ATCGTG\nACGTGCTAGCTAGCTAGCTAGCTAGCTAGCTA\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 2,
+            "recordNumber": 48274,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1049 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1049 1:N:0:ATCGTG\nTTGCGATCGATCGATCGATCGATC\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 3,
+            "recordNumber": 48275,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1050 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-160"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1050 1:N:0:ATCGTG\nACGTAGCTA5CTAGCTAGCTAGCTAGCTAGCT\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 4,
+            "recordNumber": 48276,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1051 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1051 1:N:0:ATCGTG\nGCTAGCTAGCTAGCTA\n+\nFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 5,
+            "recordNumber": 48277,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1052 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-160"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1052 1:N:0:ATCGTG\nCCTGATGCTAGCTAGNCTAGCTAGCTAGCTA\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 6,
+            "recordNumber": 48278,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1053 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1053 1:N:0:ATCGTG\nTGCATGCATGCATGCA\n+\nFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 7,
+            "recordNumber": 48279,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1054 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1054 1:N:0:ATCGTG\nAAGCTTAGCTAGCTAGCTAG\n+\nFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 8,
+            "recordNumber": 48280,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1055 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-160"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1055 1:N:0:ATCGTG\nGGCTTAGCTAGCTXAGCTAGCTAGCTAGCTA\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 9,
+            "recordNumber": 48281,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1056 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1056 1:N:0:ATCGTG\nATCGATCGATCGATCGATCGATCG\n+\nFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 10,
+            "recordNumber": 48282,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1101:18234:1057 1:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1101:18234:1057 1:N:0:ATCGTG\nCCGTAACCGGTTAA\n+\nFFFFFFFFFFFFF"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "sample_R2.fastq.gz",
+      "fileFormat": "FASTQ",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 6120000000,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 8000000,
+        "readsPassingValidation": 7999991,
+        "readsFailingValidation": 9,
+        "readSuccessRatePercent": 99.99989,
+        "totalBasePairsExamined": 1200000000,
+        "passingBasePairs": 1199998650,
+        "failingBasePairs": 1350,
+        "basePairSuccessRatePercent": 99.99989,
+        "totalValidationErrors": 9,
+        "uniqueErrorTypes": 1,
+        "errorDistribution": [
+          {
+            "code": "SRAE-210",
+            "name": "Quality score length does not match sequence length",
+            "occurrences": 9
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0003",
+          "severity": "ERROR",
+          "code": "SRAE-210",
+          "name": "Quality score length does not match sequence length",
+          "occurrences": 9,
+          "summary": "The quality string contains more quality score characters than bases in the sequence.",
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 10,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 9,
+        "reads": [
+          {
+            "readIndex": 1,
+            "recordNumber": 9185,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1045 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1045 2:N:0:ATCGTG\nTTGCGATCGATCGATCGATCGATC\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 2,
+            "recordNumber": 9186,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1046 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1046 2:N:0:ATCGTG\nGATCGATCGATCGATC\n+\nFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 3,
+            "recordNumber": 9187,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1047 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1047 2:N:0:ATCGTG\nACGTTGCAACGTTGCA\n+\nFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 4,
+            "recordNumber": 9188,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1048 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1048 2:N:0:ATCGTG\nTTCGATCGATCGATCGATCGATCG\n+\nFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 5,
+            "recordNumber": 9189,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1049 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1049 2:N:0:ATCGTG\nCGATCGATCGATCGATCG\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 6,
+            "recordNumber": 9190,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1050 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1050 2:N:0:ATCGTG\nATCGATCGATCGATCGATCG\n+\nFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 7,
+            "recordNumber": 9191,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1051 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1051 2:N:0:ATCGTG\nGGCATGGCATGGCATG\n+\nFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 8,
+            "recordNumber": 9192,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1052 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1052 2:N:0:ATCGTG\nTATATATATATATATA\n+\nFFFFFFFFFFFFFF"
+          },
+          {
+            "readIndex": 9,
+            "recordNumber": 9193,
+            "readHeader": "@A00456:27:H2W7JDSX3:1:1102:14567:1053 2:N:0:ATCGTG",
+            "detectedErrors": [
+              "SRAE-210"
+            ],
+            "rawRecord": "@A00456:27:H2W7JDSX3:1:1102:14567:1053 2:N:0:ATCGTG\nCCGGAATTCCGGAATTCC\n+\nFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          }
+        ]
+      }
+    }
+  ]
+}

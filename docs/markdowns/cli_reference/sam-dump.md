@@ -1,5 +1,9 @@
 # sam-dump
 
+## Summary
+
+Outputs an SRA run in SAM format.
+
 ## Usage
 
 ```text

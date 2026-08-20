@@ -27,11 +27,13 @@ if( NOT WIN32 )
     add_executable(json-error-report json-error-report.cpp )
     target_include_directories(json-error-report PRIVATE ../../../libs/inc )
     target_compile_features(json-error-report PRIVATE cxx_std_17)
-    target_compile_options(json-error-report PRIVATE -fsanitize=undefined)
-    target_compile_options(json-error-report PRIVATE -fsanitize=address)
-    target_link_options(json-error-report PRIVATE -fsanitize=undefined)
-    target_link_options(json-error-report PRIVATE -fsanitize=address)
-
+    if ( RUN_SANITIZER_TESTS )
+        target_compile_options(json-error-report PRIVATE -fsanitize=undefined)
+        target_compile_options(json-error-report PRIVATE -fsanitize=address)
+        target_link_options(json-error-report PRIVATE -fsanitize=undefined)
+        target_link_options(json-error-report PRIVATE -fsanitize=address)
+    endif()
+    
     add_test( NAME Test_json_error_report
             COMMAND
                 sh runtests.sh ${TESTBINDIR} ${CMAKE_CURRENT_SOURCE_DIR}

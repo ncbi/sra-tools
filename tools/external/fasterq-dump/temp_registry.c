@@ -24,6 +24,7 @@
 *
 */
 #include "temp_registry.h"
+#include "helper.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"
@@ -146,6 +147,7 @@ typedef struct cmn_merge_t {
     struct bg_progress_t * progress;
     bool force;
     bool append;
+    compress_t compress_mode;
 } cmn_merge_t;
 
 /* the data specific to one merge-thread */
@@ -176,7 +178,8 @@ static rc_t merge_thread_func( const KThread *self, void *data ) {
             merge_thread_data -> cmn -> buf_size,
             merge_thread_data -> cmn -> progress,
             merge_thread_data -> cmn -> force,
-            merge_thread_data -> cmn -> append );
+            merge_thread_data -> cmn -> append,
+            merge_thread_data -> cmn -> compress_mode );
         release_SBuffer( &s_filename );
     }
     return rc;
@@ -190,7 +193,8 @@ rc_t temp_registry_merge( temp_registry_t * self,
                           size_t buf_size,
                           bool show_progress,
                           bool force,
-                          bool append ) {
+                          bool append,
+                          compress_t compress_mode ) {
     rc_t rc = 0;
     if ( NULL == self ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
@@ -215,7 +219,7 @@ rc_t temp_registry_merge( temp_registry_t * self,
             uint32_t end = start + length;
             uint32_t idx;
             Vector thread_data_vec;
-            cmn_merge_t cmn = { dir, base_output_filename, buf_size, progress, force, append };
+            cmn_merge_t cmn = { dir, base_output_filename, buf_size, progress, force, append, compress_mode };
             
             /* we create a thread for each item in self->lists */
             VectorInit( &thread_data_vec, 0, length );

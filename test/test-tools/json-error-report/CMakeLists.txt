@@ -22,13 +22,20 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+if( NOT WIN32 )
 
-add_subdirectory( pileup-stats )
-add_subdirectory( json-error-report )
+    add_executable(json-error-report json-error-report.cpp )
+    target_include_directories(json-error-report PRIVATE ../../../libs/inc )
+    target_compile_features(json-error-report PRIVATE cxx_std_17)
+    target_compile_options(json-error-report PRIVATE -fsanitize=undefined)
+    target_compile_options(json-error-report PRIVATE -fsanitize=address)
+    target_link_options(json-error-report PRIVATE -fsanitize=undefined)
+    target_link_options(json-error-report PRIVATE -fsanitize=address)
 
-IF( TARGET rnd2sra )
-    add_subdirectory( rnd2sra )
-ENDIF()
+    add_test( NAME Test_json_error_report
+            COMMAND
+                sh runtests.sh ${TESTBINDIR} ${CMAKE_CURRENT_SOURCE_DIR}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+endif()

@@ -22,13 +22,10 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+default: runtests
 
-add_subdirectory( pileup-stats )
-add_subdirectory( json-error-report )
+TOP ?= $(abspath ../../..)
+MODULE = test/test-tools/json-error-report
 
-IF( TARGET rnd2sra )
-    add_subdirectory( rnd2sra )
-ENDIF()
+BUILD_TOOLS_TEST_TOOLS=ON
+include $(TOP)/build/Makefile.env

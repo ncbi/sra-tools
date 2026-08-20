@@ -43,7 +43,7 @@ rc_t rnd2sra_usage( const Args * args ) {
 }
 
 rc_t rnd2sra_usage_summary( const char * prog_name ) {
-    cout << "usage summary\n";
+    sra_convert::TheHelp::print_usage( cout );
     return 0;
 }
 

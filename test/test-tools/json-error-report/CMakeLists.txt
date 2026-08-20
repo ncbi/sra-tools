@@ -32,14 +32,6 @@ if( NOT WIN32 )
     target_link_options(json-error-report PRIVATE -fsanitize=undefined)
     target_link_options(json-error-report PRIVATE -fsanitize=address)
 
-#    add_test( NAME Test_json_error_report
-#            COMMAND runtests.sh "${BINDIR}" "${CMAKE_SOURCE_DIR}/tools/test-tools/qa-stats"
-#            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-#   add_test( NAME Test_json_error_report
-#           COMMAND
-#               sh runtests.sh ${DIRTOTEST} ${CMAKE_CURRENT_SOURCE_DIR}
-#           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#   )
     add_test( NAME Test_json_error_report
             COMMAND
                 sh runtests.sh ${TESTBINDIR} ${CMAKE_CURRENT_SOURCE_DIR}

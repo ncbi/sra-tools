@@ -138,15 +138,23 @@ class TheHelp {
         }
 
         static void print_help( ostream& os )  {
-            os << "--ini INIFILE         -I INIFILE     (abs. or rel. path of ini-file)\n";
-            os << "--inidir INIDIR       -D INIDIR      (location of ini-file)\n";
-            os << "--out OUTDIR          -O OUTDIR      (where to produce sra-output)\n";
-            os << "--bin BINDIR          -B BINDIR      (where are binaries to run)\n";
-            os << "--testbin TESTBINDIR  -T TESTBINDIR  (where are test-binaries)\n";
-            os << "--filter FILTER                      (what tests to run if filtering)\n";
-            os << "--help                -h             print help\n";
-            os << "--version             -V             print version\n";
-            os << "--platforms           -p             print all supported platforms\n";
+            os << "-I|--ini <file>             abs. or rel. path of ini-file\n";
+            os << "-D|--inidir <dir>           location of ini-file\n";
+            os << "-O|--out <dir>              where to produce the accession\n";
+            os << "-B|--bin <dir>              location of binaries\n";
+            os << "-T|--testbin <dir>          location of test-binaries\n";
+            os << "--filter <FILTER>           what tests to run if filtering\n";
+            os << "-p|--platforms              print all supported platforms\n";
+
+            /* standard options... */
+            os << "-h|--help                   print help\n";
+            os << "-V|--version                print version\n";
+            os << "-L|--log-level              set log level (0-6) dflt=4 (warn)\n";
+            os << "-v|--verbose                increase the verbosity of status messages\n";
+            os << "-q|--quiet                  turn off all status messages\n";
+            os << "--option-file <file>        read more options from this file\n";
+            os << "--debug <Module[-Flag]> -+  turn on debug output for module\n";
+
             os << "=========================================================================\n";
             os << "INIFILE:\n";
             os << "\tproduct = flat | db | csra | test ( the only mandatory entry )\n";

@@ -115,6 +115,7 @@ extern "C" {
 #include <set>
 #include <mutex>
 #include <flag-stat.hpp>
+#include <loader/error-report-json.hpp>
 
 #ifdef __linux__
 #include <sys/resource.h>
@@ -294,6 +295,8 @@ struct context_t {
     shared_ptr<spot_name_filter> m_key_filter;   ///< Bloom filter (all spot names in scope)
     vector<u40_t> m_spot_id_buffer;              ///< Temporary buffer for spot name extraction
 
+    ErrorReport errorReport;
+    
     // reset everything but spotId and spot assembly related fields
     void reset_for_remap() {
         for (const auto& p : progress) {
@@ -1868,6 +1871,38 @@ static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[
     return rc;
 }
 
+static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, int code)
+{
+    std::string sam{4096, '\0'};
+    size_t actsize = sam.capacity();
+    while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
+        sam.reserve(sam.capacity() * 2);
+    }
+    sam.resize(actsize - 1);
+    sam.shrink_to_fit();
+    
+    auto const sep = sam.find('\t');
+    assert(sep != sam.npos);
+    return {
+        BAM_AlignmentRecordNumber(record),
+        sam.substr(sep),
+        sam,
+        { (ErrorReport::SRAE_Codes::Value)code }
+    };
+}
+
+/** Check for missing quality scores. In BAM, if quality score is all `0xFF`, it is the same as SAM `*`
+ */
+static bool missingQuality(unsigned const readlen, uint8_t const *qual[/* readlen */])
+{
+    unsigned i;
+    for (i = 0; i < readlen; ++i) {
+        if (qual[i] != 0xFF)
+            return false;
+    }
+    return true;
+}
+
 static rc_t ProcessBAM(int fileNumber, char const bamFile[],
                        context_t *ctx, VDatabase *db,
                         /* data outputs */
@@ -1875,7 +1910,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
                        /* output parameters */
                        bool *had_alignments, bool *had_sequences)
 {
-
     const BAM_File *bam;
     const BAM_Alignment *rec;
 #if defined(NEW_QUEUE)
@@ -1891,7 +1925,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     int32_t lastRefSeqId = -1;
     bool wasRenamed = false;
     size_t rsize;
-    uint64_t keyId = 0;
     uint64_t reccount = 0;
     char spotGroup[512];
     size_t namelen;
@@ -1914,6 +1947,7 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
     FLAG_Counter flagCounter;
+    int rptFile = -1;
 
     /* setting up buffers */
     memset(&data, 0, sizeof(data));
@@ -1993,6 +2027,10 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     rc = KDataBufferMake(&qualBuffer, 8, 4096);
     if (rc)
         return rc;
+    
+    rc = KDataBufferMake(&raw_SAM_Buffer, 8, 64 * 1024);
+    if (rc)
+        return rc;
 
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
@@ -2004,13 +2042,15 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     std::optional<bool> opt_is_primary;
     std::optional<bool> opt_is_unmated;
 
+    rptFile = ctx->errorReport.addFile(bamFile, BAM_FileType(bam));
     BAM_FileSetFlagCounter(bam, &flagCounter);
 #ifdef NEW_QUEUE
     //while (rw_queue.pop()); // clear queue
     rw_done = false;
-    auto _rc = KThreadMake(&bamread_thread, run_bamread_thread, (void *)bam);
-    if (_rc) {
-        return 0;
+    {
+        auto const _rc = KThreadMake(&bamread_thread, run_bamread_thread, (void *)bam);
+        if (_rc)
+            return 0;
     }
 #endif
     size_t new_spots = 0;
@@ -2027,15 +2067,18 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         if (rec == nullptr)
             break;
 
+        auto const recordNumber = BAM_AlignmentRecordNumber(rec);
         bool aligned;
-        uint32_t readlen;
+        uint32_t readlen; ///< effective readlen, may be modified by the additon of N padding.
+        uint32_t orig_readlen; ///< as originally recorded in the file.
+        bool no_quality = false;
+        bool reported = false;
         uint16_t flags;
         int64_t rpos=0;
         char *seqDNA;
 #ifdef HAS_CTX_VALUE
         ctx_value_t *value;
 #endif
-        bool wasInserted;
         int32_t refSeqId=-1;
         uint8_t *qual;
         bool mated;
@@ -2055,9 +2098,9 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         bool wasPromoted = false;
         char const *barCode = NULL;
         char const *linkageGroup;
-
-        keyId = rec->keyId;
-        wasInserted = rec->wasInserted;
+        uint64_t const keyId = rec->keyId;
+        bool const wasInserted = rec->wasInserted;
+        
         if (wasInserted)
             ++new_spots;
 #ifndef NO_METADATA
@@ -2086,14 +2129,11 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
 #endif
         ++ctx->readCount;
         if (ctx->readCount % 10000000 == 0) {
-
-            {
-                float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
-                float const delta = new_value - progress;
-                if (delta > 1.0) {
-                    KLoadProgressbar_Process(ctx->progress[0], delta, false);
-                    progress = new_value;
-                }
+            float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
+            float const delta = new_value - progress;
+            if (delta > 1.0) {
+                KLoadProgressbar_Process(ctx->progress[0], delta, false);
+                progress = new_value;
             }
             spdlog::info("Keys {:L}, time: {:.3} sec, memory: {:L}", recordsRead, sw, getCurrentRSS());
             sw.reset();
@@ -2241,6 +2281,7 @@ MIXED_BASE_AND_COLOR:
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
 
+        BAM_AlignmentGetReadLength(rec, &orig_readlen);
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             // FATAL ERROR, DATA ERROR, NOT FIXABLE
@@ -2287,7 +2328,7 @@ MIXED_BASE_AND_COLOR:
             uint32_t const *tmp;
 
             /* resize buffers */
-            BAM_AlignmentGetReadLength(rec, &readlen);
+            readlen = orig_readlen;
             BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount);
             assert(rc == 0);
@@ -2399,6 +2440,7 @@ MIXED_BASE_AND_COLOR:
                 uint8_t const *squal;
 
                 BAM_AlignmentGetQuality(rec, &squal);
+                no_quality = missingQuality(readlen, squal);
                 memmove(qual + lpad, squal, readlen);
             }
             else {
@@ -2417,12 +2459,22 @@ MIXED_BASE_AND_COLOR:
                         qual[i + lpad] = squal[i] - qoffset;
                     QUAL_CHANGED_OQ;
                 }
-                else
+                else {
+                    no_quality = missingQuality(readlen, squal);
                     memmove(qual + lpad, squal, readlen);
+                }
             }
             readlen = readlen + lpad + rpad;
             data.data.align_group.elements = 0;
             data.data.align_group.buffer = alignGroup;
+        }
+        if (no_quality && !reported) {
+            // DATA ERROR, INSDC Minimum Standards violation, missing quality scores
+            if (ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 202)) {
+                // Log it the first time.
+                (void)PLOGMSG(klogWarn, "SRAE-202: Data error: Spot '$(name)': Missing quality scores", "name=%s", name);
+            }
+            reported = true;
         }
         if (G.hasTI) {
             rc = BAM_AlignmentGetTI(rec, &ti);
@@ -3413,6 +3465,14 @@ WRITE_ALIGNMENT:
         /**************************************************************/
 
     LOOP_END:
+        if (!reported) {
+            if (rc == 0) {
+                ctx->errorReport.addRecord(rptFile, orig_readlen);
+            }
+            else {
+                ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 0));
+            }
+        }
         BAM_AlignmentRelease(rec);
 #if !defined(NEW_QUEUE)
         delete queue_rec;

@@ -91,6 +91,7 @@ struct BAM_File {
 
     uint64_t fpos_cur;
     uint64_t deferPos;
+    uint64_t recordId;
     
     unsigned refSeqs;
     unsigned readGroups;

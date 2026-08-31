@@ -338,6 +338,18 @@ rc_t BAM_AlignmentGetCigar ( const BAM_Alignment *self,
  */
 rc_t BAM_AlignmentGetInsertSize ( const BAM_Alignment *self, int64_t *size );
 
+/** Get the record as SAM.
+ * - Parameter self the alignment record.
+ * - Parameter actsize pointer to recieve the actual size of the result.
+ * - Parameter maxsize the maximum number of bytes that can be placed into the result.
+ * - Parameter buffer pointer to recieve the result.
+ * - Returns 0 on success.
+ *
+ * - Note If an error occurs, double the size of the buffer and retry.
+ * `actsize` will not necessarily have the actual final size needed.
+ * The result ends with a newline and a nul terminator.
+ * `actsize` does not include the nul terminator.
+ */
 rc_t BAM_AlignmentFormatSAM(const BAM_Alignment *self,
                             size_t *actsize,
                             size_t maxsize,
@@ -474,6 +486,11 @@ rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
  */
 float BAM_AlignmentGetProportionalPosition(BAM_Alignment const *self);
 
+/** Get the record number in the file. This is the original record number even if the order was changed, e.g. it was a deferred secondary alignment.
+ * - Parameter self the record object.
+ * - Returns the record number.
+ */
+uint64_t BAM_AlignmentRecordNumber(BAM_Alignment const *self);
     
 /*--------------------------------------------------------------------------
  * BAM_File
@@ -535,7 +552,17 @@ rc_t BAM_FileMake(const BAM_File **result,
 rc_t BAM_FileAddRef ( const BAM_File *self );
 rc_t BAM_FileRelease ( const BAM_File *self );
 
+/** Set the FLAG counter object.
+ * - Parameter self the file object.
+ * - Parameter flagCounter the FLAG counter object, may be null.
+ */
 void BAM_FileSetFlagCounter(const BAM_File *self, void *flagCounter);
+
+/** Get the content type.
+ * - Parameter self the file object.
+ * - Returns a static string describing the content type: "SAM" or "BAM".
+ */
+char const *BAM_FileType(BAM_File const *self);
 
 /* GetPosition
  *  get the position of the about-to-be read alignment

@@ -189,7 +189,7 @@ class TheHelp {
         }
 
         static void print_version( ostream& os ) {
-            os << "rnd2sa : 1.0.0 ( 1.0.0-rc )\n";
+            os << "rnd2sra : 1.0.0 ( 1.0.0-rc )\n";
         }
 };
 

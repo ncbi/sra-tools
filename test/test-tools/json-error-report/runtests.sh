@@ -1,3 +1,4 @@
+#!sh
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,13 +23,15 @@
 #
 # ===========================================================================
 
-IF( TARGET qa-stats )
-    add_subdirectory( qa-stats )
-ENDIF()
+DIRTOTEST=$1
+WORKDIR=$2
 
-add_subdirectory( pileup-stats )
-add_subdirectory( json-error-report )
+DIFF="diff -b"
+if [ "$(uname -s)" = "Linux" ] ; then
+    if [ "$(uname -o)" = "GNU/Linux" ] ; then
+        DIFF="diff -b -Z"
+    fi
+fi
 
-IF( TARGET rnd2sra )
-    add_subdirectory( rnd2sra )
-ENDIF()
+"${DIRTOTEST}/json-error-report" | ${DIFF} - "${WORKDIR}/expected/1.json"
+

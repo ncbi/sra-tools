@@ -63,24 +63,24 @@ public:
         static SRAE_Code const &getCodeFor(Value which) {
             using namespace std::string_literals;
             static SRAE_Code const code[] = {
+                { "N/A"s, "N/A"s, "N/A"s },
                 { "SRAE-160"s, "Sequence contains non-alphabetical character"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-160"s },
                 { "SRAE-202"s, "Read has no quality scores"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
                 { "SRAE-210"s, "Quality score length does not match sequence length"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },
             };
             switch (which) {
             case Value::srae_160:
-                return code[0];
-            case Value::srae_202:
                 return code[1];
-            case Value::srae_210:
+            case Value::srae_202:
                 return code[2];
+            case Value::srae_210:
+                return code[3];
             default:
-                throw std::invalid_argument{"invalid SRAE code"};
+                return code[0];
             }
         }
         static SRAE_Code const &getCodeFor(int which) {
-            static SRAE_Code const na = { "N/A"s, "N/A"s, "N/A"s};
-            return which ? getCodeFor((Value)which) : na;
+            return getCodeFor((Value)which);
         }
     };
 
@@ -383,7 +383,7 @@ public:
             assert(error.detectedErrors.size() >= 1);
 
             for (auto & err : error.detectedErrors) {
-                if (!err) continue;
+                if ((int)err == 0) continue;
                 auto [iter, inserted] = issueCount.emplace(err, 1);
                 if (inserted)
                     is_new = true;

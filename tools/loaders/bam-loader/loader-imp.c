@@ -1873,7 +1873,7 @@ static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[
 
 static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, int code)
 {
-    std::string sam{4096, '\0'};
+    std::string sam(4096, '\0');
     size_t actsize = sam.capacity();
     while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
         sam.reserve(sam.capacity() * 2);
@@ -1893,7 +1893,7 @@ static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, i
 
 /** Check for missing quality scores. In BAM, if quality score is all `0xFF`, it is the same as SAM `*`
  */
-static bool missingQuality(unsigned const readlen, uint8_t const *qual[/* readlen */])
+static bool missingQuality(unsigned const readlen, uint8_t const qual[/* readlen */])
 {
     unsigned i;
     for (i = 0; i < readlen; ++i) {
@@ -2028,10 +2028,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     if (rc)
         return rc;
     
-    rc = KDataBufferMake(&raw_SAM_Buffer, 8, 64 * 1024);
-    if (rc)
-        return rc;
-
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
@@ -2470,9 +2466,9 @@ MIXED_BASE_AND_COLOR:
         }
         if (no_quality && !reported) {
             // DATA ERROR, INSDC Minimum Standards violation, missing quality scores
-            if (ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 202)) {
+            if (ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 202))) {
                 // Log it the first time.
-                (void)PLOGMSG(klogWarn, "SRAE-202: Data error: Spot '$(name)': Missing quality scores", "name=%s", name);
+                (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-202: Data error: Spot '$(name)': Missing quality scores", "name=%s", name));
             }
             reported = true;
         }

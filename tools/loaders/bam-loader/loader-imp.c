@@ -4508,6 +4508,10 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     spdlog::info("ArchiveBAM, memory: {:L}", getCurrentRSS());
 
+    {
+        auto ofs = std::ofstream(G.errorReportPath ? G.errorReportPath : "errorReport.json", std::ios::trunc);
+        ctx->errorReport.printJSON(ofs);
+    }
     return rc;
 }
 

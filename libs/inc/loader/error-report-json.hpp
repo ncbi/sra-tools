@@ -567,7 +567,7 @@ public:
         {
             int issues = 0;
             for (auto &f : files) {
-                f.issueBase =  issues;
+                f.issueBase = issues;
                 issues += f.issueCount.size();
             }
         }

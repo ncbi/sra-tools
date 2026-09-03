@@ -166,6 +166,7 @@ static char const option_threads[] = "threads";
 static char const option_extra_logging[] = "extra-logging";
 static char const option_min_batch_size[] = "min-batch-size";
 static char const option_telemetry[] = "telemetry";
+static char const option_error_report[] = "errorReport";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -196,6 +197,7 @@ static char const option_telemetry[] = "telemetry";
 #define OPTION_EXTRA_LOGGING option_extra_logging
 #define OPTION_MIN_BATCH_SIZE option_min_batch_size
 #define OPTION_TELEMETRY option_telemetry
+#define OPTION_ERROR_REPORT option_error_report
 
 
 #define ALIAS_INPUT  "i"
@@ -488,6 +490,13 @@ char const * telemetry_usage[] =
     NULL
 };
 
+static
+char const * error_report_usage[] =
+{
+    "Path and Name of the error report JSON file.",
+    NULL
+};
+
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */
@@ -530,6 +539,7 @@ OptDef Options[] =
     { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false },
     { OPTION_MIN_BATCH_SIZE, NULL, NULL, min_batch_size_usage, 1, true,  false },
     { OPTION_TELEMETRY, NULL, NULL, telemetry_usage, 1, true, false },
+    { OPTION_ERROR_REPORT, NULL, NULL, error_report_usage, 1, true, false },
 };
 
 const char* OptHelpParam[] =
@@ -573,7 +583,8 @@ const char* OptHelpParam[] =
     NULL,				/* threads */
     NULL,				/* extra logging */
     "count",     	    /* min cache size */
-    "file-name"			/* telemetry file name */
+    "path-to-file",     /* telemetry file name */
+    "path-to-file"      /* error report file name */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -1173,6 +1184,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             }
         }
+
         G.telemetryPath = nullptr;
         rc = ArgsOptionCount (args, OPTION_TELEMETRY, &pcount);
         if (rc)
@@ -1191,6 +1203,23 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             break;
         }
 
+        G.errorReportPath = nullptr;
+        rc = ArgsOptionCount (args, OPTION_ERROR_REPORT, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = getArgValue(args, OPTION_ERROR_REPORT, 0, &G.errorReportPath);
+            if (rc)
+                break;
+        }
+        else if (pcount > 1)
+        {
+            rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcExcessive);
+            OUTMSG (("Single input parameter required\n"));
+            MiniUsage (args);
+            break;
+        }
 
         rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);
         break;

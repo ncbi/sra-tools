@@ -44,7 +44,8 @@ mkdir -p actual
     --log-level err \
     "${CASE}/${CASE}.sam" || { echo "bam-load ${CASE} failed"; exit 1; }
 
-jq 'del(.validator.version)' actual/report.json.raw > actual/report.json
+# remove what we expect to vary
+jq 'del(.validator.version, .generatedAt)' actual/report.json.raw > actual/report.json
 
 ${DIFF} actual/report.json "expected/${CASE}.json" || \
     { echo "the files actual/report.json and expected/${CASE}.json differ!"; exit 1; }

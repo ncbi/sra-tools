@@ -39,6 +39,7 @@ extern "C" {
 #include <klib/rc.h>
 #include <klib/sort.h>
 #include <klib/printf.h>
+#include <klib/time.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -4523,6 +4524,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     if (G.errorReportPath) {
         auto ofs = std::ofstream(G.errorReportPath, std::ios::trunc);
+        ctx->errorReport.generatedAt = ctx->errorReport.currentTimestamp();
         ctx->errorReport.printJSON(ofs);
     }
     return rc;

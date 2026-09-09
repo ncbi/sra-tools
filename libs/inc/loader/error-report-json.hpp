@@ -611,6 +611,12 @@ public:
         return strm << std::endl;
     }
 #endif
+#ifdef _h_klib_time_
+    static std::string currentTimestamp() {
+        char buffer[32];
+        return std::string{buffer, KTimeIso8601(KTimeStamp(), buffer, sizeof(buffer))};
+    }
+#endif
 };
 
 #endif

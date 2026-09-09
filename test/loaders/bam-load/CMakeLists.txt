@@ -46,6 +46,17 @@ if( NOT WIN32 )
     )
     # In theory, this test could depend on any of the tests that use the `test.sam` file.
     set_tests_properties( Test_BamLoader_fingerprint PROPERTIES DEPENDS "Test_BamLoader_1" )
+    
+    # VDB-6346 uses the test file from VDB-6397
+    add_test( NAME Test_BamLoader_VDB-6346
+            COMMAND
+#                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh test_error_report.sh "${DIRTOTEST}" "VDB-6397"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+
 
     #####################
     # min-batch-size option

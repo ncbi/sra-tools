@@ -33,7 +33,11 @@ if [ "$(uname -s)" = "Linux" ] ; then
     fi
 fi
 
-test -f "CM000682.1" || curl --silent --output "CM000682.1" "$("${DIRTOTEST}/srapath" "CM000682.1")"
+# Because configuration has been neutered, bam-load will not find
+# the reference if it is remote. So, check with srapath and fetch
+# it first if it is a remote path.
+REF="$("${DIRTOTEST}/srapath" "CM000682.1")"
+test -f "${REF}" || curl --silent --output "CM000682.1" "${REF}"
 
 mkdir -p actual
 
@@ -51,4 +55,4 @@ ${DIFF} actual/report.json "expected/${CASE}.json" || \
     { echo "the files actual/report.json and expected/${CASE}.json differ!"; exit 1; }
 
 rm -rf actual
-test -f "CM000682.1" && rm -f "CM000682.1"
+rm -f "CM000682.1"

@@ -1,0 +1,2 @@
+  <container id="1" path="10.fastq.bz2" name="10.fastq.bz2" size="310" filetype="Compressed/Bzip" md5="7524bf89adc2e6a98800e5c0bce84ced" crc32="75d8dbf2">
+    <file id="2" path="10.fastq.bz2/10.fastq" name="10.fastq" size="526" lines="9" filetype="Read/FASTQ" md5="6eb75b64914226a656997e524529085d" defline_name="MUT_SA_TSS20241211-025-03657_D09.ab1" defline_pair="0" />

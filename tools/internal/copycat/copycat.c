@@ -403,7 +403,7 @@ OptDef Options[] =
     { OPTION_FORCE,   ALIAS_FORCE,   NULL, force_usage,   0, false, false },
     { OPTION_DEST,    ALIAS_DEST,    NULL, dest_usage,    1, true,  false },
     { OPTION_XMLBASE, ALIAS_XMLBASE, NULL, xmlbase_usage, 1, true,  false },
-    { OPTION_INBLOCK, ALIAS_OUTBLOCK,NULL, inblock_usage, 1, true,  false },
+    { OPTION_INBLOCK, ALIAS_INBLOCK, NULL, inblock_usage, 1, true,  false },
     { OPTION_OUTBLOCK,ALIAS_OUTBLOCK,NULL, outblock_usage,1, true,  false },
     { OPTION_NOBZIP2, ALIAS_NOBZIP2, NULL, no_bzip2_usage,0, false, false },
     { OPTION_NOMD5,   ALIAS_NOMD5,   NULL, no_md5_usage,  0, false, false }
@@ -1079,12 +1079,16 @@ MAIN_DECL( argc, argv )
             }
 
             rc = ArgsOptionCount ( args, OPTION_NOBZIP2, & pcount );
+            if (rc)
+                break;
             if ( pcount > 0 )
             {
                 no_bzip2 = true;
             }
 
             rc = ArgsOptionCount ( args, OPTION_NOMD5, & pcount );
+            if (rc)
+                break;
             if ( pcount > 0 )
             {
                 no_md5 = true;

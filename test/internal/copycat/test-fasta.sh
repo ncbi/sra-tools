@@ -25,5 +25,22 @@ if [ "$res" != "0" ];
     then echo "${tool_binary} fasta parser failed, res=${res} output=${output}" && exit 1;
 fi
 
+output=$(${bin_dir}/${tool_binary} input/7.fasta /dev/null | sed -rn 's/^(.*) mtime="([[:print:]]{20,20})"(.*)/\1\3/p' > actual/7.out && diff -q input/7.out actual/7.out)
+res=$?
+if [ "$res" != "0" ];
+    then echo "${tool_binary} fasta parser failed, res=${res} output=${output}" && exit 1;
+fi
+
+output=$(${bin_dir}/${tool_binary} input/8 /dev/null | sed -rn 's/^(.*) mtime="([[:print:]]{20,20})"(.*)/\1\3/p' > actual/8.out && diff -q input/8.out actual/8.out)
+res=$?
+if [ "$res" != "0" ];
+    then echo "${tool_binary} fasta parser failed, res=${res} output=${output}" && exit 1;
+fi
+
+output=$(${bin_dir}/${tool_binary} input/9 /dev/null | sed -rn 's/^(.*) mtime="([[:print:]]{20,20})"(.*)/\1\3/p' > actual/9.out && diff -q input/9.out actual/9.out)
+res=$?
+if [ "$res" != "0" ];
+    then echo "${tool_binary} fasta parser failed, res=${res} output=${output}" && exit 1;
+fi
 
 echo "${tool_binary} fasta parser succeeded"

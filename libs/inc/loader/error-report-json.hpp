@@ -148,6 +148,14 @@ public:
             ;
         }
 #endif
+#if TOOLKIT_VERS
+        static std::string currentVersion() {
+            auto const rev = TOOLKIT_VERS & 0xFFFF;
+            auto const mnr = (TOOLKIT_VERS >> 16) & 0xFF;
+            auto const mjr = (TOOLKIT_VERS >> 24) & 0xFF;
+            return std::to_string(mjr) + '.' + std::to_string(mnr) + '.' + std::to_string(rev);
+        }
+#endif
     };
 
     class Submission {

@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include "../../../shared/toolkit.vers.h"
 #include <klib/callconv.h>
 #include <klib/data-buffer.h>
 #include <klib/text.h>
@@ -953,6 +954,8 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
     ctx->m_estimatedBatchSize = G.searchBatchSize;
     ctx->m_key_filter.reset(new fnv_murmur_filter);
     ctx->m_executor.reset(new tf::Executor(G.numThreads));
+    
+    ctx->errorReport.validator = { "bam-load", ErrorReport::Validator::currentVersion() };
     return rc;
 }
 
@@ -1876,7 +1879,7 @@ static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, i
     std::string sam(4096, '\0');
     size_t actsize = sam.capacity();
     while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
-        sam.reserve(sam.capacity() * 2);
+        sam.reserve(actsize *= 2);
     }
     sam.resize(actsize - 1);
     sam.shrink_to_fit();
@@ -1885,7 +1888,7 @@ static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, i
     assert(sep != sam.npos);
     return {
         BAM_AlignmentRecordNumber(record),
-        sam.substr(sep),
+        sam.substr(0, sep),
         sam,
         { (ErrorReport::SRAE_Codes::Value)code }
     };
@@ -2037,6 +2040,10 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
     std::optional<bool> opt_pcr_dup;
     std::optional<bool> opt_is_primary;
     std::optional<bool> opt_is_unmated;
+    
+    float lastRecPPos = 0.0; ///< the largest proportional position encountered.
+    size_t new_spots = 0;
+    string prev_rec;
 
     rptFile = ctx->errorReport.addFile(bamFile, BAM_FileType(bam));
     BAM_FileSetFlagCounter(bam, &flagCounter);
@@ -2049,8 +2056,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
             return 0;
     }
 #endif
-    size_t new_spots = 0;
-    string prev_rec;
 
 #if defined(NEW_QUEUE)
     while (true) {
@@ -2063,7 +2068,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         if (rec == nullptr)
             break;
 
-        auto const recordNumber = BAM_AlignmentRecordNumber(rec);
         bool aligned;
         uint32_t readlen; ///< effective readlen, may be modified by the additon of N padding.
         uint32_t orig_readlen; ///< as originally recorded in the file.
@@ -2123,7 +2127,10 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         opt_frag_len[0].reset();
         opt_frag_len[1].reset();
 #endif
+        
+        lastRecPPos = std::max(lastRecPPos, BAM_AlignmentGetProportionalPosition(rec));
         ++ctx->readCount;
+        
         if (ctx->readCount % 10000000 == 0) {
             float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
             float const delta = new_value - progress;
@@ -3468,6 +3475,7 @@ WRITE_ALIGNMENT:
             else {
                 ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 0));
             }
+            reported = true;
         }
         BAM_AlignmentRelease(rec);
 #if !defined(NEW_QUEUE)
@@ -3542,6 +3550,11 @@ WRITE_ALIGNMENT:
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
 
+    {
+        auto const pos = BAM_FileRawPosition(bam);
+        auto const ppos = rc == 0 ? BAM_FileGetProportionalPosition(bam) : lastRecPPos;
+        ctx->errorReport.finish(rptFile, pos, ppos * 100.0, rc == 0);
+    }
     BAM_FileRelease(bam);
 #ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);

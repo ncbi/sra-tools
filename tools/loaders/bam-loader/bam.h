@@ -573,6 +573,15 @@ char const *BAM_FileType(BAM_File const *self);
  */
 rc_t BAM_FileGetPosition ( const BAM_File *self, BAM_FilePosition *pos );
 
+/* RawPosition
+ *  Get the underlyinge position of the file.
+ *  This position is informational.
+ *  This position can NOT be passed into SetPosition.
+ *
+ * Returns -1 on error.
+ */
+int64_t BAM_FileRawPosition(BAM_File const *);
+
 
 /* GetProportionalPosition
  *  get the aproximate proportional position in the input file

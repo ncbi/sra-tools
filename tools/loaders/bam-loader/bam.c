@@ -1537,6 +1537,10 @@ rc_t BAM_FileGetPosition(const BAM_File *self, BAM_FilePosition *pos) {
     return 0;
 }
 
+int64_t BAM_FileRawPosition(BAM_File const *self) {
+    return self ? self->vt.FileGetPos(&self->file) : -1;
+}
+
 static void BAM_FileAdvance(BAM_File *const self, unsigned distance)
 {
     self->bufCurrent += distance;

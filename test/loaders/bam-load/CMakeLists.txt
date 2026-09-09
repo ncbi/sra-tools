@@ -50,7 +50,7 @@ if( NOT WIN32 )
     # VDB-6346 uses the test file from VDB-6397
     add_test( NAME Test_BamLoader_VDB-6346
             COMMAND
-#                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 sh test_error_report.sh "${DIRTOTEST}" "VDB-6397"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

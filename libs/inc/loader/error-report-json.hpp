@@ -451,7 +451,7 @@ public:
                 for (auto &[code, count] : self.issueCount) {
                     char issueId[32];
                     auto const &c = SRAE_Codes::getCodeFor(code);
-                    auto n = std::snprintf(issueId, sizeof(issueId), "ERR-%04u", ++i + self.issueBase);
+                    std::snprintf(issueId, sizeof(issueId), "ERR-%04u", ++i + self.issueBase);
                     strm << '{'
                         << JSON_Member{"issueId"} << issueId
                         << JSON_Member{"severity"} << "ERROR"

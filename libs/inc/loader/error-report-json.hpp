@@ -536,9 +536,6 @@ public:
     ///   - readLength: the length of the sequence.
     ///   - error: the full description of the issue.
     bool addIssue(int file, unsigned readLength, File::ReadError const &error) {
-        assert(0 <= file && file < files.size());
-        if (file < 0 || file > files.size())
-            throw std::out_of_range{"invalid file number"};
         return files[file].addIssue(readLength, error);
     }
     
@@ -547,9 +544,6 @@ public:
     ///   - file: the file number returned from `addFile`.
     ///   - readLength: the length of the sequence.
     void addRecord(int file, unsigned readLength) {
-        assert(0 <= file && file < files.size());
-        if (file < 0 || file > files.size())
-            throw std::out_of_range{"invalid file number"};
         files[file].addRecord(readLength);
     }
     
@@ -560,9 +554,6 @@ public:
     ///   - validationCoveragePercent: percentage of the file that was processed/checked.
     ///   - completed: is processing complete?
     void finish(int file, unsigned long long fileSizeBytes, double validationCoveragePercent, bool completed) {
-        assert(0 <= file && file < files.size());
-        if (file < 0 || file > files.size())
-            throw std::out_of_range{"invalid file number"};
         files[file].finish(fileSizeBytes, validationCoveragePercent, completed);
     }
 #ifdef JSON_ostream_hpp

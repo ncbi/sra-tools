@@ -63,7 +63,7 @@ public:
         static SRAE_Code const &getCodeFor(Value which) {
             using namespace std::string_literals;
             static SRAE_Code const code[] = {
-                { "N/A"s, "N/A"s, "N/A"s },
+                { "N/A"s, "Internal error"s, "N/A"s },
                 { "SRAE-160"s, "Sequence contains non-alphabetical character"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-160"s },
                 { "SRAE-202"s, "Read has no quality scores"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
                 { "SRAE-210"s, "Quality score length does not match sequence length"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },

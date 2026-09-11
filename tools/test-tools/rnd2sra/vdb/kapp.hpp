@@ -6,7 +6,6 @@
 #include <memory>
 #include <string>
 #include <list>
-#include <algorithm>
 #include <iostream>
 #include <sstream>
 
@@ -238,7 +237,7 @@ class ArgsParser {
             }
             if ( !parsed ) {
                 for ( auto decl : declared ) { decl -> add( f_args ); }
-                rc_t rc = ArgsParse( f_args, argc, argv );
+                rc_t rc = ArgsParse( f_args, argc, (const char **)argv );
                 if ( 0 != rc ) { return false; }
                 parsed = true;
             }
@@ -331,3 +330,49 @@ class ArgsParser {
 };
 
 } // namespace kapp
+
+typedef uint32_t rc_t;
+typedef struct Args Args;
+typedef rc_t ( *Usage_t ) ( const Args * );
+typedef rc_t ( *UsageSummary_t) (const char * prog_name);
+
+namespace VDB {
+#ifndef VDB_EXE_NAME
+    #define VDB_EXE_NAME ""
+#endif
+
+    class Application {
+        public:
+            // filters and/or converts argv, handles standard options;
+            // use getArgC() and getArgV() to access the updated argument list
+            Application( int argc, char* argv[], const char * sra_hash, const char * exe_name = VDB_EXE_NAME ) noexcept;
+#if WINDOWS && UNICODE
+            Application( int argc, wchar_t* argv[], const char * sra_hash, const char * exe_name = VDB_EXE_NAME ) noexcept;
+#endif
+            ~Application();
+
+            rc_t HandleStandardOptions( Usage_t, UsageSummary_t ) noexcept; // handles and removes standard options
+
+            operator bool() const { return m_rc == 0; }
+            rc_t getRc() const { return m_rc; }
+            void setRc( rc_t p_rc ) { m_rc = p_rc; }
+
+            // recommended exit code for main() based on reported rc
+            int getExitCode() const { return ( m_rc == 0 ) ? 0 : 3; }
+
+            int getArgC() const { return (int)m_argc; }
+            char** getArgV() { return m_argv; }
+            const char** getArgV() const { return (const char**)m_argv; }
+
+            void HandleHelp( Usage_t helpFn = nullptr ) const; // calls global Usage if null
+
+        private:
+            bool IsStandardOption( unsigned int index, bool & skipNext ) const;
+
+            unsigned int m_argc;
+            char** m_argv;
+            bool m_argvOwned; // true if args have been rewritten
+            rc_t m_rc = 0;
+        };
+
+} // namespace VDB

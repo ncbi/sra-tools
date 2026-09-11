@@ -1,6 +1,8 @@
 #include "main_params.hpp"
+#include "platform.hpp"
 #include "rnd2sra_main.hpp"
 #include <cstdlib>
+#include "../vdb/kapp.hpp"
 
 namespace sra_convert {
 
@@ -35,16 +37,29 @@ bool run_tool( MainParamsPtr params ) {
 
 } // end of namespace sra_convert
 
+rc_t rnd2sra_usage( const Args * args ) {
+    sra_convert::TheHelp::print_help( cout );
+    return 0;
+}
+
+rc_t rnd2sra_usage_summary( const char * prog_name ) {
+    sra_convert::TheHelp::print_usage( cout );
+    return 0;
+}
+
 int main( int argc, char* argv[] ) {
 
-    sra_convert::MainParamsPtr params = sra_convert::MainParams::make( argc, ( const char ** )argv, 0 );
-    if ( params -> print_help() ) {
-        /* --help | -h */
-        params -> print_help( cout );
-        return EXIT_SUCCESS;
-    } else if ( params -> print_version() ) {
-        /* --version | -V */
-        params -> print_version( cout );
+    auto app = VDB::Application( argc, argv, "-" );
+
+    rc_t rc = app . HandleStandardOptions( rnd2sra_usage, rnd2sra_usage_summary );
+    if ( 0 != rc ) { return 3; }
+
+    int app_argc = app . getArgC();
+    const char** app_argv = ( const char ** ) app . getArgV();
+
+    sra_convert::MainParamsPtr params = sra_convert::MainParams::make( app_argc, app_argv, 0 );
+    if ( app_argc == 1 ) {
+        sra_convert::TheHelp::print_usage( cout );
         return EXIT_SUCCESS;
     } else if ( params -> print_platforms() ) {
         /* -platforms | -p | print all platforms, that can be used in the INI-file(s) */

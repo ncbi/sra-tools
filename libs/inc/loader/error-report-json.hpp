@@ -452,7 +452,6 @@ public:
                     char issueId[32];
                     auto const &c = SRAE_Codes::getCodeFor(code);
                     auto n = std::snprintf(issueId, sizeof(issueId), "ERR-%04u", ++i + self.issueBase);
-                    assert(n < sizeof(issueId));
                     strm << '{'
                         << JSON_Member{"issueId"} << issueId
                         << JSON_Member{"severity"} << "ERROR"

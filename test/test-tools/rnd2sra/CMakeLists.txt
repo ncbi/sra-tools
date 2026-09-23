@@ -29,7 +29,7 @@ if( NOT WIN32 )
     ToolsRequired( rnd2sra fasterq-dump vdb-dump )
 
     add_test( NAME test-vdb-6378
-            COMMAND test-vdb-6378.sh "${BINDIR}"
+            COMMAND sh test-vdb-6378.sh "${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 endif()

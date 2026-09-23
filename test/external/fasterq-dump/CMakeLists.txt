@@ -35,6 +35,7 @@ if ( NOT WIN32 )
 
     add_test( NAME Test_FasterqDump_Simple # test fetching via HTTPS
         COMMAND
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
             sh simple_test.sh ${DIRTOTEST}/fasterq-dump
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     if( TARGET fasterq-dump-asan )
@@ -102,6 +103,10 @@ if ( NOT WIN32 )
         # test if fasterq-dump can handle missing seq-tbl-metadata / VDB-5670
         add_test( NAME Test_FasterqDump_NoSeqTblMeta
             COMMAND sh -c "./no_seq_tbl_meta.sh ${BINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_FasterqDump_With_Compression
+            COMMAND sh -c "./test_fq_with_compression.sh ${BINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     endif()

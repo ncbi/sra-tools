@@ -26,6 +26,3 @@ GenerateExecutableWithDefs( dump-ref-fasta DumpReferenceFASTA.cpp "" "${CMAKE_SO
 
 MakeLinksExe ( dump-ref-fasta false )
 
-if ( NOT TOOLS_ONLY )
-    add_subdirectory ( test )
-endif()

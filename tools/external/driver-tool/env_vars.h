@@ -47,6 +47,9 @@
 /* Remote location of .sra file */
 #define ENV_VAR_REMOTE_URL ENV_MAGIC_REMOTE
 
+/* Information needed to AWS make authorization  */
+#define ENV_VAR_REMOTE_CLOUD_INFO ENV_MAGIC_REMOTE_CLOUD_INFO
+
 /* Local path of .sra file */
 #define ENV_VAR_LOCAL_URL ENV_MAGIC_LOCAL
 

@@ -25,6 +25,7 @@
 */
 
 #include "helper.h"
+#include "kfc/rc.h"
 #ifndef _h_err_msg_
 #include "err_msg.h"
 #endif
@@ -35,10 +36,6 @@
 
 #ifndef _h_tool_ctx_
 #include "tool_ctx.h"
-#endif
-
-#ifndef _h_inspector_
-#include "inspector.h"
 #endif
 
 #ifndef _h_file_tools_
@@ -164,7 +161,7 @@ static const char * base_flt_usage[] = { "filter by bases", NULL };
 static const char * table_usage[] = { "which seq-table to use in case of pacbio", NULL };
 #define OPTION_TABLE    "table"
 
-static const char * append_usage[] = { "append to output-file", NULL };
+static const char * append_usage[] = { "append to existing output-file", NULL };
 #define OPTION_APPEND           "append"
 #define ALIAS_APPEND            "A"
 
@@ -232,6 +229,20 @@ static const char * disk_limit_out_usage[] = { "explicitly set disk-limit", NULL
 static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for temp. files", NULL };
 #define OPTION_DISK_LIMIT_TMP   "disk-limit-tmp"
 
+static const char * gzip_usage[] = { "compress output-files with gzip", NULL };
+#define OPTION_GZIP  "gzip"
+
+static const char * bzip_usage[] = { "compress output-files with bzip2", NULL };
+#define OPTION_BZIP  "bzip2"
+
+/*
+static const char * szip_usage[] = { "compress output-files with szip", NULL };
+#define OPTION_SZIP  "szip"
+
+static const char * zstd_usage[] = { "compress output-files with zstd", NULL };
+#define OPTION_ZSTD  "zstd"
+*/
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
@@ -283,6 +294,11 @@ OptDef ToolOptions[] = {
     { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
+    { OPTION_GZIP,          NULL,               NULL, gzip_usage,           1, false,  false },
+    { OPTION_BZIP,          NULL,               NULL, bzip_usage,           1, false,  false },
+/*    { OPTION_SZIP,          NULL,               NULL, szip_usage,           1, false,  false }, */
+/*    { OPTION_ZSTD,          NULL,               NULL, zstd_usage,           1, false,  false }, */
+/* ---------- these 3 options are not displayed in the help usage -----------------------------*/
     { OPTION_KEEP,          NULL,               NULL, keep_usage,           1, false,  false },
     { OPTION_STEP,          NULL,               NULL, step_usage,           1, true,   false },
     { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false }
@@ -362,7 +378,9 @@ static const char * dflt_requested_seq_tabl_name = "SEQUENCE";
 #define DFLT_NUM_THREADS 6
 static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
-    bool fasta_ref_tbl, fasta_concat, ref_report;
+    bool fasta_ref_tbl, fasta_concat, ref_report, bzip, gzip;
+    bool szip = false;
+    bool zstd = false;
 
     rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
     if ( 0 != rc ) {
@@ -412,6 +430,18 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> keep_tmp_files = ahlp_get_bool_option( args, OPTION_KEEP );
     tool_ctx -> stop_after_step = ahlp_get_uint32_t_option( args, OPTION_STEP, 0 );
 
+    gzip = ahlp_get_bool_option( args, OPTION_GZIP );
+    bzip = ahlp_get_bool_option( args, OPTION_BZIP );
+    /* szip = ahlp_get_bool_option( args, OPTION_SZIP ); */
+    /* zstd = ahlp_get_bool_option( args, OPTION_ZSTD ); */
+
+    if ( 0 == rc && compress_modes_combined( gzip, bzip, szip, zstd ) ) {
+        rc = RC( rcExe, rcFile, rcPacking, rcValidating, rcInvalid );
+        ErrMsg( "gzip/bzip/szip cannot be used in compbination" );
+    }
+
+    tool_ctx -> compress_mode = encode_compress_mode( gzip, bzip, szip, zstd );
+
     if ( 0 == rc && NULL != tool_ctx -> ref_name_filter ) {
         rc = ahlp_get_list_option( args, OPTION_REF_NAME, tool_ctx -> ref_name_filter );
         if ( 0 != rc ) {
@@ -459,6 +489,11 @@ static rc_t main_get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> requested_seq_tbl_name = ahlp_get_str_option( args, OPTION_TABLE, NULL );
     tool_ctx -> append = ahlp_get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = ahlp_get_bool_option( args, OPTION_STDOUT );
+
+    if ( 0 == rc && ( gzip || bzip || szip || zstd ) && tool_ctx -> append ) {
+        rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
+        ErrMsg( "append cannot be combined with gzip or bzip" );
+    }
 
     tool_ctx -> seq_defline = ahlp_get_str_option( args, OPTION_SEQ_DEFLINE, NULL );
     tool_ctx -> qual_defline = ahlp_get_str_option( args, OPTION_QUAL_DEFLINE, NULL );
@@ -669,7 +704,8 @@ static rc_t main_produce_final_db_output( const tool_ctx_t * tool_ctx ) {
                               tool_ctx -> buf_size,
                               tool_ctx -> show_progress,
                               tool_ctx -> force,
-                              tool_ctx -> append ); /* temp_registry.c */
+                              tool_ctx -> append,
+                              tool_ctx -> compress_mode ); /* temp_registry.c */
         }
     }
 
@@ -728,14 +764,14 @@ static rc_t main_process_csra( const tool_ctx_t * tool_ctx ) {
     rc_t rc;
 
     switch ( tool_ctx -> fmt ) { /* fmt defined in helper.h */
-        case ft_fasta_us_split_spot : rc = main_process_csra_fasta_unsorted( tool_ctx ); break;
-        case ft_fasta_concat : rc = main_process_csra_fasta_concat( tool_ctx ); break;
+        case ft_fasta_us_split_spot : rc = main_process_csra_fasta_unsorted( tool_ctx ); break; /* above */
+        case ft_fasta_concat : rc = main_process_csra_fasta_concat( tool_ctx ); break; /* above */
         case ft_fasta_ref_tbl : rc = ref_inventory_print( tool_ctx ); break;
         case ft_ref_report : rc = ref_inventory_print_report( tool_ctx ); break;
         default : {
-            rc = main_produce_lookup_files( tool_ctx );
+            rc = main_produce_lookup_files( tool_ctx ); /* above */
             if ( 0 == rc && 0 == tool_ctx -> stop_after_step ) {
-                rc = main_produce_final_db_output( tool_ctx );
+                rc = main_produce_final_db_output( tool_ctx ); /* above */
             }
         }
     }
@@ -795,7 +831,8 @@ static rc_t main_process_table_in_seq_order( const tool_ctx_t * tool_ctx, const 
                             tool_ctx -> buf_size,
                             tool_ctx -> show_progress,
                             tool_ctx -> force,
-                            tool_ctx -> append ); /* temp_registry.c */
+                            tool_ctx -> append,
+                            tool_ctx -> compress_mode ); /* temp_registry.c */
         }
     }
 
@@ -953,26 +990,26 @@ MAIN_DECL( argc, argv )
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */
-                        case acc_csra       : rc = main_process_csra( &tool_ctx );
+                        case acc_csra       : rc = main_process_csra( &tool_ctx );  /* above */
                                               break;
 
                         /* a native PACBIO-database */
                         case acc_pacbio_native : rc = main_process_native_pacbio( &tool_ctx,
-                                                        tool_ctx . insp_output . seq . tbl_name );
+                                                        tool_ctx . insp_output . seq . tbl_name ); /* above */
                                                 break;
 
                         /* a PACBIO-database in bam-format */
                         case acc_pacbio_bam : rc = main_process_table( &tool_ctx,
-                                                        tool_ctx . insp_output . seq . tbl_name );
+                                                        tool_ctx . insp_output . seq . tbl_name ); /* above */
                                                 break;
 
                         /* a flat SRA-table */
-                        case acc_sra_flat   : rc = main_process_table( &tool_ctx, NULL );
+                        case acc_sra_flat   : rc = main_process_table( &tool_ctx, NULL ); /* above */
                                               break;
 
                         /* a SRA-database, containing only unaligned data */
                         case acc_sra_db     : rc = main_process_table( &tool_ctx,
-                                                        tool_ctx . insp_output . seq . tbl_name );
+                                                        tool_ctx . insp_output . seq . tbl_name ); /* above */
                                               break;
 
                         default             : ErrMsg( "invalid accession '%s'", tool_ctx . accession_path );

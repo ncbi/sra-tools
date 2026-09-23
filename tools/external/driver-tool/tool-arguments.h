@@ -98,6 +98,8 @@ TOOL_ARGS_BEGIN(FASTERQ_DUMP, "fasterq-dump")
     TOOL_ARG("disk-limit-tmp", "", true),
     TOOL_ARG("size-check", "", true),
     TOOL_ARG("ngc", "", true),
+    TOOL_ARG("gzip", "", false),
+    TOOL_ARG("bzip2", "", false),
     TOOL_ARG("keep", "", false),
     TOOL_ARG("step", "", true),
     TOOL_ARG("row-limit", "l", true),

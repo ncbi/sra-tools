@@ -52,11 +52,10 @@
 #include <ctype.h>
 #include <math.h>
 #include <assert.h>
-#if 1
+
 /*_DEBUGGING*/
 #include <stdio.h>
 #include <os-native.h>
-#endif
 
 #include <endian.h>
 #include <byteswap.h>
@@ -345,8 +344,6 @@ static rc_t BGZFileInit(BGZFile *const self, RawFile_vt *const vt)
         (void (*)(void *))BGZFileWhack
     };
 
-    *vt = my_vt;
-
     i = inflateInit2(&self->zs, MAX_WBITS + 16); /* max + enable gzip headers */
     switch (i) {
     case Z_OK:
@@ -356,6 +353,8 @@ static rc_t BGZFileInit(BGZFile *const self, RawFile_vt *const vt)
     default:
         return RC(rcAlign, rcFile, rcConstructing, rcNoObj, rcUnexpected);
     }
+
+    *vt = my_vt;
 
     return 0;
 }
@@ -1510,6 +1509,22 @@ rc_t BAM_FileRelease(const BAM_File *cself) {
     return 0;
 }
 
+void BAM_FileSetFlagCounter(const BAM_File *cself, void *flagCounter) {
+    BAM_File *self = (BAM_File *)cself;
+
+    if (cself != NULL) {
+        self->flagCounter = flagCounter;
+    }
+}
+
+/** Get the content type.
+ * - Parameter self the file object.
+ * - Returns a string describing the content type: "SAM" or "BAM".
+ */
+char const *BAM_FileType(BAM_File const *const self) {
+    return self->isSAM ? "SAM" : "BAM";
+}
+
 /* MARK: BAM File positioning */
 
 float BAM_FileGetProportionalPosition(const BAM_File *self)
@@ -1520,6 +1535,10 @@ float BAM_FileGetProportionalPosition(const BAM_File *self)
 rc_t BAM_FileGetPosition(const BAM_File *self, BAM_FilePosition *pos) {
     *pos = (self->fpos_cur << 16) | self->bufCurrent;
     return 0;
+}
+
+int64_t BAM_FileRawPosition(BAM_File const *self) {
+    return self ? self->vt.FileGetPos(&self->file) : -1;
 }
 
 static void BAM_FileAdvance(BAM_File *const self, unsigned distance)
@@ -2068,6 +2087,11 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
             (**rhs).fpos = fpos;
         if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
             self->eof = true;
+        if (rc == 0) {
+            ++self->recordId;
+            if (*rhs)
+                (**rhs).recordId = self->recordId;
+        }
         return rc;
     }
 
@@ -2076,6 +2100,9 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
         (**rhs).fpos = fpos;
     if (rc == 0) {
         *rhs = self->nocopy;
+        ++self->recordId;
+        if (*rhs)
+            (**rhs).recordId = self->recordId;
         if (BAM_AlignmentIsEmpty(self->nocopy)) {
             rc = RC(rcAlign, rcFile, rcReading, rcRow, rcEmpty);
             LOGERR(klogWarn, rc, "BAM Record contains no alignment or sequence data");
@@ -2090,6 +2117,9 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
         rc = BAM_FileReadCopy(self, rhs, true);
         if (*rhs)
             (**rhs).fpos = fpos;
+        ++self->recordId;
+        if (*rhs)
+            (**rhs).recordId = self->recordId;
     }
     else if ((int)GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
         BAM_AlignmentLogParseError(self->nocopy);
@@ -2097,36 +2127,42 @@ static rc_t read2(BAM_File *const self, BAM_Alignment **const rhs)
     return rc;
 }
 
+struct DeferRecordHeader {
+    uint64_t recordId;
+    uint32_t datasize;
+};
+
 static rc_t readDefer(BAM_File *const self, BAM_Alignment **const rslt)
 {
-    uint32_t datasize = 0;
+    struct DeferRecordHeader hdr = {0,0};
     size_t nread = 0;
     rc_t rc = 0;
     void *buffer = self->buffer;
     void *storage = NULL;
     int numExtra;
-
-    rc = KFileReadAll(self->defer, self->deferPos, &datasize, 4, &nread);
+    
+    rc = KFileReadAll(self->defer, self->deferPos, &hdr, sizeof(hdr), &nread);
     if (rc) return rc;
     if (nread == 0) {
         KFileRelease(self->defer);
         self->defer = NULL;
         return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
     }
-    assert(nread == 4);
-    if (datasize > 64u * 1024u) {
-        storage = buffer = malloc(datasize);
+    assert(nread == sizeof(hdr));
+    if (hdr.datasize > 64u * 1024u) {
+        storage = buffer = malloc(hdr.datasize);
         if (buffer == NULL)
             return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
     }
-    rc = KFileReadAll(self->defer, self->deferPos + 4, buffer, datasize, &nread);
+    rc = KFileReadAll(self->defer, self->deferPos + sizeof(hdr), buffer, hdr.datasize, &nread);
     if (rc) return rc;
-    assert(nread == datasize);
-    self->deferPos += 4 + datasize;
+    assert(nread == hdr.datasize);
+    self->deferPos += sizeof(hdr) + hdr.datasize;
 
-    numExtra = BAM_AlignmentNumExtraFromData(datasize, buffer);
+    numExtra = BAM_AlignmentNumExtraFromData(hdr.datasize, buffer);
     assert(numExtra >= 0);
-    *rslt = BAM_FileMakeAlignment(self, datasize, buffer, numExtra, &rc);
+    *rslt = BAM_FileMakeAlignment(self, hdr.datasize, buffer, numExtra, &rc);
+    (*rslt)->recordId = hdr.recordId;
     if ((**rslt).storage == storage)
         storage = NULL; /* ownership was transfered */
     if (storage) free(storage);
@@ -2153,12 +2189,13 @@ static rc_t writeExactly(KFile *const f, uint64_t const pos, void const *const d
 static rc_t writeDefer(BAM_File *const self, BAM_Alignment const *const algn)
 {
     rc_t rc = 0;
+    struct DeferRecordHeader hdr = {algn->recordId, algn->datasize};
 
-    rc = writeExactly(self->defer, self->deferPos, &algn->datasize, 4);
+    rc = writeExactly(self->defer, self->deferPos, &hdr, sizeof(hdr));
     if (rc) return rc;
-    rc = writeExactly(self->defer, self->deferPos + 4, algn->data, algn->datasize);
+    rc = writeExactly(self->defer, self->deferPos + sizeof(hdr), algn->data, algn->datasize);
     if (rc) return rc;
-    self->deferPos += 4 + algn->datasize;
+    self->deferPos += sizeof(hdr) + algn->datasize;
     return 0;
 }
 
@@ -2185,6 +2222,10 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
             }
             return rc;
         }
+
+        if (self->flagCounter)
+            FLAG_Counter_add(self->flagCounter, getFlags(*rhs));
+
         if (self->defer && BAM_AlignmentShouldDefer(*rhs)) {
             rc_t const rc = writeDefer(self, *rhs);
             BAM_AlignmentRelease(*rhs);
@@ -3070,6 +3111,13 @@ static rc_t FormatSAMBuffer(BAM_Alignment const *self,
     return 0;
 }
 
+/** Get the record as SAM.
+ * - Parameter self the alignment record.
+ * - Parameter actsize pointer to recieve the actual size of the result.
+ * - Parameter maxsize the maximum number of bytes that can be placed into the result.
+ * - Parameter actsize pointer to recieve the result.
+ * - Returns 0 on success.
+ */
 rc_t BAM_AlignmentFormatSAM(BAM_Alignment const *self,
                                          size_t *const actSize,
                                          size_t const maxsize,
@@ -3622,4 +3670,12 @@ rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
 
 float BAM_AlignmentGetProportionalPosition(BAM_Alignment const *self) {
     return self ? self->fpos : -1.0;
+}
+
+/** Get the record number in the file. This is the original record number even if the order was changed, e.g. it was a deferred secondary alignment.
+ * - Parameter self the record object.
+ * - Returns the record number.
+ */
+uint64_t BAM_AlignmentRecordNumber(BAM_Alignment const *self) {
+    return self ? self->recordId : 0;
 }

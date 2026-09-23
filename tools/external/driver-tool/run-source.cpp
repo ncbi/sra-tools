@@ -197,8 +197,10 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
                 environment[names[env_var::CACHE_NEED_PMT]] = "1";
         }
 
-        if (service != info.end() && region != info.end())
+        if (service != info.end() && region != info.end()) {
             this->service = service->second + "." + region->second;
+            environment[names[env_var::REMOTE_FOR_CLOUD]] = this->service;
+        }
         else
             this->service = "the file system";
 

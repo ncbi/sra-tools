@@ -318,7 +318,10 @@ const char UsageDefaultName[] = "sam-dump";
 
 
 rc_t CC UsageSummary( char const *progname ) {
-    return KOutMsg( "Usage:\n"
+    return KOutMsg(
+        "Summary: Outputs an SRA run in SAM format.\n"
+        "\n"
+        "Usage:\n"
         "\t%s [options] path-to-run[ path-to-run ...]\n\n", progname );
 }
 

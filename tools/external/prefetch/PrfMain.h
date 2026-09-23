@@ -178,7 +178,7 @@ bool _StringIsXYZ(const struct String *self, const char **withoutScheme,
 bool _StringIsFasp(const struct String *self, const char **withoutScheme);
 
 rc_t _KFileOpenRemote(const struct KFile **self, struct KNSManager *kns,
-    const struct VPath *vpath, const struct String *path, bool reliable);
+    const struct VPath* vpath, const struct String* path);
 
 rc_t _VDBManagerSetDbGapCtx(
     const struct VDBManager *self, struct VResolver *resolver);

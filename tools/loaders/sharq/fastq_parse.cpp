@@ -913,7 +913,7 @@ void CFastqParseApp::xSetPlatformCode(const string& platform)
 //  ----------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     ios_base::sync_with_stdio(false);   // turn off synchronization with standard C streams
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator

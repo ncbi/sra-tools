@@ -137,6 +137,7 @@ struct BAM_Alignment {
     bam_alignment const *data;
     uint8_t *storage;
 
+    uint64_t recordId;
 	uint64_t keyId;
 	bool wasInserted;
 

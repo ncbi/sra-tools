@@ -36,6 +36,7 @@
 
 #include <ostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <cctype>
 #include <string_view>
@@ -185,6 +186,8 @@ class JSON_ostream {
     JSON_ostream &insert(bool v) {
         if (comma)
             listItem();
+        if (!ws && !compact)
+            insert_raw(' ');
         insert_raw(v ? "true" : "false");
         return *this;
     }

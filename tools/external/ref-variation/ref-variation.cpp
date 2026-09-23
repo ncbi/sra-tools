@@ -2021,11 +2021,10 @@ extern "C"
 
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app(argc, argv);
+        VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
         SetUsage( Usage );
         SetUsageSummary( UsageSummary );
-        SetSraToolsHash( HASH_SRA_TOOLS );
 
         /* command line examples:
           -r NC_011752.1 -p 2018 --query CA -l 0

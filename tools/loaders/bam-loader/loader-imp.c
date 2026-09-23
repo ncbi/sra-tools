@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include "../../../shared/toolkit.vers.h"
 #include <klib/callconv.h>
 #include <klib/data-buffer.h>
 #include <klib/text.h>
@@ -38,6 +39,7 @@ extern "C" {
 #include <klib/rc.h>
 #include <klib/sort.h>
 #include <klib/printf.h>
+#include <klib/time.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -114,6 +116,8 @@ extern "C" {
 #include "hashing.hpp"
 #include <set>
 #include <mutex>
+#include <flag-stat.hpp>
+#include <loader/error-report-json.hpp>
 
 #ifdef __linux__
 #include <sys/resource.h>
@@ -293,6 +297,8 @@ struct context_t {
     shared_ptr<spot_name_filter> m_key_filter;   ///< Bloom filter (all spot names in scope)
     vector<u40_t> m_spot_id_buffer;              ///< Temporary buffer for spot name extraction
 
+    ErrorReport errorReport;
+    
     // reset everything but spotId and spot assembly related fields
     void reset_for_remap() {
         for (const auto& p : progress) {
@@ -937,6 +943,9 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
         ctx->reset_for_remap();
     }
 
+    if (rc != 0)
+        return rc;
+
     rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
     rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
     rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
@@ -946,6 +955,8 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
     ctx->m_estimatedBatchSize = G.searchBatchSize;
     ctx->m_key_filter.reset(new fnv_murmur_filter);
     ctx->m_executor.reset(new tf::Executor(G.numThreads));
+    
+    ctx->errorReport.validator = { "bam-load", ErrorReport::Validator::currentVersion() };
     return rc;
 }
 
@@ -1829,13 +1840,80 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
-static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
+static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, rc_t &rc)
+{
+    KMetadata *meta = nullptr;
+    rc = VDatabaseOpenMetadataUpdate(db, &meta);
+    if (rc) return nullptr;
+    
+    KMDataNode *node = nullptr;
+    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i", fileNumber);
+    KMetadataRelease(meta);
+    
+    return rc ? nullptr : node;
+}
+
+static rc_t KMDataNodeWriteAttr(KMDataNode *node, char const name[], std::string const &value)
+{
+    return KMDataNodeWriteAttr(node, name, value.c_str());
+}
+
+static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
+{
+    rc_t rc = 0;
+    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
+    auto const fp = FlagStatText{flagCounter};
+    
+    do {
+        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) break;
+    } while(0);
+    KMDataNodeRelease(node);
+    return rc;
+}
+
+static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, int code)
+{
+    std::string sam(4096, '\0');
+    size_t actsize = sam.capacity();
+    while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
+        sam.reserve(actsize *= 2);
+    }
+    sam.resize(actsize - 1);
+    sam.shrink_to_fit();
+    
+    auto const sep = sam.find('\t');
+    assert(sep != sam.npos);
+    return {
+        BAM_AlignmentRecordNumber(record),
+        sam.substr(0, sep),
+        sam,
+        { (ErrorReport::SRAE_Codes::Value)code }
+    };
+}
+
+/** Check for missing quality scores. In BAM, if quality score is all `0xFF`, it is the same as SAM `*`
+ */
+static bool missingQuality(unsigned const readlen, uint8_t const qual[/* readlen */])
+{
+    unsigned i;
+    for (i = 0; i < readlen; ++i) {
+        if (qual[i] != 0xFF)
+            return false;
+    }
+    return true;
+}
+
+static rc_t ProcessBAM(int fileNumber, char const bamFile[],
+                       context_t *ctx, VDatabase *db,
                         /* data outputs */
                        Reference *ref, Sequence *seq, Alignment *align,
                        /* output parameters */
                        bool *had_alignments, bool *had_sequences)
 {
-
     const BAM_File *bam;
     const BAM_Alignment *rec;
 #if defined(NEW_QUEUE)
@@ -1851,7 +1929,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     int32_t lastRefSeqId = -1;
     bool wasRenamed = false;
     size_t rsize;
-    uint64_t keyId = 0;
     uint64_t reccount = 0;
     char spotGroup[512];
     size_t namelen;
@@ -1873,6 +1950,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer qualBuffer;
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
+    FLAG_Counter flagCounter;
+    int rptFile = -1;
 
     /* setting up buffers */
     memset(&data, 0, sizeof(data));
@@ -1952,7 +2031,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     rc = KDataBufferMake(&qualBuffer, 8, 4096);
     if (rc)
         return rc;
-
+    
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
@@ -1962,17 +2041,22 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     std::optional<bool> opt_pcr_dup;
     std::optional<bool> opt_is_primary;
     std::optional<bool> opt_is_unmated;
+    
+    float lastRecPPos = 0.0; ///< the largest proportional position encountered.
+    size_t new_spots = 0;
+    string prev_rec;
 
+    rptFile = ctx->errorReport.addFile(bamFile, BAM_FileType(bam));
+    BAM_FileSetFlagCounter(bam, &flagCounter);
 #ifdef NEW_QUEUE
     //while (rw_queue.pop()); // clear queue
     rw_done = false;
-    auto _rc = KThreadMake(&bamread_thread, run_bamread_thread, (void *)bam);
-    if (_rc) {
-        return 0;
+    {
+        auto const _rc = KThreadMake(&bamread_thread, run_bamread_thread, (void *)bam);
+        if (_rc)
+            return 0;
     }
 #endif
-    size_t new_spots = 0;
-    string prev_rec;
 
 #if defined(NEW_QUEUE)
     while (true) {
@@ -1986,14 +2070,16 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             break;
 
         bool aligned;
-        uint32_t readlen;
+        uint32_t readlen; ///< effective readlen, may be modified by the additon of N padding.
+        uint32_t orig_readlen; ///< as originally recorded in the file.
+        bool no_quality = false;
+        bool reported = false;
         uint16_t flags;
         int64_t rpos=0;
         char *seqDNA;
 #ifdef HAS_CTX_VALUE
         ctx_value_t *value;
 #endif
-        bool wasInserted;
         int32_t refSeqId=-1;
         uint8_t *qual;
         bool mated;
@@ -2013,9 +2099,9 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool wasPromoted = false;
         char const *barCode = NULL;
         char const *linkageGroup;
-
-        keyId = rec->keyId;
-        wasInserted = rec->wasInserted;
+        uint64_t const keyId = rec->keyId;
+        bool const wasInserted = rec->wasInserted;
+        
         if (wasInserted)
             ++new_spots;
 #ifndef NO_METADATA
@@ -2042,16 +2128,16 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         opt_frag_len[0].reset();
         opt_frag_len[1].reset();
 #endif
+        
+        lastRecPPos = std::max(lastRecPPos, BAM_AlignmentGetProportionalPosition(rec));
         ++ctx->readCount;
+        
         if (ctx->readCount % 10000000 == 0) {
-
-            {
-                float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
-                float const delta = new_value - progress;
-                if (delta > 1.0) {
-                    KLoadProgressbar_Process(ctx->progress[0], delta, false);
-                    progress = new_value;
-                }
+            float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
+            float const delta = new_value - progress;
+            if (delta > 1.0) {
+                KLoadProgressbar_Process(ctx->progress[0], delta, false);
+                progress = new_value;
             }
             spdlog::info("Keys {:L}, time: {:.3} sec, memory: {:L}", recordsRead, sw, getCurrentRSS());
             sw.reset();
@@ -2199,6 +2285,7 @@ MIXED_BASE_AND_COLOR:
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
 
+        BAM_AlignmentGetReadLength(rec, &orig_readlen);
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             // FATAL ERROR, DATA ERROR, NOT FIXABLE
@@ -2245,7 +2332,7 @@ MIXED_BASE_AND_COLOR:
             uint32_t const *tmp;
 
             /* resize buffers */
-            BAM_AlignmentGetReadLength(rec, &readlen);
+            readlen = orig_readlen;
             BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount);
             assert(rc == 0);
@@ -2357,6 +2444,7 @@ MIXED_BASE_AND_COLOR:
                 uint8_t const *squal;
 
                 BAM_AlignmentGetQuality(rec, &squal);
+                no_quality = missingQuality(readlen, squal);
                 memmove(qual + lpad, squal, readlen);
             }
             else {
@@ -2375,12 +2463,22 @@ MIXED_BASE_AND_COLOR:
                         qual[i + lpad] = squal[i] - qoffset;
                     QUAL_CHANGED_OQ;
                 }
-                else
+                else {
+                    no_quality = missingQuality(readlen, squal);
                     memmove(qual + lpad, squal, readlen);
+                }
             }
             readlen = readlen + lpad + rpad;
             data.data.align_group.elements = 0;
             data.data.align_group.buffer = alignGroup;
+        }
+        if (no_quality && !reported) {
+            // DATA ERROR, INSDC Minimum Standards violation, missing quality scores
+            if (ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 202))) {
+                // Log it the first time.
+                (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-202: Data error: Spot '$(name)': Missing quality scores", "name=%s", name));
+            }
+            reported = true;
         }
         if (G.hasTI) {
             rc = BAM_AlignmentGetTI(rec, &ti);
@@ -3371,6 +3469,15 @@ WRITE_ALIGNMENT:
         /**************************************************************/
 
     LOOP_END:
+        if (!reported) {
+            if (rc == 0) {
+                ctx->errorReport.addRecord(rptFile, orig_readlen);
+            }
+            else {
+                ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 0));
+            }
+            reported = true;
+        }
         BAM_AlignmentRelease(rec);
 #if !defined(NEW_QUEUE)
         delete queue_rec;
@@ -3444,6 +3551,11 @@ WRITE_ALIGNMENT:
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
 
+    {
+        auto const pos = BAM_FileRawPosition(bam);
+        auto const ppos = rc == 0 ? BAM_FileGetProportionalPosition(bam) : lastRecPPos;
+        ctx->errorReport.finish(rptFile, pos, ppos * 100.0, rc == 0);
+    }
     BAM_FileRelease(bam);
 #ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);
@@ -3454,6 +3566,13 @@ WRITE_ALIGNMENT:
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&cigBuf);
     KDataBufferWhack(&data.buffer);
+        
+    if (rc == 0) {
+        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
+        }
+    }
     return rc;
 }
 
@@ -4259,6 +4378,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     bool has_sequences = false;
     unsigned i;
+    int fileNumber = 0;
 
     *has_alignments = false;
     rc = ReferenceInit(&ref, mgr, db);
@@ -4267,7 +4387,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     if (G.onlyVerifyReferences) {
         for (i = 0; i < bamFiles && rc == 0; ++i) {
-            rc = ProcessBAM(bamFile[i], NULL, db, &ref, NULL, NULL, NULL, NULL);
+            rc = ProcessBAM(++fileNumber, bamFile[i], NULL, db, &ref, NULL, NULL, NULL, NULL);
         }
         ReferenceWhack(&ref, false);
         return rc;
@@ -4300,7 +4420,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(bamFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(++fileNumber, bamFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
@@ -4308,7 +4428,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(seqFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(++fileNumber, seqFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
@@ -4402,6 +4522,11 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     spdlog::info("ArchiveBAM, memory: {:L}", getCurrentRSS());
 
+    if (G.errorReportPath) {
+        auto ofs = std::ofstream(G.errorReportPath, std::ios::trunc);
+        ctx->errorReport.generatedAt = ctx->errorReport.currentTimestamp();
+        ctx->errorReport.printJSON(ofs);
+    }
     return rc;
 }
 

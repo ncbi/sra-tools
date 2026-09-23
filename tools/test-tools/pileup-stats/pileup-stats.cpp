@@ -37,6 +37,7 @@
 #include <klib/printf.h>
 #include <klib/sra-release-version.h>
 #include <iomanip>
+#include <vector>
 
 #define DFLT_BUFFER_SIZE ( 32 * 1024 )
 
@@ -49,6 +50,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+using namespace std;
 using namespace ngs;
 
 namespace ncbi
@@ -477,19 +479,23 @@ extern "C"
         return getArg ( i, argc, argv );
     }
 
-    static void handle_help ( const char *appName )
+    rc_t
+    UsageSummary(const char* progname)
     {
-        const char *appLeaf = strrchr ( appName, '/' );
-        if ( appLeaf ++ == 0 )
-            appLeaf = appName;
+        std :: cout
+            << "Usage:" << endl
+            << "  " << progname << " [options] <accession>" << endl
+            << endl;
+        return 0;
+    }
 
-        ver_t vers = KAppVersion ();
+    rc_t handle_help( const Args * args )
+    {
+        UNUSED( args );
+        UsageSummary ( UsageDefaultName );
 
         std :: cout
-            << "Usage:\n"
-            << "  " << appLeaf << " [options] <accession>"
-            << "\n\n"
-            << "Options:\n"
+            << "Options:" << endl
             << "  -o|--output-file                 file for output\n"
             << "                                   (default pipe to stdout)\n"
             << "  -r|--remote-db                   name of remote database to create\n"
@@ -501,27 +507,13 @@ extern "C"
             << "                                   { primary, secondary, all } (default primary)\n"
             << "  --buffer-size bytes              size of output pipe buffer - default " << DFLT_BUFFER_SIZE/1024 << "K bytes\n"
             << "  -U|--unpack-integer              don't pack integers in output pipe - uses more bandwidth\n"
-            << "  -h|--help                        output brief explanation of the program\n"
-            << "  -v|--verbose                     increase the verbosity of the program.\n"
-            << "  -V|--version                     display the version of the program then quit.\n"
-            << "                                   use multiple times for more verbosity.\n"
             << "  --log-stderr                     log via stderr rather than general-writer API (default - general-writer API)\n"
-            << '\n'
-            << appName << " : "
-            << ( vers >> 24 )
-            << '.'
-            << ( ( vers >> 16 ) & 0xFF )
-            << '.'
-            << ( vers & 0xFFFF )
-            << '\n'
-            ;
-    }
+            << endl;
 
-    static void handle_version ( const char *progname )
-    {
-        ::ver_t vers = ::KAppVersion();
+        HelpOptionsStandard();
+        HelpVersion ( UsageDefaultName, KAppVersion () );
 
-        HelpVersion ( progname, vers );
+        return 0;
     }
 
     static void CC handle_error ( const char *arg, void *message )
@@ -529,260 +521,206 @@ extern "C"
         throw ( const char * ) message;
     }
 
-    rc_t CC UsageSummary ( const char * progname ) {
-        handle_help ( progname );
-        return 0;
-    }
-
     MAIN_DECL(argc, argv)
     {
-        VDB::Application app( argc, argv );
+        VDB::Application app( argc, argv, HASH_SRA_TOOLS );
         if (!app)
         {
             return VDB_INIT_FAILED;
         }
 
-        rc_t rc = -1;
-        Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
-        size_t buffer_size = DFLT_BUFFER_SIZE;
+        rc_t rc = app.HandleStandardOptions( handle_help, UsageSummary );
 
-        SetUsageSummary( UsageSummary );
-        SetSraToolsHash( HASH_SRA_TOOLS );
-
-        try
+        if ( rc == 0 )
         {
-            int num_runs = 0;
-            const char *outfile = NULL;
-            const char *remote_db = NULL;
+            Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
+            size_t buffer_size = DFLT_BUFFER_SIZE;
 
-            for ( int i = 1; i < argc; ++ i )
+            try
             {
-                const char * arg = argv [ i ];
-                if ( arg [ 0 ] != '-' )
-                {
-                    // have an input run
-                    argv [ ++ num_runs ] = ( char* ) arg;
-                }
-                else do switch ( ( ++ arg ) [ 0 ] )
-                {
-                case 'o':
-                    outfile = findArg ( arg, i, argc, argv );
-                    break;
-                case 'r':
-                    remote_db = findArg ( arg, i, argc, argv );
-                    break;
-                case 'x':
-                    ncbi :: depth_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ),
-                        handle_error, ( void * ) "Invalid depth cutoff" );
-                    break;
-                case 'e':
-                    ncbi :: event_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ),
-                        handle_error, ( void * ) "Invalid event cutoff" );
-                    break;
-                case 'p':
-                    ncbi :: num_significant_bits = AsciiToU32 ( findArg ( arg, i, argc, argv ),
-                        handle_error, ( void * ) "Invalid num-significant-bits" );
-                    break;
-                case 'a':
-                {
-                    const char * atype = findArg ( arg, i, argc, argv );
-                    if ( strcmp ( atype, "all" ) == 0 )
-                        cat = Alignment :: all;
-                    else if ( strcmp ( atype, "primary" ) == 0 ||
-                              strcmp ( atype, "primaryAlignment" ) == 0 )
-                        cat = Alignment :: primaryAlignment;
-                    else if ( strcmp ( atype, "secondary" ) == 0 ||
-                              strcmp ( atype, "secondaryAlignment" ) == 0 )
-                        cat = Alignment :: secondaryAlignment;
-                    else
-                    {
-                        throw "Invalid alignment category";
-                    }
-                    break;
-                }
-                case 'U':
-                    ncbi :: integer_column_flag_bits = 0;
-                    break;
-                case 'v':
-                    ++ ncbi :: verbosity;
-                    break;
-                case 'h':
-                case '?':
-                    handle_help ( argv [ 0 ] );
-                    return 0;
-                case 'V':
-                    handle_version ( argv [ 0 ] );
-                    return 0;
-                case 'L': // eat it and do nothing
-                    findArg ( arg, i, argc, argv );
-                    break;
-                case 'z': // eat it and do nothing
-                    findArg ( arg, i, argc, argv );
-                    break;
-                case '-':
-                    ++ arg;
-                    if ( strcmp ( arg, "output-file" ) == 0 )
-                    {
-                        outfile = getArg ( i, argc, argv );
-                    }
-                    else if ( strcmp ( arg, "remote-db" ) == 0 )
-                    {
-                        remote_db = getArg ( i, argc, argv );
-                    }
-                    else if ( strcmp ( arg, "buffer-size" ) == 0 )
-                    {
-                        const char * str = getArg ( i, argc, argv );
+                vector< const char * > runs;
 
-                        char * end;
-                        long new_buffer_size = strtol ( str, & end, 0 );
-                        if ( new_buffer_size < 0 || str == ( const char * ) end || end [ 0 ] != 0 )
-                            throw "Invalid buffer argument";
+                const char *outfile = NULL;
+                const char *remote_db = NULL;
 
-                        buffer_size = new_buffer_size;
-                    }
-                    else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
+                for ( int i = 1; i < app.getArgC(); ++ i )
+                {
+                    const char * arg = app.getArgV() [ i ];
+                    if ( arg [ 0 ] != '-' )
                     {
-                        ncbi :: depth_cutoff = AsciiToU32 ( getArg ( i, argc, argv ),
+                        // have an input run
+                        runs.push_back( arg );
+                    }
+                    else do switch ( ( ++ arg ) [ 0 ] )
+                    {
+                    case 'o':
+                        outfile = findArg ( arg, i, argc, argv );
+                        break;
+                    case 'r':
+                        remote_db = findArg ( arg, i, argc, argv );
+                        break;
+                    case 'x':
+                        ncbi :: depth_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ),
                             handle_error, ( void * ) "Invalid depth cutoff" );
-                    }
-                    else if ( strcmp ( arg, "event-cutoff" ) == 0 )
-                    {
-                        ncbi :: event_cutoff = AsciiToU32 ( getArg ( i, argc, argv ),
+                        break;
+                    case 'e':
+                        ncbi :: event_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ),
                             handle_error, ( void * ) "Invalid event cutoff" );
-                    }
-                    else if ( strcmp ( arg, "num-significant-bits" ) == 0 )
-                    {
-                        ncbi :: num_significant_bits = AsciiToU32 ( getArg ( i, argc, argv ),
+                        break;
+                    case 'p':
+                        ncbi :: num_significant_bits = AsciiToU32 ( findArg ( arg, i, argc, argv ),
                             handle_error, ( void * ) "Invalid num-significant-bits" );
-                    }
-                    else if ( strcmp ( arg, "align-category" ) == 0 )
+                        break;
+                    case 'a':
                     {
-                        const char * atype = getArg ( i, argc, argv );
+                        const char * atype = findArg ( arg, i, argc, argv );
                         if ( strcmp ( atype, "all" ) == 0 )
                             cat = Alignment :: all;
                         else if ( strcmp ( atype, "primary" ) == 0 ||
-                                  strcmp ( atype, "primaryAlignment" ) == 0 )
+                                strcmp ( atype, "primaryAlignment" ) == 0 )
                             cat = Alignment :: primaryAlignment;
                         else if ( strcmp ( atype, "secondary" ) == 0 ||
-                                  strcmp ( atype, "secondaryAlignment" ) == 0 )
+                                strcmp ( atype, "secondaryAlignment" ) == 0 )
                             cat = Alignment :: secondaryAlignment;
                         else
                         {
                             throw "Invalid alignment category";
                         }
+                        break;
                     }
-                    else if ( strcmp ( arg, "unpack-integer" ) == 0 )
-                    {
+                    case 'U':
                         ncbi :: integer_column_flag_bits = 0;
-                    }
-                    else if ( strcmp ( arg, "verbose" ) == 0 )
-                    {
-                        ++ ncbi :: verbosity;
-                    }
-                    else if ( strcmp ( arg, "log-stderr" ) == 0 )
-                    {
-                        ncbi :: use_gw_logmessage = false;
-                    }
-                    else if ( strcmp ( arg, "help" ) == 0 )
-                    {
-                        handle_help ( argv [ 0 ] );
-                        return 0;
-                    }
-                    else if ( strcmp ( arg, "version" ) == 0 )
-                    {
-                        handle_version ( argv [ 0 ] );
-                        return 0;
-                    }
-                    else if ( strcmp ( arg, "log-level" ) == 0 )
-                    {
-                        /* eat it and do nothing */
-                        getArg ( i, argc, argv );
-                    }
-                    else if ( strcmp ( arg, "xml-log" ) == 0 )
-                    {
-                        /* eat it and do nothing */
-                        getArg ( i, argc, argv );
-                    }
-                    else if ( strcmp ( arg, "xml-log-fd" ) == 0 )
-                    {
-                        /* eat it and do nothing */
-                        getArg ( i, argc, argv );
-                    }
-                    else if ( strcmp ( arg, "version" ) == 0 )
-                    {
-                        handle_version ( argv [ 0 ] );
-                        return 0;
-                    }
-                    else
-                    {
-                        throw "Invalid Argument";
-                    }
+                        break;
+                    case '-':
+                        ++ arg;
+                        if ( strcmp ( arg, "output-file" ) == 0 )
+                        {
+                            outfile = getArg ( i, argc, argv );
+                        }
+                        else if ( strcmp ( arg, "remote-db" ) == 0 )
+                        {
+                            remote_db = getArg ( i, argc, argv );
+                        }
+                        else if ( strcmp ( arg, "buffer-size" ) == 0 )
+                        {
+                            const char * str = getArg ( i, argc, argv );
 
-                    arg = "\0";
+                            char * end;
+                            long new_buffer_size = strtol ( str, & end, 0 );
+                            if ( new_buffer_size < 0 || str == ( const char * ) end || end [ 0 ] != 0 )
+                                throw "Invalid buffer argument";
 
-                    break;
-                default:
-                    throw "Invalid argument";
+                            buffer_size = new_buffer_size;
+                        }
+                        else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
+                        {
+                            ncbi :: depth_cutoff = AsciiToU32 ( getArg ( i, argc, argv ),
+                                handle_error, ( void * ) "Invalid depth cutoff" );
+                        }
+                        else if ( strcmp ( arg, "event-cutoff" ) == 0 )
+                        {
+                            ncbi :: event_cutoff = AsciiToU32 ( getArg ( i, argc, argv ),
+                                handle_error, ( void * ) "Invalid event cutoff" );
+                        }
+                        else if ( strcmp ( arg, "num-significant-bits" ) == 0 )
+                        {
+                            ncbi :: num_significant_bits = AsciiToU32 ( getArg ( i, argc, argv ),
+                                handle_error, ( void * ) "Invalid num-significant-bits" );
+                        }
+                        else if ( strcmp ( arg, "align-category" ) == 0 )
+                        {
+                            const char * atype = getArg ( i, argc, argv );
+                            if ( strcmp ( atype, "all" ) == 0 )
+                                cat = Alignment :: all;
+                            else if ( strcmp ( atype, "primary" ) == 0 ||
+                                    strcmp ( atype, "primaryAlignment" ) == 0 )
+                                cat = Alignment :: primaryAlignment;
+                            else if ( strcmp ( atype, "secondary" ) == 0 ||
+                                    strcmp ( atype, "secondaryAlignment" ) == 0 )
+                                cat = Alignment :: secondaryAlignment;
+                            else
+                            {
+                                throw "Invalid alignment category";
+                            }
+                        }
+                        else if ( strcmp ( arg, "unpack-integer" ) == 0 )
+                        {
+                            ncbi :: integer_column_flag_bits = 0;
+                        }
+                        else if ( strcmp ( arg, "log-stderr" ) == 0 )
+                        {
+                            ncbi :: use_gw_logmessage = false;
+                        }
+                        else
+                        {
+                            throw "Invalid Argument";
+                        }
+
+                        arg = "\0";
+
+                        break;
+                    default:
+                        throw "Invalid argument";
+                    }
+                    while ( arg [ 1 ] != 0 );
                 }
-                while ( arg [ 1 ] != 0 );
-            }
 
-            if ( num_runs == 0 )
-            {
-                handle_help ( argv [ 0 ] );
-                throw "no runs specified";
-            }
-            else if ( num_runs > 1 )
-            {
-                handle_help ( argv [ 0 ] );
-                throw "only one run may be processed at a time";
-            }
+                if ( runs.empty() )
+                {
+                    handle_help ( nullptr );
+                    throw "no runs specified";
+                }
+                else if ( runs.size() > 1 )
+                {
+                    handle_help ( nullptr );
+                    throw "only one run may be processed at a time";
+                }
 
-            for ( int i = 1; i <= num_runs; ++ i )
-            {
-                ncbi :: run ( argv [ i ], outfile, remote_db, buffer_size, cat );
-            }
+                ncbi :: run ( runs[0], outfile, remote_db, buffer_size, cat );
 
-            rc = 0;
-        }
-        catch ( ErrorMsg & x )
-        {
-            if ( ! ncbi :: use_gw_logmessage )
+                rc = 0;
+            }
+            catch ( ErrorMsg & x )
             {
-                std :: cerr
-                    << "ERROR: "
-                    << argv [ 0 ]
-                    << ": "
-                    << x . what ()
-                    << '\n'
-                    ;
+                if ( ! ncbi :: use_gw_logmessage )
+                {
+                    std :: cerr
+                        << "ERROR: "
+                        << argv [ 0 ]
+                        << ": "
+                        << x . what ()
+                        << '\n'
+                        ;
+                }
+                rc = 1;
+            }
+            catch ( const char* x )
+            {
+                if ( ! ncbi :: use_gw_logmessage )
+                {
+                    std :: cerr
+                        << "ERROR: "
+                        << argv [ 0 ]
+                        << ": "
+                        << x
+                        << '\n'
+                        ;
+                }
+                rc = 2;
+            }
+            catch ( ... )
+            {
+                if ( ! ncbi :: use_gw_logmessage )
+                {
+                    std :: cerr
+                        << "ERROR: "
+                        << argv [ 0 ]
+                        << ": unknown\n"
+                        ;
+                }
+                rc = 3;
             }
         }
-        catch ( const char x [] )
-        {
-            if ( ! ncbi :: use_gw_logmessage )
-            {
-                std :: cerr
-                    << "ERROR: "
-                    << argv [ 0 ]
-                    << ": "
-                    << x
-                    << '\n'
-                    ;
-            }
-        }
-        catch ( ... )
-        {
-            if ( ! ncbi :: use_gw_logmessage )
-            {
-                std :: cerr
-                    << "ERROR: "
-                    << argv [ 0 ]
-                    << ": unknown\n"
-                    ;
-            }
-        }
-
         app.setRc( rc );
         return app.getExitCode();
     }

@@ -142,7 +142,7 @@ rc_t CC Usage (const Args * args)
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv, HASH_SRA_TOOLS );
     if (!app)
     {
         return VDB_INIT_FAILED;
@@ -154,7 +154,6 @@ MAIN_DECL(argc, argv)
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    SetSraToolsHash( HASH_SRA_TOOLS );
 
     rc_t rc = ArgsMakeAndHandle (&args, argc, app.getArgV(), 2
                                  , Options, sizeof Options / sizeof (OptDef)

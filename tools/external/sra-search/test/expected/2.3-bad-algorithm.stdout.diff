@@ -1,4 +1,0 @@
-9a10
->   sra-search "CGTA||ACGT" -e -a NucStrstr SRR000002
-22a24
->   -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)

@@ -46,6 +46,8 @@ typedef struct globals
     
     char const *telemetryPath;
 
+    char const *errorReportPath;
+
     char const *QualQuantizer;
 
     char const *refFilter;

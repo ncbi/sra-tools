@@ -552,6 +552,14 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     if (!self->out_of_order) {
         SetLastOffset(self, data->data.effective_offset, data->isPrimary);
         
+        /* detect switching to secondary alignments without a change in the reference */
+        if (data->data.effective_offset < self->curPos && !data->isPrimary) {
+            /* write out and reset the coverage arrays */
+            BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
+            self->curPos = self->endPos = 0;
+            KDataBufferResize(&self->pri_overlap, 0);
+            KDataBufferResize(&self->sec_overlap, 0);
+        }
         rc = ReferenceAddCoverage(self, data->data.effective_offset,
                                         data->data.ref_len, nmis, indels,
                                         data->isPrimary);

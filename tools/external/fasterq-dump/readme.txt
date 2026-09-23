@@ -165,14 +165,11 @@ Here are some important differences to fastq-dump:
 
 1. The -Z|--stdout option does not work for split-3 and split-files.
    The tool will fall back to producing files in these cases.
-   
-2. There is no --gzip|--bizp2 option, you have to compress your files
-   explicitly after they have been written.
 
-3. There is no -A option for the accession, just specify the accession
+2. There is no -A option for the accession, just specify the accession
    or the absolute path directly.
 
-4. fasterq-dump does not take multiple accessions, just one.
+3. fasterq-dump does not take multiple accessions, just one.
 
-5. There is no -N|--minSpotId and no -X|--maxSpotId option.
+4. There is no -N|--minSpotId and no -X|--maxSpotId option.
    fasterq-dump processes always the whole accession.

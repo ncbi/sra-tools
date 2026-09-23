@@ -81,8 +81,7 @@ static rc_t PrfRetrierReopenRemote(PrfRetrier * self) {
     *self->_f = NULL;
 
     while (timeout < 10 * 60 /* 10 minutes */) {
-        rc = _KFileOpenRemote(self->_f, self->_mgr, self->_path,
-            self->_src, !self->_isUri);
+        rc = _KFileOpenRemote(self->_f, self->_mgr, self->_path, self->_src);
         if (rc == 0)
             break;
 

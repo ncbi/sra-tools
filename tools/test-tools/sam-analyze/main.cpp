@@ -36,7 +36,7 @@
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     int res = 0;
     args_t::str_vec_t hints;

@@ -33,7 +33,3 @@ GenerateExecutableWithDefs(
 add_dependencies ( pileup-stats general-writer )
 
 MakeLinksExe_NoInstall ( pileup-stats )
-
-if ( NOT TOOLS_ONLY )
-    add_subdirectory( test )
-endif()

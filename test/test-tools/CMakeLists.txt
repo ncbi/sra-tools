@@ -26,6 +26,9 @@ IF( TARGET qa-stats )
     add_subdirectory( qa-stats )
 ENDIF()
 
+add_subdirectory( pileup-stats )
+add_subdirectory( json-error-report )
+
 IF( TARGET rnd2sra )
     add_subdirectory( rnd2sra )
 ENDIF()

@@ -57,7 +57,7 @@
 #include <klib/time.h> /* KSleep */
 
 #include <kns/http.h>
-#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequestVPath */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
 
@@ -220,12 +220,14 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 
     assert(self && cache);
 
-    if (lock != NULL && KDirectoryPathType(self, "%s", lock) != kptNotFound) {
-        rc_t rc3 = 0;
-        STSMSG(STS_DBG, ("removing %s", lock));
-        rc3 = KDirectoryRemove(self, false, "%s", lock);
-        if (rc2 == 0 && rc3 != 0)
-            rc2 = rc3;
+    if (lock != NULL) {
+        if (KDirectoryPathType(self, "%s", lock) != kptNotFound) {
+            rc_t rc3 = 0;
+            STSMSG(STS_DBG, ("removing %s", lock));
+            rc3 = KDirectoryRemove(self, false, "%s", lock);
+            if (rc2 == 0 && rc3 != 0)
+                rc2 = rc3;
+        }
 
         {   /* remove an empty AD directory if download failed or --dryrun */
             const char * slash
@@ -1016,17 +1018,12 @@ static rc_t ResolvedLocal(const Resolved *self,
             const VPath * http = NULL;
             rc = KSrvRespFileGetHttp(self->respFile, &http);
             if (rc == 0 && http != NULL) {
-                char path[URL_MAX] = "";
-                size_t len = 0;
-                rc = VPathReadUri(http, path, sizeof path, &len);
-                if (rc == 0) {
                     const KFile * file = NULL;
-                    rc = KNSManagerMakeHttpFile(mane->kns, &file, NULL,
-                        0x01010000, "%s", path);
+                    rc = KNSManagerMakeReliableHttpFileVPath(mane->kns, &file,
+                        NULL, 0x01010000, http);
                     if (rc == 0)
                         rc = KFileSize(file, &sRemote);
                     RELEASE(KFile, file);
-                }
             }
             RELEASE(VPath, http);
             if (rc == 0 && sRemote == sLocal) {
@@ -1268,8 +1265,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     if (rc == 0 && mane->showProgress && !mane->dryRun) {
         r2 = 0;
         if (in == NULL)
-            r2 = _KFileOpenRemote(&in, mane->kns, path,
-                &src, !self->isUri);
+            r2 = _KFileOpenRemote(&in, mane->kns, path, &src);
         if (r2 == 0)
             rc = KFileSize(in, &size);
         if (r2 == 0)
@@ -1307,16 +1303,16 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 logLevel = atoi(e);
             for (int i = 1; i < 9; ++i) {
                 if (ceRequired && ce_token != NULL)
-                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                        &kns_req, http_vers, NULL, "%S&ident=%S", &src,
+                    rc = KNSManagerMakeReliableClientRequestVPath(mane->kns,
+                        &kns_req, http_vers, NULL, path, "%S&ident=%S", &src,
                         ce_token);
                 else
-                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                        &kns_req, http_vers, NULL, "%S", &src);
+                    rc = KNSManagerMakeReliableClientRequestVPath(mane->kns,
+                        &kns_req, http_vers, NULL, path, "%S", &src);
                 if (rc == 0) {
                     if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
-                            "KNSManagerMakeReliableClientRequest success: "
+                            "KNSManagerMakeReliableClientRequestVPath success: "
                             "attempt $(n)", "n=%d", i));
                     break;
                 }
@@ -1325,13 +1321,13 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 {
                     if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
-                            "Cannot KNSManagerMakeReliableClientRequest: "
+                            "Cannot KNSManagerMakeReliableClientRequestVPath: "
                             "retrying $(n)...", "n=%d", i));
                 }
                 else {
                     if (logLevel > 0 && i > 0)
                         LOGERR(klogErr, rc,
-                            "Cannot KNSManagerMakeReliableClientRequest");
+                            "Cannot KNSManagerMakeReliableClientRequestVPath");
                     break;
                 }
                 if (i > 1)
@@ -1375,8 +1371,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         rw = 0;
 
         if (in == NULL)
-            rc = _KFileOpenRemote(&in, mane->kns, path,
-                &src, !self->isUri);
+            rc = _KFileOpenRemote(&in, mane->kns, path, &src);
         if (rc == 0) {
             PrfRetrierInit(&retrier, mane, path,
                 &src, self->isUri, &in, size, pof->pos, code);
@@ -1423,7 +1418,7 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
 
     if (self->file == ((void*)0)) {
         rc = _KFileOpenRemote(&self->file, mane->kns,
-            remote->path, remote -> str, !self->isUri);
+            remote->path, remote -> str);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                               "path=%S", remote -> str));
@@ -2061,8 +2056,12 @@ static rc_t PrfMainDownload(Resolved* self, const Item* item,
     }
 
     r2 = PrfOutFileWhack(&pof, rc == 0);
-    if (rc == 0 && r2 != 0)
-        rc = r2;
+    if (rc == 0) {
+        if (r2 != 0)
+            rc = r2;
+    }
+    else /* try to remove and empty AD */
+        _KDirectoryClean(mane->dir, &cache, lock);
 
     if (rc == 0 && rv != 0)
         rc = rv;
@@ -2509,10 +2508,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         if (rc == 0) {
             rc_t rc3 = 0;
             if (resolved->file == NULL) {
-                bool reliable = ! resolved->isUri;
                 assert ( remote );
                 rc3 = _KFileOpenRemote(&resolved->file, kns,
-                    remote->path, remote -> str, reliable);
+                    remote->path, remote -> str);
                 if ( !resolved->isUri )
                     DISP_RC2(rc3, "cannot open remote file",
                                 remote -> str->addr);
@@ -2552,7 +2550,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             assert ( remote -> str );
             if (!_StringIsFasp(remote -> str, NULL)) {
                 rc2 = _KFileOpenRemote(&resolved->file, kns,
-                    remote->path, remote -> str, !resolved->isUri);
+                    remote->path, remote->str);
             }
         }
         if (rc2 == 0 && resolved->file != NULL

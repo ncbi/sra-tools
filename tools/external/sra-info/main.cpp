@@ -250,11 +250,10 @@ public:
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app(argc, argv);
+    VDB::Application app(argc, argv, HASH_SRA_TOOLS);
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    SetSraToolsHash( HASH_SRA_TOOLS );
 
     Args * args;
     rc_t rc = ArgsMakeAndHandle( &args, argc, app.getArgV(),

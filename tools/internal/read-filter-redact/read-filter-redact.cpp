@@ -610,7 +610,7 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
     if (rc == 0) {
         rc = VTableCreateCursorWrite(db->tbl, &db->wCursor, kcmInsert);
         DISP_RC(rc, "while creating write cursor");
-        
+
         if (rc == 0) {
             rc = VCursorAddColumn(db->wCursor, &db->wFilterIdx,
                 "%s", read_filter_name);
@@ -763,7 +763,7 @@ static rc_t Work(Db* db, SpotIterator* it)
                 }
 
                 rc = VCursorCellDataDirect(db->rCursor, row_id, db->rQualityIdx,
-                    nullptr, (const void**)&quality_buffer, nullptr, 
+                    nullptr, (const void**)&quality_buffer, nullptr,
                     &q_spot_len);
                 DISP_RC(rc, "while reading QUALITY");
             }
@@ -1445,7 +1445,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
 
 MAIN_DECL(argc, argv)
 {
-    VDB::Application app( argc, argv );
+    VDB::Application app( argc, argv, HASH_SRA_TOOLS );
     if (!app)
     {
         return VDB_INIT_FAILED;
@@ -1458,7 +1458,6 @@ MAIN_DECL(argc, argv)
 
     SetUsage( Usage );
     SetUsageSummary( UsageSummary );
-    SetSraToolsHash( HASH_SRA_TOOLS );
 
     LogLevelSet("info");
 

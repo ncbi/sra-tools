@@ -57,7 +57,8 @@ rc_t concat_execute( KDirectory * dir,
                     size_t buf_size,
                     struct bg_progress_t * progress,
                     bool force,
-                    bool append );
+                    bool append,
+                    compress_t compress_mode );
 
 #ifdef __cplusplus
 }

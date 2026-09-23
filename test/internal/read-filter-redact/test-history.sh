@@ -27,6 +27,7 @@
 # $1 - directory containing the binaries
 # $2 - the executable to test
 # $3 - test case ID
+# $4 - verbosity
 #
 # return codes:
 # 0 - passed
@@ -34,9 +35,16 @@
 # 2 -
 # 3 - the dumper failed on the output of the loader
 # 4 - outputs differ
+# 5 - verbosity
+
 bin_dir=$1
 read_filter_redact=$2
 TEST_CASE_ID=$3
+VERBOSE=$4
+
+if [ "$VERBOSE" != "" ] ; then
+    echo "TEST_CASE_ID=$TEST_CASE_ID"
+fi
 
 DIFF="diff -b"
 if [ "$(uname -s)" = "Linux" ] ; then
@@ -57,6 +65,8 @@ if ! test -f ${bin_dir}/vdb-unlock; then
     exit 1
 fi
 
+XMLLINT=`which xmllint`
+
 RUN=./input/${TEST_CASE_ID}.sra
 FLT=./input/${TEST_CASE_ID}.in
 
@@ -73,8 +83,19 @@ ${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} \
                                                   > /dev/null 2>&1 || exit 3
 
 # verify the HISTORY metadata
-UPDATED=$(${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
+if [ "$VERBOSE" != "" ] ; then
+  echo "${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY | xmllint --xpath '/HISTORY/EVENT_1/@updated' -"
+fi
+if [ "$XMLLINT" != "" ] ; then
+  UPDATED=$($bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY \
     | xmllint --xpath '/HISTORY/EVENT_1/@updated' -)
+else
+  UPDATED=$($bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | grep EVENT_1 | grep -oP 'updated="\K[^"]+')
+  UPDATED=" updated=\"$UPDATED\""
+  if [ "$VERBOSE" != "" ] ; then
+    echo "UPDATED=$UPDATED"
+  fi
+fi
 if [ "$UPDATED" != ' updated="READ_FILTER"' ] ; then
     echo "/HISTORY/EVENT_1/@updated = $UPDATED"
     exit 4
@@ -83,8 +104,16 @@ fi
 # read-filter-redact READ_FILTER and READ
 ${bin_dir}/${read_filter_redact} -F${FLT} actual/${TEST_CASE_ID} -r \
                                                   > /dev/null 2>&1 || exit 3
-UPDATED=$(${bin_dir}/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
+if [ "$VERBOSE" != "" ] ; then
+    echo "$bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | xmllint --xpath '/HISTORY/EVENT_2/@updated' -"
+fi
+if [ "$XMLLINT" != "" ] ; then
+  UPDATED=$($bin_dir/kdbmeta actual/${TEST_CASE_ID} -TSEQUENCE HISTORY \
     | xmllint --xpath '/HISTORY/EVENT_2/@updated' -)
+else
+  UPDATED=$($bin_dir/kdbmeta actual/$TEST_CASE_ID -TSEQUENCE HISTORY | grep EVENT_2 | grep -oP 'updated="\K[^"]+')
+  UPDATED=" updated=\"$UPDATED\""
+fi
 if [ "$UPDATED" != ' updated="READ_FILTER,READ"' ] ; then
     echo "/HISTORY/EVENT_2/@updated = $UPDATED"
     exit 4

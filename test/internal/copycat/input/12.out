@@ -1,0 +1,3 @@
+  <archive id="1" path="12.tar" name="12.tar" size="2560" filetype="Archive/TapeArchive" md5="92430e417902ed5da9ea2e871413c7f2" crc32="96d0325d">
+    <directory name="testdir">
+      <file id="2" path="12.tar/testdir/hello.txt" name="hello.txt" size="12" lines="1" filetype="Unknown/Unknown" md5="6f5902ac237024bdd0c176cb93063dc4"  offset="1024"/>

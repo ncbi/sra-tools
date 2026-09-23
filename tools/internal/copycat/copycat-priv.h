@@ -190,7 +190,6 @@ typedef enum CCFastqFormatLineType
     ccfqfltError = -1,
     ccfqfltIdentifier,
     ccfqfltSeqLetters,
-    ccfqfltPlus,
     ccfqfltQualityValues
 } CCFastqFormatLineType;
 
@@ -211,10 +210,10 @@ rc_t KFileMakeChunkRead (const struct KFile ** pself,
 			 uint32_t num_chunks,
 			 struct KTocChunk * chunks);
 
-bool CCFileFormatIsNCBIEncrypted ( void  * buffer );
-bool CCFileFormatIsWGAEncrypted ( void  * buffer );
+bool CCFileFormatMatchSignature ( const void *buf, size_t n, const char *sig, size_t slen );
 bool CCFileFormatIsFasta ( void  * buffer, size_t buffer_size );
-size_t CCFileFormatDecompressFirstBGZFBlock ( const void * buffer, size_t buffer_size, uint8_t * out, size_t out_size );
+bool CCFileFormatIsFastq ( void * buffer, size_t buffer_size, CCFileNode *node );
+size_t CCFileFormatDecompressBGZFPrefix ( const void * buffer, size_t buffer_size, uint8_t * out, size_t out_size );
 
 /*
  * Use as DEBUG_STATUS(("format",arg,...))

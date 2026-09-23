@@ -1662,7 +1662,7 @@ rc_t copycat_add_dec (const copycat_pb * ppb)
          * if we have an encrypted file add decryption to the chain
          * if not jump sraight to the write side of the chain
          */
-        if (CCFileFormatIsNCBIEncrypted (buff))
+        if (CCFileFormatMatchSignature(buff, num_read, "NCBInenc", strlen("NCBInenc")))
             rc = copycat_add_dec_ncbi (&pb);
         else if (KFileIsWGAEnc (buff, num_read) == 0)
             rc = copycat_add_dec_wga (&pb);

@@ -1768,18 +1768,15 @@ static rc_t process_one_entry(CCTar *self)
             break;
 
         case LINK_OLDNORMAL_FILE: /* deprecated normal file */
-            /* -----
-             * this should only happen with LINK_OLDNORMAL_FILE
-             *
-             * If the type is file but the last character in the path is "/"
-             * treat it as a directory instead
-             */
-            if (full_path[strlen(full_path) - 2] == '\\')
-            {
-                link = LINK_DIRECTORY;
-            }
-            /* fall through */
         case LINK_NORMAL_FILE:
+        {
+            /* V7-style directory: encoded as a file entry with trailing '/'
+               in the name. Some tools also use LINK_NORMAL_FILE for this. */
+            size_t plen = strlen(full_path);
+            if (plen > 0 && full_path[plen - 1] == '/')
+                link = LINK_DIRECTORY;
+            /* fall through */
+        }
         case LINK_CONTIGUOUS_FILE:
         case LINK_DIRECTORY:
             data_position = current_position + sizeof(tar_header);
@@ -1911,13 +1908,9 @@ static rc_t process_one_entry(CCTar *self)
     case TAR_GNU_89:
         /*case TAR_GNU_01: */
     case TAR_SPARSE:
-        /* -----
-         * TODO:
-         *	implement a header checksum routine call it here, and return -1 if the check sum fails
-         */
         if (gnu_sparse)
         {
-            link = LINK_SPARSE; /* faking it for the next section */
+            link = LINK_SPARSE;
         }
 
         switch (link)
@@ -1930,11 +1923,9 @@ static rc_t process_one_entry(CCTar *self)
             CCArcFileNode *node;
 
             start = data_size ? data_position : 0;
-            /* 	    LOGMSG (klogDebug3, "KArcTOCCreateFile"); */
             DEBUG_MSG(3, ("about to CreateFile '':$(linkint)\n",
                           PLOG_2(PLOG_C(link), PLOG_X8(linkint)),
                           link, link));
-            /* now create a new contained file node */
             rc = CCArcFileNodeMake(&node, start, data_size);
             if (rc != 0)
                 LOGERR(klogInt, rc, "failed to create contained file node");
@@ -1969,15 +1960,12 @@ static rc_t process_one_entry(CCTar *self)
 
                     self->cursor += node->dad.size;
                 }
-                /* if successful, "node" ( allocated locally above )
-                   will have been entered into "cont->sub" */
             }
             break;
         }
         case LINK_HARD_LINK:
         {
             DEBUG_MSG(3, ("KArcTOCCreateHardLink"));
-            /* 	    rc_t CCTreeSymlink ( CCTree *self, const char *targ, const char *alias ); */
             rc = CCTreeLink(self->tree, mtime, full_link, full_path);
             break;
         }
@@ -1998,13 +1986,6 @@ static rc_t process_one_entry(CCTar *self)
             }
             break;
         }
-            /*
-            static
-            rc_t KSubChunkFileMake (KSubChunkFile ** pself,
-                        const KFile * original,
-                        uint64_t size,
-                        uint32_t num_chunks)
-            */
         case LINK_SPARSE:
         {
             CChunkFileNode *node;
@@ -2031,8 +2012,6 @@ static rc_t process_one_entry(CCTar *self)
                                   ccChunkFile, &node->dad, full_path);
                     KFileRelease(sfile);
                 }
-                /* if successful, "node" ( allocated locally above )
-                   will have been entered into "cont->sub" */
 
                 copycat_log_set(save, NULL);
             }
@@ -2053,7 +2032,21 @@ static rc_t process_one_entry(CCTar *self)
         case LINK_DIRECTORY:
         {
             CCTree *node;
+            size_t plen;
             DEBUG_MSG(3, ("KArcTOCCreateDir"));
+
+            /* Strip ALL trailing slashes before inserting.
+             * POSIX tar may encode a directory by splitting its path across
+             * the prefix and name fields: prefix="data3barcode78", name="/".
+             * The concatenation code produces "data3barcode78//" - two slashes.
+             * A single-slash strip would leave "data3barcode78/" still malformed,
+             * so we loop until no trailing slash remains. */
+            plen = strlen(full_path);
+            while (plen > 1 && full_path[plen - 1] == '/')
+                full_path[--plen] = '\0';
+
+            if (plen <= 1)
+                break; /* degenerate path (e.g. bare "/"), skip silently */
 
             rc = CCTreeMake(&node);
             if (rc != 0)

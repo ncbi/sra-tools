@@ -123,6 +123,34 @@ if ( ${OS} STREQUAL "linux"  )
                 COMMAND ./test-fastq.gz.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
+        add_test( NAME Test_Copycat_CsiParser
+            COMMAND ./test-csi.sh ${DIRTOTEST} copycat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( TARGET copycat-asan )
+            add_test( NAME Test_Copycat_CsiParser-asan
+                COMMAND ./test-csi.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
+            add_test( NAME Test_Copycat_CsiParser-tsan
+                COMMAND ./test-csi.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+
+        add_test( NAME Test_Copycat_TarDirectory
+            COMMAND ./test-tar.sh ${DIRTOTEST} copycat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( TARGET copycat-asan )
+            add_test( NAME Test_Copycat_TarDirectory-asan
+                COMMAND ./test-tar.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+        if( TARGET copycat-tsan )
+            add_test( NAME Test_Copycat_TarDirectory-tsan
+                COMMAND ./test-tar.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
+
     else()
         message( "libmagic was not found; skipping copycat tests" )
     endif()

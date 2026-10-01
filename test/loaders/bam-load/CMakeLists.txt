@@ -57,6 +57,15 @@ if( NOT WIN32 )
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    # VDB-6344 uses the test file from VDB-6399
+    add_test( NAME Test_BamLoader_VDB-6344
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh test_error_report.sh "${DIRTOTEST}" "VDB-6399"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
     #####################
     # min-batch-size option

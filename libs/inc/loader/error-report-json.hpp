@@ -57,24 +57,32 @@ public:
     public:
         enum class Value {
             srae_160 = 160,
+            srae_201 = 201,
             srae_202 = 202,
             srae_210 = 210
         };
         static SRAE_Code const &getCodeFor(Value which) {
             using namespace std::string_literals;
             static SRAE_Code const code[] = {
-                { "N/A"s, "Internal error"s, "N/A"s },
-                { "SRAE-160"s, "Sequence contains non-alphabetical character"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-160"s },
-                { "SRAE-202"s, "Read has no quality scores"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
-                { "SRAE-210"s, "Quality score length does not match sequence length"s, "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },
+                { "N/A"s, "Internal issue"s, "N/A"s },
+                { "SRAE-160"s, "Sequence contains non-alphabetical character"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-160"s },
+                { "SRAE-201"s, "None of the reads have a sequence"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-201"s },
+                { "SRAE-202"s, "Read has no quality scores"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
+                { "SRAE-210"s, "Quality score length does not match sequence length"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },
             };
             switch (which) {
             case Value::srae_160:
                 return code[1];
-            case Value::srae_202:
+            case Value::srae_201:
                 return code[2];
-            case Value::srae_210:
+            case Value::srae_202:
                 return code[3];
+            case Value::srae_210:
+                return code[4];
             default:
                 return code[0];
             }
@@ -382,10 +390,10 @@ public:
             if (!status.isFailure())
                 status = Status::Processing();
         }
-        bool addIssue(unsigned readLength, ReadError const &error) {
+        bool addIssue(unsigned reads, unsigned readLength, ReadError const &error) {
             bool is_new = false;
             
-            readsFailingValidation += 1;
+            readsFailingValidation += reads;
             failingBasePairs += readLength;
             
             assert(error.detectedErrors.size() >= 1);
@@ -472,6 +480,7 @@ public:
     Validator validator;
     Submission submission;
     std::vector<File> files;
+    File no_file;   ///< used to track issues that are not associated with a single file, e.g. an empty spot that is spread across multiple inputs, or where the file information has been lost, e.g. orphaned fragments in SAM.
 
     SubmissionQualityMetrics submissionQualityMetrics() const {
         SubmissionQualityMetrics result{};
@@ -491,12 +500,19 @@ public:
                 result.filesPending += 1;
             }
             result.readsPassingValidation += file.readsPassingValidation;
-            result.readsFailingValidation +=  file.readsFailingValidation;
+            result.readsFailingValidation += file.readsFailingValidation;
             result.passingBasePairs += file.passingBasePairs;
             result.failingBasePairs += file.failingBasePairs;
             for (auto &[code, count] : file.issueCount) {
                 issueCount[code] += count;
             }
+        }
+        result.readsPassingValidation += no_file.readsPassingValidation;
+        result.readsFailingValidation += no_file.readsFailingValidation;
+        result.passingBasePairs += no_file.passingBasePairs;
+        result.failingBasePairs += no_file.failingBasePairs;
+        for (auto &[code, count] : no_file.issueCount) {
+            issueCount[code] += count;
         }
         result.uniqueErrorTypes = issueCount.size();
         result.errorDistribution.reserve(issueCount.size());
@@ -534,10 +550,19 @@ public:
     ///   - file: the file number returned from `addFile`.
     ///   - readLength: the length of the sequence.
     ///   - error: the full description of the issue.
-    bool addIssue(int file, unsigned readLength, File::ReadError const &error) {
-        return files[file].addIssue(readLength, error);
+    bool addIssue(int file, unsigned reads, unsigned readLength, File::ReadError const &error) {
+        return files[file].addIssue(reads, readLength, error);
     }
     
+    /// Report an issue that is not associated with a particular file.
+    /// - Parameters:
+    ///   - reads: the number of reads affected by the issue.
+    ///   - bases: the total length of the sequences.
+    ///   - error: the full description of the issue.
+    bool addIssue(unsigned reads, unsigned bases, File::ReadError const &error) {
+        return no_file.addIssue(reads, bases, error);
+    }
+
     /// Report a normal record (i.e. a record with no issues).
     /// - Parameters:
     ///   - file: the file number returned from `addFile`.

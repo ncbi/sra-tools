@@ -1624,6 +1624,17 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
     return 0;
 }
 
+static std::string getSAM(BAM_Alignment const *const record) {
+    std::string sam(4096, '\0');
+    size_t actsize = sam.capacity();
+    while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
+        sam.reserve(actsize *= 2);
+    }
+    sam.resize(actsize - 1);
+    sam.shrink_to_fit();
+    return sam;
+}
+
 static context_t GlobalContext;
 #ifdef NEW_QUEUE
 static ReaderWriterQueue<queue_rec_t> rw_queue{1024};
@@ -1649,9 +1660,10 @@ static rc_t BAM_FileReadDetached(BAM_File const *self, BAM_Alignment **rec)
 
 static rc_t run_bamread_thread(const KThread *self, void *const file)
 {
-    rc_t rc = 0;
+    auto const bam = (BAM_File const *)file;
     size_t NR = 0;
-    auto bam = (const BAM_File*)file;
+    rc_t rc = 0;
+
     while (rc == 0) {
         if (rw_done)
             break;
@@ -1697,9 +1709,11 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
 
         for ( ; ; ) {
 #ifdef NEW_QUEUE
-            const std::lock_guard<std::mutex> lock{ rw_queue_mtx };
-            if (rw_queue.try_enqueue(std::move(queue_rec))) {  ///< this is wrong, moving in a loop; luckily queue_rec_t does not have any move semantics, so nothing bad happens.
-                break;
+            {
+                const std::lock_guard<std::mutex> lock{ rw_queue_mtx };
+                if (rw_queue.try_enqueue(std::move(queue_rec))) {  ///< this is wrong, moving in a loop; luckily `queue_rec_t` does not have any move semantics, so nothing bad happens.
+                    break;
+                }
             }
             if (rw_done)
                 break;
@@ -1757,10 +1771,12 @@ static queue_rec_t* const getNextRecord(BAM_File const *const bam, rc_t *const r
     while (*rc == 0 && (*rc = Quitting()) == 0) {
         //BAM_Alignment const *rec = NULL;
 #ifdef NEW_QUEUE
-        const std::lock_guard<std::mutex> lock( rw_queue_mtx );
-        if (rw_queue.try_dequeue(queue_rec)) {
-            ++dequeued;
-            return queue_rec;
+        {
+            const std::lock_guard<std::mutex> lock( rw_queue_mtx );
+            if (rw_queue.try_dequeue(queue_rec)) {
+                ++dequeued;
+                return queue_rec;
+            }
         }
         if (rw_done.load())
             break;
@@ -1875,16 +1891,9 @@ static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[
     return rc;
 }
 
-static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, int code)
+static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *const record, int const code)
 {
-    std::string sam(4096, '\0');
-    size_t actsize = sam.capacity();
-    while (0 != BAM_AlignmentFormatSAM(record, &actsize, actsize, &sam[0])) {
-        sam.reserve(actsize *= 2);
-    }
-    sam.resize(actsize - 1);
-    sam.shrink_to_fit();
-    
+    auto const sam = getSAM(record);
     auto const sep = sam.find('\t');
     assert(sep != sam.npos);
     return {
@@ -1893,6 +1902,15 @@ static ErrorReport::File::ReadError makeReadError(BAM_Alignment const *record, i
         sam,
         { (ErrorReport::SRAE_Codes::Value)code }
     };
+}
+
+static std::string getSpotName(BAM_Alignment const *const rec)
+{
+    char const *name;
+    size_t namelen;
+
+    BAM_AlignmentGetReadName2(rec, &name, &namelen);
+    return std::string(name, namelen);
 }
 
 /** Check for missing quality scores. In BAM, if quality score is all `0xFF`, it is the same as SAM `*`
@@ -1904,7 +1922,12 @@ static bool missingQuality(unsigned const readlen, uint8_t const qual[/* readlen
         if (qual[i] != 0xFF)
             return false;
     }
-    return true;
+    return readlen > 0;
+}
+
+static bool spotIsEmpty(SequenceRecord const &srec)
+{
+    return (srec.readLen[0] + srec.readLen[1]) == 0;
 }
 
 static rc_t ProcessBAM(int fileNumber, char const bamFile[],
@@ -2131,7 +2154,6 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         
         lastRecPPos = std::max(lastRecPPos, BAM_AlignmentGetProportionalPosition(rec));
         ++ctx->readCount;
-        
         if (ctx->readCount % 10000000 == 0) {
             float const new_value = BAM_AlignmentGetProportionalPosition(rec) * 100.0;
             float const delta = new_value - progress;
@@ -2474,7 +2496,7 @@ MIXED_BASE_AND_COLOR:
         }
         if (no_quality && !reported) {
             // DATA ERROR, INSDC Minimum Standards violation, missing quality scores
-            if (ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 202))) {
+            if (ctx->errorReport.addIssue(rptFile, 1, orig_readlen, makeReadError(rec, 202))) {
                 // Log it the first time.
                 (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-202: Data error: Spot '$(name)': Missing quality scores", "name=%s", name));
             }
@@ -3160,6 +3182,17 @@ WRITE_SEQUENCE:
                             srec.numreads = 2;
                             srec.readLen[read1] = fip->readlen;
                             srec.readLen[read2] = readlen;
+
+                            if ( spotIsEmpty( srec ) )
+                            {
+                                // DATA ERROR, INSDC Minimum Standards violation, empty spot
+                                if (ctx->errorReport.addIssue(rptFile, 2, 0, makeReadError(rec, 201))) {
+                                    // Log it the first time.
+                                    (void)PLOGMSG(klogWarn, (klogWarn, "SRAE-201: Data error: Spot '$(name)' has no sequence data", "name=%s", name));
+                                }
+                                reported = true;
+                            }
+
                             srec.readStart[1] = srec.readLen[0];
                             {
                                 char const *const s1 = seq1;
@@ -3474,7 +3507,7 @@ WRITE_ALIGNMENT:
                 ctx->errorReport.addRecord(rptFile, orig_readlen);
             }
             else {
-                ctx->errorReport.addIssue(rptFile, orig_readlen, makeReadError(rec, 0));
+                ctx->errorReport.addIssue(rptFile, 1, orig_readlen, makeReadError(rec, 0));
             }
             reported = true;
         }
@@ -3907,6 +3940,13 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 srec.keyId = keyId;
                 INSDC_SRA_platform_id platform_id = ctx->m_isSingleGroup ?
                     metadata.get<u16_t>(metadata_t::e_platform).get(row_id) : ctx->m_read_groups[group_id]->m_platform;
+                if (fip->readlen == 0) {
+                    // DATA ERROR, INSDC Minimum Standards violation, empty spot
+                    if (ctx->errorReport.addIssue(srec.numreads, 0, {0, "", "", {(ErrorReport::SRAE_Codes::Value)201}})) {
+                        // Log it the first time.
+                        (void)LOGMSG(klogWarn, "SRAE-201: Data error: Spot has no sequence data");
+                    }
+                }
                 rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, metadata.get<bit_t>(metadata_t::e_pcr_dup).test(row_id), platform_id);
                 if (rc) {
                     // FATAL ERROR, VDB I/O ERROR

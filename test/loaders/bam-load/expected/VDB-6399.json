@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.1",
+  "reportType": "SRA Validation Report",
+  "reportId": "",
+  "validator": {
+    "name": "bam-load"
+  },
+  "submission": {
+    "submissionId": "",
+    "status": "FAILED"
+  },
+  "submissionSummary": {
+    "filesProcessed": 1,
+    "filesPassed": 0,
+    "filesFailed": 1,
+    "totalReadsExamined": 14,
+    "readsPassingValidation": 12,
+    "readsFailingValidation": 2,
+    "readSuccessRatePercent": 85.7143,
+    "totalBasePairsExamined": 360,
+    "passingBasePairs": 360,
+    "failingBasePairs": 0,
+    "basePairSuccessRatePercent": 100,
+    "totalValidationErrors": 1,
+    "uniqueErrorTypes": 1
+  },
+  "submissionQualityMetrics": {
+    "filesProcessed": 1,
+    "filesPassed": 0,
+    "filesFailed": 1,
+    "totalReadsExamined": 14,
+    "readsPassingValidation": 12,
+    "readsFailingValidation": 2,
+    "readSuccessRatePercent": 85.7143,
+    "totalBasePairsExamined": 360,
+    "passingBasePairs": 360,
+    "failingBasePairs": 0,
+    "basePairSuccessRatePercent": 100,
+    "totalValidationErrors": 1,
+    "uniqueErrorTypes": 1,
+    "errorDistribution": [
+      {
+        "code": "SRAE-201",
+        "name": "None of the reads have a sequence",
+        "occurrences": 1,
+        "filesAffected": [
+          "VDB-6399/VDB-6399.sam"
+        ]
+      }
+    ]
+  },
+  "fileSummary": [
+    {
+      "filename": "VDB-6399/VDB-6399.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "errorCount": 1,
+      "warningCount": 0,
+      "failedReads": 2,
+      "totalReadsExamined": 14
+    }
+  ],
+  "files": [
+    {
+      "filename": "VDB-6399/VDB-6399.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 37014,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 14,
+        "readsPassingValidation": 12,
+        "readsFailingValidation": 2,
+        "readSuccessRatePercent": 85.7143,
+        "totalBasePairsExamined": 360,
+        "passingBasePairs": 360,
+        "failingBasePairs": 0,
+        "basePairSuccessRatePercent": 100,
+        "totalValidationErrors": 1,
+        "uniqueErrorTypes": 1,
+        "errorDistribution": [
+          {
+            "code": "SRAE-201",
+            "name": "None of the reads have a sequence",
+            "occurrences": 1
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0001",
+          "severity": "ERROR",
+          "code": "SRAE-201",
+          "name": "None of the reads have a sequence",
+          "occurrences": 1,
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-201"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 1,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 1,
+        "reads": [
+          {
+            "readIndex": 1,
+            "recordNumber": 10,
+            "readHeader": "ERR001276.4786095",
+            "detectedErrors": [
+              "SRAE-201"
+            ],
+            "rawRecord": "ERR001276.4786095\t99\t20\t66670\t0\t35M1S\t=\t66872\t0\t*\t*\tRG:Z:ERR001276"
+          }
+        ]
+      }
+    }
+  ]
+}

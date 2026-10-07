@@ -162,7 +162,7 @@ static void report_file_1(ErrorReport &report, int const file)
         auto const recNo = i + 1;
         
         if (nextError < n_errors && recNo == errors[nextError].recordNumber)
-            report.addIssue(file, bases, errors[nextError++]);
+            report.addIssue(file, 1, bases, errors[nextError++]);
         else
             report.addRecord(file, bases);
         
@@ -244,7 +244,7 @@ static void report_file_2(ErrorReport &report, int const file)
         auto const recNo = i + 1;
         
         if (nextError < n_errors && recNo == errors[nextError].recordNumber)
-            report.addIssue(file, bases, errors[nextError++]);
+            report.addIssue(file, 1, bases, errors[nextError++]);
         else
             report.addRecord(file, bases);
         

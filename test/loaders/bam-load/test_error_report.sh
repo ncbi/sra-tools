@@ -42,14 +42,14 @@ test -f "${REF}" || curl --silent --output "CM000682.1" "${REF}"
 mkdir -p actual
 
 "${DIRTOTEST}/bam-load" \
-    --errorReport actual/report.json.raw \
+    --errorReport actual/report.raw.json \
     --output actual/out.sra \
     --config "${CASE}/analysis.bam.cfg" \
     --log-level err \
     "${CASE}/${CASE}.sam" || { echo "bam-load ${CASE} failed"; exit 1; }
 
 # remove what we expect to vary
-jq 'del(.validator.version, .generatedAt)' actual/report.json.raw > actual/report.json
+jq 'del(.validator.version, .generatedAt)' actual/report.raw.json > actual/report.json
 
 ${DIFF} actual/report.json "expected/${CASE}.json" || \
     { echo "the files actual/report.json and expected/${CASE}.json differ!"; exit 1; }

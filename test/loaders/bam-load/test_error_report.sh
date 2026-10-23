@@ -61,7 +61,7 @@ mkdir -p actual
 "${DIRTOTEST}/bam-load" \
     --errorReport actual/report.raw.json \
     --output actual/out.sra \
-    --config "${CASE}/analysis.bam.cfg" \
+    --config analysis.bam.cfg \
     --log-level err \
     $@ || { echo "bam-load ${CASE} failed"; exit 1; }
 

@@ -3586,7 +3586,9 @@ WRITE_ALIGNMENT:
         (void)LOGMSG(klogWarn, (G.limit2config || G.refFilter != NULL) ?
                      "SRAE-259: Data error: All records from the file were filtered out" :
                      "The file contained no records that were processed.");
+#if 0
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
+#endif
     }
 
     {

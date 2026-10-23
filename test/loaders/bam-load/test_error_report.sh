@@ -33,6 +33,23 @@ if [ "$(uname -s)" = "Linux" ] ; then
     fi
 fi
 
+HEADER=""
+SAM=""
+{
+    WD=$(pwd)
+    cd "${CASE}" || exit 1
+    if [ -f "${CASE}.header.sam" ] ; then
+        HEADER="--header ${CASE}/${CASE}.header.sam"
+    fi
+    for s in ${CASE}*.sam ; do
+        if [ "${s}" != "${CASE}.header.sam" ] ; then
+            SAM="${SAM} ${CASE}/${s}"
+        fi
+    done
+    cd "${WD}"
+}
+set -- "${HEADER}" ${SAM}
+
 # Because configuration has been neutered, bam-load will not find
 # the reference if it is remote. So, check with srapath and fetch
 # it first if it is a remote path.
@@ -46,7 +63,7 @@ mkdir -p actual
     --output actual/out.sra \
     --config "${CASE}/analysis.bam.cfg" \
     --log-level err \
-    "${CASE}/${CASE}.sam" || { echo "bam-load ${CASE} failed"; exit 1; }
+    $@ || { echo "bam-load ${CASE} failed"; exit 1; }
 
 # remove what we expect to vary
 jq 'del(.validator.version, .generatedAt)' actual/report.raw.json > actual/report.json

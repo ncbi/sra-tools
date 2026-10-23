@@ -59,7 +59,8 @@ public:
             srae_160 = 160,
             srae_201 = 201,
             srae_202 = 202,
-            srae_210 = 210
+            srae_210 = 210,
+            srae_283 = 283
         };
         static SRAE_Code const &getCodeFor(Value which) {
             using namespace std::string_literals;
@@ -73,6 +74,8 @@ public:
                     , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
                 { "SRAE-210"s, "Quality score length does not match sequence length"s
                     , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },
+                { "SRAE-283"s, "Excessive non-standard bases"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-283"s },
             };
             switch (which) {
             case Value::srae_160:
@@ -83,6 +86,8 @@ public:
                 return code[3];
             case Value::srae_210:
                 return code[4];
+            case Value::srae_283:
+                return code[5];
             default:
                 return code[0];
             }
@@ -193,6 +198,7 @@ public:
             filesProcessing = 0,
             filesPassed = 0,
             filesFailed = 0;
+
         unsigned filesProcessed() const {
             return filesPassed + filesFailed;
         }
@@ -353,7 +359,9 @@ public:
             readsPassingValidation = 0,
             readsFailingValidation = 0,
             passingBasePairs = 0,
-            failingBasePairs = 0;
+            failingBasePairs = 0,
+            totalBasePairs = 0,
+            totalBasePairsACGT = 0;
         std::map<SRAE_Codes::Value, unsigned> issueCount;
         bool processingCompleted = false;
         int issueBase = 0;
@@ -377,11 +385,25 @@ public:
             }
             return result;
         }
+        bool tooManyAmbiguousBases() const {
+            return totalBasePairsACGT * 2 < totalBasePairs;
+        }
         void finish(unsigned long long fileSizeBytes, double validationCoveragePercent, bool completed) {
             this->fileSizeBytes = fileSizeBytes;
             this->validationCoveragePercent = validationCoveragePercent;
             processingCompleted = completed;
-            if (totalReadsExamined() > 0 && !status.isFailure())
+            if (tooManyAmbiguousBases()) {
+                // SRAE_283 will be recorded as 0 occurences, if it has not
+                // already been recorded. This is to distinguish this final
+                // check from per read checks of bad bases, which unfortunately
+                // uses the SAME SRAE code.
+                issueCount.emplace(SRAE_Codes::Value::srae_283, 0);
+                if (!status.isFailure())
+                    status = Status::Failure();
+            }
+            if (totalReadsExamined() == 0 && completed && !status.isFailure())
+                status = Status::Failure();
+            else if (totalReadsExamined() > 0 && !status.isFailure())
                 status = Status::Success();
         }
         void addRecord(unsigned readLength) {
@@ -389,6 +411,56 @@ public:
             passingBasePairs += readLength;
             if (!status.isFailure())
                 status = Status::Processing();
+        }
+        int addRecord(std::string_view read) {
+            unsigned bases = 0, basesAmbi = 0, basesU = 0, basesT = 0;
+            for (auto const &ch : read) {
+                switch (std::toupper(ch)) {
+                case 'C':
+                case 'G':
+                case 'A':
+                case '=':
+                    bases += 1;
+                    break;
+                case 'T':
+                    basesT += 1;
+                    break;
+                case 'U':
+                    basesU += 1;
+                    break;
+                case 'M':
+                case 'R':
+                case 'S':
+                case 'V':
+                case 'W':
+                case 'Y':
+                case 'H':
+                case 'K':
+                case 'D':
+                case 'B':
+                case 'N':
+                case '.':
+                    basesAmbi += 1;
+                    break;
+                default:
+                    return (int)SRAE_Codes::Value::srae_283;
+                }
+            }
+#if 0
+            // This is incomplete. The tally and check needs to be at the level of the run, not just the read.
+            if (basesU > 0 && basesT > 0)
+                return (int)SRAE_Codes::Value::srae_283;
+
+            assert(basesU == 0 || basesT == 0);
+#endif
+            bases += basesT + basesU;
+            assert(bases + basesAmbi == read.size());
+
+            totalBasePairs += bases + basesAmbi;
+            totalBasePairsACGT += bases;
+            addRecord(bases + basesAmbi);
+
+            return 0;
         }
         bool addIssue(unsigned reads, unsigned readLength, ReadError const &error) {
             bool is_new = false;
@@ -449,7 +521,7 @@ public:
                         strm << '{'
                             << JSON_Member{"code"} << c.code
                             << JSON_Member{"name"} << c.name
-                            << JSON_Member{"occurrences"} << count
+                            << JSON_Member{"occurrences"} << (count == 0 ? 1 : count)
                         << '}';
                     }
             strm << ']'; // errorDistribution
@@ -465,7 +537,7 @@ public:
                         << JSON_Member{"severity"} << "ERROR"
                         << JSON_Member{"code"} << c.code
                         << JSON_Member{"name"} << c.name
-                        << JSON_Member{"occurrences"} << count
+                        << JSON_Member{"occurrences"} << (count == 0 ? 1 : count)
                         << JSON_Member{"documentationUrl"} << c.documentationUrl
                     << '}';
                 }
@@ -485,7 +557,8 @@ public:
     SubmissionQualityMetrics submissionQualityMetrics() const {
         SubmissionQualityMetrics result{};
         std::map<SRAE_Codes::Value, unsigned> issueCount;
-        
+        unsigned long long totalBasePairsACGT = 0, totalBasePairs = 0;
+
         for (auto & file : files) {
             if (file.status.isSuccess()) {
                 result.filesPassed += 1;
@@ -503,8 +576,15 @@ public:
             result.readsFailingValidation += file.readsFailingValidation;
             result.passingBasePairs += file.passingBasePairs;
             result.failingBasePairs += file.failingBasePairs;
+            totalBasePairsACGT += file.totalBasePairsACGT;
+            totalBasePairs += file.totalBasePairs;
+            std::cerr << \
+                "File: " << file.filename << \
+                "\ttotalBasePairs: " << file.totalBasePairs << \
+                "\ttotalBasePairsACGT: " << file.totalBasePairsACGT << \
+                std::endl;
             for (auto &[code, count] : file.issueCount) {
-                issueCount[code] += count;
+                issueCount[code] += count == 0 ? 1 : count;
             }
         }
         result.readsPassingValidation += no_file.readsPassingValidation;
@@ -514,16 +594,33 @@ public:
         for (auto &[code, count] : no_file.issueCount) {
             issueCount[code] += count;
         }
+        std::cerr << \
+            "totalBasePairs: " << totalBasePairs << \
+            "\ttotalBasePairsACGT: " << totalBasePairsACGT << \
+            std::endl;
+        if (totalBasePairsACGT * 2 < totalBasePairs)
+            issueCount[SRAE_Codes::Value::srae_283] += 1;
+
         result.uniqueErrorTypes = issueCount.size();
-        result.errorDistribution.reserve(issueCount.size());
+        result.errorDistribution.reserve(result.uniqueErrorTypes);
         for (auto &[code, count] : issueCount) {
+            auto effectsEveryFile = false;
             SubmissionQualityMetrics::ErrorDistributionEntry entry{code, count};
+
+            if (code == SRAE_Codes::Value::srae_283 && totalBasePairsACGT < totalBasePairs * 2)
+                effectsEveryFile = true;
 
             result.totalValidationErrors += count;
             for (auto & file : files) {
+                if (effectsEveryFile) {
+                    entry.filesAffected.push_back(file.filename);
+                    continue;
+                }
                 for (auto &[fcode, count] : file.issueCount) {
-                    if (code == fcode)
+                    if (code == fcode) {
                         entry.filesAffected.push_back(file.filename);
+                        break;
+                    }
                 }
             }
             result.errorDistribution.emplace_back(entry);
@@ -570,7 +667,16 @@ public:
     void addRecord(int file, unsigned readLength) {
         files[file].addRecord(readLength);
     }
-    
+
+    /// Report a record. Checks the sequence for any issues.
+    /// - Parameters:
+    ///   - file: the file number returned from `addFile`.
+    ///   - read: the sequence.
+    /// - Returns 0 if good, else an `SRAE_Codes::Value`. Call `addIssue` if non-zero.
+    int addRecord(int file, std::string_view read) {
+        return files[file].addRecord(read);
+    }
+
     /// Set final state of the file.
     /// - Parameters:
     ///   - file: the file number returned from `addFile`.
@@ -586,7 +692,7 @@ public:
         auto submission{self.submission};
         submission.status = metrics.status();
         auto files = self.files;
-        
+
         {
             int issues = 0;
             for (auto &f : files) {

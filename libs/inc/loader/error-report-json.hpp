@@ -578,11 +578,6 @@ public:
             result.failingBasePairs += file.failingBasePairs;
             totalBasePairsACGT += file.totalBasePairsACGT;
             totalBasePairs += file.totalBasePairs;
-            std::cerr << \
-                "File: " << file.filename << \
-                "\ttotalBasePairs: " << file.totalBasePairs << \
-                "\ttotalBasePairsACGT: " << file.totalBasePairsACGT << \
-                std::endl;
             for (auto &[code, count] : file.issueCount) {
                 issueCount[code] += count == 0 ? 1 : count;
             }
@@ -594,10 +589,6 @@ public:
         for (auto &[code, count] : no_file.issueCount) {
             issueCount[code] += count;
         }
-        std::cerr << \
-            "totalBasePairs: " << totalBasePairs << \
-            "\ttotalBasePairsACGT: " << totalBasePairsACGT << \
-            std::endl;
         if (totalBasePairsACGT * 2 < totalBasePairs)
             issueCount[SRAE_Codes::Value::srae_283] += 1;
 

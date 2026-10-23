@@ -60,6 +60,7 @@ public:
             srae_201 = 201,
             srae_202 = 202,
             srae_210 = 210,
+            srae_281 = 281,
             srae_283 = 283
         };
         static SRAE_Code const &getCodeFor(Value which) {
@@ -74,6 +75,8 @@ public:
                     , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"s },
                 { "SRAE-210"s, "Quality score length does not match sequence length"s
                     , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-210"s },
+                { "SRAE-281"s, "File contains no reads"s
+                    , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-281"s },
                 { "SRAE-283"s, "Excessive non-standard bases"s
                     , "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-283"s },
             };
@@ -86,8 +89,10 @@ public:
                 return code[3];
             case Value::srae_210:
                 return code[4];
-            case Value::srae_283:
+            case Value::srae_281:
                 return code[5];
+            case Value::srae_283:
+                return code[6];
             default:
                 return code[0];
             }
@@ -401,8 +406,10 @@ public:
                 if (!status.isFailure())
                     status = Status::Failure();
             }
-            if (totalReadsExamined() == 0 && completed && !status.isFailure())
+            if (totalReadsExamined() == 0 && completed && !status.isFailure()) {
+                issueCount.emplace(SRAE_Codes::Value::srae_281, 1);
                 status = Status::Failure();
+            }
             else if (totalReadsExamined() > 0 && !status.isFailure())
                 status = Status::Success();
         }
@@ -578,11 +585,6 @@ public:
             result.failingBasePairs += file.failingBasePairs;
             totalBasePairsACGT += file.totalBasePairsACGT;
             totalBasePairs += file.totalBasePairs;
-            std::cerr << \
-                "File: " << file.filename << \
-                "\ttotalBasePairs: " << file.totalBasePairs << \
-                "\ttotalBasePairsACGT: " << file.totalBasePairsACGT << \
-                std::endl;
             for (auto &[code, count] : file.issueCount) {
                 issueCount[code] += count == 0 ? 1 : count;
             }
@@ -594,10 +596,6 @@ public:
         for (auto &[code, count] : no_file.issueCount) {
             issueCount[code] += count;
         }
-        std::cerr << \
-            "totalBasePairs: " << totalBasePairs << \
-            "\ttotalBasePairsACGT: " << totalBasePairsACGT << \
-            std::endl;
         if (totalBasePairsACGT * 2 < totalBasePairs)
             issueCount[SRAE_Codes::Value::srae_283] += 1;
 

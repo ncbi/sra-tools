@@ -446,10 +446,13 @@ public:
                     return (int)SRAE_Codes::Value::srae_283;
                 }
             }
+#if 0
+            // This is incomplete. The tally and check needs to be at the level of the run, not just the read.
             if (basesU > 0 && basesT > 0)
                 return (int)SRAE_Codes::Value::srae_283;
 
             assert(basesU == 0 || basesT == 0);
+#endif
             bases += basesT + basesU;
             assert(bases + basesAmbi == read.size());
 

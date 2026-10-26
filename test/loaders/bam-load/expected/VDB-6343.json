@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "1.1",
+  "reportType": "SRA Validation Report",
+  "reportId": "",
+  "validator": {
+    "name": "bam-load"
+  },
+  "submission": {
+    "submissionId": "",
+    "status": "FAILED"
+  },
+  "submissionSummary": {
+    "filesProcessed": 2,
+    "filesPassed": 0,
+    "filesFailed": 2,
+    "totalReadsExamined": 16,
+    "readsPassingValidation": 10,
+    "readsFailingValidation": 6,
+    "readSuccessRatePercent": 62.5,
+    "totalBasePairsExamined": 576,
+    "passingBasePairs": 360,
+    "failingBasePairs": 216,
+    "basePairSuccessRatePercent": 62.5,
+    "totalValidationErrors": 7,
+    "uniqueErrorTypes": 2
+  },
+  "submissionQualityMetrics": {
+    "filesProcessed": 2,
+    "filesPassed": 0,
+    "filesFailed": 2,
+    "totalReadsExamined": 16,
+    "readsPassingValidation": 10,
+    "readsFailingValidation": 6,
+    "readSuccessRatePercent": 62.5,
+    "totalBasePairsExamined": 576,
+    "passingBasePairs": 360,
+    "failingBasePairs": 216,
+    "basePairSuccessRatePercent": 62.5,
+    "totalValidationErrors": 7,
+    "uniqueErrorTypes": 2,
+    "errorDistribution": [
+      {
+        "code": "SRAE-202",
+        "name": "Read has no quality scores",
+        "occurrences": 6,
+        "filesAffected": [
+          "VDB-6343/VDB-6343.sam"
+        ]
+      },
+      {
+        "code": "SRAE-281",
+        "name": "File contains no reads",
+        "occurrences": 1,
+        "filesAffected": [
+          "VDB-6343/VDB-6343_empty.sam"
+        ]
+      }
+    ]
+  },
+  "fileSummary": [
+    {
+      "filename": "VDB-6343/VDB-6343_empty.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "errorCount": 1,
+      "warningCount": 0,
+      "failedReads": 0,
+      "totalReadsExamined": 0
+    },
+    {
+      "filename": "VDB-6343/VDB-6343.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "errorCount": 1,
+      "warningCount": 0,
+      "failedReads": 6,
+      "totalReadsExamined": 16
+    }
+  ],
+  "files": [
+    {
+      "filename": "VDB-6343/VDB-6343_empty.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 14324,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 0,
+        "readsPassingValidation": 0,
+        "readsFailingValidation": 0,
+        "readSuccessRatePercent": 0,
+        "totalBasePairsExamined": 0,
+        "passingBasePairs": 0,
+        "failingBasePairs": 0,
+        "basePairSuccessRatePercent": 0,
+        "totalValidationErrors": 1,
+        "uniqueErrorTypes": 1,
+        "errorDistribution": [
+          {
+            "code": "SRAE-281",
+            "name": "File contains no reads",
+            "occurrences": 1
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0001",
+          "severity": "ERROR",
+          "code": "SRAE-281",
+          "name": "File contains no reads",
+          "occurrences": 1,
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-281"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 1,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 0,
+        "reads": []
+      }
+    },
+    {
+      "filename": "VDB-6343/VDB-6343.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 16106,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 16,
+        "readsPassingValidation": 10,
+        "readsFailingValidation": 6,
+        "readSuccessRatePercent": 62.5,
+        "totalBasePairsExamined": 576,
+        "passingBasePairs": 360,
+        "failingBasePairs": 216,
+        "basePairSuccessRatePercent": 62.5,
+        "totalValidationErrors": 6,
+        "uniqueErrorTypes": 1,
+        "errorDistribution": [
+          {
+            "code": "SRAE-202",
+            "name": "Read has no quality scores",
+            "occurrences": 6
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0002",
+          "severity": "ERROR",
+          "code": "SRAE-202",
+          "name": "Read has no quality scores",
+          "occurrences": 6,
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-202"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 1,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 1,
+        "reads": [
+          {
+            "readIndex": 1,
+            "recordNumber": 9,
+            "readHeader": "ERR001276.4786095",
+            "detectedErrors": [
+              "SRAE-202"
+            ],
+            "rawRecord": "ERR001276.4786095\t147\t20\t66872\t0\t36M\t=\t66670\t0\tGGTTACTATAGCTTTGTAGTATAATTTGAAGTGAGG\t*\tRG:Z:ERR001276"
+          }
+        ]
+      }
+    }
+  ]
+}

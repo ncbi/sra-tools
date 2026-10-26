@@ -41,7 +41,7 @@ SAM=""
     if [ -f "${CASE}.header.sam" ] ; then
         HEADER="--header ${CASE}/${CASE}.header.sam"
     fi
-    for s in ${CASE}*.sam ; do
+    for s in $(ls -t ${CASE}*.sam) ; do
         if [ "${s}" != "${CASE}.header.sam" ] ; then
             SAM="${SAM} ${CASE}/${s}"
         fi

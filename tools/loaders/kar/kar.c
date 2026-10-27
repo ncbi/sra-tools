@@ -1190,9 +1190,10 @@ size_t kar_entry_full_path ( const KAREntry * entry, const char * root_dir, char
 }
 
 static
-void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *file, const char * root_dir )
+rc_t kar_write_file ( KARArchiveFile *af, const KDirectory *wd,
+    const KARFile *file, const char * root_dir )
 {
-    rc_t rc;
+    rc_t rc = 0;
     char *buffer;
     size_t num_read, align_size;
     uint64_t pos = 0;
@@ -1205,7 +1206,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     size_t path_size;
 
     if ( file -> byte_size == 0 )
-        return;
+        return 0;
 
     if ( bsize > file -> byte_size )
         bsize = file -> byte_size;
@@ -1274,6 +1275,8 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
 
     STATUS ( STAT_QA, "closing '%s'", filename );
     KFileRelease ( f );
+
+    return rc;
 }
 
 static
@@ -1303,10 +1306,10 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree, const
 
         /* write each of the files in order */
         STATUS ( STAT_QA, "about to write %u files", num_files );
-        for ( i = 0; i < num_files; ++ i )
+        for ( i = 0; rc == 0 && i < num_files; ++ i )
         {
             STATUS ( STAT_QA, "writing file %u: '%s'", i, file_array [ i ] -> dad . name );
-            kar_write_file ( & af, wd, file_array [ i ], root_dir );
+            rc = kar_write_file(&af, wd, file_array[i], root_dir);
         }
 
         free ( file_array );

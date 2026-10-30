@@ -49,10 +49,17 @@ mkdir -p actual
     "${CASE}/${CASE}.sam" || { echo "bam-load ${CASE} failed"; exit 1; }
 
 # remove what we expect to vary
-jq 'del(.validator.version, .generatedAt)' actual/report.raw.json > actual/report.json
+which jq >/dev/null
+if [ $? -eq 0 ]; then
 
-${DIFF} actual/report.json "expected/${CASE}.json" || \
+    jq 'del(.validator.version, .generatedAt)' actual/report.raw.json > actual/report.json
+
+    ${DIFF} actual/report.json "expected/${CASE}.json" || \
     { echo "the files actual/report.json and expected/${CASE}.json differ!"; exit 1; }
+
+else
+    echo "Skipped"
+fi
 
 rm -rf actual
 rm -f "CM000682.1"

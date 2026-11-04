@@ -322,9 +322,6 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( NCBI_VDB_LIBDIR_DEBUG ${VDB_BINDIR}/Debug/lib )
     set( NCBI_VDB_LIBDIR_RELEASE ${VDB_BINDIR}/Release/lib )
 
-    set( NCBI_VDB_ILIBDIR_DEBUG ${VDB_BINDIR}/Debug/ilib )
-    set( NCBI_VDB_ILIBDIR_RELEASE ${VDB_BINDIR}/Release/ilib )
-
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${TARGDIR}/Debug/bin )
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TARGDIR}/Release/bin )
     SetAndCreate( TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG    ${TARGDIR}/Debug/test-bin )
@@ -349,7 +346,6 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( TEMPDIR "$<$<CONFIG:Debug>:${TEMPDIR_DEBUG}>$<$<CONFIG:Release>:${TEMPDIR_RELEASE}>" )
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
-    link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
     link_libraries( vdb_mbedtls.lib )
 
 else() # assume a single-config generator

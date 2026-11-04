@@ -350,6 +350,7 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
+    link_libraries( vdb_mbedtls.lib )
 
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )

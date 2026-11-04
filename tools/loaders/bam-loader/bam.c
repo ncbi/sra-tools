@@ -389,10 +389,7 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
 
     if ( diff != 0 )
         return diff;
-    else if ( a < b )
-        return -1;
-    else
-        return a > b;
+    return a < b ? -1 : 1;
 }
 
 /* find the first occurence of tag OR if tag doesn't exist, where it should have been. */
@@ -2870,16 +2867,17 @@ static int FormatOptData(BAM_Alignment const *const self,
     int j;
 
     for (i = 0, offset = 0; i < self->numExtra; ++i) {
-        int type;
+        char const tag1 = base[offset++];
+        char const tag2 = base[offset++];
+        int const type = base[offset++];
         union { float f; uint32_t i; } fi;
 
         if (cur + 7 > maxsize)
             return -1;
         buffer[cur++] = '\t';
-        buffer[cur++] = base[offset++];
-        buffer[cur++] = base[offset++];
+        buffer[cur++] = tag1;
+        buffer[cur++] = tag2;
         buffer[cur++] = ':';
-        type = base[offset++];
 
         switch (type) {
             case dt_ASCII:      /* A */

@@ -436,6 +436,35 @@ static size_t check_size(SAM2BAM_Parser *const self, size_t const more, rc_t *co
     return current;
 }
 
+static void get_seqlen_and_reflen(uint8_t const *const cigarBase, unsigned n_cigar, uint32_t *const seqlen, uint32_t *const reflen)
+{
+    unsigned i;
+    *seqlen = *reflen = 0;
+    for (i = 0; i < n_cigar; ++i) {
+        uint32_t const value = bam_alignment_get_u32(cigarBase + i * sizeof(uint32_t));
+        uint32_t const opcode = value & 0x0F;
+        uint32_t const length = value >> 4;
+        switch (opcode) {
+        case 0: /* M */
+        case 7: /* = */
+        case 8: /* X */
+            *seqlen += length;
+            *reflen += length;
+            break;
+        case 1: /* I */
+        case 4: /* S */
+            *seqlen += length;
+            break;
+        case 2: /* D */
+        case 3: /* N */
+            *reflen += length;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 DEF_PARSER_FUNCTION_INLINE(QNAME)
 {
     switch (self->state) {
@@ -606,10 +635,36 @@ DEF_PARSER_FUNCTION_INLINE(CIGAR)
         if (ch < 0)
         DONE:
         {
-            size_t const n_cigars = self->field_out_size / 4;
-            assert(self->field_out_size % 4 == 0);
-            if (n_cigars < UINT16_MAX) {
+            size_t const n_cigars = self->field_out_size / sizeof(uint32_t);
+            assert(self->field_out_size % sizeof(uint32_t) == 0);
+            if (n_cigars <= UINT16_MAX) {
                 bam_alignment_set_u16(RESULT_FIELD(n_cigars), (uint16_t)n_cigars);
+                self->parser = PARSER_FUNCTION(RNEXT);
+                return true;
+            }
+            else if (n_cigars < UINT32_MAX) {
+                unsigned k, m;
+                uint8_t *const cigarBase = &self->rslt->raw[self->rslt_size - self->field_out_size];
+                CIGAR_extra *longCIGAR = (CIGAR_extra *)malloc((n_cigars + 2) * sizeof(uint32_t));
+
+                if (longCIGAR == NULL) {
+                    *rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
+                    return false;
+                }
+                longCIGAR->tag_type.v.tag1 = 'C';
+                longCIGAR->tag_type.v.tag2 = 'G';
+                longCIGAR->tag_type.v.type = 'B';
+                longCIGAR->tag_type.v.subtype = 'I';
+                bam_alignment_set_u32((uint8_t *)(&longCIGAR->count), n_cigars);
+                memmove(longCIGAR->value, cigarBase, self->field_out_size);
+                self->longCIGAR = longCIGAR;
+
+                get_seqlen_and_reflen(cigarBase, n_cigars, &k, &m);
+
+                self->rslt_size -= self->field_out_size;
+                bam_alignment_set_u32(&self->rslt->raw[check_size(self, 4, rc)], k << 4 | 4);
+                bam_alignment_set_u32(&self->rslt->raw[check_size(self, 4, rc)], m << 4 | 3);
+                bam_alignment_set_u16(RESULT_FIELD(n_cigars), 2);
                 self->parser = PARSER_FUNCTION(RNEXT);
                 return true;
             }
@@ -835,7 +890,7 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA)
             goto COPY_IN;
         break;
     case 1:
-        if (((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' || ch <= '9'))) {
+        if (((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))) {
         COPY_IN:
             if ((current = check_size(self, 1, rc)) > 0) {
                 self->rslt->raw[current] = ch;
@@ -932,6 +987,94 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_A)
 
 DEF_PARSER_FUNCTION(EXTRA_A, EXTRA)
 
+static int size_for_int_type(int type)
+{
+    switch (type) {
+    case 'c':
+    case 'C':
+        return 1;
+    case 's':
+    case 'S':
+        return 2;
+    default:
+        return 4;
+    }
+}
+
+static int smallest_int_type_for(int32_t value)
+{
+    if (value < 0) {
+        if (value <= INT8_MAX && value >= INT8_MIN)
+            return 'c';
+        if (value <= INT16_MAX && value >= INT16_MIN)
+            return 's';
+        return 'i';
+    }
+    else {
+        if (value <= UINT8_MAX)
+            return 'C';
+        if (value <= UINT16_MAX)
+            return 'S';
+        return 'I';
+    }
+}
+
+static void convert_i32_to_i8(SAM2BAM_Parser *const self)
+{
+    uint32_t const n = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+    uint8_t *const data = &self->rslt->raw[self->extraArrayCountPos + 4];
+    uint32_t i;
+    for (i = 0; i < n; ++i)
+        ((int8_t *)data)[i] = (int8_t)bam_alignment_get_i32(data + i * 4);
+    self->rslt_size -= n * 4;
+    self->rslt_size += n;
+    self->field_out_size -= n * 4;
+    self->field_out_size += n;
+    self->rslt->raw[self->extraArrayCountPos - 1] = 'c';
+}
+
+static void convert_i32_to_i16(SAM2BAM_Parser *const self)
+{
+    uint32_t const n = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+    uint8_t *const data = &self->rslt->raw[self->extraArrayCountPos + 4];
+    uint32_t i;
+    for (i = 0; i < n; ++i)
+        bam_alignment_set_i16(data + i * 2, (int16_t)bam_alignment_get_u32(data + i * 4));
+    self->rslt_size -= n * 4;
+    self->rslt_size += n * 2;
+    self->field_out_size -= n * 4;
+    self->field_out_size += n * 2;
+    self->rslt->raw[self->extraArrayCountPos - 1] = 's';
+}
+
+static void convert_u32_to_u8(SAM2BAM_Parser *const self)
+{
+    uint32_t const n = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+    uint8_t *const data = &self->rslt->raw[self->extraArrayCountPos + 4];
+    uint32_t i;
+    for (i = 0; i < n; ++i)
+        data[i] = (uint8_t)bam_alignment_get_u32(data + i * 4);
+    self->rslt_size -= n * 4;
+    self->rslt_size += n;
+    self->field_out_size -= n * 4;
+    self->field_out_size += n;
+    self->rslt->raw[self->extraArrayCountPos - 1] = 'C';
+}
+
+static void convert_u32_to_u16(SAM2BAM_Parser *const self)
+{
+    uint32_t const n = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+    uint8_t *const data = &self->rslt->raw[self->extraArrayCountPos + 4];
+    uint32_t i;
+    for (i = 0; i < n; ++i)
+        bam_alignment_set_u16(data + i * 2, (uint16_t)bam_alignment_get_u32(data + i * 4));
+    self->rslt_size -= n * 4;
+    self->rslt_size += n * 2;
+    self->field_out_size -= n * 4;
+    self->field_out_size += n * 2;
+    self->rslt->raw[self->extraArrayCountPos - 1] = 'S';
+}
+
 DEF_PARSER_FUNCTION_INLINE(EXTRA_i)
 {
     switch (self->state) {
@@ -948,9 +1091,32 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_i)
         else if (ch < 0 && self->numeric.ok) {
             int32_t value;
             if (number_parser_get_exact_i32(&self->numeric, &value)) {
-                size_t const cp = check_size(self, 4, rc);
+                char *const ptype = &self->rslt->raw[self->rslt_size - 1];
+                int const type = smallest_int_type_for(value);
+                int const size = size_for_int_type(type);
+                size_t const cp = check_size(self, size, rc);
                 if (cp > 0) {
-                    bam_alignment_set_i32(&self->rslt->raw[cp], value);
+                    *ptype = type;
+                    switch (type) {
+                    case 'c':
+                        self->rslt->raw[cp] = (int8_t)value;
+                        break;
+                    case 'C':
+                        self->rslt->raw[cp] = (uint8_t)value;
+                        break;
+                    case 's':
+                        bam_alignment_set_i16(&self->rslt->raw[cp], value);
+                        break;
+                    case 'S':
+                        bam_alignment_set_u16(&self->rslt->raw[cp], value);
+                        break;
+                    case 'i':
+                        bam_alignment_set_i32(&self->rslt->raw[cp], value);
+                        break;
+                    case 'I':
+                        bam_alignment_set_u32(&self->rslt->raw[cp], value);
+                        break;
+                    }
                     self->parser = PARSER_FUNCTION(EXTRA);
                     return true;
                 }
@@ -1150,13 +1316,23 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_B_u)
             if (number_parser_get_exact_u32(&self->numeric, &value)) {
                 size_t const cp = check_size(self, 4, rc);
                 if (cp > 0) {
+                    uint32_t const i = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+                    if (i == 0 || self->extraArrayMin.u32 > value)
+                        self->extraArrayMin.u32 = value;
+                    if (i == 0 || self->extraArrayMax.u32 < value)
+                        self->extraArrayMax.u32 = value;
+
                     bam_alignment_set_u32(&self->rslt->raw[cp], value);
-                    bam_alignment_inc_i32(&self->rslt->raw[self->extraArrayCountPos]);
+                    bam_alignment_set_u32(&self->rslt->raw[self->extraArrayCountPos], i + 1);
 
                     if (ch == ',')
                         self->state = 2;
                     else {
                     DONE:
+                        if (self->extraArrayMax.u32 <= UINT8_MAX)
+                            convert_u32_to_u8(self);
+                        else if (self->extraArrayMax.u32 <= UINT16_MAX)
+                            convert_u32_to_u16(self);
                         self->parser = PARSER_FUNCTION(EXTRA);
                     }
                     return true;
@@ -1198,13 +1374,23 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_B_i)
             if (number_parser_get_exact_i32(&self->numeric, &value)) {
                 cp = check_size(self, 4, rc);
                 if (cp > 0) {
+                    uint32_t const i = bam_alignment_get_u32(&self->rslt->raw[self->extraArrayCountPos]);
+                    if (i == 0 || self->extraArrayMin.i32 > value)
+                        self->extraArrayMin.i32 = value;
+                    if (i == 0 || self->extraArrayMax.i32 < value)
+                        self->extraArrayMax.i32 = value;
+
                     bam_alignment_set_i32(&self->rslt->raw[cp], value);
-                    bam_alignment_inc_i32(&self->rslt->raw[self->extraArrayCountPos]);
+                    bam_alignment_set_u32(&self->rslt->raw[self->extraArrayCountPos], i + 1);
 
                     if (ch == ',')
                         self->state = 2;
                     else {
                     DONE:
+                        if (self->extraArrayMax.i32 <= INT8_MAX && self->extraArrayMin.i32 >= INT8_MIN)
+                            convert_i32_to_i8(self);
+                        else if (self->extraArrayMax.i32 <= INT16_MAX && self->extraArrayMin.i32 >= INT16_MIN)
+                            convert_i32_to_i16(self);
                         self->parser = PARSER_FUNCTION(EXTRA);
                     }
                     return true;
@@ -1365,11 +1551,13 @@ static SAM2BAM_Parser *parse(  char const *const data
 {
     SAM2BAM_Parser *const self = (SAM2BAM_Parser*)malloc(sizeof(*self));
 
-    if (self == NULL)
-        goto OUT_OF_MEMORY;
+    if (self == NULL) {
+        *rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
+        return NULL;
+    }
 
     if (init(self, static_buffer, buffer_size, lookup, lookup_ctx) == NULL)
-        goto OUT_OF_MEMORY;
+        goto CLEANUP;
 
     // LogSAM(klogErr, data, fields, offsets);
     self->record_chars = offsets[fields - 1] - 1;
@@ -1390,22 +1578,30 @@ static SAM2BAM_Parser *parse(  char const *const data
         if (*rc == 0)
             *rc = lrc;
     }
-    if (self->parser == PARSER_FUNCTION(EXTRA) && *rc == 0)
+    if (self->parser == PARSER_FUNCTION(EXTRA) && *rc == 0) {
+        if (self->longCIGAR) {
+            size_t const sz = 8 + bam_alignment_get_u32((uint8_t *)(&self->longCIGAR->count)) * sizeof(uint32_t);
+            size_t const offset = check_size(self, sz, rc);
+            if (offset == 0)
+                goto CLEANUP;
+            memmove(&self->rslt->raw[offset], self->longCIGAR, sz);
+            self->field += 1;
+            free(self->longCIGAR);
+            self->longCIGAR = NULL;
+        }
         return self;
+    }
 
     if (*rc == 0) {
         *rc = RC(rcAlign, rcFile, rcReading, rcData, rcTooShort);
         (void)LOGERR(klogErr, *rc, "SRAE-246: Parsing SAM:");
         LogSAM(klogInfo, data, fields, offsets);
     }
+CLEANUP:
     if (self->rslt != static_buffer)
         free(self->rslt);
+    free(self->longCIGAR);
     free(self);
-    return NULL;
-
-OUT_OF_MEMORY:
-    free(self);
-    *rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
     return NULL;
 }
 

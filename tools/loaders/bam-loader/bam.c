@@ -389,10 +389,7 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
 
     if ( diff != 0 )
         return diff;
-    else if ( a < b )
-        return -1;
-    else
-        return a > b;
+    return a < b ? -1 : 1;
 }
 
 /* find the first occurence of tag OR if tag doesn't exist, where it should have been. */
@@ -441,6 +438,16 @@ static struct offset_size_s const *getTag(BAM_Alignment const *const self,
     unsigned const fnd = tag_search(self, tag);
     unsigned const run = tag_count(self, tag, fnd);
     return run > 0 ? &self->extra[fnd + Modulus(which, run)] : NULL;
+}
+
+static void removeTag(BAM_Alignment *const self, struct offset_size_s *const tagInfo)
+{
+    unsigned const i = tagInfo - &self->extra[0];
+    unsigned const n = self->numExtra - (i + 1);
+    assert(tagInfo >= &self->extra[0] && tagInfo < &self->extra[self->numExtra]);
+    if (n > 0)
+        memmove(tagInfo, tagInfo + 1, n * sizeof(*tagInfo));
+    self->numExtra -= 1;
 }
 
 /** MARK: named optional field convenience accessors **/
@@ -1680,7 +1687,7 @@ static rc_t ParseOptData(BAM_Alignment *const self, unsigned const maxsize,
 static unsigned BAM_AlignmentSetOffsets(BAM_Alignment *const self)
 {
     unsigned const nameLen = getReadNameLength(self);
-    unsigned const cigCnt  = getCigarCount(self);
+    unsigned const cigCnt  = (self->cigarOps = getCigarCount(self)); /* Uses the original correctly */
     unsigned const readLen = getReadLen(self);
     unsigned const cigar   = (unsigned)BAM_ALIGNMENT_MIN_SIZE + nameLen;
     unsigned const seq     = cigar + 4 * cigCnt;
@@ -1708,7 +1715,7 @@ static void BAM_AlignmentDebugPrint(BAM_Alignment const *const self)
                                                 "}\n",
                                                 (unsigned)self->datasize,
                                                 (unsigned)getReadNameLength(self),
-                                                (unsigned)getCigarCount(self),
+                                                (unsigned)self->cigarOps,
                                                 (unsigned)getReadLen(self),
                                                 (unsigned)self->numExtra));
 }
@@ -1731,6 +1738,32 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
             rc_t const rc = ParseOptData(self, maxsize, xtra, datasize);
 
             if (rc == 0) {
+                if (BAM_ALIGNMENT_MAX_EXTRA(maxsize) > 0) {
+                    /* Handle long CIGAR kludge:
+                     * If tag CG is present and the first CIGAR operation clips
+                     * the entire read, a BAM parsing library is expected to
+                     * update n_cigar_op and cigar with the real CIGAR stored in
+                     * the CG tag and remove the now-redundant CG tag.
+                     */
+                    struct offset_size_s *const CG = (struct offset_size_s *)getTag(self, OPT_TAG_CIGAR_extra, 0);
+                    uint32_t const *const cigarBase = (uint32_t const *)getCigarBase(self);
+                    uint32_t const kludged = getReadLen(self) << 4 | 4;
+
+                    if (CG && self->cigarOps > 0 && LE2HUI32(cigarBase) == kludged) {
+                        char const *const CG_data = (char const *)&self->data->raw[CG->offset];
+                        char const type = CG_data[2];
+                        if (type == 'B') {
+                            char const subtype = CG_data[3];
+                            if (subtype == 'I') {
+                                uint32_t const n_cigar_ops = LE2HUI32(&CG_data[4]);
+                                unsigned const new_cigar = &CG_data[8] - (char const *)&self->data->raw[0];
+                                self->cigar = new_cigar;
+                                self->cigarOps = n_cigar_ops;
+                                removeTag(self, CG);
+                            }
+                        }
+                    }
+                }
                 BAM_AlignmentDebugPrint(self);
                 return true;
             }
@@ -1769,7 +1802,7 @@ static bool BAM_AlignmentIsEmpty(BAM_Alignment const *const self)
         return false;
     if (getReadLen(self) != 0)
         return false;
-    if (getCigarCount(self) != 0)
+    if (self->cigarOps != 0)
         return false;
     return true;
 }
@@ -2437,7 +2470,7 @@ rc_t BAM_AlignmentGetAlignmentDetail(
         return RC(rcAlign, rcFile, rcReading, rcSelf, rcNull);
 
     rlen = getReadLen(self);
-    ccnt = getCigarCount(self);
+    ccnt = self->cigarOps;
     gpos = getPosition(self);
 
     if (gpos < 0)
@@ -2521,7 +2554,7 @@ static
 unsigned ReferenceLengthFromCIGAR(const BAM_Alignment *self)
 {
     unsigned i;
-    unsigned n = getCigarCount(self);
+    unsigned n = self->cigarOps;
     unsigned y;
 
     for (i = 0, y = 0; i != n; ++i) {
@@ -2546,7 +2579,7 @@ unsigned ReferenceLengthFromCIGAR(const BAM_Alignment *self)
 static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
 {
     unsigned i;
-    unsigned n = getCigarCount(self);
+    unsigned n = self->cigarOps;
     unsigned y;
 
     for (i = 0, y = 0; i != n; ++i) {
@@ -2631,14 +2664,26 @@ rc_t BAM_AlignmentGetMapQuality(const BAM_Alignment *cself, uint8_t *rhs)
 
 rc_t BAM_AlignmentGetCigarCount(const BAM_Alignment *cself, unsigned *rhs)
 {
-    *rhs = getCigarCount(cself);
+    *rhs = cself->cigarOps;
+    return 0;
+}
+
+rc_t BAM_AlignmentCopyCigar(BAM_Alignment const *const cself, uint32_t const maxCount, uint32_t *const rslt, uint32_t *const count)
+{
+    unsigned const n = cself->cigarOps;
+    unsigned i;
+
+    for (i = 0; i < n && i < maxCount && rslt != NULL; ++i)
+        rslt[i] = BAM_AlignmentGetCigarElement(cself, i);
+    if (count)
+        *count = n;
     return 0;
 }
 
 rc_t BAM_AlignmentGetRawCigar(const BAM_Alignment *cself, uint32_t const *rslt[], uint32_t *length)
 {
     *rslt = getCigarBase(cself);
-    *length = getCigarCount(cself);
+    *length = cself->cigarOps;
     return 0;
 }
 
@@ -2646,7 +2691,7 @@ rc_t BAM_AlignmentGetCigar(const BAM_Alignment *cself, uint32_t i, BAMCigarType 
 {
     uint32_t x;
 
-    if (i >= getCigarCount(cself))
+    if (i >= cself->cigarOps)
         return RC(rcAlign, rcFile, rcReading, rcParam, rcInvalid);
 
     x = BAM_AlignmentGetCigarElement(cself, i);
@@ -2822,16 +2867,17 @@ static int FormatOptData(BAM_Alignment const *const self,
     int j;
 
     for (i = 0, offset = 0; i < self->numExtra; ++i) {
-        int type;
+        char const tag1 = base[offset++];
+        char const tag2 = base[offset++];
+        int const type = base[offset++];
         union { float f; uint32_t i; } fi;
 
         if (cur + 7 > maxsize)
             return -1;
         buffer[cur++] = '\t';
-        buffer[cur++] = base[offset++];
-        buffer[cur++] = base[offset++];
+        buffer[cur++] = tag1;
+        buffer[cur++] = tag2;
         buffer[cur++] = ':';
-        type = base[offset++];
 
         switch (type) {
             case dt_ASCII:      /* A */
@@ -3010,8 +3056,7 @@ static rc_t FormatSAM(BAM_Alignment const *self,
     unsigned j;
     int const refSeqId = getRefSeqId(self);
     int const refPos = getPosition(self);
-    unsigned const cigCount = getCigarCount(self);
-    uint32_t const *const cigar = getCigarBase(self);
+    unsigned const cigCount = self->cigarOps;
     int const mateRefSeqId = getMateRefSeqId(self);
     int const mateRefPos = getMatePos(self);
     unsigned const readlen = getReadLen(self);
@@ -3029,7 +3074,7 @@ static rc_t FormatSAM(BAM_Alignment const *self,
 
     if (cigCount > 0) {
         for (j = 0; j < cigCount; ++j) {
-            uint32_t const el = cigar[j];
+            uint32_t const el = BAM_AlignmentGetCigarElement(self, j);
             BAMCigarType const type = (BAMCigarType)(cigarChars[el & 0x0F]);
             unsigned const length = el >> 4;
 
@@ -3582,7 +3627,7 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
 {
     unsigned i;
     unsigned S;
-    unsigned n = getCigarCount(self);
+    unsigned n = self->cigarOps;
     unsigned seg[64];
     unsigned const segs = BAM_AlignmentParseCGTag(self, sizeof(seg)/sizeof(seg[0]), seg);
     unsigned const gaps = (segs - 1) >> 1;
@@ -3593,7 +3638,7 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
     if (N < n + 2 * gaps)
         return RC(rcAlign, rcRow, rcReading, rcBuffer, rcInsufficient);
 
-    memmove(cigar, getCigarBase(self), n * 4);
+    BAM_AlignmentCopyCigar(self, n, cigar, NULL);
 
     if (n > 1)
         n = canonicalizeCIGAR(cigar, n); /* just in case */

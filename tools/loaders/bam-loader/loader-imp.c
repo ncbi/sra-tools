@@ -2351,11 +2351,9 @@ MIXED_BASE_AND_COLOR:
         }
         else {
             /* normal flow i.e. NOT CG */
-            uint32_t const *tmp;
-
             /* resize buffers */
             readlen = orig_readlen;
-            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
+            BAM_AlignmentGetCigarCount(rec, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount);
             assert(rc == 0);
             if (rc) {
@@ -2363,7 +2361,7 @@ MIXED_BASE_AND_COLOR:
                 (void)LOGERR(klogErr, rc, "SRAE-250: Fatal error: Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
-            memmove(cigBuf.base, tmp, opCount * sizeof(uint32_t));
+            BAM_AlignmentCopyCigar(rec, opCount, (uint32_t *)cigBuf.base, NULL);
 
             hardclipped = isHardClipped(opCount, (const uint32_t*)cigBuf.base);
             if (hardclipped) {

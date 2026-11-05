@@ -66,6 +66,18 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+    
+    add_test( NAME Test_BAM_Parsing_Long_CIGAR 
+        COMMAND
+            sh -c "${DIRTOTEST}/samview SRA-14452.bam | diff - SRA-14452.sam"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    
+    add_test( NAME Test_SAM_Parsing_Long_CIGAR 
+        COMMAND
+            sh -c "${DIRTOTEST}/samview SRA-14452.sam | diff - SRA-14452.sam"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
     #####################
     # min-batch-size option

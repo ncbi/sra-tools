@@ -321,8 +321,15 @@ rc_t BAM_AlignmentGetAlignmentDetail ( const BAM_Alignment *self,
  */
 rc_t BAM_AlignmentGetCigarCount ( const BAM_Alignment *self, uint32_t *n );
 
-
+/* Deprecated, values are little-endian and not 32-bit aligned. Use
+ *  BAM_AlignmentCopyCigar
+ */
 rc_t BAM_AlignmentGetRawCigar(const BAM_Alignment *cself, uint32_t const **rslt, uint32_t *length);
+
+/* CopyCigar
+ *  copy the CIGAR values, to host endian.
+ */
+rc_t BAM_AlignmentCopyCigar(BAM_Alignment const *const cself, uint32_t const maxCount, uint32_t *const rslt, uint32_t *const count);
 
 /* GetCigar
  *  get CIGAR element n [0..GetCigarCount)
@@ -417,6 +424,7 @@ enum BAMOptDataValueTypes
 #define OPT_TAG_SingleMapQ  "SM" /* quality of mapping as if not paired */
 #define OPT_TAG_AM          "AM"
 #define OPT_TAG_MAQFlag     "MQ"
+#define OPT_TAG_CIGAR_extra "CG" /* kludge for n_cigar_ops >= 2**16 */
 
 
 struct BAMOptData

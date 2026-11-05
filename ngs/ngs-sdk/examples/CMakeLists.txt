@@ -30,7 +30,7 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
 endif()
 
-link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${MBEDTLS_LIBS} )
+link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
 if ( NOT TOOLS_ONLY )
 

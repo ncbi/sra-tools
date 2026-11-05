@@ -2100,6 +2100,7 @@ static rc_t ProcessBAM(int fileNumber, char const bamFile[],
         uint16_t flags;
         int64_t rpos=0;
         char *seqDNA;
+        std::string_view seqDNA_sv;
 #ifdef HAS_CTX_VALUE
         ctx_value_t *value;
 #endif
@@ -2462,6 +2463,7 @@ MIXED_BASE_AND_COLOR:
             memset(qual, 0, (readlen | csSeqLen) + lpad + rpad);
 
             BAM_AlignmentGetSequence(rec, seqDNA + lpad);
+            seqDNA_sv = std::string_view(seqDNA + lpad, orig_readlen);
             if (G.useQUAL) {
                 uint8_t const *squal;
 
@@ -3504,7 +3506,10 @@ WRITE_ALIGNMENT:
     LOOP_END:
         if (!reported) {
             if (rc == 0) {
-                ctx->errorReport.addRecord(rptFile, orig_readlen);
+                auto const err = ctx->errorReport.addRecord(rptFile, seqDNA_sv);
+                if (err) {
+                    ctx->errorReport.addIssue(rptFile, 1, orig_readlen, makeReadError(rec, err));
+                }
             }
             else {
                 ctx->errorReport.addIssue(rptFile, 1, orig_readlen, makeReadError(rec, 0));
@@ -3581,7 +3586,9 @@ WRITE_ALIGNMENT:
         (void)LOGMSG(klogWarn, (G.limit2config || G.refFilter != NULL) ?
                      "SRAE-259: Data error: All records from the file were filtered out" :
                      "The file contained no records that were processed.");
+#if 0
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
+#endif
     }
 
     {

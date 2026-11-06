@@ -24,7 +24,7 @@
 
 if( NOT WIN32 )
 
-    ToolsRequired(bam-load)
+    ToolsRequired(bam-load samview)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME BamTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -66,6 +66,12 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+    
+    add_test( NAME Test_BAM_Parsing_Long_CIGAR 
+        COMMAND
+            sh -c "${DIRTOTEST}/samview SRA-14452.bam | diff - SRA-14452.sam"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
     #####################
     # min-batch-size option

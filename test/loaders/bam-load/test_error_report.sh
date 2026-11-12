@@ -35,19 +35,24 @@ fi
 
 HEADER=""
 SAM=""
+# Search the test case directory for header and sam files. Not all
+# test cases have a header file.
 {
     WD=$(pwd)
     cd "${CASE}" || exit 1
     if [ -f "${CASE}.header.sam" ] ; then
         HEADER="--header ${CASE}/${CASE}.header.sam"
     fi
-    for s in ${CASE}*.sam ; do
+    for s in $(ls ${CASE}*.sam | sort -d) ; do
         if [ "${s}" != "${CASE}.header.sam" ] ; then
             SAM="${SAM} ${CASE}/${s}"
         fi
     done
     cd "${WD}"
 }
+# make $@ equal to the specify arguments for bam-load for this
+# test case, i.e. the header (if any) + the sam files in the test
+# case directory.
 set -- "${HEADER}" ${SAM}
 
 # Because configuration has been neutered, bam-load will not find
@@ -61,7 +66,7 @@ mkdir -p actual
 "${DIRTOTEST}/bam-load" \
     --errorReport actual/report.raw.json \
     --output actual/out.sra \
-    --config "${CASE}/analysis.bam.cfg" \
+    --config analysis.bam.cfg \
     --log-level err \
     $@ || { echo "bam-load ${CASE} failed"; exit 1; }
 

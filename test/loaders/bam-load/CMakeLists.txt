@@ -91,6 +91,12 @@ if( NOT WIN32 )
             sh -c "${DIRTOTEST}/samview SRA-14452.bam | diff - SRA-14452.sam"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    
+    add_test( NAME Test_SAM_Parsing_Long_CIGAR 
+        COMMAND
+            sh -c "${DIRTOTEST}/samview SRA-14452.sam | diff - SRA-14452.sam"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
     #####################
     # min-batch-size option

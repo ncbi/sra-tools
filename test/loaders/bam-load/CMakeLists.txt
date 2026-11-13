@@ -24,7 +24,7 @@
 
 if( NOT WIN32 )
 
-    ToolsRequired(bam-load)
+    ToolsRequired(bam-load samview)
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
     add_test(NAME BamTestSetup COMMAND sh -c "echo 'vdb/schema/paths = \"${CMAKE_SOURCE_DIR}/libs/schema:${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -57,6 +57,15 @@ if( NOT WIN32 )
     )
     set_tests_properties( Test_BamLoader_VDB-6346 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    add_test( NAME Test_BamLoader_VDB-6343
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                sh test_error_report.sh "${DIRTOTEST}" "VDB-6343"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_VDB-6343 PROPERTIES FIXTURES_REQUIRED BamTest )
+
     # VDB-6344 uses the test file from VDB-6399
     add_test( NAME Test_BamLoader_VDB-6344
             COMMAND
@@ -76,15 +85,12 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_VDB-6345 PROPERTIES FIXTURES_REQUIRED BamTest )
-
-    add_test( NAME Test_BamLoader_VDB-6343
-            COMMAND
-                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                sh test_error_report.sh "${DIRTOTEST}" "VDB-6343"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    
+    add_test( NAME Test_BAM_Parsing_Long_CIGAR 
+        COMMAND
+            sh -c "${DIRTOTEST}/samview SRA-14452.bam | diff - SRA-14452.sam"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    set_tests_properties( Test_BamLoader_VDB-6343 PROPERTIES FIXTURES_REQUIRED BamTest )
 
     #####################
     # min-batch-size option

@@ -46,6 +46,22 @@ struct number_parser {
     unsigned ok:1;
 };
 
+typedef struct CIGAR_extra CIGAR_extra;
+struct CIGAR_extra {
+    union tag_type {
+        uint32_t u;
+        struct v {
+            char tag1, tag2, type, subtype;
+        } v;
+    } tag_type;
+    uint32_t count;
+#if HAVE_C99_FAM
+    uint32_t value[];
+#else
+    uint32_t value[1];
+#endif
+};
+
 /** \brief parser state **/
 struct SAM2BAM_Parser {
     void *static_buffer;
@@ -63,7 +79,12 @@ struct SAM2BAM_Parser {
     bool cr;
 
     size_t extraArrayCountPos;
+    union ui {
+        int32_t i32;
+        uint32_t u32;
+    } extraArrayMin, extraArrayMax;
     number_parser numeric;
+    CIGAR_extra *longCIGAR;
     RefNameLookupFunction lookup;
     RefNameLookupContext *lookup_ctx;
 };

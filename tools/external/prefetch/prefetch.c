@@ -38,7 +38,6 @@
 #include <kfg/kart-priv.h> /* KDirectory_IsKartFile */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
-#include <kfs/cacheteefile.h> /* KDirectoryMakeCacheTee */
 #include <kfs/directory.h> /* KDirectoryPathType */
 #include <kfs/file.h> /* KFile */
 #include <kfs/gzip.h> /* KFileMakeGzipForRead */
@@ -73,7 +72,8 @@
 #include <vfs/resolver-priv.h> /* VResolverQueryWithDir */
 #include <vfs/services-priv.h> /* KServiceNamesQueryExt */
 
-#include "kfile-no-q.h"
+#include "kfc/defs.h"
+//#include "kfile-no-q.h"
 #include "PrfMain.h"
 #include "PrfRetrier.h"
 #include "PrfOutFile.h"
@@ -1397,57 +1397,6 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     if ( rc == 0 && rw != 0 )
         rc = rw;
-
-    return rc;
-}
-
-static rc_t PrfMainDownloadCacheFile(Resolved *self,
-                        PrfMain *mane, const char *to, bool elimQuals)
-{
-    rc_t rc = 0;
-    const KFile *out = NULL;
-
-    const VPathStr * remote = NULL;
-
-    assert(self && mane);
-
-    remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
-                                               : & self -> remoteHttps;
-
-    assert(remote -> str);
-
-    if (self->file == ((void*)0)) {
-        rc = _KFileOpenRemote(&self->file, mane->kns,
-            remote->path, remote -> str);
-        if (rc != 0) {
-            PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
-                              "path=%S", remote -> str));
-            return rc;
-        }
-    }
-
-    rc = KDirectoryMakeCacheTee(mane->dir, &out, self->file, 0, "%s", to);
-    if (rc != 0) {
-        PLOGERR(klogInt, (klogInt, rc, "failed to open cache file for $(path)",
-                          "path=%S", to));
-        return rc;
-    }
-
-    STSMSG(STS_INFO, ("%S -> %s", remote -> str, to));
-
-    rc = KSraReadCacheFile( out, elimQuals );
-    if (rc != 0) {
-        PLOGERR(klogInt, (klogInt, rc, "failed to read cache file at $(path)",
-                          "path=%S", to));
-    }
-
-    RELEASE(KFile, out);
-
-    if (rc != 0)
-        return rc;
-
-    if (rc == 0)
-        STSMSG(STS_INFO, ("%s", to));
 
     return rc;
 }

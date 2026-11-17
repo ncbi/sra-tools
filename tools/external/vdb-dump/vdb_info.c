@@ -113,7 +113,7 @@ typedef struct vdb_info_data {
 
     vdb_info_bam_hdr bam_hdr;
     
-    float cache_percent;
+    double cache_percent;
     uint64_t bytes_in_cache;
 
     uint64_t seq_rows;

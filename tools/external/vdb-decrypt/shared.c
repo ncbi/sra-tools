@@ -44,7 +44,6 @@
 #include <kfs/directory.h>
 #include <kfs/sra.h>
 #include <kfs/lockfile.h>
-#include <kfs/cacheteefile.h>
 #include <kfs/buffile.h>
 #include <vfs/manager.h>
 
@@ -496,18 +495,12 @@ rc_t FileInPlace (KDirectory * cwd, const char * leaf, bool try_rename)
                 {
                     uint64_t fz;
                     size_t z;
-                    rc_t irc;
-                    uint64_t ignored;
 
                     rc = KFileSize (infile, &fz);
                     /* ignore rc for now? yes hack */
                     z = string_size (leaf);
 
-                    /* vdb-decrypt and vdb-encrypt both ignore repository cache files. */
-                    irc = GetCacheTruncatedSize (infile, &ignored);
-                    if (irc == 0)
-                        STSMSG (1, ("skipping cache download file %s", leaf));
-                    else if ((fz == 0) &&
+                    if ((fz == 0) &&
                              (string_cmp (leaf + (z - (sizeof (".lock")-1)), sizeof (".lock"),
                                           ".lock", sizeof (".lock") , sizeof (".lock")) == 0))
                         STSMSG (1, ("skipping cache lock download file %s", leaf));

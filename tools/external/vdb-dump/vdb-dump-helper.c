@@ -25,10 +25,9 @@
 */
 
 #include <klib/printf.h>
-#include <kfs/cacheteefile.h>
 #include <sra/sraschema.h>
 #include <vfs/resolver.h>
-
+#include <kfs/cachetee3file.h>
 #include <os-native.h>
 #include <sysalloc.h>
 
@@ -431,7 +430,7 @@ rc_t vdh_set_local_or_remote_to_str(const VPath * local, const VPath * remote,
     return rc;
 }
 
-rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache ) {
+rc_t vdh_check_cache_comleteness( const char * path, double * percent, uint64_t * bytes_in_cache ) {
     rc_t rc = 0;
     if ( NULL != percent ) {
         ( * percent ) = 0.0;
@@ -447,7 +446,7 @@ rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t *
             const KFile * f = NULL;
             rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
             if ( 0 == rc ) {
-                rc = GetCacheCompleteness( f, percent, bytes_in_cache );
+                rc = CacheTee3FileGetCompleteness( f, percent, bytes_in_cache );
             } else {
                 rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
                 if ( 0 == rc ) {

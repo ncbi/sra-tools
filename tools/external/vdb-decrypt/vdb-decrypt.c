@@ -30,7 +30,6 @@
 #include <krypto/wgaencrypt.h>
 #include <krypto/encfile.h>
 #include <kfs/file.h>
-#include <kfs/cacheteefile.h>
 #include <klib/rc.h>
 #include <klib/defs.h>
 #include <klib/log.h>

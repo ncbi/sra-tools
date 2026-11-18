@@ -139,16 +139,17 @@ struct BAM_Alignment {
 
     uint64_t recordId;
 	uint64_t keyId;
-	bool wasInserted;
 
     float fpos; /**< Informational only. This is the proportional file position at the start of the IO operation that produced this record. < 0 if unknown, else [0 - 1]. */
     unsigned datasize;
     unsigned cigar;
+    unsigned cigarOps;
     unsigned seq;
     unsigned qual;
     unsigned numExtra;
     unsigned hasColor;
     unsigned platform;
+    bool wasInserted;
 #if HAVE_C99_FAM
     struct offset_size_s extra[];
 #else

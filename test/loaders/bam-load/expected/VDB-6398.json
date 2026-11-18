@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.1",
+  "reportType": "SRA Validation Report",
+  "reportId": "",
+  "validator": {
+    "name": "bam-load"
+  },
+  "submission": {
+    "submissionId": "",
+    "status": "FAILED"
+  },
+  "submissionSummary": {
+    "filesProcessed": 2,
+    "filesPassed": 1,
+    "filesFailed": 1,
+    "totalReadsExamined": 4000,
+    "readsPassingValidation": 4000,
+    "readsFailingValidation": 0,
+    "readSuccessRatePercent": 100,
+    "totalBasePairsExamined": 184312,
+    "passingBasePairs": 184312,
+    "failingBasePairs": 0,
+    "basePairSuccessRatePercent": 100,
+    "totalValidationErrors": 2,
+    "uniqueErrorTypes": 1
+  },
+  "submissionQualityMetrics": {
+    "filesProcessed": 2,
+    "filesPassed": 1,
+    "filesFailed": 1,
+    "totalReadsExamined": 4000,
+    "readsPassingValidation": 4000,
+    "readsFailingValidation": 0,
+    "readSuccessRatePercent": 100,
+    "totalBasePairsExamined": 184312,
+    "passingBasePairs": 184312,
+    "failingBasePairs": 0,
+    "basePairSuccessRatePercent": 100,
+    "totalValidationErrors": 2,
+    "uniqueErrorTypes": 1,
+    "errorDistribution": [
+      {
+        "code": "SRAE-283",
+        "name": "Excessive non-standard bases",
+        "occurrences": 2,
+        "filesAffected": [
+          "VDB-6398/VDB-6398_fail.sam",
+          "VDB-6398/VDB-6398_pass.sam"
+        ]
+      }
+    ]
+  },
+  "fileSummary": [
+    {
+      "filename": "VDB-6398/VDB-6398_fail.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "errorCount": 1,
+      "warningCount": 0,
+      "failedReads": 0,
+      "totalReadsExamined": 2066
+    },
+    {
+      "filename": "VDB-6398/VDB-6398_pass.sam",
+      "fileFormat": "SAM",
+      "status": "SUCCESS",
+      "errorCount": 0,
+      "warningCount": 0,
+      "failedReads": 0,
+      "totalReadsExamined": 1934
+    }
+  ],
+  "files": [
+    {
+      "filename": "VDB-6398/VDB-6398_fail.sam",
+      "fileFormat": "SAM",
+      "status": "FAILED",
+      "qualityMetrics": {
+        "fileSizeBytes": 318934,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 2066,
+        "readsPassingValidation": 2066,
+        "readsFailingValidation": 0,
+        "readSuccessRatePercent": 100,
+        "totalBasePairsExamined": 95104,
+        "passingBasePairs": 95104,
+        "failingBasePairs": 0,
+        "basePairSuccessRatePercent": 100,
+        "totalValidationErrors": 0,
+        "uniqueErrorTypes": 1,
+        "errorDistribution": [
+          {
+            "code": "SRAE-283",
+            "name": "Excessive non-standard bases",
+            "occurrences": 1
+          }
+        ]
+      },
+      "issues": [
+        {
+          "issueId": "ERR-0001",
+          "severity": "ERROR",
+          "code": "SRAE-283",
+          "name": "Excessive non-standard bases",
+          "occurrences": 1,
+          "documentationUrl": "https://trace.ncbi.nlm.nih.gov/sra/docs/errors/SRAE-283"
+        }
+      ],
+      "errorReadSamples": {
+        "sampleLimit": 1,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 0,
+        "reads": []
+      }
+    },
+    {
+      "filename": "VDB-6398/VDB-6398_pass.sam",
+      "fileFormat": "SAM",
+      "status": "SUCCESS",
+      "qualityMetrics": {
+        "fileSizeBytes": 298918,
+        "validationCoveragePercent": 100,
+        "processingCompleted": true,
+        "totalReadsExamined": 1934,
+        "readsPassingValidation": 1934,
+        "readsFailingValidation": 0,
+        "readSuccessRatePercent": 100,
+        "totalBasePairsExamined": 89208,
+        "passingBasePairs": 89208,
+        "failingBasePairs": 0,
+        "basePairSuccessRatePercent": 100,
+        "totalValidationErrors": 0,
+        "uniqueErrorTypes": 0,
+        "errorDistribution": []
+      },
+      "issues": [],
+      "errorReadSamples": {
+        "sampleLimit": 1,
+        "sampleStrategy": "first_reads_with_detected_errors",
+        "sampledReadCount": 0,
+        "reads": []
+      }
+    }
+  ]
+}

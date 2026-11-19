@@ -56,9 +56,6 @@
 /* Local path for caching .sra file */
 #define ENV_VAR_CACHE_URL ENV_MAGIC_CACHE
 
-/* Size of .sra file */
-#define ENV_VAR_SIZE_URL "VDB_SIZE_URL"
-
 /* CE Token is required for .sra file if set to '1' */
 #define ENV_VAR_REMOTE_NEED_CE ENV_MAGIC_REMOTE_NEED_CE
 
@@ -77,9 +74,6 @@
 
 /* Local path for caching .vdbcache file */
 #define ENV_VAR_CACHE_VDBCACHE ENV_MAGIC_CACHE_VDBCACHE
-
-/* Size of .vdbcache file */
-#define ENV_VAR_SIZE_VDBCACHE "VDB_SIZE_VDBCACHE"
 
 /* CE Token is required for remote .vdbcache file if set to '1' */
 #define ENV_VAR_CACHE_NEED_CE ENV_MAGIC_CACHE_NEED_CE

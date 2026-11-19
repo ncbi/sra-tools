@@ -176,8 +176,6 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
 
         if (filePath != info.end())
             environment[names[env_var::REMOTE_URL]] = filePath->second;
-        if (useSize && fileSize != info.end())
-            environment[names[env_var::SIZE_URL]] = fileSize->second;
         if (CER != info.end())
             environment[names[env_var::REMOTE_NEED_CE]] = "1";
         if (payR != info.end())
@@ -189,8 +187,6 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
             auto const cachePayR = info.find(key.cachePayR);
 
             environment[names[env_var::REMOTE_VDBCACHE]] = cachePath->second;
-            if (useSize && cacheSize != info.end())
-                environment[names[env_var::SIZE_VDBCACHE]] = cacheSize->second;
             if (cacheCER != info.end())
                 environment[names[env_var::CACHE_NEED_CE]] = "1";
             if (cachePayR != info.end())

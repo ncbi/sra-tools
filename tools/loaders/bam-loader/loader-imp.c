@@ -1874,12 +1874,38 @@ static rc_t KMDataNodeWriteAttr(KMDataNode *node, char const name[], std::string
     return KMDataNodeWriteAttr(node, name, value.c_str());
 }
 
+static void getReadNameDigest(BAM_File const *fh, char digest[65])
+{
+    uint8_t buffer[32];
+    char *cp = &digest[65];
+    uint8_t const *raw = &buffer[32];
+
+    BAM_FileGetReadNameDigest(fh, buffer);
+    *--cp = '\0';
+    do {
+        auto const byte = *--raw;
+        *--cp = "0123456789abcdef"[byte & 0xF];
+        *--cp = "0123456789abcdef"[byte >> 4];
+    } while (cp != digest);
+}
+
+static rc_t recordReadNameDigest(VDatabase *db, int fileNumber, BAM_File const *fh)
+{
+    char digest[65];
+    rc_t rc = 0;
+    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
+    getReadNameDigest(fh, digest);
+    rc = KMDataNodeWriteAttr(node, "QNAME_digest", digest);
+    KMDataNodeRelease(node);
+    return rc;
+}
+
 static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
 {
     rc_t rc = 0;
     auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
     auto const fp = FlagStatText{flagCounter};
-    
+
     do {
         rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
         rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) break;
@@ -3594,6 +3620,16 @@ WRITE_ALIGNMENT:
         auto const ppos = rc == 0 ? BAM_FileGetProportionalPosition(bam) : lastRecPPos;
         ctx->errorReport.finish(rptFile, pos, ppos * 100.0, rc == 0);
     }
+
+    if (rc == 0) {
+        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
+        if (rc == 0) {
+            rc = recordReadNameDigest(db, fileNumber, bam);
+        }
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
+        }
+    }
     BAM_FileRelease(bam);
 #ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);
@@ -3604,13 +3640,6 @@ WRITE_ALIGNMENT:
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&cigBuf);
     KDataBufferWhack(&data.buffer);
-        
-    if (rc == 0) {
-        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
-        if (rc) {
-            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
-        }
-    }
     return rc;
 }
 

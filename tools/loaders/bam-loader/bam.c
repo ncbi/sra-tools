@@ -1418,6 +1418,8 @@ static rc_t BAM_FileMakeWithKFileAndHeader(BAM_File **cself,
     if (self == NULL)
         return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
 
+    SHA256StateInit(&self->qnameHasher);
+
     rc = BufferedFileInit(&self->file.bam.file, file);
     if (rc) {
         free(self);
@@ -2258,6 +2260,9 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
 
         if (self->flagCounter)
             FLAG_Counter_add(self->flagCounter, getFlags(*rhs));
+
+        SHA256StateAppend(&self->qnameHasher, (void const *)getReadName(*rhs), (size_t)getReadNameLength(*rhs) - 1);
+        SHA256StateAppend(&self->qnameHasher, (void const *)"\n", (size_t)1);
 
         if (self->defer && BAM_AlignmentShouldDefer(*rhs)) {
             rc_t const rc = writeDefer(self, *rhs);
@@ -3723,4 +3728,13 @@ float BAM_AlignmentGetProportionalPosition(BAM_Alignment const *self) {
  */
 uint64_t BAM_AlignmentRecordNumber(BAM_Alignment const *self) {
     return self ? self->recordId : 0;
+}
+
+/**
+ * Get a SHA256 digest of all of the read names.
+ */
+void BAM_FileGetReadNameDigest(BAM_File const *self, uint8_t digest[32]) {
+    SHA256State state;
+    memmove(&state, &self->qnameHasher, sizeof(state));
+    SHA256StateFinish(&state, digest);
 }

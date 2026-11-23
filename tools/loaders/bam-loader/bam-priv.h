@@ -27,6 +27,7 @@
 #include "bam.h"
 #include "bam-alignment.h"
 #include "flag-stat.h"
+#include <klib/checksum.h>
 
 typedef struct BAMIndex BAMIndex;
 typedef struct BufferedFile BufferedFile;
@@ -77,6 +78,8 @@ struct BAM_File {
         SAMFile sam;
     } file;
     RawFile_vt vt;
+
+    SHA256State qnameHasher;
 
     KFile *defer;
     

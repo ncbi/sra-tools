@@ -1856,14 +1856,14 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
-static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, rc_t &rc)
+static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, char const *name, rc_t &rc)
 {
     KMetadata *meta = nullptr;
     rc = VDatabaseOpenMetadataUpdate(db, &meta);
     if (rc) return nullptr;
     
     KMDataNode *node = nullptr;
-    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i", fileNumber);
+    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i/%s", fileNumber, name);
     KMetadataRelease(meta);
     
     return rc ? nullptr : node;
@@ -1889,13 +1889,19 @@ static void getReadNameDigest(BAM_File const *fh, char digest[65])
     } while (cp != digest);
 }
 
-static rc_t recordReadNameDigest(VDatabase *db, int fileNumber, BAM_File const *fh)
+static rc_t recordReadNameDigest(VDatabase *db, int fileNumber, char const bamFile[], BAM_File const *fh)
 {
     char digest[65];
     rc_t rc = 0;
-    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
+    auto node = FingerprintMetaNode(db, fileNumber, "QNAME", rc); if (rc) return rc;
     getReadNameDigest(fh, digest);
-    rc = KMDataNodeWriteAttr(node, "QNAME_digest", digest);
+    do {
+        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "digest", digest); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "format", "samtools view | cut -f 1"); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "version", "1"); if (rc) break;
+        rc = KMDataNodeWriteAttr(node, "algorithm", "SHA-256"); if (rc) break;
+    } while(0);
     KMDataNodeRelease(node);
     return rc;
 }
@@ -1903,7 +1909,7 @@ static rc_t recordReadNameDigest(VDatabase *db, int fileNumber, BAM_File const *
 static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
 {
     rc_t rc = 0;
-    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
+    auto node = FingerprintMetaNode(db, fileNumber, "flagstat", rc); if (rc) return rc;
     auto const fp = FlagStatText{flagCounter};
 
     do {
@@ -3624,7 +3630,7 @@ WRITE_ALIGNMENT:
     if (rc == 0) {
         rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
         if (rc == 0) {
-            rc = recordReadNameDigest(db, fileNumber, bam);
+            rc = recordReadNameDigest(db, fileNumber, bamFile, bam);
         }
         if (rc) {
             (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");

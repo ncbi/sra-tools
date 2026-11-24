@@ -1856,16 +1856,26 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
-static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, char const *name, rc_t &rc)
+static KMDataNode *childNode(KMDataNode *node, char const child[], rc_t &rc)
+{
+    KMDataNode *cnode = nullptr;
+    rc = KMDataNodeOpenNodeUpdate(node, &cnode, child);
+    return cnode;
+}
+
+static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, char const bamFile[], rc_t &rc)
 {
     KMetadata *meta = nullptr;
     rc = VDatabaseOpenMetadataUpdate(db, &meta);
     if (rc) return nullptr;
     
     KMDataNode *node = nullptr;
-    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i/%s", fileNumber, name);
+    rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i", fileNumber);
     KMetadataRelease(meta);
-    
+    if (rc == 0) {
+        rc = KMDataNodeWriteAttr(node, "name", bamFile);
+    }
+
     return rc ? nullptr : node;
 }
 
@@ -1889,36 +1899,47 @@ static void getReadNameDigest(BAM_File const *fh, char digest[65])
     } while (cp != digest);
 }
 
-static rc_t recordReadNameDigest(VDatabase *db, int fileNumber, char const bamFile[], BAM_File const *fh)
+static rc_t recordReadNameDigest(KMDataNode *node, BAM_File const *fh)
 {
     char digest[65];
     rc_t rc = 0;
-    auto node = FingerprintMetaNode(db, fileNumber, "QNAME", rc); if (rc) return rc;
     getReadNameDigest(fh, digest);
-    do {
-        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "digest", digest); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "format", "samtools view | cut -f 1"); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "version", "1"); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "algorithm", "SHA-256"); if (rc) break;
-    } while(0);
-    KMDataNodeRelease(node);
+
+    rc = KMDataNodeWriteAttr(node, "digest", digest); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "format", "samtools view | cut -f 1"); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "version", "1.13"); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "algorithm", "SHA-256"); if (rc) return rc;
     return rc;
 }
 
-static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
+static rc_t recordFlagStatDigest(KMDataNode *node, FLAG_Counter const &flagCounter)
+{
+    auto const fp = FlagStatText{flagCounter};
+    rc_t rc = 0;
+
+    rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) return rc;
+    return rc;
+}
+
+static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const fileName[], FLAG_Counter const &flagCounter, BAM_File const *fh)
 {
     rc_t rc = 0;
-    auto node = FingerprintMetaNode(db, fileNumber, "flagstat", rc); if (rc) return rc;
-    auto const fp = FlagStatText{flagCounter};
-
-    do {
-        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) break;
-    } while(0);
+    auto node = FingerprintMetaNode(db, fileNumber, fileName, rc);
+    if (rc == 0) {
+        auto const cnode = childNode(node, "flagstat", rc);
+        if (rc == 0)
+            rc = recordFlagStatDigest(cnode, flagCounter);
+        KMDataNodeRelease(cnode);
+    }
+    if (rc == 0) {
+        auto const cnode = childNode(node, "QNAME", rc);
+        if (rc == 0)
+            rc = recordReadNameDigest(cnode, fh);
+        KMDataNodeRelease(cnode);
+    }
     KMDataNodeRelease(node);
     return rc;
 }
@@ -3628,10 +3649,7 @@ WRITE_ALIGNMENT:
     }
 
     if (rc == 0) {
-        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
-        if (rc == 0) {
-            rc = recordReadNameDigest(db, fileNumber, bamFile, bam);
-        }
+        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter, bam);
         if (rc) {
             (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
         }

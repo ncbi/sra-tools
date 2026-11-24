@@ -38,6 +38,7 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+    set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_SETUP DB )
 
     add_test( NAME Test_BamLoader_fingerprint
             COMMAND
@@ -45,7 +46,7 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     # In theory, this test could depend on any of the tests that use the `test.sam` file.
-    set_tests_properties( Test_BamLoader_fingerprint PROPERTIES DEPENDS "Test_BamLoader_1" )
+    set_tests_properties( Test_BamLoader_fingerprint PROPERTIES DEPENDS DB )
     
     # VDB-6346 uses the test file from VDB-6397
     add_test( NAME Test_BamLoader_VDB-6346

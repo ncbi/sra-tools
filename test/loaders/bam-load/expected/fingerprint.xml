@@ -1,1 +1,4 @@
-<file_1 algorithm="SHA-256" digest="b1f19db8d1deb2e98c1fc630a40965b40669a9ad65a80ce18bfea21c053bd123" format="samtools flagstat | head -n -2" name="test.sam" version="1.13"/>
+<file_1 name="test.sam">
+  <QNAME algorithm="SHA-256" digest="d594f9daa2ab673e1b83dc87f7fd8e17ac61db418aba55b6058b3bdb5620567a" format="samtools view | cut -f 1" version="1.13"/>
+  <flagstat algorithm="SHA-256" digest="b1f19db8d1deb2e98c1fc630a40965b40669a9ad65a80ce18bfea21c053bd123" format="samtools flagstat | head -n -2" version="1.13"/>
+</file_1>

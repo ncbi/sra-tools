@@ -1856,7 +1856,14 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
     return linkageGroup;
 }
 
-static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, rc_t &rc)
+static KMDataNode *childNode(KMDataNode *node, char const child[], rc_t &rc)
+{
+    KMDataNode *cnode = nullptr;
+    rc = KMDataNodeOpenNodeUpdate(node, &cnode, child);
+    return cnode;
+}
+
+static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, char const bamFile[], rc_t &rc)
 {
     KMetadata *meta = nullptr;
     rc = VDatabaseOpenMetadataUpdate(db, &meta);
@@ -1865,7 +1872,10 @@ static KMDataNode *FingerprintMetaNode(VDatabase *db, int fileNumber, rc_t &rc)
     KMDataNode *node = nullptr;
     rc = KMetadataOpenNodeUpdate(meta, &node, "LOAD/QC/file_%i", fileNumber);
     KMetadataRelease(meta);
-    
+    if (rc == 0) {
+        rc = KMDataNodeWriteAttr(node, "name", bamFile);
+    }
+
     return rc ? nullptr : node;
 }
 
@@ -1874,19 +1884,62 @@ static rc_t KMDataNodeWriteAttr(KMDataNode *node, char const name[], std::string
     return KMDataNodeWriteAttr(node, name, value.c_str());
 }
 
-static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const bamFile[], FLAG_Counter const &flagCounter)
+static void getReadNameDigest(BAM_File const *fh, char digest[65])
+{
+    uint8_t buffer[32];
+    char *cp = &digest[65];
+    uint8_t const *raw = &buffer[32];
+
+    BAM_FileGetReadNameDigest(fh, buffer);
+    *--cp = '\0';
+    do {
+        auto const byte = *--raw;
+        *--cp = "0123456789abcdef"[byte & 0xF];
+        *--cp = "0123456789abcdef"[byte >> 4];
+    } while (cp != digest);
+}
+
+static rc_t recordReadNameDigest(KMDataNode *node, BAM_File const *fh)
+{
+    char digest[65];
+    rc_t rc = 0;
+    getReadNameDigest(fh, digest);
+
+    rc = KMDataNodeWriteAttr(node, "digest", digest); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "format", "samtools view | cut -f 1"); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "version", "1.13"); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "algorithm", "SHA-256"); if (rc) return rc;
+    return rc;
+}
+
+static rc_t recordFlagStatDigest(KMDataNode *node, FLAG_Counter const &flagCounter)
+{
+    auto const fp = FlagStatText{flagCounter};
+    rc_t rc = 0;
+
+    rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) return rc;
+    rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) return rc;
+    return rc;
+}
+
+static rc_t RecordFingerprint(VDatabase *db, int fileNumber, char const fileName[], FLAG_Counter const &flagCounter, BAM_File const *fh)
 {
     rc_t rc = 0;
-    auto node = FingerprintMetaNode(db, fileNumber, rc); if (rc) return rc;
-    auto const fp = FlagStatText{flagCounter};
-    
-    do {
-        rc = KMDataNodeWriteAttr(node, "name", bamFile); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "digest", fp.digest()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "format", fp.format()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "version", fp.version()); if (rc) break;
-        rc = KMDataNodeWriteAttr(node, "algorithm", fp.algorithm()); if (rc) break;
-    } while(0);
+    auto node = FingerprintMetaNode(db, fileNumber, fileName, rc);
+    if (rc == 0) {
+        auto const cnode = childNode(node, "flagstat", rc);
+        if (rc == 0)
+            rc = recordFlagStatDigest(cnode, flagCounter);
+        KMDataNodeRelease(cnode);
+    }
+    if (rc == 0) {
+        auto const cnode = childNode(node, "QNAME", rc);
+        if (rc == 0)
+            rc = recordReadNameDigest(cnode, fh);
+        KMDataNodeRelease(cnode);
+    }
     KMDataNodeRelease(node);
     return rc;
 }
@@ -3594,6 +3647,13 @@ WRITE_ALIGNMENT:
         auto const ppos = rc == 0 ? BAM_FileGetProportionalPosition(bam) : lastRecPPos;
         ctx->errorReport.finish(rptFile, pos, ppos * 100.0, rc == 0);
     }
+
+    if (rc == 0) {
+        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter, bam);
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
+        }
+    }
     BAM_FileRelease(bam);
 #ifdef HAS_CTX_VALUE
     MMArrayLock(ctx->id2value);
@@ -3604,13 +3664,6 @@ WRITE_ALIGNMENT:
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&cigBuf);
     KDataBufferWhack(&data.buffer);
-        
-    if (rc == 0) {
-        rc = RecordFingerprint(db, fileNumber, bamFile, flagCounter);
-        if (rc) {
-            (void)LOGERR(klogErr, rc, "SRAE-252: Internal error: Cannot update loader meta");
-        }
-    }
     return rc;
 }
 

@@ -671,3 +671,8 @@ rc_t BAM_FileGetHeaderText(BAM_File const *cself, char const **header, size_t *h
  */
 rc_t BAM_FileGetReadGroupByName ( const BAM_File *self,
     const char *name, const BAMReadGroup **result );
+
+/**
+ * Get a SHA256 digest of all of the read names.
+ */
+void BAM_FileGetReadNameDigest(BAM_File const *self, uint8_t digest[32]);

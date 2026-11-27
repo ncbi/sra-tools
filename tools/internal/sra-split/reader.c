@@ -35,48 +35,65 @@
 #include <vdb/table.h>
 #endif
 
-rc_t reader_init( p_reader_t reader, VDBManager * mgr, const char * src ) {
-    const VDatabase * db;
-    rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", src );
-    reader -> cur = NULL;
+static rc_t make_database( VDBManager * mgr, const VDatabase ** db, const char * src ) {
+    rc_t rc = VDBManagerOpenDBRead( mgr, db, NULL, "%s", src );
     if ( 0 != rc ) {
         ErrMsg( "VDBManagerOpenDBRead( %s ) -> %R", src, rc );
+    }
+    return rc;
+}
+
+static rc_t make_table( const VDatabase * db, const VTable ** tbl, const char * src ) {
+    rc_t rc = VDatabaseOpenTableRead( db, tbl, "SEQUENCE" );
+    if ( 0 != rc ) {
+        ErrMsg( "VDatabaseOpenTableRead( %s ) -> %R", src, rc );
+    }
+    return rc;
+}
+
+static rc_t make_cursor( p_reader_t reader, const VTable * tbl, const char * src ) {
+    rc_t rc = VTableCreateCachedCursorRead( tbl, &( reader -> cur ), 1024 * 1024 );
+    if ( 0 != rc ) {
+        ErrMsg( "VTableCreateCachedCursorRead( %s ) -> %R", src, rc );
     } else {
-        const VTable * tbl;
-        rc = VDatabaseOpenTableRead( db, &tbl, "SEQUENCE" );
-        VDatabaseRelease( db );
+        rc = VCursorAddColumn( reader -> cur, &( reader -> quality_idx ), "QUALITY" );
         if ( 0 != rc ) {
-            ErrMsg( "VDatabaseOpenTableRead( %s ) -> %R", src, rc );
+            ErrMsg( "VCursorAddColumn( %s, QUALITY ) -> %R", src, rc );
         } else {
-            rc = VTableCreateCachedCursorRead( tbl, &( reader -> cur ), 1024 * 1024 );
-            VTableRelease( tbl );
+            rc = VCursorAddColumn( reader -> cur, &( reader -> filter_idx ), "READ_FILTER" );
             if ( 0 != rc ) {
-                ErrMsg( "VTableCreateCachedCursorRead( %s ) -> %R", src, rc );
+                ErrMsg( "VCursorAddColumn( %s, READ_FILTER ) -> %R", src, rc );
             } else {
-                rc = VCursorAddColumn( reader -> cur, &( reader -> quality_idx ), "QUALITY" );
+                rc = VCursorOpen( reader -> cur );
                 if ( 0 != rc ) {
-                    ErrMsg( "VCursorAddColumn( %s, QUALITY ) -> %R", src, rc );
+                    ErrMsg( "VCursorOpen( %s ) -> %R", src, rc );
                 } else {
-                    rc = VCursorAddColumn( reader -> cur, &( reader -> filter_idx ), "READ_FILTER" );
+                    rc = VCursorIdRange( reader -> cur, reader -> quality_idx,
+                                         &( reader -> first ), &( reader -> count ) );
                     if ( 0 != rc ) {
-                        ErrMsg( "VCursorAddColumn( %s, READ_FILTER ) -> %R", src, rc );
+                        ErrMsg( "VCursorIdRange( %s ) -> %R", src, rc );
                     } else {
-                        rc = VCursorOpen( reader -> cur );
-                        if ( 0 != rc ) {
-                            ErrMsg( "VCursorOpen( %s ) -> %R", src, rc );
-                        } else {
-                            rc = VCursorIdRange( reader -> cur, reader -> quality_idx,
-                                    &( reader -> first ), &( reader -> count ) );
-                            if ( 0 != rc ) {
-                                ErrMsg( "VCursorIdRange( %s ) -> %R", src, rc );
-                            } else {
-                                reader ->row_id = reader -> first;
-                                reader -> id = 0;
-                            }
-                        }
+                        reader ->row_id = reader -> first;
+                        reader -> id = 0;
                     }
                 }
             }
+        }
+    }
+    return rc;
+}
+
+rc_t reader_init( p_reader_t reader, VDBManager * mgr, const char * src ) {
+    const VDatabase * db;
+    reader -> cur = NULL;
+    rc_t rc = make_database( mgr, &db, src );
+    if ( 0 == rc ) {
+        const VTable * tbl;
+        rc = make_table( db, &tbl, "SEQUENCE" );
+        VDatabaseRelease( db );
+        if ( 0 == rc ) {
+            rc = make_cursor( reader, tbl, src );
+            VTableRelease( tbl );
         }
     }
     return rc;

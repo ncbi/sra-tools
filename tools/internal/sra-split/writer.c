@@ -40,9 +40,10 @@
 #endif
 
 const char * schema_txt = "version 2; "
+    "include 'vdb/vdb.vschema';"
     "table SUB_TAB #1.0 { "
-        "column U8 QUALITY_CACHE; "
-        "column U8 READ_FILTER_CACHE; "
+        "column <U8> zip_encoding QUALITY_CACHE; "
+        "column <U8> zip_encoding READ_FILTER_CACHE; "
     " }; "
     "database MAIN_DB #1.0 { table SUB_TAB #1 SEQUENCE; };";
 
